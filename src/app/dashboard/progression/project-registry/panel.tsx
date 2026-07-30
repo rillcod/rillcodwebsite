@@ -334,7 +334,7 @@ export default function ProjectRegistryPage({
                         ?.label ?? row.track}
                     </span>
                     {!row.is_active && (
-                      <span className="px-3 py-1 rounded-xl bg-rose-500/10 text-[9px] font-black uppercase tracking-[0.2em] text-rose-400 border border-rose-500/20 shadow-sm">
+                      <span className="px-3 py-1 rounded-xl bg-rose-500/10 text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm">
                         Archived
                       </span>
                     )}
@@ -415,7 +415,7 @@ export default function ProjectRegistryPage({
                           void deleteRow(row.id);
                         }
                       }}
-                      className="p-4 rounded-2xl border border-border bg-background hover:bg-rose-500/5 hover:text-rose-400 hover:border-rose-500/30 transition-all duration-500 shadow-sm disabled:opacity-50"
+                      className="p-4 rounded-2xl border border-border bg-background hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 transition-all duration-500 shadow-sm disabled:opacity-50"
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>

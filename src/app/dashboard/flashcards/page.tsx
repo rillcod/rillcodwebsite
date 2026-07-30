@@ -221,7 +221,7 @@ export default function FlashcardsPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 flex items-center justify-center">
-                  <SparklesIcon className="w-5 h-5 text-emerald-400" />
+                  <SparklesIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-2xl font-black text-foreground">
@@ -242,7 +242,7 @@ export default function FlashcardsPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/10 flex items-center justify-center">
-                  <DocumentTextIcon className="w-5 h-5 text-purple-400" />
+                  <DocumentTextIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-2xl font-black text-foreground">6</p>
@@ -309,14 +309,14 @@ export default function FlashcardsPage() {
                               className="p-2 hover:bg-muted rounded-xl transition-colors"
                               title="Open Builder"
                             >
-                              <DocumentTextIcon className="w-4 h-4 text-purple-400" />
+                              <DocumentTextIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                             </button>
                             <button
                               onClick={() => deleteDeck(deck.id, deck.title)}
                               className="p-2 hover:bg-rose-500/10 rounded-xl transition-colors"
                               title="Delete Deck"
                             >
-                              <TrashIcon className="w-4 h-4 text-rose-400" />
+                              <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                             </button>
                           </div>
                         )}

@@ -375,14 +375,14 @@ export function ReceiptBuilderPanel() {
                       }
                       className="w-28 px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
                     />
-                    <span className="text-sm font-black text-emerald-400 w-24 text-right flex-shrink-0">
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 w-24 text-right flex-shrink-0">
                       ₦{(item.quantity * item.unit_price).toLocaleString()}
                     </span>
                     {form.items.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeItem(idx)}
-                        className="text-rose-400 hover:text-rose-300"
+                        className="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300"
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -393,10 +393,10 @@ export function ReceiptBuilderPanel() {
             </div>
             <div className="flex justify-end mt-2">
               <div className="bg-emerald-500/10 border border-emerald-500/20 px-5 py-2 rounded-md">
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                   Total:{' '}
                 </span>
-                <span className="text-lg font-black text-emerald-300">
+                <span className="text-lg font-black text-emerald-700 dark:text-emerald-300">
                   ₦{totalAmount.toLocaleString()}
                 </span>
               </div>

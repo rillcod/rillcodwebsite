@@ -92,7 +92,7 @@ export default function AccountabilityPage() {
   if (authLoading || !profile) {
     return (
       <div className="p-8">
-        <ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-500" />
+        <ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function AccountabilityPage() {
     return (
       <div className="p-8">
         <div className="bg-card shadow-sm border border-border rounded-xl p-8 flex items-start gap-4">
-          <ShieldCheckIcon className="w-6 h-6 text-rose-500 shrink-0" />
+          <ShieldCheckIcon className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" />
           <div>
             <h2 className="font-black text-foreground">Administrators only</h2>
             <p className="text-sm text-muted-foreground">

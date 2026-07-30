@@ -98,11 +98,11 @@ interface StudentOption {
 
 const INVOICE_STATUS_STYLES: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground border-border',
-  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  pending: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
   sent: 'bg-primary/10 text-primary border-primary/30',
-  partially_paid: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  overdue: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+  partially_paid: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  paid: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  overdue: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30',
   cancelled: 'bg-muted text-muted-foreground border-border',
   void: 'bg-muted text-muted-foreground border-border',
 };
@@ -560,7 +560,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       {isAdmin && termDupes.length > 0 && (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Term duplicates</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Term duplicates</p>
             <p className="text-sm font-bold text-foreground mt-0.5">
               {termDupes.length} school term(s) have more than one active invoice. Clean these so payment stays term-aware.
             </p>
@@ -703,7 +703,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                       })()
                     ) : null}
                     {academicCoverageLabel(inv) && (
-                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
                         {academicCoverageLabel(inv)}
                       </span>
                     )}
@@ -716,7 +716,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                       {formatMoney(inv.amount, inv.currency)}
                     </span>
                     {inv.amount_remaining != null && Number(inv.amount_remaining) > 0.01 && Number(inv.amount_remaining) < Number(inv.amount) && (
-                      <span className="text-xs font-bold text-amber-400">
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                         Remaining {formatMoney(inv.amount_remaining, inv.currency)}
                       </span>
                     )}
@@ -798,7 +798,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     <button
                       onClick={() => sendReminder(inv)}
                       disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-amber-500/50 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-amber-500/50 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md"
                       title={inv.billing_cycle_id ? 'Send a manual reminder (automatic term reminders also run on schedule)' : 'Send payment reminder'}
                     >
                       <BellAlertIcon className="w-3 h-3" /> Remind
@@ -837,7 +837,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                         onClick={() => { setEmailingId(inv.id); setEmailOverride(resolvedEmail(inv) ?? ''); }}
                         className={`inline-flex items-center gap-1 px-2.5 py-1.5 border text-[10px] font-black uppercase tracking-widest rounded-md transition-colors ${
                           sentIds.has(inv.id)
-                            ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
+                            ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
                             : 'border-border hover:border-primary/50 text-primary'
                         }`}
                         title={sentIds.has(inv.id) ? 'Sent — click to resend' : resolvedEmail(inv) ? `Email to ${resolvedEmail(inv)}` : 'Email invoice (enter address)'}
@@ -865,7 +865,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     <button
                       onClick={() => deleteInvoice(inv)}
                       disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
                       title={inv.billing_cycle_id ? 'Cancel term invoice (reminders stop; history preserved)' : 'Delete invoice (cannot be undone)'}
                     >
                       <TrashIcon className="w-3 h-3" />
@@ -1247,7 +1247,7 @@ function QuickInvoiceForm({
                   <button
                     onClick={() => removeItem(i)}
                     disabled={items.length === 1}
-                    className="px-2 text-rose-400 hover:text-rose-300 disabled:opacity-30"
+                    className="px-2 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-30"
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>

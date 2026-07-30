@@ -73,7 +73,7 @@ export function GradingAssessmentView({
       <div className="flex flex-wrap items-center gap-2">
         <GradingModeBadge mode={gradingMode} />
         {status && (
-          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-400">
+          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
             {status.replace(/_/g, ' ')}
           </span>
         )}
@@ -120,7 +120,7 @@ export function GradingAssessmentView({
                 <div key={`${row.criterion}-${i}`} className="rounded-xl border border-border bg-card px-3.5 py-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-xs font-bold text-foreground">{row.criterion}</p>
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-amber-400">
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                       {row.maxPoints} pts
                     </span>
                   </div>
@@ -137,7 +137,7 @@ export function GradingAssessmentView({
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Submitted Evidence</p>
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${hasSubmission ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${hasSubmission ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
               {hasSubmission ? 'Ready to Review' : 'No Submitted Content'}
             </span>
           </div>
@@ -149,7 +149,7 @@ export function GradingAssessmentView({
                   {isCode ? 'Source Code Submission' : 'Written Essay / Text Response'}
                 </span>
               </div>
-              <div className={`max-h-[32rem] overflow-y-auto rounded-xl border border-border p-4 ${isCode ? 'bg-slate-950 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner' : 'bg-background text-sm text-foreground leading-relaxed'}`}>
+              <div className={`max-h-[32rem] overflow-y-auto rounded-xl border border-border p-4 ${isCode ? 'bg-slate-950 font-mono text-xs text-emerald-600 dark:text-emerald-400 leading-relaxed shadow-inner' : 'bg-background text-sm text-foreground leading-relaxed'}`}>
                 <pre className="whitespace-pre-wrap font-inherit">{submissionText}</pre>
               </div>
             </div>
@@ -170,7 +170,7 @@ export function GradingAssessmentView({
 
           {aiSuggestedFeedback && (
             <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
                 AI Suggested Feedback {aiSuggestedGrade != null ? `(${aiSuggestedGrade}/${maxPoints})` : ''}
               </p>
               <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground font-medium">{aiSuggestedFeedback}</p>
@@ -179,7 +179,7 @@ export function GradingAssessmentView({
 
           {existingFeedback && (
             <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Saved Teacher Feedback</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">Saved Teacher Feedback</p>
               <p className="text-xs leading-relaxed text-foreground font-medium">{existingFeedback}</p>
             </div>
           )}

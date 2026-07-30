@@ -360,9 +360,9 @@ export default function ResendCredentialsPage() {
   if (!isStaff) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <ExclamationTriangleIcon className="w-12 h-12 text-rose-400" />
+        <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400" />
         <p className="text-foreground font-semibold text-lg">Admin or teacher access required</p>
-        <Link href="/dashboard" className="text-violet-400 hover:underline text-sm">Back to dashboard</Link>
+        <Link href="/dashboard" className="text-violet-600 dark:text-violet-400 hover:underline text-sm">Back to dashboard</Link>
       </div>
     );
   }
@@ -439,10 +439,10 @@ export default function ResendCredentialsPage() {
       {isAdmin && health && (
         <div className="bg-card border border-border rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
+            <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Onboarding Health</h2>
             {Object.values(health).reduce((a, b) => a + b, 0) === 0 && (
-              <span className="inline-flex items-center gap-1 text-emerald-400 text-[11px] font-bold"><CheckCircleIcon className="w-3.5 h-3.5" /> All clear</span>
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold"><CheckCircleIcon className="w-3.5 h-3.5" /> All clear</span>
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
@@ -458,7 +458,7 @@ export default function ResendCredentialsPage() {
               const v = health[key] ?? 0;
               return (
                 <div key={key} className={`rounded-xl border p-3 text-center ${v > 0 ? 'border-amber-500/30 bg-amber-500/10' : 'border-border bg-muted/20'}`}>
-                  <div className={`text-xl font-black ${v > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{v}</div>
+                  <div className={`text-xl font-black ${v > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>{v}</div>
                   <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{label}</div>
                 </div>
               );
@@ -475,11 +475,11 @@ export default function ResendCredentialsPage() {
           <div className="text-xs text-muted-foreground mt-1">Total Approved</div>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-emerald-400">{activatedCount}</div>
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{activatedCount}</div>
           <div className="text-xs text-muted-foreground mt-1">Portal Accounts Created</div>
         </div>
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-amber-400">{notActivatedCount}</div>
+          <div className="text-2xl font-black text-amber-600 dark:text-amber-400">{notActivatedCount}</div>
           <div className="text-xs text-muted-foreground mt-1">Awaiting Activation</div>
         </div>
       </div>
@@ -569,17 +569,17 @@ export default function ResendCredentialsPage() {
                         <div className="font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
                           <span>{s.full_name}</span>
                           {s.status === 'paid' && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded">
                               Full Paid
                             </span>
                           )}
                           {s.status === 'partially_paid' && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded">
                               Installment
                             </span>
                           )}
                           {s.status === 'approved' && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded">
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 rounded">
                               Approved
                             </span>
                           )}
@@ -594,7 +594,7 @@ export default function ResendCredentialsPage() {
                             <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Student Login</div>
                             <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.student_email || '—'}</div>
                             {s.credEmail?.password && (
-                              <div className="text-[11px] text-violet-400 font-mono select-all mt-0.5">Password: {s.credEmail.password}</div>
+                              <div className="text-[11px] text-violet-600 dark:text-violet-400 font-mono select-all mt-0.5">Password: {s.credEmail.password}</div>
                             )}
                           </div>
                           {(s.parent_email || (s as any).parentCred?.password) && (
@@ -602,7 +602,7 @@ export default function ResendCredentialsPage() {
                               <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Parent Login</div>
                               <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.parent_email || '—'}</div>
                               {(s as any).parentCred?.password && (
-                                <div className="text-[11px] text-emerald-400 font-mono select-all mt-0.5">Password: {(s as any).parentCred.password}</div>
+                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono select-all mt-0.5">Password: {(s as any).parentCred.password}</div>
                               )}
                             </div>
                           )}
@@ -617,21 +617,21 @@ export default function ResendCredentialsPage() {
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
                           isSpecialEnrollment(s.enrollment_type)
-                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
                             : s.enrollment_type === 'online'
-                            ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
-                            : 'bg-violet-500/15 text-violet-400 border-violet-500/30'
+                            ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30'
+                            : 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30'
                         }`}>
                           {enrollLabel[s.enrollment_type ?? 'in_person'] ?? (s.enrollment_type || 'In-Person')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {isActivated ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                             <CheckCircleIcon className="w-4 h-4" /> Active
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-semibold">
+                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                             <ClockIcon className="w-4 h-4" /> Not activated
                           </span>
                         )}
@@ -639,15 +639,15 @@ export default function ResendCredentialsPage() {
                       <td className="px-4 py-3">
                         {s.credEmail ? (
                           s.credEmail.status === 'sent' ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                               <CheckCircleIcon className="w-3.5 h-3.5" /> Delivered
                             </span>
                           ) : s.credEmail.status === 'failed' ? (
-                            <span className="inline-flex items-center gap-1 text-rose-400 text-xs font-semibold" title="Email delivery failed — resend below">
+                            <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 text-xs font-semibold" title="Email delivery failed — resend below">
                               <XCircleIcon className="w-3.5 h-3.5" /> Failed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                               <ClockIcon className="w-3.5 h-3.5" /> Pending
                             </span>
                           )
@@ -663,7 +663,7 @@ export default function ResendCredentialsPage() {
                               onClick={() => handleSendReceipt(s.id)}
                               disabled={sendingReceipt[s.id]}
                               title="Resend payment receipt email"
-                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
+                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
                             >
                               {sendingReceipt[s.id] ? (
                                 <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
@@ -679,7 +679,7 @@ export default function ResendCredentialsPage() {
                               onClick={() => handleSendBalance(s.id)}
                               disabled={sendingBalance[s.id]}
                               title="Send outstanding tuition balance reminder email"
-                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-amber-600/20 border border-border hover:border-amber-500/40 text-muted-foreground hover:text-amber-400 rounded-lg transition-colors disabled:opacity-50"
+                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-amber-600/20 border border-border hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-colors disabled:opacity-50"
                             >
                               {sendingBalance[s.id] ? (
                                 <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
@@ -718,7 +718,7 @@ export default function ResendCredentialsPage() {
                             </button>
                           )}
                           {isDone ? (
-                            <span className="text-xs text-emerald-400 font-semibold px-2">Sent</span>
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold px-2">Sent</span>
                           ) : isActivated ? (
                             <button
                               onClick={() => handleSend(s.id, true)}
@@ -738,7 +738,7 @@ export default function ResendCredentialsPage() {
                               onClick={() => handleSend(s.id, false)}
                               disabled={isSending}
                               title="Create portal account and send login credentials"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
                               {isSending ? (
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -763,13 +763,13 @@ export default function ResendCredentialsPage() {
       )}
 
       {/* Help note */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-sm text-blue-300">
-        <strong className="text-blue-200">Which button shows depends on the student's state:</strong>{' '}
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-sm text-blue-700 dark:text-blue-300">
+        <strong className="text-blue-800 dark:text-blue-200">Which button shows depends on the student's state:</strong>{' '}
         <span className="text-muted-foreground">
-          <strong className="text-emerald-400">Activate</strong> appears only for students with <em>no portal account yet</em> — it creates the <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it.{' '}
+          <strong className="text-emerald-600 dark:text-emerald-400">Activate</strong> appears only for students with <em>no portal account yet</em> — it creates the <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it.{' '}
           Once a student is activated you'll instead see <strong className="text-foreground">View</strong> (see the parent + student logins anytime) and <strong className="text-foreground">Resend</strong> (reset the password &amp; re-email both logins).{' '}
-          So if you don't see "Activate", that student is <strong className="text-blue-200">already activated</strong> — nothing is lacking; use View or Resend.{' '}
-          The emailed credentials include <strong className="text-blue-200">both parent and student logins</strong>. Students are auto-assigned to a school + class if none is on record.{' '}
+          So if you don't see "Activate", that student is <strong className="text-blue-800 dark:text-blue-200">already activated</strong> — nothing is lacking; use View or Resend.{' '}
+          The emailed credentials include <strong className="text-blue-800 dark:text-blue-200">both parent and student logins</strong>. Students are auto-assigned to a school + class if none is on record.{' '}
           "Activate All Unactivated" ({notActivatedCount}) processes every not-yet-activated student in one go.
         </span>
       </div>
@@ -794,13 +794,13 @@ export default function ResendCredentialsPage() {
 
             <div className="space-y-3">
               <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account Details</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">🎓 Student Account Details</p>
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
                   <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentEmail}</p>
                   <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
                   {lastCreatedCredentials.studentPassword ? (
-                    <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
+                    <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground italic">Not stored — click "Resend" to reset &amp; reveal a fresh password.</p>
                   )}
@@ -809,14 +809,14 @@ export default function ResendCredentialsPage() {
 
               {lastCreatedCredentials.parentEmail && (
                 <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
                   <div className="text-xs space-y-1">
                     <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
                     <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentEmail}</p>
                     {lastCreatedCredentials.parentPassword && (
                       <>
                         <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
-                        <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
+                        <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
                       </>
                     )}
                   </div>
@@ -840,7 +840,7 @@ export default function ResendCredentialsPage() {
                   <a
                     href={`https://wa.me/?text=${encodeURIComponent(buildText())}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="px-4 py-2 bg-[#25D366] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition-all"
+                    className="px-4 py-2 bg-[#25D366] hover:brightness-110 text-foreground rounded-xl text-xs font-semibold transition-all"
                   >
                     Share on WhatsApp
                   </a>

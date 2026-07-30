@@ -120,7 +120,7 @@ export default function Footer() {
               </p>
               <span className="hidden md:block w-1.5 h-1.5 bg-primary/20 rounded-xl shadow-sm" />
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                 Built with <Heart className="w-3 h-3 text-rose-500" /> in Benin City @ 2026
+                 Built with <Heart className="w-3 h-3 text-rose-600 dark:text-rose-400" /> in Benin City @ 2026
               </p>
            </div>
            

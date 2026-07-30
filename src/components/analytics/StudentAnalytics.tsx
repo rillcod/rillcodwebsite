@@ -121,18 +121,18 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
 
   const getTrendIcon = (trend: string) => {
     if (trend === 'up') {
-      return <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
+      return <ArrowTrendingUpIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
     } else if (trend === 'down') {
-      return <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
+      return <ArrowTrendingDownIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
     }
     return <MinusIcon className="h-4 w-4 text-muted-foreground" />
   }
 
   const getStatusColor = (value: string) => {
     const num = parseFloat(value.replace('%', ''))
-    if (num >= 80) return 'text-green-600 bg-green-100'
-    if (num >= 60) return 'text-yellow-600 bg-yellow-100'
-    return 'text-red-600 bg-red-100'
+    if (num >= 80) return 'text-green-600 dark:text-green-400 bg-green-100'
+    if (num >= 60) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100'
+    return 'text-red-600 dark:text-red-400 bg-red-100'
   }
 
   return (
@@ -178,7 +178,7 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
               {getTrendIcon(insight.trend)}
             </div>
             <p className="text-2xl font-bold text-foreground mb-2">{insight.value}</p>
-            <p className={`text-sm font-medium ${insight.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-sm font-medium ${insight.trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {insight.change} from last period
             </p>
             <p className="text-sm text-muted-foreground mt-2">{insight.description}</p>
@@ -233,7 +233,7 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
               <p className="text-2xl font-bold text-foreground mb-1">{metric.value}</p>
               <div className="flex items-center justify-center">
                 {getTrendIcon(metric.trend)}
-                <span className={`text-sm font-medium ml-1 ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-sm font-medium ml-1 ${metric.trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {metric.change}
                 </span>
               </div>
@@ -316,20 +316,20 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       {row.trend.startsWith('+') ? (
-                        <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
+                        <ArrowTrendingUpIcon className="h-4 w-4 text-green-600 dark:text-green-400 mr-1" />
                       ) : (
-                        <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 mr-1" />
+                        <ArrowTrendingDownIcon className="h-4 w-4 text-red-600 dark:text-red-400 mr-1" />
                       )}
-                      <span className={`text-sm font-medium ${row.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-sm font-medium ${row.trend.startsWith('+') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {row.trend}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      row.status === 'Excellent' ? 'text-green-800 bg-green-100' :
-                      row.status === 'Good' ? 'text-blue-800 bg-blue-100' :
-                      'text-yellow-800 bg-yellow-100'
+                      row.status === 'Excellent' ? 'text-green-800 dark:text-green-200 bg-green-100' :
+                      row.status === 'Good' ? 'text-blue-800 dark:text-blue-200 bg-blue-100' :
+                      'text-yellow-800 dark:text-yellow-200 bg-yellow-100'
                     }`}>
                       {row.status}
                     </span>
@@ -346,14 +346,14 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
         <h3 className="text-lg font-semibold mb-4 text-foreground">Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start">
-            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
+            <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Continue Scratch Programming Success</p>
               <p className="text-sm text-muted-foreground">High engagement suggests this approach works well for younger students</p>
             </div>
           </div>
           <div className="flex items-start">
-            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-3 mt-0.5" />
+            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Address Python Programming Challenges</p>
               <p className="text-sm text-muted-foreground">Consider additional support materials and simplified explanations</p>
@@ -367,7 +367,7 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
             </div>
           </div>
           <div className="flex items-start">
-            <UserGroupIcon className="h-5 w-5 text-purple-500 mr-3 mt-0.5" />
+            <UserGroupIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Enhance Peer Collaboration</p>
               <p className="text-sm text-muted-foreground">Implement more group projects to improve collaboration metrics</p>

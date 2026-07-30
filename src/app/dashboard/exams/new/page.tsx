@@ -105,7 +105,7 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
   if (!canManage) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <AcademicCapIcon className="w-16 h-16 text-rose-500/40" />
+        <AcademicCapIcon className="w-16 h-16 text-rose-600/40 dark:text-rose-400/40" />
         <p className="text-card-foreground/50 text-lg font-semibold">Access denied</p>
       </div>
     );
@@ -128,15 +128,15 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
       {/* CBT tip */}
       <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4 text-sm">
         <InformationCircleIcon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-        <p className="text-blue-300/80">
+        <p className="text-blue-700/80 dark:text-blue-300/80">
           Need auto-graded MCQ or coding-block tests?{' '}
-          <Link href="/dashboard/cbt/new" className="underline underline-offset-2 hover:text-blue-200 font-semibold">Create a CBT Exam instead.</Link>
+          <Link href="/dashboard/cbt/new" className="underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-200 font-semibold">Create a CBT Exam instead.</Link>
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-card border border-white/[0.08] rounded-2xl p-6 space-y-5">
         <div>
-          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Programme <span className="text-rose-400">*</span></label>
+          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Programme <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <select value={selectedProgramId} onChange={e => { setSelectedProgramId(e.target.value); setForm(f => ({ ...f, course_id: '' })); }}
             required className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
             <option value="">Select a programme…</option>
@@ -145,7 +145,7 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Course <span className="text-rose-400">*</span></label>
+          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Course <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <select value={form.course_id} onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
             required disabled={!selectedProgramId}
             className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 disabled:opacity-50">
@@ -155,7 +155,7 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Exam Title <span className="text-rose-400">*</span></label>
+          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Exam Title <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
             placeholder="e.g. Mid-Term Written Examination — Unit 1"
             className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />

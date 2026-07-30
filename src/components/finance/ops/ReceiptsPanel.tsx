@@ -243,7 +243,7 @@ export function ReceiptsPanel() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex items-center gap-2">
-          <ReceiptPercentIcon className="w-4 h-4 text-emerald-400" />
+          <ReceiptPercentIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
             {enriched.length} receipt{enriched.length === 1 ? '' : 's'}
           </p>
@@ -300,8 +300,8 @@ export function ReceiptsPanel() {
       {showAudit && isAdmin && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
           <div className="flex items-center gap-2 mb-1">
-            <ShieldCheckIcon className="w-4 h-4 text-amber-400" />
-            <p className="text-xs font-black uppercase tracking-widest text-amber-400">Receipt deletion audit trail</p>
+            <ShieldCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Receipt deletion audit trail</p>
           </div>
           {auditLog.length === 0 ? (
             <p className="text-xs text-muted-foreground">No receipt deletions recorded yet.</p>
@@ -315,7 +315,7 @@ export function ReceiptsPanel() {
                     <span className="text-muted-foreground">by {entry.portal_users?.full_name ?? 'Admin'}</span>
                     <span className="text-muted-foreground ml-auto">{formatShortDate(entry.created_at)}</span>
                   </div>
-                  <p className="text-amber-300/80">Reason: {entry.new_value ?? '—'}</p>
+                  <p className="text-amber-700/80 dark:text-amber-300/80">Reason: {entry.new_value ?? '—'}</p>
                 </div>
               ))}
             </div>
@@ -350,7 +350,7 @@ export function ReceiptsPanel() {
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteReceipt(r); }}
                   disabled={deletingId === r.id}
-                  className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Delete this receipt"
                 >
                   <TrashIcon className="w-3 h-3" />
@@ -376,7 +376,7 @@ export function ReceiptsPanel() {
                     </div>
                     <p className="text-sm font-black text-foreground mt-1 truncate">{payer}</p>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-full uppercase shrink-0">
+                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black rounded-full uppercase shrink-0">
                     Paid
                   </span>
                 </div>
@@ -419,7 +419,7 @@ export function ReceiptsPanel() {
                         onClick={(e) => { e.stopPropagation(); resendReceipt(r); }}
                         disabled={resendingId === r.id}
                         title={`Resend receipt to ${r.portal_users?.email || 'payer'}`}
-                        className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-black uppercase tracking-widest disabled:opacity-40"
+                        className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-black uppercase tracking-widest disabled:opacity-40"
                       >
                         {resendingId === r.id
                           ? <ArrowPathIcon className="w-3 h-3 animate-spin" />

@@ -211,7 +211,7 @@ export default function SmartWhatsAppWidget() {
           <div className="flex items-start justify-between gap-3 border-b border-border pb-3 mb-3">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <MessageSquareText className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <MessageSquareText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <h3 className="text-xs font-black uppercase text-foreground tracking-wider truncate">
                   Rillcod Assist
                 </h3>
@@ -351,7 +351,7 @@ export default function SmartWhatsAppWidget() {
               )}
 
               {attempted && !detailsValid && (
-                <p className="text-[10px] text-rose-500 font-bold">
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
                   Please complete the required fields with a valid WhatsApp number.
                 </p>
               )}

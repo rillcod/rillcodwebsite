@@ -67,7 +67,7 @@ export function CrossTermComparisonPanel({ reportId }: { reportId: string }) {
   if (error) {
     return (
       <section className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
-        <p className="text-sm text-rose-700">{error}</p>
+        <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
       </section>
     );
   }

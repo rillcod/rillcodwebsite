@@ -284,10 +284,10 @@ export default function UsersPage() {
 
     const roleBadge = (role: string) => {
         const map: Record<string, string> = {
-            admin: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+            admin: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
             teacher: 'bg-primary/10 text-primary border-primary/20',
             school: 'bg-primary/10 text-primary border-primary/20',
-            student: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+            student: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
         };
         return map[role] ?? 'bg-card shadow-sm text-muted-foreground border-border';
     };
@@ -369,7 +369,7 @@ export default function UsersPage() {
                             <button
                                 onClick={handleSync}
                                 disabled={syncing}
-                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                             >
                                 {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                                 {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync'}
@@ -380,7 +380,7 @@ export default function UsersPage() {
                             <button
                                 onClick={handleRemoveOrphans}
                                 disabled={syncing}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
                                 title="Delete portal rows with no auth account"
                             >
                                 <TrashIcon className="w-4 h-4" />
@@ -409,7 +409,7 @@ export default function UsersPage() {
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border
                                         ${showConflicts
                                             ? 'bg-amber-500 text-black border-amber-400'
-                                            : 'bg-amber-600/10 text-amber-500 border-amber-500/20 hover:bg-amber-600/20'}`}
+                                            : 'bg-amber-600/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-600/20'}`}
                                 >
                                     <ExclamationTriangleIcon className="w-4 h-4" />
                                     {gapCount} Conflicts Found
@@ -424,8 +424,8 @@ export default function UsersPage() {
                     <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-amber-500 font-black text-lg flex items-center gap-2 italic uppercase">
-                                    <BoltIcon className="w-5 h-5 text-amber-400" /> Conflict Audit
+                                <h3 className="text-amber-600 dark:text-amber-400 font-black text-lg flex items-center gap-2 italic uppercase">
+                                    <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" /> Conflict Audit
                                 </h3>
                                 <p className="text-muted-foreground text-xs mt-1">These users are in a broken state (e.g., Auth account exists but Portal profile is missing). Deleting them clears "Already Registered" errors.</p>
                             </div>
@@ -448,7 +448,7 @@ export default function UsersPage() {
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     DELETE CONFLICT
                                                 </button>
@@ -467,11 +467,11 @@ export default function UsersPage() {
                                             <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-xl border border-border hover:border-amber-500/30 transition-all group">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-bold text-foreground truncate">{u.name || u.email}</p>
-                                                    <p className="text-[9px] text-amber-500/60 font-mono truncate">ID: {u.id}</p>
+                                                    <p className="text-[9px] text-amber-600/60 dark:text-amber-400/60 font-mono truncate">ID: {u.id}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     PURGE
                                                 </button>
@@ -494,7 +494,7 @@ export default function UsersPage() {
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     PURGE
                                                 </button>
@@ -506,8 +506,8 @@ export default function UsersPage() {
                         </div>
 
                         <div className="mt-6 pt-4 border-t border-amber-500/20 flex items-center justify-between">
-                            <p className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest">Warning: Purging or deleting records here is permanent.</p>
-                            <button onClick={handleSync} className="text-[11px] font-black text-amber-500 hover:text-amber-400 underline underline-offset-4 decoration-2">RUN AUTO-REPAIR INSTEAD →</button>
+                            <p className="text-[10px] text-amber-600/60 dark:text-amber-400/60 font-bold uppercase tracking-widest">Warning: Purging or deleting records here is permanent.</p>
+                            <button onClick={handleSync} className="text-[11px] font-black text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 underline underline-offset-4 decoration-2">RUN AUTO-REPAIR INSTEAD →</button>
                         </div>
                     </div>
                 )}
@@ -602,7 +602,7 @@ export default function UsersPage() {
                                                 </button>
                                                 <button
                                                     onClick={() => { setResetTarget({ id: u.id, name: u.full_name }); setResetPw(''); setResetMsg(null); }}
-                                                    className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-400 text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
                                                     title="Reset password"
                                                 >
                                                     <KeyIcon className="w-4 h-4" />
@@ -611,7 +611,7 @@ export default function UsersPage() {
                                                     <button
                                                         onClick={() => handleDelete(u)}
                                                         disabled={deleting === u.id}
-                                                        className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-400 text-muted-foreground transition-all disabled:opacity-40 flex items-center justify-center border border-border sm:border-none"
+                                                        className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-muted-foreground transition-all disabled:opacity-40 flex items-center justify-center border border-border sm:border-none"
                                                         title="Delete user"
                                                     >
                                                         {deleting === u.id
@@ -635,7 +635,7 @@ export default function UsersPage() {
                     <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
-                                <BoltIcon className="w-5 h-5 text-amber-400" />
+                                <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                 <h2 className="text-lg font-extrabold text-foreground">Sync Complete</h2>
                             </div>
                             <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
@@ -645,19 +645,19 @@ export default function UsersPage() {
                         <div className="p-6 overflow-y-auto space-y-4">
                             {syncResult.error ? (
                                 <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                                    <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                                    <p className="text-rose-400 text-sm">{syncResult.error}</p>
+                                    <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                                    <p className="text-rose-600 dark:text-rose-400 text-sm">{syncResult.error}</p>
                                 </div>
                             ) : (
                                 <>
                                     <div className="grid grid-cols-2 gap-3">
                                         {(syncResult.summary?.orphans_deleted !== undefined ? [
-                                            { label: 'Orphans Deleted', value: syncResult.summary?.orphans_deleted ?? 0, color: 'text-rose-400' },
+                                            { label: 'Orphans Deleted', value: syncResult.summary?.orphans_deleted ?? 0, color: 'text-rose-600 dark:text-rose-400' },
                                             { label: 'Skipped (has data)', value: syncResult.summary?.skipped ?? 0, color: 'text-muted-foreground' },
                                         ] : [
-                                            { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
-                                            { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
-                                            { label: 'Auth Created (injected)', value: syncResult.summary?.portal_auth_created ?? 0, color: 'text-cyan-400' },
+                                            { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
+                                            { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-600 dark:text-amber-400' },
+                                            { label: 'Auth Created (injected)', value: syncResult.summary?.portal_auth_created ?? 0, color: 'text-cyan-600 dark:text-cyan-400' },
                                             { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-primary' },
                                             { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-primary' },
                                         ]).map(s => (
@@ -676,7 +676,7 @@ export default function UsersPage() {
                                                     <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-3 font-mono text-xs">
                                                         <p className="text-foreground font-bold">{c.name}</p>
                                                         <p className="text-muted-foreground mt-0.5">{c.email}</p>
-                                                        <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
+                                                        <p className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -685,8 +685,8 @@ export default function UsersPage() {
 
                                     {syncResult.errors?.length > 0 && (
                                         <div>
-                                            <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                                            <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                                            <p className="text-xs font-bold text-rose-600/60 dark:text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
+                                            <div className="space-y-1 text-xs text-rose-600/80 dark:text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
                                                 {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                                             </div>
                                         </div>
@@ -740,7 +740,7 @@ export default function UsersPage() {
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
                                 {createForm.role !== 'admin' && (
-                                  <p className="mt-2 text-xs text-amber-600">
+                                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                     Non-admin accounts need a school. Students get an auto class if none is selected.
                                   </p>
                                 )}
@@ -776,7 +776,7 @@ export default function UsersPage() {
                                 </select>
                               </div>
                             )}
-                            {createErr && <p className="text-rose-400 text-sm">{createErr}</p>}
+                            {createErr && <p className="text-rose-600 dark:text-rose-400 text-sm">{createErr}</p>}
                         </div>
                         <div className="flex gap-3 p-6 border-t border-border">
                             <button onClick={() => setShowCreate(false)}
@@ -854,7 +854,7 @@ export default function UsersPage() {
                                 </button>
                             </div>
 
-                            {editErr && <p className="text-rose-400 text-sm">{editErr}</p>}
+                            {editErr && <p className="text-rose-600 dark:text-rose-400 text-sm">{editErr}</p>}
                         </div>
 
                         {/* Modal footer */}
@@ -887,7 +887,7 @@ export default function UsersPage() {
                     <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <div>
-                                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
+                                <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
                                 <h2 className="text-lg font-extrabold text-foreground">Reset Password</h2>
                                 <p className="text-sm text-muted-foreground mt-0.5">For: <span className="text-muted-foreground font-semibold">{resetTarget.name}</span></p>
                             </div>
@@ -897,7 +897,7 @@ export default function UsersPage() {
                         </div>
                         <form onSubmit={handleResetPw} className="p-6 space-y-4">
                             {resetMsg && (
-                                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
                                     {resetMsg.text}
                                 </div>
                             )}

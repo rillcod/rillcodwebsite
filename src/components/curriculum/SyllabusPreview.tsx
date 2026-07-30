@@ -124,17 +124,17 @@ const WEEK_META: Record<
 > = {
   lesson: {
     label: 'Lesson',
-    pill: 'text-violet-300 bg-primary/15 border-primary/30',
+    pill: 'text-violet-700 dark:text-violet-300 bg-primary/15 border-primary/30',
     icon: BookOpenIcon,
   },
   assessment: {
     label: 'Assessment',
-    pill: 'text-amber-300 bg-amber-500/15 border-amber-500/30',
+    pill: 'text-amber-700 dark:text-amber-300 bg-amber-500/15 border-amber-500/30',
     icon: ClipboardDocumentListIcon,
   },
   examination: {
     label: 'Examination',
-    pill: 'text-rose-300 bg-rose-500/15 border-rose-500/30',
+    pill: 'text-rose-700 dark:text-rose-300 bg-rose-500/15 border-rose-500/30',
     icon: DocumentTextIcon,
   },
 };
@@ -171,8 +171,8 @@ export function SyllabusPreview({
       {/* Preview-as-role ribbon */}
       {previewRole && (
         <div className="rounded-md border border-sky-500/30 bg-sky-500/5 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center gap-2 text-xs">
-          <EyeIcon className="w-4 h-4 text-sky-400 shrink-0" />
-          <span className="font-black uppercase tracking-widest text-sky-300">
+          <EyeIcon className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+          <span className="font-black uppercase tracking-widest text-sky-700 dark:text-sky-300">
             Preview · as {ROLE_LABEL[previewRole]}
           </span>
           <span className="text-muted-foreground hidden sm:inline">
@@ -214,7 +214,7 @@ export function SyllabusPreview({
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
                 {content.learning_outcomes.map((o, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                     <span className="text-foreground/90">{o}</span>
                   </li>
                 ))}
@@ -423,7 +423,7 @@ function LessonDetails({
 
       {plan.assignment && (plan.assignment.title || plan.assignment.instructions) && (
         <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+          <p className="text-[10px] font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-300">
             Assignment
           </p>
           {plan.assignment.title && (
@@ -548,7 +548,7 @@ function BlockList({
         {items.map((it, i) => (
           <li key={i} className="flex items-start gap-2 text-sm">
             {icon === 'check' && (
-              <CheckCircleIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+              <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
             )}
             {icon === 'sparkle' && (
               <SparklesIcon className="w-4 h-4 text-primary mt-0.5 shrink-0" />

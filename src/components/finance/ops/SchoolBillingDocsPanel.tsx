@@ -1237,8 +1237,8 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       {overdueSchools.length > 0 && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-red-400 text-sm">⚠ </span>
-            <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+            <span className="text-red-600 dark:text-red-400 text-sm">⚠ </span>
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
               {overdueSchools.length} School{overdueSchools.length !== 1 ? 's' : ''} with Overdue Invoice{overdueSchools.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -1256,7 +1256,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                 </div>
                 <button
                   onClick={() => { setSchoolId(ov.id); setDocType('billing_statement'); }}
-                  className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                   Generate Statement
                 </button>
@@ -1277,21 +1277,21 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               tip: 'Send this to the school to collect payment.',
               tone: 'border-violet-500/40 bg-violet-500/5',
               active: 'border-violet-500 bg-violet-500/10',
-              codeCls: 'bg-violet-500/15 text-violet-600',
+              codeCls: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
             },
             {
               id: 'payment_register' as const,
               tip: 'For schools that collect fees and remit to Rillcod.',
               tone: 'border-emerald-500/30 bg-emerald-500/5',
               active: 'border-emerald-500 bg-emerald-500/10',
-              codeCls: 'bg-emerald-500/15 text-emerald-600',
+              codeCls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
             },
             {
               id: 'attendance_roster' as const,
               tip: 'For schools billed based on attendance sessions.',
               tone: 'border-sky-500/30 bg-sky-500/5',
               active: 'border-sky-500 bg-sky-500/10',
-              codeCls: 'bg-sky-500/15 text-sky-600',
+              codeCls: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
             },
           ]).map(opt => {
             const meta = DOC_META[opt.id];
@@ -1472,8 +1472,8 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               {bankAccounts.length > 0 && (
                 <div className="sm:col-span-2 lg:col-span-3">
                   <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
-                    <span className="text-emerald-400 text-xs">✓</span>
-                    <p className="text-[10px] text-emerald-400 font-black">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-xs">✓</span>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black">
                       {bankAccounts.length} Rillcod bank account{bankAccounts.length !== 1 ? 's' : ''} will be included as payment instructions
                     </p>
                   </div>
@@ -1487,7 +1487,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       {/* Linked invoice callout (payment_register only) */}
       {docType === 'payment_register' && school && (
         <div className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${linkedInvoice ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card border-border'}`}>
-          <BuildingOfficeIcon className={`w-4 h-4 shrink-0 mt-0.5 ${linkedInvoice ? 'text-emerald-400' : 'text-primary'}`} />
+          <BuildingOfficeIcon className={`w-4 h-4 shrink-0 mt-0.5 ${linkedInvoice ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'}`} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-foreground">{school.name}</p>
             {lookingUp ? (
@@ -1496,7 +1496,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               </p>
             ) : linkedInvoice ? (
               <div className="mt-1 space-y-0.5">
-                <p className="text-[10px] text-emerald-400 font-black">
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black">
                   ✓ Linked to invoice {linkedInvoice.invoice_number} · {linkedInvoice.status.toUpperCase()}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
@@ -1505,7 +1505,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                 </p>
               </div>
             ) : (
-              <p className="text-[10px] text-amber-400">No matching school invoice found for this term — will use manual rate if provided.</p>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">No matching school invoice found for this term — will use manual rate if provided.</p>
             )}
           </div>
         </div>
@@ -1574,12 +1574,12 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               </button>
             </div>
             {emailSent && (
-              <p className="text-[10px] text-emerald-400 font-black mt-2 flex items-center gap-1">
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black mt-2 flex items-center gap-1">
                 <CheckCircleIcon className="w-3.5 h-3.5" /> {emailSent}
               </p>
             )}
             {emailError && (
-              <p className="text-[10px] text-red-400 mt-2">{emailError}</p>
+              <p className="text-[10px] text-red-600 dark:text-red-400 mt-2">{emailError}</p>
             )}
             <p className="text-[9px] text-muted-foreground mt-1.5">
               Sends a branded email summary of ref <span className="font-mono">{lastStatement.invoiceRef}</span> · {lastStatement.period} to the school's billing contact.
@@ -1629,7 +1629,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       {rosterResult && (
         <div ref={resultRef} className="rounded-xl border-2 border-sky-500/30 bg-sky-500/5 p-4 space-y-3">
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-black text-foreground">Attendance Roster Generated</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">Ref: <span className="font-mono">{rosterResult.docRef}</span></p>
@@ -1648,7 +1648,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
             </div>
             <div className={`rounded-lg p-3 text-center border ${rosterResult.total ? 'border-sky-500/30 bg-sky-500/10' : 'border-border bg-card'}`}>
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Due</p>
-              <p className="text-xl font-black text-sky-400">
+              <p className="text-xl font-black text-sky-600 dark:text-sky-400">
                 {rosterResult.total ? fmt(rosterResult.total, currency) : '—'}
               </p>
             </div>
@@ -1670,7 +1670,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               </p>
             </div>
           ) : (
-            <p className="text-[10px] text-amber-400">
+            <p className="text-[10px] text-amber-600 dark:text-amber-400">
               Enter a rate per session above to enable invoice creation from this roster.
             </p>
           )}
@@ -1680,11 +1680,11 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       {/* ── Invoice created success ─────────────────────────────────── */}
       {invoiceCreated && (
         <div ref={resultRef} className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4 flex items-start gap-3">
-          <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-black text-emerald-400">School Invoice Created!</p>
+            <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">School Invoice Created!</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Invoice <span className="font-mono font-black text-foreground">{invoiceCreated.invoice_number}</span> has been created and marked as <span className="text-sky-400 font-black">SENT</span>.
+              Invoice <span className="font-mono font-black text-foreground">{invoiceCreated.invoice_number}</span> has been created and marked as <span className="text-sky-600 dark:text-sky-400 font-black">SENT</span>.
               Go to the Invoices tab to view, email or download the PDF.
             </p>
           </div>
@@ -1699,7 +1699,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Saved Documents</p>
             <button
               onClick={() => void clearRecentDocs()}
-              className="ml-auto text-[9px] text-rose-400 hover:text-rose-300 uppercase tracking-widest font-black"
+              className="ml-auto text-[9px] text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 uppercase tracking-widest font-black"
             >
               Delete all
             </button>
@@ -1708,10 +1708,10 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
             {recentDocs.map(doc => {
               const meta = DOC_META[doc.type] ?? DOC_META.billing_statement;
               const tone =
-                doc.type === 'payment_register' ? 'bg-emerald-500/10 text-emerald-600' :
-                doc.type === 'attendance_roster' ? 'bg-sky-500/10 text-sky-600' :
-                doc.type === 'fee_slips' ? 'bg-fuchsia-500/10 text-fuchsia-600' :
-                'bg-violet-500/10 text-violet-600';
+                doc.type === 'payment_register' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                doc.type === 'attendance_roster' ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400' :
+                doc.type === 'fee_slips' ? 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400' :
+                'bg-violet-500/10 text-violet-600 dark:text-violet-400';
               return (
               <div key={`${doc.ref}-${doc.type}-${doc.date}`} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-lg">
                 <div className={`w-9 h-9 rounded-md flex flex-col items-center justify-center ${tone}`}>
@@ -1723,12 +1723,12 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                     <p className="text-xs font-black text-foreground">{meta.title}</p>
                     <span className="text-[9px] font-mono font-bold text-muted-foreground">{doc.ref}</span>
                     {doc.invoiceNumber && doc.invoiceNumber !== doc.ref && (
-                      <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-widest">
+                      <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-widest">
                         → {doc.invoiceNumber}
                       </span>
                     )}
                     {!doc.hasHtml && (
-                      <span className="text-[9px] font-bold text-amber-400/90 uppercase tracking-widest">summary only</span>
+                      <span className="text-[9px] font-bold text-amber-600/90 dark:text-amber-400/90 uppercase tracking-widest">summary only</span>
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">
@@ -1747,7 +1747,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                   <button
                     type="button"
                     onClick={() => void deleteArchivedDoc(doc)}
-                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
+                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
                   >
                     Delete
                   </button>

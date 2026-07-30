@@ -8,7 +8,7 @@ import { contactInfo } from '@/config/brand';
 const contactCards = [
   { icon: Mail, title: 'Email Us', value: contactInfo.email, sub: 'Partnership Inquiries', accent: 'text-primary', bg: 'bg-primary/10' },
   { icon: Phone, title: 'Call Us', value: contactInfo.phone, sub: 'Mon – Fri, 8am – 5pm', accent: 'text-primary', bg: 'bg-primary/10' },
-  { icon: MapPin, title: 'Our Office', value: 'Benin City, Edo State', sub: 'Nigeria', accent: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: MapPin, title: 'Our Office', value: 'Benin City, Edo State', sub: 'Nigeria', accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
 ];
 
 const Contact: React.FC = () => {

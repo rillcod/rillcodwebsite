@@ -47,10 +47,10 @@ function calcAge(dob: string | null): string | null {
 
 const QUICK_LINKS = (id: string) => [
   { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,      icon: DocumentChartBarIcon,      color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
-  { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`,   icon: ClipboardDocumentCheckIcon, color: 'bg-emerald-500/20 text-emerald-400', hover: 'group-hover/link:bg-emerald-500/30' },
+  { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`,   icon: ClipboardDocumentCheckIcon, color: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', hover: 'group-hover/link:bg-emerald-500/30' },
   { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,       icon: ClipboardDocumentListIcon,  color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
-  { label: 'Invoices',      href: `/dashboard/parent-invoices?student=${id}`,     icon: BanknotesIcon,              color: 'bg-rose-500/20 text-rose-400', hover: 'group-hover/link:bg-rose-500/30' },
-  { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon,                 color: 'bg-amber-500/20 text-amber-400', hover: 'group-hover/link:bg-amber-500/30' },
+  { label: 'Invoices',      href: `/dashboard/parent-invoices?student=${id}`,     icon: BanknotesIcon,              color: 'bg-rose-500/20 text-rose-600 dark:text-rose-400', hover: 'group-hover/link:bg-rose-500/30' },
+  { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon,                 color: 'bg-amber-500/20 text-amber-600 dark:text-amber-400', hover: 'group-hover/link:bg-amber-500/30' },
 ];
 
 interface ActivityEvent {
@@ -65,11 +65,11 @@ interface ActivityEvent {
 }
 
 const COLOR_MAP: Record<string, string> = {
-  emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-  rose: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
+  emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  rose: 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400',
   primary: 'bg-primary/10 border-primary/20 text-primary',
-  amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-  sky: 'bg-sky-500/10 border-sky-500/20 text-sky-400',
+  amber: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
+  sky: 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400',
 };
 
 export default function MyChildrenPage() {
@@ -174,9 +174,9 @@ export default function MyChildrenPage() {
                     {unpaid > 0 && (
                       <div className="flex flex-col items-center gap-1">
                         <div className="w-16 h-16 border-2 border-rose-500/40 bg-rose-500/10 flex items-center justify-center">
-                          <span className="text-2xl font-black text-rose-400">{unpaid}</span>
+                          <span className="text-2xl font-black text-rose-600 dark:text-rose-400">{unpaid}</span>
                         </div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-rose-400">Unpaid</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Unpaid</p>
                       </div>
                     )}
                   </>
@@ -276,8 +276,8 @@ export default function MyChildrenPage() {
                       <h2 className="text-base font-black text-foreground">{child.full_name}</h2>
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
                         parentEnrollmentIsGood(child.status)
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                          : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                       }`}>
                         {parentEnrollmentLabel(child.status)}
                       </span>
@@ -343,14 +343,14 @@ export default function MyChildrenPage() {
                         subLabel="Last result"
                       />
                       <div className="flex flex-col items-center gap-2">
-                        <div className={`text-2xl font-black ${s.certificates > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                        <div className={`text-2xl font-black ${s.certificates > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
                           {s.certificates}
                         </div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Certs</p>
                         {s.unpaidInvoices > 0 && (
                           <div className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/20 px-2 py-1">
-                            <ExclamationTriangleIcon className="w-3 h-3 text-rose-400" />
-                            <span className="text-[9px] font-black text-rose-400">{s.unpaidInvoices} unpaid</span>
+                            <ExclamationTriangleIcon className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                            <span className="text-[9px] font-black text-rose-600 dark:text-rose-400">{s.unpaidInvoices} unpaid</span>
                           </div>
                         )}
                       </div>
@@ -447,7 +447,7 @@ export default function MyChildrenPage() {
             <div className="px-5 py-3 border-t border-border flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4">
               <Link href="/dashboard/parent-attendance" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Attendance →</Link>
               <Link href="/dashboard/parent-grades" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Grades →</Link>
-              <Link href="/dashboard/parent-certificates" className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:underline">View Certificates →</Link>
+              <Link href="/dashboard/parent-certificates" className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 hover:underline">View Certificates →</Link>
             </div>
           )}
         </div>

@@ -16,8 +16,8 @@ interface Announcement {
 
 const STATUS_BADGE: Record<string, string> = {
   draft:     'bg-zinc-500/20 text-muted-foreground/70',
-  published: 'bg-emerald-500/20 text-emerald-400',
-  archived:  'bg-amber-500/20 text-amber-400',
+  published: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  archived:  'bg-amber-500/20 text-amber-600 dark:text-amber-400',
 };
 
 const AUDIENCES = ['all', 'students', 'parents', 'teachers', 'class'];
@@ -134,7 +134,7 @@ export default function AnnouncementsPage() {
             <input type="datetime-local" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
               className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0" />
           </div>
-          {error && <p className="text-rose-400 text-sm">{error}</p>}
+          {error && <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>}
           <button type="submit" disabled={!form.title.trim() || !form.content.trim() || submitting}
             className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0">
             {submitting ? 'Saving…' : form.status === 'draft' ? 'Save Draft' : 'Publish'}

@@ -109,15 +109,15 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-xs font-black ${
-          state === 'done' ? 'text-emerald-300' : state === 'error' ? 'text-rose-300' :
+          state === 'done' ? 'text-emerald-700 dark:text-emerald-300' : state === 'error' ? 'text-rose-700 dark:text-rose-300' :
           state === 'active' ? 'text-foreground' : 'text-muted-foreground'
         }`}>{label}</p>
         <p className="text-[10px] text-muted-foreground/80">{sub}</p>
       </div>
       <div className="shrink-0">
-        {state === 'done'    && <CheckCircleIcon className="w-5 h-5 text-emerald-400" />}
+        {state === 'done'    && <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
         {state === 'active'  && <ArrowPathIcon className="w-4 h-4 text-primary animate-spin" />}
-        {state === 'error'   && <XMarkIcon className="w-4 h-4 text-rose-400" />}
+        {state === 'error'   && <XMarkIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />}
         {state === 'skipped' && <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">Exists</span>}
         {state === 'pending' && <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
       </div>
@@ -539,7 +539,7 @@ export default function WeekAIGenerator({
               )}
               {result.deckId && (
                 <a href={`/dashboard/flashcards?deckId=${result.deckId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 text-xs text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all duration-300 shadow-md">
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 text-xs text-amber-600 dark:text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all duration-300 shadow-md">
                   <span className="flex items-center gap-2">
                     <BoltIcon className="w-4 h-4 animate-pulse" /> Open Flashcards
                   </span>
@@ -548,7 +548,7 @@ export default function WeekAIGenerator({
               )}
               {result.assignmentId && (
                 <a href={`/dashboard/assignments/${result.assignmentId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-xs text-emerald-400 font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all duration-300 shadow-md">
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-xs text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all duration-300 shadow-md">
                   <span className="flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-4 h-4" /> Open Assignment
                   </span>
@@ -557,7 +557,7 @@ export default function WeekAIGenerator({
               )}
               {result.projectId && (
                 <a href={`/dashboard/projects/${result.projectId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 text-xs text-purple-400 font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all duration-300 shadow-md">
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 text-xs text-purple-600 dark:text-purple-400 font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all duration-300 shadow-md">
                   <span className="flex items-center gap-2">
                     <PresentationChartLineIcon className="w-4 h-4" /> Open Project
                   </span>
@@ -569,7 +569,7 @@ export default function WeekAIGenerator({
 
           {error && (
             <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3.5 shadow-[0_0_15px_rgba(244,63,94,0.05)]">
-              <p className="text-xs text-rose-400 font-black tracking-wide">{error}</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-black tracking-wide">{error}</p>
             </div>
           )}
         </div>

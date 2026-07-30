@@ -38,7 +38,7 @@ export default function LoadingIndicator() {
 
         {/* Brand name */}
         <div className="text-center">
-          <p className="text-white font-black text-lg tracking-[0.25em] uppercase">Rillcod</p>
+          <p className="text-foreground font-black text-lg tracking-[0.25em] uppercase">Rillcod</p>
           <p className="text-primary/60 text-[11px] font-semibold tracking-[0.3em] uppercase mt-0.5">Academy</p>
         </div>
 

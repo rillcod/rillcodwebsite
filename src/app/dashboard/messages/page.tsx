@@ -309,7 +309,7 @@ export default function MessagesPage() {
                         </div>
                         <div className={`max-w-[70%] space-y-1 ${isOwn ? 'items-end' : ''}`}>
                           {!isOwn && <p className="text-xs font-bold text-muted-foreground">{msg.portal_users?.full_name}</p>}
-                          <div className={`px-3 py-2 rounded-xl text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-muted border border-border text-foreground'}`}>
+                          <div className={`px-3 py-2 rounded-xl text-sm ${isOwn ? 'bg-primary/90 text-foreground' : 'bg-muted border border-border text-foreground'}`}>
                             {msg.body}
                           </div>
                           <p className="text-[10px] text-muted-foreground">

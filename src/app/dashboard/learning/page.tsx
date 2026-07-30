@@ -372,7 +372,7 @@ export default function StudentLearningPage() {
         emoji: '📚',
         href: `/dashboard/lessons/${nextLesson.id}`,
         done: completedLessonIds.has(nextLesson.id),
-        color: 'border-l-cyan-500 bg-cyan-400/5 text-cyan-400'
+        color: 'border-l-cyan-500 bg-cyan-400/5 text-cyan-600 dark:text-cyan-400'
       });
     }
 
@@ -410,7 +410,7 @@ export default function StudentLearningPage() {
       emoji: '🔥',
       href: '/dashboard/learning/stats',
       done: stats.streak > 0,
-      color: 'border-l-emerald-500 bg-emerald-400/5 text-emerald-400'
+      color: 'border-l-emerald-500 bg-emerald-400/5 text-emerald-600 dark:text-emerald-400'
     });
 
     setDailyMissions(missions);
@@ -418,10 +418,10 @@ export default function StudentLearningPage() {
 
   // Level configuration
   const LEVEL_CONFIG = useMemo(() => [
-    { name: 'Nehemiah Builder', min: 0, max: 499, color: 'text-amber-700', bar: 'bg-amber-600', bg: 'bg-amber-500/10' },
-    { name: 'Gideon Scout', min: 500, max: 1999, color: 'text-slate-400', bar: 'bg-slate-400', bg: 'bg-slate-500/10' },
-    { name: 'Joshua Commander', min: 2000, max: 4999, color: 'text-amber-400', bar: 'bg-amber-400', bg: 'bg-amber-500/10' },
-    { name: 'Solomon Sage', min: 5000, max: 999999, color: 'text-cyan-400', bar: 'bg-cyan-400', bg: 'bg-cyan-500/10' },
+    { name: 'Nehemiah Builder', min: 0, max: 499, color: 'text-amber-700 dark:text-amber-300', bar: 'bg-amber-600', bg: 'bg-amber-500/10' },
+    { name: 'Gideon Scout', min: 500, max: 1999, color: 'text-slate-600 dark:text-slate-400', bar: 'bg-slate-400', bg: 'bg-slate-500/10' },
+    { name: 'Joshua Commander', min: 2000, max: 4999, color: 'text-amber-600 dark:text-amber-400', bar: 'bg-amber-400', bg: 'bg-amber-500/10' },
+    { name: 'Solomon Sage', min: 5000, max: 999999, color: 'text-cyan-600 dark:text-cyan-400', bar: 'bg-cyan-400', bg: 'bg-cyan-500/10' },
   ], []);
 
   const currentLevelConfig = LEVEL_CONFIG.find((l: any) => stats.xp >= l.min && stats.xp <= l.max) || LEVEL_CONFIG[0];
@@ -548,7 +548,7 @@ export default function StudentLearningPage() {
             {/* Card 1: Lessons Completed */}
             <div className="bg-card border border-border border-t-2 border-t-emerald-500 p-5 flex items-center gap-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-xl pointer-events-none" />
-              <CheckBadgeIcon className="w-8 h-8 text-emerald-500 shrink-0" />
+              <CheckBadgeIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <div>
                 <p className="text-2xl font-black tabular-nums text-foreground">{stats.lessonsDone}</p>
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Lessons Done</p>
@@ -563,7 +563,7 @@ export default function StudentLearningPage() {
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-black tabular-nums text-foreground">{stats.streak}</p>
                   {stats.streak > 0 ? (
-                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/25 text-[8px] font-black rounded-full uppercase tracking-wider animate-pulse whitespace-nowrap">
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 text-[8px] font-black rounded-full uppercase tracking-wider animate-pulse whitespace-nowrap">
                       x1.2 Boost
                     </span>
                   ) : (
@@ -638,12 +638,12 @@ export default function StudentLearningPage() {
                   <span className="text-lg">{tab.emoji}</span>
                   <div className="text-left">
                     <p className="leading-none font-black">{tab.label}</p>
-                    <p className={`text-[8px] font-bold mt-0.5 ${isActive ? 'text-white/70' : 'text-muted-foreground/60'}`}>
+                    <p className={`text-[8px] font-bold mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
                       {tab.desc}
                     </p>
                   </div>
                   {tab.badge && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-brand-red-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce border border-background">
+                    <span className="absolute -top-1.5 -right-1.5 bg-brand-red-600 text-foreground text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce border border-background">
                       {tab.badge}
                     </span>
                   )}
@@ -655,7 +655,7 @@ export default function StudentLearningPage() {
           <div className="px-4 py-2 border-t md:border-t-0 md:border-l border-border/80 w-full md:w-auto flex items-center justify-between md:justify-start gap-3 text-[10px] font-black uppercase tracking-widest shrink-0">
             <span className="text-muted-foreground">Active Persona:</span>
             {activeTab === 'insights' ? (
-              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full flex items-center gap-1.5">
+              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Analytics View
               </span>
@@ -695,7 +695,7 @@ export default function StudentLearningPage() {
                           <p className="text-[11px] text-muted-foreground truncate">{mission.desc}</p>
                         </div>
                         <span className="text-[10px] font-black text-primary shrink-0">+{mission.xp} XP</span>
-                        {mission.done && <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />}
+                        {mission.done && <CheckBadgeIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                       </Link>
                     ))}
                   </div>
@@ -735,7 +735,7 @@ export default function StudentLearningPage() {
                             )}
                             <div className="flex flex-col items-center gap-2 relative">
                               {isNext && (
-                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-red-600 text-white text-[9px] font-black px-2 py-1 whitespace-nowrap uppercase tracking-wider">
+                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-red-600 text-foreground text-[9px] font-black px-2 py-1 whitespace-nowrap uppercase tracking-wider">
                                   Up Next
                                 </span>
                               )}
@@ -743,7 +743,7 @@ export default function StudentLearningPage() {
                                 href={isLocked ? '#' : `/dashboard/lessons/${lesson.id}`}
                                 className={`w-16 h-16 flex items-center justify-center border-2 transition-all duration-300 ${
                                   isCompleted
-                                    ? 'rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 border-yellow-400 text-slate-950 shadow-lg shadow-yellow-500/20 hover:scale-110'
+                                    ? 'rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 border-yellow-400 text-slate-900 dark:text-slate-200 shadow-lg shadow-yellow-500/20 hover:scale-110'
                                     : isNext
                                     ? 'rounded-[20px] bg-gradient-to-tr from-primary to-brand-red-500 border-primary text-white ring-4 ring-primary/30 shadow-xl shadow-primary/20 hover:scale-105'
                                     : 'rounded-xl bg-muted/40 border-border text-muted-foreground/30 cursor-not-allowed hover:bg-muted/60'
@@ -815,7 +815,7 @@ export default function StudentLearningPage() {
                       const accentColors = [
                         { border: 'border-t-primary', text: 'text-primary', bar: 'bg-primary' },
                         { border: 'border-t-primary',   text: 'text-primary',   bar: 'bg-primary'   },
-                        { border: 'border-t-emerald-500', text: 'text-emerald-500',bar: 'bg-emerald-500'},
+                        { border: 'border-t-emerald-500', text: 'text-emerald-600 dark:text-emerald-400',bar: 'bg-emerald-500'},
                       ][pi % 3];
 
                       return (
@@ -853,7 +853,7 @@ export default function StudentLearningPage() {
                                     className="bg-card p-5 hover:bg-muted/30 transition-all flex flex-col gap-3">
                                     <div className="flex items-start justify-between gap-2">
                                       <p className="text-sm font-black leading-tight">{c.title}</p>
-                                      <span className={`text-[9px] font-black px-2 py-0.5 shrink-0 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
+                                      <span className={`text-[9px] font-black px-2 py-0.5 shrink-0 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                         {pct === 100 ? '✓ Done' : `${pct}%`}
                                       </span>
                                     </div>
@@ -926,7 +926,7 @@ export default function StudentLearningPage() {
                   <Link href="/dashboard/flashcards"
                     className={`inline-flex items-center justify-center gap-2 w-full py-3 text-xs font-black uppercase tracking-widest transition-all rounded-[14px] ${
                       dueFlashcards > 0 
-                        ? 'bg-brand-red-600 text-white hover:bg-brand-red-600/90 shadow-lg shadow-brand-red-600/20' 
+                        ? 'bg-brand-red-600 text-foreground hover:bg-brand-red-600/90 shadow-lg shadow-brand-red-600/20' 
                         : 'bg-primary text-white hover:bg-primary/95'
                     }`}>
                     <FireIcon className="w-4 h-4" />
@@ -966,7 +966,7 @@ export default function StudentLearningPage() {
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-2xl">
                         💻
                       </div>
-                      <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black rounded-full uppercase tracking-wider">
+                      <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black rounded-full uppercase tracking-wider">
                         Laboratory
                       </span>
                     </div>
@@ -992,14 +992,14 @@ export default function StudentLearningPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
-              className="space-y-6 animate-in fade-in duration-300 text-slate-100"
+              className="space-y-6 animate-in fade-in duration-300 text-slate-800 dark:text-slate-100"
             >
               {/* Header card — student's own growth analytics */}
               <div className="bg-card border border-border rounded-[24px] p-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 blur-3xl pointer-events-none" />
                 <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
-                    <span className="inline-block text-[9px] font-black text-emerald-500 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-full uppercase tracking-wider mb-2">
+                    <span className="inline-block text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-full uppercase tracking-wider mb-2">
                       📊 Growth Analytics
                     </span>
                     <h2 className="text-xl font-black uppercase tracking-tight text-foreground font-black">
@@ -1173,7 +1173,7 @@ export default function StudentLearningPage() {
 
                   <div className="mt-6 pt-4 border-t border-border/80 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-muted-foreground">
                     <span>Office of Academic Affairs</span>
-                    <span className="text-emerald-500 font-bold">✓ Verified Report Card</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Verified Report Card</span>
                   </div>
                 </div>
 

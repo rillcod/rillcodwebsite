@@ -216,7 +216,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
         )}
       </section>
       {error ? (
-        <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-600">
+        <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : null}

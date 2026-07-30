@@ -217,7 +217,7 @@ export function StudentPicker({
                   type="button"
                   onClick={() => handleClick(s)}
                   title="Remove"
-                  className="flex-shrink-0 text-muted-foreground hover:text-rose-500 font-black leading-none"
+                  className="flex-shrink-0 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 font-black leading-none"
                 >
                   ×
                 </button>
@@ -441,7 +441,7 @@ export function ParentForm({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 px-0 py-3 border-b border-border">
-          <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
           <h2 className="text-lg font-black text-foreground tracking-tight">Parent Account Created</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -462,14 +462,14 @@ export function ParentForm({
             </div>
           </div>
         </div>
-        <div className="flex items-start gap-2 px-4 py-3 bg-amber-500/5 border border-amber-500/20 text-xs text-amber-400">
+        <div className="flex items-start gap-2 px-4 py-3 bg-amber-500/5 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
           <span className="flex-shrink-0 mt-0.5">⚠</span>
           <span>Store this password securely — it cannot be retrieved after closing this window.</span>
         </div>
 
         {/* Send login — email + WhatsApp so the parent (our target) actually gets it */}
         {emailSent ? (
-          <div className="flex items-start gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+          <div className="flex items-start gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400">
             <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
             <span>
               Login sent to <strong>{credentials.email}</strong>
@@ -477,7 +477,7 @@ export function ParentForm({
                 <> — {deliveredVia.email ? 'Email ✓' : 'Email ✕'}{form.phone ? ` · ${deliveredVia.whatsapp ? 'WhatsApp ✓' : 'WhatsApp ✕'}` : ''}</>
               )}. The link opens the login page with their email pre-filled.
               {deliveredVia && !deliveredVia.email && deliveredVia.whatsapp && (
-                <span className="block text-amber-400 mt-1">Email didn’t go through — check the address, but WhatsApp was delivered.</span>
+                <span className="block text-amber-600 dark:text-amber-400 mt-1">Email didn’t go through — check the address, but WhatsApp was delivered.</span>
               )}
             </span>
           </div>
@@ -493,7 +493,7 @@ export function ParentForm({
               {emailSending ? 'Sending…' : form.phone ? 'Send Login (Email + WhatsApp)' : 'Send Login Email to Parent'}
             </button>
             {emailError && (
-              <p className="text-[10px] text-rose-400 font-bold">{emailError}</p>
+              <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{emailError}</p>
             )}
             <p className="text-[10px] text-muted-foreground">
               Sends their username, password and a direct login link by email{form.phone ? ' and WhatsApp' : ''}.
@@ -522,7 +522,7 @@ export function ParentForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+        <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
           <span className="flex-shrink-0 mt-0.5 font-black">✕</span>
           <span>{error}</span>
         </div>
@@ -547,7 +547,7 @@ export function ParentForm({
               <button
                 type="button"
                 onClick={() => setForm(f => ({ ...f, email: emailSuggestion }))}
-                className="mt-1.5 text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
+                className="mt-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
               >
                 Did you mean <span className="underline">{emailSuggestion}</span>? — tap to fix
               </button>

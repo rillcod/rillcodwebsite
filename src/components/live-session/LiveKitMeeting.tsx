@@ -22,7 +22,7 @@ type Phase = 'loading' | 'live' | 'rejoining' | 'dropped' | 'ended';
 const BTN_PRIMARY =
   'px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-colors';
 const BTN_GHOST =
-  'px-6 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest transition-colors';
+  'px-6 py-3 bg-white/10 hover:bg-white/20 text-foreground text-xs font-black uppercase tracking-widest transition-colors';
 
 /** Longer backoff than stock (~10 tries / ~50s) — Nigerian school networks blip hard. */
 const POOR_NET_RECONNECT = new DefaultReconnectPolicy([
@@ -176,8 +176,8 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
   if (error && phase !== 'rejoining' && autoTry >= 5) {
     return (
       <Overlay>
-        <p className="text-rose-400 text-sm font-bold">{error}</p>
-        <p className="text-white/40 text-[11px] max-w-sm">
+        <p className="text-rose-600 dark:text-rose-400 text-sm font-bold">{error}</p>
+        <p className="text-muted-foreground text-[11px] max-w-sm">
           Weak network — check your connection, then retry. Keep this tab open during class.
         </p>
         <div className="flex gap-2">
@@ -202,7 +202,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
   if (phase === 'ended') {
     return (
       <Overlay>
-        <p className="text-white/70 text-sm font-bold">This session has been ended by the host.</p>
+        <p className="text-muted-foreground text-sm font-bold">This session has been ended by the host.</p>
         <button type="button" onClick={handleClose} className={BTN_PRIMARY}>
           Close
         </button>
@@ -214,10 +214,10 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     return (
       <Overlay>
         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent animate-spin" />
-        <p className="text-amber-400 text-sm font-bold">
+        <p className="text-amber-600 dark:text-amber-400 text-sm font-bold">
           {phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
         </p>
-        <p className="text-white/40 text-[11px]">
+        <p className="text-muted-foreground text-[11px]">
           Attempt {Math.min(autoTry + 1, 5)} of 5 · stay on this page
         </p>
         <div className="flex gap-2">
@@ -243,7 +243,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     return (
       <Overlay>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-        <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
+        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
       </Overlay>
     );
   }
@@ -259,14 +259,14 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
             <span className="absolute inset-0 rounded-full bg-emerald-500 opacity-75 animate-ping" />
             <span className="relative rounded-full w-2 h-2 bg-emerald-500" />
           </span>
-          <span className="text-[10px] font-black text-white uppercase tracking-widest truncate">
+          <span className="text-[10px] font-black text-foreground uppercase tracking-widest truncate">
             {sessionTitle}
           </span>
         </div>
         <button
           type="button"
           onClick={handleClose}
-          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
+          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
         >
           Leave
         </button>

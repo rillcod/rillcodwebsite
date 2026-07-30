@@ -316,7 +316,7 @@ export function DocPreviewModal({
             <button
               onClick={deleteInvoice}
               disabled={anyBusy}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600/20 border border-rose-600/40 hover:bg-rose-600/30 text-rose-300 text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600/20 border border-rose-600/40 hover:bg-rose-600/30 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
             >
               {busy === 'delete' ? (
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />

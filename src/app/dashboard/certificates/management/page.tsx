@@ -525,7 +525,7 @@ export default function CertificateManagement() {
                                                             {canManage && (
                                                                 <button
                                                                     onClick={() => handleAction(cert.id, 'delete')}
-                                                                    className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-500 hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                                                                    className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-all active:scale-95"
                                                                     title="Delete"
                                                                 >
                                                                     <TrashIcon className="w-4 h-4" />

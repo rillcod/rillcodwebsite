@@ -116,10 +116,10 @@ function StarRatingWidget({
               disabled={submitting}
               onMouseEnter={() => setHoverRating(star)}
               onClick={() => void handleRate(star)}
-              className="p-0.5 text-amber-400 hover:scale-125 transition-transform cursor-pointer disabled:opacity-50"
+              className="p-0.5 text-amber-600 dark:text-amber-400 hover:scale-125 transition-transform cursor-pointer disabled:opacity-50"
               title={`Rate ${star} star${star > 1 ? 's' : ''}`}
             >
-              <Star className={`w-3.5 h-3.5 ${isFilled ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
+              <Star className={`w-3.5 h-3.5 ${isFilled ? 'fill-amber-400 text-amber-600 dark:text-amber-400' : 'text-muted-foreground/30'}`} />
             </button>
           );
         })}
@@ -409,7 +409,7 @@ function InAppViewer({
                 </a>
               )}
               {onDelete && (
-                <button onClick={(e) => { onDelete(e, item.id); onClose(); }} className="p-2.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all" title="Delete">
+                <button onClick={(e) => { onDelete(e, item.id); onClose(); }} className="p-2.5 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Delete">
                   <TrashIcon className="w-5 h-5" />
                 </button>
               )}
@@ -1022,7 +1022,7 @@ export default function ContentLibraryPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md text-center bg-card border border-border rounded-3xl p-8 shadow-xl">
-          <ExclamationTriangleIcon className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+          <ExclamationTriangleIcon className="w-10 h-10 text-amber-600 dark:text-amber-400 mx-auto mb-4" />
           <h1 className="text-xl font-black text-foreground mb-2">Library Unavailable</h1>
           <p className="text-sm text-muted-foreground">
             This content library is available to students, teachers, schools, and admins.
@@ -1257,7 +1257,7 @@ export default function ContentLibraryPage() {
           )}
           {notice && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3">
-              <CheckCircleIcon className="w-5 h-5 text-emerald-500 shrink-0" />
+              <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{notice}</p>
             </motion.div>
           )}
@@ -1314,7 +1314,7 @@ export default function ContentLibraryPage() {
                       <span>•</span>
                       <span>Target: {item.grade_level || 'All Levels'}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-amber-400 fill-amber-400" /> {item.rating_average?.toFixed(1) || '0.0'} ({item.rating_count || 0})</span>
+                      <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-amber-600 dark:text-amber-400 fill-amber-400" /> {item.rating_average?.toFixed(1) || '0.0'} ({item.rating_count || 0})</span>
                       <span>•</span>
                       <span>{item.usage_count ?? 0} Deployments</span>
                     </div>
@@ -1371,22 +1371,22 @@ export default function ContentLibraryPage() {
                         <img src={item.files.thumbnail_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover mix-blend-overlay group-hover:scale-105 transition-transform duration-500" />
                       ) : item.content_type === 'video' ? (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-md border border-white/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                          <div className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-md border border-white/20 flex items-center justify-center text-foreground group-hover:scale-110 transition-transform">
                             <PlayIcon className="w-7 h-7" />
                           </div>
                         </div>
                       ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-white/30 group-hover:scale-110 transition-transform">
+                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground group-hover:scale-110 transition-transform">
                           {getTypeIcon(item.content_type)}
                         </div>
                       )}
 
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-                        <div className="px-3 py-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-[9px] font-black text-white uppercase tracking-widest">
+                        <div className="px-3 py-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-[9px] font-black text-foreground uppercase tracking-widest">
                           {item.content_type}
                         </div>
-                        <div className="flex items-center gap-1 px-2.5 py-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-[10px] font-black text-white">
-                          <StarIcon className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                        <div className="flex items-center gap-1 px-2.5 py-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl text-[10px] font-black text-foreground">
+                          <StarIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 fill-amber-400" />
                           <span>{item.rating_average?.toFixed(1) || '0.0'}</span>
                         </div>
                       </div>

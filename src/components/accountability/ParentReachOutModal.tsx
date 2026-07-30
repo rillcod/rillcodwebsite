@@ -188,14 +188,14 @@ export default function ParentReachOutModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <PaperAirplaneIcon className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-foreground">Parent Communication & Emotional Intelligence Machine</h2>
                 {isBatchMode && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-indigo-500 border border-indigo-500/20">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                     <UserGroupIcon className="w-3 h-3" /> Batch Mode ({recipients.length} Parents)
                   </span>
                 )}
@@ -320,9 +320,9 @@ export default function ParentReachOutModal({
             <div className="space-y-1.5 flex-1 flex flex-col">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <SparklesIcon className="w-3.5 h-3.5 text-indigo-500" /> Warm Live Email Preview (Emotional Intelligence Tone)
+                  <SparklesIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Warm Live Email Preview (Emotional Intelligence Tone)
                 </label>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Resend / SendPulse Engine</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Resend / SendPulse Engine</span>
               </div>
 
               <div className="flex-1 bg-card border border-border rounded-2xl p-5 space-y-4 font-sans text-xs overflow-y-auto max-h-[380px]">
@@ -338,7 +338,7 @@ export default function ParentReachOutModal({
             </div>
 
             {feedback && (
-              <p className={`p-3 rounded-xl text-xs font-bold ${feedback.startsWith('Error') ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
+              <p className={`p-3 rounded-xl text-xs font-bold ${feedback.startsWith('Error') ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'}`}>
                 {feedback}
               </p>
             )}

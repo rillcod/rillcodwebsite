@@ -331,7 +331,7 @@ export default function ParentClaim({
 
     return (
       <div className={box}>
-        <p className="text-sm font-black text-emerald-400">
+        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
           ✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ' — your child is linked to your account'}.
         </p>
         {done.accountCreated && (
@@ -376,7 +376,7 @@ export default function ParentClaim({
 
           {creds?.parentEmail && (
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Parent portal</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Parent portal</p>
               <p className="text-xs font-mono text-foreground mt-1">{creds.parentEmail}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {creds.parentPasswordSent
@@ -455,7 +455,7 @@ export default function ParentClaim({
         <p className="text-xs text-muted-foreground">
           {otpDeliveryHint(sentVia)} Enter it below — your child will be linked automatically and login details sent when verified.
         </p>
-        {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
+        {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
         <input autoFocus className={`${field} tracking-[0.5em] text-center text-lg font-black`} inputMode="numeric" maxLength={6}
           placeholder="••••••" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} />
         <div className="flex gap-2">
@@ -485,7 +485,7 @@ export default function ParentClaim({
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         Your student number already identifies your child — no need to re-enter their name.
       </p>
-      {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
       <input
         autoFocus
         className={field}
@@ -498,7 +498,7 @@ export default function ParentClaim({
           onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
         {emailFix && (
           <button type="button" onClick={() => setForm(f => ({ ...f, email: emailFix }))}
-            className="mt-1.5 text-[10px] font-bold text-amber-500 hover:text-amber-400">
+            className="mt-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400">
             Did you mean <span className="underline">{emailFix}</span>? — tap to fix
           </button>
         )}

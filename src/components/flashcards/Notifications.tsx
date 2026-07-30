@@ -12,7 +12,7 @@ export function ErrorNotification({ message, onClose }: NotificationProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="absolute top-20 left-4 right-4 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg z-10 flex items-center justify-between shadow-lg"
+      className="absolute top-20 left-4 right-4 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-lg z-10 flex items-center justify-between shadow-lg"
     >
       <div className="flex items-center gap-2">
         <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
@@ -20,7 +20,7 @@ export function ErrorNotification({ message, onClose }: NotificationProps) {
       </div>
       <button
         onClick={onClose}
-        className="text-red-400 hover:text-red-300 transition-colors"
+        className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
       >
         <XMarkIcon className="w-4 h-4" />
       </button>
@@ -34,7 +34,7 @@ export function SuccessNotification({ message, onClose }: NotificationProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="absolute top-20 left-4 right-4 bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-lg z-10 flex items-center justify-between shadow-lg"
+      className="absolute top-20 left-4 right-4 bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 p-3 rounded-lg z-10 flex items-center justify-between shadow-lg"
     >
       <div className="flex items-center gap-2">
         <CheckIcon className="w-5 h-5 flex-shrink-0" />
@@ -42,7 +42,7 @@ export function SuccessNotification({ message, onClose }: NotificationProps) {
       </div>
       <button
         onClick={onClose}
-        className="text-green-400 hover:text-green-300 transition-colors"
+        className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
       >
         <XMarkIcon className="w-4 h-4" />
       </button>

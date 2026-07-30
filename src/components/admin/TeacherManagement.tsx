@@ -297,7 +297,7 @@ export default function TeacherManagement() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <div className="flex items-center space-x-2 bg-background text-white px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+          <div className="flex items-center space-x-2 bg-background text-foreground px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
             <span className="text-sm font-bold uppercase tracking-wider">Total: {filteredTeachers.length}</span>
           </div>
         </div>
@@ -335,7 +335,7 @@ export default function TeacherManagement() {
                   <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
                     <div className="flex items-center">
                       <div className="w-12 h-12 bg-[#c8e6c9] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                        <User className="w-5 h-5 text-green-600" />
+                        <User className="w-5 h-5 text-green-600 dark:text-green-400" />
                       </div>
                       <div className="ml-4">
                         <div className="text-md font-black text-black">{teacher.full_name}</div>
@@ -371,7 +371,7 @@ export default function TeacherManagement() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-l-[0px]">
-                    <div className="flex items-center space-x-2 bg-background text-white px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-center space-x-2 bg-background text-foreground px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                       <button
                         onClick={() => openDetails(teacher)}
                         className="p-2 border-2 border-black bg-[#e3f2fd] text-black hover:bg-blue-200 hover:-translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"

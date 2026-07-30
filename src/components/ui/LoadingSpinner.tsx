@@ -16,9 +16,9 @@ const sizeMap = {
 };
 
 const variantMap = {
-  default: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-white/50' },
-  primary: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-violet-300' },
-  white:   { ring: 'border-t-white',       inner: 'border-t-white/60',    dot: 'bg-card',       text: 'text-white/70' },
+  default: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-muted-foreground' },
+  primary: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-violet-700 dark:text-violet-300' },
+  white:   { ring: 'border-t-white',       inner: 'border-t-white/60',    dot: 'bg-card',       text: 'text-muted-foreground' },
 };
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({

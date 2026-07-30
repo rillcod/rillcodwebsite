@@ -424,7 +424,7 @@ export default function BlockSequencer({
           <button
             type="button"
             onClick={handleClearAll}
-            className="text-xs font-semibold text-muted-foreground hover:text-red-400 transition-colors uppercase tracking-wider px-2 py-1 border border-border rounded-xl hover:border-red-400"
+            className="text-xs font-semibold text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors uppercase tracking-wider px-2 py-1 border border-border rounded-xl hover:border-red-400"
           >
             Clear All
           </button>

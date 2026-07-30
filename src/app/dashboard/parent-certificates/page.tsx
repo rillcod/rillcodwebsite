@@ -170,8 +170,8 @@ function ParentCertificatesContent() {
 
                     {/* Verification */}
                     <div className="mt-2 flex items-center gap-1.5">
-                      <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                      <p className="text-[10px] text-emerald-400 font-bold">Verified · {cert.verification_code}</p>
+                      <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Verified · {cert.verification_code}</p>
                     </div>
 
                     {/* Download */}

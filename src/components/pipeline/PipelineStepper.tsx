@@ -38,9 +38,9 @@ const META: Record<PipelineStep, {
 }> = {
   syllabus:    { short: 'Curriculum', label: 'Curriculum direction', href: '/dashboard/curriculum', icon: BookOpenIcon, color: 'text-primary', ring: 'ring-primary/40 bg-primary/10 border-primary/40' },
   plans:       { short: 'Plans',       label: 'Teaching plans',     href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon, color: 'text-primary',       ring: 'ring-primary/40 bg-primary/10 border-primary/40'           },
-  lessons:     { short: 'Lessons',     label: 'Lessons & delivery',          href: '/dashboard/lessons',      icon: SparklesIcon,              color: 'text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
-  flashcards:  { short: 'Practice', label: 'Flashcard practice', href: '/dashboard/flashcards', icon: BoltIcon, color: 'text-amber-400', ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40' },
-  library:     { short: 'Resources', label: 'Teaching resources', href: '/dashboard/library', icon: ArchiveBoxIcon, color: 'text-cyan-400', ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40' },
+  lessons:     { short: 'Lessons',     label: 'Lessons & delivery',          href: '/dashboard/lessons',      icon: SparklesIcon,              color: 'text-emerald-600 dark:text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
+  flashcards:  { short: 'Practice', label: 'Flashcard practice', href: '/dashboard/flashcards', icon: BoltIcon, color: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40' },
+  library:     { short: 'Resources', label: 'Teaching resources', href: '/dashboard/library', icon: ArchiveBoxIcon, color: 'text-cyan-600 dark:text-cyan-400', ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40' },
 };
 
 export interface PipelineStepperProps {
@@ -185,7 +185,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
       <p className="hidden sm:block mt-2 text-[10px] text-muted-foreground">
         <Link
           href="/dashboard/academic"
-          className="inline-flex items-center gap-1 text-cyan-500/90 hover:underline font-bold"
+          className="inline-flex items-center gap-1 text-cyan-600/90 dark:text-cyan-400/90 hover:underline font-bold"
         >
           Return to the Academic Office flow
         </Link>

@@ -28,12 +28,12 @@ export function PresenceSidebar() {
                     </div>
                 </div>
                 <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <input
                         placeholder="Search peers..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-border rounded-2xl text-xs text-white placeholder-muted-foreground focus:outline-none focus:border-primary/30 focus:bg-white/10 transition-all font-medium"
+                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-border rounded-2xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/30 focus:bg-white/10 transition-all font-medium"
                     />
                 </div>
             </div>
@@ -54,10 +54,10 @@ export function PresenceSidebar() {
                                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#0a0a14] bg-emerald-500 shadow-sm" />
                             </div>
                             <div className="flex-1 overflow-hidden">
-                                <p className="text-sm font-bold text-white/80 truncate group-hover:text-white transition-colors">
+                                <p className="text-sm font-bold text-muted-foreground truncate group-hover:text-white transition-colors">
                                     {user.userName}
                                 </p>
-                                <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
                                     Enrolled
                                 </p>
                             </div>
@@ -67,7 +67,7 @@ export function PresenceSidebar() {
                     {sortedUsers.length === 0 && (
                         <div className="p-12 text-center space-y-4 opacity-20">
                             <UsersIcon className="w-10 h-10 text-white mx-auto stroke-1" />
-                            <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">No peers online</p>
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-[0.2em]">No peers online</p>
                         </div>
                     )}
                 </div>

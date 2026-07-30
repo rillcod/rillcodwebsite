@@ -27,10 +27,10 @@ interface ContentItem {
 
 export function ContentLibraryCard({ item }: { item: ContentItem }) {
     const IconMap = {
-        video: <FileVideo className="w-5 h-5 text-purple-500" />,
+        video: <FileVideo className="w-5 h-5 text-purple-600 dark:text-purple-400" />,
         document: <FileText className="w-5 h-5 text-primary" />,
         quiz: <Layout className="w-5 h-5 text-primary" />,
-        assignment: <FileText className="w-5 h-5 text-teal-500" />
+        assignment: <FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />
     };
 
     return (
@@ -74,7 +74,7 @@ export function ContentLibraryCard({ item }: { item: ContentItem }) {
                     <div className="flex justify-between items-start gap-4">
                         <h4 className="font-bold text-foreground dark:text-slate-100 line-clamp-1 leading-tight">{item.title}</h4>
                         <div className="flex items-center gap-1 shrink-0">
-                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                            <Star className="w-3 h-3 text-yellow-600 dark:text-yellow-400 fill-yellow-500" />
                             <span className="text-xs font-bold text-muted-foreground">{item.average_rating || 'N/A'}</span>
                         </div>
                     </div>

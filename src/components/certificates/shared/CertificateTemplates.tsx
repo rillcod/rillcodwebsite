@@ -57,45 +57,45 @@ export function CertificateTemplates({
                                 <HdQrCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                             </div>
                             <div className="flex flex-col items-center">
-                                <p className="text-[7px] text-white/40 font-bold uppercase tracking-[0.1em] mb-1">Verify Credential</p>
+                                <p className="text-[7px] text-muted-foreground font-bold uppercase tracking-[0.1em] mb-1">Verify Credential</p>
                                 <p className="text-[8px] text-primary font-mono font-bold tracking-widest">{certCode}</p>
                             </div>
                         </div>
 
                         <div className="flex flex-col items-center gap-2">
                             <ShieldCheck className="w-8 h-8 text-primary/70" strokeWidth={1} />
-                            <p className="text-[8px] text-white/30 font-medium uppercase tracking-[0.2em]">Official Issuance</p>
+                            <p className="text-[8px] text-muted-foreground font-medium uppercase tracking-[0.2em]">Official Issuance</p>
                         </div>
                     </div>
 
                     {/* Main Content Area */}
                     <div className="flex flex-col flex-1 py-[4%] px-[5%] justify-between">
                         <div className="relative">
-                            <div className="absolute -top-4 -left-2 text-[60px] font-black text-white/[0.03] pointer-events-none select-none">OFFICIAL</div>
+                            <div className="absolute -top-4 -left-2 text-[60px] font-black text-foreground/[0.03] pointer-events-none select-none">OFFICIAL</div>
                             <p className="text-[10px] text-primary font-black uppercase tracking-[0.5em] mb-4">Official Award of Recognition</p>
-                            <h2 className="text-[44px] font-black text-white uppercase tracking-tighter leading-[0.9] mb-1">
+                            <h2 className="text-[44px] font-black text-foreground uppercase tracking-tighter leading-[0.9] mb-1">
                                 Certificate <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-amber-500">Of Excellence</span>
                             </h2>
                             <div className="w-24 h-1.5 bg-gradient-to-r from-primary to-transparent" />
                         </div>
 
                         <div className="my-[4%]">
-                            <p className="text-[10px] text-white/40 font-extrabold uppercase tracking-[0.4em] mb-3">This Certifies That</p>
-                            <h1 className="text-[48px] font-black text-white leading-none tracking-tight mb-2 drop-shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+                            <p className="text-[10px] text-muted-foreground font-extrabold uppercase tracking-[0.4em] mb-3">This Certifies That</p>
+                            <h1 className="text-[48px] font-black text-foreground leading-none tracking-tight mb-2 drop-shadow-[0_0_30px_rgba(249,115,22,0.2)]">
                                 {studentName}
                             </h1>
                             <div className="h-px w-[80%] bg-gradient-to-r from-primary/50 via-primary/10 to-transparent" />
                             {studentClass && (
-                                <p className="text-[11px] text-white/60 font-bold uppercase tracking-[0.2em] mt-3">Level: {studentClass}</p>
+                                <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-3">Level: {studentClass}</p>
                             )}
                         </div>
 
                         <div className="mb-[4%]">
-                            <p className="text-[11px] text-white/40 font-bold uppercase tracking-[0.2em] italic mb-2">has successfully completed all requirements for</p>
-                            <h3 className="text-[22px] font-black text-white uppercase tracking-tight leading-tight mb-2">{courseTitle}</h3>
+                            <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] italic mb-2">has successfully completed all requirements for</p>
+                            <h3 className="text-[22px] font-black text-foreground uppercase tracking-tight leading-tight mb-2">{courseTitle}</h3>
                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/30 rounded-full">
                                 <GraduationCap className="w-3.5 h-3.5 text-primary" />
-                                <p className="text-[10px] text-amber-200 font-black uppercase tracking-[0.1em]">{programName}</p>
+                                <p className="text-[10px] text-amber-800 dark:text-amber-200 font-black uppercase tracking-[0.1em]">{programName}</p>
                             </div>
                         </div>
 
@@ -103,14 +103,14 @@ export function CertificateTemplates({
                             <div className="flex flex-col items-center">
                                 <img src="/images/signature.png" alt="Director" className="h-10 w-auto invert brightness-200 contrast-150 mb-2" />
                                 <div className="w-32 h-px bg-white/20 mb-2" />
-                                <p className="text-[10px] text-white font-black uppercase tracking-widest leading-none">Osahon J.</p>
-                                <p className="text-[7px] text-white/40 font-bold uppercase tracking-wider mt-1">Founding Director</p>
+                                <p className="text-[10px] text-foreground font-black uppercase tracking-widest leading-none">Osahon J.</p>
+                                <p className="text-[7px] text-muted-foreground font-bold uppercase tracking-wider mt-1">Founding Director</p>
                             </div>
 
                             <div className="text-right">
                                 <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mb-1">Date of Issue</p>
-                                <p className="text-[12px] text-white font-black">{issuedDate}</p>
-                                <p className="text-[8px] text-white/20 font-mono mt-2 tracking-tighter">{certNum}</p>
+                                <p className="text-[12px] text-foreground font-black">{issuedDate}</p>
+                                <p className="text-[8px] text-muted-foreground font-mono mt-2 tracking-tighter">{certNum}</p>
                             </div>
                         </div>
                     </div>
@@ -199,7 +199,7 @@ export function CertificateTemplates({
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
                                     <Zap className="w-8 h-8 text-primary animate-pulse drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
-                                    <h2 className="text-[32px] font-black tracking-tighter text-white">TECH_MASTERY</h2>
+                                    <h2 className="text-[32px] font-black tracking-tighter text-foreground">TECH_MASTERY</h2>
                                 </div>
                                 <p className="text-[10px] opacity-60 uppercase tracking-[0.4em] mb-1">Authorization Node: RILLCOD-SYS-01</p>
                                 <p className="text-[10px] opacity-60 uppercase tracking-[0.4em]">Protocol: {programName}</p>
@@ -212,7 +212,7 @@ export function CertificateTemplates({
                         <div className="space-y-4">
                             <div>
                                 <p className="text-[10px] text-primary/60 uppercase tracking-widest">[SYSTEM_NOTIFICATION]: CREDENTIAL_UNLOCKED</p>
-                                <h1 className="text-[54px] font-black text-white leading-none tracking-tighter uppercase">{studentName}</h1>
+                                <h1 className="text-[54px] font-black text-foreground leading-none tracking-tighter uppercase">{studentName}</h1>
                                 <div className="h-1.5 w-full bg-primary/10 mt-2 relative overflow-hidden">
                                     <div className="absolute inset-0 bg-primary w-2/3 h-full" />
                                 </div>
@@ -227,7 +227,7 @@ export function CertificateTemplates({
                                 <div className="space-y-2">
                                     <img src="/images/signature.png" alt="Sig" className="h-10 w-auto invert brightness-200 contrast-150" />
                                     <div className="h-0.5 w-48 bg-primary/30" />
-                                    <p className="text-white text-[12px] font-black uppercase tracking-tighter italic">Osahon J. | Tech_Director</p>
+                                    <p className="text-foreground text-[12px] font-black uppercase tracking-tighter italic">Osahon J. | Tech_Director</p>
                                     <p className="text-[9px] text-primary opacity-40 uppercase tracking-widest font-mono">AUTH_SIG://{certCode}</p>
                                 </div>
                                 <div className="p-2 border border-primary/30 inline-block bg-primary/70/20">
@@ -247,7 +247,7 @@ export function CertificateTemplates({
                 <div className="absolute inset-0 bg-[#FFFBF7] p-10">
                     <div className="h-full border-[1px] border-orange-200/30 flex flex-col items-center justify-between py-12 px-16 bg-card shadow-inner relative overflow-hidden">
                         {/* Seal Watermark */}
-                        <GraduationCap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 text-orange-950/5 rotate-[-15deg] pointer-events-none" />
+                        <GraduationCap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 text-orange-900/5 dark:text-orange-200/5 rotate-[-15deg] pointer-events-none" />
                         
                         <div className="w-full flex justify-between items-center relative z-10 border-b-2 border-orange-100 pb-8">
                             <div className="space-y-1">
@@ -291,7 +291,7 @@ export function CertificateTemplates({
                             <div className="text-right space-y-1">
                                 <p className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Academic Year</p>
                                 <p className="text-[14px] font-black text-[#111827] uppercase tracking-tight leading-none">{issuedDate}</p>
-                                <p className="text-[8px] font-mono text-slate-300 mt-2">v{certNum}</p>
+                                <p className="text-[8px] font-mono text-slate-700 dark:text-slate-300 mt-2">v{certNum}</p>
                             </div>
                         </div>
                     </div>
@@ -308,9 +308,9 @@ export function CertificateTemplates({
                     <div className="h-full w-full border-[1px] border-white/10 flex flex-col justify-between py-16 px-16 relative overflow-hidden bg-gradient-to-br from-black to-[#111]">
                         <div className="flex justify-between items-start border-b border-white/5 pb-10">
                             <div>
-                                <h3 className="text-[10px] text-white/40 font-black uppercase tracking-[0.6em] mb-4">Elite Specialized Accreditation</h3>
-                                <h1 className="text-[38px] font-black text-white uppercase tracking-tighter leading-none m-0">
-                                    OFFICIAL_ <span className="text-white/30">ELITE</span>
+                                <h3 className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.6em] mb-4">Elite Specialized Accreditation</h3>
+                                <h1 className="text-[38px] font-black text-foreground uppercase tracking-tighter leading-none m-0">
+                                    OFFICIAL_ <span className="text-muted-foreground">ELITE</span>
                                 </h1>
                             </div>
                             <div className="w-16 h-16 bg-card flex items-center justify-center rounded-sm">
@@ -319,11 +319,11 @@ export function CertificateTemplates({
                         </div>
 
                         <div className="space-y-2">
-                            <p className="text-[11px] text-white/30 font-bold uppercase tracking-[0.4em]">Recipient of Recognition</p>
-                            <h2 className="text-[72px] font-black text-white tracking-tighter leading-[0.8] mb-4">
+                            <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.4em]">Recipient of Recognition</p>
+                            <h2 className="text-[72px] font-black text-foreground tracking-tighter leading-[0.8] mb-4">
                                 {studentName}
                             </h2>
-                            <p className="text-[18px] text-white italic border-l-[1px] border-primary/40 pl-6 py-1 max-w-xl opacity-80 leading-snug">
+                            <p className="text-[18px] text-foreground italic border-l-[1px] border-primary/40 pl-6 py-1 max-w-xl opacity-80 leading-snug">
                                 Awarded for achieving mastery in the advanced technology syllabus of {courseTitle} with the highest distinction of {programName}.
                             </p>
                         </div>
@@ -332,17 +332,17 @@ export function CertificateTemplates({
                             <div className="space-y-4">
                                 <img src="/images/signature.png" alt="Sig" className="h-10 w-auto invert opacity-90 brightness-200" />
                                 <div className="space-y-1">
-                                    <p className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Osahon J.</p>
-                                    <p className="text-[8px] text-white/30 uppercase font-bold tracking-widest">Board Director, Rillcod Council</p>
+                                    <p className="text-[11px] font-black text-foreground uppercase tracking-widest leading-none">Osahon J.</p>
+                                    <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Board Director, Rillcod Council</p>
                                 </div>
                             </div>
 
                             <div className="text-right">
                                 <p className="text-[100px] font-black opacity-[0.05] leading-none select-none absolute -bottom-4 right-12 z-0">ELITE</p>
                                 <div className="relative z-10">
-                                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.3em] mb-1">Issue_ID:{certCode}</p>
-                                    <p className="text-[20px] text-white font-black leading-none">{issuedDate}</p>
-                                    <p className="text-[8px] text-white/10 font-mono mt-2">{certNum}</p>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.3em] mb-1">Issue_ID:{certCode}</p>
+                                    <p className="text-[20px] text-foreground font-black leading-none">{issuedDate}</p>
+                                    <p className="text-[8px] text-muted-foreground font-mono mt-2">{certNum}</p>
                                 </div>
                             </div>
                         </div>
@@ -371,8 +371,8 @@ export function CertificateTemplates({
 
                         <div className="text-center relative z-10 space-y-5">
                             <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-yellow-400/20 to-primary/20 border border-yellow-400/50 rounded-full mb-2 shadow-[0_0_20px_rgba(250,204,21,0.2)]">
-                                <Star className="w-5 h-5 text-yellow-500 animate-pulse" fill="currentColor" />
-                                <p className="text-[12px] text-yellow-700 font-black uppercase tracking-[0.2em]">Excellence Award</p>
+                                <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-pulse" fill="currentColor" />
+                                <p className="text-[12px] text-yellow-700 dark:text-yellow-300 font-black uppercase tracking-[0.2em]">Excellence Award</p>
                             </div>
                             <h1 className="text-[64px] font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700 tracking-tighter leading-[0.9] drop-shadow-sm pb-2">
                                 {studentName}

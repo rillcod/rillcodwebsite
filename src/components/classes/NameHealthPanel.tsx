@@ -97,8 +97,8 @@ export default function NameHealthPanel() {
     <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h3 className="text-lg font-black text-white">Student Name &amp; Duplicate Health</h3>
-          <p className="text-sm text-white/50 mt-0.5">
+          <h3 className="text-lg font-black text-foreground">Student Name &amp; Duplicate Health</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Clean script-damaged names, resync phantom registry rows, and merge duplicate accounts keeping the one with results.
           </p>
         </div>
@@ -112,7 +112,7 @@ export default function NameHealthPanel() {
       </div>
 
       {msg && (
-        <div className={`text-sm rounded-xl p-3 border ${msg.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-rose-500/10 border-rose-500/30 text-rose-300'}`}>
+        <div className={`text-sm rounded-xl p-3 border ${msg.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'}`}>
           {msg.text}
         </div>
       )}
@@ -128,8 +128,8 @@ export default function NameHealthPanel() {
               { label: 'Phantom rows', value: scan.registryDesync },
             ].map((t) => (
               <div key={t.label} className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
-                <p className="text-xl font-black text-white">{t.value}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-1">{t.label}</p>
+                <p className="text-xl font-black text-foreground">{t.value}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">{t.label}</p>
               </div>
             ))}
           </div>
@@ -137,11 +137,11 @@ export default function NameHealthPanel() {
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
             <button onClick={cleanNames} disabled={busy !== null || scan.cleanups.length === 0}
-              className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold rounded-lg disabled:opacity-40">
+              className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground text-xs font-bold rounded-lg disabled:opacity-40">
               {busy === 'clean' ? 'Cleaning…' : `Clean ${scan.cleanups.length} name(s)`}
             </button>
             <button onClick={resync} disabled={busy !== null || scan.registryDesync === 0}
-              className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold rounded-lg disabled:opacity-40">
+              className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground text-xs font-bold rounded-lg disabled:opacity-40">
               {busy === 'resync' ? 'Resyncing…' : `Resync ${scan.registryDesync} phantom row(s)`}
             </button>
           </div>
@@ -149,13 +149,13 @@ export default function NameHealthPanel() {
           {/* Name cleanup preview */}
           {scan.cleanups.length > 0 && (
             <details className="bg-white/[0.02] border border-white/10 rounded-xl p-3">
-              <summary className="text-xs font-bold text-white/70 cursor-pointer">Preview name cleanups ({scan.cleanups.length})</summary>
+              <summary className="text-xs font-bold text-muted-foreground cursor-pointer">Preview name cleanups ({scan.cleanups.length})</summary>
               <ul className="mt-2 space-y-1 max-h-56 overflow-y-auto">
                 {scan.cleanups.map((c) => (
-                  <li key={c.id} className="text-xs text-white/60">
-                    <span className="text-rose-300/70 line-through">{c.from}</span>
-                    <span className="mx-2 text-white/30">→</span>
-                    <span className="text-emerald-300">{c.to}</span>
+                  <li key={c.id} className="text-xs text-muted-foreground">
+                    <span className="text-rose-700/70 dark:text-rose-300/70 line-through">{c.from}</span>
+                    <span className="mx-2 text-muted-foreground">→</span>
+                    <span className="text-emerald-700 dark:text-emerald-300">{c.to}</span>
                   </li>
                 ))}
               </ul>
@@ -164,7 +164,7 @@ export default function NameHealthPanel() {
 
           {/* Duplicate groups */}
           {allGroups.length === 0 ? (
-            <p className="text-sm text-white/40">No duplicate accounts found. 🎉</p>
+            <p className="text-sm text-muted-foreground">No duplicate accounts found. 🎉</p>
           ) : (
             <div className="space-y-3">
               {allGroups.map(([key, g]) => {
@@ -172,11 +172,11 @@ export default function NameHealthPanel() {
                 return (
                   <div key={key} className="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${g.kind === 'fuzzy' ? 'bg-amber-500/20 text-amber-300' : 'bg-violet-500/20 text-violet-300'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${g.kind === 'fuzzy' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'bg-violet-500/20 text-violet-700 dark:text-violet-300'}`}>
                         {g.kind === 'fuzzy' ? 'Spelling variant' : 'Duplicate'}
                       </span>
-                      {g.needsReview && <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/20 text-rose-300">Review</span>}
-                      <span className="text-xs text-white/40">{g.school_name}</span>
+                      {g.needsReview && <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/20 text-rose-700 dark:text-rose-300">Review</span>}
+                      <span className="text-xs text-muted-foreground">{g.school_name}</span>
                     </div>
                     <div className="space-y-1.5">
                       {g.members.map((m) => (
@@ -184,12 +184,12 @@ export default function NameHealthPanel() {
                           <input type="radio" name={`survivor-${key}`} checked={m.id === chosen}
                             onChange={() => setSurvivor((s) => ({ ...s, [key]: m.id }))} className="accent-emerald-500" />
                           <span className="flex-1 min-w-0">
-                            <span className="block text-sm font-bold text-white truncate">{m.full_name}
-                              {m.id === chosen && <span className="ml-2 text-[10px] font-black uppercase text-emerald-400">Keep</span>}
+                            <span className="block text-sm font-bold text-foreground truncate">{m.full_name}
+                              {m.id === chosen && <span className="ml-2 text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">Keep</span>}
                             </span>
-                            <span className="block text-xs text-white/40 truncate">{m.email}</span>
+                            <span className="block text-xs text-muted-foreground truncate">{m.email}</span>
                           </span>
-                          <span className="text-[11px] text-white/50 flex-shrink-0">{m.published} pub / {m.reports} rep</span>
+                          <span className="text-[11px] text-muted-foreground flex-shrink-0">{m.published} pub / {m.reports} rep</span>
                         </label>
                       ))}
                     </div>
@@ -203,7 +203,7 @@ export default function NameHealthPanel() {
                         Merge &amp; hard-delete
                       </button>
                       <button onClick={() => { if (confirm('These are NOT the same person (twins / different children)? They will stay separate and won\'t be flagged again.')) dismiss(key, g); }} disabled={busy !== null}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold rounded-lg border border-white/10 disabled:opacity-40">
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-muted-foreground text-xs font-bold rounded-lg border border-white/10 disabled:opacity-40">
                         {busy === key ? '…' : 'Not a duplicate'}
                       </button>
                     </div>

@@ -34,20 +34,20 @@ function autoGradeSubmission(answers: any, submissionText: string, fileUrl: stri
     return Math.min(100, score);
 }
 
-const LABEL = 'block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1.5';
-const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors';
+const LABEL = 'block text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1.5';
+const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-foreground placeholder-white/20 focus:outline-none focus:border-primary transition-colors';
 const TEXTAREA = `${INPUT} resize-none`;
 
 function StatusBadge({ status, grade }: { status: string; grade?: number | null }) {
     if (status === 'graded') return (
-        <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+        <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
             Graded {grade != null ? `· ${grade}%` : ''}
         </span>
     );
     if (status === 'submitted') return (
-        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase">Submitted</span>
+        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase">Submitted</span>
     );
-    return <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-white/30 text-[10px] font-black uppercase">Not Submitted</span>;
+    return <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-muted-foreground text-[10px] font-black uppercase">Not Submitted</span>;
 }
 
 // Parse AI response into parts: text | code-block
@@ -123,7 +123,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
             {lightbox && (
                 <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(null)}>
                     <button onClick={() => setLightbox(null)}
-                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
+                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-foreground text-sm font-bold transition-colors backdrop-blur-sm">
                         <XMarkIcon className="w-5 h-5" /> Close
                     </button>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -138,14 +138,14 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setFilePreviewOpen(false)} />
                     <div className="w-full max-w-2xl bg-[#0d0d1a] border-l border-white/10 flex flex-col shadow-2xl">
                         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/10 bg-[#0B132B] flex-shrink-0">
-                            <PaperClipIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                            <p className="text-sm font-bold text-white flex-1 truncate">Attached File</p>
+                            <PaperClipIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400 flex-shrink-0" />
+                            <p className="text-sm font-bold text-foreground flex-1 truncate">Attached File</p>
                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all rounded-lg">
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all rounded-lg">
                                 Open in Tab
                             </a>
                             <button onClick={() => setFilePreviewOpen(false)}
-                                className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                                 <XMarkIcon className="w-4 h-4" />
                             </button>
                         </div>
@@ -159,7 +159,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
             {/* Top bar */}
             <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#0B132B] shadow-lg">
                 <button onClick={onClose}
-                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white font-semibold transition-colors flex-shrink-0">
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-foreground font-semibold transition-colors flex-shrink-0">
                     <ArrowLeftIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">All Submissions</span>
                 </button>
@@ -169,11 +169,11 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         {(sub.portal_users?.full_name ?? '?')[0]}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm font-bold text-white leading-tight truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
-                        <p className="text-[10px] text-white/40 hidden sm:block truncate">{activity?.title}</p>
+                        <p className="text-sm font-bold text-foreground leading-tight truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
+                        <p className="text-[10px] text-muted-foreground hidden sm:block truncate">{activity?.title}</p>
                     </div>
                 </div>
-                {err && <p className="text-xs text-rose-400 hidden md:block max-w-[120px] truncate">{err}</p>}
+                {err && <p className="text-xs text-rose-600 dark:text-rose-400 hidden md:block max-w-[120px] truncate">{err}</p>}
                 <button onClick={save} disabled={saving}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
@@ -188,23 +188,23 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                 <div className="hidden md:flex flex-col w-2/5 border-r border-white/8 overflow-y-auto bg-[#161628]">
                     <div className="p-5 border-b border-white/8">
                         <span className="text-[10px] font-black text-primary uppercase tracking-widest">Project</span>
-                        <h2 className="text-base font-extrabold text-white mt-1 leading-snug">{activity?.title}</h2>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-white/30">
+                        <h2 className="text-base font-extrabold text-foreground mt-1 leading-snug">{activity?.title}</h2>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                             <span>{max} pts max</span>
-                            <span>Auto-score: <span className="text-amber-400 font-bold">{autoEst}%</span></span>
+                            <span>Auto-score: <span className="text-amber-600 dark:text-amber-400 font-bold">{autoEst}%</span></span>
                         </div>
                     </div>
                     {activity?.instructions && (
                         <div className="p-5 border-b border-white/8">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Instructions</p>
-                            <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Instructions</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
                         </div>
                     )}
                     {deliverables.length > 0 && (
                         <div className="p-5 border-b border-white/8 space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Deliverables</p>
                             {deliverables.map((d, i) => (
-                                <div key={i} className="flex items-start gap-2 text-xs text-white/60">
+                                <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                                     <span className="text-primary font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
                                     <span>{d}</span>
                                 </div>
@@ -213,14 +213,14 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     )}
                     {rubric.length > 0 && (
                         <div className="p-5 space-y-2">
-                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3">Grading Rubric</p>
+                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Grading Rubric</p>
                             {rubric.map((r: any, i: number) => (
                                 <div key={i} className="flex items-start justify-between gap-3 py-2.5 border-b border-white/5 last:border-0">
                                     <div className="min-w-0">
-                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
-                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5">{r.description}</p>}
+                                        <p className="text-xs font-bold text-foreground leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-muted-foreground mt-0.5">{r.description}</p>}
                                     </div>
-                                    <span className="text-xs font-black text-amber-400 flex-shrink-0">{r.maxPoints}pt</span>
+                                    <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex-shrink-0">{r.maxPoints}pt</span>
                                 </div>
                             ))}
                         </div>
@@ -236,21 +236,21 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                             className="w-full flex items-center justify-between px-4 py-3 bg-white/3 hover:bg-white/5 transition-colors text-left">
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">Project Brief</span>
-                                <span className="text-[10px] text-white/30">— {briefOpen ? 'hide' : 'view'}</span>
+                                <span className="text-[10px] text-muted-foreground">— {briefOpen ? 'hide' : 'view'}</span>
                             </div>
                             <ChevronDownIcon className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${briefOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {briefOpen && (
                             <div className="px-4 pb-4 pt-3 space-y-4 bg-white/2">
-                                <p className="text-sm font-bold text-white">{activity?.title}</p>
+                                <p className="text-sm font-bold text-foreground">{activity?.title}</p>
                                 {activity?.instructions && (
-                                    <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
                                 )}
                                 {deliverables.length > 0 && (
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Deliverables</p>
                                         {deliverables.map((d, i) => (
-                                            <p key={i} className="text-xs text-white/55"><span className="text-primary font-bold">{i+1}.</span> {d}</p>
+                                            <p key={i} className="text-xs text-muted-foreground"><span className="text-primary font-bold">{i+1}.</span> {d}</p>
                                         ))}
                                     </div>
                                 )}
@@ -260,21 +260,21 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
 
                     {/* Auto-grade estimate */}
                     <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                        <BoltIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <BoltIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <div className="flex-1">
-                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Auto-grade Estimate</p>
-                            <p className="text-xs text-white/50 mt-0.5">Based on completeness of submission components</p>
+                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Auto-grade Estimate</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Based on completeness of submission components</p>
                         </div>
-                        <span className="text-2xl font-black text-amber-400">{autoEst}%</span>
+                        <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{autoEst}%</span>
                     </div>
 
                     {/* Submitted links */}
                     {answers.links && answers.links.some((l: string) => l?.startsWith('http')) && (
                         <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Project Links</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Project Links</p>
                             {(answers.links as string[]).filter(l => l?.startsWith('http')).map((l, i) => (
                                 <a key={i} href={l} target="_blank" rel="noreferrer"
-                                    className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors truncate">
+                                    className="flex items-center gap-2 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors truncate">
                                     <PaperClipIcon className="w-3.5 h-3.5 flex-shrink-0" /> {l}
                                 </a>
                             ))}
@@ -285,7 +285,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {(answers.code || answers.playground_code) && (
                         <div className="bg-black/40 border border-white/8 rounded-xl overflow-hidden">
                             <div className="px-4 py-2.5 border-b border-white/8">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Code</p>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Submitted Code</p>
                             </div>
                             <div className="p-4 max-h-64 overflow-y-auto">
                                 <SyntaxHighlight code={answers.code || answers.playground_code} language="javascript" />
@@ -296,13 +296,13 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {/* Screenshot — thumbnail, click to open lightbox */}
                     {screenshotUrl && (
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Screenshot</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Screenshot</p>
                             <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(screenshotUrl)}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={screenshotUrl} alt="Screenshot"
                                     className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-primary/40 transition-colors" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
-                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
+                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-foreground uppercase tracking-widest transition-opacity">Click to enlarge</span>
                                 </div>
                             </div>
                         </div>
@@ -311,13 +311,13 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {/* Photo upload — thumbnail, click to open lightbox */}
                     {isImage && (
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Submitted Photo</p>
                             <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(sub.file_url)}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={sub.file_url} alt="Submission"
                                     className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-primary/40 transition-colors" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
-                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
+                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-foreground uppercase tracking-widest transition-opacity">Click to enlarge</span>
                                 </div>
                             </div>
                         </div>
@@ -326,7 +326,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         <div className="border border-primary/20 bg-primary/5 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <PaperClipIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                                <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
+                                <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold flex-1 truncate">
                                     {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
                                 </p>
                                 <button type="button" onClick={() => setFilePreviewOpen(true)}
@@ -340,8 +340,8 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {/* Written explanation */}
                     {(sub.submission_text || answers.text_explanation) && (
                         <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Written Explanation</p>
-                            <p className="text-sm text-white/70 leading-relaxed whitespace-pre-line">{sub.submission_text || answers.text_explanation}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Written Explanation</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{sub.submission_text || answers.text_explanation}</p>
                         </div>
                     )}
 
@@ -349,21 +349,21 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {rubric.length > 0 && (
                         <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-4 space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
-                                <span className="text-xs text-amber-400 font-bold">Total: {rubricTotal} / {max}</span>
+                                <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
+                                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">Total: {rubricTotal} / {max}</span>
                             </div>
                             {rubric.map((r: any, ri: number) => (
                                 <div key={ri} className="flex items-center gap-3">
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
-                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5 truncate">{r.description}</p>}
+                                        <p className="text-xs font-bold text-foreground leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{r.description}</p>}
                                     </div>
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <input type="number" min={0} max={r.maxPoints}
                                             value={rubricScores[ri] ?? ''}
                                             onChange={e => handleRubricScore(ri, Math.min(parseInt(e.target.value) || 0, r.maxPoints))}
-                                            className="w-14 px-2 py-1.5 bg-black/30 border border-amber-500/30 rounded-lg text-xs text-center text-white font-bold focus:outline-none focus:border-amber-500" />
-                                        <span className="text-[10px] text-white/30">/{r.maxPoints}</span>
+                                            className="w-14 px-2 py-1.5 bg-black/30 border border-amber-500/30 rounded-lg text-xs text-center text-foreground font-bold focus:outline-none focus:border-amber-500" />
+                                        <span className="text-[10px] text-muted-foreground">/{r.maxPoints}</span>
                                     </div>
                                 </div>
                             ))}
@@ -372,11 +372,11 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
 
                     {/* Score + grade bar */}
                     <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-3">
-                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Grade (0–{max} points)</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Grade (0–{max} points)</p>
                         <div className="flex items-center gap-4">
                             <input type="number" min={0} max={max} value={grade}
                                 onChange={e => { setGrade(e.target.value); setErr(''); }}
-                                className="w-28 px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white text-2xl font-black text-center focus:outline-none focus:border-emerald-500 transition-colors"
+                                className="w-28 px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-foreground text-2xl font-black text-center focus:outline-none focus:border-emerald-500 transition-colors"
                                 placeholder="0" />
                             <div className="flex-1">
                                 <div className="h-2.5 bg-black/30 rounded-full overflow-hidden mb-2">
@@ -384,27 +384,27 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                                         className={`h-2.5 rounded-full transition-all duration-500 ${info?.color === 'emerald' ? 'bg-emerald-500' : info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                 </div>
                                 {info ? (
-                                    <div className={`flex items-baseline gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
+                                    <div className={`flex items-baseline gap-2 ${info.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : info.color === 'amber' ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                         <span className="text-3xl font-black">{info.letter}</span>
                                         <span className="text-base font-bold">{info.pct}%</span>
                                     </div>
-                                ) : <p className="text-xs text-white/20">Enter score above</p>}
+                                ) : <p className="text-xs text-muted-foreground">Enter score above</p>}
                             </div>
                         </div>
                     </div>
 
                     {/* Feedback */}
                     <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
-                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Feedback for Student</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Feedback for Student</p>
                         <textarea value={feedback} rows={4} onChange={e => setFb(e.target.value)}
                             placeholder="Write constructive feedback that helps this student improve…"
-                            className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/20 focus:outline-none resize-none leading-relaxed" />
+                            className="w-full bg-transparent text-sm text-muted-foreground placeholder:text-white/20 focus:outline-none resize-none leading-relaxed" />
                     </div>
 
                     {err && (
                         <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                            <p className="text-sm text-rose-400 font-semibold">{err}</p>
+                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                            <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold">{err}</p>
                         </div>
                     )}
 
@@ -639,7 +639,7 @@ export default function ProjectBuilderPage() {
     );
     if (!activity) return (
         <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-3">
-            <p className="text-white/30">Activity not found.</p>
+            <p className="text-muted-foreground">Activity not found.</p>
             <Link href="/dashboard/projects" className="text-primary text-sm font-bold hover:underline">← Back to Projects</Link>
         </div>
     );
@@ -680,7 +680,7 @@ export default function ProjectBuilderPage() {
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
                             <Link href="/dashboard/projects"
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white font-semibold transition-colors flex-shrink-0">
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-foreground font-semibold transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5" /> Projects
                             </Link>
                             <div className="w-px h-4 bg-white/10" />
@@ -688,11 +688,11 @@ export default function ProjectBuilderPage() {
                                 <RocketLaunchIcon className="w-4 h-4 text-primary" />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="text-sm font-black text-white uppercase tracking-tight truncate">{activity.title}</h1>
+                                <h1 className="text-sm font-black text-foreground uppercase tracking-tight truncate">{activity.title}</h1>
                                 <div className="flex items-center gap-3 mt-0.5">
                                     <span className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">{category}</span>
                                     {dueDate && (
-                                        <span className={`text-[9px] flex items-center gap-1 ${isOverdue ? 'text-rose-400' : 'text-white/25'}`}>
+                                        <span className={`text-[9px] flex items-center gap-1 ${isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                                             <ClockIcon className="w-2.5 h-2.5" />
                                             {isOverdue ? 'OVERDUE · ' : ''}
                                             Due {dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -705,10 +705,10 @@ export default function ProjectBuilderPage() {
                             {isStudent && mySubmission && <StatusBadge status={mySubmission.status} grade={mySubmission.grade} />}
                             {isStaff && (
                                 <div className="flex items-center gap-3 text-[10px]">
-                                    <span className="text-emerald-400 font-bold">{gradedCount} graded</span>
-                                    {pendingCount > 0 && <span className="text-amber-400 font-bold">{pendingCount} pending</span>}
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{gradedCount} graded</span>
+                                    {pendingCount > 0 && <span className="text-amber-600 dark:text-amber-400 font-bold">{pendingCount} pending</span>}
                                     <button onClick={openEdit}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] hover:border-primary/40 hover:bg-primary/10 text-white/60 hover:text-primary transition-all font-black uppercase tracking-widest">
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] hover:border-primary/40 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all font-black uppercase tracking-widest">
                                         <PencilSquareIcon className="w-3 h-3" /> Edit
                                     </button>
                                 </div>
@@ -726,15 +726,15 @@ export default function ProjectBuilderPage() {
                         className="px-4 md:px-8 pt-3 space-y-2 flex-shrink-0">
                         {error && (
                             <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5">
-                                <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                                <p className="text-rose-400 text-sm flex-1">{error}</p>
-                                <button onClick={() => setError('')} className="text-rose-400/50 hover:text-rose-400">✕</button>
+                                <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                                <p className="text-rose-600 dark:text-rose-400 text-sm flex-1">{error}</p>
+                                <button onClick={() => setError('')} className="text-rose-600/50 dark:text-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400">✕</button>
                             </div>
                         )}
                         {successMsg && (
                             <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5">
-                                <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                <p className="text-emerald-400 text-sm font-semibold">{successMsg}</p>
+                                <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                                <p className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">{successMsg}</p>
                             </div>
                         )}
                     </motion.div>
@@ -755,9 +755,9 @@ export default function ProjectBuilderPage() {
                                 style={{ background: 'rgba(249,115,22,0.06)' }}>
                                 <div className="flex items-center gap-3">
                                     <PencilSquareIcon className="w-4 h-4 text-primary" />
-                                    <p className="text-xs font-black text-white uppercase tracking-widest">Edit Activity</p>
+                                    <p className="text-xs font-black text-foreground uppercase tracking-widest">Edit Activity</p>
                                 </div>
-                                <button onClick={() => setEditMode(false)} className="text-white/30 hover:text-white text-lg leading-none">✕</button>
+                                <button onClick={() => setEditMode(false)} className="text-muted-foreground hover:text-white text-lg leading-none">✕</button>
                             </div>
                             {/* Form */}
                             <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -792,7 +792,7 @@ export default function ProjectBuilderPage() {
                             {/* Footer */}
                             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
                                 <button onClick={() => setEditMode(false)}
-                                    className="px-5 py-2 text-xs font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors">
+                                    className="px-5 py-2 text-xs font-black text-muted-foreground hover:text-white uppercase tracking-widest transition-colors">
                                     Cancel
                                 </button>
                                 <button onClick={saveEdit} disabled={savingEdit || !editTitle.trim()}
@@ -814,7 +814,7 @@ export default function ProjectBuilderPage() {
                             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                                 activeTab === tab
                                     ? 'text-primary border-b-2 border-primary'
-                                    : 'text-white/30 hover:text-white/60'
+                                    : 'text-muted-foreground hover:text-white/60'
                             }`}>
                             {tab === 'code' ? '💻 Code' : tab === 'preview' ? '👁 Preview' : '📤 Submit'}
                         </button>
@@ -837,8 +837,8 @@ export default function ProjectBuilderPage() {
                                     📋 Project Brief{myGroup ? ` · ${myGroup.name}` : ''}
                                 </span>
                                 {briefOpen
-                                    ? <ChevronUpIcon className="w-3.5 h-3.5 text-white/20" />
-                                    : <ChevronDownIcon className="w-3.5 h-3.5 text-white/20" />}
+                                    ? <ChevronUpIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    : <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground" />}
                             </button>
                             {briefOpen && (
                                 <div className="px-4 pb-4 space-y-3 max-h-80 overflow-y-auto">
@@ -855,7 +855,7 @@ export default function ProjectBuilderPage() {
                                                 <UserGroupIcon className="w-3 h-3 text-primary" />
                                                 <p className="text-[9px] font-black text-primary/80 uppercase tracking-widest flex-1 truncate">{myGroup.name}</p>
                                                 {myGroup.is_graded && myGroup.group_score != null && myGroup.evaluation_type === 'group' && (
-                                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">{myGroup.group_score}/100</span>
+                                                    <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">{myGroup.group_score}/100</span>
                                                 )}
                                             </div>
                                             <div className="divide-y divide-white/[0.04]">
@@ -865,21 +865,21 @@ export default function ProjectBuilderPage() {
                                                     return (
                                                         <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-primary/[0.06]' : ''}`}>
                                                             <div className="flex items-center gap-2 mb-0.5">
-                                                                <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-primary text-white' : 'bg-white/10 text-white/40'}`}>
+                                                                <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-primary text-white' : 'bg-white/10 text-muted-foreground'}`}>
                                                                     {name[0].toUpperCase()}
                                                                 </div>
-                                                                <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-white/50'}`}>
+                                                                <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-muted-foreground'}`}>
                                                                     {name}{isMe ? ' (You)' : ''}
                                                                 </p>
                                                                 {m.individual_score != null && (
-                                                                    <span className="text-[9px] text-emerald-400 font-black">{m.individual_score}/100</span>
+                                                                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-black">{m.individual_score}/100</span>
                                                                 )}
                                                             </div>
                                                             {m.task_description && (
-                                                                <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-primary/70' : 'text-white/25'}`}>{m.task_description}</p>
+                                                                <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-primary/70' : 'text-muted-foreground'}`}>{m.task_description}</p>
                                                             )}
                                                             {isMe && m.individual_feedback && (
-                                                                <p className="text-[9px] pl-6 mt-1 text-emerald-400/70 italic">"{m.individual_feedback}"</p>
+                                                                <p className="text-[9px] pl-6 mt-1 text-emerald-600/70 dark:text-emerald-400/70 italic">"{m.individual_feedback}"</p>
                                                             )}
                                                         </div>
                                                     );
@@ -887,8 +887,8 @@ export default function ProjectBuilderPage() {
                                             </div>
                                             {myGroup.group_feedback && (
                                                 <div className="px-3 py-2 border-t border-white/[0.06] bg-emerald-500/[0.04]">
-                                                    <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-0.5">Group Feedback</p>
-                                                    <p className="text-[9px] text-emerald-300/60 italic">"{myGroup.group_feedback}"</p>
+                                                    <p className="text-[9px] font-black text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest mb-0.5">Group Feedback</p>
+                                                    <p className="text-[9px] text-emerald-700/60 dark:text-emerald-300/60 italic">"{myGroup.group_feedback}"</p>
                                                 </div>
                                             )}
                                         </div>
@@ -908,14 +908,14 @@ export default function ProjectBuilderPage() {
                                     className={`px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                                         activeTab === tab
                                             ? 'text-primary border-b-2 border-primary bg-primary/5'
-                                            : 'text-white/30 hover:text-white/60'
+                                            : 'text-muted-foreground hover:text-white/60'
                                     }`}>
                                     {tab === 'code' ? '💻 Code Editor' : tab === 'preview' ? '👁 Live Preview' : '📤 Submit Work'}
                                 </button>
                             ))}
                             <div className="ml-auto flex items-center gap-3 px-4">
                                 <button onClick={capturePlayground} disabled={capturing}
-                                    className="flex items-center gap-1.5 text-[9px] font-black text-cyan-400 hover:text-cyan-300 px-2.5 py-1.5 bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 transition-all disabled:opacity-50 uppercase tracking-widest">
+                                    className="flex items-center gap-1.5 text-[9px] font-black text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 px-2.5 py-1.5 bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 transition-all disabled:opacity-50 uppercase tracking-widest">
                                     <CodeBracketIcon className="w-3 h-3" />
                                     {capturing ? 'Capturing...' : 'From Playground'}
                                 </button>
@@ -950,14 +950,14 @@ export default function ProjectBuilderPage() {
                                     ) : (
                                         <div className="flex-1 flex flex-col">
                                             <div className="px-4 py-3 bg-amber-500/5 border-b border-amber-500/20 flex-shrink-0">
-                                                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
+                                                <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                                                     💡 Live preview is available for HTML projects. Switch to the Code tab and click Run to execute {editorLang} code.
                                                 </p>
                                             </div>
                                             <div className="flex-1 bg-black/20 flex items-center justify-center">
                                                 <div className="text-center space-y-2">
-                                                    <EyeIcon className="w-10 h-10 text-white/10 mx-auto" />
-                                                    <p className="text-white/30 text-sm">Switch to Code Editor to run {editorLang} code</p>
+                                                    <EyeIcon className="w-10 h-10 text-muted-foreground mx-auto" />
+                                                    <p className="text-muted-foreground text-sm">Switch to Code Editor to run {editorLang} code</p>
                                                     <button onClick={() => setActiveTab('code')}
                                                         className="text-[10px] font-black text-primary uppercase tracking-widest px-4 py-2 border border-primary/30 hover:bg-primary/10 transition-all">
                                                         Open Code Editor
@@ -968,8 +968,8 @@ export default function ProjectBuilderPage() {
                                     )
                                 ) : (
                                     <div className="flex-1 flex items-center justify-center flex-col gap-4 bg-black/20">
-                                        <EyeIcon className="w-12 h-12 text-white/10" />
-                                        <p className="text-white/30 text-sm">No code yet — write some in the Code Editor tab to see a preview</p>
+                                        <EyeIcon className="w-12 h-12 text-muted-foreground" />
+                                        <p className="text-muted-foreground text-sm">No code yet — write some in the Code Editor tab to see a preview</p>
                                         <button onClick={() => setActiveTab('code')}
                                             className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest px-5 py-2.5 bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-all">
                                             Open Code Editor
@@ -986,10 +986,10 @@ export default function ProjectBuilderPage() {
                                 {/* Submission status */}
                                 {mySubmission?.feedback && (
                                     <div className="flex items-start gap-3 bg-emerald-500/5 border border-emerald-500/20 px-4 py-4">
-                                        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                        <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                                         <div>
-                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Teacher Feedback</p>
-                                            <p className="text-sm text-emerald-300/80 italic">"{mySubmission.feedback}"</p>
+                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Teacher Feedback</p>
+                                            <p className="text-sm text-emerald-700/80 dark:text-emerald-300/80 italic">"{mySubmission.feedback}"</p>
                                         </div>
                                     </div>
                                 )}
@@ -999,11 +999,11 @@ export default function ProjectBuilderPage() {
                                     <div style={{ borderRadius: 0, overflow: 'hidden', boxShadow: '0 0 40px rgba(249,115,22,0.1), 0 0 80px rgba(249,115,22,0.04)' }}>
                                         <div className="flex items-center justify-between px-4 py-2.5"
                                             style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.12), rgba(249,115,22,0.04))', borderBottom: '1px solid rgba(249,115,22,0.2)' }}>
-                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
                                                 <CheckCircleIcon className="w-3.5 h-3.5" /> Code Ready to Submit
                                             </p>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[9px] text-white/30">{editorCode.split('\n').length} lines</span>
+                                                <span className="text-[9px] text-muted-foreground">{editorCode.split('\n').length} lines</span>
                                                 <button onClick={() => setActiveTab('code')}
                                                     className="text-[9px] font-black text-primary uppercase tracking-widest px-2 py-0.5 bg-primary/15 border border-primary/25 hover:bg-primary/25 transition-all">
                                                     Edit Code
@@ -1033,7 +1033,7 @@ export default function ProjectBuilderPage() {
                                                         className={INPUT} />
                                                     {links.length > 1 && (
                                                         <button type="button" onClick={() => setLinks(ls => ls.filter((_, j) => j !== i))}
-                                                            className="px-2 text-rose-400/60 hover:text-rose-400">✕</button>
+                                                            className="px-2 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400">✕</button>
                                                     )}
                                                 </div>
                                             ))}
@@ -1078,13 +1078,13 @@ export default function ProjectBuilderPage() {
                                     {/* Auto-grade preview */}
                                     {autoGradeEnabled && (
                                         <div className="bg-emerald-500/5 border border-emerald-500/20 px-4 py-3">
-                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2">⚡ Auto-Grade Preview</p>
-                                            <p className="text-3xl font-black text-white">
+                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">⚡ Auto-Grade Preview</p>
+                                            <p className="text-3xl font-black text-foreground">
                                                 {autoGradeSubmission(
                                                     { links: links.filter(Boolean), code: editorCode, screenshot_url: screenshotUrl },
                                                     textExplanation, fileUrl
                                                 )}
-                                                <span className="text-base text-white/30">/100</span>
+                                                <span className="text-base text-muted-foreground">/100</span>
                                             </p>
                                         </div>
                                     )}
@@ -1149,13 +1149,13 @@ export default function ProjectBuilderPage() {
                                     return (
                                         <div key={grp.id} className="border border-white/[0.06] bg-[#0d0d18] p-4">
                                             <div className="flex items-center justify-between mb-3">
-                                                <p className="text-sm font-black text-white truncate mr-2">{grp.name}</p>
+                                                <p className="text-sm font-black text-foreground truncate mr-2">{grp.name}</p>
                                                 <span className={`text-[9px] font-black px-2 py-0.5 flex-shrink-0 ${
                                                     grp.is_graded
-                                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                                         : allSubmitted
-                                                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                                                            : 'bg-white/5 text-white/30 border border-white/[0.06]'
+                                                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                                            : 'bg-white/5 text-muted-foreground border border-white/[0.06]'
                                                 }`}>
                                                     {grp.is_graded ? `Graded${grp.group_score != null ? ` · ${grp.group_score}/100` : ''}` : `${submittedCount}/${memberIds.length} submitted`}
                                                 </span>
@@ -1168,24 +1168,24 @@ export default function ProjectBuilderPage() {
                                                         <div key={m.id} className="flex items-start gap-2 text-[10px]">
                                                             <div className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${hasSubmitted ? 'bg-emerald-400' : 'bg-white/20'}`} />
                                                             <div className="flex-1 min-w-0">
-                                                                <span className={`font-bold ${hasSubmitted ? 'text-white/70' : 'text-white/35'}`}>
+                                                                <span className={`font-bold ${hasSubmitted ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                                                                     {m.portal_users?.full_name || 'Unknown'}
                                                                 </span>
                                                                 {m.task_description && (
-                                                                    <span className="text-white/25 ml-1">— {m.task_description}</span>
+                                                                    <span className="text-muted-foreground ml-1">— {m.task_description}</span>
                                                                 )}
                                                             </div>
                                                             {sub?.grade != null ? (
-                                                                <span className="text-emerald-400 font-black flex-shrink-0">{sub.grade}%</span>
+                                                                <span className="text-emerald-600 dark:text-emerald-400 font-black flex-shrink-0">{sub.grade}%</span>
                                                             ) : sub ? (
-                                                                <span className="text-amber-400/60 flex-shrink-0">submitted</span>
+                                                                <span className="text-amber-600/60 dark:text-amber-400/60 flex-shrink-0">submitted</span>
                                                             ) : null}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
                                             {grp.group_feedback && (
-                                                <p className="text-[9px] text-emerald-300/50 italic mt-2 border-t border-white/[0.04] pt-2">
+                                                <p className="text-[9px] text-emerald-700/50 dark:text-emerald-300/50 italic mt-2 border-t border-white/[0.04] pt-2">
                                                     "{grp.group_feedback}"
                                                 </p>
                                             )}
@@ -1200,11 +1200,11 @@ export default function ProjectBuilderPage() {
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <UserGroupIcon className="w-4 h-4 text-white/30" />
-                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">All Submissions ({submissions.length})</p>
+                                <UserGroupIcon className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">All Submissions ({submissions.length})</p>
                             </div>
                             {pendingCount > 0 && (
-                                <span className="text-[10px] text-amber-400 font-bold px-3 py-1 bg-amber-500/10 border border-amber-500/20">
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold px-3 py-1 bg-amber-500/10 border border-amber-500/20">
                                     {pendingCount} awaiting review
                                 </span>
                             )}
@@ -1212,8 +1212,8 @@ export default function ProjectBuilderPage() {
 
                         {submissions.length === 0 && (
                             <div className="bg-white/[0.02] border border-white/[0.06] p-12 text-center">
-                                <RocketLaunchIcon className="w-8 h-8 text-white/10 mx-auto mb-3" />
-                                <p className="text-white/20 text-sm">No submissions yet</p>
+                                <RocketLaunchIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                                <p className="text-muted-foreground text-sm">No submissions yet</p>
                             </div>
                         )}
 
@@ -1240,16 +1240,16 @@ export default function ProjectBuilderPage() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="text-sm font-black text-white">{studentName}</p>
+                                                <p className="text-sm font-black text-foreground">{studentName}</p>
                                                 {subGroup && (
                                                     <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary uppercase tracking-wide">
                                                         {subGroup.name}
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-[10px] text-white/30">
+                                            <p className="text-[10px] text-muted-foreground">
                                                 {subMember?.task_description
-                                                    ? <span className="text-white/20 mr-2">Task: {subMember.task_description.slice(0, 40)}{subMember.task_description.length > 40 ? '…' : ''}</span>
+                                                    ? <span className="text-muted-foreground mr-2">Task: {subMember.task_description.slice(0, 40)}{subMember.task_description.length > 40 ? '…' : ''}</span>
                                                     : null}
                                                 {sub.submitted_at
                                                     ? new Date(sub.submitted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -1257,7 +1257,7 @@ export default function ProjectBuilderPage() {
                                             </p>
                                         </div>
                                         <StatusBadge status={sub.status || 'not_submitted'} grade={sub.grade} />
-                                        {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary" /> : <ChevronDownIcon className="w-4 h-4 text-white/20" />}
+                                        {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
                                     </button>
 
                                     <AnimatePresence>
@@ -1268,7 +1268,7 @@ export default function ProjectBuilderPage() {
                                                     {subLinks.length > 0 && (
                                                         <div>
                                                             <p className={LABEL}>🔗 Links</p>
-                                                            {subLinks.map((l, i) => <a key={i} href={l} target="_blank" rel="noreferrer" className="block text-sm text-cyan-400 hover:text-cyan-300 underline truncate">{l}</a>)}
+                                                            {subLinks.map((l, i) => <a key={i} href={l} target="_blank" rel="noreferrer" className="block text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 underline truncate">{l}</a>)}
                                                         </div>
                                                     )}
                                                     {subCode && (
@@ -1292,19 +1292,19 @@ export default function ProjectBuilderPage() {
                                                     {sub.file_url && (
                                                         <div>
                                                             <p className={LABEL}>📎 File</p>
-                                                            <a href={sub.file_url} target="_blank" rel="noreferrer" className="text-sm text-cyan-400 hover:underline">{sub.file_url}</a>
+                                                            <a href={sub.file_url} target="_blank" rel="noreferrer" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">{sub.file_url}</a>
                                                         </div>
                                                     )}
                                                     {(sub.submission_text || answers.text_explanation) && (
                                                         <div>
                                                             <p className={LABEL}>📝 Written Explanation</p>
-                                                            <p className="text-sm text-white/60 leading-relaxed whitespace-pre-line">{sub.submission_text || answers.text_explanation}</p>
+                                                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{sub.submission_text || answers.text_explanation}</p>
                                                         </div>
                                                     )}
                                                     {sub.feedback && (
                                                         <div className="bg-emerald-500/5 border border-emerald-500/20 px-3 py-2">
-                                                            <p className="text-[10px] font-black text-emerald-400 mb-1">Feedback Given</p>
-                                                            <p className="text-xs text-emerald-300/70 italic">{sub.feedback}</p>
+                                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mb-1">Feedback Given</p>
+                                                            <p className="text-xs text-emerald-700/70 dark:text-emerald-300/70 italic">{sub.feedback}</p>
                                                         </div>
                                                     )}
 

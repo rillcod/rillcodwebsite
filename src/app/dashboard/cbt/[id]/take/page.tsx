@@ -41,7 +41,7 @@ function CodingBlocksChallenge({
           <div key={pi} className="contents">
             <span className="text-sm sm:text-lg font-medium text-muted-foreground break-words">{p}</span>
             {pi < parts.length - 1 && (
-              <div className="inline-flex min-w-[72px] sm:min-w-[100px] min-h-9 sm:h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-black text-emerald-400 items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)] break-words">
+              <div className="inline-flex min-w-[72px] sm:min-w-[100px] min-h-9 sm:h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)] break-words">
                 {currentAnswers[pi] || "???"}
               </div>
             )}
@@ -59,7 +59,7 @@ function CodingBlocksChallenge({
               const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
               if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
             }}
-          className="px-4 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-emerald-500/20 border border-border hover:border-emerald-500/30 rounded-xl text-xs sm:text-sm font-bold text-muted-foreground hover:text-emerald-400 transition-all active:scale-95 break-words"
+          className="px-4 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-emerald-500/20 border border-border hover:border-emerald-500/30 rounded-xl text-xs sm:text-sm font-bold text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 break-words"
           >
             {block}
           </button>
@@ -67,7 +67,7 @@ function CodingBlocksChallenge({
         <button
           type="button"
           onClick={() => onChange('')}
-          className="px-4 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-rose-500/20 border border-border hover:border-rose-500/30 rounded-xl text-[10px] uppercase font-black text-muted-foreground hover:text-rose-400 sm:ml-auto transition-all"
+          className="px-4 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-rose-500/20 border border-border hover:border-rose-500/30 rounded-xl text-[10px] uppercase font-black text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 sm:ml-auto transition-all"
         >
           Clear Blocks
         </button>
@@ -221,7 +221,7 @@ export default function TakeExamPage() {
   if (examError && !exam) return (
     <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
       <div className="text-center max-w-md px-6 pb-12">
-        <XCircleIcon className="w-16 h-16 mx-auto text-amber-400 mb-4" />
+        <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">Exam Not Available</h1>
         <p className="text-muted-foreground mt-2">{examError}</p>
         <button onClick={() => router.push('/dashboard/cbt')} className="mt-6 px-6 py-2.5 bg-muted hover:bg-muted text-sm font-bold rounded-xl transition-colors">Return to CBT Centre</button>
@@ -232,7 +232,7 @@ export default function TakeExamPage() {
   if (!loading && questions.length === 0) return (
     <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
       <div className="text-center pb-12">
-        <XCircleIcon className="w-16 h-16 mx-auto text-amber-400 mb-4" />
+        <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">No Questions Yet</h1>
         <p className="text-muted-foreground mt-2">This exam hasn't been configured with any questions.</p>
         <button onClick={() => router.push('/dashboard/cbt')} className="mt-6 px-6 py-2.5 bg-muted hover:bg-muted text-sm font-bold rounded-xl transition-colors">Return to CBT Centre</button>
@@ -252,11 +252,11 @@ export default function TakeExamPage() {
         <div className="max-w-xl w-full relative z-10">
           <div className="bg-card/80 backdrop-blur-3xl border border-border rounded-[2.5rem] p-12 shadow-2xl space-y-8 text-center">
             <div className={`w-32 h-32 mx-auto rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
-              {isPending ? <ClockIcon className="w-16 h-16 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-400" />)}
+              {isPending ? <ClockIcon className="w-16 h-16 text-amber-600 dark:text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-600 dark:text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-600 dark:text-rose-400" />)}
             </div>
 
             <div className="space-y-2">
-              <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
+              <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-600 dark:text-amber-400' : (result.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}`}>
                 {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
               </h1>
               <p className="text-muted-foreground font-medium tracking-widest uppercase text-xs">
@@ -273,10 +273,10 @@ export default function TakeExamPage() {
                   <span className="text-muted-foreground text-xs font-black uppercase tracking-widest">
                     Current Auto Score
                   </span>
-                  <span className="text-4xl font-black text-amber-400">{result.score}%</span>
+                  <span className="text-4xl font-black text-amber-600 dark:text-amber-400">{result.score}%</span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
+                  <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
                     Awaiting Manual Evaluation
                   </span>
                   <p className="text-sm text-muted-foreground italic">
@@ -291,7 +291,7 @@ export default function TakeExamPage() {
                     <span className="text-muted-foreground text-xs font-black uppercase tracking-widest">
                       Final Grade
                     </span>
-                    <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
+                    <span className={`text-4xl font-black ${result.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{result.score}%</span>
                   </div>
                   <div className="w-full h-4 bg-card shadow-sm rounded-full overflow-hidden border border-border p-0.5">
                     <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-primary to-primary from-primary to-primary' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
@@ -336,7 +336,7 @@ export default function TakeExamPage() {
         <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between gap-3 sm:gap-8">
           <div className="flex-1 min-w-0 flex items-center gap-3 sm:gap-6">
             <div className="min-w-0 flex-1 sm:flex-shrink-0">
-              <div className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-1">Live Examination</div>
+              <div className="text-[9px] sm:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-1">Live Examination</div>
               <h2 className="text-xs sm:text-sm font-bold text-muted-foreground truncate max-w-[56vw] sm:max-w-md">{exam?.title}</h2>
             </div>
             <div className="hidden sm:flex flex-1 items-center gap-3">
@@ -347,13 +347,13 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
-            <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
+          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
+            <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600/50 dark:text-emerald-400/50'}`} />
             <span className="text-sm sm:text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
           </div>
         </div>
         {examError && (
-          <div className="max-w-5xl mx-auto mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-400">
+          <div className="max-w-5xl mx-auto mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400">
             {examError}
           </div>
         )}
@@ -368,7 +368,7 @@ export default function TakeExamPage() {
           <div className="space-y-5 sm:space-y-8 min-h-[auto] sm:min-h-[400px]">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
+                <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
                 <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-auto">{current + 1}/{questions.length}</span>
               </div>
@@ -408,7 +408,7 @@ export default function TakeExamPage() {
                         : 'bg-muted/20 border-border hover:bg-muted'
                         }`}>
                       <div className={`w-3 h-3 rounded-full transition-all ${answers[q.id] === val ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-muted'}`} />
-                      <span className={`text-base sm:text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                      <span className={`text-base sm:text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                         {val}
                       </span>
                     </button>
@@ -482,7 +482,7 @@ export default function TakeExamPage() {
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
                   ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] sm:scale-110'
                   : answers[questions[i]?.id]
-                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                     : 'bg-muted/30 text-muted-foreground border border-border hover:border-emerald-500/30'
                   }`}>
                 {i + 1}

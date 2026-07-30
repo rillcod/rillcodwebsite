@@ -69,7 +69,7 @@ export default function SlidesCatalogPage() {
     <div className="max-w-5xl mx-auto p-4 pb-28 sm:p-6 sm:pb-28 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-3 flex-1">
-          <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
+          <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-700 dark:text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
           <div>
             <h1 className="text-xl font-black text-foreground">Learning Slides</h1>
             <p className="text-xs text-muted-foreground">View-only slide decks, organised by programme &amp; course · {totalDecks} deck{totalDecks === 1 ? '' : 's'}</p>
@@ -108,7 +108,7 @@ export default function SlidesCatalogPage() {
         filteredPrograms.map((prog) => (
           <section key={prog.program_id ?? prog.program_name} className="space-y-4">
             <div className="flex items-center gap-2">
-              <AcademicCapIcon className="w-5 h-5 text-violet-400" />
+              <AcademicCapIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
               <h2 className="text-base font-black text-foreground">{prog.program_name}</h2>
             </div>
             {prog.courses.map((course) => (
@@ -122,10 +122,10 @@ export default function SlidesCatalogPage() {
                     return (
                       <div key={deck.id} className="bg-card border border-violet-500/20 rounded-2xl p-4 flex flex-col gap-3 hover:border-violet-500/40 transition-all">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-violet-300/60">{count} · view-only</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-violet-700/60 dark:text-violet-300/60">{count} · view-only</p>
                           <p className="text-sm font-black text-foreground leading-snug line-clamp-2">{deck.title}</p>
                           {deck.lesson_title && (
-                            <Link href={`/dashboard/lessons/${deck.lesson_id}`} className="text-[11px] text-muted-foreground hover:text-violet-300 inline-flex items-center gap-1 mt-1">
+                            <Link href={`/dashboard/lessons/${deck.lesson_id}`} className="text-[11px] text-muted-foreground hover:text-violet-700 dark:hover:text-violet-300 inline-flex items-center gap-1 mt-1">
                               in {deck.lesson_title} <ArrowRightIcon className="w-3 h-3" />
                             </Link>
                           )}

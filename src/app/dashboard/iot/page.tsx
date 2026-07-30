@@ -40,13 +40,13 @@ const SEED_ALERTS: Alert[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────
 function statusBadge(s: string) {
-  if (s === 'online') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-  if (s === 'warning') return 'bg-amber-500/20  text-amber-400  border-amber-500/30';
-  return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+  if (s === 'online') return 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+  if (s === 'warning') return 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30';
+  return 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30';
 }
 function alertBg(t: string) {
-  if (t === 'error') return 'bg-rose-500/10 border-rose-500/20 text-rose-400';
-  if (t === 'warning') return 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+  if (t === 'error') return 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400';
+  if (t === 'warning') return 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400';
   return 'bg-primary/10 border-primary/20 text-primary';
 }
 function ago(d: Date) {
@@ -228,15 +228,15 @@ export default function IoTPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <SignalIcon className="w-5 h-5 text-cyan-400" />
-              <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
+              <SignalIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+              <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">
                 {isDemo ? 'Simulation · IoT' : 'Live · IoT'} Monitoring
               </span>
             </div>
             <h1 className="text-3xl font-extrabold">IoT Device Dashboard</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Last updated {lastRefresh ? ago(lastRefresh) : '—'}
-              {!isDemo && <span className="ml-2 text-emerald-400 text-xs font-semibold">● Live</span>}
+              {!isDemo && <span className="ml-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">● Live</span>}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -247,7 +247,7 @@ export default function IoTPage() {
             <button onClick={() => setAutoRefresh(v => !v)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all
                 ${autoRefresh
-                  ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30'
+                  ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/30'
                   : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
               <ArrowPathIcon className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
               {autoRefresh ? 'Auto ON' : 'Auto OFF'}
@@ -259,9 +259,9 @@ export default function IoTPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Devices', value: devices.length, icon: ComputerDesktopIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Online', value: online, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Warnings', value: warning, icon: ExclamationTriangleIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { label: 'Offline', value: offline, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+            { label: 'Online', value: online, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Warnings', value: warning, icon: ExclamationTriangleIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Offline', value: offline, icon: XCircleIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
             <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -276,8 +276,8 @@ export default function IoTPage() {
         {/* Cluster averages */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { label: 'Avg CPU', value: avgCpu, unit: '%', color: avgCpu >= 85 ? 'text-rose-400' : avgCpu >= 70 ? 'text-amber-400' : 'text-emerald-400' },
-            { label: 'Avg Temp', value: avgTemp, unit: '°C', color: avgTemp >= 55 ? 'text-rose-400' : avgTemp >= 48 ? 'text-amber-400' : 'text-emerald-400' },
+            { label: 'Avg CPU', value: avgCpu, unit: '%', color: avgCpu >= 85 ? 'text-rose-600 dark:text-rose-400' : avgCpu >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Avg Temp', value: avgTemp, unit: '°C', color: avgTemp >= 55 ? 'text-rose-600 dark:text-rose-400' : avgTemp >= 48 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400' },
             { label: 'Avg Uptime', value: Math.round(devices.reduce((a, d) => a + d.uptime, 0) / Math.max(devices.length, 1)), unit: '%', color: 'text-primary' },
             { label: 'Active Alerts', value: alerts.filter(a => !a.resolved).length, unit: '', color: 'text-primary' },
           ].map(s => (
@@ -304,8 +304,8 @@ export default function IoTPage() {
                     onClick={() => setExpanded(expanded === d.id ? null : d.id)}>
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
-                        ${d.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' :
-                          d.status === 'warning' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                        ${d.status === 'online' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                          d.status === 'warning' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                         <DeviceIcon type={d.type} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -378,7 +378,7 @@ export default function IoTPage() {
             <div className="divide-y divide-white/5">
               {alerts.length === 0 ? (
                 <div className="p-8 text-center">
-                  <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-400/30 mb-2" />
+                  <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-600/30 dark:text-emerald-400/30 mb-2" />
                   <p className="text-muted-foreground text-sm">No alerts</p>
                 </div>
               ) : alerts.map(a => (

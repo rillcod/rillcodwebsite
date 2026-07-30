@@ -49,9 +49,9 @@ async function resolveVerifyCode(raw: string): Promise<string | null> {
 }
 
 const STATUS_CONFIG: Record<AttendanceStatus, { label: string; emoji: string; bg: string; ring: string; text: string }> = {
-  present:  { label: 'Present',  emoji: '✅', bg: 'bg-emerald-500/20 hover:bg-emerald-500/40', ring: 'ring-emerald-500', text: 'text-emerald-400' },
-  late:     { label: 'Late',     emoji: '⏰', bg: 'bg-amber-500/20  hover:bg-amber-500/40',  ring: 'ring-amber-500',   text: 'text-amber-400'   },
-  absent:   { label: 'Absent',   emoji: '❌', bg: 'bg-red-500/20    hover:bg-red-500/40',    ring: 'ring-red-500',     text: 'text-red-400'     },
+  present:  { label: 'Present',  emoji: '✅', bg: 'bg-emerald-500/20 hover:bg-emerald-500/40', ring: 'ring-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+  late:     { label: 'Late',     emoji: '⏰', bg: 'bg-amber-500/20  hover:bg-amber-500/40',  ring: 'ring-amber-500',   text: 'text-amber-600 dark:text-amber-400'   },
+  absent:   { label: 'Absent',   emoji: '❌', bg: 'bg-red-500/20    hover:bg-red-500/40',    ring: 'ring-red-500',     text: 'text-red-600 dark:text-red-400'     },
   excused:  { label: 'Excused',  emoji: '📋', bg: 'bg-primary/20   hover:bg-primary/40',   ring: 'ring-primary',    text: 'text-primary'    },
 };
 
@@ -261,7 +261,7 @@ export default function StaffQRScanner() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[#7a0606]/30 flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-red-400" stroke="currentColor" strokeWidth="2">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-red-600 dark:text-red-400" stroke="currentColor" strokeWidth="2">
                     <path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2" strokeLinecap="round"/>
                     <rect x="7" y="7" width="4" height="4" fill="currentColor" stroke="none"/>
                     <rect x="13" y="7" width="4" height="4" fill="currentColor" stroke="none"/>
@@ -269,11 +269,11 @@ export default function StaffQRScanner() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-black text-white">QR Staff Scanner</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest">Scan a student ID card</p>
+                  <p className="text-sm font-black text-foreground">QR Staff Scanner</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Scan a student ID card</p>
                 </div>
               </div>
-              <button onClick={closeScanner} className="text-white/40 hover:text-white transition-colors p-1">
+              <button onClick={closeScanner} className="text-muted-foreground hover:text-white transition-colors p-1">
                 <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="2">
                   <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round"/>
                 </svg>
@@ -286,7 +286,7 @@ export default function StaffQRScanner() {
               {/* ── IDLE: Choose scan method ── */}
               {state === 'idle' && (
                 <div className="space-y-3">
-                  <p className="text-xs text-white/50 text-center">Choose how to scan the student's QR code</p>
+                  <p className="text-xs text-muted-foreground text-center">Choose how to scan the student's QR code</p>
 
                   {supportsBarcodeDetector && (
                     <button onClick={startCamera}
@@ -298,8 +298,8 @@ export default function StaffQRScanner() {
                         </svg>
                       </div>
                       <div className="text-left">
-                        <p className="text-sm font-bold text-white">Use Camera</p>
-                        <p className="text-[11px] text-white/40">Point phone camera at QR code</p>
+                        <p className="text-sm font-bold text-foreground">Use Camera</p>
+                        <p className="text-[11px] text-muted-foreground">Point phone camera at QR code</p>
                       </div>
                     </button>
                   )}
@@ -307,19 +307,19 @@ export default function StaffQRScanner() {
                   <button onClick={() => fileInputRef.current?.click()}
                     className="w-full flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                      <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-emerald-400" stroke="currentColor" strokeWidth="2">
+                      <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-emerald-600 dark:text-emerald-400" stroke="currentColor" strokeWidth="2">
                         <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round"/>
                       </svg>
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-white">Upload Photo</p>
-                      <p className="text-[11px] text-white/40">Take or upload a photo of the QR code</p>
+                      <p className="text-sm font-bold text-foreground">Upload Photo</p>
+                      <p className="text-[11px] text-muted-foreground">Take or upload a photo of the QR code</p>
                     </div>
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} />
 
                   {!supportsBarcodeDetector && (
-                    <p className="text-[10px] text-white/30 text-center">Camera scanner not supported in this browser. Use photo upload instead.</p>
+                    <p className="text-[10px] text-muted-foreground text-center">Camera scanner not supported in this browser. Use photo upload instead.</p>
                   )}
                 </div>
               )}
@@ -341,12 +341,12 @@ export default function StaffQRScanner() {
                       </div>
                     </div>
                     <div className="absolute bottom-3 inset-x-0 text-center">
-                      <span className="text-[11px] text-white/60 bg-black/50 px-3 py-1 rounded-full">Align QR code in the frame</span>
+                      <span className="text-[11px] text-muted-foreground bg-black/50 px-3 py-1 rounded-full">Align QR code in the frame</span>
                     </div>
                   </div>
                   <canvas ref={canvasRef} className="hidden" />
                   <button onClick={() => { if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current); if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); setState('idle'); }}
-                    className="w-full py-2.5 text-sm text-white/50 hover:text-white border border-white/10 rounded-xl transition-colors">
+                    className="w-full py-2.5 text-sm text-muted-foreground hover:text-white border border-white/10 rounded-xl transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -356,7 +356,7 @@ export default function StaffQRScanner() {
               {state === 'loading' && (
                 <div className="flex flex-col items-center justify-center py-10 gap-4">
                   <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-white/40 text-sm">Looking up student...</p>
+                  <p className="text-muted-foreground text-sm">Looking up student...</p>
                 </div>
               )}
 
@@ -373,9 +373,9 @@ export default function StaffQRScanner() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="font-black text-white text-base truncate">{student.full_name}</p>
-                      <p className="text-[11px] text-white/40">{student.school_name || 'Rillcod Academy'}</p>
-                      <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${student.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                      <p className="font-black text-foreground text-base truncate">{student.full_name}</p>
+                      <p className="text-[11px] text-muted-foreground">{student.school_name || 'Rillcod Academy'}</p>
+                      <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${student.is_active ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/15 text-red-600 dark:text-red-400'}`}>
                         {student.is_active ? '● Active' : '● Inactive'}
                       </span>
                     </div>
@@ -384,7 +384,7 @@ export default function StaffQRScanner() {
                   {/* Attendance section */}
                   {!attendanceDone ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Mark Attendance</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Mark Attendance</p>
                       <div className="grid grid-cols-2 gap-2">
                         {(Object.entries(STATUS_CONFIG) as [AttendanceStatus, typeof STATUS_CONFIG[AttendanceStatus]][]).map(([status, cfg]) => (
                           <button key={status} onClick={() => markAttendance(status)}
@@ -402,45 +402,45 @@ export default function StaffQRScanner() {
                         <p className={`text-sm font-black ${STATUS_CONFIG[attendanceDone].text}`}>
                           Marked {attendanceDone}
                         </p>
-                        <p className="text-[10px] text-white/40">Attendance saved successfully</p>
+                        <p className="text-[10px] text-muted-foreground">Attendance saved successfully</p>
                       </div>
                     </div>
                   )}
 
                   {/* Navigation actions */}
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Quick Actions</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Quick Actions</p>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => { router.push(`/dashboard/students?highlight=${student.id}`); closeScanner(); }}
                         className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all border border-white/5">
                         <span className="text-base">👤</span>
-                        <span className="text-[11px] font-bold text-white/70">View Profile</span>
+                        <span className="text-[11px] font-bold text-muted-foreground">View Profile</span>
                       </button>
                       <button
                         onClick={() => { router.push(`/dashboard/results?studentId=${student.id}`); closeScanner(); }}
                         className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all border border-white/5">
                         <span className="text-base">📊</span>
-                        <span className="text-[11px] font-bold text-white/70">Progress Report</span>
+                        <span className="text-[11px] font-bold text-muted-foreground">Progress Report</span>
                       </button>
                       <button
                         onClick={() => { router.push(`/dashboard/attendance?studentId=${student.id}`); closeScanner(); }}
                         className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all border border-white/5">
                         <span className="text-base">📅</span>
-                        <span className="text-[11px] font-bold text-white/70">Attendance Log</span>
+                        <span className="text-[11px] font-bold text-muted-foreground">Attendance Log</span>
                       </button>
                       <button
                         onClick={() => { router.push(`/dashboard/assignments?studentId=${student.id}`); closeScanner(); }}
                         className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all border border-white/5">
                         <span className="text-base">📝</span>
-                        <span className="text-[11px] font-bold text-white/70">Assignments</span>
+                        <span className="text-[11px] font-bold text-muted-foreground">Assignments</span>
                       </button>
                     </div>
                   </div>
 
                   {/* Scan next */}
                   <button onClick={scanNext}
-                    className="w-full py-3 bg-[#7a0606]/80 hover:bg-[#7a0606] text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2">
+                    className="w-full py-3 bg-[#7a0606]/80 hover:bg-[#7a0606] text-foreground text-sm font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2">
                     <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2">
                       <path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.8-4.8M20 15a9 9 0 01-15.8 4.8" strokeLinecap="round"/>
                     </svg>

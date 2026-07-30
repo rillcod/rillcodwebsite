@@ -101,7 +101,7 @@ const TABS: TabConfig[] = [
     bannerDescription:
       "Take on coding missions that earn XP, unlock badges, and build streaks. Each quest targets a real skill — from loops to APIs — so every challenge moves you forward.",
     icon: RocketLaunchIcon,
-    color: "text-emerald-500",
+    color: "text-emerald-600 dark:text-emerald-400",
   },
   {
     id: "protocol",
@@ -250,7 +250,7 @@ export default function ActivityHubPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-3 px-6 py-3 border whitespace-nowrap transition-all ${
                   isSelected
-                    ? `${aes.bgFull} ${aes.border500} text-white font-black`
+                    ? `${aes.bgFull} ${aes.border500} text-foreground font-black`
                     : "bg-muted/30 border-border text-muted-foreground font-bold hover:bg-muted/50"
                 } text-[10px] uppercase tracking-widest`}
               >

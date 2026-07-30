@@ -33,7 +33,7 @@ interface ShowcaseItem {
 const TYPE_META = {
   project:    { label: 'Project',    color: 'text-primary bg-primary/10 border-primary/30',  icon: RocketLaunchIcon },
   assignment: { label: 'Assignment', color: 'text-primary   bg-primary/10   border-primary/30',    icon: BookOpenIcon },
-  assessment: { label: 'Assessment', color: 'text-amber-400  bg-amber-500/10  border-amber-500/30',   icon: TrophyIcon },
+  assessment: { label: 'Assessment', color: 'text-amber-600 dark:text-amber-400  bg-amber-500/10  border-amber-500/30',   icon: TrophyIcon },
 };
 
 const TERM_LABEL: Record<number, string> = { 1: 'First Term', 2: 'Second Term', 3: 'Third Term' };
@@ -54,7 +54,7 @@ function AddItemModal({ onClose, onSave, schoolId }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
         <h2 className="font-black flex items-center gap-2 text-sm">
-          <StarIcon className="w-4 h-4 text-amber-400" /> Add Showcase Item
+          <StarIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Add Showcase Item
         </h2>
         <div className="space-y-3">
           <div>
@@ -155,8 +155,8 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
       {/* Pinned banner */}
       {item.is_pinned && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 flex items-center gap-1.5">
-          <StarIcon className="w-3 h-3 text-amber-400" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">Featured Showcase</span>
+          <StarIcon className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Featured Showcase</span>
         </div>
       )}
 
@@ -181,7 +181,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
             </span>
           )}
           {!item.is_published && (
-            <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5">Draft</span>
+            <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5">Draft</span>
           )}
         </div>
 
@@ -220,8 +220,8 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
                 onClick={() => onTogglePublish(item.id, !item.is_published)}
                 className={`text-[9px] font-black px-2 py-1 border transition-colors ${
                   item.is_published
-                    ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
-                    : 'border-rose-500/30 text-rose-400 hover:bg-rose-500/10'
+                    ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                    : 'border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
                 }`}
               >
                 {item.is_published ? '✓ Published' : 'Publish'}
@@ -230,8 +230,8 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
                 onClick={() => onPin(item.id, !item.is_pinned)}
                 className={`text-[9px] font-black px-2 py-1 border transition-colors ${
                   item.is_pinned
-                    ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
-                    : 'border-border text-muted-foreground hover:border-amber-500/30 hover:text-amber-400'
+                    ? 'border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                    : 'border-border text-muted-foreground hover:border-amber-500/30 hover:text-amber-600 dark:hover:text-amber-400'
                 }`}
               >
                 {item.is_pinned ? '★ Pinned' : 'Pin'}
@@ -337,8 +337,8 @@ export default function ShowcasePage() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <TrophyIcon className="w-4 h-4 text-amber-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Student Showcase</span>
+            <TrophyIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Student Showcase</span>
           </div>
           <h1 className="text-2xl font-black">Outstanding Work</h1>
           <p className="text-xs text-muted-foreground mt-1">
@@ -359,9 +359,9 @@ export default function ShowcasePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Showcased', value: items.length, color: 'text-foreground' },
-          { label: 'Featured', value: items.filter(i => i.is_pinned).length, color: 'text-amber-400' },
+          { label: 'Featured', value: items.filter(i => i.is_pinned).length, color: 'text-amber-600 dark:text-amber-400' },
           { label: 'Projects', value: items.filter(i => i.item_type === 'project').length, color: 'text-primary' },
-          { label: 'Published', value: items.filter(i => i.is_published).length, color: 'text-emerald-400' },
+          { label: 'Published', value: items.filter(i => i.is_published).length, color: 'text-emerald-600 dark:text-emerald-400' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-border p-4">
             <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -426,7 +426,7 @@ export default function ShowcasePage() {
           {/* Pinned */}
           {pinned.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                 <StarIcon className="w-3 h-3" /> Featured Work
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

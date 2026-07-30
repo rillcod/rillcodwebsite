@@ -150,7 +150,7 @@ export default function ProgressionAnalyticsPage({
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 relative z-10">
           <div className={embedded ? "hidden" : "space-y-6 max-w-3xl"}>
             <div className="flex items-center gap-4">
-              <SparklesIcon className="w-8 h-8 text-blue-500" />
+              <SparklesIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-card-foreground leading-tight uppercase">
                 Learning Insights
               </h1>
@@ -213,8 +213,8 @@ export default function ProgressionAnalyticsPage({
           <p
             className={`text-6xl font-black tracking-tighter transition-colors duration-500 ${
               summary.completion_pct < 50
-                ? "text-rose-400 group-hover:text-rose-500"
-                : "text-emerald-400 group-hover:text-emerald-500"
+                ? "text-rose-600 dark:text-rose-400 group-hover:text-rose-600 dark:group-hover:text-rose-400"
+                : "text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"
             }`}
           >
             {summary.completion_pct}%
@@ -234,7 +234,7 @@ export default function ProgressionAnalyticsPage({
           <p
             className={`text-6xl font-black tracking-tighter transition-colors duration-500 ${
               summary.average_practical_score < 60
-                ? "text-amber-400 group-hover:text-amber-500"
+                ? "text-amber-600 dark:text-amber-400 group-hover:text-amber-600 dark:group-hover:text-amber-400"
                 : "text-primary group-hover:text-primary/80"
             }`}
           >
@@ -252,7 +252,7 @@ export default function ProgressionAnalyticsPage({
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground relative z-10">
             Avg. Retry Rate
           </p>
-          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-blue-500 transition-colors duration-500">
+          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-500">
             {summary.average_retry_count}
             <span className="text-2xl ml-1">x</span>
           </p>
@@ -268,7 +268,7 @@ export default function ProgressionAnalyticsPage({
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground relative z-10">
             Activity Records
           </p>
-          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-violet-500 transition-colors duration-500">
+          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors duration-500">
             {summary.total_records}
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed italic">
@@ -282,7 +282,7 @@ export default function ProgressionAnalyticsPage({
         <div className="bg-card border border-border rounded-[3.5rem] overflow-hidden flex flex-col shadow-2xl">
           <div className="p-10 sm:p-14 border-b border-border bg-muted/10">
             <div className="flex items-center gap-4">
-              <ExclamationTriangleIcon className="w-8 h-8 text-amber-500" />
+              <ExclamationTriangleIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               <h2 className="text-[11px] font-black text-foreground uppercase tracking-[0.3em] leading-none">
                 Topics Needing Attention
               </h2>
@@ -302,8 +302,8 @@ export default function ProgressionAnalyticsPage({
                     <span
                       className={`text-[9px] font-black px-4 py-2 rounded-full border shadow-sm uppercase tracking-[0.2em] ${
                         row.weakness_index > 70
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
                       }`}
                     >
                       {row.weakness_index > 70 ? "Needs Help" : "Monitor"}
@@ -320,7 +320,7 @@ export default function ProgressionAnalyticsPage({
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center py-20 space-y-6">
                 <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                  <ChartBarIcon className="w-10 h-10 text-emerald-500/40" />
+                  <ChartBarIcon className="w-10 h-10 text-emerald-600/40 dark:text-emerald-400/40" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-2xl font-black text-foreground tracking-tighter uppercase">

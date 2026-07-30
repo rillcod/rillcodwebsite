@@ -21,7 +21,7 @@ function renderContentWithMentions(content: string) {
             parts.push(content.slice(lastIndex, start));
         }
         parts.push(
-            <span key={`${start}-${username}`} className="text-teal-600 font-bold hover:underline cursor-pointer">
+            <span key={`${start}-${username}`} className="text-teal-600 dark:text-teal-400 font-bold hover:underline cursor-pointer">
                 {full}
             </span>
         );
@@ -65,14 +65,14 @@ export function DiscussionTopic({ topic }: TopicProps) {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        {topic.is_pinned && <Badge className="bg-teal-50 text-teal-600 border-teal-100 hover:bg-teal-50 gap-1 rounded-full"><Pin className="w-3 h-3" /> Pinned</Badge>}
+                        {topic.is_pinned && <Badge className="bg-teal-50 text-teal-600 dark:text-teal-400 border-teal-100 hover:bg-teal-50 gap-1 rounded-full"><Pin className="w-3 h-3" /> Pinned</Badge>}
                         {topic.is_locked && <Badge variant="secondary" className="gap-1 rounded-full"><Lock className="w-3 h-3" /> Locked</Badge>}
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/70 rounded-full">
                             <MoreVertical className="w-4 h-4" />
                         </Button>
                     </div>
                 </div>
-                <h3 className="text-xl font-bold text-foreground dark:text-white mt-4 leading-tight group-hover:text-teal-600 transition-colors">
+                <h3 className="text-xl font-bold text-foreground dark:text-white mt-4 leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                     {topic.title}
                 </h3>
             </CardHeader>
@@ -85,7 +85,7 @@ export function DiscussionTopic({ topic }: TopicProps) {
 
             <CardFooter className="bg-background/50 dark:bg-slate-950/50 p-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
                 <div className="flex gap-4">
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-teal-600 hover:bg-teal-50/50 rounded-full h-8 px-4">
+                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50/50 rounded-full h-8 px-4">
                         <ThumbsUp className="w-4 h-4" />
                         <span className="font-bold">{topic.upvotes}</span>
                     </Button>
@@ -95,7 +95,7 @@ export function DiscussionTopic({ topic }: TopicProps) {
                     </Button>
                 </div>
                 {topic.is_resolved && (
-                    <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                    <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 bg-green-50 px-3 py-1 rounded-full border border-green-100">
                         <CheckCircle2 className="w-4 h-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Resolved</span>
                     </div>
@@ -125,13 +125,13 @@ export function DiscussionReply({ reply, isAccepted = false }: { reply: any, isA
                     </div>
 
                     <div className="flex gap-4 pt-2">
-                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-teal-600 flex items-center gap-1 uppercase tracking-widest">
+                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-teal-600 dark:hover:text-teal-400 flex items-center gap-1 uppercase tracking-widest">
                             <ThumbsUp className="w-3 h-3" /> {reply.upvotes}
                         </button>
                         <button className="text-[10px] font-black text-muted-foreground/70 hover:text-primary flex items-center gap-1 uppercase tracking-widest">
                             <ReplyIcon className="w-3 h-3" /> Reply
                         </button>
-                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-red-500 flex items-center gap-1 uppercase tracking-widest ml-auto">
+                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 uppercase tracking-widest ml-auto">
                             <Flag className="w-3 h-3" /> Report
                         </button>
                     </div>

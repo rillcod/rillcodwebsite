@@ -53,7 +53,7 @@ const P5Wrapper = dynamic<any>(() => import('./P5Wrapper'), {
     <div className="w-full h-[500px] flex items-center justify-center bg-zinc-950/50 backdrop-blur-xl border border-zinc-800 animate-pulse">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-cyan-500 font-bold uppercase tracking-widest text-xs">Initializing Quantum Canvas...</span>
+        <span className="text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-widest text-xs">Initializing Quantum Canvas...</span>
       </div>
     </div>
   )
@@ -129,10 +129,10 @@ export default function CodeVisualizer({
 
   const getVisualIcon = (type: VisualizationType) => {
     switch (type) {
-      case 'sorting': return <Activity className="w-4 h-4 text-cyan-400" />;
-      case 'physics': return <Zap className="w-4 h-4 text-purple-400" />;
-      case 'turtle': return <Sparkles className="w-4 h-4 text-lime-400" />;
-      case 'loops': return <Layers className="w-4 h-4 text-pink-400" />;
+      case 'sorting': return <Activity className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />;
+      case 'physics': return <Zap className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+      case 'turtle': return <Sparkles className="w-4 h-4 text-lime-600 dark:text-lime-400" />;
+      case 'loops': return <Layers className="w-4 h-4 text-pink-600 dark:text-pink-400" />;
       case 'stateMachine': return <CircleDot className="w-4 h-4 text-primary" />;
       default: return null;
     }
@@ -150,8 +150,8 @@ export default function CodeVisualizer({
             {getVisualIcon(visualizationType)}
           </div>
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 leading-none mb-1">Drillcod Visual Engine</h3>
-            <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none drop-shadow-sm flex items-center gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground leading-none mb-1">Drillcod Visual Engine</h3>
+            <h2 className="text-xs font-black uppercase text-foreground tracking-widest leading-none drop-shadow-sm flex items-center gap-2">
               {getVisualTitle(visualizationType)}
               <Badge variant="outline" className="rounded-xl h-4 text-[8px] border-zinc-700 text-muted-foreground bg-transparent uppercase tracking-widest font-black">
                 P5.v2
@@ -199,23 +199,23 @@ export default function CodeVisualizer({
               className="absolute left-6 top-6 z-10 flex flex-col gap-3 pointer-events-none"
             >
               <div className="p-3 bg-zinc-950/80 backdrop-blur-xl border border-white/5 shadow-2xl border-l-2 border-l-cyan-500 space-y-1">
-                <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Execution Registry</p>
+                <p className="text-[9px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">Execution Registry</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-white tabular-nums">
+                  <span className="text-xl font-black text-foreground tabular-nums">
                     {String(currentStep + 1).padStart(2, '0')}
                   </span>
-                  <span className="text-[10px] text-white/30 font-black">/ {String(codeData.totalSteps).padStart(2, '0')} STPS</span>
+                  <span className="text-[10px] text-muted-foreground font-black">/ {String(codeData.totalSteps).padStart(2, '0')} STPS</span>
                 </div>
               </div>
 
               {Object.entries(codeData.variables).length > 0 && (
                 <div className="p-3 bg-zinc-950/80 backdrop-blur-xl border border-white/5 shadow-2xl border-l-2 border-l-purple-500 space-y-2">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Memory Heap</p>
+                  <p className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest">Memory Heap</p>
                   <div className="grid grid-cols-1 gap-1">
                     {Object.entries(codeData.variables).map(([key, val]) => (
                       <div key={key} className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-white/50">{key}:</span>
-                        <span className="text-[10px] font-black text-white px-1.5 py-0.5 bg-white/5 border border-white/10 tabular-nums">
+                        <span className="text-[10px] font-bold text-muted-foreground">{key}:</span>
+                        <span className="text-[10px] font-black text-foreground px-1.5 py-0.5 bg-white/5 border border-white/10 tabular-nums">
                           {typeof val === 'number'
                             ? (Number.isInteger(val) ? String(val) : val.toFixed(1))
                             : String(val)}
@@ -232,7 +232,7 @@ export default function CodeVisualizer({
         {/* Execution Pointer Overlay (Minimal) */}
         {codeData.currentLine !== undefined && (
           <div className="absolute right-6 top-6 px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 backdrop-blur-md">
-            <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2">
+            <p className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.2em] flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
               Line {codeData.currentLine} Active
             </p>

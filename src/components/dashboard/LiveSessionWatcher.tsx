@@ -174,12 +174,12 @@ function LiveAlertToast({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Live Now</p>
-          <p className="text-xs font-black text-white truncate mt-0.5">{alert.title}</p>
-          <p className="text-[9px] text-white/30 mt-1">
+          <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Live Now</p>
+          <p className="text-xs font-black text-foreground truncate mt-0.5">{alert.title}</p>
+          <p className="text-[9px] text-muted-foreground mt-1">
             {isInApp ? 'In-App Meeting' : alert.platform.replace('_', ' ')}
             {' · '}
-            <span className="text-emerald-400 font-black">Joining in {secs}s</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-black">Joining in {secs}s</span>
           </p>
 
           <div className="flex items-center gap-2 mt-3">
@@ -194,7 +194,7 @@ function LiveAlertToast({
             </button>
             <button
               onClick={onDismiss}
-              className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/30 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
             >
               Dismiss
             </button>
@@ -203,7 +203,7 @@ function LiveAlertToast({
 
         <button
           onClick={onDismiss}
-          className="flex-shrink-0 p-1 text-white/20 hover:text-white transition-colors"
+          className="flex-shrink-0 p-1 text-muted-foreground hover:text-white transition-colors"
         >
           <XMarkIcon className="w-3.5 h-3.5" />
         </button>

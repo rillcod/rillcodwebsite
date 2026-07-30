@@ -22,7 +22,7 @@ const pillars = [
     icon: Award,
     title: 'Global Standards',
     desc: 'Curriculum designed to meet international STEM benchmarks.',
-    color: 'text-emerald-500',
+    color: 'text-emerald-600 dark:text-emerald-400',
     bg: 'bg-emerald-500/10'
   },
 ];
@@ -96,7 +96,7 @@ const About: React.FC = () => {
                    </div>
                    <div>
                       <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter mb-2">1,200+</p>
-                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em]">Hours Taught</p>
+                      <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.3em]">Hours Taught</p>
                       <div className="w-full h-1 bg-muted rounded-xl mt-3 overflow-hidden">
                          <div className="w-[100%] h-full bg-emerald-500 rounded-xl shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                       </div>

@@ -39,9 +39,9 @@ function getPct(grade: number | string | null, max: number | null): number | nul
 
 function gradeColor(pct: number | null): string {
   if (pct == null) return 'text-muted-foreground';
-  if (pct >= 70) return 'text-emerald-400';
-  if (pct >= 55) return 'text-amber-400';
-  return 'text-rose-400';
+  if (pct >= 70) return 'text-emerald-600 dark:text-emerald-400';
+  if (pct >= 55) return 'text-amber-600 dark:text-amber-400';
+  return 'text-rose-600 dark:text-rose-400';
 }
 
 function gradeBg(pct: number | null): string {
@@ -259,7 +259,7 @@ function ParentGradesContent() {
               <StatCard
                 label="Best"
                 value={bestPct != null ? `${bestPct}%` : '—'}
-                accent="text-emerald-400"
+                accent="text-emerald-600 dark:text-emerald-400"
                 bg="bg-emerald-500/5"
                 border="border border-emerald-500/20"
               />
@@ -291,7 +291,7 @@ function ParentGradesContent() {
                     {tab.label}
                     <span className={`text-[9px] px-1 py-0.5 rounded-full font-black tabular-nums ${
                       typeFilter === tab.key
-                        ? 'bg-white/20 text-white'
+                        ? 'bg-white/20 text-foreground'
                         : 'bg-white/5 text-muted-foreground'
                     }`}>
                       {tab.count}
@@ -385,8 +385,8 @@ function ParentGradesContent() {
                           </span>
                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
                             item.status === 'graded' || item.status === 'completed'
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                              : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                           }`}>
                             {item.status}
                           </span>

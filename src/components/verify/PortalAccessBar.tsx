@@ -107,8 +107,8 @@ export function PortalAccessBar({
           >
             {resending ? 'Sending…' : "Didn't get logins? Resend by email / WhatsApp"}
           </button>
-          {resendNote && <p className="text-[10px] text-emerald-400 font-bold">{resendNote}</p>}
-          {resendError && <p className="text-[10px] text-rose-400 font-bold">{resendError}</p>}
+          {resendNote && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{resendNote}</p>}
+          {resendError && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{resendError}</p>}
         </div>
       )}
     </div>

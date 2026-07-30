@@ -149,7 +149,7 @@ export default function AIGenerationPanel({
           </div>
 
           {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/20 flex gap-3 text-rose-400 text-xs italic">
+            <div className="p-4 bg-rose-500/10 border border-rose-500/20 flex gap-3 text-rose-600 dark:text-rose-400 text-xs italic">
               <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <p>{error}</p>
             </div>

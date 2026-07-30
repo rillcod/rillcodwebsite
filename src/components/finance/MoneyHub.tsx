@@ -99,15 +99,15 @@ const formatDate = (iso?: string | null) => {
 };
 
 const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  completed: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  success: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  pending: { label: 'Pending', cls: 'bg-amber-500/15 border-amber-500/30 text-amber-300' },
-  processing: { label: 'Processing', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
-  failed: { label: 'Failed', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
-  refunded: { label: 'Refunded', cls: 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300' },
-  paid: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  overdue: { label: 'Overdue', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
-  sent: { label: 'Sent', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
+  completed: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' },
+  success: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' },
+  pending: { label: 'Pending', cls: 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300' },
+  processing: { label: 'Processing', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-700 dark:text-sky-300' },
+  failed: { label: 'Failed', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300' },
+  refunded: { label: 'Refunded', cls: 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300' },
+  paid: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' },
+  overdue: { label: 'Overdue', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300' },
+  sent: { label: 'Sent', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-700 dark:text-sky-300' },
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -258,12 +258,12 @@ export default function MoneyHubPage() {
   return (
     <div className="space-y-6">
       {paymentParam === 'success' && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 font-bold">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300 font-bold">
           Payment confirmed. Receipts and invoices update in their workspaces.
         </div>
       )}
       {err && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
           {err}
         </div>
       )}
@@ -303,13 +303,13 @@ export default function MoneyHubPage() {
       {isStaff ? (
         <div className="flex flex-wrap gap-2 text-xs">
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold ${
-            overdue.length > 0 ? 'border-rose-500/40 bg-rose-500/10 text-rose-300' : 'border-border text-muted-foreground'
+            overdue.length > 0 ? 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'border-border text-muted-foreground'
           }`}>
             <AlertCircle className="w-3.5 h-3.5" />
             {overdue.length} overdue
           </span>
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold ${
-            pendingTxs.length > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-border text-muted-foreground'
+            pendingTxs.length > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'border-border text-muted-foreground'
           }`}>
             <Clock className="w-3.5 h-3.5" />
             {pendingTxs.length} awaiting approval
@@ -319,7 +319,7 @@ export default function MoneyHubPage() {
             {outstanding.length} open invoices
           </span>
           {isAdmin && totals.commissionSum > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 font-bold text-sky-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 font-bold text-sky-700 dark:text-sky-300">
               Est. commission {formatMoney(totals.commissionSum)}
             </span>
           )}
@@ -371,7 +371,7 @@ export default function MoneyHubPage() {
       {isPayer && outstanding.length > 0 && (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-amber-500/20 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-400" />
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <h3 className="text-[11px] font-black uppercase tracking-widest">Due now</h3>
             <span className="ml-auto text-[10px] text-muted-foreground">{outstanding.length} open</span>
           </div>

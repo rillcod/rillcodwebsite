@@ -38,9 +38,9 @@ const CATEGORIES = [
 ];
 
 const STATUS_STYLE: Record<string, string> = {
-  pending: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+  pending: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
   reviewed: 'bg-primary/10 border-primary/30 text-primary',
-  actioned: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+  actioned: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
 };
 
 function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
@@ -58,7 +58,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
         >
           <StarIcon className={`w-5 h-5 ${
             n <= (hovered || value)
-              ? 'text-amber-400 fill-amber-400'
+              ? 'text-amber-600 dark:text-amber-400 fill-amber-400'
               : 'text-muted-foreground'
           }`} />
         </button>
@@ -138,7 +138,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
   if (submitted) {
     return (
       <div className="bg-card border border-emerald-500/30 p-10 text-center max-w-xl">
-        <CheckCircleIcon className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+        <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
         <h2 className="text-base font-black text-foreground uppercase tracking-widest mb-2">Thank You!</h2>
         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
           Your feedback has been received. We value your perspective and will review it carefully.
@@ -208,7 +208,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>
           )}
 
           <div>
@@ -336,9 +336,9 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total', value: feedback.length, color: 'text-foreground' },
-          { label: 'Pending', value: feedback.filter(f => f.status === 'pending').length, color: 'text-amber-400' },
+          { label: 'Pending', value: feedback.filter(f => f.status === 'pending').length, color: 'text-amber-600 dark:text-amber-400' },
           { label: 'Reviewed', value: feedback.filter(f => f.status === 'reviewed').length, color: 'text-primary' },
-          { label: 'Avg Rating', value: avgRating ? `${avgRating}/5` : '—', color: 'text-amber-400' },
+          { label: 'Avg Rating', value: avgRating ? `${avgRating}/5` : '—', color: 'text-amber-600 dark:text-amber-400' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-card border border-border p-4">
             <p className={`text-2xl font-black ${color}`}>{value}</p>
@@ -417,7 +417,7 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
                     <button
                       onClick={() => updateStatus(fb.id, 'actioned')}
                       disabled={updating === fb.id}
-                      className="px-3 py-1.5 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:border-emerald-500 transition-all disabled:opacity-50"
+                      className="px-3 py-1.5 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:border-emerald-500 transition-all disabled:opacity-50"
                     >
                       Actioned
                     </button>

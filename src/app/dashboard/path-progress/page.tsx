@@ -78,7 +78,7 @@ export default function StudentPathProgressPage() {
         <div className="bg-card border border-border rounded-2xl p-5 text-sm text-muted-foreground">
           No active path found yet. Ask your teacher to link syllabus and generate progression in lesson plans.
           <div className="mt-2">
-            <Link href="/dashboard/learning" className="text-cyan-300 font-bold hover:underline">Open Learning Center</Link>
+            <Link href="/dashboard/learning" className="text-cyan-700 dark:text-cyan-300 font-bold hover:underline">Open Learning Center</Link>
           </div>
         </div>
       )}

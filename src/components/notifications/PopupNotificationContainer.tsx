@@ -178,7 +178,7 @@ export default function PopupNotificationContainer() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-2 pointer-events-auto"
         >
-          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2">
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2">
             <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
             {connectionStatus === 'connecting' ? 'Connecting...' : 'Connection lost'}
           </div>

@@ -111,11 +111,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
   const getIcon = () => {
     switch (notification.type) {
       case 'success':
-        return <CheckCircleIcon className="h-5 w-5 text-green-400" />;
+        return <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />;
       case 'error':
-        return <XCircleIcon className="h-5 w-5 text-red-400" />;
+        return <XCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />;
       case 'warning':
-        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />;
+        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />;
       case 'info':
         return <InformationCircleIcon className="h-5 w-5 text-primary" />;
       default:
@@ -221,11 +221,11 @@ export const Toast: React.FC<{
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircleIcon className="h-5 w-5 text-green-400" />;
+        return <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />;
       case 'error':
-        return <XCircleIcon className="h-5 w-5 text-red-400" />;
+        return <XCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />;
       case 'warning':
-        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />;
+        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />;
       case 'info':
         return <InformationCircleIcon className="h-5 w-5 text-primary" />;
       default:

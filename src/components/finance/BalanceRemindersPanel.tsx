@@ -144,7 +144,7 @@ export default function BalanceRemindersPanel({
       disabled={saving}
       className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
         on
-          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
           : 'bg-muted border-border text-muted-foreground'
       }`}
     >
@@ -240,7 +240,7 @@ export default function BalanceRemindersPanel({
             </Link>
             {' '}(Invoice automation + Balance reminder rules).
             {settings && !settings.enabled && (
-              <span className="ml-2 text-amber-400 font-bold">Reminders are currently OFF.</span>
+              <span className="ml-2 text-amber-600 dark:text-amber-400 font-bold">Reminders are currently OFF.</span>
             )}
           </p>
         </div>
@@ -280,12 +280,12 @@ export default function BalanceRemindersPanel({
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-bold text-foreground truncate">{r.name}</p>
                     {r.paused && (
-                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400">
                         Paused
                       </span>
                     )}
                     {r.balanceDue <= 0 && (
-                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                         Fully paid
                       </span>
                     )}
@@ -305,7 +305,7 @@ export default function BalanceRemindersPanel({
                     type="button"
                     onClick={() => act('mark_paid', r.id)}
                     disabled={busy === r.id}
-                    className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                    className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                   >
                     Mark paid
                   </button>
@@ -323,7 +323,7 @@ export default function BalanceRemindersPanel({
                       type="button"
                       onClick={() => act('pause', r.id)}
                       disabled={busy === r.id}
-                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                     >
                       Pause
                     </button>

@@ -191,11 +191,11 @@ export default function InboxPreviewWidget() {
       <div className="flex items-center justify-between px-5 py-4 bg-[#1f2c34] border-b border-white/[0.05]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-emerald-500" />
+            <MessageSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h3 className="font-black text-white text-base tracking-tight">Unified Inbox</h3>
-            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+            <h3 className="font-black text-foreground text-base tracking-tight">Unified Inbox</h3>
+            <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
               {loading ? 'Connecting…' : (
                 <>
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
@@ -220,17 +220,17 @@ export default function InboxPreviewWidget() {
       <div className="bg-[#111b21]">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-            <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Loading Chats…</p>
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600 dark:text-emerald-400" />
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Loading Chats…</p>
           </div>
         ) : convs.length === 0 ? (
           <div className="text-center py-16 px-6">
             <div className="w-16 h-16 bg-white/[0.03] rounded-full flex items-center justify-center mx-auto mb-4 border border-white/[0.05]">
-              <MessageSquare className="w-8 h-8 text-white/10" />
+              <MessageSquare className="w-8 h-8 text-muted-foreground" />
             </div>
-            <p className="text-white/40 text-sm font-medium">No messages in your inbox.</p>
+            <p className="text-muted-foreground text-sm font-medium">No messages in your inbox.</p>
             <Link href={inboxHref}
-              className="mt-4 inline-block text-emerald-400 text-[11px] font-black uppercase tracking-widest hover:text-emerald-300 transition-colors">
+              className="mt-4 inline-block text-emerald-600 dark:text-emerald-400 text-[11px] font-black uppercase tracking-widest hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
               Start Conversation →
             </Link>
           </div>
@@ -259,11 +259,11 @@ export default function InboxPreviewWidget() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`font-bold text-[15px] truncate ${conv.unread_count > 0 ? 'text-white' : 'text-white/70'}`}>
+                        <span className={`font-bold text-[15px] truncate ${conv.unread_count > 0 ? 'text-white' : 'text-muted-foreground'}`}>
                           {conv.contact_name}
                         </span>
                       </div>
-                      <span className={`text-[11px] shrink-0 font-medium ${conv.unread_count > 0 ? 'text-emerald-500' : 'text-white/30'}`}>
+                      <span className={`text-[11px] shrink-0 font-medium ${conv.unread_count > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                         {formatTime(conv.last_message_at)}
                       </span>
                     </div>
@@ -271,8 +271,8 @@ export default function InboxPreviewWidget() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-1.5 min-w-0">
                          {/* Status Icon */}
-                         {conv.unread_count === 0 && <Icon className="w-3 h-3 text-white/20 shrink-0" />}
-                         <p className={`text-[13px] truncate ${conv.unread_count > 0 ? 'text-white/90 font-medium' : 'text-white/40'}`}>
+                         {conv.unread_count === 0 && <Icon className="w-3 h-3 text-muted-foreground shrink-0" />}
+                         <p className={`text-[13px] truncate ${conv.unread_count > 0 ? 'text-muted-foreground font-medium' : 'text-muted-foreground'}`}>
                            {conv.last_message_preview}
                          </p>
                       </div>
@@ -283,7 +283,7 @@ export default function InboxPreviewWidget() {
                           </span>
                         ) : (
                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-white/[0.08] ${
-                            conv.type === 'students' ? 'bg-emerald-500/10 text-emerald-400' :
+                            conv.type === 'students' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
                             conv.type === 'parents'  ? 'bg-primary/10 text-primary' :
                             conv.type === 'teachers' ? 'bg-primary/10 text-primary' :
                                                        'bg-primary/10 text-primary'
@@ -303,11 +303,11 @@ export default function InboxPreviewWidget() {
 
       {/* Footer CTA */}
       <div className="px-5 py-3 bg-[#1f2c34] border-t border-white/[0.05] flex items-center justify-between">
-        <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.2em]">
+        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">
           {totalUnread > 0 ? `${totalUnread} Message${totalUnread !== 1 ? 's' : ''} Awaiting` : 'Security Encrypted'}
         </p>
         <Link href={inboxHref}
-          className="text-[11px] text-emerald-400 font-black uppercase tracking-widest hover:text-emerald-300 transition-colors flex items-center gap-1.5 group">
+          className="text-[11px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center gap-1.5 group">
           Full Inbox <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>

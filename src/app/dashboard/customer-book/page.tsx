@@ -243,7 +243,7 @@ export default function CustomerBookPage() {
   if (!isStaff) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
-        <AlertTriangle className="w-10 h-10 text-rose-500" />
+        <AlertTriangle className="w-10 h-10 text-rose-600 dark:text-rose-400" />
         <p className="font-semibold">Staff access only.</p>
       </div>
     );
@@ -491,7 +491,7 @@ export default function CustomerBookPage() {
                       <tr key={r.id} className="hover:bg-muted/30 transition-colors group">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0 ${crmAvatarColor(r.role)}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-foreground shrink-0 ${crmAvatarColor(r.role)}`}>
                               {crmInitials(r.full_name)}
                             </div>
                             <span className="text-sm font-semibold whitespace-nowrap">{r.full_name || '—'}</span>
@@ -545,7 +545,7 @@ export default function CustomerBookPage() {
                             </button>
                             {isAdmin && (
                               <button type="button" onClick={() => deleteContact(r.id)} disabled={deleting === r.id}
-                                className="p-1.5 bg-muted hover:bg-rose-500/20 text-muted-foreground hover:text-rose-500 rounded-lg transition-colors" title="Delete">
+                                className="p-1.5 bg-muted hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors" title="Delete">
                                 {deleting === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                               </button>
                             )}

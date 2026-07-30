@@ -34,28 +34,28 @@ const typeConfig = {
   },
   success: {
     icon: CheckCircleIcon,
-    color: 'text-emerald-400',
+    color: 'text-emerald-600 dark:text-emerald-400',
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
     emoji: '✅'
   },
   warning: {
     icon: ExclamationTriangleIcon,
-    color: 'text-amber-400',
+    color: 'text-amber-600 dark:text-amber-400',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
     emoji: '⚠️'
   },
   error: {
     icon: XCircleIcon,
-    color: 'text-rose-400',
+    color: 'text-rose-600 dark:text-rose-400',
     bgColor: 'bg-rose-500/10',
     borderColor: 'border-rose-500/30',
     emoji: '❌'
   },
   achievement: {
     icon: TrophyIcon,
-    color: 'text-yellow-400',
+    color: 'text-yellow-600 dark:text-yellow-400',
     bgColor: 'bg-yellow-500/10',
     borderColor: 'border-yellow-500/30',
     emoji: '🏆'
@@ -69,7 +69,7 @@ const typeConfig = {
   },
   celebration: {
     icon: SparklesIcon,
-    color: 'text-purple-400',
+    color: 'text-purple-600 dark:text-purple-400',
     bgColor: 'bg-purple-500/10',
     borderColor: 'border-purple-500/30',
     emoji: '🎉'
@@ -327,7 +327,7 @@ export default function NotificationsPage() {
               {[
                 { label: 'Total Logs', value: stats.total, color: 'text-foreground' },
                 { label: 'Pending', value: stats.unread, color: 'text-primary' },
-                { label: 'Cleared', value: stats.read, color: 'text-emerald-400' },
+                { label: 'Cleared', value: stats.read, color: 'text-emerald-600 dark:text-emerald-400' },
               ].map(stat => (
                 <div key={stat.label} className="text-center group">
                   <p className={`text-4xl font-black italic tracking-tighter transition-transform group-hover:scale-110 ${stat.color}`}>
@@ -540,7 +540,7 @@ export default function NotificationsPage() {
                             
                             <div className="flex items-center gap-2 ml-4">
                               {notification.priority === 'urgent' && (
-                                <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-bold rounded-full">
+                                <span className="px-2 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-full">
                                   URGENT
                                 </span>
                               )}

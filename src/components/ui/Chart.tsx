@@ -406,15 +406,15 @@ export default function Chart({
   const getChangeIcon = (change?: number) => {
     if (change === undefined) return null;
     return change > 0 ? (
-      <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
+      <ArrowTrendingUpIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
     ) : (
-      <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
+      <ArrowTrendingDownIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
     );
   };
 
   const getChangeColor = (change?: number) => {
     if (!change) return 'text-muted-foreground';
-    return change > 0 ? 'text-green-500' : 'text-red-500';
+    return change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
   };
 
   const renderBarChart = () => (

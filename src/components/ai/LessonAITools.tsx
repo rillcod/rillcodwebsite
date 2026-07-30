@@ -39,12 +39,12 @@ function ToolCard({ icon: Icon, title, color, children, onMaximize }: {
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color} shadow-lg shadow-black/20`}>
             <Icon className="w-4 h-4 text-white" />
           </div>
-          <p className="font-bold text-white text-sm uppercase tracking-tight">{title}</p>
+          <p className="font-bold text-foreground text-sm uppercase tracking-tight">{title}</p>
         </div>
         {onMaximize && (
           <button 
             onClick={onMaximize}
-            className="p-2 text-white/20 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+            className="p-2 text-muted-foreground hover:text-white hover:bg-white/5 rounded-lg transition-all"
           >
             <Maximize2Icon className="w-4 h-4" />
           </button>
@@ -68,7 +68,7 @@ function AIToggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boole
         <div className={`w-8 h-4 rounded-full transition-colors ${enabled ? 'bg-primary' : 'bg-white/10'}`} />
         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-card shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
       </div>
-      <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
         {enabled ? 'AI ON' : 'AI OFF'}
       </span>
     </label>
@@ -103,17 +103,17 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
   return (
     <ToolCard icon={PhotoIcon} title="Image Synthesis" color="bg-primary">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] text-white/30 uppercase tracking-widest">Gemini → Imagen 3 → Flux</p>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Gemini → Imagen 3 → Flux</p>
         <AIToggle enabled={aiEnabled} onChange={v => { setAiEnabled(v); setResult(null); setError(null); }} />
       </div>
       <input
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder="Neural prompt or title..."
-        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-primary"
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-white/20 outline-none focus:border-primary"
         disabled={!aiEnabled}
       />
-      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
       {result && aiEnabled && (
         <div className="space-y-3">
           <img src={result} className="w-full rounded-xl border border-border shadow-xl" alt="AI Generated" />
@@ -126,8 +126,8 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
           disabled={generating || !aiEnabled}
           className={`w-full flex items-center justify-center gap-2 py-2 font-bold text-xs rounded-lg transition-all border ${
             aiEnabled
-              ? 'bg-white/5 hover:bg-white/10 text-white border-border'
-              : 'bg-white/[0.02] text-white/20 border-white/5 cursor-not-allowed'
+              ? 'bg-white/5 hover:bg-white/10 text-foreground border-border'
+              : 'bg-white/[0.02] text-muted-foreground border-white/5 cursor-not-allowed'
           }`}
         >
           {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-primary" />}
@@ -169,20 +169,20 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
   return (
     <ToolCard icon={VideoCameraIcon} title="Educational Video" color="bg-cyan-600">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] text-white/30 uppercase tracking-widest">AI finds YouTube lesson</p>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-widest">AI finds YouTube lesson</p>
         <AIToggle enabled={aiEnabled} onChange={v => { setAiEnabled(v); setResult(null); setError(null); }} />
       </div>
       <input
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder="Topic or lesson title..."
-        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-cyan-500"
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-white/20 outline-none focus:border-cyan-500"
         disabled={!aiEnabled}
       />
-      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
       {result && embedUrl && aiEnabled && (
         <div className="space-y-3">
-          <div className="text-[10px] text-cyan-400 font-bold truncate">{result.title} — {result.channel}</div>
+          <div className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold truncate">{result.title} — {result.channel}</div>
           <div className="aspect-video rounded-xl overflow-hidden border border-border">
             <iframe src={embedUrl} className="w-full h-full" allowFullScreen title={result.title} />
           </div>
@@ -195,11 +195,11 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
           disabled={generating || !aiEnabled}
           className={`w-full flex items-center justify-center gap-2 py-2 font-bold text-xs rounded-lg transition-all border ${
             aiEnabled
-              ? 'bg-white/5 hover:bg-white/10 text-white border-border'
-              : 'bg-white/[0.02] text-white/20 border-white/5 cursor-not-allowed'
+              ? 'bg-white/5 hover:bg-white/10 text-foreground border-border'
+              : 'bg-white/[0.02] text-muted-foreground border-white/5 cursor-not-allowed'
           }`}
         >
-          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-cyan-400" />}
+          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />}
           {!aiEnabled ? 'AI disabled — toggle to find video' : generating ? 'Finding video...' : 'Find Educational Video'}
         </button>
       )}
@@ -243,20 +243,20 @@ function GraphicSynthesizer({ lessonTitle, onInsert }: any) {
         value={prompt} 
         onChange={e => setPrompt(e.target.value)}
         placeholder="Concept to architect (e.g. OSI Model)"
-        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-purple-500"
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-white/20 outline-none focus:border-purple-500"
       />
-      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <button onClick={() => handleGraphicGen('flowchart')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+        <button onClick={() => handleGraphicGen('flowchart')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-foreground font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
           {generating === 'flowchart' ? <Spinner /> : 'Flowchart'}
         </button>
-        <button onClick={() => handleGraphicGen('illustration')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+        <button onClick={() => handleGraphicGen('illustration')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-foreground font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
           {generating === 'illustration' ? <Spinner /> : 'Visual'}
         </button>
-        <button onClick={() => handleGraphicGen('code-map')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+        <button onClick={() => handleGraphicGen('code-map')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-foreground font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
           {generating === 'code-map' ? <Spinner /> : 'Code Map'}
         </button>
-        <button onClick={() => handleGraphicGen('scratch-blocks')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-purple-500/30 transition-all">
+        <button onClick={() => handleGraphicGen('scratch-blocks')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-600 dark:text-purple-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-purple-500/30 transition-all">
           {generating === 'scratch-blocks' ? <Spinner /> : 'Scratch LAB'}
         </button>
         <button onClick={() => handleGraphicGen('infographic')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-primary/20 hover:bg-primary/30 text-primary font-bold text-[9px] uppercase tracking-wider rounded-lg border border-primary/30 transition-all">
@@ -337,7 +337,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
             key={q.label}
             onClick={() => send(q.prompt)}
             disabled={loading}
-            className="py-1.5 px-2 text-[9px] font-bold uppercase tracking-wider bg-white/5 hover:bg-emerald-500/10 border border-border hover:border-emerald-500/40 text-white/50 hover:text-emerald-300 rounded-lg transition-all text-left truncate"
+            className="py-1.5 px-2 text-[9px] font-bold uppercase tracking-wider bg-white/5 hover:bg-emerald-500/10 border border-border hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-700 dark:hover:text-emerald-300 rounded-lg transition-all text-left truncate"
           >
             {q.label}
           </button>
@@ -351,14 +351,14 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] px-3 py-2 rounded-xl text-[11px] leading-relaxed whitespace-pre-wrap ${
                 m.role === 'user'
-                  ? 'bg-emerald-600/20 border border-emerald-500/30 text-white'
-                  : 'bg-white/5 border border-border text-white/80'
+                  ? 'bg-emerald-600/20 border border-emerald-500/30 text-foreground'
+                  : 'bg-white/5 border border-border text-muted-foreground'
               }`}>
                 {m.text}
                 {m.role === 'assistant' && (
                   <button
                     onClick={() => onInsert(m.text)}
-                    className="block mt-1.5 text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors"
+                    className="block mt-1.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 uppercase tracking-widest transition-colors"
                   >
                     + Insert into lesson
                   </button>
@@ -370,7 +370,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
             <div className="flex justify-start">
               <div className="px-3 py-2 bg-white/5 border border-border rounded-xl flex items-center gap-2">
                 <Spinner />
-                <span className="text-[10px] text-white/30">Thinking...</span>
+                <span className="text-[10px] text-muted-foreground">Thinking...</span>
               </div>
             </div>
           )}
@@ -378,7 +378,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
         </div>
       )}
 
-      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
 
       {/* Input */}
       <div className="flex gap-2">
@@ -388,7 +388,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
           placeholder="Ask anything about this lesson..."
           disabled={loading}
-          className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
+          className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-white/20 outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
         />
         <button
           onClick={() => send(input)}
@@ -399,7 +399,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
         </button>
       </div>
 
-      <p className="text-[9px] text-white/20 text-center">
+      <p className="text-[9px] text-muted-foreground text-center">
         {isPuterAvailable() ? 'Powered by Puter.js (free · no API key)' : 'Powered by OpenRouter (server-side)'}
       </p>
     </div>
@@ -426,18 +426,18 @@ export default function LessonAITools({
         >
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 transition-all ${isPuter ? 'scale-110 border-emerald-500' : 'group-hover:border-emerald-400'}`}>
-              <ChatBubbleLeftRightIcon className="w-6 h-6 text-emerald-400" />
+              <ChatBubbleLeftRightIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">Puter.js AI Assistant</h3>
-              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.4em] mt-0.5">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tighter italic">Puter.js AI Assistant</h3>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-[0.4em] mt-0.5">
                 Free · No API Key · Chat + Lesson Help
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">FREE</span>
-            {isPuter ? <ChevronUpIcon className="w-5 h-5 text-emerald-400" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
+            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">FREE</span>
+            {isPuter ? <ChevronUpIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> : <ChevronDownIcon className="w-5 h-5 text-muted-foreground" />}
           </div>
         </button>
 
@@ -466,13 +466,13 @@ export default function LessonAITools({
               <SparklesIcon className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">OpenRouter Premium Suite</h3>
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tighter italic">OpenRouter Premium Suite</h3>
               <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em] mt-0.5">
                 Multi-Model Neural Synthesis (Gemini / Llama / DALL-E)
               </p>
             </div>
           </div>
-          {isOpenRouter ? <ChevronUpIcon className="w-5 h-5 text-primary" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
+          {isOpenRouter ? <ChevronUpIcon className="w-5 h-5 text-primary" /> : <ChevronDownIcon className="w-5 h-5 text-muted-foreground" />}
         </button>
 
         {isOpenRouter && (
@@ -498,7 +498,7 @@ export default function LessonAITools({
 
             <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl flex items-center gap-4">
               <div className="px-2 py-1 bg-primary/10 rounded text-[9px] font-black text-primary uppercase tracking-widest">Priority Engine: Active</div>
-              <p className="text-[10px] text-white/20 uppercase tracking-widest font-medium">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
                 Unified OpenRouter Infrastructure • Gemini-Flash & DALL-E 3 Integrated
               </p>
             </div>

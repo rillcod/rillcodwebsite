@@ -505,8 +505,8 @@ export function SchoolReportLivePreview({
               <div
                 className={`rounded-xl border px-3 py-2.5 ${density.text} ${
                   finance.attached
-                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
-                    : 'border-rose-500/30 bg-rose-500/5 text-rose-900'
+                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900 dark:text-emerald-200'
+                    : 'border-rose-500/30 bg-rose-500/5 text-rose-900 dark:text-rose-200'
                 }`}
               >
                 {finance.attached ? (

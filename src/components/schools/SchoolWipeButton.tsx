@@ -56,7 +56,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
       <button
         onClick={openDialog}
         title="Permanently delete this school and ALL its data"
-        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-600/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-400 hover:bg-rose-600/20 transition-colors whitespace-nowrap"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-600/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 hover:bg-rose-600/20 transition-colors whitespace-nowrap"
       >
         <TrashIcon className="h-3.5 w-3.5" /> Delete
       </button>
@@ -66,7 +66,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
           <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-rose-500/30 bg-card p-5 sm:p-6 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15"><ExclamationTriangleIcon className="h-5 w-5 text-rose-400" /></span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15"><ExclamationTriangleIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" /></span>
                 <div>
                   <h2 className="text-base font-black text-foreground">Delete “{school.name}” forever</h2>
                   <p className="text-[11px] text-muted-foreground">Total, irreversible removal — as though it never existed.</p>
@@ -94,7 +94,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               ) : (
                 <p className="text-xs text-muted-foreground">—</p>
               )}
-              <p className="mt-3 text-[11px] text-rose-300/90">…plus every other record keyed to this school and all its cloud files. This cannot be undone.</p>
+              <p className="mt-3 text-[11px] text-rose-700/90 dark:text-rose-300/90">…plus every other record keyed to this school and all its cloud files. This cannot be undone.</p>
             </div>
 
             {/* Type-to-confirm */}
@@ -111,7 +111,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               />
             </div>
 
-            {error && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-bold text-rose-300">{error}</p>}
+            {error && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-bold text-rose-700 dark:text-rose-300">{error}</p>}
 
             <div className="flex gap-2">
               <button onClick={() => !wiping && setOpen(false)} className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>

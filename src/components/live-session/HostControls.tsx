@@ -64,7 +64,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
     <>
       {/* Toast */}
       {toast && (
-        <div className="fixed left-1/2 top-16 z-[80] -translate-x-1/2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-bold text-white shadow-lg backdrop-blur">
+        <div className="fixed left-1/2 top-16 z-[80] -translate-x-1/2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-bold text-foreground shadow-lg backdrop-blur">
           {toast}
         </div>
       )}
@@ -72,12 +72,12 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
       {/* Host pill bar — sits just under the title bar, above the LiveKit control bar. */}
       <div className="pointer-events-none absolute inset-x-0 top-2 z-[70] flex justify-center px-2">
         <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-2 py-1.5 backdrop-blur">
-          <span className="px-2 text-[9px] font-black uppercase tracking-widest text-emerald-400">Host</span>
+          <span className="px-2 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Host</span>
 
           <button
             onClick={() => moderate({ action: 'muteAll' }, 'muteAll', 'Muted everyone')}
             disabled={busy === 'muteAll'}
-            className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-white/20 disabled:opacity-50"
+            className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:bg-white/20 disabled:opacity-50"
           >
             {busy === 'muteAll' ? '…' : '🔇 Mute all'}
           </button>
@@ -86,7 +86,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
             onClick={toggleRecord}
             disabled={recBusy}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors disabled:opacity-50 ${
-              recording ? 'bg-rose-600 text-white hover:bg-rose-500' : 'bg-white/10 text-white hover:bg-white/20'
+              recording ? 'bg-rose-600 text-white hover:bg-rose-500' : 'bg-white/10 text-foreground hover:bg-white/20'
             }`}
           >
             <span className={`inline-block h-2 w-2 rounded-full ${recording ? 'animate-pulse bg-white' : 'bg-rose-500'}`} />
@@ -95,7 +95,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
 
           <button
             onClick={() => setPanelOpen((v) => !v)}
-            className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-white/20"
+            className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:bg-white/20"
           >
             👥 {remotes.length}
           </button>
@@ -111,32 +111,32 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
             className="relative max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111] p-4 sm:mx-auto sm:mb-4 sm:max-w-md sm:rounded-2xl sm:border"
           >
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-black uppercase tracking-widest text-white">Participants · {remotes.length}</p>
-              <button onClick={() => setPanelOpen(false)} className="text-white/50 hover:text-white text-lg leading-none">×</button>
+              <p className="text-xs font-black uppercase tracking-widest text-foreground">Participants · {remotes.length}</p>
+              <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-white text-lg leading-none">×</button>
             </div>
             {remotes.length === 0 ? (
-              <p className="py-6 text-center text-xs text-white/40">No one else has joined yet.</p>
+              <p className="py-6 text-center text-xs text-muted-foreground">No one else has joined yet.</p>
             ) : (
               <ul className="space-y-1.5">
                 {remotes.map((p) => {
                   const micOn = p.isMicrophoneEnabled;
                   return (
                     <li key={p.identity} className="flex items-center gap-2 rounded-xl bg-white/5 p-2.5">
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-black text-emerald-400">
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-black text-emerald-600 dark:text-emerald-400">
                         {(p.name || p.identity || '?').charAt(0).toUpperCase()}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{p.name || 'Participant'}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">{p.name || 'Participant'}</span>
                       <button
                         onClick={() => moderate({ action: micOn ? 'mute' : 'unmute', identity: p.identity }, `m-${p.identity}`, micOn ? 'Muted' : 'Unmuted')}
                         disabled={busy === `m-${p.identity}`}
-                        className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-white/20 disabled:opacity-50"
+                        className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:bg-white/20 disabled:opacity-50"
                       >
                         {micOn ? '🔇 Mute' : '🔈 Unmute'}
                       </button>
                       <button
                         onClick={() => { if (confirm(`Remove ${p.name || 'this participant'} from the session?`)) moderate({ action: 'remove', identity: p.identity }, `r-${p.identity}`, 'Removed'); }}
                         disabled={busy === `r-${p.identity}`}
-                        className="rounded-lg bg-rose-600/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 hover:bg-rose-600/30 disabled:opacity-50"
+                        className="rounded-lg bg-rose-600/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300 hover:bg-rose-600/30 disabled:opacity-50"
                       >
                         Remove
                       </button>

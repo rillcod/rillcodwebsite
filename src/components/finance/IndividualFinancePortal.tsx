@@ -56,10 +56,10 @@ interface BankAccount {
 }
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
-  paid:      { label: 'Paid',      cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', icon: CheckCircleIcon },
+  paid:      { label: 'Paid',      cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400', icon: CheckCircleIcon },
   sent:      { label: 'Due',       cls: 'bg-primary/10 border-primary/30 text-primary',          icon: ClockIcon },
-  overdue:   { label: 'Overdue',   cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400',          icon: ExclamationTriangleIcon },
-  draft:     { label: 'Pending',   cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400',       icon: ClockIcon },
+  overdue:   { label: 'Overdue',   cls: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400',          icon: ExclamationTriangleIcon },
+  draft:     { label: 'Pending',   cls: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',       icon: ClockIcon },
   cancelled: { label: 'Cancelled', cls: 'bg-muted border-border text-muted-foreground',             icon: ClockIcon },
 };
 
@@ -196,7 +196,7 @@ export default function MyPaymentsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-6">
         <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-center justify-center">
-          <BanknotesIcon className="w-8 h-8 text-rose-400" />
+          <BanknotesIcon className="w-8 h-8 text-rose-600 dark:text-rose-400" />
         </div>
         <h2 className="text-xl font-black text-card-foreground">Not Available</h2>
         <p className="text-card-foreground/50 text-sm max-w-sm">
@@ -231,12 +231,12 @@ export default function MyPaymentsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-card border border-white/[0.08] rounded-xl p-4">
           <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider mb-1">Outstanding</p>
-          <p className="text-xl font-black text-rose-400">₦{totalDue.toLocaleString()}</p>
+          <p className="text-xl font-black text-rose-600 dark:text-rose-400">₦{totalDue.toLocaleString()}</p>
           <p className="text-xs text-card-foreground/30 mt-0.5">{outstanding.length} invoice{outstanding.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="bg-card border border-white/[0.08] rounded-xl p-4">
           <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider mb-1">Paid</p>
-          <p className="text-xl font-black text-emerald-400">{paidCount}</p>
+          <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{paidCount}</p>
           <p className="text-xs text-card-foreground/30 mt-0.5">invoices settled</p>
         </div>
         <div className="bg-card border border-white/[0.08] rounded-xl p-4 col-span-2 sm:col-span-1">
@@ -293,7 +293,7 @@ export default function MyPaymentsPage() {
                           {inv.currency === 'NGN' ? '₦' : inv.currency}{(inv.amount ?? 0).toLocaleString()}
                         </p>
                         {inv.due_date && (
-                          <p className={`text-xs mt-0.5 ${isOverdue ? 'text-rose-400 font-bold' : 'text-card-foreground/40'}`}>
+                          <p className={`text-xs mt-0.5 ${isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-card-foreground/40'}`}>
                             Due: {new Date(inv.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                           </p>
                         )}
@@ -372,7 +372,7 @@ export default function MyPaymentsPage() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${tx.payment_status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${tx.payment_status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'}`}>
                       {tx.payment_status}
                     </span>
                     {tx.payment_status === 'completed' && (
@@ -456,8 +456,8 @@ export default function MyPaymentsPage() {
               <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4">
                 <InformationCircleIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-bold text-blue-300">Need help?</p>
-                  <p className="text-blue-300/70 mt-0.5">
+                  <p className="font-bold text-blue-700 dark:text-blue-300">Need help?</p>
+                  <p className="text-blue-700/70 dark:text-blue-300/70 mt-0.5">
                     Email <a href={`mailto:${brandContact.email}`} className="underline">{brandContact.email}</a> with your invoice number. After paying, upload your receipt using the "Upload Proof" button on your invoice — we verify within 24 hours.
                   </p>
                 </div>

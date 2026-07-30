@@ -209,9 +209,9 @@ export function SchoolReportAnalyticsPanel({
                   <td
                     className={`p-3 font-bold ${
                       row.status === 'Needs support' || row.status === 'Attendance risk'
-                        ? 'text-rose-600'
+                        ? 'text-rose-600 dark:text-rose-400'
                         : row.status === 'Excellent'
-                          ? 'text-emerald-600'
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : ''
                     }`}
                   >

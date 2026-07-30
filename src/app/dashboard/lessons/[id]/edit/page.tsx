@@ -353,7 +353,7 @@ export default function EditLessonPage() {
                             </button>
                         )}
                         {!isMinimal && (
-                            <div className="w-12 h-12 rounded-xl bg-cyan-600/10 flex items-center justify-center text-cyan-400">
+                            <div className="w-12 h-12 rounded-xl bg-cyan-600/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
                                 <BookOpen className="w-6 h-6" />
                             </div>
                         )}
@@ -364,7 +364,7 @@ export default function EditLessonPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         {saveSuccess && (
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
                                 <Check className="w-3.5 h-3.5" /> Saved
                             </span>
                         )}
@@ -388,7 +388,7 @@ export default function EditLessonPage() {
                 </div>
 
                 {error && (
-                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium">
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-600 dark:text-rose-400 text-sm font-medium">
                         {error}
                     </div>
                 )}
@@ -471,7 +471,7 @@ export default function EditLessonPage() {
                                         </p>
                                     )}
                                     {aiError && (
-                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-xl">
+                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-xl">
                                             {aiError}
                                         </div>
                                     )}
@@ -536,13 +536,13 @@ export default function EditLessonPage() {
                         <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-8 animate-in fade-in duration-500">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <Sparkles className="w-6 h-6 text-amber-400" />
+                                    <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                                     <h2 className="text-xl font-black uppercase tracking-tight">Structured Lesson Plan</h2>
                                 </div>
                                 <button
                                     onClick={handleAiGenerate}
                                     disabled={aiGenerating}
-                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                 >
                                     {aiGenerating ? (
                                         <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -556,8 +556,8 @@ export default function EditLessonPage() {
                             {plan.plan_data && Object.keys(plan.plan_data).length > 0 && (
                                 <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-xl space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
-                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
+                                        <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
+                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">This lesson is linked to a full course plan ({plan.plan_data.course_title}). The curriculum timeline will be rendered in the lesson viewer.</p>
                                 </div>
@@ -599,14 +599,14 @@ export default function EditLessonPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {materials.map((m) => (
                                     <div key={m.id} className="flex items-center gap-4 p-4 bg-card shadow-sm border border-border rounded-xl group">
-                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
                                             <Paperclip className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm truncate">{m.title}</p>
                                             <p className="text-[10px] text-muted-foreground uppercase font-black">{m.file_type}</p>
                                         </div>
-                                        <button onClick={() => deleteMaterial(m.id)} className="p-2 text-muted-foreground hover:text-rose-400 transition-colors">
+                                        <button onClick={() => deleteMaterial(m.id)} className="p-2 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>

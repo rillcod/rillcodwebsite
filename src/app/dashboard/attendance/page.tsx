@@ -28,9 +28,9 @@ function extractScanCode(raw: string): string | null {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
-  absent: { label: 'Absent', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', icon: XCircleIcon },
-  late: { label: 'Late', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: ClockIcon },
+  present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
+  absent: { label: 'Absent', color: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30', icon: XCircleIcon },
+  late: { label: 'Late', color: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30', icon: ClockIcon },
   excused: { label: 'Excused', color: 'bg-primary/20 text-primary border-primary/30', icon: ExclamationCircleIcon },
 };
 
@@ -563,16 +563,16 @@ function AttendanceContent() {
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
-              <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Record</span>
+              <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <span className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">Attendance Record</span>
             </div>
             <h1 className="text-3xl font-extrabold">My Attendance</h1>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Total Sessions', value: myAttendance.length, color: 'text-teal-400' },
-              { label: 'Present', value: present, color: 'text-emerald-400' },
-              { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-400' : 'text-rose-400' },
+              { label: 'Total Sessions', value: myAttendance.length, color: 'text-teal-600 dark:text-teal-400' },
+              { label: 'Present', value: present, color: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' },
             ].map(s => (
               <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 text-center">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -654,8 +654,8 @@ function AttendanceContent() {
             <div className="flex-1">
               <div className="flex items-center justify-between gap-4 mb-1">
                 <div className="flex items-center gap-2">
-                  <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
-                  <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Manager</span>
+                  <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                  <span className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">Attendance Manager</span>
                 </div>
                 {selectedClass && (
                   <button
@@ -675,7 +675,7 @@ function AttendanceContent() {
         {(!selectedClass || !isCanMark) && (
           <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Choose Attendance Scope</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Choose Attendance Scope</p>
               <p className="text-sm text-muted-foreground">
                 Select the class before reviewing attendance. Program and term are shown to avoid mixing records.
               </p>
@@ -709,7 +709,7 @@ function AttendanceContent() {
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Attendance Scope</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Attendance Scope</p>
                 <h2 className="text-lg font-extrabold text-foreground truncate">{currentClass.name}</h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   {[currentClassProgram, currentClassTerm || 'No academic term linked'].filter(Boolean).join(' · ')}
@@ -727,11 +727,11 @@ function AttendanceContent() {
               </div>
             </div>
             {currentSession ? (
-              <div className="rounded-xl border border-teal-500/20 bg-teal-500/10 px-3 py-2 text-xs text-teal-300">
-                Active session: <span className="font-bold text-teal-200">{currentSessionContext}</span>
+              <div className="rounded-xl border border-teal-500/20 bg-teal-500/10 px-3 py-2 text-xs text-teal-700 dark:text-teal-300">
+                Active session: <span className="font-bold text-teal-800 dark:text-teal-200">{currentSessionContext}</span>
               </div>
             ) : (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                 Choose or create a session before marking attendance. New sessions use this class&apos;s linked term automatically.
               </div>
             )}
@@ -804,7 +804,7 @@ function AttendanceContent() {
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button onClick={quickMarkToday} disabled={loading}
                       className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-foreground font-extrabold rounded-xl transition-all shadow-lg shadow-teal-900/30">
-                      <CalendarIcon className="w-5 h-5 text-teal-200" />
+                      <CalendarIcon className="w-5 h-5 text-teal-800 dark:text-teal-200" />
                       {loading ? 'Processing…' : 'Mark Today\'s Attendance'}
                     </button>
                     <button onClick={() => setShowNewSession(!showNewSession)}
@@ -840,7 +840,7 @@ function AttendanceContent() {
                                   <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary" />
                                   <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/70 animate-bounce" style={{ animationDuration: '1.5s' }} />
                                 </div>
-                                <p className="mt-3 text-white text-xs font-semibold drop-shadow">
+                                <p className="mt-3 text-foreground text-xs font-semibold drop-shadow">
                                   {qrScanning ? 'Point camera at student QR code' : 'Starting camera…'}
                                 </p>
                               </div>
@@ -861,7 +861,7 @@ function AttendanceContent() {
                           </div>
 
                           {qrMsg && (
-                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-400' : 'text-rose-400'}`}>{qrMsg}</p>
+                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-600 dark:text-teal-400' : 'text-rose-600 dark:text-rose-400'}`}>{qrMsg}</p>
                           )}
                         </div>
                       )}
@@ -903,7 +903,7 @@ function AttendanceContent() {
                             </button>
                           </div>
                           {qrMsg && (
-                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-400' : 'text-rose-400'}`}>{qrMsg}</p>
+                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-600 dark:text-teal-400' : 'text-rose-600 dark:text-rose-400'}`}>{qrMsg}</p>
                           )}
                         </div>
                       )}
@@ -920,7 +920,7 @@ function AttendanceContent() {
 
                   {showNewSession && (
                     <div className="bg-card shadow-sm border border-teal-500/10 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest px-1">Session Options</p>
+                      <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest px-1">Session Options</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input type="date" value={newSession.session_date}
                           onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
@@ -961,7 +961,7 @@ function AttendanceContent() {
                           }
                           setLoading(false);
                         }}
-                          className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
+                          className="px-4 py-2.5 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
                           Confirm & Create
                         </button>
                       </div>
@@ -987,7 +987,7 @@ function AttendanceContent() {
                 {selectedClass && (
                   <a
                     href={`/dashboard/classes/${selectedClass}`}
-                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
+                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
                   >
                     Go to Class → Enroll Students
                   </a>
@@ -1044,22 +1044,22 @@ function AttendanceContent() {
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5 border-b border-border">
                       <div className="bg-background border border-border p-3">
-                        <p className={`text-xl font-black ${rate >= 80 ? 'text-emerald-400' : rate >= 60 ? 'text-amber-400' : 'text-rose-400'}`}>{rate}%</p>
+                        <p className={`text-xl font-black ${rate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : rate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</p>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Attendance Rate</p>
                       </div>
                       <div className="bg-background border border-border p-3">
-                        <p className="text-xl font-black text-emerald-400">{present}</p>
+                        <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{present}</p>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Present</p>
                       </div>
                       <div className="bg-background border border-border p-3">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xl font-black text-rose-400">{absent}</p>
+                          <p className="text-xl font-black text-rose-600 dark:text-rose-400">{absent}</p>
                           {absent > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
                         </div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Absent</p>
                       </div>
                       <div className="bg-background border border-border p-3">
-                        <p className="text-xl font-black text-amber-400">{late + excused}</p>
+                        <p className="text-xl font-black text-amber-600 dark:text-amber-400">{late + excused}</p>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Late / Excused</p>
                       </div>
                     </div>
@@ -1073,7 +1073,7 @@ function AttendanceContent() {
                     return (
                       <div key={student.id} className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
+                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center text-sm font-black text-teal-600 dark:text-teal-400 flex-shrink-0">
                             {student.full_name?.charAt(0) ?? '?'}
                           </div>
                           <div className="min-w-0">
@@ -1168,16 +1168,16 @@ function AttendanceContent() {
                           <div className="text-[10px] text-muted-foreground font-medium">{student.email}</div>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="text-emerald-400 font-bold">{present}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{present}</span>
                           <span className="text-muted-foreground mx-1">/</span>
                           <span className="text-muted-foreground">{total}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="text-amber-400 font-bold">{late}</span>
+                          <span className="text-amber-600 dark:text-amber-400 font-bold">{late}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center gap-1.5">
-                             <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-400' : 'text-rose-400'}`}>{rate}%</span>
+                             <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</span>
                              <div className="w-16 h-1 bg-card shadow-sm rounded-full overflow-hidden">
                                 <div className={`h-full ${rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
                              </div>
@@ -1185,11 +1185,11 @@ function AttendanceContent() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           {rate >= 75 ? (
-                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20">Good Standing</span>
+                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20">Good Standing</span>
                           ) : rate >= 50 ? (
-                            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-xl border border-amber-500/20">At Risk</span>
+                            <span className="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded-xl border border-amber-500/20">At Risk</span>
                           ) : (
-                            <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase rounded-xl border border-rose-500/20">Critical</span>
+                            <span className="px-2 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase rounded-xl border border-rose-500/20">Critical</span>
                           )}
                         </td>
                       </tr>

@@ -328,8 +328,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
+              <ClipboardDocumentListIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em]">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
             </div>
             <h1 className="text-3xl font-black italic tracking-tight">Create Assignment</h1>
             {!isMinimal && <p className="text-muted-foreground text-sm mt-1 font-medium italic">Define challenges for applied learning</p>}
@@ -357,9 +357,9 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
         {linkedLesson && (
           <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4">
-            <AcademicCapIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Linked to Lesson</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Linked to Lesson</p>
               <p className="text-sm font-bold text-foreground truncate">{linkedLesson.title}</p>
             </div>
             <Link href={`/dashboard/lessons/${linkedLesson.id}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
@@ -370,8 +370,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -386,7 +386,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Assignment Engine</h3>
+                <h3 className="text-xl font-black text-foreground uppercase italic tracking-tighter">Premium AI Assignment Engine</h3>
                 <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">
                   {aiLastModel
                     ? <span>Generated with <span className="text-white">{aiLastModel}</span></span>
@@ -396,12 +396,12 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
               {isPuterAvailable() && (
-                <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
+                <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
               )}
               <button
                 type="button"
                 onClick={() => setAiOpen(o => !o)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-widest transition-all border border-white/10"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all border border-white/10"
               >
                 {aiOpen ? 'Hide Controls' : 'Open Designer'}
               </button>
@@ -419,7 +419,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     onChange={e => setAiTopic(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Introduction to Python Functions & Loops"
-                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
+                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                   />
                 </div>
 
@@ -429,13 +429,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   {sourceName ? (
                     <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
                       <span className="text-sm">📄</span>
-                      <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName}</span>
-                      <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-white/40 hover:text-white">Remove</button>
+                      <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                      <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-white">Remove</button>
                     </div>
                   ) : (
                     <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
                       <span className="text-sm">📄</span>
-                      <span className="text-xs font-bold text-white/50">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
+                      <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
                       <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
                         onChange={async e => {
                           const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
@@ -460,10 +460,10 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     disabled={aiGenerating}
                     className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                   >
-                    <div className="text-[10px] font-black text-white uppercase tracking-widest">
+                    <div className="text-[10px] font-black text-foreground uppercase tracking-widest">
                       {aiGenerating ? 'Processing...' : 'Generate Assignment'}
                     </div>
-                    <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
+                    <div className="text-[8px] text-muted-foreground uppercase">Architecture Build</div>
                   </button>
                   {aiGenerating && (
                     <div className="flex items-center gap-3 text-primary animate-pulse border-l-2 border-primary pl-4">
@@ -474,7 +474,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 </div>
 
                 {aiError && (
-                  <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest mt-3 pl-1">Error: {aiError}</p>
+                  <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-widest mt-3 pl-1">Error: {aiError}</p>
                 )}
               </div>
             </div>
@@ -484,7 +484,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         <form ref={formRef} onSubmit={handleSubmit} className={`bg-card shadow-sm border rounded-xl p-6 space-y-5 transition-all duration-700 ${aiJustGenerated ? 'border-amber-500/60 shadow-amber-500/10 shadow-lg' : 'border-border'}`}>
 
           {aiJustGenerated && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold animate-in fade-in duration-300">
               <CheckIcon className="w-4 h-4" /> AI filled the form below — review and adjust as needed
             </div>
           )}
@@ -492,7 +492,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-              Title <span className="text-rose-400">*</span>
+              Title <span className="text-rose-600 dark:text-rose-400">*</span>
             </label>
             <input type="text" required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -504,7 +504,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Programme <span className="text-rose-400">*</span>
+                Programme <span className="text-rose-600 dark:text-rose-400">*</span>
               </label>
               <select value={selectedProgramId}
                 onChange={e => {
@@ -522,7 +522,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             </div>
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Course <span className="text-rose-400">*</span>
+                Course <span className="text-rose-600 dark:text-rose-400">*</span>
               </label>
               <select required value={form.course_id}
                 onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
@@ -571,7 +571,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
                   placeholder="0"
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-                <p className="text-[10px] text-white/30 mt-1">Points this counts toward final report (0 = excluded)</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Points this counts toward final report (0 = excluded)</p>
               </div>
             </div>
 
@@ -590,7 +590,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           <label className="flex items-start gap-3 p-4 bg-card shadow-sm border border-border rounded-xl cursor-pointer hover:border-amber-500/40 transition-colors">
             <input type="checkbox" checked={form.multi_step}
               onChange={e => setForm(f => ({ ...f, multi_step: e.target.checked }))}
-              className="mt-0.5 w-5 h-5 rounded border-border text-amber-500 focus:ring-amber-500 cursor-pointer" />
+              className="mt-0.5 w-5 h-5 rounded border-border text-amber-600 dark:text-amber-400 focus:ring-amber-500 cursor-pointer" />
             <div>
               <p className="text-sm font-bold text-foreground">Multi-step submission</p>
               <p className="text-xs text-muted-foreground mt-0.5">Let students attach multiple work snapshots (with captions) to capture each stage of their progress, not just one final file.</p>
@@ -619,7 +619,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           {form.assignment_type === 'project' && (
             <div className="border border-amber-500/20 bg-amber-500/5 p-6 space-y-6">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-amber-400 uppercase tracking-widest">🛠 Project Configuration</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">🛠 Project Configuration</span>
               </div>
 
               {/* Deliverables */}
@@ -628,7 +628,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Deliverables (what students must submit)</label>
                   <button type="button"
                     onClick={() => setProjectMeta(p => ({ ...p, deliverables: [...p.deliverables, ''] }))}
-                    className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors">
                     + Add
                   </button>
                 </div>
@@ -643,7 +643,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       {projectMeta.deliverables.length > 1 && (
                         <button type="button"
                           onClick={() => setProjectMeta(p => ({ ...p, deliverables: p.deliverables.filter((_, i) => i !== di) }))}
-                          className="px-2 py-2 text-rose-400/60 hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
+                          className="px-2 py-2 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
                       )}
                     </div>
                   ))}
@@ -656,7 +656,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Grading Rubric (optional)</label>
                   <button type="button"
                     onClick={() => setProjectMeta(p => ({ ...p, rubric: [...p.rubric, { criterion: '', description: '', maxPoints: 10 }] }))}
-                    className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors">
                     + Add Criterion
                   </button>
                 </div>
@@ -679,13 +679,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                         className="px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-amber-500 transition-colors text-center" />
                       <button type="button"
                         onClick={() => setProjectMeta(p => ({ ...p, rubric: p.rubric.filter((_, i) => i !== ri) }))}
-                        className="px-2 py-2 text-rose-400/60 hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
+                        className="px-2 py-2 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
                     </div>
                   ))}
                 </div>
                 {projectMeta.rubric.length > 0 && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Total rubric points: <span className="text-amber-400 font-bold">{projectMeta.rubric.reduce((a, r) => a + r.maxPoints, 0)}</span>
+                    Total rubric points: <span className="text-amber-600 dark:text-amber-400 font-bold">{projectMeta.rubric.reduce((a, r) => a + r.maxPoints, 0)}</span>
                   </p>
                 )}
               </div>
@@ -697,13 +697,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                  <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                  <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   Questions ({questions.length})
                 </h2>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Optional: Add questions for an interactive homework experience</p>
               </div>
               <button type="button" onClick={addQuestion}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
                 <PlusIcon className="w-3.5 h-3.5" /> Add Question
               </button>
             </div>
@@ -722,7 +722,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       <ChevronDownIcon className="w-3.5 h-3.5" />
                     </button>
                     <button type="button" onClick={() => removeQuestion(qi)}
-                      className="p-1 text-rose-400/60 hover:text-rose-400 transition-colors">
+                      className="p-1 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                       <TrashIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>

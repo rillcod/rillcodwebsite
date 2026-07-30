@@ -404,8 +404,8 @@ export default function NewExamPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AcademicCapIcon className="w-5 h-5 text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Exam'}</span>
+              <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Exam'}</span>
             </div>
             <h1 className="text-3xl font-extrabold italic tracking-tight">Create CBT Exam</h1>
             {!isMinimal && <p className="text-muted-foreground text-sm mt-1 font-medium italic">Architect your assessment environment</p>}
@@ -433,7 +433,7 @@ export default function NewExamPage() {
                   <button
                     type="button"
                     onClick={() => handlePrintExam('staff')}
-                    className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
+                    className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
                   >
                     Teacher Copy
                   </button>
@@ -449,8 +449,8 @@ export default function NewExamPage() {
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -464,13 +464,13 @@ export default function NewExamPage() {
                         <SparklesIcon className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Exam Engine</h3>
+                        <h3 className="text-xl font-black text-foreground uppercase italic tracking-tighter">Premium AI Exam Engine</h3>
                         <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">High-Precision Assessment Synthesis</p>
                     </div>
                 </div>
                 <button 
                   onClick={() => setAiOpen(!aiOpen)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-widest transition-all rounded-xl border border-white/10"
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all rounded-xl border border-white/10"
                 >
                   {aiOpen ? 'Hide Controls' : 'Open Designer'}
                 </button>
@@ -485,7 +485,7 @@ export default function NewExamPage() {
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
                           placeholder="e.g. Introduction to Python, Basic Electronics, Algebra"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                       />
                   </div>
 
@@ -495,13 +495,13 @@ export default function NewExamPage() {
                       {sourceName ? (
                         <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25 rounded-2xl">
                           <span className="text-sm">📄</span>
-                          <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName}</span>
-                          <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-white/40 hover:text-white">Remove</button>
+                          <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                          <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-white">Remove</button>
                         </div>
                       ) : (
                         <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
                           <span className="text-sm">📄</span>
-                          <span className="text-xs font-bold text-white/50">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build questions from'}</span>
+                          <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build questions from'}</span>
                           <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
                             onChange={async e => {
                               const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
@@ -520,8 +520,8 @@ export default function NewExamPage() {
 
                   {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Realistic boundary</p>
-                    <p className="text-xs text-white/65 mt-1">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Realistic boundary</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {examBoundary.label}: {examBoundary.min}-{examBoundary.max} questions · {examBoundary.duration}. {examBoundary.note}
                     </p>
                   </div>
@@ -534,7 +534,7 @@ export default function NewExamPage() {
                             type="number" min="0" max={examBoundary.max}
                             value={aiMcqCount}
                             onChange={e => setAiMcqCount(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
                       <div className="space-y-1">
@@ -545,16 +545,16 @@ export default function NewExamPage() {
                             type="number" min="0" max={examBoundary.max}
                             value={aiTheoryCount}
                             onChange={e => setAiTheoryCount(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
                       {/* Total display */}
                       <div className="flex flex-col items-center justify-center h-full py-2 gap-0.5 border border-white/10 rounded-2xl bg-white/5">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Total Questions</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Total Questions</span>
                           <span className="text-3xl font-black text-primary leading-none">
                             {(parseInt(aiMcqCount) || 0) + (parseInt(aiTheoryCount) || 0)}
                           </span>
-                          <span className="text-[8px] text-white/20 uppercase">
+                          <span className="text-[8px] text-muted-foreground uppercase">
                             {parseInt(aiMcqCount) || 0} obj · {parseInt(aiTheoryCount) || 0} theory
                           </span>
                       </div>
@@ -564,12 +564,12 @@ export default function NewExamPage() {
                           disabled={aiGenerating}
                           className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                       >
-                          <div className="text-[10px] font-black text-white uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
-                          <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
+                          <div className="text-[10px] font-black text-foreground uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
+                          <div className="text-[8px] text-muted-foreground uppercase">Architecture Build</div>
                       </button>
                   </div>
 
-                  {aiError && <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
+                  {aiError && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
                   {aiGenerating && (
                       <div className="flex items-center gap-3 text-primary animate-pulse pl-2 border-l-2 border-primary">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -587,7 +587,7 @@ export default function NewExamPage() {
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Exam Title <span className="text-rose-400">*</span>
+                Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
               </label>
               <input type="text" required value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -598,7 +598,7 @@ export default function NewExamPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Programme <span className="text-rose-400">*</span>
+                  Programme <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <select required value={form.program_id}
                   onChange={e => {
@@ -618,7 +618,7 @@ export default function NewExamPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Course {form.program_id ? <span className="text-rose-400">*</span> : <span className="text-white/30">(select programme first)</span>}
+                  Course {form.program_id ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(select programme first)</span>}
                 </label>
                 <select value={form.course_id}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
@@ -635,7 +635,7 @@ export default function NewExamPage() {
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Visible To School {profile?.role === 'teacher' ? <span className="text-rose-400">*</span> : <span className="text-white/30">(optional for admin)</span>}
+                Visible To School {profile?.role === 'teacher' ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(optional for admin)</span>}
               </label>
               <select
                 value={form.school_id}
@@ -751,7 +751,7 @@ export default function NewExamPage() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Assign % weight per section. Total must equal 100%.</p>
               </div>
               <button type="button" onClick={() => setUseWeights(w => !w)}
-                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
                 {useWeights ? 'Weighted ON' : 'Flat Points (default)'}
               </button>
             </div>
@@ -771,7 +771,7 @@ export default function NewExamPage() {
                 {(() => {
                   const total = sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical;
                   return (
-                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${total === 100 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${total === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       <div className={`w-2 h-2 rounded-full ${total === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                       Total: {total}% {total === 100 ? '— Valid' : '— Must equal 100%'}
                     </div>
@@ -789,7 +789,7 @@ export default function NewExamPage() {
                   Questions ({selectedQuestions.size > 0 ? `${selectedQuestions.size} selected / ` : ''}{questions.length} total)
                 </h2>
                 {selectedQuestions.size > 0 && (
-                  <p className="text-[10px] text-emerald-400/60 mt-0.5">Only ticked questions will be included in the exam</p>
+                  <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">Only ticked questions will be included in the exam</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -807,7 +807,7 @@ export default function NewExamPage() {
                   </button>
                 )}
                 <button type="button" onClick={addQuestion}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
                   <PlusIcon className="w-3.5 h-3.5" /> Add Question
                 </button>
               </div>
@@ -834,11 +834,11 @@ export default function NewExamPage() {
                     <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic">#{qi + 1}</span>
                     <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                         {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-500 italic flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                                 <SparklesIcon className="w-2.5 h-2.5" /> Manual Eval
                             </span>
                         ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-400 italic flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 italic flex items-center gap-1">
                                 <CheckCircleIcon className="w-2.5 h-2.5" /> Auto Graded
                             </span>
                         )}
@@ -846,7 +846,7 @@ export default function NewExamPage() {
                   </div>
                   {questions.length > 1 && (
                     <button type="button" onClick={() => removeQuestion(qi)}
-                      className="p-1.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors scale-90 opacity-40 group-hover:opacity-100 group-hover:scale-100">
+                      className="p-1.5 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors scale-90 opacity-40 group-hover:opacity-100 group-hover:scale-100">
                       <TrashIcon className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -958,7 +958,7 @@ export default function NewExamPage() {
                               className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none" 
                             />
                             {isCorrect && (
-                              <span className="hidden sm:block text-[8px] font-black text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
+                              <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
                             )}
                           </div>
                         );

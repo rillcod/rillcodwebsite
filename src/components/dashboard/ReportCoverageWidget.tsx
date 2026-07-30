@@ -62,7 +62,7 @@ export default function ReportCoverageWidget() {
           </div>
           <p className="mt-1 text-2xl font-black text-foreground">
             {cov.withReport}<span className="text-muted-foreground">/{cov.total}</span>
-            <span className={`ml-2 text-sm font-black ${allDone ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className={`ml-2 text-sm font-black ${allDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
               {allDone ? 'all published ✓' : `${cov.pendingCount} pending`}
             </span>
           </p>
@@ -96,7 +96,7 @@ export default function ReportCoverageWidget() {
                   <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-foreground">{p.full_name}</span>
-                      {p.drafted && <span className="text-[10px] font-black uppercase tracking-wide text-amber-400">Draft — not published</span>}
+                      {p.drafted && <span className="text-[10px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">Draft — not published</span>}
                     </span>
                     {canBuild && (
                       <Link href={`/dashboard/reports/builder?student=${p.id}`} className="flex-shrink-0 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary hover:bg-primary/20">

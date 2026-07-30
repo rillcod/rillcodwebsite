@@ -88,7 +88,7 @@ function IssueCertModal({ onClose, onIssued }: { onClose: () => void; onIssued: 
                                     <p className="text-xs text-muted-foreground truncate">{selectedStudent.email}</p>
                                 </div>
                                 <button type="button" onClick={() => { setSelectedStudent(null); setStudentSearch(''); }}
-                                    className="text-muted-foreground hover:text-rose-400 transition-colors shrink-0">
+                                    className="text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0">
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
                             </div>

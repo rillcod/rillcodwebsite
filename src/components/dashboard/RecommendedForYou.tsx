@@ -23,11 +23,11 @@ const ICON: Record<Rec['type'], any> = {
   exam: ClipboardDocumentListIcon,
 };
 const ACCENT: Record<Rec['type'], string> = {
-  continue: 'text-violet-400 border-violet-500/25 bg-violet-500/8',
-  reinforce: 'text-amber-400 border-amber-500/25 bg-amber-500/8',
-  start: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/8',
-  review: 'text-cyan-400 border-cyan-500/25 bg-cyan-500/8',
-  exam: 'text-rose-400 border-rose-500/25 bg-rose-500/8',
+  continue: 'text-violet-600 dark:text-violet-400 border-violet-500/25 bg-violet-500/8',
+  reinforce: 'text-amber-600 dark:text-amber-400 border-amber-500/25 bg-amber-500/8',
+  start: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/8',
+  review: 'text-cyan-600 dark:text-cyan-400 border-cyan-500/25 bg-cyan-500/8',
+  exam: 'text-rose-600 dark:text-rose-400 border-rose-500/25 bg-rose-500/8',
 };
 const LABEL: Record<Rec['type'], string> = {
   continue: 'Continue', reinforce: 'Reinforce', start: 'Start next', review: 'Review', exam: 'Exam',
@@ -56,7 +56,7 @@ export default function RecommendedForYou() {
   return (
     <section className="bg-card border border-border p-5 sm:p-6">
       <div className="flex items-center gap-2 mb-4">
-        <SparklesIcon className="w-5 h-5 text-violet-400" />
+        <SparklesIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
         <h2 className="text-base font-black text-foreground">Recommended for you</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

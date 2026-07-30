@@ -21,7 +21,7 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
   if (!editor.report) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-8">
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {editor.error || 'Report not found.'}
         </p>
         <Link href="/dashboard/school-reports" className="text-sm font-black text-primary underline">

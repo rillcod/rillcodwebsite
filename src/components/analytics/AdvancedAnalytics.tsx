@@ -186,19 +186,19 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'excellent': return 'text-green-600 bg-green-100'
+      case 'excellent': return 'text-green-600 dark:text-green-400 bg-green-100'
       case 'good': return 'text-primary bg-blue-100'
-      case 'improving': return 'text-yellow-600 bg-yellow-100'
-      case 'needs-help': return 'text-red-600 bg-red-100'
+      case 'improving': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100'
+      case 'needs-help': return 'text-red-600 dark:text-red-400 bg-red-100'
       default: return 'text-muted-foreground bg-muted'
     }
   }
 
   const getMetricColor = (type: string) => {
     switch (type) {
-      case 'positive': return 'text-green-600'
-      case 'warning': return 'text-yellow-600'
-      case 'negative': return 'text-red-600'
+      case 'positive': return 'text-green-600 dark:text-green-400'
+      case 'warning': return 'text-yellow-600 dark:text-yellow-400'
+      case 'negative': return 'text-red-600 dark:text-red-400'
       default: return 'text-muted-foreground'
     }
   }
@@ -245,44 +245,44 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
         <div className="bg-gradient-to-r from-primary to-primary rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100">Total Students</p>
+              <p className="text-blue-800 dark:text-blue-100">Total Students</p>
               <p className="text-3xl font-bold">{analyticsData.totalStudents}</p>
-              <p className="text-blue-100 text-sm">+12 this month</p>
+              <p className="text-blue-800 dark:text-blue-100 text-sm">+12 this month</p>
             </div>
-            <UserGroupIcon className="h-12 w-12 text-blue-200" />
+            <UserGroupIcon className="h-12 w-12 text-blue-800 dark:text-blue-200" />
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100">Completion Rate</p>
+              <p className="text-green-800 dark:text-green-100">Completion Rate</p>
               <p className="text-3xl font-bold">{analyticsData.completionRate}%</p>
-              <p className="text-green-100 text-sm">+5% improvement</p>
+              <p className="text-green-800 dark:text-green-100 text-sm">+5% improvement</p>
             </div>
-            <CheckCircleIcon className="h-12 w-12 text-green-200" />
+            <CheckCircleIcon className="h-12 w-12 text-green-800 dark:text-green-200" />
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100">Average Score</p>
+              <p className="text-purple-800 dark:text-purple-100">Average Score</p>
               <p className="text-3xl font-bold">{analyticsData.averageScore}%</p>
-              <p className="text-purple-100 text-sm">+8% increase</p>
+              <p className="text-purple-800 dark:text-purple-100 text-sm">+8% increase</p>
             </div>
-            <TrophyIcon className="h-12 w-12 text-purple-200" />
+            <TrophyIcon className="h-12 w-12 text-purple-800 dark:text-purple-200" />
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-primary to-primary rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100">Active Projects</p>
+              <p className="text-orange-800 dark:text-orange-100">Active Projects</p>
               <p className="text-3xl font-bold">{analyticsData.recentActivity}</p>
-              <p className="text-orange-100 text-sm">3 due this week</p>
+              <p className="text-orange-800 dark:text-orange-100 text-sm">3 due this week</p>
             </div>
-            <DocumentTextIcon className="h-12 w-12 text-orange-200" />
+            <DocumentTextIcon className="h-12 w-12 text-orange-800 dark:text-orange-200" />
           </div>
         </div>
       </div>
@@ -291,7 +291,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-card rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <LightBulbIcon className="h-5 w-5 mr-2 text-yellow-500" />
+            <LightBulbIcon className="h-5 w-5 mr-2 text-yellow-600 dark:text-yellow-400" />
             Performance Insights
           </h3>
           <div className="space-y-4">
@@ -304,10 +304,10 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                   'bg-purple-100'
                 }`}>
                   <insight.icon className={`h-5 w-5 ${
-                    insight.color === 'green' ? 'text-green-600' :
+                    insight.color === 'green' ? 'text-green-600 dark:text-green-400' :
                     insight.color === 'blue' ? 'text-primary' :
-                    insight.color === 'yellow' ? 'text-yellow-600' :
-                    'text-purple-600'
+                    insight.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-purple-600 dark:text-purple-400'
                   }`} />
                 </div>
                 <div className="flex-1">
@@ -443,10 +443,10 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-primary hover:text-blue-900 mr-3">
+                    <button className="text-primary hover:text-blue-900 dark:hover:text-blue-200 mr-3">
                       <PlayIcon className="h-4 w-4" />
                     </button>
-                    <button className="text-green-600 hover:text-green-900">
+                    <button className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-200">
                       <DocumentTextIcon className="h-4 w-4" />
                     </button>
                   </td>
@@ -462,14 +462,14 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
         <h3 className="text-lg font-semibold mb-4 text-foreground">AI-Powered Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start">
-            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
+            <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Optimize Python Learning</p>
               <p className="text-sm text-muted-foreground">Implement more visual learning aids and hands-on exercises</p>
             </div>
           </div>
           <div className="flex items-start">
-            <StarIcon className="h-5 w-5 text-yellow-500 mr-3 mt-0.5" />
+            <StarIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Advanced Scratch Projects</p>
               <p className="text-sm text-muted-foreground">Introduce complex game development and animation projects</p>
@@ -483,7 +483,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
             </div>
           </div>
           <div className="flex items-start">
-            <TrophyIcon className="h-5 w-5 text-purple-500 mr-3 mt-0.5" />
+            <TrophyIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Competition Preparation</p>
               <p className="text-sm text-muted-foreground">Prepare top students for regional and national coding competitions</p>

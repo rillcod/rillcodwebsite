@@ -197,8 +197,8 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
         <p className="text-primary/60">Present this card to school staff for identity verification. The QR code links to your profile verification page.</p>
       </div>
       {!myCard&&<div className="flex items-start gap-3 bg-amber-500/[0.07] border border-amber-500/20 rounded-xl p-4 text-sm">
-        <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"/>
-        <p className="text-amber-400/70">No card has been issued for your account yet. Contact your school administrator to get a card issued.</p>
+        <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"/>
+        <p className="text-amber-600/70 dark:text-amber-400/70">No card has been issued for your account yet. Contact your school administrator to get a card issued.</p>
       </div>}
       <div className="bg-card border border-white/[0.08] rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-5"><span className="text-xs font-black uppercase tracking-widest text-card-foreground/40">Card Preview</span></div>
@@ -321,7 +321,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
             const dbCard = childCardsMap.get(child.id);
             const code = accessCardCodeForStudent(child.id);
             const statusLabel = dbCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[dbCard.status]??dbCard.status):'Not Issued';
-            const statusColor = dbCard?({active:'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',issued:'bg-primary/15 text-primary border-primary/30',revoked:'bg-rose-500/20 text-rose-400 border-rose-500/30',expired:'bg-amber-500/20 text-amber-400 border-amber-500/30'}[dbCard.status]??'bg-muted/50 text-muted-foreground border-border'):'bg-muted/50 text-muted-foreground border-border';
+            const statusColor = dbCard?({active:'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',issued:'bg-primary/15 text-primary border-primary/30',revoked:'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',expired:'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30'}[dbCard.status]??'bg-muted/50 text-muted-foreground border-border'):'bg-muted/50 text-muted-foreground border-border';
             const qrUrl = childQrMap.get(child.id) ?? null;
             return (
               <div key={child.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-4">
@@ -357,7 +357,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
                     <span>{cfg.footerLeft}</span><span style={{fontFamily:'monospace',color:'#374151',fontWeight:900}}>{code}</span>
                   </div>
                 </div>
-                {!dbCard&&<div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0"/>No card issued yet. Ask your school admin to issue an access card.</div>}
+                {!dbCard&&<div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0"/>No card issued yet. Ask your school admin to issue an access card.</div>}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {[{label:'Card ID',value:code},{label:'Class',value:child.grade||'—'},{label:'Section',value:child.section_class||'—'},{label:'Email',value:child.email||'—'},{label:'Status',value:statusLabel}].map(d=>(
                     <div key={d.label} className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-2">

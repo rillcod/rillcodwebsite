@@ -33,10 +33,10 @@ interface Report {
 function gradeColor(grade: string | null) {
   if (!grade) return 'text-muted-foreground';
   const g = grade.toUpperCase();
-  if (g.startsWith('A')) return 'text-emerald-400';
+  if (g.startsWith('A')) return 'text-emerald-600 dark:text-emerald-400';
   if (g.startsWith('B')) return 'text-primary';
-  if (g.startsWith('C')) return 'text-amber-400';
-  return 'text-rose-400';
+  if (g.startsWith('C')) return 'text-amber-600 dark:text-amber-400';
+  return 'text-rose-600 dark:text-rose-400';
 }
 
 function scoreBarColor(score: number | null) {
@@ -305,13 +305,13 @@ function ParentResultsContent() {
                           <div className="space-y-3">
                             {(report.key_strengths) && (
                               <div className="p-3 bg-emerald-500/5 border border-emerald-500/20">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400 mb-1">Key Strengths</p>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">Key Strengths</p>
                                 <p className="text-xs text-foreground leading-relaxed">{report.key_strengths}</p>
                               </div>
                             )}
                             {report.areas_for_growth && (
                               <div className="p-3 bg-amber-500/5 border border-amber-500/20">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 mb-1">Areas for Growth</p>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">Areas for Growth</p>
                                 <p className="text-xs text-foreground leading-relaxed">{report.areas_for_growth}</p>
                               </div>
                             )}
@@ -325,7 +325,7 @@ function ParentResultsContent() {
                             <ul className="space-y-1">
                               {report.learning_milestones.map((m, i) => (
                                 <li key={i} className="flex items-start gap-2">
-                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                                   <span className="text-xs text-foreground">{m}</span>
                                 </li>
                               ))}
@@ -353,7 +353,7 @@ function ParentResultsContent() {
                                 href={`https://wa.me/?text=${encodeURIComponent(buildReportShareText(selectedChild, report))}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-all"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-all"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.139.565 4.143 1.548 5.877L.057 23.43a.75.75 0 0 0 .928.928l5.554-1.49A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.5a10.45 10.45 0 0 1-5.348-1.467l-.383-.228-3.975 1.066 1.067-3.894-.25-.4A10.451 10.451 0 0 1 1.5 12C1.5 6.201 6.201 1.5 12 1.5S22.5 6.201 22.5 12 17.799 22.5 12 22.5z"/></svg>
                                 Share

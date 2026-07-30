@@ -24,12 +24,12 @@ interface LeaderEntry {
 }
 
 const LEVELS = [
-  { min: 0, max: 99, label: 'Beginner', emoji: '🌱', color: 'text-green-400 bg-green-400/10' },
+  { min: 0, max: 99, label: 'Beginner', emoji: '🌱', color: 'text-green-600 dark:text-green-400 bg-green-400/10' },
   { min: 100, max: 299, label: 'Explorer', emoji: '🔍', color: 'text-primary bg-primary/10' },
-  { min: 300, max: 599, label: 'Builder', emoji: '🔨', color: 'text-yellow-400 bg-yellow-400/10' },
+  { min: 300, max: 599, label: 'Builder', emoji: '🔨', color: 'text-yellow-600 dark:text-yellow-400 bg-yellow-400/10' },
   { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-primary bg-primary/10' },
   { min: 1000, max: 1999, label: 'Innovator', emoji: '🚀', color: 'text-primary bg-primary/10' },
-  { min: 2000, max: 9999, label: 'Champion', emoji: '🏆', color: 'text-rose-400 bg-rose-400/10' },
+  { min: 2000, max: 9999, label: 'Champion', emoji: '🏆', color: 'text-rose-600 dark:text-rose-400 bg-rose-400/10' },
 ];
 
 function getLevel(xp: number) {
@@ -160,8 +160,8 @@ export default function LeaderboardPage() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-4 py-2 rounded-full mb-4">
-          <TrophyIcon className="w-4 h-4 text-yellow-400" />
-          <span className="text-yellow-400 text-xs font-black uppercase tracking-widest">Leaderboard</span>
+          <TrophyIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+          <span className="text-yellow-600 dark:text-yellow-400 text-xs font-black uppercase tracking-widest">Leaderboard</span>
         </div>
         <h1 className="text-3xl font-black text-foreground">Top Coders 🏆</h1>
         <p className="text-muted-foreground text-sm mt-2">Earn XP by completing assignments, attending classes & acing your CBT exams!</p>
@@ -183,7 +183,7 @@ export default function LeaderboardPage() {
             <p className="text-muted-foreground text-xs mt-1">{myEntry.xp} XP · {myEntry.submissions} submissions · {myEntry.attendance}% attendance</p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-black text-yellow-400">{myEntry.xp} XP</p>
+            <p className="text-2xl font-black text-yellow-600 dark:text-yellow-400">{myEntry.xp} XP</p>
           </div>
         </div>
       )}
@@ -197,7 +197,7 @@ export default function LeaderboardPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-white' : 'bg-card shadow-sm border border-border text-muted-foreground hover:text-foreground'}`}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm border border-border text-muted-foreground hover:text-foreground'}`}
               >
                 {f === 'all' ? '🌍 All Schools' : '🏫 My School'}
               </button>
@@ -233,7 +233,7 @@ export default function LeaderboardPage() {
                   <span className="text-foreground font-black text-lg">{e.full_name?.charAt(0) ?? '?'}</span>
                 </div>
                 <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name?.split(' ')?.[0] ?? 'User'}</p>
-                <p className="text-yellow-400 text-xs font-black">{e.xp} XP</p>
+                <p className="text-yellow-600 dark:text-yellow-400 text-xs font-black">{e.xp} XP</p>
                 <div className={`w-20 ${heightMap[idx]} flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20 border-t-2 border-yellow-500/40' : idx === 1 ? 'bg-slate-400/10 border-t-2 border-slate-400/30' : 'bg-primary/10 border-t-2 border-primary/30'}`}>
                   <span className="text-2xl font-black text-muted-foreground">{idx + 1}</span>
                 </div>
@@ -296,7 +296,7 @@ export default function LeaderboardPage() {
 
                 {/* XP */}
                 <div className="text-right flex-shrink-0">
-                  <p className="text-yellow-400 font-black text-sm">{e.xp}</p>
+                  <p className="text-yellow-600 dark:text-yellow-400 font-black text-sm">{e.xp}</p>
                   <p className="text-muted-foreground text-[10px]">XP</p>
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function LeaderboardPage() {
               <item.icon className="w-4 h-4 text-primary flex-shrink-0" />
               <div>
                 <p className="text-foreground text-xs font-semibold leading-tight">{item.label}</p>
-                <p className="text-yellow-400 text-[10px] font-bold">{item.xp}</p>
+                <p className="text-yellow-600 dark:text-yellow-400 text-[10px] font-bold">{item.xp}</p>
               </div>
             </div>
           ))}

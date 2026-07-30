@@ -97,7 +97,7 @@ function YouTubePlayer({ url, title, cinemaMode, onCinemaModeChange }: VideoPlay
                 {!loaded && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0a12]">
                         <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Loading video</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loading video</span>
                     </div>
                 )}
                 <iframe
@@ -110,14 +110,14 @@ function YouTubePlayer({ url, title, cinemaMode, onCinemaModeChange }: VideoPlay
 
                 {/* YouTube badge + cinema toggle overlay */}
                 <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                    <span className="px-2.5 py-1 bg-red-600/90 backdrop-blur text-[9px] font-black uppercase tracking-widest text-white">
+                    <span className="px-2.5 py-1 bg-red-600/90 backdrop-blur text-[9px] font-black uppercase tracking-widest text-foreground">
                         YouTube
                     </span>
                 </div>
                 {cinemaMode !== false && (
                     <button
                         onClick={toggleCinema}
-                        className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/90 transition-all opacity-0 group-hover:opacity-100 z-10"
+                        className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-md text-foreground text-[9px] font-black uppercase tracking-widest hover:bg-black/90 transition-all opacity-0 group-hover:opacity-100 z-10"
                     >
                         {cinema ? <ExitFullscreenIcon className="w-3.5 h-3.5" /> : <FullscreenIcon className="w-3.5 h-3.5" />}
                         {cinema ? 'Exit Cinema' : 'Cinema Mode'}
@@ -129,7 +129,7 @@ function YouTubePlayer({ url, title, cinemaMode, onCinemaModeChange }: VideoPlay
             {title && (
                 <div className="px-4 py-2 bg-[#0a0a12]/90 border-t border-white/5 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <span className="text-[10px] font-bold text-white/60 truncate">{title}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground truncate">{title}</span>
                 </div>
             )}
         </div>
@@ -216,7 +216,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
             {loading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0a12] z-20 pointer-events-none">
                     <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Loading video</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loading video</span>
                 </div>
             )}
 
@@ -264,7 +264,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
                 <div className="relative -mt-24 px-4 pb-3 space-y-2">
                     {/* Title */}
                     {title && (
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/60 truncate px-1">{title}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate px-1">{title}</p>
                     )}
 
                     {/* Progress bar */}
@@ -296,14 +296,14 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
                             {muted ? <MuteIcon className="w-4 h-4" /> : <VolumeIcon className="w-4 h-4" />}
                         </button>
 
-                        <span className="text-[10px] font-mono text-white/50 tabular-nums">
+                        <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
                             {formatTime(currentTime)} / {formatTime(duration)}
                         </span>
 
                         <div className="flex-1" />
 
                         {/* R2 badge */}
-                        <span className="px-2 py-0.5 bg-primary/80 text-[8px] font-black uppercase tracking-widest text-white">
+                        <span className="px-2 py-0.5 bg-primary/80 text-[8px] font-black uppercase tracking-widest text-foreground">
                             Rillcod
                         </span>
 

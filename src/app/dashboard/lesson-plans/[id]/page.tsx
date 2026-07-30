@@ -423,11 +423,11 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   },
   published: {
     label: "Published",
-    cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    cls: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
   },
   archived: {
     label: "Archived",
-    cls: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    cls: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
   },
 };
 
@@ -1841,15 +1841,15 @@ export default function LessonPlanDetailPage() {
           <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-primary/30 bg-primary/[0.05]">
             <div className="flex items-start gap-3 min-w-0">
               <div className="w-8 h-8 rounded-md bg-primary/20 flex items-center justify-center shrink-0">
-                <SparklesIcon className="w-4 h-4 text-violet-300" />
+                <SparklesIcon className="w-4 h-4 text-violet-700 dark:text-violet-300" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-widest text-violet-300">
+                <p className="text-xs font-black uppercase tracking-widest text-violet-700 dark:text-violet-300">
                   AI Lesson Assistant
                 </p>
                 <p className="text-xs text-card-foreground/70 mt-0.5 leading-snug">
                   Click{" "}
-                  <span className="font-bold text-violet-300">
+                  <span className="font-bold text-violet-700 dark:text-violet-300">
                     Create Lesson
                   </span>{" "}
                   on any week below — with a linked syllabus, student activities
@@ -1913,7 +1913,7 @@ export default function LessonPlanDetailPage() {
               ) : (
                 <button
                   onClick={() => setClassPickerOpen((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20"
+                  className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20"
                 >
                   <AcademicCapIcon className="w-3.5 h-3.5" />
                   No class assigned — click to assign
@@ -1950,7 +1950,7 @@ export default function LessonPlanDetailPage() {
                     <button
                       onClick={() => assignClass(null)}
                       disabled={assigningClass}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-rose-400/70 hover:text-rose-400 transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-rose-600/70 dark:text-rose-400/70 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                     >
                       Remove class
                     </button>
@@ -2049,7 +2049,7 @@ export default function LessonPlanDetailPage() {
                     courseId: plan.course_id,
                     programId: plan.courses?.program_id ?? null,
                   })}
-                  className="font-bold text-sky-300 hover:text-sky-200 underline underline-offset-2 shrink-0"
+                  className="font-bold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 underline underline-offset-2 shrink-0"
                 >
                   View syllabus
                 </Link>
@@ -2057,7 +2057,7 @@ export default function LessonPlanDetailPage() {
             </div>
             {syllabusTermContent ? (
               <details className="print:hidden rounded-lg border border-primary/25 bg-primary/[0.04] overflow-hidden">
-                <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-blue-200 uppercase tracking-widest hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
+                <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-blue-800 dark:text-blue-200 uppercase tracking-widest hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
                   <span>Show syllabus for this term (reference)</span>
                   <BookOpenIcon className="w-4 h-4 opacity-70" />
                 </summary>
@@ -2088,7 +2088,7 @@ export default function LessonPlanDetailPage() {
         >
           <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-700/90 dark:text-amber-300/90">
                 Teaching Reference
               </p>
               <p className="text-sm font-bold text-card-foreground mt-0.5">
@@ -2099,7 +2099,7 @@ export default function LessonPlanDetailPage() {
                 this to check your plan matches the expected teaching sequence.
               </p>
             </div>
-            <BookOpenIcon className="w-5 h-5 text-amber-400/80 shrink-0" />
+            <BookOpenIcon className="w-5 h-5 text-amber-600/80 dark:text-amber-400/80 shrink-0" />
           </summary>
           <div className="px-4 pb-4 border-t border-white/[0.06] pt-3 space-y-3">
             {guideLoading && (
@@ -2109,7 +2109,7 @@ export default function LessonPlanDetailPage() {
               </div>
             )}
             {guideError && !guideLoading && (
-              <p className="text-xs text-rose-400 leading-relaxed">
+              <p className="text-xs text-rose-600 dark:text-rose-400 leading-relaxed">
                 {guideError}
               </p>
             )}
@@ -2362,22 +2362,22 @@ export default function LessonPlanDetailPage() {
                               Week {w.week}
                             </span>
                             {(w.gating_state ?? "unlocked") === "locked" && (
-                              <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                              <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
                                 Locked
                               </span>
                             )}
                             {(w.gating_state ?? "unlocked") === "mastered" && (
-                              <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                              <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                                 Mastered
                               </span>
                             )}
                             {w.completed && (
-                              <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                              <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                                 Completed
                               </span>
                             )}
                             {w.progression_badge?.label && (
-                              <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                              <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
                                 {w.progression_badge.label}
                               </span>
                             )}
@@ -2402,7 +2402,7 @@ export default function LessonPlanDetailPage() {
                           <span
                             className={
                               weekLesson
-                                ? "text-emerald-400 font-black"
+                                ? "text-emerald-600 dark:text-emerald-400 font-black"
                                 : "opacity-35"
                             }
                           >
@@ -2412,7 +2412,7 @@ export default function LessonPlanDetailPage() {
                           <span
                             className={
                               weekAssignment
-                                ? "text-cyan-400 font-black"
+                                ? "text-cyan-600 dark:text-cyan-400 font-black"
                                 : "opacity-35"
                             }
                           >
@@ -2439,20 +2439,20 @@ export default function LessonPlanDetailPage() {
                             href={`/dashboard/lessons/${weekLesson.id}`}
                             className="flex flex-col p-3 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.06] border border-emerald-500/25 rounded-2xl transition-all group/item text-left"
                           >
-                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest font-mono">
+                            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
                               1. Teaching Content
                             </span>
-                            <span className="text-xs font-bold text-emerald-100/90 mt-1 truncate">
+                            <span className="text-xs font-bold text-emerald-800/90 dark:text-emerald-100/90 mt-1 truncate">
                               ✓ Lesson Notes Ready
                             </span>
-                            <span className="text-[10px] text-emerald-300/40 mt-0.5 group-hover/item:text-emerald-300/70 transition-colors">
+                            <span className="text-[10px] text-emerald-700/40 dark:text-emerald-300/40 mt-0.5 group-hover/item:text-emerald-300/70 transition-colors">
                               Click to open workspace →
                             </span>
                           </Link>
                         ) : (
                           <Link
                             href={addLessonHref}
-                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-emerald-400"
+                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
                           >
                             <span className="text-[9px] font-black uppercase tracking-widest font-mono">
                               1. Teaching Content
@@ -2472,20 +2472,20 @@ export default function LessonPlanDetailPage() {
                             href={`/dashboard/assignments/${weekAssignment.id}`}
                             className="flex flex-col p-3 bg-cyan-500/[0.02] hover:bg-cyan-500/[0.06] border border-cyan-500/25 rounded-2xl transition-all group/item text-left"
                           >
-                            <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest font-mono">
+                            <span className="text-[9px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest font-mono">
                               2. Task & Evaluation
                             </span>
-                            <span className="text-xs font-bold text-cyan-100/90 mt-1 truncate">
+                            <span className="text-xs font-bold text-cyan-800/90 dark:text-cyan-100/90 mt-1 truncate">
                               ✓ Assignment Loaded
                             </span>
-                            <span className="text-[10px] text-cyan-300/40 mt-0.5 group-hover/item:text-cyan-300/70 transition-colors">
+                            <span className="text-[10px] text-cyan-700/40 dark:text-cyan-300/40 mt-0.5 group-hover/item:text-cyan-300/70 transition-colors">
                               Click to grade submissions →
                             </span>
                           </Link>
                         ) : (
                           <Link
                             href={addAssignmentHref}
-                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-cyan-400"
+                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400"
                           >
                             <span className="text-[9px] font-black uppercase tracking-widest font-mono">
                               2. Task & Evaluation
@@ -2508,7 +2508,7 @@ export default function LessonPlanDetailPage() {
                             <span className="text-[9px] font-black text-primary uppercase tracking-widest font-mono">
                               3. Capstone Activity
                             </span>
-                            <span className="text-xs font-bold text-blue-100/90 mt-1 truncate">
+                            <span className="text-xs font-bold text-blue-800/90 dark:text-blue-100/90 mt-1 truncate">
                               ✓ Project Active
                             </span>
                             <span className="text-[10px] text-primary/40 mt-0.5 group-hover/item:text-primary/70 transition-colors">
@@ -2545,7 +2545,7 @@ export default function LessonPlanDetailPage() {
                           + Assignment + Capstone Project)
                         </button>
                       ) : (
-                        <div className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/5 border border-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-400 rounded-xl">
+                        <div className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/5 border border-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 rounded-xl">
                           <CheckCircleIcon className="w-3.5 h-3.5" /> Curriculum
                           Pack Fully Generated & Synced
                         </div>
@@ -2558,7 +2558,7 @@ export default function LessonPlanDetailPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] leading-relaxed">
                             {w.project?.title && (
                               <div className="text-muted-foreground/75">
-                                <span className="font-bold text-emerald-400/80">
+                                <span className="font-bold text-emerald-600/80 dark:text-emerald-400/80">
                                   Project Mission Seed:
                                 </span>{" "}
                                 {w.project.title}
@@ -2566,7 +2566,7 @@ export default function LessonPlanDetailPage() {
                             )}
                             {w.assignment?.title && (
                               <div className="text-muted-foreground/75">
-                                <span className="font-bold text-cyan-400/80">
+                                <span className="font-bold text-cyan-600/80 dark:text-cyan-400/80">
                                   Assignment Concept:
                                 </span>{" "}
                                 {w.assignment.title}
@@ -2585,7 +2585,7 @@ export default function LessonPlanDetailPage() {
                               Notes & Inline Previews
                             </button>
                             {w.practical_assessment && (
-                              <div className="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/10 px-2 py-0.5 rounded-lg text-[10px] font-black text-amber-400 uppercase tracking-wider">
+                              <div className="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/10 px-2 py-0.5 rounded-lg text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                                 Practical:{" "}
                                 {w.practical_assessment.practical_score ?? 0}/
                                 {w.practical_assessment.max_score ?? 100}
@@ -2598,7 +2598,7 @@ export default function LessonPlanDetailPage() {
                               onClick={() => toggleWeekCompleted(w.week)}
                               className={`p-1.5 rounded-lg border transition-all ${
                                 w.completed
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                                   : "bg-white/5 border-white/5 hover:bg-white/10 hover:text-white"
                               }`}
                               title={
@@ -2613,7 +2613,7 @@ export default function LessonPlanDetailPage() {
                               canGenerateProgression && (
                                 <button
                                   onClick={() => unlockWeekWithOverride(w.week)}
-                                  className="p-1.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-all"
+                                  className="p-1.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-all"
                                   title="Override unlock this locked week"
                                 >
                                   <LockOpenIcon className="w-4 h-4" />
@@ -2628,7 +2628,7 @@ export default function LessonPlanDetailPage() {
                             </button>
                             <button
                               onClick={() => deleteWeek(w.week)}
-                              className="p-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all"
+                              className="p-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all"
                               title="Delete Week"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -2725,7 +2725,7 @@ export default function LessonPlanDetailPage() {
           <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
             <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
               <div className="max-w-3xl">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-700/90 dark:text-amber-300/90">
                   How this plan works
                 </p>
                 <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">
@@ -2746,25 +2746,25 @@ export default function LessonPlanDetailPage() {
                     name: "Plan Setup",
                     steps: ["01", "02"],
                     dotClass: "bg-blue-400/60",
-                    textClass: "text-blue-300/80",
+                    textClass: "text-blue-700/80 dark:text-blue-300/80",
                   },
                   {
                     name: "Content Checks",
                     steps: ["03", "04"],
                     dotClass: "bg-indigo-400/60",
-                    textClass: "text-indigo-300/80",
+                    textClass: "text-indigo-700/80 dark:text-indigo-300/80",
                   },
                   {
                     name: "Classroom Delivery",
                     steps: ["05", "06"],
                     dotClass: "bg-violet-400/60",
-                    textClass: "text-violet-300/80",
+                    textClass: "text-violet-700/80 dark:text-violet-300/80",
                   },
                   {
                     name: "Tracking & Review",
                     steps: ["07", "08"],
                     dotClass: "bg-fuchsia-400/60",
-                    textClass: "text-fuchsia-300/80",
+                    textClass: "text-fuchsia-700/80 dark:text-fuchsia-300/80",
                   },
                 ].map((phase, pIdx) => (
                   <div key={phase.name} className="space-y-3">
@@ -2799,10 +2799,10 @@ export default function LessonPlanDetailPage() {
                               <span
                                 className={`text-[10px] font-black uppercase tracking-[0.2em] ${
                                   item.state === "risk"
-                                    ? "text-rose-200"
+                                    ? "text-rose-800 dark:text-rose-200"
                                     : item.state === "watch"
-                                    ? "text-amber-200"
-                                    : "text-emerald-200"
+                                    ? "text-amber-800 dark:text-amber-200"
+                                    : "text-emerald-800 dark:text-emerald-200"
                                 }`}
                               >
                                 {item.state}
@@ -2829,7 +2829,7 @@ export default function LessonPlanDetailPage() {
                 <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(236,72,153,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-2xl">
-                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-700/90 dark:text-cyan-300/90">
                         Live Activity
                       </p>
                       <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">
@@ -2887,7 +2887,7 @@ export default function LessonPlanDetailPage() {
                     </div>
                   )}
                   {opsError && !opsLoading && (
-                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-200">
+                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-800 dark:text-rose-200">
                       {opsError}
                     </div>
                   )}
@@ -2972,12 +2972,12 @@ export default function LessonPlanDetailPage() {
                                   <span
                                     className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
                                       row.release_status === "released"
-                                        ? "bg-emerald-500/15 text-emerald-200 border border-emerald-400/20"
+                                        ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-400/20"
                                         : row.release_status === "partial"
-                                        ? "bg-amber-500/15 text-amber-200 border border-amber-400/20"
+                                        ? "bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-400/20"
                                         : row.release_status === "draft"
-                                        ? "bg-zinc-500/15 text-zinc-200 border border-zinc-400/20"
-                                        : "bg-rose-500/15 text-rose-200 border border-rose-400/20"
+                                        ? "bg-zinc-500/15 text-zinc-800 dark:text-zinc-200 border border-zinc-400/20"
+                                        : "bg-rose-500/15 text-rose-800 dark:text-rose-200 border border-rose-400/20"
                                     }`}
                                   >
                                     {row.release_status}
@@ -3187,7 +3187,7 @@ export default function LessonPlanDetailPage() {
                 <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.16),transparent_28%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-2xl">
-                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-700/90 dark:text-amber-300/90">
                         Syllabus QA
                       </p>
                       <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">
@@ -3244,7 +3244,7 @@ export default function LessonPlanDetailPage() {
                     </div>
                   )}
                   {qaError && !qaLoading && (
-                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-200">
+                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-800 dark:text-rose-200">
                       {qaError}
                     </div>
                   )}
@@ -3254,10 +3254,10 @@ export default function LessonPlanDetailPage() {
                         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 flex items-start gap-3">
                           <span className="text-xl">💡</span>
                           <div className="space-y-1">
-                            <h4 className="text-xs font-bold text-amber-200">
+                            <h4 className="text-xs font-bold text-amber-800 dark:text-amber-200">
                               Curriculum Drift / Gaps Detected
                             </h4>
-                            <p className="text-xs text-amber-300/80 leading-relaxed">
+                            <p className="text-xs text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
                               There are differences between your class lesson
                               plan and the active curriculum/QA spine. To align
                               them, scroll down to the{" "}
@@ -3287,12 +3287,12 @@ export default function LessonPlanDetailPage() {
                               <span
                                 className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
                                   term.readiness === "excellent"
-                                    ? "bg-emerald-500/15 text-emerald-200 border border-emerald-400/20"
+                                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-400/20"
                                     : term.readiness === "good"
-                                    ? "bg-cyan-500/15 text-cyan-200 border border-cyan-400/20"
+                                    ? "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border border-cyan-400/20"
                                     : term.readiness === "watch"
-                                    ? "bg-amber-500/15 text-amber-200 border border-amber-400/20"
-                                    : "bg-rose-500/15 text-rose-200 border border-rose-400/20"
+                                    ? "bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-400/20"
+                                    : "bg-rose-500/15 text-rose-800 dark:text-rose-200 border border-rose-400/20"
                                 }`}
                               >
                                 {term.readiness}
@@ -3348,10 +3348,10 @@ export default function LessonPlanDetailPage() {
                                       <span
                                         className={`text-[10px] font-black uppercase tracking-[0.18em] ${
                                           issue.severity === "fail"
-                                            ? "text-rose-200"
+                                            ? "text-rose-800 dark:text-rose-200"
                                             : issue.severity === "warn"
-                                            ? "text-amber-200"
-                                            : "text-cyan-200"
+                                            ? "text-amber-800 dark:text-amber-200"
+                                            : "text-cyan-800 dark:text-cyan-200"
                                         }`}
                                       >
                                         {issue.severity}
@@ -3395,7 +3395,7 @@ export default function LessonPlanDetailPage() {
                 <div className="relative p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(167,139,250,0.16),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-2xl">
-                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-700/90 dark:text-cyan-300/90">
                         Auto-Plan Builder
                       </p>
                       <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">
@@ -3486,7 +3486,7 @@ export default function LessonPlanDetailPage() {
                                   <p
                                     className={`text-[10px] font-black uppercase tracking-[0.22em] ${
                                       active
-                                        ? "text-cyan-200"
+                                        ? "text-cyan-800 dark:text-cyan-200"
                                         : "text-card-foreground/45"
                                     }`}
                                   >
@@ -3686,10 +3686,10 @@ export default function LessonPlanDetailPage() {
                                 <p
                                   className={`text-sm font-black mt-2 ${
                                     item.status === "fail"
-                                      ? "text-rose-200"
+                                      ? "text-rose-800 dark:text-rose-200"
                                       : item.status === "warn"
-                                      ? "text-amber-200"
-                                      : "text-emerald-200"
+                                      ? "text-amber-800 dark:text-amber-200"
+                                      : "text-emerald-800 dark:text-emerald-200"
                                   }`}
                                 >
                                   {item.status === "fail"
@@ -3741,11 +3741,11 @@ export default function LessonPlanDetailPage() {
                                   className={`text-lg font-black mt-2 ${
                                     progressionPreview.repetition_risk ===
                                     "high"
-                                      ? "text-rose-300"
+                                      ? "text-rose-700 dark:text-rose-300"
                                       : progressionPreview.repetition_risk ===
                                         "medium"
-                                      ? "text-amber-300"
-                                      : "text-emerald-300"
+                                      ? "text-amber-700 dark:text-amber-300"
+                                      : "text-emerald-700 dark:text-emerald-300"
                                   }`}
                                 >
                                   {progressionPreview.repetition_risk ?? "low"}
@@ -3806,10 +3806,10 @@ export default function LessonPlanDetailPage() {
                                       <span
                                         className={`text-[10px] font-black uppercase tracking-[0.18em] ${
                                           check.status === "fail"
-                                            ? "text-rose-200"
+                                            ? "text-rose-800 dark:text-rose-200"
                                             : check.status === "warn"
-                                            ? "text-amber-200"
-                                            : "text-emerald-200"
+                                            ? "text-amber-800 dark:text-amber-200"
+                                            : "text-emerald-800 dark:text-emerald-200"
                                         }`}
                                       >
                                         {check.status}
@@ -3873,7 +3873,7 @@ export default function LessonPlanDetailPage() {
                           {progressionPreview?.warnings &&
                             progressionPreview.warnings.length > 0 && (
                               <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/[0.08] p-4">
-                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-200">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-800 dark:text-amber-200">
                                   Warnings
                                 </p>
                                 <div className="mt-2 space-y-1">
@@ -3881,7 +3881,7 @@ export default function LessonPlanDetailPage() {
                                     (warning, index) => (
                                       <p
                                         key={`${warning}-${index}`}
-                                        className="text-xs text-amber-100/85"
+                                        className="text-xs text-amber-800/85 dark:text-amber-100/85"
                                       >
                                         {warning}
                                       </p>
@@ -3938,7 +3938,7 @@ export default function LessonPlanDetailPage() {
                                 : "Existing generated terms will be preserved unless the target slot is empty."}
                             </p>
                             {hasBlockingPreflight && (
-                              <p className="text-xs text-rose-300 mt-2">
+                              <p className="text-xs text-rose-700 dark:text-rose-300 mt-2">
                                 Preview has blocking issues, so generation is
                                 paused until those gaps are fixed.
                               </p>
@@ -4196,7 +4196,7 @@ export default function LessonPlanDetailPage() {
                                       }
                                       className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all capitalize ${
                                         checked
-                                          ? "bg-primary/20 text-violet-300 border border-primary/40"
+                                          ? "bg-primary/20 text-violet-700 dark:text-violet-300 border border-primary/40"
                                           : "bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10"
                                       }`}
                                     >
@@ -4309,7 +4309,7 @@ export default function LessonPlanDetailPage() {
                 {linkedLessons.length > 0 && (
                   <Link
                     href={`/dashboard/lessons?lesson_plan_id=${id}`}
-                    className="text-xs text-primary hover:text-violet-300 font-bold transition-colors"
+                    className="text-xs text-primary hover:text-violet-700 dark:hover:text-violet-300 font-bold transition-colors"
                   >
                     {linkedLessons.length} lesson
                     {linkedLessons.length !== 1 ? "s" : ""} →
@@ -4318,7 +4318,7 @@ export default function LessonPlanDetailPage() {
                 {linkedAssignments.length > 0 && (
                   <Link
                     href={`/dashboard/assignments?lesson_plan_id=${id}`}
-                    className="text-xs text-primary hover:text-blue-300 font-bold transition-colors"
+                    className="text-xs text-primary hover:text-blue-700 dark:hover:text-blue-300 font-bold transition-colors"
                   >
                     {linkedAssignments.length} assignment
                     {linkedAssignments.length !== 1 ? "s" : ""} →
@@ -4327,7 +4327,7 @@ export default function LessonPlanDetailPage() {
                 {linkedProjects.length > 0 && (
                   <Link
                     href={`/dashboard/assignments?lesson_plan_id=${id}&type=project`}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 font-bold transition-colors"
+                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold transition-colors"
                   >
                     {linkedProjects.length} project
                     {linkedProjects.length !== 1 ? "s" : ""} →
@@ -4372,7 +4372,7 @@ export default function LessonPlanDetailPage() {
                           Week {w.week}
                         </span>
                         {w.completed && (
-                          <span className="text-[10px] font-black text-emerald-300">
+                          <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300">
                             ✓ Completed
                           </span>
                         )}
@@ -4384,14 +4384,14 @@ export default function LessonPlanDetailPage() {
                         {weekLesson ? (
                           <Link
                             href={`/dashboard/lessons/${weekLesson.id}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors"
                           >
                             ✓ Lesson
                           </Link>
                         ) : (
                           <Link
                             href={addLessonHref}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-400 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                           >
                             + Lesson
                           </Link>
@@ -4414,14 +4414,14 @@ export default function LessonPlanDetailPage() {
                         {weekProject ? (
                           <Link
                             href={`/dashboard/assignments/${weekProject.id}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors"
                           >
                             ✓ Project
                           </Link>
                         ) : (
                           <Link
                             href={addProjectHref}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-400 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                           >
                             + Project
                           </Link>
@@ -4465,25 +4465,25 @@ export default function LessonPlanDetailPage() {
                   </p>
                 </div>
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
-                  <p className="text-xl font-black text-emerald-300">
+                  <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">
                     {genConfirm.preview.projected_generations}
                   </p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mt-0.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">
                     Will Generate
                   </p>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
-                  <p className="text-xl font-black text-amber-300">
+                  <p className="text-xl font-black text-amber-700 dark:text-amber-300">
                     {genConfirm.preview.projected_skips}
                   </p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mt-0.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600/60 dark:text-amber-400/60 mt-0.5">
                     Already Exist
                   </p>
                 </div>
               </div>
 
               {genConfirm.preview.projected_generations === 0 ? (
-                <p className="text-xs text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
                   All weeks already have {genConfirm.type} — nothing to
                   generate.
                 </p>
@@ -4524,10 +4524,10 @@ export default function LessonPlanDetailPage() {
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center shrink-0">
-                  <SparklesIcon className="w-5 h-5 text-cyan-400" />
+                  <SparklesIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">
                     Auto-Plan Builder
                   </p>
                   <h3 className="text-base font-black text-card-foreground">
@@ -4574,11 +4574,11 @@ export default function LessonPlanDetailPage() {
                   <p
                     className={`text-xl font-black capitalize ${
                       progressionRunConfirm.preview.repetition_risk === "high"
-                        ? "text-rose-300"
+                        ? "text-rose-700 dark:text-rose-300"
                         : progressionRunConfirm.preview.repetition_risk ===
                           "medium"
-                        ? "text-amber-300"
-                        : "text-emerald-300"
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-emerald-700 dark:text-emerald-300"
                     }`}
                   >
                     {progressionRunConfirm.preview.repetition_risk ?? "low"}
@@ -4591,7 +4591,7 @@ export default function LessonPlanDetailPage() {
 
               {progressionRunConfirm.preview.warnings &&
                 progressionRunConfirm.preview.warnings.length > 0 && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-300 space-y-1">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
                     {progressionRunConfirm.preview.warnings.map((w, i) => (
                       <p key={i}>{w}</p>
                     ))}
@@ -4732,12 +4732,12 @@ export default function LessonPlanDetailPage() {
                     Week {viewWeek.week}
                   </span>
                   {(viewWeek.gating_state ?? "unlocked") === "locked" && (
-                    <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                    <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
                       Locked
                     </span>
                   )}
                   {viewWeek.completed && (
-                    <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                       Completed
                     </span>
                   )}
@@ -4782,8 +4782,8 @@ export default function LessonPlanDetailPage() {
                   onClick={() => setActivePreviewTab("lesson")}
                   className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
                     activePreviewTab === "lesson"
-                      ? "border-emerald-500 text-emerald-400"
-                      : "border-transparent text-muted-foreground hover:text-emerald-400/80"
+                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                      : "border-transparent text-muted-foreground hover:text-emerald-600/80 dark:hover:text-emerald-400/80"
                   }`}
                 >
                   {fetchingPreview && !previewLesson ? (
@@ -4801,8 +4801,8 @@ export default function LessonPlanDetailPage() {
                   onClick={() => setActivePreviewTab("assignment")}
                   className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
                     activePreviewTab === "assignment"
-                      ? "border-cyan-500 text-cyan-400"
-                      : "border-transparent text-muted-foreground hover:text-cyan-400/80"
+                      ? "border-cyan-500 text-cyan-600 dark:text-cyan-400"
+                      : "border-transparent text-muted-foreground hover:text-cyan-600/80 dark:hover:text-cyan-400/80"
                   }`}
                 >
                   {fetchingPreview && !previewAssignment ? (
@@ -4851,7 +4851,7 @@ export default function LessonPlanDetailPage() {
                           week: viewWeek,
                           courseTitle: plan?.courses?.title || "",
                         })}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[52px] rounded-xl"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[52px] rounded-xl"
                       >
                         <span className="flex items-center gap-1.5 text-xs font-bold">
                           <BookOpenIcon className="w-3.5 h-3.5" />
@@ -4864,7 +4864,7 @@ export default function LessonPlanDetailPage() {
                       <button
                         onClick={() => createAssignmentFromWeek(viewWeek)}
                         disabled={creatingAssignment}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
                       >
                         <span className="flex items-center gap-1.5 text-xs font-bold">
                           <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
@@ -4893,7 +4893,7 @@ export default function LessonPlanDetailPage() {
                           week: viewWeek,
                           courseTitle: plan?.courses?.title || "",
                         })}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px] rounded-xl"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px] rounded-xl"
                       >
                         <span className="flex items-center gap-1.5 text-xs font-bold">
                           <BoltIcon className="w-3.5 h-3.5" />
@@ -4908,7 +4908,7 @@ export default function LessonPlanDetailPage() {
                           plan: plan!,
                           week: viewWeek,
                         })}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[52px] rounded-xl"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10 transition-colors min-h-[52px] rounded-xl"
                       >
                         <span className="flex items-center gap-1.5 text-xs font-bold">
                           <StarIcon className="w-3.5 h-3.5" />
@@ -4938,14 +4938,14 @@ export default function LessonPlanDetailPage() {
                     {(viewWeek.project?.title ||
                       viewWeek.project?.description) && (
                       <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3 space-y-2">
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                           Project Seed
                         </p>
-                        <p className="text-sm font-bold text-emerald-100">
+                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-100">
                           {viewWeek.project.title || "Untitled Project"}
                         </p>
                         {viewWeek.project.description && (
-                          <p className="text-xs text-emerald-300/60 leading-relaxed">
+                          <p className="text-xs text-emerald-700/60 dark:text-emerald-300/60 leading-relaxed">
                             {viewWeek.project.description}
                           </p>
                         )}
@@ -4957,11 +4957,11 @@ export default function LessonPlanDetailPage() {
                         <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                           Assignment Brief
                         </p>
-                        <p className="text-sm font-bold text-blue-100">
+                        <p className="text-sm font-bold text-blue-800 dark:text-blue-100">
                           {viewWeek.assignment.title || "Untitled Task"}
                         </p>
                         {viewWeek.assignment.brief && (
-                          <p className="text-xs text-blue-300/60 leading-relaxed">
+                          <p className="text-xs text-blue-700/60 dark:text-blue-300/60 leading-relaxed">
                             {viewWeek.assignment.brief}
                           </p>
                         )}
@@ -5007,7 +5007,7 @@ export default function LessonPlanDetailPage() {
                     <>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3">
                         <div>
-                          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                             Lesson Status
                           </p>
                           <p className="text-xs text-card-foreground/80 font-bold mt-0.5">
@@ -5017,7 +5017,7 @@ export default function LessonPlanDetailPage() {
                         </div>
                         <Link
                           href={`/dashboard/lessons/${previewLesson.id}`}
-                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
                         >
                           <BookOpenIcon className="w-3.5 h-3.5" /> Workspace
                         </Link>
@@ -5035,7 +5035,7 @@ export default function LessonPlanDetailPage() {
                       )}
 
                       <div className="space-y-1">
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                           Generated Lesson Notes
                         </p>
                         <div className="space-y-4 pt-2">
@@ -5052,10 +5052,10 @@ export default function LessonPlanDetailPage() {
                       {previewLesson.content &&
                         typeof previewLesson.content === "string" && (
                           <div className="space-y-2 mt-6">
-                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                               Monaco Code Script
                             </p>
-                            <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden font-mono text-[11px] p-4 text-cyan-300 whitespace-pre overflow-x-auto">
+                            <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden font-mono text-[11px] p-4 text-cyan-700 dark:text-cyan-300 whitespace-pre overflow-x-auto">
                               <code>{previewLesson.content}</code>
                             </div>
                           </div>
@@ -5086,7 +5086,7 @@ export default function LessonPlanDetailPage() {
                     <>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-cyan-500/[0.03] border border-cyan-500/10 rounded-xl p-3">
                         <div>
-                          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                          <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">
                             Assignment Status
                           </p>
                           <p className="text-xs text-card-foreground/80 font-bold mt-0.5">
@@ -5096,7 +5096,7 @@ export default function LessonPlanDetailPage() {
                         </div>
                         <Link
                           href={`/dashboard/assignments/${previewAssignment.id}`}
-                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
                         >
                           <ClipboardDocumentListIcon className="w-3.5 h-3.5" />{" "}
                           Workspace
@@ -5105,7 +5105,7 @@ export default function LessonPlanDetailPage() {
 
                       {previewAssignment.instructions && (
                         <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-1.5">
-                          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest font-mono">
+                          <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest font-mono">
                             Instructions
                           </p>
                           <div className="text-xs text-card-foreground/75 leading-relaxed whitespace-pre-wrap">
@@ -5117,7 +5117,7 @@ export default function LessonPlanDetailPage() {
                       {previewAssignment.questions &&
                         Array.isArray(previewAssignment.questions) && (
                           <div className="space-y-4">
-                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest font-mono">
+                            <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest font-mono">
                               Questions ({previewAssignment.questions.length})
                             </p>
                             <div className="space-y-3">
@@ -5133,14 +5133,14 @@ export default function LessonPlanDetailPage() {
                                       className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2.5 hover:border-cyan-500/20 transition-all"
                                     >
                                       <div className="flex justify-between items-start gap-3">
-                                        <span className="text-xs font-black text-cyan-400">
+                                        <span className="text-xs font-black text-cyan-600 dark:text-cyan-400">
                                           Q{idx + 1}.
                                         </span>
                                         <p className="flex-1 text-xs font-bold text-card-foreground leading-normal">
                                           {q.question_text}
                                         </p>
                                         {q.points && (
-                                          <span className="text-[10px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full shrink-0 border border-cyan-500/20 font-bold font-mono">
+                                          <span className="text-[10px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full shrink-0 border border-cyan-500/20 font-bold font-mono">
                                             {q.points} pts
                                           </span>
                                         )}
@@ -5167,14 +5167,14 @@ export default function LessonPlanDetailPage() {
                                                     key={optIdx}
                                                     className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs leading-normal ${
                                                       isCorrect
-                                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium"
+                                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-medium"
                                                         : "bg-black/10 border-white/5 text-muted-foreground"
                                                     }`}
                                                   >
                                                     <div
                                                       className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                                                         isCorrect
-                                                          ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
+                                                          ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                                                           : "border-white/20"
                                                       }`}
                                                     >
@@ -5194,10 +5194,10 @@ export default function LessonPlanDetailPage() {
                                       {!isMultipleChoice && (
                                         <div className="pl-6 mt-1 space-y-1.5">
                                           <div className="bg-black/20 border border-white/5 rounded-lg p-2.5 font-mono text-[10px] text-muted-foreground">
-                                            <p className="font-sans font-bold text-white mb-1 uppercase tracking-wide text-[9px]">
+                                            <p className="font-sans font-bold text-foreground mb-1 uppercase tracking-wide text-[9px]">
                                               Expected Answer:
                                             </p>
-                                            <p className="text-cyan-300 whitespace-pre-wrap">
+                                            <p className="text-cyan-700 dark:text-cyan-300 whitespace-pre-wrap">
                                               {q.correct_answer ||
                                                 "Essay / Student Response"}
                                             </p>
@@ -5316,7 +5316,7 @@ export default function LessonPlanDetailPage() {
                                         key={idx}
                                         className="text-card-foreground/80 hover:bg-white/[0.01]"
                                       >
-                                        <td className="py-2.5 pr-4 font-bold text-white whitespace-nowrap">
+                                        <td className="py-2.5 pr-4 font-bold text-foreground whitespace-nowrap">
                                           {item.criterion}
                                         </td>
                                         <td className="py-2.5 px-2 text-muted-foreground leading-normal">
@@ -5365,7 +5365,7 @@ export default function LessonPlanDetailPage() {
                 className={`w-full flex items-center justify-center gap-2 py-3 font-black rounded-xl border transition-all ${
                   viewWeek.completed
                     ? "bg-white/5 border-white/10 text-card-foreground/60 hover:bg-white/10"
-                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                 }`}
               >
                 <CheckCircleIcon className="w-4 h-4" />{" "}
@@ -5410,7 +5410,7 @@ export default function LessonPlanDetailPage() {
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-violet-300/70">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-violet-700/70 dark:text-violet-300/70">
                     Curriculum Foundation
                   </h3>
                 </div>
@@ -5484,13 +5484,13 @@ export default function LessonPlanDetailPage() {
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-emerald-300/70">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-emerald-700/70 dark:text-emerald-300/70">
                     Project Seed
                   </h3>
                 </div>
                 <div className="space-y-4 bg-emerald-500/[0.02] border border-emerald-500/10 p-4 rounded-2xl">
                   <label className="block space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600/60 dark:text-emerald-400/60 ml-1">
                       Project Title
                     </span>
                     <input
@@ -5509,7 +5509,7 @@ export default function LessonPlanDetailPage() {
                     />
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600/60 dark:text-emerald-400/60 ml-1">
                       Project Description
                     </span>
                     <textarea
@@ -5534,7 +5534,7 @@ export default function LessonPlanDetailPage() {
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-blue-300/70">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-blue-700/70 dark:text-blue-300/70">
                     Assignment Brief
                   </h3>
                 </div>
@@ -5584,13 +5584,13 @@ export default function LessonPlanDetailPage() {
               <section className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-300/70">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-700/70 dark:text-amber-300/70">
                     Practical Assessment
                   </h3>
                 </div>
                 <div className="grid grid-cols-3 gap-3 bg-amber-500/[0.02] border border-amber-500/10 p-4 rounded-2xl">
                   <label className="block space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-600/60 dark:text-amber-400/60 ml-1">
                       Max Score
                     </span>
                     <input
@@ -5609,7 +5609,7 @@ export default function LessonPlanDetailPage() {
                     />
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-600/60 dark:text-amber-400/60 ml-1">
                       Pass %
                     </span>
                     <input
@@ -5628,7 +5628,7 @@ export default function LessonPlanDetailPage() {
                     />
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-600/60 dark:text-amber-400/60 ml-1">
                       Score
                     </span>
                     <input
@@ -5676,7 +5676,7 @@ export default function LessonPlanDetailPage() {
           <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden">
             <div className="p-8 text-center space-y-6">
               <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto">
-                <TrophyIcon className="w-8 h-8 text-amber-400" />
+                <TrophyIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <h3 className="text-xl font-black text-card-foreground">
@@ -5724,7 +5724,7 @@ export default function LessonPlanDetailPage() {
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-cyan-500/20 rounded-2xl flex items-center justify-center shrink-0">
-                  <LockOpenIcon className="w-6 h-6 text-cyan-400" />
+                  <LockOpenIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-card-foreground">
@@ -5784,17 +5784,17 @@ function renderInlineMarkdown(md: string) {
       const code = match ? match[2] : part.slice(3, -3);
 
       const LANG_COLOR: Record<string, string> = {
-        python: "text-emerald-400 bg-emerald-500/10",
-        javascript: "text-yellow-400 bg-yellow-500/10",
-        js: "text-yellow-400 bg-yellow-500/10",
+        python: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
+        javascript: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10",
+        js: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10",
         html: "text-primary bg-primary/10",
         css: "text-primary bg-primary/10",
         robotics: "text-primary bg-primary/10",
         bash: "text-muted-foreground bg-muted/50",
-        json: "text-cyan-400 bg-cyan-500/10",
+        json: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10",
       };
       const langClass =
-        LANG_COLOR[lang?.toLowerCase()] ?? "text-cyan-400 bg-cyan-500/10";
+        LANG_COLOR[lang?.toLowerCase()] ?? "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10";
 
       return (
         <div
@@ -5814,7 +5814,7 @@ function renderInlineMarkdown(md: string) {
               Copy
             </button>
           </div>
-          <pre className="p-4 overflow-x-auto text-[11px] font-mono leading-relaxed text-cyan-300">
+          <pre className="p-4 overflow-x-auto text-[11px] font-mono leading-relaxed text-cyan-700 dark:text-cyan-300">
             <code>{code}</code>
           </pre>
         </div>
@@ -5931,7 +5931,7 @@ function parseInlineFormatting(text: string) {
   return parts.map((part, idx) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={idx} className="font-bold text-white">
+        <strong key={idx} className="font-bold text-foreground">
           {part.slice(2, -2)}
         </strong>
       );
@@ -5940,7 +5940,7 @@ function parseInlineFormatting(text: string) {
       return (
         <code
           key={idx}
-          className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-cyan-300"
+          className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-cyan-700 dark:text-cyan-300"
         >
           {part.slice(1, -1)}
         </code>

@@ -136,7 +136,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="max-w-md w-full border border-rose-500/25 bg-rose-500/5 p-6 sm:p-8 text-center space-y-4">
-          <ExclamationTriangleIcon className="w-12 h-12 text-rose-400 mx-auto" />
+          <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto" />
           <h2 className="text-lg font-black text-foreground">We couldn&apos;t load your account</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             You still appear to be signed in, but your profile did not load. This often happens after a network hiccup,
@@ -182,7 +182,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <WelcomeBanner profile={profile} now={now} />
         <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 text-center">
-          <ExclamationTriangleIcon className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+          <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-foreground mb-2">Failed to Load Dashboard</h3>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
           <button
@@ -294,7 +294,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-brand-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+            <span className="px-3 py-1 bg-brand-red-600 text-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
               {role} Portal
             </span>
             <div className="h-px w-8 bg-muted" />
@@ -327,7 +327,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
         <div className="flex flex-col items-start gap-1">
           <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
-            <span className="text-[8px] sm:text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active</span>
+            <span className="text-[8px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest">Active</span>
           </div>
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-1">Live Feed</p>
         </div>
@@ -376,6 +376,6 @@ function transformActivities(activities: any[]) {
     desc: a.description,
     time: a.time_ago,
     icon: a.icon_type === 'trophy' ? TrophyIcon : ClipboardDocumentListIcon,
-    color: a.color_class === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary',
+    color: a.color_class === 'emerald' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-primary/20 text-primary',
   }));
 }

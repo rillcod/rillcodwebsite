@@ -38,8 +38,8 @@ function ScoreSlider({
           <p className="text-[10px] text-muted-foreground">{description}</p>
         </div>
         <div className={`text-lg font-black ${
-          pct >= 75 ? 'text-emerald-400' : pct >= 60 ? 'text-primary' :
-          pct >= 50 ? 'text-amber-400' : pct >= 40 ? 'text-primary' : 'text-rose-400'
+          pct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 60 ? 'text-primary' :
+          pct >= 50 ? 'text-amber-600 dark:text-amber-400' : pct >= 40 ? 'text-primary' : 'text-rose-600 dark:text-rose-400'
         }`}>{pct}</div>
       </div>
       <input
@@ -150,8 +150,8 @@ export default function WAECGradingPage() {
                   <p className="text-[10px] text-muted-foreground">% of assignments student actually submitted</p>
                 </div>
                 <div className={`text-lg font-black ${
-                  assignmentPct >= 80 ? 'text-emerald-400' :
-                  assignmentPct >= 60 ? 'text-amber-400' : 'text-rose-400'
+                  assignmentPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                  assignmentPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
                 }`}>{assignmentPct}%</div>
               </div>
               <input
@@ -180,20 +180,20 @@ export default function WAECGradingPage() {
                 </div>
                 {result.raw !== result.capped && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-amber-400 font-bold">Activity cap ({result.cap.label})</span>
-                    <span className="text-amber-400 font-bold">→ {result.capped}</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-bold">Activity cap ({result.cap.label})</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-bold">→ {result.capped}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Assignment rate</span>
-                  <span className={`font-bold ${assignmentPct >= 80 ? 'text-emerald-400' : assignmentPct >= 60 ? 'text-amber-400' : 'text-rose-400'}`}>
+                  <span className={`font-bold ${assignmentPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : assignmentPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {assignmentPct}%
                   </span>
                 </div>
               </div>
 
               {result.raw !== result.capped && (
-                <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400">
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-600 dark:text-amber-400">
                   <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
                   {result.cap.message}
                 </div>
@@ -307,16 +307,16 @@ export default function WAECGradingPage() {
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         {isTop
-                          ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                          : <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />}
-                        <span className={`text-sm font-black ${isTop ? 'text-emerald-400' : 'text-foreground'}`}>
+                          ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          : <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                        <span className={`text-sm font-black ${isTop ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
                           {cap.label} — {cap.minPct}%+ assignments submitted
                         </span>
                       </div>
                       <span className={`text-xs font-black px-2 py-0.5 border ${
                         isTop
-                          ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                          : 'text-amber-400 border-amber-500/30 bg-amber-500/10'
+                          ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                          : 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10'
                       }`}>
                         {isTop ? 'No cap — Full grade possible' : `Capped at ${cap.maxScore} (${getWAECGrade(cap.maxScore).code})`}
                       </span>
@@ -329,7 +329,7 @@ export default function WAECGradingPage() {
           </div>
 
           <div className="bg-amber-500/5 border border-amber-500/20 p-4 space-y-2">
-            <p className="text-xs font-black uppercase tracking-wider text-amber-400">Why This Matters for Nigerian Schools</p>
+            <p className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Why This Matters for Nigerian Schools</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Parents pay school fees expecting <strong className="text-foreground">visible results</strong>. Students who skip assignments
               produce weak portfolios and poor showcase items. By tying the grade ceiling to assignment completion,
@@ -347,13 +347,13 @@ export default function WAECGradingPage() {
           {/* XP Events */}
           <div className="bg-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <BoltIcon className="w-4 h-4 text-yellow-400" />
+              <BoltIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
               <h2 className="text-xs font-black uppercase tracking-widest text-primary">XP Events — How Students Earn Points</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {XP_EVENTS.map(event => (
                 <div key={event.key} className="flex items-start gap-3 p-3 bg-muted/30 border border-border">
-                  <span className="text-yellow-400 font-black text-sm w-12 shrink-0 text-right">+{event.xp}</span>
+                  <span className="text-yellow-600 dark:text-yellow-400 font-black text-sm w-12 shrink-0 text-right">+{event.xp}</span>
                   <div>
                     <p className="text-xs font-bold text-foreground">{event.label}</p>
                     <p className="text-[10px] text-muted-foreground">{event.description}</p>
@@ -366,7 +366,7 @@ export default function WAECGradingPage() {
           {/* Badges */}
           <div className="bg-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <TrophyIcon className="w-4 h-4 text-amber-400" />
+              <TrophyIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <h2 className="text-xs font-black uppercase tracking-widest text-primary">Achievement Badges</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

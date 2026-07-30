@@ -92,10 +92,10 @@ function InAppViewer({ item, onClose }: {
               <ChevronRightIcon className="w-6 h-6 rotate-180" />
             </button>
             <div>
-              <h3 className="font-black text-white tracking-tight text-lg">{item.title}</h3>
+              <h3 className="font-black text-foreground tracking-tight text-lg">{item.title}</h3>
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">{item.content_type || 'Resource'} • {item.subject || 'Academic Asset'}</p>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.content_type || 'Resource'} • {item.subject || 'Academic Asset'}</p>
               </div>
             </div>
           </div>
@@ -111,7 +111,7 @@ function InAppViewer({ item, onClose }: {
                 </a>
               )}
             </div>
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white ml-2 transition-all">
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-foreground ml-2 transition-all">
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
@@ -122,7 +122,7 @@ function InAppViewer({ item, onClose }: {
             <div className="absolute inset-0 flex items-center justify-center z-20">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Loading Neural Stream...</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Loading Neural Stream...</p>
               </div>
             </div>
           )}
@@ -138,11 +138,11 @@ function InAppViewer({ item, onClose }: {
                   <PresentationChartBarIcon className="w-10 h-10 text-primary" />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-white tracking-tight">PowerPoint Presentation</h4>
-                  <p className="text-sm text-white/40 mt-3 leading-relaxed">
+                  <h4 className="text-2xl font-black text-foreground tracking-tight">PowerPoint Presentation</h4>
+                  <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
                     PowerPoint files (<code className="text-primary font-bold">.pptx</code> / <code className="text-primary font-bold">.ppt</code>) cannot be previewed directly in the browser.
                   </p>
-                  <p className="text-xs text-white/30 mt-2 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                     You can download this presentation to view it locally, or convert it to PDF and upload it as a view-only slide deck.
                   </p>
                 </div>
@@ -171,11 +171,11 @@ function InAppViewer({ item, onClose }: {
             ) : (
               <div className="text-center space-y-6">
                 <div className="w-24 h-24 rounded-[32px] bg-white/5 flex items-center justify-center mx-auto border border-white/10">
-                  <DocumentIcon className="w-10 h-10 text-white/20" />
+                  <DocumentIcon className="w-10 h-10 text-muted-foreground" />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-white tracking-tight">Format Unsupported</h4>
-                  <p className="text-sm text-white/40 max-w-xs mx-auto">This asset requires external processing or download for full resolution.</p>
+                  <h4 className="text-2xl font-black text-foreground tracking-tight">Format Unsupported</h4>
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto">This asset requires external processing or download for full resolution.</p>
                 </div>
                 {fileUrl && (
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-4 px-10 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-3xl shadow-[0_20px_40px_rgba(234,88,12,0.3)] hover:-translate-y-1 transition-all">
@@ -214,7 +214,7 @@ function VisualizerBlock({ block }: { block: any }) {
       {(block.title || block.concept) && (
         <div className="flex items-center gap-3 px-1">
           <div className="w-1 h-4 bg-cyan-500 rounded-full" />
-          <p className="text-[10px] font-black text-cyan-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+          <p className="text-[10px] font-black text-cyan-600/70 dark:text-cyan-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
         </div>
       )}
       <div className="bg-card border border-border overflow-hidden">
@@ -551,7 +551,7 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
       {/* Instructions */}
       {instructions && (
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-4">
-          <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+          <p className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2">
             🚩 Step-by-Step Guide
           </p>
           <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-line">{instructions}</p>
@@ -562,17 +562,17 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  video: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   'hands-on': 'bg-primary/20 text-primary border-primary/30',
   hands_on: 'bg-primary/20 text-primary border-primary/30',
-  interactive: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  interactive: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
   workshop: 'bg-primary/20 text-primary border-primary/30',
-  coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  reading: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  quiz: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  coding: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  reading: 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+  quiz: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30',
   article: 'bg-slate-500/20 text-muted-foreground/70 border-slate-500/30',
-  project: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
-  live: 'bg-red-500/20 text-red-500 border-red-500/30',
+  project: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30',
+  live: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30',
 };
 
 // --- Sub-components ---
@@ -727,40 +727,40 @@ function MermaidRenderer({ code }: { code: string }) {
           <div className="flex items-center gap-3 px-6 justify-between">
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-              <p className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em]">Learning Path Flowchart (Concept View)</p>
+              <p className="text-[10px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-[0.3em]">Learning Path Flowchart (Concept View)</p>
             </div>
-            <span className="text-[8px] font-black bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Engine Fallback Mode</span>
+            <span className="text-[8px] font-black bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Engine Fallback Mode</span>
           </div>
           <div className="bg-card p-6 sm:p-8 rounded-xl border border-border relative overflow-x-auto shadow-2xl flex flex-wrap items-center justify-center gap-3 py-6 min-h-[100px]">
             {fallbackData.connections.length > 0 ? (
               fallbackData.connections.map((conn, idx) => (
                 <Fragment key={idx}>
                   {idx > 0 && (
-                    <div className="flex flex-col items-center justify-center text-cyan-500/40 font-bold px-1 select-none animate-pulse shrink-0">
+                    <div className="flex flex-col items-center justify-center text-cyan-600/40 dark:text-cyan-400/40 font-bold px-1 select-none animate-pulse shrink-0">
                       <span>→</span>
                     </div>
                   )}
                   <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
-                    <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.from}</span>
-                    <span className="text-xs font-black text-white text-center leading-tight">{fallbackData.nodes[conn.from]}</span>
+                    <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.from}</span>
+                    <span className="text-xs font-black text-foreground text-center leading-tight">{fallbackData.nodes[conn.from]}</span>
                     {conn.label && (
-                      <span className="text-[8px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded mt-2 uppercase tracking-wider">{conn.label}</span>
+                      <span className="text-[8px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded mt-2 uppercase tracking-wider">{conn.label}</span>
                     )}
                   </div>
-                  <div className="flex flex-col items-center justify-center text-cyan-500/60 font-black px-1 select-none animate-pulse shrink-0">
+                  <div className="flex flex-col items-center justify-center text-cyan-600/60 dark:text-cyan-400/60 font-black px-1 select-none animate-pulse shrink-0">
                     <span>→</span>
                   </div>
                   <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
-                    <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.to}</span>
-                    <span className="text-xs font-black text-white text-center leading-tight">{fallbackData.nodes[conn.to]}</span>
+                    <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.to}</span>
+                    <span className="text-xs font-black text-foreground text-center leading-tight">{fallbackData.nodes[conn.to]}</span>
                   </div>
                 </Fragment>
               ))
             ) : (
               Object.entries(fallbackData.nodes).map(([id, label]) => (
                 <div key={id} className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
-                  <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">{id}</span>
-                  <span className="text-xs font-black text-white text-center leading-tight">{label}</span>
+                  <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest mb-1.5">{id}</span>
+                  <span className="text-xs font-black text-foreground text-center leading-tight">{label}</span>
                 </div>
               ))
             )}
@@ -772,17 +772,17 @@ function MermaidRenderer({ code }: { code: string }) {
     return (
       <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-xl sm:rounded-xl text-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="p-4 rounded-xl bg-rose-500/20 text-rose-400">
+          <div className="p-4 rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400">
             <ExclamationTriangleIcon className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Oops! A Tiny Snag</p>
+            <p className="text-[10px] font-black text-rose-600/60 dark:text-rose-400/60 uppercase tracking-widest">Oops! A Tiny Snag</p>
             <p className="text-sm font-bold text-muted-foreground">The visual map is taking a quick nap. Refresh to wake it up!</p>
           </div>
-          <pre className="mt-4 w-full p-6 bg-card/80 rounded-xl text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
+          <pre className="mt-4 w-full p-6 bg-card/80 rounded-xl text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-700/80 dark:text-rose-300/80">
             {code}
           </pre>
-          <p className="text-[10px] text-rose-400/40 font-black uppercase tracking-widest">Double check the blocks or hit refresh to see the path!</p>
+          <p className="text-[10px] text-rose-600/40 dark:text-rose-400/40 font-black uppercase tracking-widest">Double check the blocks or hit refresh to see the path!</p>
         </div>
       </div>
     );
@@ -792,7 +792,7 @@ function MermaidRenderer({ code }: { code: string }) {
     <div className="my-12 space-y-4">
       <div className="flex items-center gap-3 px-6">
         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-        <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.3em]">Our Learning Adventure Map</p>
+        <p className="text-[10px] font-black text-indigo-600/60 dark:text-indigo-400/60 uppercase tracking-[0.3em]">Our Learning Adventure Map</p>
       </div>
       <div className="bg-card p-8 sm:p-12 rounded-xl flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px] [&_svg]:max-w-full [&_.label]:!text-foreground/80 [&_text]:!fill-current"  style={{ colorScheme: 'dark' }}>
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -824,7 +824,7 @@ function MathRenderer({ formula }: { formula: string }) {
         });
         setHtml(rendered);
       } catch (e) {
-        setHtml(`<span class="text-rose-400">Error: ${formula}</span>`);
+        setHtml(`<span class="text-rose-600 dark:text-rose-400">Error: ${formula}</span>`);
       }
     } else {
       setHtml(`<span class="font-serif italic text-muted-foreground">${formula}</span>`);
@@ -834,7 +834,7 @@ function MathRenderer({ formula }: { formula: string }) {
   return (
     <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-xl sm:rounded-xl relative overflow-hidden group shadow-3xl text-center">
       <div className="absolute -left-10 -top-10 w-48 h-48 bg-indigo-500/10 blur-3xl rounded-full group-hover:scale-125 transition-transform" />
-      <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mb-10 relative z-10">Mathematical Synthesis</p>
+      <p className="text-[10px] font-black text-indigo-600/60 dark:text-indigo-400/60 uppercase tracking-[0.4em] mb-10 relative z-10">Mathematical Synthesis</p>
       <div className="math-container text-2xl sm:text-5xl text-foreground relative z-10 overflow-x-auto py-4" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
@@ -966,12 +966,12 @@ function D3ChartRenderer({ type, dataset, labels }: { type: string; dataset: any
 }
 
 const MOTION_COLORS = [
-  { bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40',    text: 'text-cyan-400',    glow: 'rgba(6,182,212,0.5)'    },
+  { bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40',    text: 'text-cyan-600 dark:text-cyan-400',    glow: 'rgba(6,182,212,0.5)'    },
   { bg: 'bg-primary/20',  border: 'border-primary/40',  text: 'text-primary',  glow: 'rgba(139,92,246,0.5)'   },
-  { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', glow: 'rgba(16,185,129,0.5)'   },
+  { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-600 dark:text-emerald-400', glow: 'rgba(16,185,129,0.5)'   },
   { bg: 'bg-primary/20',  border: 'border-primary/40',  text: 'text-primary',  glow: 'rgba(249,115,22,0.5)'   },
-  { bg: 'bg-rose-500/20',    border: 'border-rose-500/40',    text: 'text-rose-400',    glow: 'rgba(244,63,94,0.5)'    },
-  { bg: 'bg-amber-500/20',   border: 'border-amber-500/40',   text: 'text-amber-400',   glow: 'rgba(245,158,11,0.5)'   },
+  { bg: 'bg-rose-500/20',    border: 'border-rose-500/40',    text: 'text-rose-600 dark:text-rose-400',    glow: 'rgba(244,63,94,0.5)'    },
+  { bg: 'bg-amber-500/20',   border: 'border-amber-500/40',   text: 'text-amber-600 dark:text-amber-400',   glow: 'rgba(245,158,11,0.5)'   },
 ];
 
 function MotionGraphicRenderer({ type, config, title }: { type: string; config: any; title?: string }) {
@@ -995,11 +995,11 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
 
       {/* Header */}
       <div className="absolute top-4 left-5 z-10 flex flex-col gap-0.5">
-        <p className="text-[8px] font-black text-indigo-400/50 uppercase tracking-[0.5em]">Motion Illustration</p>
+        <p className="text-[8px] font-black text-indigo-600/50 dark:text-indigo-400/50 uppercase tracking-[0.5em]">Motion Illustration</p>
         {title && <p className="text-[11px] font-black text-foreground/60 uppercase tracking-tight max-w-[260px] truncate">{title}</p>}
       </div>
       <div className="absolute top-4 right-5 z-10">
-        <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[8px] font-black text-indigo-400/60 uppercase tracking-widest">{type}</span>
+        <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[8px] font-black text-indigo-600/60 dark:text-indigo-400/60 uppercase tracking-widest">{type}</span>
       </div>
 
       <div className="flex items-center justify-center h-[340px] px-6 pt-10">
@@ -1298,20 +1298,20 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
                 className={`p-3.5 rounded-xl border transition-all text-left ${stateClass}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-xl border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                      : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                  <div className={`w-7 h-7 rounded-xl border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                      : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-600 dark:text-rose-400'
                         : 'bg-card border-border text-muted-foreground'
                     }`}>
                     {String.fromCharCode(65 + optIdx)}
                   </div>
-                  <span className={`text-xs font-medium leading-snug flex-1 ${revealed && isCorrect ? 'text-emerald-300'
-                      : revealed && isSelected ? 'text-rose-300'
+                  <span className={`text-xs font-medium leading-snug flex-1 ${revealed && isCorrect ? 'text-emerald-700 dark:text-emerald-300'
+                      : revealed && isSelected ? 'text-rose-700 dark:text-rose-300'
                         : 'text-muted-foreground'
                     }`}>
                     {opt}
                   </span>
                   {revealed && isCorrect && (
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                   )}
                 </div>
               </motion.button>
@@ -1327,7 +1327,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
               className="pt-4 border-t border-border"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                <div className={`p-2 rounded-xl flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                   {selected === block.correctAnswer ? <CheckBadgeIcon className="w-4 h-4" /> : <XMarkIcon className="w-4 h-4" />}
                 </div>
                 <p className="text-xs font-medium text-foreground flex-1">
@@ -1342,7 +1342,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
               </div>
               {selected !== block.correctAnswer && (
                 <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
-                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <span>✦</span> AI Tutor Explanation
                   </p>
                   {loadingExplanation ? (
@@ -1449,7 +1449,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
 
         {/* AI recap */}
         <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-6 text-left min-h-[80px]">
-          <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span>✦</span> What You Mastered Today
           </p>
           {recapLoading ? (
@@ -1471,7 +1471,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
           </div>
           <div className="bg-card shadow-sm border border-border rounded-xl p-8">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Status</p>
-            <p className="text-3xl font-black text-emerald-400">COMPLETE</p>
+            <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">COMPLETE</p>
           </div>
         </div>
 
@@ -1499,11 +1499,11 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
       {hasBlocks && (
         <div className="flex items-center gap-2">
           <button onClick={() => setViewMode('steps')}
-            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'steps' ? 'bg-emerald-500/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'steps' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
             📋 Steps
           </button>
           <button onClick={() => setViewMode('blocks')}
-            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'blocks' ? 'bg-yellow-500/20 text-yellow-400' : 'text-muted-foreground hover:text-foreground'}`}>
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'blocks' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' : 'text-muted-foreground hover:text-foreground'}`}>
             🧩 Block View
           </button>
         </div>
@@ -1547,7 +1547,7 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
         <div className="grid gap-4">
           {steps.map((step, sIdx) => (
             <div key={sIdx} className="flex gap-4 p-4 rounded-xl bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">
                 {sIdx + 1}
               </div>
               <p className="text-sm font-medium text-muted-foreground leading-relaxed pt-1 group-hover/step:text-foreground transition-colors">
@@ -1683,10 +1683,10 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
     <div className="space-y-3">
       {title && (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-yellow-500/20 text-yellow-400">
+          <div className="p-2 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
             <RectangleGroupIcon className="w-4 h-4" />
           </div>
-          <p className="text-[10px] font-black text-yellow-400 uppercase tracking-[0.4em]">{title}</p>
+          <p className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-[0.4em]">{title}</p>
         </div>
       )}
       <div className="border border-yellow-500/20 bg-card overflow-hidden" style={{ minHeight: 360 }}>
@@ -1700,13 +1700,13 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
         <div>
           <button
             onClick={() => setShowCode(s => !s)}
-            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-yellow-400/60 hover:text-yellow-400 transition-colors mb-2"
+            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-yellow-600/60 dark:text-yellow-400/60 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors mb-2"
           >
             <ChevronRightIcon className={`w-3 h-3 transition-transform ${showCode ? 'rotate-90' : ''}`} />
             {showCode ? 'Hide' : 'Show'} generated {language || 'python'} code
           </button>
           {showCode && (
-            <pre className="p-4 bg-card/80 border border-border text-xs font-mono text-emerald-300 overflow-x-auto rounded-xl leading-relaxed">
+            <pre className="p-4 bg-card/80 border border-border text-xs font-mono text-emerald-700 dark:text-emerald-300 overflow-x-auto rounded-xl leading-relaxed">
               {generatedCode}
             </pre>
           )}
@@ -1742,8 +1742,8 @@ function ImageBlock({ url, caption }: { url?: string; caption?: string }) {
         )}
         {status === 'error' ? (
           <div className="w-full aspect-video bg-rose-500/5 border border-rose-500/10 flex flex-col items-center justify-center gap-2">
-            <PhotoIcon className="w-8 h-8 text-rose-400/30" />
-            <p className="text-[10px] font-black text-rose-400/40 uppercase tracking-widest">Image unavailable</p>
+            <PhotoIcon className="w-8 h-8 text-rose-600/30 dark:text-rose-400/30" />
+            <p className="text-[10px] font-black text-rose-600/40 dark:text-rose-400/40 uppercase tracking-widest">Image unavailable</p>
           </div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -1819,7 +1819,7 @@ function BlockMarkdown({ content, className }: { content: string; className?: st
           ol: ({ children }) => <ol className="list-none space-y-1 my-1.5">{children}</ol>,
           li: ({ children }) => (
             <li className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-              <span className="text-cyan-500/70 shrink-0 mt-1 text-[10px]">▸</span>
+              <span className="text-cyan-600/70 dark:text-cyan-400/70 shrink-0 mt-1 text-[10px]">▸</span>
               <span>{children}</span>
             </li>
           ),
@@ -1882,12 +1882,12 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
   if (!blocks || blocks.length === 0) return null;
 
   const INFO_COLORS = [
-    { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
+    { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-600 dark:text-cyan-400',    bg: 'bg-cyan-500/5'    },
     { accent: 'border-l-primary',  num: 'bg-primary',  text: 'text-primary',  bg: 'bg-primary/5'  },
     { accent: 'border-l-primary',  num: 'bg-primary',  text: 'text-primary',  bg: 'bg-primary/5'  },
-    { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
-    { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
-    { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/5'   },
+    { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/5' },
+    { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-600 dark:text-rose-400',    bg: 'bg-rose-500/5'    },
+    { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/5'   },
   ];
 
   return (
@@ -1901,7 +1901,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
               <AnimatedBlock key={i} i={i}>
                 <div className="relative group pt-4">
                   <div className="absolute -left-4 top-0 bottom-0 w-1.5 rounded-full bg-gradient-to-b from-primary via-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
-                  <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent group-hover:text-cyan-400 transition-all duration-300">
+                  <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-all duration-300">
                     {block.content}
                   </h2>
                   <div className="mt-3 h-[2px] w-0 group-hover:w-full bg-gradient-to-r from-primary via-indigo-500 to-transparent transition-all duration-500" />
@@ -1941,18 +1941,18 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             return (
               <AnimatedBlock key={i} i={i}>
                 <div className={`p-8 sm:p-12 border border-white/10 rounded-2xl shadow-2xl relative overflow-hidden group backdrop-blur-md ${isWarning ? 'bg-rose-500/5 hover:border-rose-500/30' : 'bg-primary/5 hover:border-primary/30'} transition-all duration-300`}>
-                  <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 group-hover:rotate-12 duration-500 ${isWarning ? 'text-rose-500' : 'text-primary'}`}>
+                  <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 group-hover:rotate-12 duration-500 ${isWarning ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
                     {isWarning ? <ExclamationTriangleIcon /> : <InformationCircleIcon />}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-6 sm:gap-10 relative z-10">
-                    <div className={`shrink-0 p-4 sm:p-6 rounded-xl shadow-xl flex items-center justify-center ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/20 text-primary'}`}>
+                    <div className={`shrink-0 p-4 sm:p-6 rounded-xl shadow-xl flex items-center justify-center ${isWarning ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-primary/20 text-primary'}`}>
                       {isWarning ? <ExclamationTriangleIcon className="w-8 h-8 sm:w-12 sm:h-12" /> : <InformationCircleIcon className="w-8 h-8 sm:w-12 sm:h-12" />}
                     </div>
                     <div className="space-y-2 flex-1">
-                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-primary'}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
                         {isWarning ? 'Important Note' : 'Key Insight'}
                       </p>
-                      <BlockMarkdown content={block.content || ''} className="text-base sm:text-lg font-bold text-white/95 leading-relaxed" />
+                      <BlockMarkdown content={block.content || ''} className="text-base sm:text-lg font-bold text-muted-foreground leading-relaxed" />
                     </div>
                   </div>
                 </div>
@@ -1967,11 +1967,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="p-8 sm:p-12 border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden shadow-2xl group/activity">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl pointer-events-none" />
                   <div className="flex items-center gap-6">
-                    <div className="p-4 bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
+                    <div className="p-4 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
                       <RocketLaunchIcon className="w-8 h-8" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] mb-1">Interactive Synthesis Lab</p>
+                      <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.5em] mb-1">Interactive Synthesis Lab</p>
                       <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{block.title || 'Practical Implementation'}</h3>
                     </div>
                   </div>
@@ -2023,11 +2023,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
               <AnimatedBlock key={i} i={i}>
                 <div className="border-2 border-yellow-500/20 bg-yellow-500/5 space-y-6 p-6 sm:p-10">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                    <div className="p-3 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 flex-shrink-0">
                       <RectangleGroupIcon className="w-7 h-7" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-0.5">Visual Coding Lab — KG to Basic 6</p>
+                      <p className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-[0.4em] mb-0.5">Visual Coding Lab — KG to Basic 6</p>
                       <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Scratch Block Mission</h3>
                     </div>
                   </div>
@@ -2043,11 +2043,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="p-6 sm:p-10 border-2 border-border bg-card flex flex-col sm:flex-row items-center justify-between gap-6 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
                   <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
-                    <div className="p-5 bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-lg">
+                    <div className="p-5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform shadow-lg">
                       <ArrowDownTrayIcon className="w-8 h-8 sm:w-10 sm:h-10" />
                     </div>
                     <div>
-                      <h4 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
+                      <h4 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Ready for Download</p>
                     </div>
                   </div>
@@ -2081,7 +2081,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                           transition={{ delay: idx * 0.07, type: 'spring', stiffness: 180 }}
                           className={`flex gap-4 p-4 border border-border border-l-4 ${col.accent} ${col.bg} group hover:shadow-lg transition-all`}
                         >
-                          <div className={`w-7 h-7 ${col.num} flex items-center justify-center text-[10px] font-black text-white shrink-0 mt-0.5`}>
+                          <div className={`w-7 h-7 ${col.num} flex items-center justify-center text-[10px] font-black text-foreground shrink-0 mt-0.5`}>
                             {idx + 1}
                           </div>
                           <div className="space-y-1 flex-1 min-w-0">
@@ -2112,19 +2112,19 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="p-8 sm:p-12 bg-card border border-border shadow-2xl">
                   <div className="flex items-center gap-3 mb-8">
                     <div className="w-2 h-2 rounded-full bg-cyan-500" />
-                    <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em]">Logic Maps &amp; Flow</p>
+                    <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-[0.4em]">Logic Maps &amp; Flow</p>
                   </div>
                   <div className="relative pl-6 border-l border-cyan-500/20 space-y-0">
                     {(block.components || []).map((comp: any, idx: number) => (
                       <div key={idx} className="relative pb-8 group last:pb-0">
                         <div className="absolute -left-[25px] top-1 w-4 h-4 rounded-full bg-cyan-500/20 border-2 border-cyan-500 group-hover:bg-cyan-500 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.4)]" />
                         <div className="space-y-1">
-                          <h4 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
+                          <h4 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
                           <p className="text-sm text-muted-foreground leading-relaxed">{comp.description}</p>
                           {onExplainRequest && (
                             <button
                               onClick={() => onExplainRequest(`Explain "${comp.name}": ${comp.description}`)}
-                              className="mt-1 text-[8px] font-black uppercase tracking-widest text-cyan-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity flex items-center gap-1"
+                              className="mt-1 text-[8px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity flex items-center gap-1"
                             >
                               <span>✦</span> Ask AI
                             </button>
@@ -2158,7 +2158,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         <TrophyIcon className="w-7 h-7 text-white" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Capstone Challenge</p>
+                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Capstone Challenge</p>
                         <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{displayTitle}</h3>
                       </div>
                     </div>
@@ -2166,11 +2166,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       <BlockMarkdown content={displayInstructions} className="text-sm font-medium mb-6" />
                       {displayDeliverables && displayDeliverables.length > 0 && (
                         <div className="space-y-3 pt-4 border-t border-emerald-500/20">
-                          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Required Deliverables</p>
+                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.3em]">Required Deliverables</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {displayDeliverables.map((del: string, idx: number) => (
                               <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                                <div className="w-5 h-5 bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-500 rounded">{idx + 1}</div>
+                                <div className="w-5 h-5 bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-600 dark:text-emerald-400 rounded">{idx + 1}</div>
                                 <span className="text-xs font-bold text-foreground/80">{del}</span>
                               </div>
                             ))}
@@ -2181,8 +2181,8 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       {matchedAssignment && (
                         <div className="mt-8 pt-6 border-t border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                           <div className="text-center sm:text-left">
-                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active Assignment Synced</p>
-                            <p className="text-xs text-white/50 mt-0.5">{matchedAssignment.title}</p>
+                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active Assignment Synced</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{matchedAssignment.title}</p>
                           </div>
                           <Link
                             href={`/dashboard/assignments/${matchedAssignment.id}`}
@@ -2250,10 +2250,10 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
               <AnimatedBlock key={i} i={i}>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-500/20 text-amber-400">
+                    <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400">
                       <BookOpenIcon className="w-4 h-4" />
                     </div>
-                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em]">{block.title || 'Key Terms & Definitions'}</p>
+                    <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.4em]">{block.title || 'Key Terms & Definitions'}</p>
                   </div>
                   <div className="divide-y divide-white/5 border border-border">
                     {terms.map((t: any, idx: number) => (
@@ -2262,13 +2262,13 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                           <div className="w-2 h-2 rounded-full bg-amber-500/60 group-hover:bg-amber-400 transition-colors" />
                         </div>
                         <div className="space-y-1 min-w-0">
-                          <p className="text-sm font-black text-amber-300 tracking-tight">{t.term || t.label || t.word}</p>
+                          <p className="text-sm font-black text-amber-700 dark:text-amber-300 tracking-tight">{t.term || t.label || t.word}</p>
                           <BlockMarkdown content={t.definition || t.value || t.meaning || ''} className="text-sm" />
                         </div>
                         {onExplainRequest && (
                           <button
                             onClick={() => onExplainRequest(`Explain term: "${t.term || t.label}". Definition: ${t.definition || t.value}`)}
-                            className="shrink-0 self-start text-[8px] font-black uppercase tracking-widest text-amber-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity mt-1"
+                            className="shrink-0 self-start text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity mt-1"
                           >
                             ✦ AI
                           </button>
@@ -2308,7 +2308,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
               <AnimatedBlock key={i} i={i}>
                 <div className="space-y-3">
                   {block.title && (
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.4em] flex items-center gap-2">
                       <CheckCircleIcon className="w-4 h-4" />
                       {block.title}
                     </p>
@@ -2323,7 +2323,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         transition={{ delay: idx * 0.07, type: 'spring', stiffness: 200 }}
                         className="flex items-start gap-4 p-4 bg-muted/30 border border-border hover:border-emerald-500/20 hover:bg-emerald-500/5 transition-all group"
                       >
-                        <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                           {idx + 1}
                         </div>
                         <BlockMarkdown
@@ -2348,7 +2348,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
               <AnimatedBlock key={i} i={i}>
                 <div className="space-y-3">
                   {block.title && (
-                    <p className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em]">{block.title}</p>
+                    <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-[0.4em]">{block.title}</p>
                   )}
                   <div className="overflow-x-auto border border-border">
                     <table className="w-full text-sm border-collapse">
@@ -2495,16 +2495,16 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
   const LANG_COLOR: Record<string, string> = {
-    python: 'text-emerald-400 bg-emerald-500/10',
-    javascript: 'text-yellow-400 bg-yellow-500/10',
-    js: 'text-yellow-400 bg-yellow-500/10',
+    python: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    javascript: 'text-yellow-600 dark:text-yellow-400 bg-yellow-500/10',
+    js: 'text-yellow-600 dark:text-yellow-400 bg-yellow-500/10',
     html: 'text-primary bg-primary/10',
     css: 'text-primary bg-primary/10',
     robotics: 'text-primary bg-primary/10',
     bash: 'text-muted-foreground bg-muted/50',
-    json: 'text-cyan-400 bg-cyan-500/10',
+    json: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10',
   };
-  const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-400 bg-cyan-500/10';
+  const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10';
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -2584,11 +2584,11 @@ function MarkdownNotes({ content }: { content: string }) {
             className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
           >
             {ordered ? (
-              <span className="w-5 h-5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-5 h-5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                 {(index ?? 0) + 1}
               </span>
             ) : (
-              <span className="text-cyan-500/70 mt-1.5 shrink-0 text-xs">▸</span>
+              <span className="text-cyan-600/70 dark:text-cyan-400/70 mt-1.5 shrink-0 text-xs">▸</span>
             )}
             <span className="flex-1">{children}</span>
           </motion.li>
@@ -3277,8 +3277,8 @@ export default function LessonDetailPage() {
 
   if (error || !lesson) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center gap-6">
-      <ExclamationTriangleIcon className="w-16 h-16 text-rose-500/20" />
-      <h2 className="text-2xl font-bold text-rose-400">Could not load lesson</h2>
+      <ExclamationTriangleIcon className="w-16 h-16 text-rose-600/20 dark:text-rose-400/20" />
+      <h2 className="text-2xl font-bold text-rose-600 dark:text-rose-400">Could not load lesson</h2>
       <p className="text-muted-foreground max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
       <Link href="/dashboard/lessons" className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold">Back to Lessons</Link>
     </div>
@@ -3305,7 +3305,7 @@ export default function LessonDetailPage() {
       {/* Mobile Header (Techy & Clean) */}
       <div className="md:hidden px-4 py-3 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0 gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => setSidebarOpen(true)} className="p-2.5 bg-card shadow-sm rounded-xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shrink-0">
+          <button onClick={() => setSidebarOpen(true)} className="p-2.5 bg-card shadow-sm rounded-xl text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shrink-0">
             <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
@@ -3317,7 +3317,7 @@ export default function LessonDetailPage() {
           {lesson.lesson_notes && (
             <button
               onClick={() => setTtsOpen(v => !v)}
-              className={`p-2.5 rounded-xl border transition-all active:scale-95 ${ttsOpen ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-card border-border text-muted-foreground hover:text-indigo-400 hover:border-indigo-500/40'}`}
+              className={`p-2.5 rounded-xl border transition-all active:scale-95 ${ttsOpen ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-card border-border text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-500/40'}`}
               title="Listen to lesson"
             >
               <SpeakerWaveIcon className="w-4 h-4" />
@@ -3343,11 +3343,11 @@ export default function LessonDetailPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Curriculum Nucleus</h2>
+                <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">Curriculum Nucleus</h2>
               </div>
-              <p className="font-black text-white text-xl leading-tight truncate max-w-[200px] tracking-tight">{lesson.courses?.programs?.name || 'Academic Track'}</p>
+              <p className="font-black text-foreground text-xl leading-tight truncate max-w-[200px] tracking-tight">{lesson.courses?.programs?.name || 'Academic Track'}</p>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden w-12 h-12 bg-white/5 border border-white/10 rounded-2xl text-white flex items-center justify-center transition-all hover:bg-rose-500/20 hover:border-rose-500/30">
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden w-12 h-12 bg-white/5 border border-white/10 rounded-2xl text-foreground flex items-center justify-center transition-all hover:bg-rose-500/20 hover:border-rose-500/30">
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
@@ -3357,7 +3357,7 @@ export default function LessonDetailPage() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
               <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] relative z-10">{lesson.courses?.title || 'Course'}</h3>
               <div className="flex items-center gap-3 mt-3 relative z-10">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{courseLessons.length} units of intelligence</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{courseLessons.length} units of intelligence</span>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             </div>
@@ -3369,7 +3369,7 @@ export default function LessonDetailPage() {
                 return (
                   <Link key={l.id} href={`/dashboard/lessons/${l.id}${classId ? `?class_id=${classId}` : ''}`}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-5 p-5 rounded-[24px] transition-all relative group overflow-hidden ${isActive ? 'bg-primary/20 text-white border border-primary/30 shadow-2xl' : 'hover:bg-white/5 text-white/50 hover:text-white border border-transparent'}`}>
+                    className={`flex items-center gap-5 p-5 rounded-[24px] transition-all relative group overflow-hidden ${isActive ? 'bg-primary/20 text-foreground border border-primary/30 shadow-2xl' : 'hover:bg-white/5 text-muted-foreground hover:text-white border border-transparent'}`}>
                     
                     <div className={`shrink-0 w-10 h-10 rounded-2xl border flex items-center justify-center text-[10px] font-black transition-all duration-500 ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_10px_20px_rgba(16,185,129,0.3)]' : isActive ? 'bg-white text-black border-white' : 'border-white/10 group-hover:border-white/20 group-hover:bg-white/5'}`}>
                       {isCompleted ? <CheckBadgeIcon className="w-5 h-5" /> : idx + 1}
@@ -3380,7 +3380,7 @@ export default function LessonDetailPage() {
                       <div className="flex items-center gap-2 mt-1.5 opacity-40">
                         <span className="text-[8px] uppercase tracking-[0.2em] font-black">{l.lesson_type}</span>
                         {isCompleted && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
-                        {isCompleted && <span className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Mastered</span>}
+                        {isCompleted && <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest">Mastered</span>}
                       </div>
                     </div>
 
@@ -3392,7 +3392,7 @@ export default function LessonDetailPage() {
           </div>
 
           <div className="p-10 border-t border-white/10 bg-gradient-to-t from-slate-950 to-transparent">
-            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-4 px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] text-[10px] font-black text-white/60 hover:text-white uppercase tracking-[0.4em] transition-all group shadow-2xl">
+            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-4 px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] text-[10px] font-black text-muted-foreground hover:text-white uppercase tracking-[0.4em] transition-all group shadow-2xl">
               <ArrowLeftIcon className="w-5 h-5 transition-transform group-hover:-translate-x-2" />
               {classId ? 'Return to Class' : 'System Exit'}
             </Link>
@@ -3426,7 +3426,7 @@ export default function LessonDetailPage() {
               <div className="absolute -left-20 -top-20 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
               
               <div className="flex flex-wrap items-center gap-5 sm:gap-8">
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-white/50 hover:text-primary hover:border-primary/30 transition-all shadow-2xl group items-center justify-center backdrop-blur-xl">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-muted-foreground hover:text-primary hover:border-primary/30 transition-all shadow-2xl group items-center justify-center backdrop-blur-xl">
                   <BoltIcon className="w-8 h-8 group-hover:rotate-12 transition-transform duration-500" />
                 </button>
                 {lesson.metadata?.lesson_plan_id && isStaff && (
@@ -3442,13 +3442,13 @@ export default function LessonDetailPage() {
                 </div>
                 {lesson.duration_minutes && (
                   <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-3 bg-card shadow-sm px-6 py-2 rounded-full border border-border">
-                    <ClockIcon className="w-5 h-5 text-cyan-500" />
+                    <ClockIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                     {lesson.duration_minutes} Min
                   </div>
                 )}
                 <div className="flex-1"></div>
                 {completed && (
-                  <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-xl border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-xl border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
                     <CheckBadgeIcon className="w-5 h-5 sm:w-6 sm:h-6" /> Mastery
                   </div>
                 )}
@@ -3491,8 +3491,8 @@ export default function LessonDetailPage() {
                         className="w-full flex items-center gap-4 p-5 bg-violet-500/10 border border-violet-500/25 rounded-2xl hover:bg-violet-500/15 transition-all text-left group">
                         <span className="text-3xl">📊</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/70">Learning Slides</p>
-                          <p className="text-base font-black text-white truncate">{deckMat.title}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-violet-700/70 dark:text-violet-300/70">Learning Slides</p>
+                          <p className="text-base font-black text-foreground truncate">{deckMat.title}</p>
                         </div>
                         <span className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-violet-600 group-hover:bg-violet-500 rounded-xl transition-all shrink-0">View Slides</span>
                       </button>
@@ -3539,7 +3539,7 @@ export default function LessonDetailPage() {
                                 <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/15">
                                   <span className="shrink-0 mt-0.5">🌍</span>
                                   <div>
-                                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Real-World Connection</p>
+                                    <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Real-World Connection</p>
                                     <p className="text-sm text-muted-foreground leading-relaxed">{lessonHook.real_world_example}</p>
                                   </div>
                                 </div>
@@ -3548,7 +3548,7 @@ export default function LessonDetailPage() {
                                 <div className="flex gap-3 p-4 bg-indigo-500/8 border border-indigo-500/15">
                                   <span className="shrink-0 mt-0.5">💭</span>
                                   <div>
-                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About It</p>
+                                    <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Think About It</p>
                                     <p className="text-sm font-semibold text-foreground italic leading-relaxed">{lessonHook.challenge_question}</p>
                                   </div>
                                 </div>
@@ -3569,7 +3569,7 @@ export default function LessonDetailPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-px w-8 bg-emerald-500/40" />
-                        <p className="text-[10px] font-black text-emerald-400/70 uppercase tracking-[0.4em]">What You'll Learn</p>
+                        <p className="text-[10px] font-black text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-[0.4em]">What You'll Learn</p>
                         <div className="h-px flex-1 bg-emerald-500/10" />
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -3582,7 +3582,7 @@ export default function LessonDetailPage() {
                             transition={{ delay: oi * 0.06, type: 'spring', stiffness: 200 }}
                             className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/8 border border-emerald-500/15 hover:border-emerald-500/30 transition-colors group"
                           >
-                            <CheckCircleIcon className="w-3 h-3 text-emerald-500/60 shrink-0 group-hover:text-emerald-400 transition-colors" />
+                            <CheckCircleIcon className="w-3 h-3 text-emerald-600/60 dark:text-emerald-400/60 shrink-0 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
                             <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{obj}</span>
                           </motion.div>
                         ))}
@@ -3595,7 +3595,7 @@ export default function LessonDetailPage() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="h-px w-8 bg-cyan-500/40" />
-                        <p className="text-[10px] font-black text-cyan-400/70 uppercase tracking-[0.4em]">Lesson Content</p>
+                        <p className="text-[10px] font-black text-cyan-600/70 dark:text-cyan-400/70 uppercase tracking-[0.4em]">Lesson Content</p>
                         <div className="h-px flex-1 bg-cyan-500/10" />
                         <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">{lesson.content_layout.length} blocks</span>
                       </div>
@@ -3621,7 +3621,7 @@ export default function LessonDetailPage() {
                       className="w-full flex items-center gap-4 group text-left"
                     >
                       <div className="h-px w-8 bg-indigo-500/40" />
-                      <p className="text-[10px] font-black text-indigo-400/70 uppercase tracking-[0.4em] group-hover:text-indigo-400 transition-colors">Study Notes & Reference</p>
+                      <p className="text-[10px] font-black text-indigo-600/70 dark:text-indigo-400/70 uppercase tracking-[0.4em] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Study Notes & Reference</p>
                       <div className="h-px flex-1 bg-indigo-500/10" />
                       <div className="flex items-center gap-2 ml-auto shrink-0">
                         {isStaff && (
@@ -3629,7 +3629,7 @@ export default function LessonDetailPage() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleGenerateNotes(); }}
                             disabled={generatingNotes}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-50"
                           >
                             {generatingNotes ? <><div className="w-2.5 h-2.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Generating…</> : <><span>✦</span>{lesson.lesson_notes ? 'Regen' : 'Generate'}</>}
                           </button>
@@ -3637,7 +3637,7 @@ export default function LessonDetailPage() {
                         <motion.div
                           animate={{ rotate: notesExpanded ? 90 : 0 }}
                           transition={{ duration: 0.2 }}
-                          className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                          className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
                         >
                           <ChevronRightIcon className="w-3.5 h-3.5" />
                         </motion.div>
@@ -3706,7 +3706,7 @@ export default function LessonDetailPage() {
                           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary rounded-xl sm:rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
                           <button onClick={handleMarkComplete} disabled={marking}
                             className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-xl sm:rounded-xl text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
-                            <div className="p-5 bg-cyan-500/20 rounded-xl text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                            <div className="p-5 bg-cyan-500/20 rounded-xl text-cyan-600 dark:text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
                               <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
                             </div>
                             <div>
@@ -3717,7 +3717,7 @@ export default function LessonDetailPage() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-8 group">
-                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-emerald-500/10 border-4 border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.2)] group-hover:scale-110 transition-transform duration-700">
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-emerald-500/10 border-4 border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.2)] group-hover:scale-110 transition-transform duration-700">
                             <CheckBadgeIcon className="w-12 h-12 sm:w-20 sm:h-20" />
                           </div>
                           <div className="space-y-2">
@@ -3736,10 +3736,10 @@ export default function LessonDetailPage() {
                               <h5 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground">Next Lesson</h5>
                               <div className="h-px w-12 bg-cyan-500/30" />
                             </div>
-                            <h3 className="text-3xl sm:text-5xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
+                            <h3 className="text-3xl sm:text-5xl font-black text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
                             <div className="flex items-center justify-center gap-6">
                               <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
-                              <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
+                              <span className="text-[10px] font-black text-cyan-600/30 dark:text-cyan-400/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
                             </div>
                           </div>
                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
@@ -3767,19 +3767,19 @@ export default function LessonDetailPage() {
                               placeholder="Title"
                               value={newResource.title}
                               onChange={e => setNewResource(r => ({ ...r, title: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50"
                             />
                             <input
                               type="url"
                               placeholder="URL (video, PDF, doc, link…)"
                               value={newResource.file_url}
                               onChange={e => setNewResource(r => ({ ...r, file_url: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50"
                             />
                             <select
                               value={newResource.file_type}
                               onChange={e => setNewResource(r => ({ ...r, file_type: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50"
                             >
                               <option value="link">Link</option>
                               <option value="video">Video</option>
@@ -3806,7 +3806,7 @@ export default function LessonDetailPage() {
                       ) : (
                         <button
                           onClick={() => setAddingResource(true)}
-                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-violet-300 transition-colors"
+                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
                         >
                           <PlusIcon className="w-4 h-4" /> Add Resource (video, PDF, link…)
                         </button>
@@ -3817,11 +3817,11 @@ export default function LessonDetailPage() {
                   {/* Staff: upload a view-only slide deck */}
                   {isStaff && (
                     <div id="learning-slides" className="scroll-mt-28 bg-card border border-violet-500/15 rounded-2xl p-4">
-                      <p className="text-xs font-black text-violet-300 uppercase tracking-widest mb-1">📊 Slides (view-only)</p>
-                      <p className="text-[11px] text-card-foreground/40 mb-3">Upload your slides as a <b className="text-violet-300/80">PDF</b> (in PowerPoint: File → Save as PDF) or as images. Students view them in-platform — they can't download or save them.</p>
+                      <p className="text-xs font-black text-violet-700 dark:text-violet-300 uppercase tracking-widest mb-1">📊 Slides (view-only)</p>
+                      <p className="text-[11px] text-card-foreground/40 mb-3">Upload your slides as a <b className="text-violet-700/80 dark:text-violet-300/80">PDF</b> (in PowerPoint: File → Save as PDF) or as images. Students view them in-platform — they can't download or save them.</p>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input type="text" placeholder="Slides title" value={deckTitle} onChange={e => setDeckTitle(e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50" />
+                          className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500/50" />
                         <label className={`px-4 py-2 text-xs font-black uppercase tracking-widest text-white rounded-xl cursor-pointer text-center transition-all ${deckUploading ? 'bg-violet-500/40 cursor-wait' : 'bg-violet-600 hover:bg-violet-500'}`}>
                           {deckUploading ? (deckProgress || 'Uploading…') : 'Upload PDF / Images'}
                           <input type="file" className="hidden" accept="application/pdf,image/*" multiple disabled={deckUploading}
@@ -3849,12 +3849,12 @@ export default function LessonDetailPage() {
                           return (
                             <div key={m.id}
                               className="group bg-white/5 border border-violet-500/20 rounded-[32px] p-6 flex items-center gap-6 hover:border-violet-500/50 hover:bg-white/10 transition-all duration-500 shadow-xl">
-                              <div className="p-4 rounded-2xl flex-shrink-0 bg-violet-500/10 text-violet-300 transition-transform duration-500 group-hover:scale-110">
+                              <div className="p-4 rounded-2xl flex-shrink-0 bg-violet-500/10 text-violet-700 dark:text-violet-300 transition-transform duration-500 group-hover:scale-110">
                                 <PaperClipIcon className="w-6 h-6" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-300/60 mb-1">Slides · {label}</p>
-                                <p className="text-base font-black text-white truncate">{m.title}</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-700/60 dark:text-violet-300/60 mb-1">Slides · {label}</p>
+                                <p className="text-base font-black text-foreground truncate">{m.title}</p>
                               </div>
                               <div className="flex items-center gap-3 flex-shrink-0">
                                 <button onClick={() => hasContent && setViewerDeck({ slides: deck.slides, pdf: deck.pdf, title: m.title })}
@@ -3864,13 +3864,13 @@ export default function LessonDetailPage() {
                                 </button>
                                 {isStaff && (
                                   <button onClick={(e) => { e.stopPropagation(); setManageDeck(m); }}
-                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl transition-all" title="Manage slides">
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white rounded-xl transition-all" title="Manage slides">
                                     <PencilSquareIcon className="w-5 h-5" />
                                   </button>
                                 )}
                                 {isStaff && (
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteResource(m.id); }}
-                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-400 rounded-xl transition-all" title="Remove deck">
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-all" title="Remove deck">
                                     <TrashIcon className="w-5 h-5" />
                                   </button>
                                 )}
@@ -3880,7 +3880,7 @@ export default function LessonDetailPage() {
                         }
                         const isVideo = m.file_type === 'video';
                         const isPdf = m.file_type === 'pdf';
-                        const iconColor = isVideo ? 'bg-red-500/10 text-red-400' : isPdf ? 'bg-rose-500/10 text-rose-400' : 'bg-cyan-500/10 text-cyan-400';
+                        const iconColor = isVideo ? 'bg-red-500/10 text-red-600 dark:text-red-400' : isPdf ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400';
                         const Icon = isVideo ? VideoCameraIcon : isPdf ? DocumentIcon : PaperClipIcon;
                         return (
                           <div key={m.id} 
@@ -3891,17 +3891,17 @@ export default function LessonDetailPage() {
                               <Icon className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-1">{m.file_type || 'Academic Asset'}</p>
-                              <p className="text-base font-black text-white truncate group-hover:text-primary transition-colors">{m.title}</p>
+                              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-1">{m.file_type || 'Academic Asset'}</p>
+                              <p className="text-base font-black text-foreground truncate group-hover:text-primary transition-colors">{m.title}</p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                               <button onClick={(e) => { e.stopPropagation(); window.open(m.file_url, '_blank'); }}
-                                className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl transition-all">
+                                className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white rounded-xl transition-all">
                                 <ArrowDownTrayIcon className="w-5 h-5" />
                               </button>
                                 {isStaff && (
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteResource(m.id); }}
-                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-400 rounded-xl transition-all"
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-all"
                                     title="Purge Asset"
                                   >
                                     <TrashIcon className="w-5 h-5" />
@@ -3916,7 +3916,7 @@ export default function LessonDetailPage() {
 
                   {/* Library link */}
                   <div className="flex items-center gap-2 pt-2">
-                    <Link href="/dashboard/library" className="text-xs text-primary hover:text-violet-300 font-bold transition-colors">
+                    <Link href="/dashboard/library" className="text-xs text-primary hover:text-violet-700 dark:hover:text-violet-300 font-bold transition-colors">
                       Browse Content Library →
                     </Link>
                   </div>
@@ -3927,7 +3927,7 @@ export default function LessonDetailPage() {
                 <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-amber-500/5 border border-amber-500/10 w-fit">
+                      <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-amber-500/5 border border-amber-500/10 w-fit">
                         <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                       </h3>
                       {isStaff && (
@@ -3942,7 +3942,7 @@ export default function LessonDetailPage() {
                     {courseAssignments.length === 0 ? (
                       <div className="flex flex-col items-center gap-3 py-12 text-center bg-card/40 backdrop-blur-md border border-white/5 rounded-2xl shadow-2xl relative overflow-hidden p-8 sm:p-12">
                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
-                        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 mb-4 animate-pulse">
+                        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 animate-pulse">
                           <ClipboardDocumentListIcon className="w-8 h-8" />
                         </div>
                         <h4 className="text-xl font-black text-foreground uppercase tracking-wider">AI Assignment Suggester</h4>
@@ -3964,7 +3964,7 @@ export default function LessonDetailPage() {
                             </button>
                             <Link
                               href={`/dashboard/assignments/new?lesson_id=${lesson?.id}&course_id=${lesson?.course_id ?? ''}`}
-                              className="px-5 py-3 border border-border bg-background/40 hover:bg-card text-muted-foreground hover:text-amber-400 font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                              className="px-5 py-3 border border-border bg-background/40 hover:bg-card text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95"
                             >
                               Manual Create
                             </Link>
@@ -3980,21 +3980,21 @@ export default function LessonDetailPage() {
                             className="p-8 sm:p-10 bg-background border border-border rounded-xl hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <DocumentTextIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
-                                <h4 className="font-black text-2xl text-foreground group-hover:text-amber-400 transition-colors tracking-tight">{a.title}</h4>
+                                <h4 className="font-black text-2xl text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors tracking-tight">{a.title}</h4>
                                 <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                  <span className="px-3 py-1 bg-card shadow-sm rounded-xl text-amber-500/60 font-black">{a.assignment_type}</span>
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-xl text-amber-600/60 dark:text-amber-400/60 font-black">{a.assignment_type}</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
-                                  <span className={a.due_date && new Date(a.due_date) < new Date() ? 'text-rose-400 animate-pulse' : 'text-muted-foreground'}>
+                                  <span className={a.due_date && new Date(a.due_date) < new Date() ? 'text-rose-600 dark:text-rose-400 animate-pulse' : 'text-muted-foreground'}>
                                     {a.due_date ? `Deadline: ${new Date(a.due_date).toLocaleDateString()}` : 'No deadline'}
                                   </span>
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
                               <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
@@ -4005,8 +4005,8 @@ export default function LessonDetailPage() {
 
                   <div className="space-y-6 pt-12 border-t border-border">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-emerald-500/5 border border-emerald-500/10 w-fit">
-                        <SparklesIcon className="w-4 h-4 text-emerald-500" /> Study Flashcard Decks
+                      <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-emerald-500/5 border border-emerald-500/10 w-fit">
+                        <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Study Flashcard Decks
                       </h3>
                       {isStaff && (
                         <button
@@ -4026,7 +4026,7 @@ export default function LessonDetailPage() {
                     {flashcardDecks.length === 0 ? (
                       <div className="flex flex-col items-center gap-3 py-12 text-center bg-card/40 backdrop-blur-md border border-white/5 rounded-2xl shadow-2xl relative overflow-hidden p-8 sm:p-12">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
-                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 animate-pulse">
+                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4 animate-pulse">
                           <SparklesIcon className="w-8 h-8" />
                         </div>
                         <h4 className="text-xl font-black text-foreground uppercase tracking-wider">AI Study Flashcards</h4>
@@ -4058,10 +4058,10 @@ export default function LessonDetailPage() {
                               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 blur-3xl rounded-full" />
                               <div className="flex items-start justify-between relative z-10">
                                 <div className="space-y-1">
-                                  <h4 className="font-black text-lg text-foreground group-hover:text-emerald-400 transition-colors tracking-tight">{deck.title}</h4>
-                                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{cardCount} card{cardCount !== 1 ? 's' : ''} in deck</p>
+                                  <h4 className="font-black text-lg text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors tracking-tight">{deck.title}</h4>
+                                  <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{cardCount} card{cardCount !== 1 ? 's' : ''} in deck</p>
                                 </div>
-                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500">
+                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400">
                                   <SparklesIcon className="w-5 h-5" />
                                 </div>
                               </div>

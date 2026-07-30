@@ -70,7 +70,7 @@ export function CrmListToolbar({
             type="button"
             onClick={onExportCsv}
             title="Export CSV"
-            className="p-1.5 rounded-lg bg-background border border-border text-muted-foreground hover:text-emerald-500 hover:bg-muted transition-colors"
+            className="p-1.5 rounded-lg bg-background border border-border text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-muted transition-colors"
           >
             <Download size={13} />
           </button>

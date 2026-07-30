@@ -374,12 +374,12 @@ export function SetupDeliveryTopicsPanel({
             {filledWeekCount ? ` · paced across ${filledWeekCount} of ${reportingWeeks} weeks` : ''}
           </p>
           {selectedCount > 0 ? (
-            <span className="inline-flex min-h-10 items-center gap-1 text-[11px] font-black text-emerald-700">
+            <span className="inline-flex min-h-10 items-center gap-1 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
               <CheckCircleIcon className="h-4 w-4 shrink-0" />
               Ready to bake into draft
             </span>
           ) : (
-            <span className="inline-flex min-h-10 items-center text-[11px] font-black text-amber-700">
+            <span className="inline-flex min-h-10 items-center text-[11px] font-black text-amber-700 dark:text-amber-300">
               Optional now — confirm topics in the draft editor if you skip here
             </span>
           )}

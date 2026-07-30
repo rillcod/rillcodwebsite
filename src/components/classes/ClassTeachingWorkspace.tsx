@@ -307,7 +307,7 @@ export function ClassTeachingWorkspace({
         </div>
       )}
       {error && (
-        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
           <div className="flex gap-2">
             <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
             <span>{error}</span>
@@ -315,7 +315,7 @@ export function ClassTeachingWorkspace({
           {errorAction && (
             <Link
               href={errorAction.href}
-              className="ml-6 inline-flex w-fit rounded-lg border border-red-500/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-200 hover:bg-red-500/10"
+              className="ml-6 inline-flex w-fit rounded-lg border border-red-500/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-800 dark:text-red-200 hover:bg-red-500/10"
             >
               {errorAction.label}
             </Link>
@@ -331,7 +331,7 @@ export function ClassTeachingWorkspace({
       {courseId && !plan && !busy && planStage?.state === "blocked" && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
           <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
             <div className="min-w-0">
               <p className="text-sm font-black text-foreground">
                 {planStage.headline}
@@ -670,7 +670,7 @@ export function ClassTeachingWorkspace({
                             }
                             className={`inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-black ${
                               done
-                                ? "bg-emerald-500/15 text-emerald-400"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                                 : "border border-border"
                             }`}
                           >

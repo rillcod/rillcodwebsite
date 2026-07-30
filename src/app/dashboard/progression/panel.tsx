@@ -135,12 +135,12 @@ const DECISION_META: Record<
 > = {
   promote: {
     label: "Promote",
-    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
     icon: ArrowRightIcon,
   },
   repeat: {
     label: "Repeat",
-    cls: "bg-amber-500/10  text-amber-400  border-amber-500/30",
+    cls: "bg-amber-500/10  text-amber-600 dark:text-amber-400  border-amber-500/30",
     icon: ArrowPathIcon,
   },
   complete: {
@@ -150,7 +150,7 @@ const DECISION_META: Record<
   },
   withdraw: {
     label: "Withdraw",
-    cls: "bg-rose-500/10   text-rose-400   border-rose-500/30",
+    cls: "bg-rose-500/10   text-rose-600 dark:text-rose-400   border-rose-500/30",
     icon: ExclamationTriangleIcon,
   },
 };
@@ -164,7 +164,7 @@ function getSmartRecommendation(
       decision: "promote",
       label: "Promote",
       desc: "No grade available yet. Suggest default promotion.",
-      cls: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
+      cls: "text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
     };
   }
   const g = grade.toUpperCase().trim();
@@ -173,7 +173,7 @@ function getSmartRecommendation(
       decision: "repeat",
       label: "Repeat",
       desc: `Grade is ${g}. Academic review recommended. Suggest repeating.`,
-      cls: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+      cls: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
     };
   }
   if (!hasNextLevel) {
@@ -188,7 +188,7 @@ function getSmartRecommendation(
     decision: "promote",
     label: "Promote",
     desc: `Grade is ${g}. Academic good standing. Suggest promoting.`,
-    cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   };
 }
 
@@ -488,7 +488,7 @@ export default function ProgressionPage({
       <div className="space-y-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3 px-1">
-            <UserGroupIcon className="w-5 h-5 text-emerald-400 shrink-0" />
+            <UserGroupIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div>
               <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest text-foreground">
                 Learner Decisions
@@ -581,7 +581,7 @@ export default function ProgressionPage({
             {/* Smart Suggestions Auto-Apply */}
             <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
                   Smart Suggestions
                 </p>
                 <p className="text-xs font-bold text-muted-foreground mt-1">
@@ -615,7 +615,7 @@ export default function ProgressionPage({
 
             <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">
                   Manual Bulk Override
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -714,13 +714,13 @@ export default function ProgressionPage({
                             {student?.full_name ?? "Anonymous Student"}
                           </h3>
                           {enrollment.start_week > 1 && (
-                            <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/20">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 border border-amber-500/20">
                               Mid-Term Join
                             </span>
                           )}
                           {report?.overall_grade ? (
                             <span
-                              className="px-2 py-0.5 rounded bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/20"
+                              className="px-2 py-0.5 rounded bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                               title={`Overall score: ${report.overall_grade}`}
                             >
                               Grade: {report.overall_grade}
@@ -735,7 +735,7 @@ export default function ProgressionPage({
                               className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
                                 report.is_published
                                   ? "bg-primary/10 text-primary border-primary/20"
-                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
                               }`}
                               title={
                                 report.report_period ||
@@ -901,7 +901,7 @@ export default function ProgressionPage({
 
       {/* Error message */}
       {error && (
-        <div className="mx-4 flex items-start gap-4 px-6 py-4 bg-rose-500/5 border border-rose-500/20 rounded-[2rem] text-rose-400 text-sm shadow-xl">
+        <div className="mx-4 flex items-start gap-4 px-6 py-4 bg-rose-500/5 border border-rose-500/20 rounded-[2rem] text-rose-600 dark:text-rose-400 text-sm shadow-xl">
           <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-black uppercase tracking-widest text-xs">

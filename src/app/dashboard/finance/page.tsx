@@ -170,30 +170,30 @@ interface AutoLog {
 
 // ─── Status Badge Configs ─────────────────────────────────────────────────────
 const SUB_STATUS: Record<SubStatus, { label: string; cls: string }> = {
-  active:    { label: 'Active',    cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  active:    { label: 'Active',    cls: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   cancelled: { label: 'Cancelled', cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
-  expired:   { label: 'Expired',   cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
-  suspended: { label: 'Suspended', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  expired:   { label: 'Expired',   cls: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+  suspended: { label: 'Suspended', cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
 };
 
 const INV_STATUS: Record<InvoiceStatus, { label: string; cls: string }> = {
   draft:          { label: 'Draft',          cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
-  pending:        { label: 'Pending',        cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  pending:        { label: 'Pending',        cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   sent:           { label: 'Sent',           cls: 'bg-primary/20 text-primary border-primary/30' },
-  partially_paid: { label: 'Partially paid', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  paid:           { label: 'Paid',           cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  overdue:        { label: 'Overdue',        cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+  partially_paid: { label: 'Partially paid', cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+  paid:           { label: 'Paid',           cls: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  overdue:        { label: 'Overdue',        cls: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' },
   void:           { label: 'Void',           cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
   cancelled:      { label: 'Cancelled',      cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
 };
 
 const TX_STATUS: Record<string, { label: string; cls: string }> = {
-  completed:  { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
-  success:    { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
-  pending:    { label: 'Pending',    cls: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
+  completed:  { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+  success:    { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+  pending:    { label: 'Pending',    cls: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' },
   processing: { label: 'Processing', cls: 'bg-primary/10 border-primary/20 text-primary' },
-  failed:     { label: 'Failed',     cls: 'bg-rose-500/10 border-rose-500/20 text-rose-400' },
-  refunded:   { label: 'Refunded',   cls: 'bg-purple-500/10 border-purple-500/20 text-purple-400' },
+  failed:     { label: 'Failed',     cls: 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400' },
+  refunded:   { label: 'Refunded',   cls: 'bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400' },
 };
 
 function txGatewayMeta(tx: { payment_gateway_response?: unknown }) {
@@ -209,9 +209,9 @@ function isTerminalPaymentStatus(raw: string | null | undefined) {
 }
 
 const SETTLE_STATUS: Record<SettlementStatus, { label: string; cls: string }> = {
-  pending:    { label: 'Pending',    cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  pending:    { label: 'Pending',    cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   processing: { label: 'Processing', cls: 'bg-primary/20 text-primary border-primary/30' },
-  paid:       { label: 'Paid',       cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  paid:       { label: 'Paid',       cls: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   void:       { label: 'Void',       cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
 };
 
@@ -569,9 +569,9 @@ function OverviewTab({ profile }: { profile: any }) {
             {displayInvoices.slice(0, 10).map(inv => {
               const baseStatus = INV_STATUS[inv.status] ?? INV_STATUS.draft;
               const displayStatus = isSchoolView && inv.status === 'sent'
-                ? { label: 'Outstanding', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' }
+                ? { label: 'Outstanding', cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' }
                 : isSchoolView && inv.status === 'overdue'
-                ? { label: 'Overdue — Action Required', cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
+                ? { label: 'Overdue — Action Required', cls: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' }
                 : baseStatus;
               return (
                 <div key={inv.id} className="px-5 py-3 space-y-2">
@@ -872,7 +872,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 {sub.features?.term && (
                   <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
                     <CalendarDaysIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                    <span className="text-[11px] text-violet-300 font-bold">
+                    <span className="text-[11px] text-violet-700 dark:text-violet-300 font-bold">
                       {sub.features.term} · {sub.features.academic_year}
                     </span>
                   </div>
@@ -908,7 +908,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                       <PencilIcon className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button onClick={() => del(sub.id)}
-                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-colors">
+                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg transition-colors">
                       <TrashIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1197,7 +1197,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                     {s.status === 'pending' && (
                       <>
                         <button onClick={() => markStatus(s.id, 'paid', s.reference)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-colors">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-colors">
                           <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
                         </button>
                         <button onClick={() => openEdit(s)}
@@ -1205,7 +1205,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                           <PencilIcon className="w-3.5 h-3.5" /> Edit
                         </button>
                         <button onClick={() => markStatus(s.id, 'void')}
-                          className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-colors">
+                          className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-colors">
                           Void
                         </button>
                       </>
@@ -1214,7 +1214,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                       <button
                         disabled={deletingId === s.id}
                         onClick={() => deleteSettlement(s.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors disabled:opacity-50">
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors disabled:opacity-50">
                         <TrashIcon className="w-3.5 h-3.5" />
                         {deletingId === s.id ? '…' : 'Void'}
                       </button>
@@ -1423,7 +1423,7 @@ function AutomationTab() {
       </div>
 
       {loadError && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
           {loadError}
         </p>
       )}
@@ -1483,10 +1483,10 @@ function AutomationTab() {
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Scanned', val: runResult.invoices_scanned ?? runResult.scanned ?? 0, cls: 'text-primary' },
-              { label: 'Sent', val: runResult.reminders_sent ?? runResult.sent ?? 0, cls: 'text-emerald-400' },
-              { label: 'Overdue', val: runResult.overdue_marked ?? runResult.overdue ?? 0, cls: 'text-amber-400' },
+              { label: 'Sent', val: runResult.reminders_sent ?? runResult.sent ?? 0, cls: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Overdue', val: runResult.overdue_marked ?? runResult.overdue ?? 0, cls: 'text-amber-600 dark:text-amber-400' },
               { label: 'Skipped', val: runResult.skipped ?? 0, cls: 'text-muted-foreground' },
-              { label: 'Errors', val: runResult.errors ?? 0, cls: 'text-rose-400' },
+              { label: 'Errors', val: runResult.errors ?? 0, cls: 'text-rose-600 dark:text-rose-400' },
             ].map(({ label, val, cls }) => (
               <div key={label} className="bg-muted/30 rounded-xl p-3 text-center">
                 <p className={`text-xl font-black ${cls}`}>{val}</p>
@@ -1568,7 +1568,7 @@ function AutomationTab() {
                   <p className="text-[11px] text-muted-foreground">
                     {row.channel} · {row.entity_id.slice(0, 8)}… · {relDate(row.created_at)}
                   </p>
-                  {row.error && <p className="text-xs text-rose-400 mt-0.5">{row.error}</p>}
+                  {row.error && <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">{row.error}</p>}
                 </div>
               </div>
             ))}
@@ -1593,8 +1593,8 @@ function AutomationTab() {
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="text-primary">{log.invoices_scanned} scanned</span>
-                  <span className="text-emerald-400">{log.reminders_sent} sent</span>
-                  {log.errors > 0 && <span className="text-rose-400">{log.errors} errors</span>}
+                  <span className="text-emerald-600 dark:text-emerald-400">{log.reminders_sent} sent</span>
+                  {log.errors > 0 && <span className="text-rose-600 dark:text-rose-400">{log.errors} errors</span>}
                 </div>
               </div>
             ))}
@@ -1787,7 +1787,7 @@ function SetupTab({ profile }: { profile: any }) {
       </div>
 
       {loadError && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
           {loadError}
         </p>
       )}
@@ -1844,7 +1844,7 @@ function SetupTab({ profile }: { profile: any }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        {!a.is_active && <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">Inactive</span>}
+                        {!a.is_active && <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">Inactive</span>}
                         {canEdit && (
                           <button onClick={() => editAccount(a)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
                             <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1852,7 +1852,7 @@ function SetupTab({ profile }: { profile: any }) {
                         )}
                         {canEdit && (
                           <button onClick={() => deleteAccount(a.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-colors">
-                            <TrashIcon className="w-3.5 h-3.5 text-rose-400/60 hover:text-rose-400" />
+                            <TrashIcon className="w-3.5 h-3.5 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400" />
                           </button>
                         )}
                       </div>
@@ -1864,13 +1864,13 @@ function SetupTab({ profile }: { profile: any }) {
                         <p className="text-xs text-muted-foreground">{a.account_name}</p>
                       </div>
                       <button onClick={() => navigator.clipboard?.writeText(a.account_number)}
-                        className="text-[10px] font-bold text-primary hover:text-violet-300 px-2 py-1 bg-primary/10 rounded-lg transition-colors">
+                        className="text-[10px] font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 px-2 py-1 bg-primary/10 rounded-lg transition-colors">
                         Copy
                       </button>
                     </div>
                     {a.payment_note && <p className="text-xs text-muted-foreground italic">{a.payment_note}</p>}
                     {isSchool && a.owner_type === 'school' && (
-                      <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                         <CheckBadgeIcon className="w-3.5 h-3.5" /> Visible to parents
                       </p>
                     )}
@@ -1941,7 +1941,7 @@ function SetupTab({ profile }: { profile: any }) {
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <CheckBadgeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  <CheckBadgeIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   Contact saved. Click "Change" above to update.
                 </p>
               </div>
@@ -1949,7 +1949,7 @@ function SetupTab({ profile }: { profile: any }) {
               /* Form: shown for admin always, for school if not yet set OR editing */
               <>
                 {isSchool && !contact && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-400 font-bold">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-600 dark:text-amber-400 font-bold">
                     Enter your billing contact once. This is used for payment reminders and invoices.
                   </div>
                 )}

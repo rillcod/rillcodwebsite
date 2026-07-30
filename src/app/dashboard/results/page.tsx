@@ -44,12 +44,12 @@ type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 
 // WAEC tier groups shown in the distribution chart
 const WAEC_TIERS = [
-    { codes: ['A1'],         label: 'A1',    bar: 'from-emerald-500/80 to-emerald-400/40', text: 'text-emerald-400' },
-    { codes: ['B2', 'B3'],   label: 'B2/B3', bar: 'from-green-500/80   to-green-400/40',   text: 'text-green-400'   },
+    { codes: ['A1'],         label: 'A1',    bar: 'from-emerald-500/80 to-emerald-400/40', text: 'text-emerald-600 dark:text-emerald-400' },
+    { codes: ['B2', 'B3'],   label: 'B2/B3', bar: 'from-green-500/80   to-green-400/40',   text: 'text-green-600 dark:text-green-400'   },
     { codes: ['C4','C5','C6'],label: 'C',    bar: 'from-primary/80    to-primary/40',    text: 'text-primary'    },
-    { codes: ['D7'],         label: 'D7',    bar: 'from-amber-500/80   to-amber-400/40',   text: 'text-amber-400'   },
+    { codes: ['D7'],         label: 'D7',    bar: 'from-amber-500/80   to-amber-400/40',   text: 'text-amber-600 dark:text-amber-400'   },
     { codes: ['E8'],         label: 'E8',    bar: 'from-primary/80  to-primary/40',  text: 'text-primary'  },
-    { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
+    { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-600 dark:text-rose-400'    },
 ];
 
 const REPORT_TERMS = ACADEMIC_TERM_OPTIONS.filter((t) =>
@@ -1648,14 +1648,14 @@ tbody tr:hover{background:#f3f4f6}
                 {batchProgress && (
                     <div className={`border rounded-xl px-5 py-4 ${batchProgress.mode === 'print' ? 'bg-violet-500/10 border-violet-500/20' : batchProgress.mode === 'email' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
                         <div className="flex items-center justify-between mb-2">
-                            <p className={`font-bold text-sm ${batchProgress.mode === 'print' ? 'text-violet-300' : batchProgress.mode === 'email' ? 'text-blue-300' : 'text-emerald-300'}`}>
+                            <p className={`font-bold text-sm ${batchProgress.mode === 'print' ? 'text-violet-700 dark:text-violet-300' : batchProgress.mode === 'email' ? 'text-blue-700 dark:text-blue-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
                                 {batchProgress.mode === 'print'
                                     ? `Building print PDF — ${batchProgress.current} of ${batchProgress.total} rendered`
                                     : batchProgress.mode === 'email'
                                     ? `Emailing reports — ${batchProgress.current} of ${batchProgress.total} sent`
                                     : `Generating PDFs — ${batchProgress.current} of ${batchProgress.total} complete`}
                             </p>
-                            <span className={`font-black text-sm ${batchProgress.mode === 'print' ? 'text-violet-400' : batchProgress.mode === 'email' ? 'text-blue-400' : 'text-emerald-400'}`}>
+                            <span className={`font-black text-sm ${batchProgress.mode === 'print' ? 'text-violet-600 dark:text-violet-400' : batchProgress.mode === 'email' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                 {Math.round((batchProgress.current / batchProgress.total) * 100)}%
                             </span>
                         </div>
@@ -1665,7 +1665,7 @@ tbody tr:hover{background:#f3f4f6}
                                 style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
                             />
                         </div>
-                        <p className={`text-xs mt-2 ${batchProgress.mode === 'print' ? 'text-violet-300/50' : batchProgress.mode === 'email' ? 'text-blue-300/50' : 'text-emerald-300/50'}`}>
+                        <p className={`text-xs mt-2 ${batchProgress.mode === 'print' ? 'text-violet-700/50 dark:text-violet-300/50' : batchProgress.mode === 'email' ? 'text-blue-700/50 dark:text-blue-300/50' : 'text-emerald-700/50 dark:text-emerald-300/50'}`}>
                             {batchProgress.mode === 'print'
                                 ? 'Rendering each report — combined PDF will open for printing when done.'
                                 : batchProgress.mode === 'email'
@@ -2228,34 +2228,34 @@ tbody tr:hover{background:#f3f4f6}
                                         <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                                             <div className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
                                                 <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-black text-white">Email Report PDF</p>
-                                                    <button onClick={() => setEmailShareOpen(false)} className="text-white/40 hover:text-white">
+                                                    <p className="text-sm font-black text-foreground">Email Report PDF</p>
+                                                    <button onClick={() => setEmailShareOpen(false)} className="text-muted-foreground hover:text-white">
                                                         <XMarkIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
-                                                <p className="text-[11px] text-white/50">The report will be attached as a PDF. Enter the recipient's email address below.</p>
+                                                <p className="text-[11px] text-muted-foreground">The report will be attached as a PDF. Enter the recipient's email address below.</p>
                                                 {(selectedStudent as any)?.parent_email && (
-                                                    <p className="text-[10px] text-emerald-400 font-bold">
+                                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
                                                         ✓ Pre-filled with parent email on file
                                                     </p>
                                                 )}
                                                 <div>
-                                                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Recipient Email</label>
+                                                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Recipient Email</label>
                                                     <input
                                                         type="email"
                                                         value={emailShareTo}
                                                         onChange={e => setEmailShareTo(e.target.value)}
                                                         placeholder="parent@example.com"
-                                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 rounded-lg font-mono"
+                                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-foreground placeholder-white/30 focus:outline-none focus:border-blue-500/50 rounded-lg font-mono"
                                                         autoFocus
                                                     />
                                                 </div>
                                                 {emailShareError && (
-                                                    <p className="text-xs text-red-400 font-bold">{emailShareError}</p>
+                                                    <p className="text-xs text-red-600 dark:text-red-400 font-bold">{emailShareError}</p>
                                                 )}
                                                 <div className="flex gap-2">
                                                     <button onClick={() => setEmailShareOpen(false)}
-                                                        className="flex-1 py-2.5 border border-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
+                                                        className="flex-1 py-2.5 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
                                                         Cancel
                                                     </button>
                                                     <button onClick={sendReportByEmail}
@@ -2275,14 +2275,14 @@ tbody tr:hover{background:#f3f4f6}
                                         <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                                             <div className="w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 max-h-[80vh] flex flex-col">
                                                 <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-black text-white">Bulk Email Results</p>
-                                                    <button onClick={() => setShowBulkEmailSummary(false)} className="text-white/40 hover:text-white">
+                                                    <p className="text-sm font-black text-foreground">Bulk Email Results</p>
+                                                    <button onClick={() => setShowBulkEmailSummary(false)} className="text-muted-foreground hover:text-white">
                                                         <XMarkIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                                 <div className="flex gap-4 text-xs font-bold">
-                                                    <span className="text-emerald-400">{bulkEmailResults.filter(r => r.success).length} sent</span>
-                                                    <span className="text-red-400">{bulkEmailResults.filter(r => !r.success).length} failed</span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400">{bulkEmailResults.filter(r => r.success).length} sent</span>
+                                                    <span className="text-red-600 dark:text-red-400">{bulkEmailResults.filter(r => !r.success).length} failed</span>
                                                 </div>
                                                 <div className="overflow-y-auto flex-1 space-y-2 pr-1">
                                                     {bulkEmailResults.map((r, i) => (
@@ -2293,10 +2293,10 @@ tbody tr:hover{background:#f3f4f6}
                                                                     : <XMarkIcon className="w-2.5 h-2.5 text-white" />}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-xs font-bold text-white truncate">{r.studentName}</p>
-                                                                <p className="text-[10px] text-white/40 truncate">{r.email}</p>
+                                                                <p className="text-xs font-bold text-foreground truncate">{r.studentName}</p>
+                                                                <p className="text-[10px] text-muted-foreground truncate">{r.email}</p>
                                                                 {!r.success && r.error && (
-                                                                    <p className="text-[10px] text-red-400 mt-0.5">{r.error}</p>
+                                                                    <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">{r.error}</p>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -2304,7 +2304,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 </div>
                                                 <button
                                                     onClick={() => setShowBulkEmailSummary(false)}
-                                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white/70 text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors"
+                                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors"
                                                 >
                                                     Close
                                                 </button>

@@ -226,7 +226,7 @@ export default function DashboardNavigation() {
                 void signOut();
               }}
               disabled={signingOut}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white text-xs sm:text-sm font-bold rounded-xl border border-rose-500/20 transition-all disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white text-xs sm:text-sm font-bold rounded-xl border border-rose-500/20 transition-all disabled:opacity-60"
             >
               <ArrowRightOnRectangleIcon className="w-4 h-4" />
               Sign out
@@ -234,7 +234,7 @@ export default function DashboardNavigation() {
           ) : (
             <a
               href="/login"
-              className="text-xs font-bold text-primary hover:text-violet-300 transition-colors underline underline-offset-2"
+              className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors underline underline-offset-2"
             >
               Sign in
             </a>
@@ -1337,7 +1337,7 @@ export default function DashboardNavigation() {
           <button
             onClick={handleLogout}
             disabled={signingOut}
-            className="flex items-center gap-3 w-full px-5 py-4 text-[12px] font-black uppercase tracking-[0.25em] text-rose-500 hover:text-white hover:bg-rose-600 transition-all group active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
+            className="flex items-center gap-3 w-full px-5 py-4 text-[12px] font-black uppercase tracking-[0.25em] text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 transition-all group active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
           >
             <ArrowRightOnRectangleIcon
               className={`w-5 h-5 flex-shrink-0 transition-transform ${
@@ -1413,7 +1413,7 @@ export default function DashboardNavigation() {
                 />
                 {(name === "WhatsApp Inbox" || name === "Office Center") &&
                   unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-foreground text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}

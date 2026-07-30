@@ -134,27 +134,27 @@ export default function SlideViewer({
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 shrink-0">
         <div className="min-w-0">
-          <p className="text-sm font-black text-white truncate">{title || 'Learning Slides'}</p>
-          <p className="text-[10px] text-white/40 uppercase tracking-widest">View only · do not share</p>
+          <p className="text-sm font-black text-foreground truncate">{title || 'Learning Slides'}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">View only · do not share</p>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={zoomOut} aria-label="Zoom out" className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"><MinusIcon className="w-4 h-4" /></button>
-          <span className="text-[10px] font-black text-white/50 w-10 text-center tabular-nums">{Math.round(scale * 100)}%</span>
-          <button onClick={zoomIn} aria-label="Zoom in" className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"><PlusIcon className="w-4 h-4" /></button>
-          <button onClick={onClose} aria-label="Close" className="ml-1 p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={zoomOut} aria-label="Zoom out" className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"><MinusIcon className="w-4 h-4" /></button>
+          <span className="text-[10px] font-black text-muted-foreground w-10 text-center tabular-nums">{Math.round(scale * 100)}%</span>
+          <button onClick={zoomIn} aria-label="Zoom in" className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"><PlusIcon className="w-4 h-4" /></button>
+          <button onClick={onClose} aria-label="Close" className="ml-1 p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"><XMarkIcon className="w-5 h-5" /></button>
         </div>
       </div>
 
       {/* Stage */}
       <div className="flex-1 relative flex items-center justify-center overflow-auto p-2">
         {loading && <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />}
-        {loadError && <p className="text-sm text-rose-400">{loadError}</p>}
+        {loadError && <p className="text-sm text-rose-600 dark:text-rose-400">{loadError}</p>}
 
         {!loading && !loadError && (
           isPdf ? (
             <canvas ref={canvasRef} className="max-w-full h-auto shadow-2xl pointer-events-none" />
           ) : imgError ? (
-            <p className="text-sm text-white/50">This slide couldn&apos;t load. Try the next/previous slide.</p>
+            <p className="text-sm text-muted-foreground">This slide couldn&apos;t load. Try the next/previous slide.</p>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -172,20 +172,20 @@ export default function SlideViewer({
         {/* Tiled watermark overlay */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden flex flex-wrap content-around justify-around gap-8 p-8">
           {Array.from({ length: 18 }).map((_, k) => (
-            <span key={k} className="text-white/[0.07] text-xs font-bold rotate-[-28deg] whitespace-nowrap">{watermark}</span>
+            <span key={k} className="text-foreground/[0.07] text-xs font-bold rotate-[-28deg] whitespace-nowrap">{watermark}</span>
           ))}
         </div>
 
         {/* Edge nav */}
         {i > 0 && (
           <button onClick={prev} aria-label="Previous slide"
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10">
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-foreground transition-colors z-10">
             <ChevronLeftIcon className="w-6 h-6" />
           </button>
         )}
         {total > 0 && i < total - 1 && (
           <button onClick={next} aria-label="Next slide"
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10">
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-foreground transition-colors z-10">
             <ChevronRightIcon className="w-6 h-6" />
           </button>
         )}
@@ -195,7 +195,7 @@ export default function SlideViewer({
       <div className="shrink-0 px-4 sm:px-6 py-3 border-t border-white/10">
         <div className="flex items-center gap-3">
           <button onClick={prev} disabled={i === 0}
-            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/70 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all">Prev</button>
+            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all">Prev</button>
           <button type="button" aria-label="Jump to slide"
             onClick={(e) => {
               if (!total) return;
@@ -208,7 +208,7 @@ export default function SlideViewer({
               <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: total ? `${((i + 1) / total) * 100}%` : '0%' }} />
             </div>
           </button>
-          <span className="text-[11px] font-black text-white/60 tabular-nums">{total ? i + 1 : 0} / {total}</span>
+          <span className="text-[11px] font-black text-muted-foreground tabular-nums">{total ? i + 1 : 0} / {total}</span>
           <button onClick={next} disabled={total === 0 || i === total - 1}
             className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 rounded-lg disabled:opacity-30 transition-all">Next</button>
         </div>

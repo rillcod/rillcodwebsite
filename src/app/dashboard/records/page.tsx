@@ -22,14 +22,14 @@ type SortKey = 'registered' | 'name' | 'school' | 'klass' | 'type' | 'status' | 
 
 const INPUT = 'px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary';
 const TYPE_COLOR: Record<string, string> = {
-  Student: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  Teacher: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  Parent: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  School: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  Lead: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-  Prospect: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+  Student: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
+  Teacher: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
+  Parent: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  School: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  Lead: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  Prospect: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
 };
-const ACCT_COLOR: Record<string, string> = { Active: 'text-emerald-300', Inactive: 'text-amber-300', Deleted: 'text-rose-300' };
+const ACCT_COLOR: Record<string, string> = { Active: 'text-emerald-700 dark:text-emerald-300', Inactive: 'text-amber-700 dark:text-amber-300', Deleted: 'text-rose-700 dark:text-rose-300' };
 const SORT_LABELS: Record<SortKey, string> = {
   registered: 'Newest first',
   name: 'Name',
@@ -321,7 +321,7 @@ export default function RecordsPage() {
           <button onClick={() => printList()} disabled={activeCount === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted disabled:opacity-40 text-xs font-bold text-foreground"><PrinterIcon className="w-4 h-4" /> Print Filtered</button>
           <button onClick={() => printList(selectedVisibleRows)} disabled={selectedVisibleRows.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 disabled:opacity-40 text-xs font-black text-primary"><PrinterIcon className="w-4 h-4" /> Print Selected ({selectedVisibleRows.length})</button>
           {tab === 'registrations' && (
-            <button onClick={() => printCards()} disabled={regsFiltered.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 text-xs font-black text-amber-200"><RectangleGroupIcon className="w-4 h-4" /> Print Cards</button>
+            <button onClick={() => printCards()} disabled={regsFiltered.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 text-xs font-black text-amber-800 dark:text-amber-200"><RectangleGroupIcon className="w-4 h-4" /> Print Cards</button>
           )}
           {tab === 'people' && (fType === 'Student' || fType === 'all') && (
             <Link
@@ -419,7 +419,7 @@ export default function RecordsPage() {
         </div>
       </div>
 
-      {err && <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm">{err}</div>}
+      {err && <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-sm">{err}</div>}
 
       {/* Datasheet */}
       {view === 'cards' ? (
@@ -453,7 +453,7 @@ export default function RecordsPage() {
               {tab === 'registrations' && (
                 <div className="mt-3 rounded-xl border border-border bg-background p-3">
                   <p className="text-[10px] uppercase font-black text-muted-foreground">Password</p>
-                  <button onClick={() => copy(row.password, row.id + 'cp')} className="font-mono text-amber-300 text-sm hover:text-amber-200">
+                  <button onClick={() => copy(row.password, row.id + 'cp')} className="font-mono text-amber-700 dark:text-amber-300 text-sm hover:text-amber-800 dark:hover:text-amber-200">
                     {showPw ? (row.password || '—') : '••••••'}{copied === row.id + 'cp' && ' ✓'}
                   </button>
                 </div>
@@ -513,7 +513,7 @@ export default function RecordsPage() {
                     <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap"><button onClick={() => copy(r.email, r.id + 'e')} className="hover:text-foreground" title="Copy email">{r.email || '—'}{copied === r.id + 'e' && ' ✓'}</button></td>
-                    <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => copy(r.password, r.id + 'p')} className="text-amber-300 hover:text-amber-200" title="Click to copy password">{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => copy(r.password, r.id + 'p')} className="text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200" title="Click to copy password">{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.klass || '—'}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.school || '—'}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.source || '—'}</td>

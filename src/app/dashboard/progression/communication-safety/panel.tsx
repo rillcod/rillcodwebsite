@@ -83,7 +83,7 @@ export default function CommunicationSafetyPage({
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 relative z-10">
           <div className="space-y-6 max-w-2xl">
             <div className="flex items-center gap-4">
-              <ShieldCheckIcon className="w-8 h-8 text-rose-500" />
+              <ShieldCheckIcon className="w-8 h-8 text-rose-600 dark:text-rose-400" />
               <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-card-foreground leading-tight">
                 Safety Centre
               </h1>
@@ -114,7 +114,7 @@ export default function CommunicationSafetyPage({
             </p>
             <div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-pulse" />
           </div>
-          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-rose-500 transition-colors duration-500">
+          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors duration-500">
             {data.abuse_events_24h}
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed italic">
@@ -129,7 +129,7 @@ export default function CommunicationSafetyPage({
           <p className="text-xs font-black tracking-[0.3em] text-muted-foreground relative z-10">
             Pending Reports
           </p>
-          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-blue-500 transition-colors duration-500">
+          <p className="text-6xl font-black text-foreground tracking-tighter group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-500">
             {data.open_reports}
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed italic">
@@ -147,7 +147,7 @@ export default function CommunicationSafetyPage({
           <p
             className={`text-6xl font-black tracking-tighter transition-colors duration-500 ${
               data.open_escalations > 0
-                ? "text-rose-400 group-hover:text-rose-500"
+                ? "text-rose-600 dark:text-rose-400 group-hover:text-rose-600 dark:group-hover:text-rose-400"
                 : "text-foreground"
             }`}
           >
@@ -178,7 +178,7 @@ export default function CommunicationSafetyPage({
         <div className="p-10 sm:p-14 space-y-10">
           {data.top_abuse_reasons_7d.length === 0 ? (
             <div className="py-20 text-center space-y-4">
-              <ShieldCheckIcon className="w-16 h-16 text-emerald-500/20 mx-auto" />
+              <ShieldCheckIcon className="w-16 h-16 text-emerald-600/20 dark:text-emerald-400/20 mx-auto" />
               <div className="space-y-1">
                 <p className="text-2xl font-black text-foreground tracking-tighter">
                   No unusual safety pattern detected
@@ -203,7 +203,7 @@ export default function CommunicationSafetyPage({
                       <p className="text-lg font-black text-foreground tracking-tight group-hover/item:text-primary transition-colors">
                         {item.label}
                       </p>
-                      <span className="text-xs font-black text-rose-400 bg-rose-400/10 px-6 py-2 rounded-full border border-rose-400/20 shadow-sm tracking-widest">
+                      <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-400/10 px-6 py-2 rounded-full border border-rose-400/20 shadow-sm tracking-widest">
                         {item.count} Occurrences
                       </span>
                     </div>

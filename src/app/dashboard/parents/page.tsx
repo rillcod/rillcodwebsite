@@ -128,7 +128,7 @@ function LinkStudentModal({
           <p className="text-xs text-muted-foreground">
             Linking to: <span className="text-foreground font-bold">{parent.full_name}</span>
           </p>
-          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
               School {schools.length === 1 ? <span className="text-muted-foreground normal-case font-normal">(locked)</span> : ''}
@@ -478,7 +478,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               </div>
 
               {parseError && (
-                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
               )}
 
               <div
@@ -518,8 +518,8 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   <tbody className="divide-y divide-border">
                     {rows.slice(0, 20).map((row, i) => (
                       <tr key={i} className="hover:bg-white/5">
-                        <td className="px-3 py-2 text-foreground font-medium">{row.full_name || <span className="text-rose-400">Missing</span>}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{row.email || <span className="text-rose-400">Missing</span>}</td>
+                        <td className="px-3 py-2 text-foreground font-medium">{row.full_name || <span className="text-rose-600 dark:text-rose-400">Missing</span>}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.email || <span className="text-rose-600 dark:text-rose-400">Missing</span>}</td>
                         <td className="px-3 py-2 text-muted-foreground">{row.phone || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{row.student_name || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{row.relationship}</td>
@@ -533,7 +533,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               </div>
 
               {parseError && (
-                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
               )}
 
               <div className="flex gap-3">
@@ -554,15 +554,15 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
-                  <p className="text-2xl font-black text-emerald-400">{summary.created}</p>
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{summary.created}</p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Created</p>
                 </div>
                 <div className="bg-amber-500/5 border border-amber-500/20 p-4 text-center">
-                  <p className="text-2xl font-black text-amber-400">{summary.skipped}</p>
+                  <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{summary.skipped}</p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Skipped</p>
                 </div>
                 <div className="bg-rose-500/5 border border-rose-500/20 p-4 text-center">
-                  <p className="text-2xl font-black text-rose-400">{summary.errors}</p>
+                  <p className="text-2xl font-black text-rose-600 dark:text-rose-400">{summary.errors}</p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Errors</p>
                 </div>
               </div>
@@ -589,9 +589,9 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 
               {results.filter(r => r.status === 'error').length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Errors</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Errors</p>
                   {results.filter(r => r.status === 'error').map((r, i) => (
-                    <p key={i} className="text-xs text-rose-400">{r.email}: {r.message}</p>
+                    <p key={i} className="text-xs text-rose-600 dark:text-rose-400">{r.email}: {r.message}</p>
                   ))}
                 </div>
               )}
@@ -1096,7 +1096,7 @@ export default function ParentsPage() {
             <button
               onClick={handleCleanup}
               disabled={cleaning}
-              className="flex items-center gap-2 px-3 py-2.5 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2.5 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-50"
               title="Purge orphaned parent records, stale links and soft-deleted accounts">
               {cleaning
                 ? <span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
@@ -1201,8 +1201,8 @@ export default function ParentsPage() {
           <button key={id} onClick={() => setStatusFilter(id)}
             className={`flex items-center gap-1.5 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
               statusFilter === id
-                ? id === 'active' ? 'bg-emerald-500/20 text-emerald-400'
-                  : id === 'inactive' ? 'bg-rose-500/20 text-rose-400'
+                ? id === 'active' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : id === 'inactive' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
                   : 'bg-white/10 text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}>
@@ -1221,7 +1221,7 @@ export default function ParentsPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Total Parents</p>
         </div>
         <div className="bg-card border border-border p-4">
-          <p className="text-2xl font-black text-emerald-400">{parents.filter(p => p.is_active).length}</p>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{parents.filter(p => p.is_active).length}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Active</p>
         </div>
         <div className="bg-card border border-border p-4">
@@ -1229,11 +1229,11 @@ export default function ParentsPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Linked Children</p>
         </div>
         <div className="bg-card border border-border p-4">
-          <p className={`text-2xl font-black ${unlinkedParentsCount ? 'text-amber-400' : 'text-emerald-400'}`}>{unlinkedParentsCount}</p>
+          <p className={`text-2xl font-black ${unlinkedParentsCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{unlinkedParentsCount}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Parents To Link</p>
         </div>
         <div className="bg-card border border-border p-4">
-          <p className={`text-2xl font-black ${childrenWithoutPortalCount ? 'text-rose-400' : 'text-emerald-400'}`}>{childrenWithoutPortalCount}</p>
+          <p className={`text-2xl font-black ${childrenWithoutPortalCount ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{childrenWithoutPortalCount}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children No Login</p>
         </div>
       </div>
@@ -1250,8 +1250,8 @@ export default function ParentsPage() {
       {cleanResult && (
         <div className={`flex items-center justify-between gap-3 px-4 py-3 border text-xs font-bold ${
           cleanResult.total_cleaned > 0
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
         }`}>
           <span>
             {cleanResult.total_cleaned > 0
@@ -1273,8 +1273,8 @@ export default function ParentsPage() {
       {isAdmin && selectedIds.size > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-rose-500/10 border border-rose-500/30">
           <div className="flex items-center gap-3">
-            <button onClick={toggleSelectAll} className="w-4 h-4 border border-rose-500/50 bg-rose-500/20 flex items-center justify-center text-rose-400 text-[8px] font-black flex-shrink-0">✓</button>
-            <span className="text-xs font-black text-rose-400">{selectedIds.size} selected</span>
+            <button onClick={toggleSelectAll} className="w-4 h-4 border border-rose-500/50 bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 text-[8px] font-black flex-shrink-0">✓</button>
+            <span className="text-xs font-black text-rose-600 dark:text-rose-400">{selectedIds.size} selected</span>
             <button onClick={() => setSelectedIds(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground underline">Clear</button>
           </div>
           <button
@@ -1341,7 +1341,7 @@ export default function ParentsPage() {
                     const initials = parent.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
                     return (
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-sm bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <span className="text-xs sm:text-sm font-black text-white">{initials}</span>
+                        <span className="text-xs sm:text-sm font-black text-foreground">{initials}</span>
                       </div>
                     );
                   })()}
@@ -1352,8 +1352,8 @@ export default function ParentsPage() {
                       <span className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[140px] sm:max-w-xs">{parent.full_name}</span>
                       <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border flex-shrink-0 ${
                         parent.is_active
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                          : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                       }`}>
                         {parent.is_active ? 'Active' : 'Inactive'}
                       </span>
@@ -1420,20 +1420,20 @@ export default function ParentsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               {!(child as any).user_id && (
-                                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border bg-rose-500/10 border-rose-500/20 text-rose-400" title="Student record is linked, but no portal login is attached yet">
+                                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400" title="Student record is linked, but no portal login is attached yet">
                                   No Login
                                 </span>
                               )}
                               <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border ${
-                                child.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                                child.status === 'pending' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                                child.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                child.status === 'pending' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' :
                                 'bg-muted border-border text-muted-foreground'
                               }`}>{child.status}</span>
                               <button
                                 onClick={() => handleUnlink(child.id, parent.id, child.full_name, parent.full_name)}
                                 disabled={unlinking === child.id}
                                 title="Unlink this child from the parent"
-                                className="text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-50">
+                                className="text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors disabled:opacity-50">
                                 <XMarkIcon className="w-4 h-4" />
                               </button>
                             </div>
@@ -1481,10 +1481,10 @@ export default function ParentsPage() {
                         parent.is_active ? 'bg-rose-500/20 group-hover:bg-rose-500/30' : 'bg-emerald-500/20 group-hover:bg-emerald-500/30'
                       }`}>
                         {parent.is_active
-                          ? <XCircleIcon className="w-3.5 h-3.5 text-rose-400" />
-                          : <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />}
+                          ? <XCircleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          : <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${parent.is_active ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${parent.is_active ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
                       </span>
                     </button>
@@ -1496,9 +1496,9 @@ export default function ParentsPage() {
                       title="Reset login password"
                       className="group flex items-center justify-center gap-2 px-3 py-2 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/50 transition-all disabled:opacity-50">
                       <span className="w-6 h-6 rounded-sm bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
-                        <KeyIcon className="w-3.5 h-3.5 text-amber-400" />
+                        <KeyIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                         {resetting === parent.id ? '…' : 'Reset PW'}
                       </span>
                     </button>
@@ -1532,9 +1532,9 @@ export default function ParentsPage() {
                       title="Delete parent account"
                       className="group flex items-center justify-center gap-2 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/50 transition-all disabled:opacity-50 sm:ml-auto">
                       <span className="w-6 h-6 rounded-sm bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500/30 transition-colors">
-                        <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                        <TrashIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">
                         {deleting === parent.id ? '…' : 'Delete'}
                       </span>
                     </button>
@@ -1578,7 +1578,7 @@ export default function ParentsPage() {
           <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-2">
-                <KeyIcon className="w-4 h-4 text-amber-400" />
+                <KeyIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Password Reset</h2>
               </div>
               <button onClick={() => setResetResult(null)} className="text-muted-foreground hover:text-foreground">
@@ -1595,11 +1595,11 @@ export default function ParentsPage() {
                 </div>
               </div>
               <div className="bg-background border border-amber-500/30 p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-2 flex items-center gap-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
                   <KeyIcon className="w-3 h-3" /> New Temporary Password
                 </p>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-amber-300 font-mono tracking-wider">{resetResult.password}</span>
+                  <span className="text-sm font-bold text-amber-700 dark:text-amber-300 font-mono tracking-wider">{resetResult.password}</span>
                   <CopyButton value={resetResult.password} />
                 </div>
               </div>
@@ -1696,7 +1696,7 @@ export default function ParentsPage() {
             <div className="p-6 space-y-5">
               <div className="flex items-start gap-4">
                 <div className="w-11 h-11 bg-rose-500/10 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
-                  <TrashIcon className="w-5 h-5 text-rose-400" />
+                  <TrashIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Delete Parent Account</h3>
@@ -1706,13 +1706,13 @@ export default function ParentsPage() {
                     {deleteTarget.children.length > 0 && (
                       <> This will also unlink {deleteTarget.children.length} linked {deleteTarget.children.length === 1 ? 'child' : 'children'}.</>
                     )}{' '}
-                    <span className="text-rose-400 font-bold">This action cannot be undone.</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">This action cannot be undone.</span>
                   </p>
                   {/* Child list */}
                   {deleteTarget.children.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1">
                       {deleteTarget.children.map(c => (
-                        <span key={c.id} className="text-[9px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold">
+                        <span key={c.id} className="text-[9px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 font-bold">
                           {c.full_name}
                         </span>
                       ))}

@@ -1096,9 +1096,9 @@ function SettingsPageContent({
 
   // ── Role colors ────────────────────────────────────────────────────────────
   const roleColor: Record<string, string> = {
-    admin: "bg-red-500/20 text-red-400 border-red-500/30",
+    admin: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
     teacher: "bg-primary/20 text-primary border-primary/30",
-    student: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    student: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
   };
 
   const currentOpsPillar =
@@ -1138,8 +1138,8 @@ function SettingsPageContent({
           <div
             className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold ${
               toast.ok
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
             }`}
           >
             {toast.ok ? (
@@ -1378,7 +1378,7 @@ function SettingsPageContent({
                 {/* Danger Zone */}
                 <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6">
                   <h3 className="text-sm font-black text-foreground flex items-center gap-2 uppercase tracking-wider">
-                    <ExclamationTriangleIcon className="w-4 h-4 text-rose-500" />
+                    <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                     Danger Zone
                   </h3>
                   <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
@@ -1387,7 +1387,7 @@ function SettingsPageContent({
                   </p>
                   <a
                     href="/account-deletion"
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-black text-rose-500 hover:bg-rose-500/20 transition-all uppercase tracking-wider"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-black text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all uppercase tracking-wider"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
                     Request Account Deletion
@@ -1454,8 +1454,8 @@ function SettingsPageContent({
                       <p
                         className={`text-xs font-semibold flex items-center gap-1.5 ${
                           pwData.newPw === pwData.confirm
-                            ? "text-emerald-400"
-                            : "text-rose-400"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
                         }`}
                       >
                         {pwData.newPw === pwData.confirm ? (
@@ -1468,7 +1468,7 @@ function SettingsPageContent({
                           : "Passwords do not match"}
                       </p>
                     )}
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-600 dark:text-amber-400">
                       For security, you will be signed out of other devices
                       after changing your password.
                     </div>
@@ -1509,7 +1509,7 @@ function SettingsPageContent({
                         <span
                           className={`font-bold ${
                             k === "Status"
-                              ? "text-emerald-400"
+                              ? "text-emerald-600 dark:text-emerald-400"
                               : "text-foreground capitalize"
                           }`}
                         >
@@ -1674,14 +1674,14 @@ function SettingsPageContent({
                               <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <p className="font-bold">{s.name}</p>
                                 {ts.is_primary && (
-                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full border border-amber-500/30">
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full border border-amber-500/30">
                                     <StarIcon className="w-3 h-3" /> Primary
                                   </span>
                                 )}
                                 <span
                                   className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
                                     s.is_active
-                                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                                       : "bg-muted text-muted-foreground border-border"
                                   }`}
                                 >
@@ -1825,7 +1825,7 @@ function SettingsPageContent({
                               selected.term_label === live.termLabel
                             );
                             return isLive ? (
-                              <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+                              <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
                                 Active Now
                               </span>
                             ) : null;
@@ -2215,7 +2215,7 @@ function SettingsPageContent({
                                 Select Program
                               </label>
                               {policyDirty && (
-                                <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse">
+                                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse">
                                   Unsaved changes
                                 </span>
                               )}
@@ -2674,7 +2674,7 @@ function SettingsPageContent({
                                       key={row.lane_index}
                                       className="px-4 py-3 flex items-center gap-4"
                                     >
-                                      <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded px-2 py-0.5 shrink-0 w-12 text-center">
+                                      <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded px-2 py-0.5 shrink-0 w-12 text-center">
                                         L{row.lane_index}
                                       </span>
                                       <div className="flex-1 min-w-0 space-y-1">
@@ -2688,7 +2688,7 @@ function SettingsPageContent({
                                           />
                                         </div>
                                       </div>
-                                      <span className="text-xs font-bold text-emerald-400 shrink-0 w-14 text-right">
+                                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 w-14 text-right">
                                         {row.count} wks
                                       </span>
                                     </div>
@@ -3125,7 +3125,7 @@ function SettingsPageContent({
                                                                                 purging ===
                                                                                 row.id
                                                                               }
-                                                                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/5 text-rose-400/70 hover:bg-rose-500 hover:text-white active:scale-90 disabled:opacity-40 transition-all"
+                                                                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/5 text-rose-600/70 dark:text-rose-400/70 hover:bg-rose-500 hover:text-white active:scale-90 disabled:opacity-40 transition-all"
                                                                               title="Delete"
                                                                             >
                                                                               <TrashIcon className="w-3.5 h-3.5" />
@@ -3474,7 +3474,7 @@ function SettingsPageContent({
                                   [key]: "",
                                 }))
                               }
-                              className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black hover:bg-rose-500/20 transition-colors"
+                              className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black hover:bg-rose-500/20 transition-colors"
                             >
                               ✕
                             </button>
@@ -3808,7 +3808,7 @@ function SettingsPageContent({
                               className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border ${
                                 tmpl.type === "email"
                                   ? "bg-primary/10 text-primary border-primary/20"
-                                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                               }`}
                             >
                               {tmpl.type}
@@ -3946,7 +3946,7 @@ function SettingsPageContent({
                         key={log.id}
                         className="px-5 py-3 flex items-center gap-3"
                       >
-                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white/60 whitespace-nowrap shrink-0">
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap shrink-0">
                           {log.event_type}
                         </span>
                         <span className="text-xs font-medium flex-1 truncate">
@@ -3967,7 +3967,7 @@ function SettingsPageContent({
                 <div className="p-4 border-t border-border space-y-2">
                   <a
                     href="/dashboard/platform-operations?view=activity"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/20 text-slate-300 text-sm font-bold rounded-xl transition-all"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/20 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl transition-all"
                   >
                     View Full Activity Log →
                   </a>
@@ -3985,7 +3985,7 @@ function SettingsPageContent({
             {tab === "repair" && profile?.role === "admin" && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2 bg-rose-500/5">
-                  <CommandLineIcon className="w-4 h-4 text-rose-400" />
+                  <CommandLineIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                   <div>
                     <h2 className="font-bold">Database Repair Tools</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">

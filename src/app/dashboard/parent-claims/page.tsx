@@ -26,12 +26,12 @@ type AuditRow = {
 };
 
 const ACTION_STYLE: Record<string, string> = {
-  linked: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  blocked: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  code_sent: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  otp_verified: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
-  otp_failed: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  unlinked: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  linked: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  blocked: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
+  code_sent: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  otp_verified: 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30',
+  otp_failed: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
+  unlinked: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
 };
 
 type UnlinkedRow = {
@@ -86,7 +86,7 @@ function PersonPicker({ kind, value, onChange, placeholder }: {
           <p className="text-sm font-bold truncate">{value.full_name}</p>
           <p className="text-xs text-muted-foreground truncate">{value.email || [value.class_name, value.school_name].filter(Boolean).join(' · ') || '—'}</p>
         </div>
-        <button type="button" onClick={() => onChange(null)} className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:underline flex-shrink-0">Change</button>
+        <button type="button" onClick={() => onChange(null)} className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:underline flex-shrink-0">Change</button>
       </div>
     );
   }
@@ -261,7 +261,7 @@ export default function ParentClaimsAuditPage() {
     return <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>;
   }
   if (!profile || !isStaffRole(profile.role)) {
-    return <div className="p-8 text-center text-rose-400 text-sm font-bold">Staff access only.</div>;
+    return <div className="p-8 text-center text-rose-600 dark:text-rose-400 text-sm font-bold">Staff access only.</div>;
   }
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
@@ -378,7 +378,7 @@ export default function ParentClaimsAuditPage() {
                           <button
                             type="button"
                             onClick={() => void unlinkLink(l.id, `${l.student_name || 'Child'} → ${l.parent_name || l.parent_email || 'Parent'}`)}
-                            className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:underline"
+                            className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:underline"
                           >
                             Unlink
                           </button>
@@ -461,7 +461,7 @@ export default function ParentClaimsAuditPage() {
                               {row.parentPhone && <p className="text-muted-foreground">{row.parentPhone}</p>}
                             </>
                           ) : (
-                            <span className="text-rose-400 font-bold">No email — add in Students first</span>
+                            <span className="text-rose-600 dark:text-rose-400 font-bold">No email — add in Students first</span>
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">

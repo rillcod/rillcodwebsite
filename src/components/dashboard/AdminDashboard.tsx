@@ -111,14 +111,14 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                         </p>
                       </div>
                       {hasActivity && (
-                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/20">Active</span>
+                        <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/20">Active</span>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Term Program stats */}
                       <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-1">
-                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-wider block font-bold">Regular Term Program</span>
+                        <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block font-bold">Regular Term Program</span>
                         <div className="pt-1 flex justify-between text-xs">
                           <span className="text-muted-foreground">Enrolments:</span>
                           <span className="font-black text-foreground tabular-nums">{school.termEnrolments}</span>
@@ -142,7 +142,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                       {/* Holiday Program stats */}
                       <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex flex-col justify-between">
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider block font-bold">Holiday Program</span>
+                          <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider block font-bold">Holiday Program</span>
                           <div className="pt-1 flex justify-between text-xs">
                             <span className="text-muted-foreground">Enrolments:</span>
                             <span className="font-black text-foreground tabular-nums">{school.holidayEnrolments}</span>
@@ -224,15 +224,15 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                         <td className="py-3.5"><span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span></td>
                         <td className="py-3.5 text-right"><span className="text-sm font-black text-foreground">{sym}{inv.amount.toLocaleString()}</span></td>
                         <td className="py-3.5 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                              isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                                'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${isPaid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' :
+                              isOverdue ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' :
+                                'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                             }`}>
                             {isPaid ? '✓ Paid' : isOverdue ? 'Overdue' : inv.status}
                           </span>
                         </td>
                         <td className="py-3.5">
-                          <span className={`text-xs font-bold ${isOverdue ? 'text-rose-400' : 'text-muted-foreground'}`}>{dueDate}</span>
+                          <span className={`text-xs font-bold ${isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>{dueDate}</span>
                         </td>
                       </tr>
                     );
@@ -330,7 +330,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                 <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
               </div>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-red-500/20 text-red-400 border-red-500/30">Admin</span>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30">Admin</span>
             <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/dashboard/settings" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <CogIcon className="w-4 h-4" /> Account Settings

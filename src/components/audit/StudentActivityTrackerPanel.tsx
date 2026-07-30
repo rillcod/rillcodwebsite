@@ -310,7 +310,7 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
               href="/dashboard/showcase"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
-              <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Showcase
+              <TrophyIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Showcase
             </Link>
           </div>
         </div>
@@ -379,7 +379,7 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
 
       {counts.critical > 0 && (
         <div className="rounded-2xl bg-rose-500/5 border border-rose-500/20 p-4 flex gap-3">
-          <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+          <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
               {counts.critical} student{counts.critical > 1 ? 's' : ''} urgently need intervention

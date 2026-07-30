@@ -65,7 +65,7 @@ export default function CardEditor({
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => onRemoveCard(card.id)}
-                  className="p-2 hover:bg-red-500/10 rounded-full text-red-400 hover:text-red-300 transition-colors border border-transparent hover:border-red-500/20"
+                  className="p-2 hover:bg-red-500/10 rounded-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors border border-transparent hover:border-red-500/20"
                   title="Remove Card"
                 >
                   <TrashIcon className="w-5 h-5" />

@@ -17,7 +17,7 @@ export default function WhatsAppButton() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex items-center justify-center w-14 h-14 bg-whatsapp-green text-white rounded-xl border-2 border-border shadow-2xl hover:bg-whatsapp-green-hover transition-all duration-500 hover:scale-110 relative"
+        className="group flex items-center justify-center w-14 h-14 bg-whatsapp-green text-foreground rounded-xl border-2 border-border shadow-2xl hover:bg-whatsapp-green-hover transition-all duration-500 hover:scale-110 relative"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-label="Contact us on WhatsApp"

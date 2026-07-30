@@ -42,11 +42,11 @@ const Q_TYPES = ['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill
 function QuestionTypeTag({ type }: { type: string }) {
   const colors: Record<string, string> = {
     multiple_choice: 'bg-primary/20 text-primary',
-    true_false: 'bg-emerald-500/20 text-emerald-400',
-    short_answer: 'bg-amber-500/20 text-amber-400',
+    true_false: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+    short_answer: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
     essay: 'bg-primary/20 text-primary',
     fill_in_blank: 'bg-primary/20 text-primary',
-    matching: 'bg-pink-500/20 text-pink-400',
+    matching: 'bg-pink-500/20 text-pink-600 dark:text-pink-400',
   };
   return (
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${colors[type] ?? 'bg-white/10 text-card-foreground/60'}`}>
@@ -262,7 +262,7 @@ ${questionRows}
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30'}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30'}`}>
               {exam.is_active ? <LockOpenIcon className="w-3 h-3" /> : <LockClosedIcon className="w-3 h-3" />}
               {exam.is_active ? 'Active' : 'Inactive'}
             </span>
@@ -274,7 +274,7 @@ ${questionRows}
         {canManage && (
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={toggleActive}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${exam.is_active ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400'}`}>
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${exam.is_active ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400'}`}>
               {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5" /> Deactivate</> : <><LockOpenIcon className="w-3.5 h-3.5" /> Activate</>}
             </button>
             <Link href={`/dashboard/exams/${id}/edit`} className="p-2 hover:bg-white/5 rounded-xl transition-all">
@@ -346,7 +346,7 @@ ${questionRows}
                   {Array.isArray(q.options) && q.options.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {q.options.map((opt, oi) => (
-                        <div key={oi} className={`text-xs flex items-center gap-2 px-2 py-1 rounded-lg ${String(q.correct_answer) === String(oi) || q.correct_answer === opt ? 'bg-emerald-500/10 text-emerald-400 font-bold' : 'text-card-foreground/50'}`}>
+                        <div key={oi} className={`text-xs flex items-center gap-2 px-2 py-1 rounded-lg ${String(q.correct_answer) === String(oi) || q.correct_answer === opt ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-card-foreground/50'}`}>
                           {String(q.correct_answer) === String(oi) || q.correct_answer === opt ? <CheckCircleIcon className="w-3 h-3 flex-shrink-0" /> : <span className="w-3 h-3 flex-shrink-0" />}
                           {opt}
                         </div>
@@ -361,7 +361,7 @@ ${questionRows}
                       <PencilIcon className="w-3.5 h-3.5 text-card-foreground/50" />
                     </button>
                     <button onClick={() => deleteQuestion(q.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-all">
-                      <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                      <TrashIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                     </button>
                   </div>
                 )}

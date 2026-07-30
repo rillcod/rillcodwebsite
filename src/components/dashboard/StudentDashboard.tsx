@@ -19,10 +19,10 @@ import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
-  Bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-700', text: 'text-amber-700', border: 'border-amber-700/40' },
+  Bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-700', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-700/40' },
   Silver: { label: 'Silver', emoji: '🥈', bar: 'bg-slate-400', text: 'text-muted-foreground/70', border: 'border-slate-400/40' },
-  Gold: { label: 'Gold', emoji: '🥇', bar: 'bg-amber-400', text: 'text-amber-400', border: 'border-amber-400/40' },
-  Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400', text: 'text-cyan-400', border: 'border-cyan-400/40' },
+  Gold: { label: 'Gold', emoji: '🥇', bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400/40' },
+  Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-400/40' },
   Modern: { label: 'Level', emoji: '⭐', bar: 'bg-primary', text: 'text-primary', border: 'border-primary/40' },
 };
 const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 };
@@ -272,15 +272,15 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
+          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/support', icon: ChatBubbleLeftRightIcon, label: 'Support', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
+          { href: '/dashboard/support', icon: ChatBubbleLeftRightIcon, label: 'Support', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
-            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
           ] : []),
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -295,10 +295,10 @@ export default function StudentDashboard() {
         <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">🚀</div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
-        <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
+        <div className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
       </Link>
     </div>
   );
@@ -386,7 +386,7 @@ export default function StudentDashboard() {
                 <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
                 <div className="flex items-center gap-2">
                   {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
-                  <ArrowRightIcon className="w-3.5 h-3.5 text-rose-500" />
+                  <ArrowRightIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                 </div>
               </Link>
             </div>
@@ -433,12 +433,12 @@ export default function StudentDashboard() {
                   </div>
                   {data.lmsSettings.lms_gamification_enabled !== 'false' && (
                     <div className="text-center">
-                      <p className="text-2xl font-black text-amber-500 tabular-nums leading-none">{data.xp.toLocaleString()}</p>
+                      <p className="text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums leading-none">{data.xp.toLocaleString()}</p>
                       <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">XP</p>
                     </div>
                   )}
                   <div className="text-center">
-                    <p className="text-2xl font-black text-emerald-500 tabular-nums leading-none">{data.avgScore}%</p>
+                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">{data.avgScore}%</p>
                     <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg</p>
                   </div>
                 </div>
@@ -462,14 +462,14 @@ export default function StudentDashboard() {
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</p>
             <div className="flex items-end justify-between mt-2">
               <p className="text-2xl font-black text-foreground tabular-nums">{data.lessonsDone}</p>
-              <CheckBadgeIcon className="w-5 h-5 text-emerald-500/50" />
+              <CheckBadgeIcon className="w-5 h-5 text-emerald-600/50 dark:text-emerald-400/50" />
             </div>
           </div>
           <div className="bg-card border border-border p-4 flex flex-col justify-between">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Badges</p>
             <div className="flex items-end justify-between mt-2">
               <p className="text-2xl font-black text-foreground tabular-nums">{data.badges.length}</p>
-              <SparklesIcon className="w-5 h-5 text-amber-500/50" />
+              <SparklesIcon className="w-5 h-5 text-amber-600/50 dark:text-amber-400/50" />
             </div>
           </div>
         </div>
@@ -481,7 +481,7 @@ export default function StudentDashboard() {
         <div className="bg-indigo-600/5 border border-indigo-500/20 p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -mr-16 -mt-16" />
           <div className="relative z-10 flex flex-col sm:flex-row items-start gap-6">
-            <div className="w-12 h-12 bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 text-indigo-400">
+            <div className="w-12 h-12 bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400">
               <SparklesIcon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
@@ -491,7 +491,7 @@ export default function StudentDashboard() {
                   <h4 className="text-sm font-black text-foreground uppercase tracking-tight">{aiHook.hook_title}</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed italic">{aiHook.real_world_example}</p>
                   <div className="p-3 bg-indigo-500/5 border border-indigo-500/10">
-                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About This</p>
+                    <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Think About This</p>
                     <p className="text-xs text-foreground font-medium">"{aiHook.challenge_question}"</p>
                   </div>
                   <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
@@ -520,13 +520,13 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
+          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-600 dark:text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -544,10 +544,10 @@ export default function StudentDashboard() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
-        <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
+        <div className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
           Open →
         </div>
       </Link>
@@ -570,21 +570,21 @@ export default function StudentDashboard() {
               icon: ChatBubbleLeftRightIcon,
               label: 'Community Feed',
               detail: 'Share ideas, code, and peer wins',
-              color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40',
+              color: 'text-cyan-600 dark:text-cyan-400 border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40',
             },
             {
               href: '/dashboard/vault',
               icon: ArchiveBoxIcon,
               label: 'My Saved Work',
               detail: 'Save your notes, code snippets, and work',
-              color: 'text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/5 hover:border-fuchsia-500/40',
+              color: 'text-fuchsia-600 dark:text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/5 hover:border-fuchsia-500/40',
             },
             {
               href: '/dashboard/missions',
               icon: RocketLaunchIcon,
               label: 'Practice Quests',
               detail: 'Practice with guided challenges',
-              color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40',
+              color: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40',
             },
             {
               href: '/dashboard/protocol',
@@ -598,7 +598,7 @@ export default function StudentDashboard() {
               icon: UserGroupIcon,
               label: 'Study Groups',
               detail: 'Find your people and learn together',
-              color: 'text-amber-400 border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40',
+              color: 'text-amber-600 dark:text-amber-400 border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40',
             },
           ].map(({ href, icon: Icon, label, detail, color }) => (
             <Link
@@ -626,10 +626,10 @@ export default function StudentDashboard() {
       {data.overdueDue.length > 0 && (
         <div className="bg-rose-500/5 border border-rose-500/20 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-[0.3em]">
+            <h3 className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.3em]">
               Overdue — {data.overdueDue.length} pending
             </h3>
-            <Link href="/dashboard/assignments" className="text-[9px] font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest transition-colors">
+            <Link href="/dashboard/assignments" className="text-[9px] font-black text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 uppercase tracking-widest transition-colors">
               Submit Now →
             </Link>
           </div>
@@ -642,7 +642,7 @@ export default function StudentDashboard() {
                     <p className="text-xs font-black text-foreground truncate">{a.title}</p>
                     {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
                   </div>
-                  <span className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border text-rose-400 bg-rose-500/10 border-rose-500/20">
+                  <span className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20">
                     {daysLate <= 0 ? 'Due' : daysLate === 1 ? '1d late' : `${daysLate}d late`}
                   </span>
                 </Link>
@@ -668,8 +668,8 @@ export default function StudentDashboard() {
                 {data.upcomingDue.map((a) => {
                   const due = new Date(a.due_date);
                   const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  const urgency = daysLeft <= 1 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-                    : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                  const urgency = daysLeft <= 1 ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20'
+                    : daysLeft <= 3 ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20'
                       : 'text-primary bg-primary/10 border-primary/20';
                   return (
                     <Link key={a.id} href="/dashboard/assignments" className="flex items-center gap-3 p-3 bg-background border border-border hover:border-primary/30 transition-colors">
@@ -701,7 +701,7 @@ export default function StudentDashboard() {
                   const pct = g.max_points && g.max_points > 0 && g.grade != null
                     ? Math.min(100, Math.round((g.grade / g.max_points) * 100))
                     : g.grade ?? 0;
-                  const color = pct >= 70 ? 'text-emerald-400' : pct >= 55 ? 'text-amber-400' : 'text-rose-400';
+                  const color = pct >= 70 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 55 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
                   const bar = pct >= 70 ? 'bg-emerald-500' : pct >= 55 ? 'bg-amber-500' : 'bg-rose-500';
                   return (
                     <div key={g.id} className="p-3 bg-background border border-border">

@@ -201,12 +201,12 @@ export default function ImportStudentsPage() {
               <UserGroupIcon className="w-5 h-5 text-muted-foreground" />
               <span className="text-foreground font-bold">{parsed.length} rows parsed</span>
               {validRows.length > 0 && (
-                <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                   {validRows.length} valid
                 </span>
               )}
               {errorRows.length > 0 && (
-                <span className="text-xs bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-xs bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full font-bold">
                   {errorRows.length} errors
                 </span>
               )}
@@ -235,8 +235,8 @@ export default function ImportStudentsPage() {
                     <td className="px-4 py-2 text-muted-foreground">{r.grade ?? '—'}</td>
                     <td className="px-4 py-2">
                       {r._error
-                        ? <span className="text-rose-400 flex items-center gap-1"><ExclamationCircleIcon className="w-3.5 h-3.5" />{r._error}</span>
-                        : <span className="text-emerald-400 flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" />OK</span>}
+                        ? <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1"><ExclamationCircleIcon className="w-3.5 h-3.5" />{r._error}</span>
+                        : <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" />OK</span>}
                     </td>
                   </tr>
                 ))}
@@ -261,13 +261,13 @@ export default function ImportStudentsPage() {
       {result && (
         <div className={`rounded-xl p-5 border ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
           <div className="flex items-center gap-3 mb-3">
-            <CheckCircleIcon className="w-6 h-6 text-emerald-400" />
+            <CheckCircleIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             <p className="text-foreground font-bold">Import Complete</p>
           </div>
           <p className="text-muted-foreground text-sm">{result.success} students imported successfully.</p>
-          {result.failed > 0 && <p className="text-rose-400 text-sm mt-1">{result.failed} failed.</p>}
+          {result.failed > 0 && <p className="text-rose-600 dark:text-rose-400 text-sm mt-1">{result.failed} failed.</p>}
           {result.errors.map((e, i) => (
-            <p key={i} className="text-rose-400/60 text-xs mt-1 font-mono">{e}</p>
+            <p key={i} className="text-rose-600/60 dark:text-rose-400/60 text-xs mt-1 font-mono">{e}</p>
           ))}
           <div className="flex gap-3 mt-4">
             <Link href="/dashboard/students" className="px-4 py-2 bg-muted text-foreground text-sm font-bold rounded-xl hover:bg-muted transition-colors">
@@ -286,7 +286,7 @@ export default function ImportStudentsPage() {
         <div className="grid grid-cols-2 gap-2">
           {ALL_COLS.map(col => (
             <div key={col} className="flex items-center gap-2">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${REQUIRED_COLS.includes(col) ? 'bg-rose-500/20 text-rose-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${REQUIRED_COLS.includes(col) ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
                 {REQUIRED_COLS.includes(col) ? 'required' : 'optional'}
               </span>
               <span className="text-muted-foreground text-xs font-mono">{col}</span>

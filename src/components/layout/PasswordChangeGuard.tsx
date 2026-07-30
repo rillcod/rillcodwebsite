@@ -69,10 +69,10 @@ export default function PasswordChangeGuard() {
 
         {/* Banner */}
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 flex items-center gap-3">
-          <KeyIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+          <KeyIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
           <div>
-            <p className="text-amber-300 font-black text-sm">Action Required — Set Your Password</p>
-            <p className="text-amber-300/60 text-xs mt-0.5">Your account was created with a temporary password.</p>
+            <p className="text-amber-700 dark:text-amber-300 font-black text-sm">Action Required — Set Your Password</p>
+            <p className="text-amber-700/60 dark:text-amber-300/60 text-xs mt-0.5">Your account was created with a temporary password.</p>
           </div>
         </div>
 
@@ -144,12 +144,12 @@ export default function PasswordChangeGuard() {
                 }`}
               />
               {mismatch && (
-                <p className="text-rose-400 text-xs mt-1.5">Passwords do not match</p>
+                <p className="text-rose-600 dark:text-rose-400 text-xs mt-1.5">Passwords do not match</p>
               )}
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" /> {error}
               </div>
             )}

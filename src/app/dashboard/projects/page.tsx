@@ -33,7 +33,7 @@ function projectScore(labCount: number, portfolioCount: number) {
 }
 
 function ScoreBadge({ pct }: { pct: number }) {
-    const colorClass = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400';
+    const colorClass = pct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
     const barClass = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
     const label = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Developing' : 'Needs Work';
     return (
@@ -71,9 +71,9 @@ const CAT_META: Record<string, { label: string; Icon: any; color: string }> = {
 };
 
 const DIFF_META: Record<string, { color: string; dot: string }> = {
-    beginner: { color: 'text-emerald-400', dot: 'bg-emerald-400' },
-    intermediate: { color: 'text-amber-400', dot: 'bg-amber-400' },
-    advanced: { color: 'text-rose-400', dot: 'bg-rose-400' },
+    beginner: { color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-400' },
+    intermediate: { color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-400' },
+    advanced: { color: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-400' },
 };
 
 const LANG_COLOR: Record<string, string> = {
@@ -441,7 +441,7 @@ export default function ProjectsPage() {
                                 <div>
                                     <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Academic Score · 20% of Final Grade</p>
                                     <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
-                                    <p className="text-xs sm:text-sm text-white/40 font-semibold mt-1">Lab work & portfolio · teacher activities</p>
+                                    <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1">Lab work & portfolio · teacher activities</p>
                                 </div>
                             </div>
 
@@ -454,15 +454,15 @@ export default function ProjectsPage() {
                                 </div>
                                 <div className="hidden sm:block w-px h-14 bg-white/10" />
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[11px] text-white/50">{myLab.length} Lab Project{myLab.length !== 1 ? 's' : ''}</span></div>
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[11px] text-white/50">{myPortfolio.length} Portfolio Project{myPortfolio.length !== 1 ? 's' : ''}</span></div>
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[11px] text-white/50">{total} / 3 target</span></div>
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[11px] text-muted-foreground">{myLab.length} Lab Project{myLab.length !== 1 ? 's' : ''}</span></div>
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[11px] text-muted-foreground">{myPortfolio.length} Portfolio Project{myPortfolio.length !== 1 ? 's' : ''}</span></div>
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[11px] text-muted-foreground">{total} / 3 target</span></div>
                                 </div>
                             </div>
                         </div>
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
-                            <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">How it's calculated:</span>
-                            <span className="text-[10px] font-bold text-white/40">Every 3 projects (lab + portfolio) = 100% engagement score</span>
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">How it's calculated:</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">Every 3 projects (lab + portfolio) = 100% engagement score</span>
                             <span className="text-[10px] text-primary font-black">· counts 20pts toward your final report</span>
                         </div>
                     </div>
@@ -480,17 +480,17 @@ export default function ProjectsPage() {
                             <section>
                                 <div className="flex items-center justify-between mb-5">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center"><CodeBracketIcon className="w-4 h-4 text-indigo-400" /></div>
+                                        <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center"><CodeBracketIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /></div>
                                         <div><h2 className="text-sm font-black text-foreground uppercase tracking-widest">Lab Projects</h2><p className="text-[10px] text-muted-foreground">Code built in the Playground</p></div>
                                     </div>
-                                    <Link href="/dashboard/playground" className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors flex items-center gap-1">Open Playground <ArrowRightIcon className="w-3 h-3" /></Link>
+                                    <Link href="/dashboard/playground" className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1">Open Playground <ArrowRightIcon className="w-3 h-3" /></Link>
                                 </div>
                                 {myLab.length === 0 ? (
                                     <div className="border border-dashed border-white/10 p-10 text-center">
-                                        <CodeBracketIcon className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                                        <p className="text-white/30 text-sm font-semibold">No lab projects yet</p>
-                                        <p className="text-white/20 text-xs mt-1">Go to the Code Playground and save your work</p>
-                                        <Link href="/dashboard/playground" className="inline-block mt-4 px-4 py-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-widest hover:bg-indigo-600/30 transition-all">Start Coding</Link>
+                                        <CodeBracketIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                                        <p className="text-muted-foreground text-sm font-semibold">No lab projects yet</p>
+                                        <p className="text-muted-foreground text-xs mt-1">Go to the Code Playground and save your work</p>
+                                        <Link href="/dashboard/playground" className="inline-block mt-4 px-4 py-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-widest hover:bg-indigo-600/30 transition-all">Start Coding</Link>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -502,11 +502,11 @@ export default function ProjectsPage() {
                                                     <div className="h-1.5" style={{ backgroundColor: color }} />
                                                     <div className="p-5">
                                                         <div className="flex items-start justify-between gap-2 mb-3">
-                                                            <h3 className="text-sm font-black text-foreground group-hover:text-indigo-300 transition-colors line-clamp-2 leading-tight">{p.title}</h3>
+                                                            <h3 className="text-sm font-black text-foreground group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors line-clamp-2 leading-tight">{p.title}</h3>
                                                             <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: `${color}22`, color }}>{p.language}</span>
                                                         </div>
                                                         <p className="text-[10px] text-muted-foreground mb-4">Saved {p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
-                                                        <div className="flex items-center gap-2"><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" /><span className="text-[10px] text-emerald-400 font-bold">Counts toward score</span></div>
+                                                        <div className="flex items-center gap-2"><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /><span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Counts toward score</span></div>
                                                     </div>
                                                 </div>
                                             );
@@ -526,8 +526,8 @@ export default function ProjectsPage() {
                                 </div>
                                 {myPortfolio.length === 0 ? (
                                     <div className="border border-dashed border-white/10 p-10 text-center">
-                                        <StarIcon className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                                        <p className="text-white/30 text-sm font-semibold">No portfolio projects yet</p>
+                                        <StarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                                        <p className="text-muted-foreground text-sm font-semibold">No portfolio projects yet</p>
                                         <Link href="/dashboard/portfolio" className="inline-block mt-4 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">Go to Portfolio</Link>
                                     </div>
                                 ) : (
@@ -543,11 +543,11 @@ export default function ProjectsPage() {
                                                             <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{p.title}</h3>
                                                             <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: `${color}22`, color }}>{p.category}</span>
                                                         </div>
-                                                        {p.description && <p className="text-[11px] text-white/40 line-clamp-2 mb-3">{p.description}</p>}
-                                                        {p.tags?.length > 0 && <div className="flex flex-wrap gap-1 mb-3">{p.tags.slice(0, 3).map((t: string) => <span key={t} className="text-[9px] bg-white/5 border border-white/10 text-white/50 px-1.5 py-0.5 rounded">{t}</span>)}</div>}
+                                                        {p.description && <p className="text-[11px] text-muted-foreground line-clamp-2 mb-3">{p.description}</p>}
+                                                        {p.tags?.length > 0 && <div className="flex flex-wrap gap-1 mb-3">{p.tags.slice(0, 3).map((t: string) => <span key={t} className="text-[9px] bg-white/5 border border-white/10 text-muted-foreground px-1.5 py-0.5 rounded">{t}</span>)}</div>}
                                                         <div className="flex items-center gap-2">
-                                                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" /><span className="text-[10px] text-emerald-400 font-bold">Counts toward score</span>
-                                                            {p.is_featured && <span className="text-[9px] font-black text-amber-400 ml-auto">★ Featured</span>}
+                                                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /><span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Counts toward score</span>
+                                                            {p.is_featured && <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 ml-auto">★ Featured</span>}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -567,14 +567,14 @@ export default function ProjectsPage() {
                             <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                         ) : groupsError ? (
                             <div className="text-center py-20">
-                                <p className="text-rose-400 text-sm mb-4">{groupsError}</p>
+                                <p className="text-rose-600 dark:text-rose-400 text-sm mb-4">{groupsError}</p>
                                 <button onClick={loadGroups} className="px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">Try Again</button>
                             </div>
                         ) : groups.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-16 text-center">
-                                <UsersIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                                <p className="text-white/30 text-sm font-semibold">You haven't been assigned to a group yet</p>
-                                <p className="text-white/20 text-xs mt-1">Your teacher will create project groups and add you</p>
+                                <UsersIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                                <p className="text-muted-foreground text-sm font-semibold">You haven't been assigned to a group yet</p>
+                                <p className="text-muted-foreground text-xs mt-1">Your teacher will create project groups and add you</p>
                             </div>
                         ) : (
                             <div className="space-y-6 max-w-3xl mx-auto">
@@ -596,16 +596,16 @@ export default function ProjectsPage() {
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="text-base font-black text-foreground truncate">{group.name}</h3>
                                                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                                                        {group.class_name && <span className="text-[10px] text-white/40 font-semibold">{group.class_name}</span>}
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                                        {group.class_name && <span className="text-[10px] text-muted-foreground font-semibold">{group.class_name}</span>}
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
                                                             {isGroupEval ? 'Group Score' : 'Individual Score'}
                                                         </span>
-                                                        {group.is_graded && <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Graded</span>}
+                                                        {group.is_graded && <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Graded</span>}
                                                     </div>
                                                 </div>
                                                 {group.is_graded && myScore != null && (
                                                     <div className="text-center flex-shrink-0">
-                                                        <p className="text-3xl font-black text-emerald-400">{myScore}</p>
+                                                        <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{myScore}</p>
                                                         <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Your Score</p>
                                                     </div>
                                                 )}
@@ -620,7 +620,7 @@ export default function ProjectsPage() {
                                                         </p>
                                                         <p className="text-sm font-bold text-foreground leading-relaxed">{myMember.task_description}</p>
                                                         {assignment && (
-                                                            <p className="text-[10px] text-white/40 mt-2">Part of: <span className="text-primary/70">{assignment.title}</span></p>
+                                                            <p className="text-[10px] text-muted-foreground mt-2">Part of: <span className="text-primary/70">{assignment.title}</span></p>
                                                         )}
                                                     </div>
                                                 )}
@@ -628,11 +628,11 @@ export default function ProjectsPage() {
                                                 {/* Assignment */}
                                                 {assignment && (
                                                     <div className="bg-white/[0.03] border border-border rounded-xl px-4 py-3">
-                                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Main Activity</p>
-                                                        <p className="text-sm font-bold text-white">{assignment.title}</p>
-                                                        {assignment.description && <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{assignment.description}</p>}
+                                                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Main Activity</p>
+                                                        <p className="text-sm font-bold text-foreground">{assignment.title}</p>
+                                                        {assignment.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{assignment.description}</p>}
                                                         {assignment.due_date && (
-                                                            <div className={`flex items-center gap-1.5 mt-2 ${deadlineLabel(assignment.due_date).overdue ? 'text-rose-400' : deadlineLabel(assignment.due_date).urgent ? 'text-amber-400' : 'text-white/30'}`}>
+                                                            <div className={`flex items-center gap-1.5 mt-2 ${deadlineLabel(assignment.due_date).overdue ? 'text-rose-600 dark:text-rose-400' : deadlineLabel(assignment.due_date).urgent ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
                                                                 <ClockIcon className="w-3 h-3" />
                                                                 <span className="text-[10px] font-bold">{deadlineLabel(assignment.due_date).text}</span>
                                                             </div>
@@ -648,7 +648,7 @@ export default function ProjectsPage() {
 
                                                 {/* Group members */}
                                                 <div>
-                                                    <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-3">Your Group Members ({members.length})</p>
+                                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">Your Group Members ({members.length})</p>
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                         {members.map((m: any) => {
                                                             const isMe = m.student_id === profile!.id;
@@ -656,14 +656,14 @@ export default function ProjectsPage() {
                                                             const memberScore = isGroupEval ? group.group_score : m.individual_score;
                                                             return (
                                                                 <div key={m.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${isMe ? 'bg-primary/10 border-primary/30' : 'bg-white/[0.03] border-border'}`}>
-                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isMe ? 'bg-primary/30 text-primary' : 'bg-white/10 text-white/50'}`}>
+                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isMe ? 'bg-primary/30 text-primary' : 'bg-white/10 text-muted-foreground'}`}>
                                                                         {(name || '?')[0].toUpperCase()}
                                                                     </div>
                                                                     <div className="min-w-0">
-                                                                        <p className={`text-[11px] font-bold truncate ${isMe ? 'text-primary' : 'text-white/70'}`}>{name}{isMe && ' (You)'}</p>
-                                                                        {m.task_description && <p className="text-[9px] text-white/40 truncate italic">{m.task_description}</p>}
+                                                                        <p className={`text-[11px] font-bold truncate ${isMe ? 'text-primary' : 'text-muted-foreground'}`}>{name}{isMe && ' (You)'}</p>
+                                                                        {m.task_description && <p className="text-[9px] text-muted-foreground truncate italic">{m.task_description}</p>}
                                                                         {group.is_graded && memberScore != null && (
-                                                                            <p className="text-[10px] text-emerald-400 font-black">{memberScore} pts</p>
+                                                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black">{memberScore} pts</p>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -675,13 +675,13 @@ export default function ProjectsPage() {
                                                 {/* Feedback */}
                                                 {group.is_graded && myFeedback && (
                                                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
-                                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Teacher Feedback</p>
-                                                        <p className="text-sm text-emerald-300/70 italic">"{myFeedback}"</p>
+                                                        <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Teacher Feedback</p>
+                                                        <p className="text-sm text-emerald-700/70 dark:text-emerald-300/70 italic">"{myFeedback}"</p>
                                                     </div>
                                                 )}
 
                                                 {!group.is_graded && (
-                                                    <div className="flex items-center gap-2 text-amber-400/60">
+                                                    <div className="flex items-center gap-2 text-amber-600/60 dark:text-amber-400/60">
                                                         <ClockIcon className="w-3.5 h-3.5" />
                                                         <span className="text-[10px] font-bold">Awaiting evaluation from your teacher</span>
                                                     </div>
@@ -721,14 +721,14 @@ export default function ProjectsPage() {
                                         <div className="flex items-center gap-6 overflow-x-auto">
                                             {[
                                                 { label: 'Total', value: myActStats.total, color: 'text-foreground', dot: 'bg-foreground/30' },
-                                                { label: 'To Do', value: myActStats.pending, color: 'text-amber-400', dot: 'bg-amber-400' },
-                                                { label: 'Submitted', value: myActStats.submitted, color: 'text-indigo-400', dot: 'bg-indigo-400' },
-                                                { label: 'Graded', value: myActStats.graded, color: 'text-emerald-400', dot: 'bg-emerald-400' },
+                                                { label: 'To Do', value: myActStats.pending, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-400' },
+                                                { label: 'Submitted', value: myActStats.submitted, color: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-400' },
+                                                { label: 'Graded', value: myActStats.graded, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-400' },
                                             ].map(s => (
                                                 <div key={s.label} className="flex items-center gap-2 flex-shrink-0">
                                                     <div className={`w-2 h-2 rounded-full ${s.dot}`} />
                                                     <span className={`text-xl font-black ${s.color}`}>{s.value}</span>
-                                                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{s.label}</span>
+                                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{s.label}</span>
                                                 </div>
                                             ))}
                                             {/* Progress bar */}
@@ -762,13 +762,13 @@ export default function ProjectsPage() {
                                 <div className="px-6 md:px-10 py-6">
                                     {myActivities.length === 0 ? (
                                         <div className="border border-dashed border-white/10 p-16 text-center">
-                                            <ClipboardDocumentListIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                                            <p className="text-white/30 text-sm font-semibold">No activities assigned yet</p>
-                                            <p className="text-white/20 text-xs mt-1">Your teacher will post project activities here</p>
+                                            <ClipboardDocumentListIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                                            <p className="text-muted-foreground text-sm font-semibold">No activities assigned yet</p>
+                                            <p className="text-muted-foreground text-xs mt-1">Your teacher will post project activities here</p>
                                         </div>
                                     ) : filteredMyActs.length === 0 ? (
                                         <div className="border border-dashed border-white/10 p-10 text-center">
-                                            <p className="text-white/30 text-sm">No activities in this category</p>
+                                            <p className="text-muted-foreground text-sm">No activities in this category</p>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -783,10 +783,10 @@ export default function ProjectsPage() {
                                                 const diff = DIFF_META[meta.difficulty] || DIFF_META.intermediate;
 
                                                 const statusStyle = status === 'graded'
-                                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                                     : status === 'submitted'
-                                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                                        : 'bg-white/5 border-white/10 text-white/30';
+                                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                                                        : 'bg-white/5 border-white/10 text-muted-foreground';
 
                                                 return (
                                                     <Link key={act.id} href={`/dashboard/projects/${act.id}`}
@@ -796,7 +796,7 @@ export default function ProjectsPage() {
                                                         {dl.overdue && status === 'pending' && (
                                                             <div className="absolute top-0 left-0 right-0 bg-rose-600/80 px-3 py-1 flex items-center gap-1.5 z-10">
                                                                 <ExclamationTriangleIcon className="w-3 h-3 text-white" />
-                                                                <span className="text-[9px] font-black text-white uppercase tracking-widest">Overdue</span>
+                                                                <span className="text-[9px] font-black text-foreground uppercase tracking-widest">Overdue</span>
                                                             </div>
                                                         )}
 
@@ -816,18 +816,18 @@ export default function ProjectsPage() {
                                                                 </span>
                                                             </div>
 
-                                                            {act.description && <p className="text-[11px] text-white/40 line-clamp-2 mb-3">{act.description}</p>}
+                                                            {act.description && <p className="text-[11px] text-muted-foreground line-clamp-2 mb-3">{act.description}</p>}
 
                                                             {/* Meta row */}
                                                             <div className="flex items-center gap-2 flex-wrap mb-3">
                                                                 <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '18', color: catInfo.color }}>{catInfo.label}</span>
                                                                 {meta.difficulty && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[9px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
-                                                                {meta.group_activity && <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">Group</span>}
-                                                                {meta.grading_mode === 'auto' && <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" />Auto-Grade</span>}
+                                                                {meta.group_activity && <span className="text-[9px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">Group</span>}
+                                                                {meta.grading_mode === 'auto' && <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" />Auto-Grade</span>}
                                                             </div>
 
                                                             {/* Deadline */}
-                                                            <div className={`flex items-center gap-1.5 mb-3 ${dl.overdue ? 'text-rose-400' : dl.urgent ? 'text-amber-400' : 'text-white/30'}`}>
+                                                            <div className={`flex items-center gap-1.5 mb-3 ${dl.overdue ? 'text-rose-600 dark:text-rose-400' : dl.urgent ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
                                                                 <ClockIcon className="w-3 h-3" />
                                                                 <span className="text-[10px] font-bold">{dl.text}</span>
                                                             </div>
@@ -836,10 +836,10 @@ export default function ProjectsPage() {
                                                             {mySub?.grade != null && (
                                                                 <div className="border-t border-border pt-3 mb-3">
                                                                     <div className="flex items-center justify-between">
-                                                                        <span className="text-[10px] text-white/40">Your grade</span>
+                                                                        <span className="text-[10px] text-muted-foreground">Your grade</span>
                                                                         <div className="flex items-center gap-1">
-                                                                            <span className="text-xl font-black text-emerald-400">{mySub.grade}</span>
-                                                                            <span className="text-white/30 text-xs">/ {act.max_points || 100}</span>
+                                                                            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{mySub.grade}</span>
+                                                                            <span className="text-muted-foreground text-xs">/ {act.max_points || 100}</span>
                                                                         </div>
                                                                     </div>
                                                                     {mySub.grade != null && (
@@ -852,8 +852,8 @@ export default function ProjectsPage() {
 
                                                             {mySub?.feedback && (
                                                                 <div className="bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 mb-3">
-                                                                    <p className="text-[9px] font-black text-emerald-400 mb-0.5">Teacher Feedback</p>
-                                                                    <p className="text-[10px] text-emerald-300/60 italic line-clamp-2">"{mySub.feedback}"</p>
+                                                                    <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 mb-0.5">Teacher Feedback</p>
+                                                                    <p className="text-[10px] text-emerald-700/60 dark:text-emerald-300/60 italic line-clamp-2">"{mySub.feedback}"</p>
                                                                 </div>
                                                             )}
 
@@ -967,7 +967,7 @@ export default function ProjectsPage() {
                                 <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Score Category · 20% of Final Grade</p>
 
                                 <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
-                                <p className="text-xs sm:text-sm text-white/40 font-semibold mt-1">Lab + portfolio projects and teacher-assigned activities</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1">Lab + portfolio projects and teacher-assigned activities</p>
                             </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -975,11 +975,11 @@ export default function ProjectsPage() {
                                 {[
                                     { label: 'Students', value: students.length, color: 'text-white' },
                                     { label: 'Active', value: totalWithProjects, color: 'text-primary' },
-                                    { label: 'Avg Score', value: `${avgScore}%`, color: 'text-emerald-400' },
+                                    { label: 'Avg Score', value: `${avgScore}%`, color: 'text-emerald-600 dark:text-emerald-400' },
                                 ].map(s => (
                                     <div key={s.label} className="bg-white/[0.03] border border-white/[0.07] px-3 sm:px-4 py-2 sm:py-3 text-center">
                                         <p className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</p>
-                                        <p className="text-[8px] sm:text-[9px] font-black text-white/30 uppercase tracking-widest mt-0.5">{s.label}</p>
+                                        <p className="text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{s.label}</p>
                                     </div>
                                 ))}
                             </div>
@@ -1008,7 +1008,7 @@ export default function ProjectsPage() {
                         <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                     ) : (
                         <div className="px-6 md:px-10 py-6 space-y-6">
-                            {filteredStudents.length === 0 && <div className="text-center py-20 text-white/30 text-sm">No students found.</div>}
+                            {filteredStudents.length === 0 && <div className="text-center py-20 text-muted-foreground text-sm">No students found.</div>}
                             {schoolNames.map(schoolName => {
                                 const schoolStudents = studentsBySchool[schoolName];
                                 const isCollapsed = collapsedSchools.has(schoolName);
@@ -1035,7 +1035,7 @@ export default function ProjectsPage() {
                                                 <p className="text-[9px] text-muted-foreground">{schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''} · {schoolActive} active · avg {schoolAvg}%</p>
                                             </div>
                                             <ScoreBadge pct={schoolAvg} />
-                                            {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5 text-white/30 flex-shrink-0" /> : <ChevronUpIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                                            {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronUpIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                                         </button>
 
                                         {/* Students in this school */}
@@ -1055,15 +1055,15 @@ export default function ProjectsPage() {
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-sm font-black text-foreground truncate">{student.full_name || '—'}</p>
                                                                     <div className="flex items-center gap-2 mt-0.5 sm:hidden">
-                                                                        <span className="text-[9px] text-indigo-400">{labs.length} Lab</span>
-                                                                        <span className="text-white/10">·</span>
+                                                                        <span className="text-[9px] text-indigo-600 dark:text-indigo-400">{labs.length} Lab</span>
+                                                                        <span className="text-muted-foreground">·</span>
                                                                         <span className="text-[9px] text-primary">{port.length} Portfolio</span>
-                                                                        <span className="text-white/10">·</span>
-                                                                        <span className={`text-[9px] font-black ${pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</span>
+                                                                        <span className="text-muted-foreground">·</span>
+                                                                        <span className={`text-[9px] font-black ${pct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{pct}%</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
-                                                                    <div className="text-center"><p className="text-base font-black text-indigo-400">{labs.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Lab</p></div>
+                                                                    <div className="text-center"><p className="text-base font-black text-indigo-600 dark:text-indigo-400">{labs.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Lab</p></div>
                                                                     <div className="text-center"><p className="text-base font-black text-primary">{port.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Portfolio</p></div>
                                                                     <div className="w-px h-8 bg-white/10" />
                                                                     <ScoreBadge pct={pct} />
@@ -1074,20 +1074,20 @@ export default function ProjectsPage() {
                                                                         <EyeIcon className="w-3 h-3" /> Report
                                                                     </Link>
                                                                 )}
-                                                                {isExp ? <ChevronUpIcon className="w-4 h-4 text-primary flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                                                                {isExp ? <ChevronUpIcon className="w-4 h-4 text-primary flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
                                                             </button>
                                                             {isExp && (
                                                                 <div className="border-t border-border px-5 py-5 space-y-5 bg-black/20">
                                                                     <div>
-                                                                        <div className="flex items-center gap-2 mb-3"><CodeBracketIcon className="w-4 h-4 text-indigo-400" /><span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Lab Projects ({labs.length})</span></div>
-                                                                        {labs.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No lab projects saved yet</p> : (
+                                                                        <div className="flex items-center gap-2 mb-3"><CodeBracketIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /><span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Lab Projects ({labs.length})</span></div>
+                                                                        {labs.length === 0 ? <p className="text-[11px] text-muted-foreground italic pl-6">No lab projects saved yet</p> : (
                                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
                                                                                 {labs.map(p => {
                                                                                     const color = LANG_COLOR[(p.language || '').toLowerCase()] || LANG_COLOR.default; return (
                                                                                         <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
                                                                                             <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
                                                                                             <span className="text-[9px] font-bold" style={{ color }}>{p.language}</span>
-                                                                                            <p className="text-[9px] text-white/20 mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
+                                                                                            <p className="text-[9px] text-muted-foreground mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
                                                                                         </div>
                                                                                     );
                                                                                 })}
@@ -1096,14 +1096,14 @@ export default function ProjectsPage() {
                                                                     </div>
                                                                     <div>
                                                                         <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-primary" /><span className="text-xs font-black text-primary uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
-                                                                        {port.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No portfolio projects added yet</p> : (
+                                                                        {port.length === 0 ? <p className="text-[11px] text-muted-foreground italic pl-6">No portfolio projects added yet</p> : (
                                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
                                                                                 {port.map(p => {
                                                                                     const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
                                                                                         <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
                                                                                             <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
                                                                                             <span className="text-[9px] font-bold" style={{ color }}>{p.category}</span>
-                                                                                            {p.is_featured && <p className="text-[9px] text-amber-400 font-black mt-1">★ Featured</p>}
+                                                                                            {p.is_featured && <p className="text-[9px] text-amber-600 dark:text-amber-400 font-black mt-1">★ Featured</p>}
                                                                                         </div>
                                                                                     );
                                                                                 })}
@@ -1114,7 +1114,7 @@ export default function ProjectsPage() {
                                                                         <div className="w-8 h-8 bg-primary/20 flex items-center justify-center flex-shrink-0"><RocketLaunchIcon className="w-4 h-4 text-primary" /></div>
                                                                         <div className="flex-1">
                                                                             <p className="text-[10px] font-black text-primary uppercase tracking-widest">Project Engagement Score</p>
-                                                                            <p className="text-xs text-white/40 mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-primary font-black">{pct}%</span></p>
+                                                                            <p className="text-xs text-muted-foreground mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-primary font-black">{pct}%</span></p>
                                                                         </div>
                                                                         {role !== 'school' && (
                                                                             <Link href={`/dashboard/reports/builder?student=${student.id}`}
@@ -1159,7 +1159,7 @@ export default function ProjectsPage() {
                         </div>
 
                         {groupsError && (
-                            <div className="mx-6 md:mx-10 mt-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">{groupsError}</div>
+                            <div className="mx-6 md:mx-10 mt-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-sm rounded-xl">{groupsError}</div>
                         )}
 
                         {/* Create Group panel */}
@@ -1219,7 +1219,7 @@ export default function ProjectsPage() {
                                                             sel ? prev.filter(id => id !== s.id) : [...prev, s.id]
                                                         )}
                                                             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${sel ? 'bg-primary/20 border-primary/40' : 'bg-white/[0.03] border-border hover:border-primary/20'}`}>
-                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-black ${sel ? 'bg-primary text-white' : 'bg-white/10 text-white/50'}`}>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-black ${sel ? 'bg-primary text-white' : 'bg-white/10 text-muted-foreground'}`}>
                                                                 {sel ? <CheckIcon className="w-3 h-3" /> : (s.full_name || '?')[0].toUpperCase()}
                                                             </div>
                                                             <span className={`text-[11px] font-bold truncate ${sel ? 'text-primary' : 'text-muted-foreground'}`}>{s.full_name}</span>
@@ -1262,7 +1262,7 @@ export default function ProjectsPage() {
                                     )}
 
                                     {groupCreateError && (
-                                        <div className="px-4 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+                                        <div className="px-4 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs rounded-xl flex items-center gap-2">
                                             <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
                                             {groupCreateError}
                                         </div>
@@ -1307,11 +1307,11 @@ export default function ProjectsPage() {
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <h3 className="text-sm font-black text-foreground">{group.name}</h3>
                                                         {group.class_name && <span className="text-[9px] font-bold text-muted-foreground bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{group.class_name}</span>}
-                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/15 text-primary' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/15 text-primary' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}`}>
                                                             {isGroupEval ? 'Group Score' : 'Individual'}
                                                         </span>
                                                         {group.is_graded
-                                                            ? <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircleIcon className="w-3 h-3" /> Graded</span>
+                                                            ? <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircleIcon className="w-3 h-3" /> Graded</span>
                                                             : <span className="text-[9px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" /> Active</span>
                                                         }
                                                     </div>
@@ -1336,12 +1336,12 @@ export default function ProjectsPage() {
                                                     )}
                                                     {group.is_graded && (
                                                         <button onClick={() => setSharingGroupId(sharingGroupId === group.id ? null : group.id)}
-                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${sharingGroupId === group.id ? 'bg-green-600/30 border-green-500/50 text-green-300' : 'bg-green-600/10 border-green-500/20 text-green-400 hover:bg-green-600/20'}`}>
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${sharingGroupId === group.id ? 'bg-green-600/30 border-green-500/50 text-green-700 dark:text-green-300' : 'bg-green-600/10 border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-600/20'}`}>
                                                             <WhatsAppIcon className="w-3.5 h-3.5" /> Share
                                                         </button>
                                                     )}
                                                     <button onClick={() => setDeleteGroupTarget({ id: group.id, name: group.name })}
-                                                        className="p-1.5 text-rose-400/40 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-all rounded-lg">
+                                                        className="p-1.5 text-rose-600/40 dark:text-rose-400/40 hover:text-rose-600 dark:hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-all rounded-lg">
                                                         <TrashIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -1366,13 +1366,13 @@ export default function ProjectsPage() {
                                                                     <div className="flex items-center gap-2 flex-wrap">
                                                                         <span className="text-xs font-bold text-foreground">{m.portal_users?.full_name || '—'}</span>
                                                                         {group.is_graded && (
-                                                                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                                                                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                                                                                 {isGroupEval ? group.group_score : m.individual_score ?? '—'} pts
                                                                             </span>
                                                                         )}
                                                                         {/* Submission status */}
                                                                         {sub && (
-                                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : sub.status === 'submitted' ? 'bg-amber-500/10 text-amber-400' : 'bg-white/5 text-white/30'}`}>
+                                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : sub.status === 'submitted' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-white/5 text-muted-foreground'}`}>
                                                                                 {sub.status === 'graded' ? '✓ Graded' : sub.status === 'submitted' ? 'Submitted' : sub.status}
                                                                             </span>
                                                                         )}
@@ -1391,11 +1391,11 @@ export default function ProjectsPage() {
                                                                             {m.task_description}
                                                                         </p>
                                                                     ) : (
-                                                                        <p className="mt-1 text-[10px] text-white/20 italic">No task assigned</p>
+                                                                        <p className="mt-1 text-[10px] text-muted-foreground italic">No task assigned</p>
                                                                     )}
                                                                     {/* Submission preview */}
                                                                     {sub?.submission_text && (
-                                                                        <p className="mt-1.5 text-[10px] text-white/50 line-clamp-2 bg-white/[0.03] border border-border rounded-lg px-2 py-1.5">
+                                                                        <p className="mt-1.5 text-[10px] text-muted-foreground line-clamp-2 bg-white/[0.03] border border-border rounded-lg px-2 py-1.5">
                                                                             "{sub.submission_text}"
                                                                         </p>
                                                                     )}
@@ -1436,7 +1436,7 @@ export default function ProjectsPage() {
                                                             setExpandedSubsId(group.id);
                                                             if (!groupSubmissions[group.id]) await loadGroupSubmissions(group);
                                                         }}
-                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${expandedSubsId === group.id ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-white/[0.03] border-border hover:border-cyan-500/20 text-muted-foreground hover:text-cyan-400'}`}>
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${expandedSubsId === group.id ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400' : 'bg-white/[0.03] border-border hover:border-cyan-500/20 text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400'}`}>
                                                             {loadingSubsId === group.id ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
                                                             {expandedSubsId === group.id ? 'Hide Submissions' : 'View Submissions'}
                                                         </button>
@@ -1449,11 +1449,11 @@ export default function ProjectsPage() {
                                                     const noSub = members.filter((m: any) => !subs.find((s: any) => s.portal_user_id === m.student_id));
                                                     return (
                                                         <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 space-y-3">
-                                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                                                            <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">
                                                                 {group.assignments?.title || 'Submissions'} — {subs.length} of {members.length} submitted
                                                             </p>
                                                             {subs.length === 0 && noSub.length === members.length ? (
-                                                                <p className="text-xs text-white/30 italic">No submissions yet.</p>
+                                                                <p className="text-xs text-muted-foreground italic">No submissions yet.</p>
                                                             ) : (
                                                                 <>
                                                                     {subs.map((sub: any) => {
@@ -1463,26 +1463,26 @@ export default function ProjectsPage() {
                                                                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                                                                     <span className="text-xs font-bold text-foreground">{mem?.portal_users?.full_name || 'Unknown'}</span>
                                                                                     <div className="flex items-center gap-2">
-                                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{sub.status}</span>
-                                                                                        {sub.grade != null && <span className="text-[10px] font-black text-emerald-400">{sub.grade} pts</span>}
+                                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>{sub.status}</span>
+                                                                                        {sub.grade != null && <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{sub.grade} pts</span>}
                                                                                         {sub.submitted_at && <span className="text-[9px] text-muted-foreground">{new Date(sub.submitted_at).toLocaleDateString('en-GB')}</span>}
                                                                                     </div>
                                                                                 </div>
                                                                                 {sub.submission_text && (
-                                                                                    <p className="text-[11px] text-white/60 bg-white/[0.02] border border-white/[0.04] rounded-lg px-3 py-2 line-clamp-4">{sub.submission_text}</p>
+                                                                                    <p className="text-[11px] text-muted-foreground bg-white/[0.02] border border-white/[0.04] rounded-lg px-3 py-2 line-clamp-4">{sub.submission_text}</p>
                                                                                 )}
                                                                                 {sub.file_url && (
                                                                                     <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                                                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-cyan-400 hover:text-cyan-300 transition-colors">
+                                                                                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">
                                                                                         <ArrowDownTrayIcon className="w-3 h-3" /> Download File
                                                                                     </a>
                                                                                 )}
-                                                                                {sub.feedback && <p className="text-[10px] text-emerald-300/70 italic">Feedback: "{sub.feedback}"</p>}
+                                                                                {sub.feedback && <p className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70 italic">Feedback: "{sub.feedback}"</p>}
                                                                             </div>
                                                                         );
                                                                     })}
                                                                     {noSub.length > 0 && (
-                                                                        <p className="text-[10px] text-amber-400/60 italic">
+                                                                        <p className="text-[10px] text-amber-600/60 dark:text-amber-400/60 italic">
                                                                             Not submitted: {noSub.map((m: any) => m.portal_users?.full_name).join(', ')}
                                                                         </p>
                                                                     )}
@@ -1497,8 +1497,8 @@ export default function ProjectsPage() {
                                             {sharingGroupId === group.id && (
                                                 <div className="border-t border-green-500/20 bg-green-500/5 px-6 py-5">
                                                     <div className="flex items-center gap-2 mb-4">
-                                                        <WhatsAppIcon className="w-4 h-4 text-green-400" />
-                                                        <p className="text-[11px] font-black text-green-400 uppercase tracking-widest">Send Results via WhatsApp</p>
+                                                        <WhatsAppIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                        <p className="text-[11px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest">Send Results via WhatsApp</p>
                                                         <span className="text-[9px] text-muted-foreground ml-auto">Opens WhatsApp with pre-filled message</span>
                                                     </div>
                                                     <div className="space-y-2">
@@ -1513,19 +1513,19 @@ export default function ProjectsPage() {
                                                                 : `https://wa.me/?text=${encodeURIComponent(msg)}`;
                                                             return (
                                                                 <div key={m.id} className="flex items-center gap-3 bg-white/[0.02] border border-border rounded-xl px-4 py-3">
-                                                                    <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] font-black text-green-300 flex-shrink-0">
+                                                                    <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] font-black text-green-700 dark:text-green-300 flex-shrink-0">
                                                                         {name[0].toUpperCase()}
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
                                                                         <p className="text-[12px] font-bold text-foreground">{name}</p>
                                                                         {phone
                                                                             ? <p className="text-[10px] text-muted-foreground">{m.portal_users?.phone}</p>
-                                                                            : <p className="text-[10px] text-amber-400/70">No phone on file — will open pick-contact</p>
+                                                                            : <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70">No phone on file — will open pick-contact</p>
                                                                         }
                                                                     </div>
                                                                     <div className="flex items-center gap-2 flex-shrink-0">
                                                                         {score != null && (
-                                                                            <span className="text-sm font-black text-emerald-400">{score}</span>
+                                                                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{score}</span>
                                                                         )}
                                                                         <a href={waUrl} target="_blank" rel="noopener noreferrer"
                                                                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 transition-colors text-white text-[10px] font-black uppercase tracking-widest rounded-lg">
@@ -1549,7 +1549,7 @@ export default function ProjectsPage() {
                                                                     setTimeout(() => window.open(waUrl, '_blank'), i * 600);
                                                                 });
                                                             }}
-                                                                className="flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/30 text-green-400 text-[10px] font-black uppercase tracking-widest hover:bg-green-600/30 transition-all rounded-xl">
+                                                                className="flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/30 text-green-600 dark:text-green-400 text-[10px] font-black uppercase tracking-widest hover:bg-green-600/30 transition-all rounded-xl">
                                                                 <WhatsAppIcon className="w-3.5 h-3.5" /> Send to All ({members.length})
                                                             </button>
                                                         </div>
@@ -1594,11 +1594,11 @@ export default function ProjectsPage() {
                                                                                 <p className="text-[11px] font-bold text-foreground">{name}</p>
                                                                                 {m.task_description && <p className="text-[10px] text-primary/70 italic mt-0.5">{m.task_description}</p>}
                                                                                 {sub?.submission_text && (
-                                                                                    <p className="mt-1 text-[10px] text-white/50 bg-white/[0.03] border border-border rounded-lg px-2 py-1 line-clamp-3">{sub.submission_text}</p>
+                                                                                    <p className="mt-1 text-[10px] text-muted-foreground bg-white/[0.03] border border-border rounded-lg px-2 py-1 line-clamp-3">{sub.submission_text}</p>
                                                                                 )}
-                                                                                {!sub && group.assignment_id && <p className="text-[10px] text-amber-400/50 mt-0.5 italic">No submission yet</p>}
+                                                                                {!sub && group.assignment_id && <p className="text-[10px] text-amber-600/50 dark:text-amber-400/50 mt-0.5 italic">No submission yet</p>}
                                                                             </div>
-                                                                            {sub && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex-shrink-0 ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{sub.status}</span>}
+                                                                            {sub && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex-shrink-0 ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>{sub.status}</span>}
                                                                         </div>
                                                                         {/* Score + feedback */}
                                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1645,7 +1645,7 @@ export default function ProjectsPage() {
                         <div className="p-6 space-y-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-rose-500/10 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
-                                    <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+                                    <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                                 </div>
                                 <div>
                                     <p className="text-sm font-black text-foreground uppercase tracking-widest">Delete Group?</p>
@@ -1682,7 +1682,7 @@ export default function ProjectsPage() {
                                 { label: 'Written Exams', href: '/dashboard/exams', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: AcademicCapIcon },
                                 { label: 'CBT / Evaluation', href: '/dashboard/cbt', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ChartBarIcon },
                                 { label: 'Assignments', href: '/dashboard/assignments', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ClipboardDocumentListIcon },
-                                { label: 'Projects', href: '#', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30', Icon: RocketLaunchIcon, active: true },
+                                { label: 'Projects', href: '#', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border-emerald-500/30', Icon: RocketLaunchIcon, active: true },
                             ].map(({ label, href, color, Icon }) => (
                                 href === '#'
                                     ? <span key={label} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 ${color}`}><Icon className="w-3 h-3" />{label} <span className="text-[8px] opacity-60">(here)</span></span>
@@ -1695,10 +1695,10 @@ export default function ProjectsPage() {
                         <div className="flex items-center gap-6 overflow-x-auto">
                             {[
                                 { label: 'Total Activities', value: actStats.total, Icon: ClipboardDocumentListIcon, color: 'text-foreground' },
-                                { label: 'Active', value: actStats.active, Icon: CheckCircleIcon, color: 'text-emerald-400' },
-                                { label: 'Need Grading', value: actStats.pendingGrade, Icon: PencilSquareIcon, color: actStats.pendingGrade > 0 ? 'text-amber-400' : 'text-muted-foreground' },
+                                { label: 'Active', value: actStats.active, Icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400' },
+                                { label: 'Need Grading', value: actStats.pendingGrade, Icon: PencilSquareIcon, color: actStats.pendingGrade > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground' },
                                 { label: 'Total Subs', value: actStats.totalSubs, Icon: RocketLaunchIcon, color: 'text-primary' },
-                                { label: 'Graded', value: actStats.graded, Icon: TrophyIcon, color: 'text-cyan-400' },
+                                { label: 'Graded', value: actStats.graded, Icon: TrophyIcon, color: 'text-cyan-600 dark:text-cyan-400' },
                             ].map(s => {
                                 const Icon = s.Icon;
                                 return (
@@ -1708,15 +1708,15 @@ export default function ProjectsPage() {
                                         </div>
                                         <div>
                                             <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
-                                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">{s.label}</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{s.label}</p>
                                         </div>
                                     </div>
                                 );
                             })}
                             {actStats.pendingGrade > 0 && (
                                 <div className="ml-auto flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 animate-pulse">
-                                    <FireIcon className="w-3.5 h-3.5 text-amber-400" />
-                                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{actStats.pendingGrade} submission{actStats.pendingGrade !== 1 ? 's' : ''} awaiting review</span>
+                                    <FireIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">{actStats.pendingGrade} submission{actStats.pendingGrade !== 1 ? 's' : ''} awaiting review</span>
                                 </div>
                             )}
                         </div>
@@ -1778,9 +1778,9 @@ export default function ProjectsPage() {
                             <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                         ) : activities.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-16 text-center">
-                                <ClipboardDocumentListIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                                <p className="text-white/30 text-base font-semibold">No project activities yet</p>
-                                <p className="text-white/20 text-xs mt-1 mb-5">Create activities to assign project work — individual or group</p>
+                                <ClipboardDocumentListIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                                <p className="text-muted-foreground text-base font-semibold">No project activities yet</p>
+                                <p className="text-muted-foreground text-xs mt-1 mb-5">Create activities to assign project work — individual or group</p>
                                 <Link href="/dashboard/projects/new"
                                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">
                                     <PlusIcon className="w-3.5 h-3.5" /> Create First Activity
@@ -1788,7 +1788,7 @@ export default function ProjectsPage() {
                             </div>
                         ) : catFilteredActs.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-10 text-center">
-                                <p className="text-white/30 text-sm">No activities match this filter</p>
+                                <p className="text-muted-foreground text-sm">No activities match this filter</p>
                             </div>
                         ) : (
                             usedCategories.map(catKey => {
@@ -1830,7 +1830,7 @@ export default function ProjectsPage() {
                                                         {pendingCount > 0 && (
                                                             <div className="absolute top-0 left-0 right-0 bg-amber-500/80 px-3 py-1 flex items-center gap-1.5 z-10">
                                                                 <FireIcon className="w-3 h-3 text-white" />
-                                                                <span className="text-[9px] font-black text-white uppercase tracking-widest">{pendingCount} submission{pendingCount !== 1 ? 's' : ''} awaiting your review</span>
+                                                                <span className="text-[9px] font-black text-foreground uppercase tracking-widest">{pendingCount} submission{pendingCount !== 1 ? 's' : ''} awaiting your review</span>
                                                             </div>
                                                         )}
 
@@ -1845,19 +1845,19 @@ export default function ProjectsPage() {
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{act.title}</h3>
-                                                                    {act.description && <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{act.description}</p>}
+                                                                    {act.description && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{act.description}</p>}
                                                                 </div>
-                                                                {isDraft && <span className="text-[8px] font-black text-white/30 border border-white/10 px-1.5 py-0.5 uppercase tracking-widest flex-shrink-0">Draft</span>}
+                                                                {isDraft && <span className="text-[8px] font-black text-muted-foreground border border-white/10 px-1.5 py-0.5 uppercase tracking-widest flex-shrink-0">Draft</span>}
                                                             </div>
 
                                                             {/* Badges */}
                                                             <div className="flex items-center gap-1.5 flex-wrap mb-4">
                                                                 <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '20', color: catInfo.color }}>{catInfo.label}</span>
                                                                 {diff && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[8px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
-                                                                {meta.group_activity && <span className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
-                                                                {meta.grading_mode === 'auto' && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
+                                                                {meta.group_activity && <span className="text-[8px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
+                                                                {meta.grading_mode === 'auto' && <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
                                                                 {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5">📋 Rubric</span>}
-                                                                {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-white/30 border border-white/10 px-1 py-0.5">{t}</span>)}
+                                                                {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-muted-foreground border border-white/10 px-1 py-0.5">{t}</span>)}
                                                             </div>
 
                                                             {/* Submissions ring */}
@@ -1871,15 +1871,15 @@ export default function ProjectsPage() {
                                                                 </div>
                                                                 <div className="flex items-center justify-between mt-2">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] text-white/40">{gradedCount} done</span></div>
-                                                                        {pendingCount > 0 && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[9px] text-amber-400 font-bold">{pendingCount} pending</span></div>}
+                                                                        <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] text-muted-foreground">{gradedCount} done</span></div>
+                                                                        {pendingCount > 0 && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[9px] text-amber-600 dark:text-amber-400 font-bold">{pendingCount} pending</span></div>}
                                                                     </div>
-                                                                    <span className="text-[9px] text-white/20">{act.max_points || 100} pts max</span>
+                                                                    <span className="text-[9px] text-muted-foreground">{act.max_points || 100} pts max</span>
                                                                 </div>
                                                             </div>
 
                                                             {/* Deadline */}
-                                                            <div className={`flex items-center gap-1.5 mb-4 ${dl.overdue ? 'text-rose-400' : dl.urgent ? 'text-amber-400' : 'text-white/30'}`}>
+                                                            <div className={`flex items-center gap-1.5 mb-4 ${dl.overdue ? 'text-rose-600 dark:text-rose-400' : dl.urgent ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
                                                                 <ClockIcon className="w-3 h-3" />
                                                                 <span className="text-[10px] font-bold">{dl.text}</span>
                                                             </div>

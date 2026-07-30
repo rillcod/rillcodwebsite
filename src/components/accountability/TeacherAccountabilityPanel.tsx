@@ -79,7 +79,7 @@ const STATUS_META: Record<TeacherWorkloadCard['status'], {
   complete: {
     label: 'Fully published',
     hint: 'Every true student has a published report',
-    tone: 'text-emerald-600',
+    tone: 'text-emerald-600 dark:text-emerald-400',
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/25',
     bar: 'bg-emerald-500',
@@ -87,7 +87,7 @@ const STATUS_META: Record<TeacherWorkloadCard['status'], {
   drafts: {
     label: 'Drafts pending',
     hint: 'Results written but not all published yet',
-    tone: 'text-amber-600',
+    tone: 'text-amber-600 dark:text-amber-400',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/25',
     bar: 'bg-amber-500',
@@ -95,7 +95,7 @@ const STATUS_META: Record<TeacherWorkloadCard['status'], {
   incomplete: {
     label: 'Incomplete',
     hint: 'Some true students still missing results',
-    tone: 'text-rose-600',
+    tone: 'text-rose-600 dark:text-rose-400',
     bg: 'bg-rose-500/10',
     border: 'border-rose-500/25',
     bar: 'bg-rose-500',
@@ -103,7 +103,7 @@ const STATUS_META: Record<TeacherWorkloadCard['status'], {
   no_students: {
     label: 'No true students',
     hint: 'Has classes but no active roster students this term',
-    tone: 'text-orange-600',
+    tone: 'text-orange-600 dark:text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/25',
     bar: 'bg-orange-500',
@@ -176,7 +176,7 @@ function TeacherCard({
                 </h3>
                 <RoleBadge role="teacher" size="sm" />
                 {!teacher.is_active && (
-                  <span className="text-[10px] font-black uppercase text-rose-500">Inactive</span>
+                  <span className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400">Inactive</span>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -184,7 +184,7 @@ function TeacherCard({
                 {teacher.school_name ? ` · ${teacher.school_name}` : ''}
               </p>
               {teacher.courses.length > 0 && (
-                <p className="text-[11px] text-violet-500/90 mt-1 line-clamp-1">
+                <p className="text-[11px] text-violet-600/90 dark:text-violet-400/90 mt-1 line-clamp-1">
                   Courses: {teacher.courses.join(' · ')}
                 </p>
               )}
@@ -205,15 +205,15 @@ function TeacherCard({
           </div>
           <div className="rounded-xl bg-sky-500/5 border border-sky-500/20 px-3 py-2">
             <div className={LABEL}>True students</div>
-            <div className="text-xl font-black tabular-nums text-sky-600 mt-0.5">{teacher.true_students}</div>
+            <div className="text-xl font-black tabular-nums text-sky-600 dark:text-sky-400 mt-0.5">{teacher.true_students}</div>
           </div>
           <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 px-3 py-2">
             <div className={LABEL}>Published</div>
-            <div className="text-xl font-black tabular-nums text-emerald-600 mt-0.5">{teacher.published}</div>
+            <div className="text-xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">{teacher.published}</div>
           </div>
           <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 px-3 py-2">
             <div className={LABEL}>Missing</div>
-            <div className="text-xl font-black tabular-nums text-rose-600 mt-0.5">{teacher.missing}</div>
+            <div className="text-xl font-black tabular-nums text-rose-600 dark:text-rose-400 mt-0.5">{teacher.missing}</div>
           </div>
         </div>
 
@@ -229,7 +229,7 @@ function TeacherCard({
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Published</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Draft</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> Missing</span>
-            {teacher.drafts > 0 && <span className="text-amber-600 font-bold">{teacher.drafts} draft{teacher.drafts === 1 ? '' : 's'}</span>}
+            {teacher.drafts > 0 && <span className="text-amber-600 dark:text-amber-400 font-bold">{teacher.drafts} draft{teacher.drafts === 1 ? '' : 's'}</span>}
           </div>
           <p className={`text-[11px] ${meta.tone}`}>{meta.hint}</p>
         </div>
@@ -296,17 +296,17 @@ function TeacherCard({
                                 </td>
                                 <td className="px-3 py-2.5">
                                   {s.report_status === 'published' && (
-                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
+                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                                       <CheckCircleIcon className="w-3.5 h-3.5" /> Published
                                     </span>
                                   )}
                                   {s.report_status === 'draft' && (
-                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600">
+                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
                                       <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Draft only
                                     </span>
                                   )}
                                   {s.report_status === 'missing' && (
-                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600">
+                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400">
                                       <ExclamationTriangleIcon className="w-3.5 h-3.5" /> No result
                                     </span>
                                   )}
@@ -327,7 +327,7 @@ function TeacherCard({
                       <div className="px-3 py-2 border-t border-border flex justify-end">
                         <Link
                           href={`/dashboard/classes`}
-                          className="text-[11px] font-bold text-indigo-500 hover:underline"
+                          className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                         >
                           Open classes →
                         </Link>
@@ -419,7 +419,7 @@ export default function TeacherAccountabilityPanel() {
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-        <ArrowPathIcon className="w-5 h-5 animate-spin text-violet-500" />
+        <ArrowPathIcon className="w-5 h-5 animate-spin text-violet-600 dark:text-violet-400" />
         Building teacher workload map…
       </div>
     );
@@ -427,11 +427,11 @@ export default function TeacherAccountabilityPanel() {
 
   if (error && !data) {
     return (
-      <div className={`${CARD} p-6 text-sm text-rose-500 flex items-start gap-3`}>
+      <div className={`${CARD} p-6 text-sm text-rose-600 dark:text-rose-400 flex items-start gap-3`}>
         <ExclamationTriangleIcon className="w-5 h-5 shrink-0" />
         <div>
           <p className="font-bold">{error}</p>
-          <button type="button" onClick={() => void load()} className="mt-2 text-xs font-black uppercase text-indigo-500 hover:underline">
+          <button type="button" onClick={() => void load()} className="mt-2 text-xs font-black uppercase text-indigo-600 dark:text-indigo-400 hover:underline">
             Retry
           </button>
         </div>
@@ -448,7 +448,7 @@ export default function TeacherAccountabilityPanel() {
         <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-violet-600 mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-3">
               <AcademicCapIcon className="w-3.5 h-3.5" /> Teacher results accountability
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
@@ -459,7 +459,7 @@ export default function TeacherAccountabilityPanel() {
               Expand any teacher to audit every student line.
             </p>
             {data?.term_context && (
-              <p className="text-xs font-bold text-violet-600 mt-3">
+              <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-3">
                 Active term · {data.term_context.academic_year} · {data.term_context.term_label}
               </p>
             )}
@@ -480,10 +480,10 @@ export default function TeacherAccountabilityPanel() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {([
           ['all', summary.teachers, 'All teachers', 'text-foreground'],
-          ['complete', summary.complete, 'Fully published', 'text-emerald-600'],
-          ['drafts', summary.drafts, 'Drafts pending', 'text-amber-600'],
-          ['incomplete', summary.incomplete, 'Incomplete', 'text-rose-600'],
-          ['no_students', summary.no_students, 'No true students', 'text-orange-600'],
+          ['complete', summary.complete, 'Fully published', 'text-emerald-600 dark:text-emerald-400'],
+          ['drafts', summary.drafts, 'Drafts pending', 'text-amber-600 dark:text-amber-400'],
+          ['incomplete', summary.incomplete, 'Incomplete', 'text-rose-600 dark:text-rose-400'],
+          ['no_students', summary.no_students, 'No true students', 'text-orange-600 dark:text-orange-400'],
           ['no_classes', summary.no_classes, 'No classes', 'text-muted-foreground'],
         ] as const).map(([key, value, label, tone]) => (
           <button
@@ -529,7 +529,7 @@ export default function TeacherAccountabilityPanel() {
           )}
           <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-muted-foreground border-t border-border pt-3">
             <span className="flex items-center gap-1.5"><UserGroupIcon className="w-3.5 h-3.5" /> True students = active, non-withdrawn roster learners</span>
-            <span className="flex items-center gap-1.5"><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" /> Fully published = every true student has a published report</span>
+            <span className="flex items-center gap-1.5"><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Fully published = every true student has a published report</span>
           </div>
         </div>
       </div>

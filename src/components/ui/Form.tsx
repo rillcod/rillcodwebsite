@@ -518,11 +518,11 @@ export const FormField: React.FC<FormFieldProps> = ({
     <div className="space-y-1">
       <label htmlFor={name} className="block text-sm font-medium text-foreground/80">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-red-600 dark:text-red-400 ml-1">*</span>}
       </label>
       {renderInput()}
       {error && (
-        <div className="flex items-center space-x-1 text-sm text-red-600">
+        <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="w-4 h-4" />
           <span>{error}</span>
         </div>

@@ -212,9 +212,9 @@ export default function GradeSessionPage() {
     if (error || !session) return (
         <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
             <div className="text-center">
-                <XCircleIcon className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+                <XCircleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto mb-4" />
                 <p className="text-muted-foreground">{error || 'Session not found'}</p>
-                <button onClick={() => router.back()} className="mt-4 text-emerald-400 font-bold underline">Go Back</button>
+                <button onClick={() => router.back()} className="mt-4 text-emerald-600 dark:text-emerald-400 font-bold underline">Go Back</button>
             </div>
         </div>
     );
@@ -236,17 +236,17 @@ export default function GradeSessionPage() {
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                                <BookOpenIcon className="w-4 h-4 text-emerald-400" />
+                                <BookOpenIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             </div>
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">{exam.title}</span>
+                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em]">{exam.title}</span>
                         </div>
                         <h1 className="text-4xl font-black italic tracking-tighter">Evaluation Canvas</h1>
                         <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground">
                             <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
-                                <UserCircleIcon className="w-3.5 h-3.5 text-cyan-400" /> {session.portal_users?.full_name}
+                                <UserCircleIcon className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" /> {session.portal_users?.full_name}
                             </span>
                             <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
-                                <ClockIcon className="w-3.5 h-3.5 text-amber-400" /> {new Date(session.end_time).toLocaleDateString()} · {new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                <ClockIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> {new Date(session.end_time).toLocaleDateString()} · {new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                     </div>
@@ -312,18 +312,18 @@ export default function GradeSessionPage() {
                   const passes = pct >= (exam?.passing_score ?? 70);
                   return (
                     <div className="bg-white/[0.02] border border-white/10 p-6 flex flex-col sm:flex-row items-center gap-6">
-                      <ChartBarIcon className="w-8 h-8 text-emerald-400 shrink-0" />
+                      <ChartBarIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <div className="flex-1 w-full">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Live Score Preview</p>
-                          <span className={`text-2xl font-black ${passes ? 'text-emerald-400' : 'text-rose-400'}`}>{pct}%</span>
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Live Score Preview</p>
+                          <span className={`text-2xl font-black ${passes ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{pct}%</span>
                         </div>
                         <div className="h-2 w-full bg-white/5 overflow-hidden">
                           <div className={`h-full transition-all duration-500 ${passes ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct,100)}%` }} />
                         </div>
                         <div className="flex items-center justify-between mt-2 text-[9px] font-black uppercase tracking-widest">
-                          <span className="text-white/20">{total}/{totalP} pts · Pass: {exam?.passing_score ?? 70}%</span>
-                          <span className={passes ? 'text-emerald-400' : 'text-rose-400'}>{passes ? 'WILL PASS' : 'WILL FAIL'}</span>
+                          <span className="text-muted-foreground">{total}/{totalP} pts · Pass: {exam?.passing_score ?? 70}%</span>
+                          <span className={passes ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{passes ? 'WILL PASS' : 'WILL FAIL'}</span>
                         </div>
                       </div>
                     </div>
@@ -345,16 +345,16 @@ export default function GradeSessionPage() {
                         return (
                           <div key={q.id} className="px-6 py-4 flex items-start gap-4">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isRight ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                              {isRight ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XCircleIcon className="w-4 h-4 text-rose-400" />}
+                              {isRight ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <XCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white/70 leading-snug">{q.question_text}</p>
+                              <p className="text-sm font-medium text-muted-foreground leading-snug">{q.question_text}</p>
                               <div className="flex flex-wrap gap-4 mt-1.5 text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-white/30">Student: <span className={isRight ? 'text-emerald-400' : 'text-rose-400'}>{studentAns || '(no answer)'}</span></span>
-                                {!isRight && <span className="text-white/30">Correct: <span className="text-emerald-400">{correctAns}</span></span>}
+                                <span className="text-muted-foreground">Student: <span className={isRight ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{studentAns || '(no answer)'}</span></span>
+                                {!isRight && <span className="text-muted-foreground">Correct: <span className="text-emerald-600 dark:text-emerald-400">{correctAns}</span></span>}
                               </div>
                             </div>
-                            <span className={`text-sm font-black shrink-0 ${isRight ? 'text-emerald-400' : 'text-white/20'}`}>
+                            <span className={`text-sm font-black shrink-0 ${isRight ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                               {isRight ? `+${q.points}` : '0'}/{q.points}
                             </span>
                           </div>
@@ -377,7 +377,7 @@ export default function GradeSessionPage() {
                                 <div className="bg-white/[0.03] border border-border rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
                                     <div className="p-8 border-b border-border bg-gradient-to-r from-primary to-primary/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
                                         <div className="flex items-start gap-6">
-                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
+                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
                                                 {i + 1}
                                             </div>
                                             <div>
@@ -386,7 +386,7 @@ export default function GradeSessionPage() {
                                                     <span className="px-3 py-1 rounded-full bg-card shadow-sm border border-border text-[10px] uppercase font-black tracking-widest text-muted-foreground italic">
                                                         {q.question_type.replace('_', ' ')}
                                                     </span>
-                                                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] uppercase font-black tracking-widest text-emerald-400 italic">
+                                                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] uppercase font-black tracking-widest text-emerald-600 dark:text-emerald-400 italic">
                                                         {q.points} Max Points
                                                     </span>
                                                 </div>
@@ -399,7 +399,7 @@ export default function GradeSessionPage() {
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.max(0, (manualScores[q.id] || 0) - 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-400"
+                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
                                                 >
                                                     <XCircleIcon className="w-5 h-5" />
                                                 </button>
@@ -412,12 +412,12 @@ export default function GradeSessionPage() {
                                                         const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
                                                         setManualScores({ ...manualScores, [q.id]: val });
                                                     }}
-                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-center text-2xl font-black text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
+                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-center text-2xl font-black text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
                                                 />
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.min(q.points, (manualScores[q.id] || 0) + 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-400"
+                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
                                                 >
                                                     <CheckCircleIcon className="w-5 h-5" />
                                                 </button>
@@ -435,9 +435,9 @@ export default function GradeSessionPage() {
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-6 h-6 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-                                                    <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
+                                                    <SparklesIcon className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                                                 </div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Student's Response</p>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600/60 dark:text-cyan-400/60">Student's Response</p>
                                             </div>
                                             <div className="p-6 bg-white/[0.02] border border-border rounded-xl text-base leading-relaxed text-muted-foreground whitespace-pre-wrap font-medium shadow-inner italic">
                                                 {q.question_type === 'coding_blocks' ? (
@@ -447,7 +447,7 @@ export default function GradeSessionPage() {
                                                                 <div key={pi} className="contents">
                                                                     <span className="text-muted-foreground">{part}</span>
                                                                     {pi < arr.length - 1 && (
-                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 font-black italic shadow-sm">
+                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-600 dark:text-emerald-400 font-black italic shadow-sm">
                                                                             {(session.answers[q.id] || "").split(',')[pi]?.trim() || "???"}
                                                                         </span>
                                                                     )}
@@ -470,12 +470,12 @@ export default function GradeSessionPage() {
                                         {q.correct_answer && (
                                             <div className="space-y-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                                    <div className="w-6 h-6 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                                         <CheckCircleIcon className="w-3.5 h-3.5" />
                                                     </div>
-                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Scoring Rubric / Answer Key</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/60 dark:text-emerald-400/60">Scoring Rubric / Answer Key</p>
                                                 </div>
-                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl text-sm leading-relaxed text-emerald-300/70 italic relative overflow-hidden group/rubric">
+                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl text-sm leading-relaxed text-emerald-700/70 dark:text-emerald-300/70 italic relative overflow-hidden group/rubric">
                                                     <div className="absolute top-0 right-0 p-3 opacity-10">
                                                         <BookOpenIcon className="w-12 h-12" />
                                                     </div>
@@ -492,7 +492,7 @@ export default function GradeSessionPage() {
                     <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-border rounded-[2.5rem] p-8 space-y-6">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-                                <SparklesIcon className="w-6 h-6 text-amber-500" />
+                                <SparklesIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                             </div>
                             <div>
                                 <h3 className="font-black italic text-xl">Feedback & Notes</h3>
@@ -508,7 +508,7 @@ export default function GradeSessionPage() {
                         />
                         <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 w-fit">
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <p className="text-[10px] text-amber-400 font-bold italic tracking-tighter">Student will view these remarks on their dashboard</p>
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold italic tracking-tighter">Student will view these remarks on their dashboard</p>
                         </div>
                     </div>
                 </div>

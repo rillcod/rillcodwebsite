@@ -90,7 +90,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Avatar className="w-10 h-10 border-2 border-border">
-                            <AvatarFallback className="bg-white/10 text-white">
+                            <AvatarFallback className="bg-white/10 text-foreground">
                                 {recipientName.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
@@ -98,7 +98,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                     </div>
                     <div>
                         <CardTitle className="text-sm font-bold">{recipientName}</CardTitle>
-                        <p className="text-[10px] text-white/70 font-medium">
+                        <p className="text-[10px] text-muted-foreground font-medium">
                             {otherUserTyping ? 'typing...' : 'Active now'}
                         </p>
                     </div>
@@ -134,7 +134,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
 
             <CardFooter className="p-4 bg-card dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex w-full items-center gap-2 bg-background dark:bg-slate-800 p-1.5 rounded-full border border-border dark:border-slate-700">
-                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-transparent rounded-full px-2">
                         <Smile className="w-5 h-5" />
                     </Button>
                     <Input
@@ -148,7 +148,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                         placeholder="Type a message..."
                         className="border-none bg-transparent focus-visible:ring-0 px-1 placeholder:text-muted-foreground/70"
                     />
-                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-transparent rounded-full px-2">
                         <Paperclip className="w-5 h-5" />
                     </Button>
                     <Button

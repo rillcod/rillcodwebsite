@@ -108,7 +108,7 @@ function StatCard({ label, value, sub, icon, highlight }: StatCardProps) {
     <div className={`bg-card border rounded-2xl p-4 flex flex-col gap-2 ${highlight ? 'border-amber-500/60' : 'border-border/50'}`}>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</span>
-        <span className={`w-7 h-7 flex items-center justify-center rounded-lg ${highlight ? 'text-amber-400 bg-amber-500/10' : 'text-muted-foreground bg-border/20'}`}>
+        <span className={`w-7 h-7 flex items-center justify-center rounded-lg ${highlight ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10' : 'text-muted-foreground bg-border/20'}`}>
           {icon}
         </span>
       </div>
@@ -158,10 +158,10 @@ export default function ConsentFormAnalyticsPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-card border border-border/50 rounded-2xl p-6 text-center text-muted-foreground">
-          <p className="text-red-400 font-medium">{error}</p>
+          <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 text-sm text-amber-400 hover:underline"
+            className="mt-4 text-sm text-amber-600 dark:text-amber-400 hover:underline"
           >
             Try again
           </button>
@@ -232,7 +232,7 @@ export default function ConsentFormAnalyticsPage() {
       {/* ── Funnel ─────────────────────────────────────────────────────────── */}
       <section className="bg-card border border-border/50 rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <FunnelIcon className="w-5 h-5 text-amber-400" />
+          <FunnelIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           <h2 className="font-semibold text-foreground">Conversion Funnel</h2>
         </div>
         <div className="space-y-2">
@@ -310,7 +310,7 @@ export default function ConsentFormAnalyticsPage() {
                     <td className="py-2 text-right tabular-nums font-medium text-foreground">{f.total}</td>
                     <td className="py-2 text-right tabular-nums text-muted-foreground">{f.new}</td>
                     <td className="py-2 text-right tabular-nums">
-                      <span className={f.enrolled > 0 ? 'text-amber-400 font-medium' : 'text-muted-foreground'}>
+                      <span className={f.enrolled > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'}>
                         {f.enrolled}
                       </span>
                     </td>
@@ -385,7 +385,7 @@ function Header() {
       </Link>
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-          <ChartBarIcon className="w-5 h-5 text-amber-400" />
+          <ChartBarIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">Form Analytics</h1>

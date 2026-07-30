@@ -54,7 +54,7 @@ export function AnalyticsDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Students</p>
                 <p className="text-2xl font-bold">156</p>
-                <p className="text-xs text-green-600">+12% from last month</p>
+                <p className="text-xs text-green-600 dark:text-green-400">+12% from last month</p>
               </div>
               <div className="text-3xl">👥</div>
             </div>
@@ -67,7 +67,7 @@ export function AnalyticsDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Average Grade</p>
                 <p className="text-2xl font-bold">87.5%</p>
-                <p className="text-xs text-green-600">+2.3% improvement</p>
+                <p className="text-xs text-green-600 dark:text-green-400">+2.3% improvement</p>
               </div>
               <div className="text-3xl">📊</div>
             </div>
@@ -80,7 +80,7 @@ export function AnalyticsDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Attendance Rate</p>
                 <p className="text-2xl font-bold">94.2%</p>
-                <p className="text-xs text-green-600">+1.8% this week</p>
+                <p className="text-xs text-green-600 dark:text-green-400">+1.8% this week</p>
               </div>
               <div className="text-3xl">✅</div>
             </div>

@@ -182,7 +182,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
           {tab === 'group' && (
             <>
               {groupError && (
-                <div className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-between">
+                <div className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center justify-between">
                   {groupError}
                   <button onClick={() => setGroupError(null)}><XMarkIcon className="w-3.5 h-3.5" /></button>
                 </div>
@@ -211,12 +211,12 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                       </div>
                       <button
                         onClick={() => handleGroupShare(g)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white font-black text-[10px] uppercase tracking-widest transition-all flex-shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-[#25D366] hover:bg-[#20ba59] text-foreground font-black text-[10px] uppercase tracking-widest transition-all flex-shrink-0"
                       >
                         {WA_ICON} Send
                       </button>
                       <button onClick={() => handleDeleteGroup(g.id)}
-                        className="p-2 text-rose-400/50 hover:text-rose-400 transition-colors flex-shrink-0">
+                        className="p-2 text-rose-600/50 dark:text-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex-shrink-0">
                         <TrashIcon className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -266,7 +266,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                     </button>
                     <button onClick={handleSaveGroup}
                       disabled={!newGroupName.trim() || !newGroupLink.trim() || savingGroup}
-                      className="flex-1 py-2.5 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                      className="flex-1 py-2.5 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-foreground text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
                       {savingGroup ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null}
                       {savingGroup ? 'Saving…' : 'Save Group'}
                     </button>
@@ -288,11 +288,11 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
         <div className="flex gap-2 p-4 border-t border-border flex-shrink-0">
           <button onClick={handleCopy}
             className="flex items-center gap-2 px-4 py-3 bg-white/[0.06] border border-border text-muted-foreground hover:text-foreground font-black text-[10px] uppercase tracking-widest transition-all flex-shrink-0">
-            {copied ? <><CheckIcon className="w-4 h-4 text-emerald-400" /> Copied</> : <><ClipboardIcon className="w-4 h-4" /> Copy</>}
+            {copied ? <><CheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Copied</> : <><ClipboardIcon className="w-4 h-4" /> Copy</>}
           </button>
           {tab === 'individual' && (
             <button onClick={handleIndividualShare} disabled={!message.trim()}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-white font-black text-sm uppercase tracking-widest transition-all shadow-lg shadow-[#25D366]/20">
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-foreground font-black text-sm uppercase tracking-widest transition-all shadow-lg shadow-[#25D366]/20">
               {WA_ICON} Open in WhatsApp
             </button>
           )}

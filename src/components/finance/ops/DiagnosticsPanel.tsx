@@ -189,7 +189,7 @@ export function DiagnosticsPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+          <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-black text-foreground">Admin diagnostics</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -204,7 +204,7 @@ export function DiagnosticsPanel() {
       <section className="rounded-2xl border border-border bg-card/50 p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 inline-flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center">
               <ShieldCheckIcon className="w-5 h-5" />
             </div>
             <div>
@@ -234,10 +234,10 @@ export function DiagnosticsPanel() {
             <div
               className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
                 overallOk
-                  ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-300'
+                  ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
                   : errorCount > 0
-                  ? 'border-rose-500/40 bg-rose-500/5 text-rose-300'
-                  : 'border-amber-500/40 bg-amber-500/5 text-amber-300'
+                  ? 'border-rose-500/40 bg-rose-500/5 text-rose-700 dark:text-rose-300'
+                  : 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300'
               }`}
             >
               {overallOk ? (
@@ -265,10 +265,10 @@ export function DiagnosticsPanel() {
                   key={i}
                   className={`rounded-lg border px-3 py-2 text-xs ${
                     issue.severity === 'error'
-                      ? 'border-rose-500/30 bg-rose-500/5 text-rose-200'
+                      ? 'border-rose-500/30 bg-rose-500/5 text-rose-800 dark:text-rose-200'
                       : issue.severity === 'warn'
-                      ? 'border-amber-500/30 bg-amber-500/5 text-amber-200'
-                      : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-200'
+                      ? 'border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-200'
+                      : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-800 dark:text-emerald-200'
                   }`}
                 >
                   <p className="font-black uppercase tracking-widest text-[9px] opacity-70">
@@ -335,11 +335,11 @@ export function DiagnosticsPanel() {
           >
             <div className="flex items-center gap-2 mb-1.5">
               {emailResult.ok ? (
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               ) : (
-                <XCircleIcon className="w-4 h-4 text-rose-400 shrink-0" />
+                <XCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
               )}
-              <p className={`text-xs font-black ${emailResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+              <p className={`text-xs font-black ${emailResult.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
                 {emailResult.ok ? 'SMTP delivery confirmed' : 'Delivery failed'}
               </p>
               <span className="ml-auto text-[10px] text-muted-foreground">{emailResult.testedAt}</span>
@@ -347,14 +347,14 @@ export function DiagnosticsPanel() {
             {emailResult.ok && emailResult.sent && emailResult.sent.length > 0 ? (
               <ul className="space-y-1 mt-1">
                 {emailResult.sent.map((s, i) => (
-                  <li key={i} className="text-[11px] text-emerald-200">
+                  <li key={i} className="text-[11px] text-emerald-800 dark:text-emerald-200">
                     <span className="font-mono">{s.to}</span>
-                    <span className="text-emerald-400/60 ml-2">— {s.subject}</span>
+                    <span className="text-emerald-600/60 dark:text-emerald-400/60 ml-2">— {s.subject}</span>
                   </li>
                 ))}
               </ul>
             ) : emailResult.error ? (
-              <p className="text-[11px] text-rose-200 mt-1">{emailResult.error}</p>
+              <p className="text-[11px] text-rose-800 dark:text-rose-200 mt-1">{emailResult.error}</p>
             ) : null}
           </div>
         )}

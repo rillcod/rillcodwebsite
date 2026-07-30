@@ -42,7 +42,7 @@ export default function ResultCheckShell({
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400 sm:flex">
-              <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
+              <ShieldCheckIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Verified &amp; Secure
             </div>
           </div>

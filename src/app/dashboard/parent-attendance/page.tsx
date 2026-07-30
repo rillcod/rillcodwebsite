@@ -18,9 +18,9 @@ interface AttendanceRecord {
 type StatusFilter = 'all' | 'present' | 'absent' | 'late' | 'excused';
 
 const STATUS_STYLE: Record<string, string> = {
-  present: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-  absent: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
-  late: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+  present: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+  absent: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400',
+  late: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
   excused: 'bg-primary/10 border-primary/30 text-primary',
 };
 
@@ -42,18 +42,18 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
 const FILTER_TABS: StatusFilter[] = ['all', 'present', 'absent', 'late', 'excused'];
 
 const TAB_ACTIVE: Record<StatusFilter, string> = {
-  all: 'bg-white/10 border-white/20 text-white',
-  present: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
-  absent: 'bg-rose-500/15 border-rose-500/40 text-rose-400',
-  late: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+  all: 'bg-white/10 border-white/20 text-foreground',
+  present: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400',
+  absent: 'bg-rose-500/15 border-rose-500/40 text-rose-600 dark:text-rose-400',
+  late: 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400',
   excused: 'bg-primary/15 border-primary/40 text-primary',
 };
 
 const EMPTY_ICON_COLOR: Record<StatusFilter, string> = {
   all: 'text-muted-foreground',
-  present: 'text-emerald-400',
-  absent: 'text-rose-400',
-  late: 'text-amber-400',
+  present: 'text-emerald-600 dark:text-emerald-400',
+  absent: 'text-rose-600 dark:text-rose-400',
+  late: 'text-amber-600 dark:text-amber-400',
   excused: 'text-primary',
 };
 
@@ -115,10 +115,10 @@ function AttendanceRing({ pct }: { pct: number }) {
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl font-black" style={{ color: textColor }}>{pct}%</span>
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">Rate</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Rate</span>
         </div>
       </div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Attendance Rate</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attendance Rate</p>
     </div>
   );
 }
@@ -281,7 +281,7 @@ function ParentAttendanceContent() {
     : records.filter(r => r.status === statusFilter);
 
   const ringColor = attendancePct != null
-    ? (attendancePct >= 80 ? 'text-emerald-400' : attendancePct >= 60 ? 'text-amber-400' : 'text-rose-400')
+    ? (attendancePct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : attendancePct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')
     : 'text-muted-foreground';
 
   return (
@@ -353,7 +353,7 @@ function ParentAttendanceContent() {
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Present</span>
                       </div>
-                      <div className="text-3xl font-black text-emerald-400">{presentCount}</div>
+                      <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{presentCount}</div>
                       <div className="text-[9px] text-muted-foreground">days attended</div>
                     </div>
 
@@ -363,7 +363,7 @@ function ParentAttendanceContent() {
                         <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Absent</span>
                       </div>
-                      <div className="text-3xl font-black text-rose-400">{absentCount}</div>
+                      <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{absentCount}</div>
                       <div className="text-[9px] text-muted-foreground">days missed</div>
                     </div>
 
@@ -373,7 +373,7 @@ function ParentAttendanceContent() {
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Late</span>
                       </div>
-                      <div className="text-3xl font-black text-amber-400">{lateCount}</div>
+                      <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{lateCount}</div>
                       <div className="text-[9px] text-muted-foreground">days late</div>
                     </div>
 

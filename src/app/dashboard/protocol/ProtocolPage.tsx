@@ -227,7 +227,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           <div className="flex-1 min-w-0 relative z-10 pt-1 pr-8">
             <div className="flex items-center gap-2 mb-1.5">
               <h3 className="text-xs font-black text-primary uppercase tracking-widest">AI study Coach</h3>
-              <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] text-emerald-500 uppercase font-black tracking-widest">Active</div>
+              <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] text-emerald-600 dark:text-emerald-400 uppercase font-black tracking-widest">Active</div>
             </div>
             {tipLoading ? (
               <div className="space-y-2 py-1">
@@ -296,7 +296,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 >
                   <div className={`w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-500 ${
                     phaseCompletedCount === phaseModules.length
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                       : isExpanded ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-brand-red-600/40' : 'bg-muted border border-border text-muted-foreground/60'
                   }`}>
                     <span className="text-xl font-black uppercase">{phase.id}</span>
@@ -304,11 +304,11 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <h2 className={`text-xl font-black uppercase tracking-tight ${phaseCompletedCount === phaseModules.length ? 'text-emerald-500' : 'text-foreground'}`}>
+                      <h2 className={`text-xl font-black uppercase tracking-tight ${phaseCompletedCount === phaseModules.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
                         {phase.name}
                       </h2>
                       {phaseCompletedCount === phaseModules.length && (
-                        <CheckBadgeIcon className="w-5 h-5 text-emerald-500" />
+                        <CheckBadgeIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                       )}
                     </div>
                     <div className="flex items-center gap-4">
@@ -343,7 +343,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                             <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 sm:px-8">
                               <div className="flex items-center gap-5 flex-1 min-w-0">
                                 <div className={`w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl border transition-all ${
-                                  status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 'bg-muted border border-border text-muted-foreground/60'
+                                  status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-muted border border-border text-muted-foreground/60'
                                 }`}>
                                   {status === 'completed' ? <CheckCircleIcon className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                                 </div>
@@ -357,7 +357,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
 
                               <div className="flex items-center gap-3 ml-16 sm:ml-0">
                                 {status === 'completed' && (
-                                  <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-500 text-[9px] font-black uppercase tracking-widest">
+                                  <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
                                     Completed
                                   </span>
                                   )}

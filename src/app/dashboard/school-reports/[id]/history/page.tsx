@@ -74,7 +74,7 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
       </header>
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
         </p>
       ) : null}
@@ -109,7 +109,7 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
                       </td>
                       <td className="p-3 text-xs text-muted-foreground">
                         {row.forcePublishOverride ? (
-                          <span className="text-amber-700">
+                          <span className="text-amber-700 dark:text-amber-300">
                             Override: {row.forcePublishOverride.reason}
                           </span>
                         ) : (

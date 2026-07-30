@@ -311,7 +311,7 @@ export default function IntegratedCodeRunner({
                 className="p-1.5 text-muted-foreground hover:text-white transition-colors"
                 title="Copy Code"
               >
-                {copied ? <CheckBadgeIcon className="w-4 h-4 text-emerald-400" /> : <DocumentDuplicateIcon className="w-4 h-4" />}
+                {copied ? <CheckBadgeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <DocumentDuplicateIcon className="w-4 h-4" />}
               </button>
 
               {!readOnly && (
@@ -373,7 +373,7 @@ export default function IntegratedCodeRunner({
               transition={{ duration: 0.15 }}
               className="absolute inset-0 flex flex-col bg-[#11121d] overflow-y-auto p-4 font-mono text-xs"
             >
-              <div className="flex items-center gap-2 mb-3 text-emerald-500/50 border-b border-emerald-500/10 pb-2">
+              <div className="flex items-center gap-2 mb-3 text-emerald-600/50 dark:text-emerald-400/50 border-b border-emerald-500/10 pb-2">
                 <CommandLineIcon className="w-3.5 h-3.5" />
                 <span className="text-[8px] font-black uppercase tracking-widest">Console Output</span>
               </div>
@@ -382,12 +382,12 @@ export default function IntegratedCodeRunner({
                   <p className="text-muted-foreground/40 text-xs italic">Run your code to see output here…</p>
                 )}
                 {consoleLogs.map((log, i) => (
-                  <div key={i} className={`py-0.5 border-l-2 pl-3 text-xs ${log.startsWith('Error') ? 'border-rose-500 text-rose-400' : 'border-emerald-500/30 text-emerald-100/80'}`}>
+                  <div key={i} className={`py-0.5 border-l-2 pl-3 text-xs ${log.startsWith('Error') ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-emerald-500/30 text-emerald-800/80 dark:text-emerald-100/80'}`}>
                     {log}
                   </div>
                 ))}
                 {running && (
-                  <div className="flex items-center gap-2 text-emerald-500 animate-pulse">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 animate-pulse">
                     <ArrowPathIcon className="w-3 h-3 animate-spin" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Executing…</span>
                   </div>

@@ -141,7 +141,7 @@ function LineItemEditor({ items, onChange, accentColor = 'violet' }: {
           </span>
           {items.length > 1 && (
             <button type="button" onClick={() => onChange(items.filter((_, i) => i !== idx))}
-              className="p-1.5 text-rose-400/60 hover:text-rose-400 transition-colors">
+              className="p-1.5 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
               <TrashIcon className="w-4 h-4" />
             </button>
           )}
@@ -535,7 +535,7 @@ export default function BulkPaymentsPage() {
                 <div className="flex items-center gap-2 text-xs font-bold flex-shrink-0">
                   <span className="text-muted-foreground">{selected.size} selected</span>
                   <button onClick={() => setSelected(new Set(filtered.map(s => s.id)))} className="text-primary hover:text-primary transition-colors">All</button>
-                  <button onClick={() => setSelected(new Set())} className="text-rose-400 hover:text-rose-300 transition-colors">None</button>
+                  <button onClick={() => setSelected(new Set())} className="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors">None</button>
                 </div>
               </div>
 
@@ -690,7 +690,7 @@ export default function BulkPaymentsPage() {
               <div className="bg-primary/10 border border-primary/20 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <p className="text-xs font-black text-primary uppercase tracking-widest">Ready to Generate</p>
-                  <p className="text-sm text-white/80">
+                  <p className="text-sm text-muted-foreground">
                     <span className="font-black">{selected.size}</span> {docType}s · <span className="font-black">₦{totalAmount.toLocaleString()}</span> each
                     {' '}· Total: <span className="font-black">₦{(totalAmount * selected.size).toLocaleString()}</span>
                   </p>
@@ -718,10 +718,10 @@ export default function BulkPaymentsPage() {
                     {results.map(r => (
                       <div key={r.student_id} className="flex items-center gap-3 px-4 py-2.5">
                         {r.status === 'success'
-                          ? <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                          : <XCircleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />}
+                          ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                          : <XCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />}
                         <span className="text-sm text-foreground flex-1">{r.student_name}</span>
-                        <span className={`text-xs font-mono ${r.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <span className={`text-xs font-mono ${r.status === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {r.status === 'success' ? r.ref : r.error}
                         </span>
                       </div>
@@ -744,10 +744,10 @@ export default function BulkPaymentsPage() {
               <div className={`p-6 border-2 rounded-xl ${errorCount === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                 <div className="flex items-center gap-3 mb-2">
                   {errorCount === 0
-                    ? <CheckCircleIcon className="w-8 h-8 text-emerald-400" />
-                    : <ExclamationCircleIcon className="w-8 h-8 text-amber-400" />}
+                    ? <CheckCircleIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                    : <ExclamationCircleIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />}
                   <div>
-                    <h3 className={`text-lg font-black ${errorCount === 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                    <h3 className={`text-lg font-black ${errorCount === 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
                       {errorCount === 0 ? 'All Done!' : `Completed with ${errorCount} error${errorCount !== 1 ? 's' : ''}`}
                     </h3>
                     <p className="text-sm text-muted-foreground">
@@ -756,8 +756,8 @@ export default function BulkPaymentsPage() {
                   </div>
                 </div>
                 <div className="flex gap-4 text-sm font-bold">
-                  <span className="text-emerald-400">✓ {successCount} succeeded</span>
-                  {errorCount > 0 && <span className="text-rose-400">✗ {errorCount} failed</span>}
+                  <span className="text-emerald-600 dark:text-emerald-400">✓ {successCount} succeeded</span>
+                  {errorCount > 0 && <span className="text-rose-600 dark:text-rose-400">✗ {errorCount} failed</span>}
                   <span className="text-muted-foreground">Total: ₦{(totalAmount * successCount).toLocaleString()}</span>
                 </div>
               </div>
@@ -770,14 +770,14 @@ export default function BulkPaymentsPage() {
                   {results.map(r => (
                     <div key={r.student_id} className="flex items-center gap-3 px-4 py-3">
                       {r.status === 'success'
-                        ? <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        : <XCircleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />}
+                        ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                        : <XCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{r.student_name}</p>
                         {r.ref && <p className="text-xs text-muted-foreground font-mono">{r.ref}</p>}
-                        {r.error && <p className="text-xs text-rose-400">{r.error}</p>}
+                        {r.error && <p className="text-xs text-rose-600 dark:text-rose-400">{r.error}</p>}
                       </div>
-                      <span className={`text-xs font-black uppercase ${r.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>{r.status}</span>
+                      <span className={`text-xs font-black uppercase ${r.status === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{r.status}</span>
                     </div>
                   ))}
                 </div>
@@ -835,11 +835,11 @@ export default function BulkPaymentsPage() {
                     className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors text-left"
                   >
                     {batch.type === 'invoice'
-                      ? <DocumentTextIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                      : <ReceiptPercentIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />}
+                      ? <DocumentTextIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      : <ReceiptPercentIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${batch.type === 'invoice' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${batch.type === 'invoice' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
                           {batch.type}
                         </span>
                         <span className="text-sm font-mono text-muted-foreground">{batch.id}</span>
@@ -865,12 +865,12 @@ export default function BulkPaymentsPage() {
                           const status = item.status;
                           return (
                             <div key={idx} className="flex items-center gap-3 px-5 py-3">
-                              <CheckCircleIcon className="w-4 h-4 text-emerald-400/60 flex-shrink-0" />
+                              <CheckCircleIcon className="w-4 h-4 text-emerald-600/60 dark:text-emerald-400/60 flex-shrink-0" />
                               <span className="text-sm text-foreground flex-1">{name}</span>
                               <span className="text-xs font-mono text-muted-foreground">{ref}</span>
                               {status && (
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                  status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  status === 'paid' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
                                   status === 'sent' ? 'bg-primary/20 text-primary' :
                                   'bg-muted text-muted-foreground'
                                 }`}>{status}</span>

@@ -147,9 +147,9 @@ export default function CBTPage() {
                 <div className="flex gap-px border border-border w-full sm:w-auto overflow-x-auto">
                   {[
                     { label: 'Total Exams', value: exams.length, color: 'text-primary' },
-                    { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-400' },
+                    { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-600 dark:text-emerald-400' },
                     { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-primary' },
-                    { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-400' },
+                    { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-600 dark:text-amber-400' },
                   ].map((stat, idx) => (
                     <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
@@ -248,7 +248,7 @@ export default function CBTPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h3 className="font-black text-foreground text-base">{exam.title}</h3>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                             {exam.is_active ? 'Active' : 'Inactive'}
                           </span>
                           <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
@@ -256,9 +256,9 @@ export default function CBTPage() {
                           </span>
                           {!isStaff && studentSession && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${
-                              studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                              studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                              studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                              studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
+                              studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' :
+                              studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' :
                               'bg-primary/20 text-primary border-primary/30'
                             }`}>
                               {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
@@ -329,7 +329,7 @@ export default function CBTPage() {
                               <>
                                 <Link
                                   href={`/dashboard/cbt/${exam.id}/edit`}
-                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
                                   title="Edit"
                                 >
                                   <PencilIcon className="w-4 h-4" />
@@ -337,7 +337,7 @@ export default function CBTPage() {
                                 <button
                                   onClick={() => handleDelete(exam.id, exam.title)}
                                   disabled={deleting === exam.id}
-                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
                                   title="Delete"
                                 >
                                   <TrashIcon className="w-4 h-4" />

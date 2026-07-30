@@ -159,7 +159,7 @@ export default function FeedbackPage() {
                     onClick={() => setRating(star)}
                     className="transition-transform hover:scale-110"
                   >
-                    <StarIcon className={`w-12 h-12 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
+                    <StarIcon className={`w-12 h-12 ${star <= rating ? 'text-yellow-600 dark:text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
                   </button>
                 ))}
               </div>
@@ -238,14 +238,14 @@ export default function FeedbackPage() {
           {step === 'success' && (
             <div className="p-8 text-center">
               <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircleIcon className="w-12 h-12 text-emerald-600" />
+                <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h2 className="text-2xl font-black text-foreground mb-3">Thank You!</h2>
               <p className="text-muted-foreground mb-6">
                 Your feedback has been received. We'll review it and get back to you within 24 hours.
               </p>
               {submittedId ? (
-                <a href={`/dashboard/feedback/${submittedId}`} className="mb-6 inline-flex rounded-full bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700">
+                <a href={`/dashboard/feedback/${submittedId}`} className="mb-6 inline-flex rounded-full bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300">
                   View reference FB-{submittedId.slice(0, 8)}
                 </a>
               ) : null}

@@ -114,7 +114,7 @@ export function OfficeFeedbackPanel({ embedded = false, mode = 'admin' }: Props)
       </div>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading feedback...</p> : null}
-      {error ? <p className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {!loading && !error && visible.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No feedback in this queue.

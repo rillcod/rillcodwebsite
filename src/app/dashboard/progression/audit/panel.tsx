@@ -41,17 +41,17 @@ const ACTION_LABELS: Record<
   override_unlock: {
     label: "Manual Unlock",
     desc: "Content was manually unlocked outside the normal schedule.",
-    color: "text-amber-400 bg-amber-400/5 border-amber-400/20",
+    color: "text-amber-600 dark:text-amber-400 bg-amber-400/5 border-amber-400/20",
   },
   week_edit_while_locked: {
     label: "Locked Edit",
     desc: "Syllabus content was changed while locked.",
-    color: "text-rose-400 bg-rose-400/5 border-rose-400/20",
+    color: "text-rose-600 dark:text-rose-400 bg-rose-400/5 border-rose-400/20",
   },
   term_status_change: {
     label: "Term Change",
     desc: "A term or year status was updated.",
-    color: "text-blue-400 bg-blue-400/5 border-blue-400/20",
+    color: "text-blue-600 dark:text-blue-400 bg-blue-400/5 border-blue-400/20",
   },
 };
 
@@ -311,10 +311,10 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
                                 <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-1/3">
                                   Field
                                 </th>
-                                <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 w-1/3">
+                                <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.2em] text-rose-600 dark:text-rose-400 w-1/3">
                                   Before
                                 </th>
-                                <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 w-1/3">
+                                <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 w-1/3">
                                   After
                                 </th>
                               </tr>
@@ -325,10 +325,10 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
                                   <td className="px-5 py-3 font-black text-xs text-foreground">
                                     {k.replace(/_/g, " ")}
                                   </td>
-                                  <td className="px-5 py-3 font-mono text-xs text-rose-400 line-through opacity-70">
+                                  <td className="px-5 py-3 font-mono text-xs text-rose-600 dark:text-rose-400 line-through opacity-70">
                                     {JSON.stringify(before[k]) ?? "—"}
                                   </td>
-                                  <td className="px-5 py-3 font-mono text-xs text-emerald-400 font-bold">
+                                  <td className="px-5 py-3 font-mono text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                                     {JSON.stringify(after[k]) ?? "—"}
                                   </td>
                                 </tr>

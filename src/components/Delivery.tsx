@@ -55,7 +55,7 @@ const Delivery: React.FC = () => {
           {/* For Individual Students */}
           <div className="bg-emerald-500/5 rounded-2xl shadow-md p-8 border-t-4 border-emerald-500">
             <div className="flex items-center mb-6">
-              <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 mr-4">
+              <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mr-4">
                 <Users className="w-7 h-7" />
               </div>
               <h3 className="text-2xl font-bold text-foreground">For Individual Students</h3>
@@ -63,23 +63,23 @@ const Delivery: React.FC = () => {
 
             <ul className="space-y-4">
               <li className="flex">
-                <Calendar className="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" />
+                <Calendar className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" />
                 <p className="text-foreground/80">Flexible scheduling options, weekend and after-school classes available</p>
               </li>
               <li className="flex">
-                <Users className="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" />
+                <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" />
                 <p className="text-foreground/80">Project tasks done in groups to build social and collaborative skills</p>
               </li>
               <li className="flex">
-                <Laptop className="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" />
+                <Laptop className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" />
                 <p className="text-foreground/80">Students can attend at Rillcod Technologies facility or bring own devices</p>
               </li>
               <li className="flex">
-                <Monitor className="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" />
+                <Monitor className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" />
                 <p className="text-foreground/80">Recommendation: Mini laptop or notebook for personal practice</p>
               </li>
               <li className="flex">
-                <Lightbulb className="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" />
+                <Lightbulb className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" />
                 <p className="text-foreground/80">Individual fee: ₦15,000 per learner (subject to review)</p>
               </li>
             </ul>

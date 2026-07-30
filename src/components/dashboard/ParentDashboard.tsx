@@ -161,16 +161,16 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
           // Determine level tier matching Biblical configurations
           let levelName = 'Nehemiah Builder';
-          let levelColor = 'text-amber-700';
+          let levelColor = 'text-amber-700 dark:text-amber-300';
           if (xp >= 5000) {
             levelName = 'Solomon Sage';
-            levelColor = 'text-cyan-400';
+            levelColor = 'text-cyan-600 dark:text-cyan-400';
           } else if (xp >= 2000) {
             levelName = 'Joshua Commander';
-            levelColor = 'text-amber-400';
+            levelColor = 'text-amber-600 dark:text-amber-400';
           } else if (xp >= 500) {
             levelName = 'Gideon Scout';
-            levelColor = 'text-slate-400';
+            levelColor = 'text-slate-600 dark:text-slate-400';
           }
 
           // Key by the child's selection id (students.id) so the render resolves it.
@@ -328,18 +328,18 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
           >
             <div className="min-w-0 flex items-start gap-3">
               {primaryJob.tone === 'rose' ? (
-                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-400" />
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-600 dark:text-rose-400" />
               ) : (
                 <DocumentChartBarIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
               )}
               <div className="min-w-0">
-                <p className={`text-sm font-black ${primaryJob.tone === 'rose' ? 'text-rose-400' : 'text-foreground'}`}>
+                <p className={`text-sm font-black ${primaryJob.tone === 'rose' ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>
                   {primaryJob.title}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{primaryJob.detail}</p>
               </div>
             </div>
-            <span className={`inline-flex flex-shrink-0 items-center gap-1 text-xs font-black ${primaryJob.tone === 'rose' ? 'text-rose-400' : 'text-primary'}`}>
+            <span className={`inline-flex flex-shrink-0 items-center gap-1 text-xs font-black ${primaryJob.tone === 'rose' ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
               {primaryJob.cta}
               <ArrowRightIcon className="h-3.5 w-3.5" />
             </span>
@@ -382,8 +382,8 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
               </div>
               <span className={`flex-shrink-0 rounded border px-2 py-1 text-[11px] font-black uppercase tracking-wider ${
                 parentEnrollmentIsGood(selectedChild.status)
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                  : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
               }`}>
                 {parentEnrollmentLabel(selectedChild.status)}
               </span>
@@ -400,7 +400,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 balanceDue ? 'border-rose-500/30 bg-rose-500/5' : 'border-border bg-muted/20'
               }`}
             >
-              <p className={`truncate text-sm font-black leading-tight ${balanceDue ? 'text-rose-400' : 'text-emerald-400'}`}>
+              <p className={`truncate text-sm font-black leading-tight ${balanceDue ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {balanceDue ? formatCurrency(stats.outstandingBalance, stats.currency) : 'Clear'}
               </p>
               <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Balance</p>
@@ -418,7 +418,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 stats.unreadNotifications > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-muted/20'
               }`}
             >
-              <p className={`flex items-center gap-1 text-sm font-black leading-tight ${stats.unreadNotifications > 0 ? 'text-amber-400' : 'text-foreground'}`}>
+              <p className={`flex items-center gap-1 text-sm font-black leading-tight ${stats.unreadNotifications > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
                 {stats.unreadNotifications}
                 {stats.unreadNotifications > 0 && <BellIcon className="h-3.5 w-3.5" />}
               </p>

@@ -34,10 +34,10 @@ interface UserPoints {
 }
 
 const LEVEL_CONFIG = {
-  Bronze:   { color: 'text-amber-700 bg-amber-700/20 border-amber-700/30',   min: 0,    emoji: '🥉' },
+  Bronze:   { color: 'text-amber-700 dark:text-amber-300 bg-amber-700/20 border-amber-700/30',   min: 0,    emoji: '🥉' },
   Silver:   { color: 'text-muted-foreground/70 bg-zinc-400/20 border-zinc-400/30',      min: 500,  emoji: '🥈' },
-  Gold:     { color: 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30', min: 2000, emoji: '🥇' },
-  Platinum: { color: 'text-cyan-400 bg-cyan-400/20 border-cyan-400/30',       min: 5000, emoji: '💎' },
+  Gold:     { color: 'text-yellow-600 dark:text-yellow-400 bg-yellow-400/20 border-yellow-400/30', min: 2000, emoji: '🥇' },
+  Platinum: { color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-400/20 border-cyan-400/30',       min: 5000, emoji: '💎' },
 };
 
 function LevelBadge({ level }: { level: keyof typeof LEVEL_CONFIG }) {
@@ -146,7 +146,7 @@ export default function GamificationPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-            <TrophyIcon className="w-7 h-7 text-yellow-400" />
+            <TrophyIcon className="w-7 h-7 text-yellow-600 dark:text-yellow-400" />
             Gamification Hub
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">Manage badges, points, and student achievements</p>
@@ -162,10 +162,10 @@ export default function GamificationPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Badges', value: badges.length, icon: CheckBadgeIcon, color: 'text-yellow-400' },
+          { label: 'Total Badges', value: badges.length, icon: CheckBadgeIcon, color: 'text-yellow-600 dark:text-yellow-400' },
           { label: 'Students Ranked', value: leaderboard.length, icon: UserGroupIcon, color: 'text-primary' },
-          { label: 'Top Points', value: leaderboard[0]?.total_points?.toLocaleString() ?? '—', icon: BoltIcon, color: 'text-emerald-400' },
-          { label: 'Platinum Users', value: leaderboard.filter(u => u.achievement_level === 'Platinum').length, icon: SparklesIcon, color: 'text-cyan-400' },
+          { label: 'Top Points', value: leaderboard[0]?.total_points?.toLocaleString() ?? '—', icon: BoltIcon, color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Platinum Users', value: leaderboard.filter(u => u.achievement_level === 'Platinum').length, icon: SparklesIcon, color: 'text-cyan-600 dark:text-cyan-400' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-white/[0.08] rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
@@ -202,7 +202,7 @@ export default function GamificationPage() {
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <CheckBadgeIcon className="w-16 h-16 text-card-foreground/10" />
             <p className="text-card-foreground/40 font-semibold">No badges yet</p>
-            {isAdmin && <button onClick={() => setShowForm(true)} className="text-yellow-400 text-sm font-bold hover:underline">Create the first badge</button>}
+            {isAdmin && <button onClick={() => setShowForm(true)} className="text-yellow-600 dark:text-yellow-400 text-sm font-bold hover:underline">Create the first badge</button>}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -210,7 +210,7 @@ export default function GamificationPage() {
               <div key={badge.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-yellow-500/30 transition-all group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-12 h-12 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center justify-center text-2xl">
-                    {badge.icon_url && badge.icon_url.length <= 4 ? badge.icon_url : <TrophyIcon className="w-6 h-6 text-yellow-400" />}
+                    {badge.icon_url && badge.icon_url.length <= 4 ? badge.icon_url : <TrophyIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />}
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {isAdmin && (
@@ -220,13 +220,13 @@ export default function GamificationPage() {
                           <PencilIcon className="w-4 h-4 text-card-foreground/50" />
                         </button>
                         <button onClick={() => deleteBadge(badge.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-all">
-                          <TrashIcon className="w-4 h-4 text-rose-400" />
+                          <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                         </button>
                       </>
                     )}
                     {isStaff && (
                       <button onClick={() => { setShowAward(badge); setAwardUserId(''); loadStudents(); }}
-                        className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-xs font-bold rounded-lg transition-all">
+                        className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold rounded-lg transition-all">
                         Award
                       </button>
                     )}
@@ -235,8 +235,8 @@ export default function GamificationPage() {
                 <h3 className="font-black text-card-foreground text-base">{badge.name}</h3>
                 {badge.description && <p className="text-card-foreground/50 text-sm mt-1">{badge.description}</p>}
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="text-xs text-yellow-400 font-bold bg-yellow-500/10 px-2 py-0.5 rounded-full">+{badge.points_value} pts</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-500/10 text-muted-foreground/70'}`}>
+                  <span className="text-xs text-yellow-600 dark:text-yellow-400 font-bold bg-yellow-500/10 px-2 py-0.5 rounded-full">+{badge.points_value} pts</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-500/10 text-muted-foreground/70'}`}>
                     {badge.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -275,7 +275,7 @@ export default function GamificationPage() {
                     </td>
                     <td className="px-4 py-3"><LevelBadge level={entry.achievement_level} /></td>
                     <td className="px-4 py-3">
-                      <span className="font-black text-yellow-400 text-base">{entry.total_points.toLocaleString()}</span>
+                      <span className="font-black text-yellow-600 dark:text-yellow-400 text-base">{entry.total_points.toLocaleString()}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -352,7 +352,7 @@ export default function GamificationPage() {
                 <span className="text-3xl">{showAward.icon_url && showAward.icon_url.length <= 4 ? showAward.icon_url : '🏆'}</span>
                 <div>
                   <p className="font-bold text-card-foreground">{showAward.name}</p>
-                  <p className="text-xs text-yellow-400">+{showAward.points_value} points</p>
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400">+{showAward.points_value} points</p>
                 </div>
               </div>
               <div>

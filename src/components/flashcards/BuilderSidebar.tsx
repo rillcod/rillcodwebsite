@@ -131,7 +131,7 @@ export default function BuilderSidebar({
               whileHover={{ scale: 1.02, x: 5 }}
               whileTap={{ scale: 0.98 }}
               onClick={onClearAll}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-muted hover:bg-red-500/10 text-foreground hover:text-red-400 text-sm font-medium rounded-lg transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 bg-muted hover:bg-red-500/10 text-foreground hover:text-red-600 dark:hover:text-red-400 text-sm font-medium rounded-lg transition-colors"
             >
               <TrashIcon className="w-4 h-4" />
               Clear All

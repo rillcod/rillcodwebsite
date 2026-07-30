@@ -87,15 +87,15 @@ export default function NeuralVoiceReader({ content, title, isOpen, onClose }: N
             <SpeakerWaveIcon className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Neural Voice</p>
-            <p className="text-xs font-bold text-white truncate">{title || 'Lesson Audio'}</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Neural Voice</p>
+            <p className="text-xs font-bold text-foreground truncate">{title || 'Lesson Audio'}</p>
           </div>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
             aria-label="Close reader"
           >
-            <XMarkIcon className="w-4 h-4 text-white/50" />
+            <XMarkIcon className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
@@ -107,7 +107,7 @@ export default function NeuralVoiceReader({ content, title, isOpen, onClose }: N
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-white/20 font-bold mt-1">
+          <div className="flex justify-between text-[10px] text-muted-foreground font-bold mt-1">
             <span>{isPlaying ? (isPaused ? 'Paused' : 'Playing…') : 'Ready to play'}</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -115,7 +115,7 @@ export default function NeuralVoiceReader({ content, title, isOpen, onClose }: N
 
         {/* Controls */}
         <div className="flex items-center justify-between px-4 py-3">
-          <p className="text-[10px] text-white/30 italic truncate max-w-[140px]">
+          <p className="text-[10px] text-muted-foreground italic truncate max-w-[140px]">
             {title ? `"${title}"` : 'Full lesson audio'}
           </p>
           <div className="flex items-center gap-2">
@@ -126,14 +126,14 @@ export default function NeuralVoiceReader({ content, title, isOpen, onClose }: N
                 aria-label="Stop"
                 title="Stop"
               >
-                <StopIcon className="w-4 h-4 text-white/40" />
+                <StopIcon className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
             <button
               onClick={togglePlay}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 min-w-[90px] justify-center ${
                 isPlaying && !isPaused
-                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/30'
               }`}
             >

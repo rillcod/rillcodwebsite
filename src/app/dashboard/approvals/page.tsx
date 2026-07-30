@@ -61,13 +61,13 @@ function isSpecialProgrammeProspect(prospect: any): boolean {
 }
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
-        approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
-        pending_verification: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-        partially_paid: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        approved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+        pending: 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30',
+        pending_verification: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+        partially_paid: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
         unpaid: 'bg-muted text-muted-foreground border-border',
-        paid: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        rejected: 'bg-rose-500/20   text-rose-400   border-rose-500/30',
+        paid: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+        rejected: 'bg-rose-500/20   text-rose-600 dark:text-rose-400   border-rose-500/30',
     };
     const labels: Record<string, string> = {
         pending_verification: 'awaiting verification',
@@ -84,8 +84,8 @@ function StatusBadge({ status }: { status: string }) {
 function EnrollTypeBadge({ type }: { type?: string }) {
     const map: Record<string, string> = {
         school: 'bg-primary/20 text-primary border-primary/30',
-        special: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
-        online: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        special: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+        online: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
     };
     const label: Record<string, string> = {
         school: 'Partner School', special: 'Special programme', online: 'Online School',
@@ -434,17 +434,17 @@ export default function ApprovalsPage() {
 
                 {error && (
                     <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
-                        <p className="text-rose-400 text-sm">{error}</p>
+                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                        <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
                 {actingError && (
                     <div className="flex items-center justify-between gap-3 bg-rose-500/10 border border-rose-500/20 p-4">
                         <div className="flex items-center gap-3">
-                            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                            <p className="text-rose-400 text-sm">{actingError}</p>
+                            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                            <p className="text-rose-600 dark:text-rose-400 text-sm">{actingError}</p>
                         </div>
-                        <button onClick={() => setActingError(null)} className="text-rose-400 hover:text-rose-300 text-xs font-bold flex-shrink-0">Dismiss</button>
+                        <button onClick={() => setActingError(null)} className="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 text-xs font-bold flex-shrink-0">Dismiss</button>
                     </div>
                 )}
 
@@ -452,9 +452,9 @@ export default function ApprovalsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
-                            <UserGroupIcon className="w-5 h-5 text-amber-400" />
+                            <UserGroupIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <p className="text-2xl font-extrabold text-amber-400">{students.length}</p>
+                        <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{students.length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Pending Students</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
@@ -462,11 +462,11 @@ export default function ApprovalsPage() {
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
-                        <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'special').length}</p>
+                        <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{students.filter(s => s.enrollment_type === 'special').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Special Programme</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
-                        <p className="text-2xl font-extrabold text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>
+                        <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Online School</p>
                     </div>
                 </div>
@@ -503,7 +503,7 @@ export default function ApprovalsPage() {
                 {/* Empty */}
                 {currentList.length === 0 && (
                     <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
-                        <CheckCircleIcon className="w-14 h-14 mx-auto text-emerald-400/30 mb-4" />
+                        <CheckCircleIcon className="w-14 h-14 mx-auto text-emerald-600/30 dark:text-emerald-400/30 mb-4" />
                         <p className="text-lg font-semibold text-muted-foreground">All clear!</p>
                         <p className="text-sm text-muted-foreground mt-1">No pending {tab} registrations</p>
                     </div>
@@ -527,12 +527,12 @@ export default function ApprovalsPage() {
                                                 <p className="font-bold text-foreground">{s.full_name}</p>
                                                 <EnrollTypeBadge type={s.enrollment_type} />
                                                 {studentApprovalPaymentState(s) === 'awaiting_payment' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/10 text-rose-400 border-rose-500/30">
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
                                                         Awaiting payment
                                                     </span>
                                                 )}
                                                 {studentApprovalPaymentState(s) === 'paid' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                                                         Payment confirmed
                                                     </span>
                                                 )}
@@ -549,11 +549,11 @@ export default function ApprovalsPage() {
                                                     <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
                                                         <PhoneIcon className="w-3.5 h-3.5 text-primary" />
                                                         <a href={`tel:${s.parent_phone}`} className="hover:text-primary hover:underline transition-colors font-semibold">{s.parent_phone}</a>
-                                                        <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
+                                                        <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
                                                         <button onClick={() => { navigator.clipboard.writeText(s.parent_phone); toast.success('Phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
                                                     </span>
                                                 )}
-                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}{s.school_id ? <span className="text-emerald-500/60 ml-0.5">✓</span> : <span className="text-amber-400/70 ml-0.5" title="No school ID resolved">!</span>}</span>}
+                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}{s.school_id ? <span className="text-emerald-600/60 dark:text-emerald-400/60 ml-0.5">✓</span> : <span className="text-amber-600/70 dark:text-amber-400/70 ml-0.5" title="No school ID resolved">!</span>}</span>}
                                                 {s.current_class && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Class: {s.current_class}</span>}
                                             </div>
                                             {s.goals && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">Goal: {s.goals}</p>}
@@ -573,7 +573,7 @@ export default function ApprovalsPage() {
                                             </button>
                                             <button onClick={() => removeEntry('students', s.id, s.full_name ?? 'this student')} disabled={removing === s.id}
                                                 title="Remove a duplicate / failed / unwanted entry"
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
                                                 {removing === s.id ? '…' : '🗑'}
                                             </button>
                                         </div>
@@ -616,7 +616,7 @@ export default function ApprovalsPage() {
                                                     <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
                                                         <PhoneIcon className="w-3.5 h-3.5 text-primary" />
                                                         <a href={`tel:${s.phone}`} className="hover:text-primary hover:underline transition-colors font-semibold">{s.phone}</a>
-                                                        <a href={`https://wa.me/${s.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
+                                                        <a href={`https://wa.me/${s.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
                                                         <button onClick={() => { navigator.clipboard.writeText(s.phone); toast.success('Phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
                                                     </span>
                                                 )}
@@ -638,7 +638,7 @@ export default function ApprovalsPage() {
                                             </button>
                                             <button onClick={() => removeEntry('schools', s.id, s.name ?? 'this school')} disabled={removing === s.id}
                                                 title="Remove a duplicate / failed / unwanted entry"
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
                                                 {removing === s.id ? '…' : '🗑'}
                                             </button>
                                         </div>
@@ -654,7 +654,7 @@ export default function ApprovalsPage() {
                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                          <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
                              <div className="flex items-center gap-3">
-                                 <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+                                 <CheckCircleIcon className="w-7 h-7 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                                  <div>
                                      <p className="font-extrabold text-foreground">Account Created Successfully</p>
                                      <p className="text-xs text-muted-foreground">{credentials.name}</p>
@@ -668,26 +668,26 @@ export default function ApprovalsPage() {
                                          {/* Student Details */}
                                          {credentials.student && (
                                              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
-                                                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account</p>
+                                                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">🎓 Student Account</p>
                                                  <div className="text-xs space-y-1">
                                                      <p className="text-muted-foreground font-medium">Username / Email:</p>
                                                      <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded">{credentials.student.email}</p>
                                                      <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
-                                                     <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded">{credentials.student.password || 'Existing Account'}</p>
+                                                     <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded">{credentials.student.password || 'Existing Account'}</p>
                                                  </div>
                                              </div>
                                          )}
                                          {/* Parent Details */}
                                          {credentials.parent && (
                                              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
-                                                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account</p>
+                                                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">👨‍👩‍👧 Parent Account</p>
                                                  <div className="text-xs space-y-1">
                                                      <p className="text-muted-foreground font-medium">Username / Email:</p>
                                                      <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded">{credentials.parent.email}</p>
                                                      {credentials.parent.password && (
                                                          <>
                                                              <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
-                                                             <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded">{credentials.parent.password}</p>
+                                                             <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded">{credentials.parent.password}</p>
                                                          </>
                                                      )}
                                                  </div>
@@ -702,7 +702,7 @@ export default function ApprovalsPage() {
                                          </div>
                                          <div>
                                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Password</p>
-                                             <p className="text-emerald-400 font-bold select-all">{credentials.password}</p>
+                                             <p className="text-emerald-600 dark:text-emerald-400 font-bold select-all">{credentials.password}</p>
                                          </div>
                                      </div>
                                  )}
@@ -770,19 +770,19 @@ export default function ApprovalsPage() {
                             <div className="space-y-3">
                                 {/* Evidence upload */}
                                 <div>
-                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Payment Evidence <span className="text-rose-400">*</span></label>
+                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Payment Evidence <span className="text-rose-600 dark:text-rose-400">*</span></label>
                                     <input
                                         type="file"
                                         accept="image/jpeg,image/png,image/webp,application/pdf"
                                         onChange={(e) => setPayFile(e.target.files?.[0] ?? null)}
                                         className="block w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer bg-background border border-border rounded-xl p-2"
                                     />
-                                    {payFile && <p className="text-[11px] text-emerald-400 mt-1 font-medium truncate">✓ {payFile.name} ({(payFile.size / 1024).toFixed(0)} KB)</p>}
+                                    {payFile && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium truncate">✓ {payFile.name} ({(payFile.size / 1024).toFixed(0)} KB)</p>}
                                     <p className="text-[10px] text-muted-foreground mt-1">Receipt, bank alert or transfer screenshot — JPEG, PNG, WebP or PDF (max 10 MB).</p>
                                 </div>
                                 {/* Amount */}
                                 <div>
-                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Amount Paid (₦) <span className="text-rose-400">*</span></label>
+                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Amount Paid (₦) <span className="text-rose-600 dark:text-rose-400">*</span></label>
                                     <input
                                         type="number" min="0" inputMode="decimal" value={payAmount}
                                         onChange={(e) => setPayAmount(e.target.value)} placeholder="e.g. 25000"
@@ -833,7 +833,7 @@ export default function ApprovalsPage() {
                                 <p className="mt-1 text-xs text-muted-foreground">Filter registrations by the programme selected by the learner.</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <SunIcon className="w-4 h-4 text-amber-500" />
+                                <SunIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                 <select
                                     value={programmeFilter}
                                     onChange={(event) => setProgrammeFilter(event.target.value)}
@@ -858,13 +858,13 @@ export default function ApprovalsPage() {
                                             {/* Left Column: Avatar & Core Information */}
                                             <div className="flex-1 min-w-0 space-y-4">
                                                 <div className="flex items-start gap-4">
-                                                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-amber-600/30 border border-amber-500/20 rounded-xl flex items-center justify-center text-base font-black text-amber-400 flex-shrink-0 shadow-inner">
+                                                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-amber-600/30 border border-amber-500/20 rounded-xl flex items-center justify-center text-base font-black text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-inner">
                                                         {(s.full_name ?? '?')[0].toUpperCase()}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <p className="font-bold text-base text-foreground truncate">{s.full_name}</p>
-                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30">
                                                                 {prospectProgrammeLabel(s)}
                                                             </span>
                                                             {s.status && <StatusBadge status={s.status} />}
@@ -921,7 +921,7 @@ export default function ApprovalsPage() {
                                                             <PhoneIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                                                             <span className="font-medium">Parent Phone:</span>
                                                             <a href={`tel:${s.parent_phone}`} className="hover:text-primary hover:underline transition-colors font-bold text-foreground">{s.parent_phone}</a>
-                                                            <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
+                                                            <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
                                                             <button onClick={() => { navigator.clipboard.writeText(s.parent_phone); toast.success('Parent phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1.5 py-0.5 rounded bg-background transition-colors">Copy</button>
                                                         </span>
                                                     )}
@@ -930,7 +930,7 @@ export default function ApprovalsPage() {
                                                             <PhoneIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                                                             <span className="font-medium">Student Phone:</span>
                                                             <a href={`tel:${parsed.studentPhone}`} className="hover:text-primary hover:underline transition-colors font-bold text-foreground">{parsed.studentPhone}</a>
-                                                            <a href={`https://wa.me/${parsed.studentPhone!.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
+                                                            <a href={`https://wa.me/${parsed.studentPhone!.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
                                                             <button onClick={() => { navigator.clipboard.writeText(parsed.studentPhone!); toast.success('Student phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1.5 py-0.5 rounded bg-background transition-colors">Copy</button>
                                                         </span>
                                                     )}
@@ -939,7 +939,7 @@ export default function ApprovalsPage() {
                                                 {/* Structured Payment Info & Receipt Preview */}
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border/40 pt-4 mt-2">
                                                     <div className="bg-card shadow-sm border border-border/50 rounded-xl p-3.5 space-y-1.5">
-                                                        <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Payment Meta</h4>
+                                                        <h4 className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Payment Meta</h4>
                                                         <div className="grid grid-cols-2 gap-2 text-xs">
                                                             <div>
                                                                 <span className="text-muted-foreground block text-[10px] uppercase">Plan</span>
@@ -958,22 +958,22 @@ export default function ApprovalsPage() {
                                                             {proof.balanceDue != null && proof.balanceDue > 0 && (
                                                                 <div>
                                                                     <span className="text-muted-foreground block text-[10px] uppercase">Balance after verify</span>
-                                                                    <span className="font-bold text-amber-400">₦{proof.balanceDue.toLocaleString()}</span>
+                                                                    <span className="font-bold text-amber-600 dark:text-amber-400">₦{proof.balanceDue.toLocaleString()}</span>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                     {proof.transferReference && (
                                                         <div className="bg-card shadow-sm border border-border/50 rounded-xl p-3.5 space-y-1.5 sm:col-span-2">
-                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Transfer Reference</h4>
+                                                            <h4 className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Transfer Reference</h4>
                                                             <p className="text-xs font-mono font-bold text-foreground break-all">{proof.transferReference}</p>
                                                         </div>
                                                     )}
                                                     {proofUrl && (
                                                         <div className="space-y-1.5">
-                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Payment Proof</h4>
+                                                            <h4 className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Payment Proof</h4>
                                                             <div className="flex flex-wrap items-center gap-3">
-                                                                <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-all">
+                                                                <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-all">
                                                                     {isPdfProofUrl(proofUrl) ? 'View Receipt PDF →' : 'View Receipt Screenshot →'}
                                                                 </a>
                                                             </div>
@@ -1024,7 +1024,7 @@ export default function ApprovalsPage() {
                                                 </button>
                                                 <button onClick={() => removeEntry('prospective', s.id, s.full_name ?? 'this applicant')} disabled={removing === s.id}
                                                     title="Remove a duplicate / failed / unwanted entry from the queue"
-                                                    className="flex items-center justify-center gap-1.5 px-4 py-2 text-muted-foreground hover:text-rose-400 text-[11px] font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 border border-border hover:border-rose-500/30">
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 text-[11px] font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 border border-border hover:border-rose-500/30">
                                                     {removing === s.id ? 'Removing…' : '🗑 Remove entry'}
                                                 </button>
                                             </div>

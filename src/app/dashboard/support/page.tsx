@@ -18,8 +18,8 @@ interface Ticket {
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-primary/20 text-primary',
-  in_progress: 'bg-amber-500/20 text-amber-400',
-  resolved: 'bg-emerald-500/20 text-emerald-400',
+  in_progress: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+  resolved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
   reopened: 'bg-primary/20 text-primary',
   closed: 'bg-gray-500/20 text-muted-foreground/70',
 };
@@ -129,7 +129,7 @@ export default function SupportPage() {
             )}
             {selected.admin_reply && (
               <div className="bg-emerald-500/10 rounded p-3">
-                <p className="text-xs text-emerald-400 mb-1 font-semibold">Staff reply</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 font-semibold">Staff reply</p>
                 <p className="text-sm text-foreground">{selected.admin_reply}</p>
               </div>
             )}
@@ -143,7 +143,7 @@ export default function SupportPage() {
               rows={3}
               className="w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
             />
-            {error && <p className="text-rose-400 text-sm">{error}</p>}
+            {error && <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>}
             <button
               type="submit"
               disabled={!reply.trim() || submitting}
@@ -190,7 +190,7 @@ export default function SupportPage() {
               className="mt-1 w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
             />
           </div>
-          {error && <p className="text-rose-400 text-sm">{error}</p>}
+          {error && <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>}
           <button
             type="submit"
             disabled={!subject.trim() || !message.trim() || submitting}

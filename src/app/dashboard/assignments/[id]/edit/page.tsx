@@ -184,8 +184,8 @@ export default function EditAssignmentPage() {
 
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-                        <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Edit Assignment</span>
+                        <ClipboardDocumentListIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Edit Assignment</span>
                     </div>
                     <h1 className="text-3xl font-extrabold">Edit Assignment</h1>
                     <p className="text-muted-foreground text-sm mt-1">Update assignment details and settings</p>
@@ -193,8 +193,8 @@ export default function EditAssignmentPage() {
 
                 {error && (
                     <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                        <p className="text-rose-400 text-sm">{error}</p>
+                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                        <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
 
@@ -203,7 +203,7 @@ export default function EditAssignmentPage() {
                     {/* Title */}
                     <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                            Title <span className="text-rose-400">*</span>
+                            Title <span className="text-rose-600 dark:text-rose-400">*</span>
                         </label>
                         <input type="text" required value={form.title}
                             onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -214,7 +214,7 @@ export default function EditAssignmentPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                Programme <span className="text-rose-400">*</span>
+                                Programme <span className="text-rose-600 dark:text-rose-400">*</span>
                             </label>
                             <select value={selectedProgramId}
                                 onChange={e => {
@@ -232,7 +232,7 @@ export default function EditAssignmentPage() {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                Course <span className="text-rose-400">*</span>
+                                Course <span className="text-rose-600 dark:text-rose-400">*</span>
                             </label>
                             <select required value={form.course_id}
                                 onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
@@ -274,7 +274,7 @@ export default function EditAssignmentPage() {
                                     onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
                                     placeholder="0"
                                     className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-                                <p className="text-[10px] text-white/30 mt-1">Points toward final report (0 = excluded)</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">Points toward final report (0 = excluded)</p>
                             </div>
                         </div>
 
@@ -322,13 +322,13 @@ export default function EditAssignmentPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                    <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                                    <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                     Questions ({questions.length})
                                 </h2>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">Edit questions for this assignment</p>
                             </div>
                             <button type="button" onClick={addQuestion}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
                                 <PlusIcon className="w-3.5 h-3.5" /> Add Question
                             </button>
                         </div>
@@ -347,7 +347,7 @@ export default function EditAssignmentPage() {
                                             <ChevronDownIcon className="w-3.5 h-3.5" />
                                         </button>
                                         <button type="button" onClick={() => removeQuestion(qi)}
-                                            className="p-1 text-rose-400/60 hover:text-rose-400 transition-colors">
+                                            className="p-1 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                                             <TrashIcon className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
@@ -415,7 +415,7 @@ export default function EditAssignmentPage() {
 
                     <div className="flex items-center gap-3 pt-2">
                         <button type="button" onClick={handleDelete} disabled={deleting}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                             <TrashIcon className="w-4 h-4" />
                             {deleting ? 'Deleting…' : 'Delete'}
                         </button>

@@ -90,8 +90,8 @@ export default function VisualizationControls({
             className={cn(
               "w-12 h-10 transition-all rounded-xl border border-transparent active:translate-y-0.5",
               isPlaying 
-                ? "bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20" 
-                : "bg-cyan-500/10 text-cyan-500 border-cyan-500/30 hover:bg-cyan-500/20"
+                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/20" 
+                : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20"
             )}
           >
             {isPlaying ? (
@@ -115,13 +115,13 @@ export default function VisualizationControls({
         {/* Step counter */}
         <div className="hidden lg:flex items-center gap-4">
           <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Status</span>
+            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Status</span>
             <div className="flex items-center gap-2">
               <span className={cn(
                 "w-1.5 h-1.5 rounded-xl",
                 isPlaying ? "bg-cyan-500 animate-pulse" : "bg-zinc-600"
               )} />
-              <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
+              <span className="text-[10px] font-black text-foreground uppercase tracking-widest leading-none">
                 {isPlaying ? 'RUNNING' : 'PAUSED'}
               </span>
             </div>
@@ -130,8 +130,8 @@ export default function VisualizationControls({
           <div className="w-px h-6 bg-white/5" />
 
           <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Step</span>
-            <span className="text-[10px] font-black text-cyan-400 tabular-nums leading-none">
+            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Step</span>
+            <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tabular-nums leading-none">
               {String(currentStep + 1).padStart(2, '0')} / {String(totalSteps).padStart(2, '0')}
             </span>
           </div>
@@ -147,7 +147,7 @@ export default function VisualizationControls({
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
                 <span>Speed Control</span>
-                <span className="text-cyan-400">{speed.toFixed(1)}x</span>
+                <span className="text-cyan-600 dark:text-cyan-400">{speed.toFixed(1)}x</span>
               </div>
               <div 
                 className="relative h-1.5 bg-zinc-800 rounded-xl cursor-pointer group"

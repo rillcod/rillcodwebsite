@@ -222,14 +222,14 @@ function ClassSectionPicker({
 }) {
   if (disabled) {
     return (
-      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-400">
+      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-600 dark:text-amber-400">
         {emptyMessage || 'Select a school first to load your class sections.'}
       </p>
     );
   }
   if (options.length === 0) {
     return (
-      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-400">
+      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-600 dark:text-amber-400">
         {emptyMessage || 'No classes found for this school. Create one on Classes, then refresh.'}
       </p>
     );
@@ -1946,7 +1946,7 @@ export default function BulkRegisterPage() {
                     const isDone = sIdx < currentIdx;
                     return (
                       <div key={s.key} className="flex min-w-0 flex-1 items-center">
-                        <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 border-y border-l px-2 py-2.5 text-[10px] font-black uppercase tracking-wider sm:px-3 ${i === arr.length - 1 ? 'border-r' : ''} ${isActive ? 'border-primary bg-primary text-white' : isDone ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-border bg-card text-muted-foreground'}`}>
+                        <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 border-y border-l px-2 py-2.5 text-[10px] font-black uppercase tracking-wider sm:px-3 ${i === arr.length - 1 ? 'border-r' : ''} ${isActive ? 'border-primary bg-primary text-white' : isDone ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'border-border bg-card text-muted-foreground'}`}>
                           <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-black ${isActive ? 'bg-white/20' : isDone ? 'bg-emerald-500/30' : 'bg-muted'}`}>
                             {isDone ? '✓' : i + 1}
                           </span>
@@ -2014,7 +2014,7 @@ export default function BulkRegisterPage() {
                                 <option key={s.id} value={s.id}>{s.name}</option>
                               ))}
                             </select>
-                            <p className="text-white/25 text-[11px] mt-1.5">
+                            <p className="text-muted-foreground text-[11px] mt-1.5">
                               {selectedSchoolId ? `Students will be assigned to ${selectedSchoolName}.` : 'Select the school to register students into.'}
                             </p>
                           </div>
@@ -2039,7 +2039,7 @@ export default function BulkRegisterPage() {
                               <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
-                          <p className="text-white/25 text-[11px] mt-1.5">
+                          <p className="text-muted-foreground text-[11px] mt-1.5">
                             {selectedProgramId
                               ? `Auto-enrolled into "${selectedProgLabel}" after registration.`
                               : 'Leave blank to skip auto-enrolment.'}
@@ -2059,7 +2059,7 @@ export default function BulkRegisterPage() {
                             <ClockIcon className="w-3.5 h-3.5" />
                             Academic Term
                           </label>
-                          <p className="text-white/25 text-[11px] mb-2">
+                          <p className="text-muted-foreground text-[11px] mb-2">
                             Classes and rosters will be created or selected inside this term.
                           </p>
                           <select
@@ -2126,7 +2126,7 @@ export default function BulkRegisterPage() {
                             <AcademicCapIcon className="w-3.5 h-3.5" />
                             Grade Level <span className="text-muted-foreground/70 normal-case font-normal ml-1">(optional if grades are in the text)</span>
                           </label>
-                          <p className="text-white/25 text-[11px] mb-2">
+                          <p className="text-muted-foreground text-[11px] mb-2">
                             Academic grade only (e.g. JSS 2, Basic 4) — separate from arm. Fallback for any student whose pasted name has no grade code; every student must end up with a grade.
                           </p>
                           <select
@@ -2165,7 +2165,7 @@ export default function BulkRegisterPage() {
                             <p className="mt-1 text-[11px] text-muted-foreground">Stored independently. Example display: {effectiveClassCode || 'JSS 2'}{selectedArm || ''}.</p>
                           </div>
                           {defaultClass && (
-                            <p className="text-emerald-400/60 text-[11px] mt-1.5">
+                            <p className="text-emerald-600/60 dark:text-emerald-400/60 text-[11px] mt-1.5">
                               Batch grade: <span className="font-mono font-bold">{defaultClass}</span>
                               {selectedArm ? <> · Arm <span className="font-mono font-bold">{selectedArm}</span></> : null}.
                             </p>
@@ -2269,15 +2269,15 @@ Yusuf Ibrahim SS1A`}
                 </div>
 
                 {!batchPlacementReady && namesText.trim() && (
-                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300 animate-in fade-in duration-200">
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300 animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
-                      <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                      <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                       <span>Setup required: {!selectedSchoolId && !selectedTermId ? 'Select a Target School & Academic Term in Setup above.' : !selectedSchoolId ? 'Select a Target School in Setup above.' : 'Select an Academic Term in Setup above.'}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSettingsOpen(true)}
-                      className="text-[10px] font-black uppercase tracking-wider text-amber-400 underline hover:text-amber-200 flex-shrink-0"
+                      className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 underline hover:text-amber-800 dark:hover:text-amber-200 flex-shrink-0"
                     >
                       Open Setup
                     </button>
@@ -2308,7 +2308,7 @@ Yusuf Ibrahim SS1A`}
                       </span>
                     )}
                     {selectedProgramId && (
-                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-300">
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
                         <BookOpenIcon className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="min-w-0 break-words">Auto-enrol: {selectedProgLabel}</span>
                       </span>
@@ -2320,7 +2320,7 @@ Yusuf Ibrahim SS1A`}
                       </span>
                     )}
                     {selectedArm && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 font-mono text-sky-300">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 font-mono text-sky-700 dark:text-sky-300">
                         Arm: {selectedArm}
                       </span>
                     )}
@@ -2395,7 +2395,7 @@ Yusuf Ibrahim SS1A`}
                                 <p className="truncate text-xs font-black text-foreground">{band}</p>
                                 <p className="text-[10px] text-muted-foreground">{count} student{count !== 1 ? 's' : ''}</p>
                               </div>
-                              {bandClassSelections[band] ? <CheckCircleIcon className="h-4 w-4 flex-shrink-0 text-emerald-400" /> : null}
+                              {bandClassSelections[band] ? <CheckCircleIcon className="h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" /> : null}
                             </div>
                             <ClassSectionPicker
                               options={bandOptions}
@@ -2421,7 +2421,7 @@ Yusuf Ibrahim SS1A`}
                                   : 'Select a programme to create this class'}
                             </button>
                             {!hasAnySection && selectedProgramId ? (
-                              <p className="mt-1 text-[10px] text-amber-400">
+                              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
                                 No matching class yet — create one above or pick the default section.
                               </p>
                             ) : null}
@@ -2431,7 +2431,7 @@ Yusuf Ibrahim SS1A`}
                     </div>
                   )}
                   {studentsMissingSection.length > 0 && (
-                    <p className="text-xs text-rose-400">
+                    <p className="text-xs text-rose-600 dark:text-rose-400">
                       {studentsMissingSection.length} student{studentsMissingSection.length !== 1 ? 's' : ''} still need a class section.
                     </p>
                   )}
@@ -2456,12 +2456,12 @@ Yusuf Ibrahim SS1A`}
                   )}
                   {dups.size > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs">
-                      <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
-                      <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
+                      <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">Duplicate emails — fix before registering</span>
                     </div>
                   )}
                   {dbEmailConflicts.size > 0 && (
-                    <div className="flex flex-col gap-1.5 px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs text-rose-400 w-full">
+                    <div className="flex flex-col gap-1.5 px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 w-full">
                       <div className="flex items-center gap-2">
                         <ExclamationTriangleIcon className="w-4 h-4" />
                         <span className="font-bold">System Email Conflicts — the following emails are already in use by other users:</span>
@@ -2473,7 +2473,7 @@ Yusuf Ibrahim SS1A`}
                           </div>
                         ))}
                       </div>
-                      <span className="pl-6 text-[10px] text-rose-300/80">Please double-check or change the email address for these rows.</span>
+                      <span className="pl-6 text-[10px] text-rose-700/80 dark:text-rose-300/80">Please double-check or change the email address for these rows.</span>
                     </div>
                   )}
                   {checkingDups && (
@@ -2485,11 +2485,11 @@ Yusuf Ibrahim SS1A`}
                   {!checkingDups && dbDupNames.size > 0 && (
                     <div className="px-4 py-3 bg-yellow-500/15 rounded-xl border border-yellow-500/40 text-xs space-y-2">
                       <div className="flex items-start gap-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+                        <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
                         <div className="space-y-1">
-                          <p className="text-yellow-400 font-bold">{dbDupNames.size} name{dbDupNames.size !== 1 ? 's' : ''} already exist at this school:</p>
-                          <p className="text-yellow-300 font-mono">{[...dbDupNames].map(n => preview.find(s => s.full_name.trim().toLowerCase() === n)?.full_name ?? n).join(', ')}</p>
-                          <p className="text-yellow-400/80">For a genuine twin or different child, confirm the exception on that student row and enter a distinguishing reason. Otherwise remove the duplicate row.</p>
+                          <p className="text-yellow-600 dark:text-yellow-400 font-bold">{dbDupNames.size} name{dbDupNames.size !== 1 ? 's' : ''} already exist at this school:</p>
+                          <p className="text-yellow-700 dark:text-yellow-300 font-mono">{[...dbDupNames].map(n => preview.find(s => s.full_name.trim().toLowerCase() === n)?.full_name ?? n).join(', ')}</p>
+                          <p className="text-yellow-600/80 dark:text-yellow-400/80">For a genuine twin or different child, confirm the exception on that student row and enter a distinguishing reason. Otherwise remove the duplicate row.</p>
                         </div>
                       </div>
                     </div>
@@ -2497,37 +2497,37 @@ Yusuf Ibrahim SS1A`}
                   {!checkingDups && dbSwapNames.size > 0 && (
                     <div className="px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/30 text-xs space-y-2">
                       <div className="flex items-start gap-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                         <div className="space-y-1">
-                          <p className="text-rose-400 font-bold">{dbSwapNames.size} name{dbSwapNames.size !== 1 ? 's look' : ' looks'} like a swapped version of an existing student:</p>
+                          <p className="text-rose-600 dark:text-rose-400 font-bold">{dbSwapNames.size} name{dbSwapNames.size !== 1 ? 's look' : ' looks'} like a swapped version of an existing student:</p>
                           <div className="space-y-0.5">
                             {[...dbSwapNames.entries()].map(([norm, existing]) => {
                               const incomingOriginal = preview.find(s => s.full_name.trim().toLowerCase() === norm)?.full_name ?? norm;
                               return (
-                                <p key={norm} className="text-rose-400/80 font-mono">
+                                <p key={norm} className="text-rose-600/80 dark:text-rose-400/80 font-mono">
                                   &quot;{incomingOriginal}&quot; → matches existing &quot;{existing}&quot;
                                 </p>
                               );
                             })}
                           </div>
-                          <p className="text-rose-300/60">This usually means the same student's first and last name were reversed. Confirm a per-student exception only for a genuine twin or different child.</p>
+                          <p className="text-rose-700/60 dark:text-rose-300/60">This usually means the same student's first and last name were reversed. Confirm a per-student exception only for a genuine twin or different child.</p>
                         </div>
                       </div>
                     </div>
                   )}
                   {incompleteRows.length > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/15 rounded-xl border border-yellow-500/30 text-xs">
-                      <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400" />
-                      <span className="text-yellow-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
+                      <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                      <span className="text-yellow-600 dark:text-yellow-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
                     </div>
                   )}
                   {missingGradeRows.length > 0 && (
                     <div className="flex flex-col gap-1 px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/30 text-xs w-full">
                       <div className="flex items-center gap-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
-                        <span className="text-rose-400 font-bold">{missingGradeRows.length} student{missingGradeRows.length !== 1 ? 's have' : ' has'} no grade</span>
+                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        <span className="text-rose-600 dark:text-rose-400 font-bold">{missingGradeRows.length} student{missingGradeRows.length !== 1 ? 's have' : ' has'} no grade</span>
                       </div>
-                      <span className="pl-6 text-rose-300/80">Every student needs a grade. Pick it in the Grade field, add a grade header in the pasted text, or go back and set a batch Grade Level.</span>
+                      <span className="pl-6 text-rose-700/80 dark:text-rose-300/80">Every student needs a grade. Pick it in the Grade field, add a grade header in the pasted text, or go back and set a batch Grade Level.</span>
                     </div>
                   )}
                 </div>
@@ -2584,12 +2584,12 @@ Yusuf Ibrahim SS1A`}
                                     placeholder="Full name"
                                   />
                                   {dbDup && (
-                                    <span className="shrink-0 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-[9px] font-black uppercase tracking-tight rounded-xl" title="Already registered at this school">EXISTS</span>
+                                    <span className="shrink-0 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/40 text-yellow-600 dark:text-yellow-400 text-[9px] font-black uppercase tracking-tight rounded-xl" title="Already registered at this school">EXISTS</span>
                                   )}
                                 </div>
                                 {nameConflict && (
                                   <div className="mt-2 space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-bold text-amber-300">
+                                    <label className="flex items-center gap-2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
                                       <input type="checkbox" checked={!!s.duplicate_exception_confirmed} onChange={(e) => updateDuplicateException(s.id, e.target.checked)} className="accent-amber-500" />
                                       Confirmed twin / different child
                                     </label>
@@ -2645,27 +2645,27 @@ Yusuf Ibrahim SS1A`}
                               <td className="px-2 py-1.5 align-middle">
                                 <div className="relative">
                                   <input
-                                    className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-primary'}`}
+                                    className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-700 dark:text-rose-300' : 'text-primary'}`}
                                     value={s.email}
                                     onChange={(e) => updateField(s.id, 'email', e.target.value)}
                                     placeholder="email@rillcod.com"
                                   />
                                   {emailDup && (
-                                    <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400 pointer-events-none" />
+                                    <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-600 dark:text-rose-400 pointer-events-none" />
                                   )}
                                 </div>
                               </td>
  
                               {/* Password (read-only display) */}
                               <td className="px-2 py-2 align-middle">
-                                <span className="font-mono text-yellow-400 font-bold">{s.password}</span>
+                                <span className="font-mono text-yellow-600 dark:text-yellow-400 font-bold">{s.password}</span>
                               </td>
  
                               {/* Delete */}
                               <td className="px-2 py-2 align-middle text-center">
                                 <button
                                   onClick={() => removeRow(s.id)}
-                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-400 transition-all rounded p-0.5"
+                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all rounded p-0.5"
                                   title="Remove row"
                                 >
                                   <XMarkIcon className="w-4 h-4" />
@@ -2689,13 +2689,13 @@ Yusuf Ibrahim SS1A`}
                           <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-yellow-500/10' : emailDup ? 'bg-rose-500/5' : dbDup ? 'bg-yellow-500/10' : ''}`}>
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student #{i + 1}</span>
-                              <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
+                              <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
                             </div>
                             <div className="space-y-2">
                               <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
                               {nameConflict && (
                                 <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
-                                  <label className="flex items-center gap-2 text-[10px] font-bold text-amber-300">
+                                  <label className="flex items-center gap-2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
                                     <input type="checkbox" checked={!!s.duplicate_exception_confirmed} onChange={(e) => updateDuplicateException(s.id, e.target.checked)} className="accent-amber-500" />
                                     Confirmed twin / different child
                                   </label>
@@ -2713,8 +2713,8 @@ Yusuf Ibrahim SS1A`}
                                   <option value="female">Female</option>
                                 </select>
                                 <div className="relative flex-1">
-                                  <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-primary'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
-                                  {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
+                                  <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-700 dark:text-rose-300' : 'text-primary'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
+                                  {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}
                                 </div>
                               </div>
                               <select
@@ -2731,7 +2731,7 @@ Yusuf Ibrahim SS1A`}
                               </select>
                               <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-xl border border-border text-[10px]">
                                 <span className="text-muted-foreground uppercase font-bold">Password</span>
-                                <span className="font-mono text-yellow-400 font-bold">{s.password}</span>
+                                <span className="font-mono text-yellow-600 dark:text-yellow-400 font-bold">{s.password}</span>
                               </div>
                             </div>
                           </div>
@@ -2806,7 +2806,7 @@ Yusuf Ibrahim SS1A`}
             {step === 'done' && results && (
               <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {profile && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
                     <CheckCircleIcon className="w-5 h-5" />
                     <span className="text-sm font-bold tracking-widest uppercase">Registration complete</span>
                   </div>
@@ -2817,23 +2817,23 @@ Yusuf Ibrahim SS1A`}
                   <div className="relative z-10">
                     <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
                     <div className="flex items-center justify-center gap-4 font-black tracking-widest uppercase text-[10px] flex-wrap">
-                      <span className="text-emerald-400/80">Created: {successCount - reinstateCount}</span>
+                      <span className="text-emerald-600/80 dark:text-emerald-400/80">Created: {successCount - reinstateCount}</span>
                       {reinstateCount > 0 && (
                         <>
                           <div className="w-1 h-1 bg-white/20 rounded-xl" />
-                          <span className="text-sky-400 font-bold">Reinstated: {reinstateCount}</span>
+                          <span className="text-sky-600 dark:text-sky-400 font-bold">Reinstated: {reinstateCount}</span>
                         </>
                       )}
                       {skipCount > 0 && (
                         <>
                           <div className="w-1 h-1 bg-white/20 rounded-xl" />
-                          <span className="text-yellow-400 font-bold">Skipped / needs transfer: {skipCount}</span>
+                          <span className="text-yellow-600 dark:text-yellow-400 font-bold">Skipped / needs transfer: {skipCount}</span>
                         </>
                       )}
                       {failCount > 0 && (
                         <>
                           <div className="w-1 h-1 bg-white/20 rounded-xl" />
-                          <span className="text-rose-400/80">Failed: {failCount}</span>
+                          <span className="text-rose-600/80 dark:text-rose-400/80">Failed: {failCount}</span>
                         </>
                       )}
                     </div>
@@ -2866,12 +2866,12 @@ Yusuf Ibrahim SS1A`}
                     <DocumentArrowDownIcon className="w-4 h-4" /> CSV
                   </button>
 
-                  <button onClick={handleUpdateResults} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-bold border border-emerald-500/20 text-[10px] uppercase tracking-widest">
+                  <button onClick={handleUpdateResults} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 text-[10px] uppercase tracking-widest">
                     {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Confirm Fixes
                   </button>
 
-                  <Link href="/dashboard/records?tab=registrations" className="flex items-center gap-2 px-8 py-4 bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 font-bold border border-violet-500/20 text-[10px] uppercase tracking-widest">
+                  <Link href="/dashboard/records?tab=registrations" className="flex items-center gap-2 px-8 py-4 bg-violet-600/10 hover:bg-violet-600/20 text-violet-700 dark:text-violet-300 font-bold border border-violet-500/20 text-[10px] uppercase tracking-widest">
                     <ArchiveBoxIcon className="w-4 h-4" /> Open Records
                   </Link>
 
@@ -2928,19 +2928,19 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-4 py-4 font-mono font-bold text-primary text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
                               <span className={`inline-block px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter ${
-                                r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                                  : r.status === 'reinstated' ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
-                                    : r.status === 'needs_transfer' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
-                                      : r.status === 'skipped' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-bold'
-                                        : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                r.status === 'failed' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                  : r.status === 'reinstated' ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
+                                    : r.status === 'needs_transfer' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold'
+                                      : r.status === 'skipped' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/40 font-bold'
+                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                               }`}>
                                 {r.status === 'needs_transfer' ? 'Needs Transfer' : r.status}
                               </span>
                               {r.error && (r.status === 'reinstated' || r.status === 'needs_transfer' || r.status === 'skipped' || r.status === 'failed') && (
-                                <p className="mt-1 text-[9.5px] text-amber-300/90 font-medium max-w-[260px] ml-auto text-right leading-snug">{r.error}</p>
+                                <p className="mt-1 text-[9.5px] text-amber-700/90 dark:text-amber-300/90 font-medium max-w-[260px] ml-auto text-right leading-snug">{r.error}</p>
                               )}
                               {r.cardId && (
-                                <div className={`mt-1 inline-block px-2 py-0.5 rounded-xl text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-primary/10 text-blue-300 border-primary/30'}`}>
+                                <div className={`mt-1 inline-block px-2 py-0.5 rounded-xl text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' : 'bg-primary/10 text-blue-700 dark:text-blue-300 border-primary/30'}`}>
                                   {r.cardIssued ? 'Card Ready' : 'Card Exists'}
                                 </div>
                               )}
@@ -3082,19 +3082,19 @@ Yusuf Ibrahim SS1A`}
                               <div className="w-1 h-1 bg-muted rounded-xl" />
                               <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
                             </div>
-                            <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-sky-500/10 text-sky-400 border border-sky-500/20 font-black uppercase tracking-widest">
+                            <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-black uppercase tracking-widest">
                               Created by {batch.creator?.full_name || batch.creator?.email || 'Unknown'}{batch.creator?.role ? ` (${batch.creator.role})` : ''}
                             </span>
                             {batch.school_name && (
                               <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-primary/10 text-primary border border-primary/20 font-black uppercase tracking-widest">{batch.school_name}</span>
                             )}
                             {batch.class_name && batch.school_name && (
-                              <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black uppercase tracking-widest">{batch.class_name}</span>
+                              <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-black uppercase tracking-widest">{batch.class_name}</span>
                             )}
                           </div>
                         </div>
                         {['admin', 'teacher'].includes(profile?.role || '') && (
-                          <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-3">
+                          <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all border border-border ml-3">
                             <TrashIcon className="w-5 h-5" />
                           </button>
                         )}
@@ -3175,7 +3175,7 @@ Yusuf Ibrahim SS1A`}
                           onClick={() => handleExportCredentialsCSV(batch)}
                           disabled={loadingHistory}
                           title="Download a spreadsheet with name, email and password for every student in this batch. Use this to hand out login cards or import into another system."
-                          className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                          className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
                         >
                           Export Credentials CSV
                         </button>
@@ -3190,7 +3190,7 @@ Yusuf Ibrahim SS1A`}
                             }
                           }}
                           title="Assign all students in this batch to a class. Sets class_id, school_id, and section_class on each student's account."
-                          className="px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                          className="px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
                         >
                           {batchAssignPanel === batch.id ? 'Cancel' : 'Assign to Class'}
                         </button>
@@ -3200,7 +3200,7 @@ Yusuf Ibrahim SS1A`}
                           onClick={() => handleBatchToggleActive(batch.id, true)}
                           disabled={loadingHistory}
                           title="Mark every student in this batch as active so they can log in."
-                          className="px-3 py-2 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-400 border border-yellow-500/40 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                          className="px-3 py-2 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-600 dark:text-yellow-400 border border-yellow-500/40 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
                         >
                           Activate All
                         </button>
@@ -3208,7 +3208,7 @@ Yusuf Ibrahim SS1A`}
                           onClick={() => handleBatchToggleActive(batch.id, false)}
                           disabled={loadingHistory}
                           title="Deactivate all students in this batch. They won't be able to log in until reactivated."
-                          className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                          className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
                         >
                           Deactivate All
                         </button>
@@ -3217,7 +3217,7 @@ Yusuf Ibrahim SS1A`}
                       {/* Assign-to-class panel */}
                       {batchAssignPanel === batch.id && (
                         <div className="mt-4 p-4 bg-sky-500/5 border border-sky-500/20 space-y-3 animate-in fade-in slide-in-from-top-3 duration-300">
-                          <p className="text-[10px] text-sky-400 font-black uppercase tracking-widest">Assign all {batch.student_count} students to a class</p>
+                          <p className="text-[10px] text-sky-600 dark:text-sky-400 font-black uppercase tracking-widest">Assign all {batch.student_count} students to a class</p>
                           <p className="text-[10px] text-muted-foreground">Select the school first, then the class. All student accounts from this batch will be linked to that class. This also updates their school assignment.</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <select
@@ -3299,7 +3299,7 @@ Yusuf Ibrahim SS1A`}
                                 {['admin', 'teacher'].includes(profile?.role || '') && (
                                   <button
                                     onClick={handleBulkDelete}
-                                    className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all border border-rose-500/30"
+                                    className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all border border-rose-500/30"
                                   >
                                     Delete Selected
                                   </button>
@@ -3332,7 +3332,7 @@ Yusuf Ibrahim SS1A`}
                                           id={`edit-name-${r.id}`}
                                           autoFocus
                                           defaultValue={r.full_name}
-                                          className="bg-black/80 border border-primary/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
+                                          className="bg-black/80 border border-primary/50 px-4 py-2 text-foreground font-black text-xs min-w-[150px] outline-none"
                                         />
                                         <input
                                           id={`edit-class-${r.id}`}
@@ -3404,7 +3404,7 @@ Yusuf Ibrahim SS1A`}
                                               fetchHistory();
                                               toast.success('Record deleted.');
                                             }}
-                                            className="p-2 sm:p-2.5 bg-muted hover:bg-rose-600/20 text-rose-400 sm:text-rose-400/60 hover:text-rose-400 transition-all border border-border"
+                                            className="p-2 sm:p-2.5 bg-muted hover:bg-rose-600/20 text-rose-600 dark:text-rose-400 sm:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-all border border-border"
                                             title="Delete"
                                           >
                                             <TrashIcon className="w-3.5 h-3.5" />
@@ -3472,9 +3472,9 @@ Yusuf Ibrahim SS1A`}
 
             {/* Disclaimer & Info Box */}
             <div className="bg-yellow-500/15 border border-yellow-500/40 p-4 flex items-start gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
               <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-yellow-400 uppercase tracking-wider">Access Cipher & Security Protocol</h4>
+                <h4 className="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">Access Cipher & Security Protocol</h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   The access ciphers shown below are the <strong>initial temporary passwords</strong> generated when student accounts were activated or batch-registered. If a student has already logged in and customized their password, their active password will not be displayed here for data confidentiality.
                 </p>
@@ -3562,7 +3562,7 @@ Yusuf Ibrahim SS1A`}
                         toast.success('Unified credentials CSV downloaded.');
                       }}
                       disabled={loadingUnified || filteredUnifiedResults.length === 0}
-                      className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                      className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
                     >
                       Export CSV
                     </button>
@@ -3629,7 +3629,7 @@ Yusuf Ibrahim SS1A`}
                                     </button>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 font-mono font-bold text-yellow-400">
+                                <td className="px-4 py-3 font-mono font-bold text-yellow-600 dark:text-yellow-400">
                                   <div className="flex items-center gap-1.5 justify-between max-w-[180px]">
                                     <span>{r.password}</span>
                                     <button
@@ -3645,7 +3645,7 @@ Yusuf Ibrahim SS1A`}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${r.is_single_registration ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'bg-primary/10 text-primary border border-primary/20'}`}>
+                                  <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${r.is_single_registration ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20' : 'bg-primary/10 text-primary border border-primary/20'}`}>
                                     {r.is_single_registration ? 'Single' : 'Bulk'}
                                   </span>
                                 </td>

@@ -182,18 +182,18 @@ if (isNativeApp) {
 
           {/* Conversion strip — Batch B · physical cheaper · class days */}
           <div className="flex flex-col items-center justify-center gap-2 max-w-2xl mx-auto pt-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
               Batch B · 2nd cohort
             </p>
             <p className="text-xs sm:text-sm font-bold text-foreground text-center">
-              <span className="text-emerald-500">In-person {onsiteLabels.total}</span>
+              <span className="text-emerald-600 dark:text-emerald-400">In-person {onsiteLabels.total}</span>
               <span className="text-muted-foreground"> · </span>
               Online {onlineLabels.total}
             </p>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
               Physical seats (₦40k) · Online (₦50k) · Classes tentatively Tue · Thu · Sat
               {page.registration_deadline ? (
-                <> · Closes <span className="text-rose-500 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
+                <> · Closes <span className="text-rose-600 dark:text-rose-400 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
               ) : null}
             </p>
           </div>
@@ -214,7 +214,7 @@ if (isNativeApp) {
           )}
 
           {!registrationOpen && (
-            <div className="max-w-xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-500">
+            <div className="max-w-xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
               Registration is closed for this programme.
             </div>
           )}
@@ -264,7 +264,7 @@ if (isNativeApp) {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-3xl">{t.icon}</span>
-                    <span className="text-[10px] font-black text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
                       {t.week}
                     </span>
                   </div>
@@ -294,7 +294,7 @@ if (isNativeApp) {
             <div className="flex items-center gap-3">
               <span className="text-3xl">{bonus.icon}</span>
               <div>
-                <p className="text-[9px] text-amber-500 uppercase font-black tracking-widest">{bonus.badge}</p>
+                <p className="text-[9px] text-amber-600 dark:text-amber-400 uppercase font-black tracking-widest">{bonus.badge}</p>
                 <h3 className="text-xl sm:text-2xl font-black uppercase text-foreground">{bonus.title}</h3>
               </div>
             </div>
@@ -325,7 +325,7 @@ if (isNativeApp) {
             {WEEKS.map(w => (
               <div key={w.num} className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-start hover:bg-muted/30 transition-colors">
                 <div className="space-y-1.5">
-                  <span className="text-xs font-black text-amber-500 uppercase tracking-widest">{w.num}</span>
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">{w.num}</span>
                   <div className="text-[9px] font-black text-foreground/50 bg-muted border border-border w-fit px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     {w.tag}
                   </div>
@@ -442,13 +442,13 @@ if (isNativeApp) {
                     <label className={labelCls(attempted && !form.studentName.trim())}>Learner full name *</label>
                     <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
                       className={inputCls(attempted && !form.studentName.trim())} placeholder="First & Last Name" />
-                    {attempted && !form.studentName.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's name is required</p>}
+                    {attempted && !form.studentName.trim() && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Student's name is required</p>}
                   </div>
                   <div>
                     <label className={labelCls(attempted && !form.parentName.trim())}>Parent / guardian / self (if adult) *</label>
                     <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
                       className={inputCls(attempted && !form.parentName.trim())} placeholder="Parent's Name" />
-                    {attempted && !form.parentName.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Parent's name is required</p>}
+                    {attempted && !form.parentName.trim() && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Parent's name is required</p>}
                   </div>
                 </div>
 
@@ -460,15 +460,15 @@ if (isNativeApp) {
                       <input type="tel" name="phone" required value={form.phone} onChange={handleChange} onBlur={handlePhoneBlur}
                         className={inputCls(attempted && (!form.phone.trim() || !isValidWhatsApp(form.phone))) + " pr-10"} placeholder={`e.g. ${brandContact.phoneShort}`} />
                       {form.phone && (
-                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.phone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.phone) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                           {isValidWhatsApp(form.phone) ? '✓' : '…'}
                         </span>
                       )}
                     </div>
                     {form.phone && !isValidWhatsApp(form.phone) && (
-                      <p className="text-[10px] text-rose-500 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
+                      <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
                     )}
-                    {attempted && !form.phone.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Parent's WhatsApp number is required</p>}
+                    {attempted && !form.phone.trim() && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Parent's WhatsApp number is required</p>}
                   </div>
 
                   {/* Student Phone (WhatsApp) */}
@@ -478,13 +478,13 @@ if (isNativeApp) {
                       <input type="tel" name="studentPhone" value={form.studentPhone} onChange={handleChange} onBlur={handleStudentPhoneBlur}
                         className={inputCls(!!(attempted && form.studentPhone.trim() && !isValidWhatsApp(form.studentPhone))) + " pr-10"} placeholder="e.g. 08022334455" />
                       {form.studentPhone && (
-                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.studentPhone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.studentPhone) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                           {isValidWhatsApp(form.studentPhone) ? '✓' : '…'}
                         </span>
                       )}
                     </div>
                     {form.studentPhone && !isValidWhatsApp(form.studentPhone) && (
-                      <p className="text-[10px] text-rose-500 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
+                      <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
                     )}
                   </div>
                 </div>
@@ -494,7 +494,7 @@ if (isNativeApp) {
                   <label className={labelCls(attempted && !form.email.trim())}>Parent Email Address *</label>
                   <input type="email" name="email" required value={form.email} onChange={handleChange} onBlur={handleEmailBlur}
                     className={inputCls(attempted && !form.email.trim())} placeholder="parent@example.com" />
-                  {attempted && !form.email.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Parent's email is required for credentials and receipt delivery</p>}
+                  {attempted && !form.email.trim() && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Parent's email is required for credentials and receipt delivery</p>}
                   {emailHint && (
                     <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-2 mt-2 flex items-center justify-between">
                       <p className="text-xs text-primary font-bold">Did you mean <span className="underline select-all">{emailHint}</span>?</p>
@@ -527,7 +527,7 @@ if (isNativeApp) {
                       I confirm I am the learner (adult/individual) or the parent/guardian of this learner, and I consent to participation in {page.title} and processing of academic records.
                     </span>
                   </label>
-                  {attempted && !form.parentConsent && <p className="text-rose-500 text-[10px] font-bold mt-1">Consent is required to register.</p>}
+                  {attempted && !form.parentConsent && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Consent is required to register.</p>}
 
                   <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-all">
                     <input
@@ -610,7 +610,7 @@ if (isNativeApp) {
                       <option value="">Select grade or status</option>
                       {SPECIAL_LEARNER_GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
-                    {attempted && !form.currentClass && <p className="text-rose-500 text-[10px] font-bold mt-1">Grade or learner status is required</p>}
+                    {attempted && !form.currentClass && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Grade or learner status is required</p>}
                   </div>
                 </div>
 
@@ -619,7 +619,7 @@ if (isNativeApp) {
                     <label className={labelCls(attempted && !form.age)}>Age *</label>
                     <input type="number" name="age" required min={ageMin} max={ageMax} value={form.age} onChange={handleChange}
                       className={inputCls(attempted && !form.age)} placeholder={`${ageMin}–${ageMax}`} />
-                    {attempted && !form.age && <p className="text-rose-500 text-[10px] font-bold mt-1">Age is required ({ageMin}–{ageMax}; adults & individuals welcome)</p>}
+                    {attempted && !form.age && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Age is required ({ageMin}–{ageMax}; adults & individuals welcome)</p>}
                   </div>
                   <div>
                     <label className={labelCls(attempted && !form.gender)}>Gender *</label>
@@ -629,7 +629,7 @@ if (isNativeApp) {
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
-                    {attempted && !form.gender && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's gender is required</p>}
+                    {attempted && !form.gender && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Student's gender is required</p>}
                   </div>
                 </div>
 
@@ -643,7 +643,7 @@ if (isNativeApp) {
                       <option value="Onsite">Onsite (In-Person centre) — ₦40,000 for the cohort</option>
                       <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                     </select>
-                    {attempted && !form.preferredMode && <p className="text-rose-500 text-[10px] font-bold mt-1">Attendance mode is required</p>}
+                    {attempted && !form.preferredMode && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Attendance mode is required</p>}
                     {(form.preferredMode === 'Online' || form.preferredMode === 'Hybrid') && (
                       <div className="bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-lg text-[10px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
                         <strong className="text-amber-600 dark:text-amber-400">Batch B · 2nd cohort</strong>
@@ -652,7 +652,7 @@ if (isNativeApp) {
                     )}
                     {(form.preferredMode === 'Onsite' || form.preferredMode === 'Hybrid') && (
                       <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-lg text-[10px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 flex gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <span>
                           <strong className="text-emerald-600 dark:text-emerald-400">{SUMMER_CENTRE.name}</strong>
                           {' — '}{SUMMER_CENTRE.address}
@@ -680,7 +680,7 @@ if (isNativeApp) {
 
                 {/* Track Selection */}
                 <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl">
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Included Program Track</p>
+                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Included Program Track</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xl">🚀</span>
                     <div>
@@ -704,12 +704,12 @@ if (isNativeApp) {
                     {isOnsite && (
                       <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-300">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black shrink-0 mt-0.5">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black shrink-0 mt-0.5">
                             <MapPin className="w-5 h-5" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                                 Physical Centre Class
                               </span>
                               <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
@@ -802,7 +802,7 @@ if (isNativeApp) {
                             <span className="text-xs font-black text-foreground">{account.bank_name}</span>
                           </div>
                           <div className="flex items-center justify-between pt-1">
-                            <span className="text-sm font-mono font-bold text-yellow-500 select-all">{account.account_number}</span>
+                            <span className="text-sm font-mono font-bold text-yellow-600 dark:text-yellow-400 select-all">{account.account_number}</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -860,7 +860,7 @@ if (isNativeApp) {
                               className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
                                 ? "bg-muted text-muted-foreground border-muted animate-pulse"
                                 : form.paymentReference.startsWith('http')
-                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
                                   : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
                                 }`}
                             >
@@ -887,7 +887,7 @@ if (isNativeApp) {
                                 <button
                                   type="button"
                                   onClick={handleReceiptRemove}
-                                  className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-wider rounded-lg border border-rose-500/20 transition-colors cursor-pointer"
+                                  className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-lg border border-rose-500/20 transition-colors cursor-pointer"
                                 >
                                   Remove Receipt
                                 </button>
@@ -903,7 +903,7 @@ if (isNativeApp) {
                             </div>
                           )}
                         </div>
-                        {attempted && !form.paymentReference.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Transfer reference is required for bank transfer</p>}
+                        {attempted && !form.paymentReference.trim() && <p className="text-rose-600 dark:text-rose-400 text-[10px] font-bold mt-1">Transfer reference is required for bank transfer</p>}
                       </div>
                     </div>
                   )}
@@ -986,7 +986,7 @@ if (isNativeApp) {
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-amber-500/30 bg-background/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.25)] no-print pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="min-w-0 text-center sm:text-left">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 truncate">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 truncate">
                 ☀️ {page.title} · Batch B
               </p>
               <p className="text-xs font-bold text-foreground">
@@ -994,7 +994,7 @@ if (isNativeApp) {
                 {' · '}Online {onlineLabels.total}
                 {' · '}Tue · Thu · Sat
                 {page.registration_deadline ? (
-                  <span className="text-rose-500">
+                  <span className="text-rose-600 dark:text-rose-400">
                     {' · '}Closes {formatSpecialDate(page.registration_deadline)}
                   </span>
                 ) : null}

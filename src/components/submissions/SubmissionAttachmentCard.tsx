@@ -81,16 +81,16 @@ export function SubmissionAttachmentCard({
   const shell = dark
     ? 'border-white/10 bg-white/[0.03]'
     : 'border-border bg-card';
-  const muted = dark ? 'text-white/40' : 'text-muted-foreground';
+  const muted = dark ? 'text-muted-foreground' : 'text-muted-foreground';
   const title = dark ? 'text-white' : 'text-foreground';
   const iconWrap = dark
-    ? 'bg-white/5 border-white/10 text-amber-300'
+    ? 'bg-white/5 border-white/10 text-amber-700 dark:text-amber-300'
     : 'bg-primary/10 border-primary/15 text-primary';
   const secondaryBtn = dark
-    ? 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+    ? 'border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10'
     : 'border-border bg-muted/40 text-foreground hover:bg-muted';
   const primaryBtn = dark
-    ? 'border-amber-500/30 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
+    ? 'border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-200 hover:bg-amber-500/25'
     : 'border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90';
 
   if (compact) {

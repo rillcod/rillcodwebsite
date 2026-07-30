@@ -313,7 +313,7 @@ export default function BulkEnrollPage() {
       {result && (
         <div className="bg-emerald-500/[0.03] border border-emerald-500/20 rounded-2xl p-4 mb-6 flex items-start gap-3.5 shadow-xl shadow-emerald-500/[0.02] animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-foreground font-bold text-sm">
@@ -321,13 +321,13 @@ export default function BulkEnrollPage() {
               <span className="text-primary font-black">{result.className}</span>
             </p>
             {result.programName && (
-              <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1.5 font-medium">
+              <p className="text-emerald-600 dark:text-emerald-400 text-xs mt-1 flex items-center gap-1.5 font-medium">
                 <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" />
                 Also enrolled in programme: <span className="font-extrabold">{result.programName}</span>
               </p>
             )}
             {result.skipped > 0 && (
-              <p className="text-amber-400 text-xs mt-1.5 font-medium bg-amber-500/5 border border-amber-500/10 px-2 py-1 rounded inline-block">
+              <p className="text-amber-600 dark:text-amber-400 text-xs mt-1.5 font-medium bg-amber-500/5 border border-amber-500/10 px-2 py-1 rounded inline-block">
                 ⚠️ {result.skipped} skipped (outside school boundary).
               </p>
             )}
@@ -358,7 +358,7 @@ export default function BulkEnrollPage() {
               </span>
             )}
             {classMode === 'create' && (newClass.grade_level || newClass.name) && (
-              <span className="text-emerald-400 text-[10px] bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-black uppercase tracking-wider">
+              <span className="text-emerald-600 dark:text-emerald-400 text-[10px] bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-black uppercase tracking-wider">
                 New: {newClass.grade_level || newClass.name}
               </span>
             )}
@@ -418,8 +418,8 @@ export default function BulkEnrollPage() {
                       {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                     {programId && (
-                      <p className="text-[10px] text-emerald-400 mt-2 flex items-center gap-1.5 font-semibold bg-emerald-500/5 border border-emerald-500/10 px-2 py-1 rounded inline-block">
-                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1.5 font-semibold bg-emerald-500/5 border border-emerald-500/10 px-2 py-1 rounded inline-block">
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         Showing only classes in this programme. Students will also be enrolled in it.
                       </p>
                     )}
@@ -429,7 +429,7 @@ export default function BulkEnrollPage() {
                   <div>
                     <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
                       <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
-                      Select Class <span className="text-rose-500">*</span>
+                      Select Class <span className="text-rose-600 dark:text-rose-400">*</span>
                       <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
                         {scopedClasses.length} available
                       </span>
@@ -446,7 +446,7 @@ export default function BulkEnrollPage() {
                               Show all classes
                             </button>
                           )}
-                          <button onClick={() => setClassMode('create')} className="text-xs font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors">
+                          <button onClick={() => setClassMode('create')} className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
                             Create a new class
                           </button>
                         </div>
@@ -496,11 +496,11 @@ export default function BulkEnrollPage() {
                                     {/* Name and program info */}
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <p className={`text-sm font-bold truncate ${isFull ? 'text-rose-400 line-through decoration-rose-500/30' : isSelected ? 'text-primary font-black' : 'text-foreground'}`}>
+                                        <p className={`text-sm font-bold truncate ${isFull ? 'text-rose-600 dark:text-rose-400 line-through decoration-rose-500/30' : isSelected ? 'text-primary font-black' : 'text-foreground'}`}>
                                           {c.name}
                                         </p>
                                         {isFull && (
-                                          <span className="text-[8px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded text-rose-400 shrink-0">
+                                          <span className="text-[8px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded text-rose-600 dark:text-rose-400 shrink-0">
                                             FULL
                                           </span>
                                         )}
@@ -533,13 +533,13 @@ export default function BulkEnrollPage() {
 
                                     {/* Capacity Numbers */}
                                     <div className="flex flex-col items-end gap-1 shrink-0 text-right">
-                                      <span className={`text-xs font-bold tabular-nums ${isFull ? 'text-rose-400' : 'text-muted-foreground'}`}>
+                                      <span className={`text-xs font-bold tabular-nums ${isFull ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                                         {enrolledCount}
                                         <span className="text-muted-foreground/30 font-normal">/</span>
                                         {maxStudents || '∞'}
                                       </span>
                                       {c.program_id && !isFull && (
-                                        <span className="text-[8px] font-black text-emerald-400/60 uppercase tracking-widest bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">
+                                        <span className="text-[8px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-widest bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">
                                           Active
                                         </span>
                                       )}
@@ -559,9 +559,9 @@ export default function BulkEnrollPage() {
                       if (!cls?.program_id) return null;
                       const progName = cls.programs?.name ?? programs.find((p: any) => p.id === cls.program_id)?.name;
                       return progName ? (
-                        <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 font-medium">
-                          <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                          Students will be auto-enrolled in: <span className="font-extrabold text-white">{progName}</span>
+                        <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                          <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          Students will be auto-enrolled in: <span className="font-extrabold text-foreground">{progName}</span>
                         </div>
                       ) : null;
                     })()}
@@ -614,7 +614,7 @@ export default function BulkEnrollPage() {
 
                   <div>
                     <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
-                      Custom Name {!newClass.grade_level && <span className="text-rose-400">*</span>}
+                      Custom Name {!newClass.grade_level && <span className="text-rose-600 dark:text-rose-400">*</span>}
                     </label>
                     <input
                       value={newClass.name}
@@ -626,7 +626,7 @@ export default function BulkEnrollPage() {
 
                   <div>
                     <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
-                      Programme <span className="text-rose-400">*</span>
+                      Programme <span className="text-rose-600 dark:text-rose-400">*</span>
                     </label>
                     <div className="relative">
                       <select 
@@ -767,17 +767,17 @@ export default function BulkEnrollPage() {
           
           {/* Action validation warnings */}
           {classMode === 'pick' && !classId ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
               <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Select a class above first</span>
             </div>
           ) : classMode === 'create' && (!newClass.grade_level && !newClass.name.trim()) ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
               <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Set class name above first</span>
             </div>
           ) : classMode === 'create' && !programId ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
               <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Select a programme above first</span>
             </div>
@@ -888,7 +888,7 @@ export default function BulkEnrollPage() {
                               <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
                                 {isEnrolled ? (
                                   <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
-                                    <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                   </div>
                                 ) : (
                                   <label className="flex items-center justify-center w-8 h-8 cursor-pointer mx-auto rounded-lg hover:bg-white/5 transition-colors">
@@ -910,7 +910,7 @@ export default function BulkEnrollPage() {
                                     {s.full_name}
                                   </span>
                                   {isEnrolled && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 shadow-lg shadow-emerald-500/[0.02]">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 shadow-lg shadow-emerald-500/[0.02]">
                                       <CheckCircleIcon className="w-2.5 h-2.5" /> Enrolled
                                     </span>
                                   )}
@@ -922,7 +922,7 @@ export default function BulkEnrollPage() {
                               
                               <td className="px-4 py-3.5">
                                 {s.section_class ? (
-                                  <span className="inline-block px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[9px] font-black uppercase tracking-wider rounded-full border border-cyan-500/20">
+                                  <span className="inline-block px-2.5 py-0.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[9px] font-black uppercase tracking-wider rounded-full border border-cyan-500/20">
                                     {s.section_class}
                                   </span>
                                 ) : (

@@ -192,7 +192,7 @@ export default function ResultGate({
     <div className="space-y-4">
       {/* Locked notice */}
       <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
-        <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75A4.5 4.5 0 0 0 7.5 6.75v3.75m-.75 0h10.5a.75.75 0 0 1 .75.75v6.75a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V11.25a.75.75 0 0 1 .75-.75Z" />
         </svg>
         <div>

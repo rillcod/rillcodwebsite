@@ -51,8 +51,8 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 75 ? 'text-emerald-400 bg-emerald-400/10' :
-    score >= 50 ? 'text-yellow-400 bg-yellow-400/10' : 'text-rose-400 bg-rose-400/10';
+  const color = score >= 75 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-400/10' :
+    score >= 50 ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-400/10' : 'text-rose-600 dark:text-rose-400 bg-rose-400/10';
   return (
     <span className={`text-xs font-black px-2 py-0.5 rounded-full ${color}`}>
       {score.toFixed(0)}%
@@ -356,10 +356,10 @@ export default function SchoolOverviewPage() {
               {[...students].sort((a, b) => b.avgGrade - a.avgGrade).slice(0, 5).map((s, i) => (
                 <div key={s.id} className="flex items-center gap-3">
                   <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
-                    i === 0 ? 'text-yellow-400' : i === 1 ? 'text-muted-foreground/50' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
+                    i === 0 ? 'text-yellow-600 dark:text-yellow-400' : i === 1 ? 'text-muted-foreground/50' : i === 2 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
                   }`}>{i + 1}</span>
                   <div className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
+                    <span className="text-foreground text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-foreground truncate">{s.full_name?.split(' ')[0]}</p>
@@ -442,14 +442,14 @@ export default function SchoolOverviewPage() {
                   <td className="px-5 py-3 text-muted-foreground">{s.section_class ?? '—'}</td>
                   <td className="px-5 py-3 text-center"><ScoreBadge score={s.avgGrade} /></td>
                   <td className="px-5 py-3 text-center">
-                    <span className={`text-xs font-bold ${s.attendance >= 75 ? 'text-emerald-400' : s.attendance >= 50 ? 'text-yellow-400' : 'text-rose-400'}`}>
+                    <span className={`text-xs font-bold ${s.attendance >= 75 ? 'text-emerald-600 dark:text-emerald-400' : s.attendance >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {s.attendance}%
                     </span>
                   </td>
                   <td className="px-5 py-3 text-center text-muted-foreground">{s.submissions}</td>
                   <td className="px-5 py-3 text-center">
                     {s.is_active
-                      ? <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Active</span>
+                      ? <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">Active</span>
                       : <span className="text-xs bg-card shadow-sm text-muted-foreground px-2 py-0.5 rounded-full font-bold">Inactive</span>}
                   </td>
                 </tr>

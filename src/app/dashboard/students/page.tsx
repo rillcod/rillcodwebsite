@@ -24,9 +24,9 @@ import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
 // ─── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
-    rejected: 'bg-rose-500/20   text-rose-400   border-rose-500/30',
+    approved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    pending: 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30',
+    rejected: 'bg-rose-500/20   text-rose-600 dark:text-rose-400   border-rose-500/30',
     active: 'bg-primary/20   text-primary   border-primary/30',
   };
   return (
@@ -56,11 +56,11 @@ function FeeBadge({ entry }: { entry?: { status: string; amount: number; currenc
   const s = entry.status.toLowerCase();
   const isOverdue = s === 'overdue' || (s === 'sent' && entry.dueDate && new Date(entry.dueDate) < new Date());
   const cfg = isOverdue
-    ? { cls: 'bg-rose-500/15 text-rose-400 border-rose-500/30', label: 'Overdue' }
+    ? { cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', label: 'Overdue' }
     : s === 'paid'
-    ? { cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', label: 'Paid' }
+    ? { cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', label: 'Paid' }
     : s === 'pending' || s === 'sent'
-    ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30', label: 'Pending' }
+    ? { cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30', label: 'Pending' }
     : { cls: 'bg-muted/50 text-muted-foreground border-border', label: entry.status };
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${cfg.cls}`}
@@ -140,7 +140,7 @@ function LinkParentModal({ student, onClose, onSaved }: {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">
+            <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">
               ⚠️ {error}
             </p>
           )}
@@ -180,7 +180,7 @@ function LinkParentModal({ student, onClose, onSaved }: {
           <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
             {hasParent && (
               <button type="button" onClick={handleUnlink} disabled={saving}
-                className="px-4 py-2.5 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 rounded-xl transition-all disabled:opacity-50">
+                className="px-4 py-2.5 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 rounded-xl transition-all disabled:opacity-50">
                 Unlink
               </button>
             )}
@@ -279,7 +279,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
           </button>
         </div>
         <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">⚠️ {error}</p>}
+          {error && <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">⚠️ {error}</p>}
 
           <div>
             <label className={labelCls}>Full Name <span className="text-primary">*</span></label>
@@ -1275,10 +1275,10 @@ export default function StudentsPage() {
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       {isFull && (
-                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30">FULL</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">FULL</span>
                                       )}
-                                      <span className={`text-[10px] font-bold tabular-nums ${isFull ? 'text-rose-400' : nearFull ? 'text-amber-400' : 'text-muted-foreground'}`}>
-                                        {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">students</span>
+                                      <span className={`text-[10px] font-bold tabular-nums ${isFull ? 'text-rose-600 dark:text-rose-400' : nearFull ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                                        {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-muted-foreground">students</span>
                                       </span>
                                     </div>
                                   </div>
@@ -1289,7 +1289,7 @@ export default function StudentsPage() {
                         ))}
                       </div>
                     )}
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-300">
                       Students already in another class will be <strong>reassigned</strong>. Students outside your school boundary will be skipped.
                     </div>
                     <button
@@ -1376,7 +1376,7 @@ export default function StudentsPage() {
           <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
-                <BoltIcon className="w-5 h-5 text-amber-400" />
+                <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 <h2 className="text-lg font-extrabold text-foreground">Student Sync Complete</h2>
               </div>
               <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
@@ -1386,15 +1386,15 @@ export default function StudentsPage() {
             <div className="p-6 overflow-y-auto space-y-4">
               {syncResult.error ? (
                 <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                  <p className="text-rose-400 text-sm">{syncResult.error}</p>
+                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                  <p className="text-rose-600 dark:text-rose-400 text-sm">{syncResult.error}</p>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
-                      { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-400' },
+                      { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
+                      { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-600 dark:text-rose-400' },
                     ].map(s => (
                       <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-3 text-center">
                         <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -1437,7 +1437,7 @@ export default function StudentsPage() {
                             win?.document.write(html);
                             win?.document.close();
                           }}
-                          className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-all"
+                          className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-all"
                         >
                           <PrinterIcon className="w-3.5 h-3.5" /> Print All Slips
                         </button>
@@ -1447,7 +1447,7 @@ export default function StudentsPage() {
                           <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-3 font-mono text-xs">
                             <p className="text-foreground font-bold">{c.name}</p>
                             <p className="text-muted-foreground mt-0.5">{c.email}</p>
-                            <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
+                            <p className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
                           </div>
                         ))}
                       </div>
@@ -1455,8 +1455,8 @@ export default function StudentsPage() {
                   )}
                   {syncResult.errors?.length > 0 && (
                     <div>
-                      <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                      <p className="text-xs font-bold text-rose-600/60 dark:text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
+                      <div className="space-y-1 text-xs text-rose-600/80 dark:text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
                         {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                       </div>
                     </div>
@@ -1494,7 +1494,7 @@ export default function StudentsPage() {
               </p>
               {resetPwMsg && (
                 <p className={`text-xs px-3 py-2 border rounded-xl font-medium ${
-                  resetPwMsg.ok ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                  resetPwMsg.ok ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20'
                 }`}>
                   {resetPwMsg.text}
                 </p>
@@ -1528,7 +1528,7 @@ export default function StudentsPage() {
             <div className="p-8 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center rotate-3">
-                  <ShieldCheckIcon className="w-6 h-6 text-emerald-500" />
+                  <ShieldCheckIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <h3 className="font-black text-foreground uppercase tracking-tight italic">Account Created</h3>
@@ -1541,7 +1541,7 @@ export default function StudentsPage() {
             </div>
 
             <div className="p-8 space-y-6">
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-[10px] font-bold text-amber-500/80 italic leading-relaxed uppercase tracking-widest">
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-[10px] font-bold text-amber-600/80 dark:text-amber-400/80 italic leading-relaxed uppercase tracking-widest">
                 <div className="flex items-start gap-3">
                   <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
                   <span>Save these credentials now. The student must update their password on first login.</span>
@@ -1663,7 +1663,7 @@ export default function StudentsPage() {
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                   >
                     {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                     {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount})` : 'Sync'}
@@ -1682,12 +1682,12 @@ export default function StudentsPage() {
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-4">Student Management</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {(([
-                { label: 'Bulk Register', sub: 'Add many students at once', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', adminTeacherOnly: true },
+                { label: 'Bulk Register', sub: 'Add many students at once', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', adminTeacherOnly: true },
                 { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-primary bg-primary/10 border-primary/30 hover:bg-primary/20', adminTeacherOnly: true },
                 { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-primary bg-primary/10 border-primary/30 hover:bg-primary/20', adminTeacherOnly: true },
-                { label: 'Classes', sub: 'Manage class rosters', href: '/dashboard/classes', icon: UserGroupIcon, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20', adminTeacherOnly: true },
+                { label: 'Classes', sub: 'Manage class rosters', href: '/dashboard/classes', icon: UserGroupIcon, color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20', adminTeacherOnly: true },
                 { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-primary bg-primary/10 border-primary/30 hover:bg-primary/20' },
-                { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true, adminOnly: true },
+                { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true, adminOnly: true },
               ] as { label: string; sub: string; href: string; icon: ComponentType<{ className?: string }>; color: string; danger?: boolean; adminOnly?: boolean; adminTeacherOnly?: boolean }[])).filter(item => {
                 if (item.adminOnly && profile?.role !== 'admin') return false;
                 if (item.adminTeacherOnly && !['admin', 'teacher'].includes(profile?.role ?? '')) return false;
@@ -1701,7 +1701,7 @@ export default function StudentsPage() {
                     <Icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className={`text-[11px] font-black uppercase tracking-widest leading-tight ${danger ? 'text-rose-400' : 'text-foreground'}`}>{label}</p>
+                    <p className={`text-[11px] font-black uppercase tracking-widest leading-tight ${danger ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>{label}</p>
                     <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed font-medium opacity-80 group-hover:opacity-100 transition-opacity">{sub}</p>
                   </div>
                 </Link>
@@ -1713,9 +1713,9 @@ export default function StudentsPage() {
           {error && (
             <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 rounded-xl p-5 shadow-2xl animate-shake">
               <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
-                <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+                <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
               </div>
-              <p className="text-rose-400 text-sm font-bold">{error}</p>
+              <p className="text-rose-600 dark:text-rose-400 text-sm font-bold">{error}</p>
             </div>
           )}
 
@@ -1723,9 +1723,9 @@ export default function StudentsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden px-1 sm:px-0">
             {([
               { label: 'Total', value: combined.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
-              { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
+              { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
               { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
-              { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
+              { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
             ]).map(s => (
               <button key={s.label} onClick={s.onClick}
                 className={`group relative text-left bg-card shadow-sm border rounded-xl p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-border ring-1 ring-white/10' : 'border-border'}`}>
@@ -1746,9 +1746,9 @@ export default function StudentsPage() {
               <div className="flex flex-wrap gap-2">
                 {([
                   { key: 'all', label: 'All Enrolled', count: normalizedEnrolled.length, cls: 'border-border text-muted-foreground hover:border-primary/40', activeCls: 'border-primary bg-primary/10 text-primary' },
-                  { key: 'paid', label: '✓ Paid', count: feeStats.paid, cls: 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60', activeCls: 'border-emerald-500 bg-emerald-500/15 text-emerald-400' },
-                  { key: 'pending', label: '· Pending', count: feeStats.pending, cls: 'border-amber-500/30 text-amber-400 hover:border-amber-500/60', activeCls: 'border-amber-500 bg-amber-500/15 text-amber-400' },
-                  { key: 'overdue', label: '⚠ Overdue', count: feeStats.overdue, cls: 'border-rose-500/30 text-rose-400 hover:border-rose-500/60', activeCls: 'border-rose-500 bg-rose-500/15 text-rose-400' },
+                  { key: 'paid', label: '✓ Paid', count: feeStats.paid, cls: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/60', activeCls: 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+                  { key: 'pending', label: '· Pending', count: feeStats.pending, cls: 'border-amber-500/30 text-amber-600 dark:text-amber-400 hover:border-amber-500/60', activeCls: 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+                  { key: 'overdue', label: '⚠ Overdue', count: feeStats.overdue, cls: 'border-rose-500/30 text-rose-600 dark:text-rose-400 hover:border-rose-500/60', activeCls: 'border-rose-500 bg-rose-500/15 text-rose-600 dark:text-rose-400' },
                   { key: 'none', label: 'No Invoice', count: feeStats.none, cls: 'border-border text-muted-foreground hover:border-border', activeCls: 'border-border bg-muted text-foreground' },
                 ] as const).map(({ key, label, count, cls, activeCls }) => (
                   <button
@@ -1764,7 +1764,7 @@ export default function StudentsPage() {
                 ))}
               </div>
               {feeStats.overdue > 0 && (
-                <p className="text-[10px] text-rose-400 mt-2 px-1">
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-2 px-1">
                   ⚠ {feeStats.overdue} student{feeStats.overdue !== 1 ? 's' : ''} with overdue fee{feeStats.overdue !== 1 ? 's' : ''}
                 </p>
               )}
@@ -1774,9 +1774,9 @@ export default function StudentsPage() {
           {/* ── Pending alert ───────────────────────────────── */}
           {pending > 0 && (
             <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-              <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
+              <ClockIcon className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
               <div className="flex-1">
-                <p className="font-bold text-amber-400">{pending} student{pending !== 1 ? 's' : ''} awaiting approval</p>
+                <p className="font-bold text-amber-600 dark:text-amber-400">{pending} student{pending !== 1 ? 's' : ''} awaiting approval</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Click a student row to expand and approve</p>
               </div>
               <button onClick={() => { setSourceFilter('applications'); setFilter('pending'); }}
@@ -1828,7 +1828,7 @@ export default function StudentsPage() {
             </div>
             {/* Registry print filters */}
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-white/25 uppercase tracking-widest">Filter for print:</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Filter for print:</span>
               <div className="flex flex-wrap gap-2 items-center">
                 <select title="Filter by school" value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
                   className="flex-1 min-w-[140px] px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
@@ -1925,11 +1925,11 @@ export default function StudentsPage() {
                                 className={`w-2 h-2 rounded-full flex-shrink-0 ${(s as any).has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`}
                               />
                             )}
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>
                             {isSpecialEnrollment(s.enrollment_type) && (
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-500 border-amber-500/30 animate-pulse">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 animate-pulse">
                                 Special programme
                               </span>
                             )}
@@ -2019,7 +2019,7 @@ export default function StudentsPage() {
                               <button
                                 onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
                                 disabled={deleting === s.id}
-                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-all disabled:opacity-50">
                                 <XMarkIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
@@ -2039,7 +2039,7 @@ export default function StudentsPage() {
                                   setPortalStudents(prev => prev.map(p => p.id === s.id ? { ...p, class_id: null, section_class: null } : p));
                                 }}
                                 title="Remove from class"
-                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all">
+                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-all">
                                 <XMarkIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
@@ -2058,7 +2058,7 @@ export default function StudentsPage() {
                                 onClick={e => { e.stopPropagation(); handleDeleteEnrolledStudent(s.id, s.full_name ?? 'this student'); }}
                                 disabled={deleting === s.id}
                                 title="Remove student"
-                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                className="p-1.5 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 transition-all disabled:opacity-50">
                                 {deleting === s.id
                                   ? <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
                                   : <XMarkIcon className="w-3.5 h-3.5" />}
@@ -2074,11 +2074,11 @@ export default function StudentsPage() {
                           {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                             <div className="sm:hidden flex items-center gap-1">
                               <button onClick={e => { e.stopPropagation(); approve(s.id); }} disabled={acting === s.id}
-                                className="p-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 rounded-xl transition-all disabled:opacity-50">
+                                className="p-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all disabled:opacity-50">
                                 <CheckCircleIcon className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={e => { e.stopPropagation(); reject(s.id); }} disabled={acting === s.id}
-                                className="p-1.5 bg-rose-600/20 border border-rose-500/30 text-rose-400 rounded-xl transition-all disabled:opacity-50">
+                                className="p-1.5 bg-rose-600/20 border border-rose-500/30 text-rose-600 dark:text-rose-400 rounded-xl transition-all disabled:opacity-50">
                                 <XCircleIcon className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -2094,7 +2094,7 @@ export default function StudentsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="bg-card shadow-sm rounded-xl p-5 border border-border">
                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                  <AcademicCapIcon className="w-4 h-4 text-emerald-500" /> Portal Account
+                                  <AcademicCapIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Portal Account
                                 </p>
                                 <div className="space-y-3.5">
                                   <InfoRow label="Email" value={s.email} icon={<EnvelopeIcon className="w-3 h-3 text-muted-foreground" />} />
@@ -2153,7 +2153,7 @@ export default function StudentsPage() {
                               </div>
                               <div className="bg-background rounded-xl p-5 sm:p-6 border border-border shadow-2xl">
                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                  <BookOpenIcon className="w-4 h-4 text-emerald-500" /> Programme
+                                  <BookOpenIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Programme
                                 </p>
                                 <div className="space-y-3.5">
                                   <InfoRow label="Interests" value={s.interests} />
@@ -2171,8 +2171,8 @@ export default function StudentsPage() {
                                       ? new Date(s.registration_payment_at).toLocaleDateString('en-GB')
                                       : 'Not paid'}
                                     icon={s.registration_payment_at
-                                      ? <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
-                                      : <ClockIcon className="w-3 h-3 text-amber-400" />}
+                                      ? <CheckCircleIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                      : <ClockIcon className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
                                   />
                                   {s.registration_paystack_reference && (
                                     <InfoRow label="Ref" value={s.registration_paystack_reference} />
@@ -2200,7 +2200,7 @@ export default function StudentsPage() {
                             )}
                             {!isEnrolled && s.status === 'approved' && (
                               <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest">
                                   <CheckCircleIcon className="w-3.5 h-3.5" />
                                   Approved Student
                                 </div>
@@ -2247,7 +2247,7 @@ export default function StudentsPage() {
                               </div>
                             )}
                             {!isEnrolled && s.status === 'rejected' && (
-                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest">
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-widest">
                                 <XCircleIcon className="w-3.5 h-3.5" />
                                 Registration Rejected
                               </div>
@@ -2319,7 +2319,7 @@ export default function StudentsPage() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-                    <XCircleIcon className="w-5 h-5 text-rose-400" />
+                    <XCircleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                   </div>
                   <div>
                     <h2 className="font-black text-foreground text-sm uppercase tracking-widest">Confirm Unenrol</h2>
@@ -2335,18 +2335,18 @@ export default function StudentsPage() {
               <div className="p-6 space-y-4">
                 {withClass.length > 0 && (
                   <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    <p className="text-[10px] font-black text-rose-400/70 uppercase tracking-widest mb-2">Will be unenrolled from their class:</p>
+                    <p className="text-[10px] font-black text-rose-600/70 dark:text-rose-400/70 uppercase tracking-widest mb-2">Will be unenrolled from their class:</p>
                     {withClass.map(s => (
                       <div key={s.id} className="flex items-center justify-between px-3 py-2 bg-rose-500/5 border border-rose-500/20 rounded-xl">
                         <span className="text-sm font-semibold text-foreground">{s.full_name}</span>
-                        <span className="text-[10px] text-rose-400 font-bold">{classMap[s.class_id] ?? s.section_class ?? s.class_id.slice(0, 8)}</span>
+                        <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{classMap[s.class_id] ?? s.section_class ?? s.class_id.slice(0, 8)}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {noClass.length > 0 && (
                   <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                    <p className="text-xs text-amber-300 font-bold">
+                    <p className="text-xs text-amber-700 dark:text-amber-300 font-bold">
                       <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5" />
                       {noClass.length} student{noClass.length !== 1 ? 's' : ''} ({noClass.map(s => s.full_name.split(' ')[0]).join(', ')}) {noClass.length !== 1 ? 'have' : 'has'} no class — they will be skipped.
                     </p>
@@ -2354,7 +2354,7 @@ export default function StudentsPage() {
                 )}
                 {withClass.length === 0 && (
                   <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
-                    <p className="text-sm text-amber-300 font-bold">None of the selected students are in a class.</p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 font-bold">None of the selected students are in a class.</p>
                     <p className="text-xs text-muted-foreground mt-1">Nothing to unenrol.</p>
                   </div>
                 )}
@@ -2555,7 +2555,7 @@ function StudentSelfView() {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-xl shadow-xl">
+                <div className="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-xl shadow-xl">
                   Student Portal
                 </div>
                 <div className="flex items-center gap-2">
@@ -2573,7 +2573,7 @@ function StudentSelfView() {
 
               <div className="flex items-center gap-6 pt-2">
                 <div className="flex items-center gap-2.5 px-6 py-3 bg-card shadow-sm border border-border rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground shadow-xl" suppressHydrationWarning>
-                  <ClockIcon className="w-4 h-4 text-emerald-500" />
+                  <ClockIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                 </div>
               </div>
@@ -2584,7 +2584,7 @@ function StudentSelfView() {
                 {profile?.full_name?.[0].toUpperCase()}
               </div>
               <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-xl flex items-center justify-center text-foreground shadow-2xl -rotate-12">
-                <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
+                <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </div>
@@ -2595,8 +2595,8 @@ function StudentSelfView() {
           {[
             { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
             { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-            { label: 'Graded Tasks', value: stats.graded, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-            { label: 'Performance', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+            { label: 'Graded Tasks', value: stats.graded, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+            { label: 'Performance', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
           ].map(({ label, value, icon: Icon, color, bg, border }) => (
             <div key={label} className="bg-background border border-border rounded-xl p-6 sm:p-8 hover:bg-white/[0.03] hover:border-border transition-all group relative overflow-hidden shadow-2xl">
               <div className={`absolute top-0 right-0 w-24 h-24 ${bg} opacity-[0.05] blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
@@ -2620,7 +2620,7 @@ function StudentSelfView() {
                   <Link key={name} href={href}
                     className="group flex items-start gap-4 p-4 rounded-xl border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/25 transition-colors">
-                      <Icon className="h-5 w-5 text-emerald-400" />
+                      <Icon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-foreground text-sm">{name}</p>
@@ -2642,13 +2642,13 @@ function StudentSelfView() {
               {recent.length === 0 ? (
                 <div className="text-center py-8">
                   <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-white/25 text-sm">No recent activity yet</p>
+                  <p className="text-muted-foreground text-sm">No recent activity yet</p>
                 </div>
               ) : (
                 <div className="space-y-1">
                   {recent.map((s: any, i: number) => (
                     <div key={s.id} className={`flex items-start gap-3 py-3 ${i < recent.length - 1 ? 'border-b border-border' : ''}`}>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary'
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-primary/20 text-primary'
                         }`}>
                         {s.status === 'graded'
                           ? <StarIcon className="h-4 w-4" />
@@ -2663,7 +2663,7 @@ function StudentSelfView() {
                           {s.grade != null ? ` · ${s.grade}/${s.assignments?.max_points ?? 100}` : ''}
                         </p>
                       </div>
-                      <span className="text-xs text-white/25 whitespace-nowrap mt-0.5">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap mt-0.5">
                         {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : '—'}
                       </span>
                     </div>
@@ -2685,7 +2685,7 @@ function StudentSelfView() {
                   <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                 </div>
               </div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 capitalize">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 capitalize">
                 student
               </span>
               <div className="mt-4 pt-4 border-t border-border space-y-2">
@@ -2711,7 +2711,7 @@ function StudentSelfView() {
                 ].map(({ label, href, icon: Icon }) => (
                   <Link key={label} href={href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
-                    <Icon className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
+                    <Icon className="w-4 h-4 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
                     {label}
                     <span className="ml-auto opacity-0 group-hover:opacity-60 transition-opacity text-muted-foreground">→</span>
                   </Link>

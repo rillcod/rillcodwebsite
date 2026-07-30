@@ -299,7 +299,7 @@ function AccountGroup({
                   )}
                 </div>
                 {a.is_active ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
                     <CheckBadgeIcon className="w-3 h-3" /> Active
                   </span>
                 ) : (
@@ -329,7 +329,7 @@ function AccountGroup({
                 </button>
                 <button
                   onClick={() => onDelete(a)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold rounded-md hover:bg-rose-500/20"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-md hover:bg-rose-500/20"
                 >
                   <TrashIcon className="w-3 h-3" /> Remove
                 </button>

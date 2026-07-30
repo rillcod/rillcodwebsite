@@ -143,7 +143,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold ${timeLeft < 300 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-muted text-foreground/80 dark:bg-slate-800 dark:text-slate-200'}`}>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold ${timeLeft < 300 ? 'bg-red-50 text-red-600 dark:text-red-400 animate-pulse' : 'bg-muted text-foreground/80 dark:bg-slate-800 dark:text-slate-200'}`}>
                             <Timer className="w-5 h-5" />
                             {formatTime(timeLeft)}
                         </div>
@@ -162,7 +162,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                         <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
                             <CardHeader className="bg-card dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex justify-between items-center">
-                                    <Badge variant="outline" className="text-teal-600 border-teal-200 bg-teal-50">
+                                    <Badge variant="outline" className="text-teal-600 dark:text-teal-400 border-teal-200 bg-teal-50">
                                         Question {currentQuestionIndex + 1} of {questions.length}
                                     </Badge>
                                     <span className="text-sm font-medium text-muted-foreground">{currentQuestion.points} Points</span>
@@ -184,9 +184,9 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                                                     value={option}
                                                     checked={answers[currentQuestion.id] === option}
                                                     onChange={() => handleAnswer(currentQuestion.id, option)}
-                                                    className="w-5 h-5 text-teal-600 border-border focus:ring-teal-500"
+                                                    className="w-5 h-5 text-teal-600 dark:text-teal-400 border-border focus:ring-teal-500"
                                                 />
-                                                <span className="ml-4 font-medium text-foreground/80 dark:text-slate-300 group-hover:text-teal-700 transition-colors uppercase mr-4 text-xs bg-muted dark:bg-slate-800 px-2 py-1 rounded w-8 text-center">
+                                                <span className="ml-4 font-medium text-foreground/80 dark:text-slate-300 group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors uppercase mr-4 text-xs bg-muted dark:bg-slate-800 px-2 py-1 rounded w-8 text-center">
                                                     {String.fromCharCode(65 + idx)}
                                                 </span>
                                                 <span className="text-foreground/80 dark:text-slate-300">{option}</span>
@@ -244,7 +244,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                                         className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 ${currentQuestionIndex === idx
                                             ? 'bg-teal-600 text-white'
                                             : answers[q.id]
-                                                ? 'bg-teal-100 text-teal-700 border-2 border-teal-200'
+                                                ? 'bg-teal-100 text-teal-700 dark:text-teal-300 border-2 border-teal-200'
                                                 : 'bg-muted text-muted-foreground/70 dark:bg-slate-800 hover:bg-slate-200'
                                             }`}
                                     >
@@ -255,7 +255,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                         </Card>
 
                         {tabSwitches > 0 && (
-                            <Alert variant="destructive" className="animate-bounce border-red-200 bg-red-50 text-red-900">
+                            <Alert variant="destructive" className="animate-bounce border-red-200 bg-red-50 text-red-900 dark:text-red-200">
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>Warning</AlertTitle>
                                 <AlertDescription>

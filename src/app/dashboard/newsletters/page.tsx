@@ -441,7 +441,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center space-y-6">
-          <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-400">
+          <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-600 dark:text-rose-400">
             <InformationCircleIcon className="w-12 h-12" />
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase italic">Access Denied</h1>
@@ -515,7 +515,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
         )}
 
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
             <CheckCircleIcon className="w-5 h-5" />
             <span className="text-sm font-bold">{success}</span>
           </div>
@@ -543,7 +543,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                   <div className="absolute top-0 right-0 p-4 flex items-center gap-2">
                     {isManager && (
                       <button onClick={e => handleDelete(nl.id, e)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-400"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-600 dark:text-rose-400"
                         title="Delete">
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -552,9 +552,9 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                   </div>
                   <div className="flex items-center gap-2 mb-4 flex-wrap">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                      nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-400'
-                        : nl.status === 'scheduled' ? 'bg-sky-500/20 text-sky-400'
-                        : 'bg-amber-500/20 text-amber-400'
+                      nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : nl.status === 'scheduled' ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400'
+                        : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                     }`}>{nl.status || 'draft'}</span>
                     <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
                       {nl.purpose === 'marketing' ? 'Marketing' : nl.purpose === 'retention' ? 'Engagement' : 'Service'}
@@ -563,7 +563,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                     {nl.status === 'scheduled' && nl.scheduled_for && (
-                      <span className="text-[9px] text-sky-400 font-black uppercase tracking-widest">
+                      <span className="text-[9px] text-sky-600 dark:text-sky-400 font-black uppercase tracking-widest">
                         · {new Date(nl.scheduled_for).toLocaleString()}
                       </span>
                     )}
@@ -663,8 +663,8 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
                 {aiError && (
                   <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                    <InformationCircleIcon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-rose-400 font-semibold">{aiError}</p>
+                    <InformationCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">{aiError}</p>
                   </div>
                 )}
               </div>
@@ -719,7 +719,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
                 {activeNewsletter?.id && (
                   <button onClick={() => setShowPushModal(true)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-xl text-[10px] font-black border border-emerald-500/20 transition-all">
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-black border border-emerald-500/20 transition-all">
                     <SpeakerWaveIcon className="w-4 h-4" />
                     <span className="uppercase tracking-widest">Send to Users</span>
                   </button>
@@ -876,7 +876,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                 </button>
                 <button onClick={() => setShowPreview(false)}
                   className="w-10 h-10 flex items-center justify-center bg-card hover:bg-rose-500/20 rounded-xl transition-all group">
-                  <XMarkIcon className="w-5 h-5 text-muted-foreground group-hover:text-rose-500" />
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground group-hover:text-rose-600 dark:group-hover:text-rose-400" />
                 </button>
               </div>
             </div>

@@ -76,8 +76,8 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Center</h2>
               </div>
               <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-xl ${(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
-                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
-                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 animate-pulse'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                 }`}>
                 {(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? `${teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams} Pending`
@@ -94,7 +94,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                   {teacherActionCenter.ungradedAssignments > 0 ? '📋' : '✅'}
                 </div>
                 <div>
-                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedAssignments > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedAssignments > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {teacherActionCenter.ungradedAssignments}
                   </p>
                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Assignments</p>
@@ -110,7 +110,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                   {teacherActionCenter.ungradedExams > 0 ? '📝' : '✅'}
                 </div>
                 <div>
-                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedExams > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedExams > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {teacherActionCenter.ungradedExams}
                   </p>
                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">CBT Exams</p>
@@ -137,7 +137,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.4em]">Students</p>
+              <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.4em]">Students</p>
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Register Students</h2>
             </div>
             <Link href="/dashboard/students"
@@ -149,35 +149,35 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             <Link href="/dashboard/students/bulk-register"
               className="group flex flex-col gap-3 p-5 bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl transition-all">
               <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-xl">
-                <UserGroupIcon className="w-5 h-5 text-emerald-400" />
+                <UserGroupIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-sm font-black text-foreground">Bulk Register</p>
                 <p className="text-xs text-muted-foreground mt-1">Paste a list of student names — fastest for a whole class</p>
               </div>
-              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto">Start →</span>
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto">Start →</span>
             </Link>
             <Link href="/dashboard/students/bulk-register?tab=single"
               className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-xl transition-all">
               <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-xl">
-                <UserPlusIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
+                <UserPlusIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
               </div>
               <div>
                 <p className="text-sm font-black text-foreground">Single Student</p>
                 <p className="text-xs text-muted-foreground mt-1">Fill in a form for one student — name, class, school</p>
               </div>
-              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
             </Link>
             <Link href="/dashboard/students/import"
               className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-xl transition-all">
               <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-xl">
-                <ClipboardDocumentCheckIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
               </div>
               <div>
                 <p className="text-sm font-black text-foreground">Import CSV</p>
                 <p className="text-xs text-muted-foreground mt-1">Upload a spreadsheet — best for large batches with full details</p>
               </div>
-              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
             </Link>
           </div>
         </div>

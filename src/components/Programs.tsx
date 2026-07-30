@@ -22,7 +22,7 @@ const Programs: React.FC = () => {
     },
     {
       id: 'web-development',
-      icon: <Globe className="w-12 h-12 text-purple-600" />,
+      icon: <Globe className="w-12 h-12 text-purple-600 dark:text-purple-400" />,
       title: "HTML/CSS Programming",
       description: "Build Your Own Websites! Create colorful web pages that everyone can see online.",
       color: "from-purple-400 to-purple-600",
@@ -38,7 +38,7 @@ const Programs: React.FC = () => {
     },
     {
       id: 'web-design',
-      icon: <Palette className="w-12 h-12 text-pink-600" />,
+      icon: <Palette className="w-12 h-12 text-pink-600 dark:text-pink-400" />,
       title: "Web Design",
       description: "Make Beautiful Web Pages! Design amazing websites that look awesome on phones and computers.",
       color: "from-pink-400 to-pink-600",
@@ -46,7 +46,7 @@ const Programs: React.FC = () => {
     },
     {
       id: 'robotics',
-      icon: <Bot className="w-12 h-12 text-cyan-600" />,
+      icon: <Bot className="w-12 h-12 text-cyan-600 dark:text-cyan-400" />,
       title: "Robotics Programming",
       description: "Build and Control Cool Robots! Create robots that can move, light up, and follow your commands.",
       color: "from-cyan-400 to-cyan-600",

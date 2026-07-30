@@ -279,12 +279,12 @@ export default function FlashcardDeckPage() {
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setViewMode('grid')}
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/60 hover:text-white">
+              className="p-2 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-white">
               <XMarkIcon className="w-5 h-5" />
             </button>
             <div>
-              <p className="text-xs font-black text-white/80 truncate max-w-[160px] sm:max-w-xs">{deck.title}</p>
-              <p className="text-[10px] text-white/30">{presIndex + 1} / {cards.length}</p>
+              <p className="text-xs font-black text-muted-foreground truncate max-w-[160px] sm:max-w-xs">{deck.title}</p>
+              <p className="text-[10px] text-muted-foreground">{presIndex + 1} / {cards.length}</p>
             </div>
           </div>
 
@@ -292,11 +292,11 @@ export default function FlashcardDeckPage() {
             {isTeacher && !presEditing && presCard && (
               <>
                 <button onClick={startPresEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
                   <PencilIcon className="w-3.5 h-3.5" /> Edit
                 </button>
                 <button onClick={deletePresCard}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
                   <TrashIcon className="w-3.5 h-3.5" /> Delete
                 </button>
               </>
@@ -322,7 +322,7 @@ export default function FlashcardDeckPage() {
           {cards.length === 0 ? (
             <div className="text-center space-y-4">
               <div className="text-6xl">🃏</div>
-              <p className="text-white/50 font-bold">No cards in this deck</p>
+              <p className="text-muted-foreground font-bold">No cards in this deck</p>
               {isTeacher && (
                 <button onClick={() => { setViewMode('grid'); setShowBuilder(true); }}
                   className="px-6 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-colors">
@@ -335,26 +335,26 @@ export default function FlashcardDeckPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white uppercase tracking-widest">Edit Card {presIndex + 1}</p>
-                <button onClick={() => setPresEditing(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-white/50 transition-colors">
+                <p className="text-sm font-black text-foreground uppercase tracking-widest">Edit Card {presIndex + 1}</p>
+                <button onClick={() => setPresEditing(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground transition-colors">
                   <XMarkIcon className="w-4 h-4" />
                 </button>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Question (Front)</label>
                 <textarea value={presEditForm.front} onChange={e => setPresEditForm(p => ({ ...p, front: e.target.value }))}
-                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-foreground text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                   placeholder="Enter the question…" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2">Answer (Back)</label>
+                <label className="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Answer (Back)</label>
                 <textarea value={presEditForm.back} onChange={e => setPresEditForm(p => ({ ...p, back: e.target.value }))}
-                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-foreground text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                   placeholder="Enter the answer…" />
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setPresEditing(false)}
-                  className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-black rounded-xl transition-colors text-sm">
+                  className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-foreground font-black rounded-xl transition-colors text-sm">
                   Cancel
                 </button>
                 <button onClick={savePresEdit} disabled={presSaving || !presEditForm.front.trim() || !presEditForm.back.trim()}
@@ -425,7 +425,7 @@ export default function FlashcardDeckPage() {
         {!presEditing && cards.length > 0 && (
           <div className="flex items-center justify-between px-4 sm:px-8 py-4 border-t border-white/10 shrink-0">
             <button onClick={presPrev} disabled={presIndex === 0}
-              className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white font-black rounded-2xl transition-colors text-sm">
+              className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-foreground font-black rounded-2xl transition-colors text-sm">
               <ChevronLeftIcon className="w-5 h-5" />
               <span className="hidden sm:inline">Previous</span>
             </button>
@@ -436,7 +436,7 @@ export default function FlashcardDeckPage() {
             </button>
 
             <button onClick={presNext} disabled={presIndex === cards.length - 1}
-              className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white font-black rounded-2xl transition-colors text-sm">
+              className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-foreground font-black rounded-2xl transition-colors text-sm">
               <span className="hidden sm:inline">Next</span>
               <ChevronRightIcon className="w-5 h-5" />
             </button>
@@ -445,7 +445,7 @@ export default function FlashcardDeckPage() {
 
         {/* Keyboard hint */}
         <div className="text-center pb-3 shrink-0">
-          <p className="text-[9px] text-white/20 font-medium hidden sm:block">
+          <p className="text-[9px] text-muted-foreground font-medium hidden sm:block">
             ← → navigate &nbsp;·&nbsp; Space flip &nbsp;·&nbsp; Esc exit
           </p>
         </div>
@@ -559,7 +559,7 @@ export default function FlashcardDeckPage() {
                           rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary transition-colors" />
                       </div>
                       <div>
-                        <label className="block text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Answer</label>
+                        <label className="block text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Answer</label>
                         <textarea value={editForm.back} onChange={e => setEditForm(p => ({ ...p, back: e.target.value }))}
                           rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary transition-colors" />
                       </div>
@@ -598,7 +598,7 @@ export default function FlashcardDeckPage() {
                             </motion.div>
                           ) : (
                             <motion.div key="b" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-                              <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
+                              <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
                               <div className="text-sm text-foreground leading-relaxed line-clamp-4">
                                 <FlashcardMarkdown content={card.back} />
                               </div>
@@ -623,7 +623,7 @@ export default function FlashcardDeckPage() {
                             <button
                               onClick={() => saveCardImageToArchive(card, index + 1)}
                               disabled={archiveSavingId === card.id}
-                              className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-muted-foreground hover:text-emerald-400 transition-colors disabled:opacity-50"
+                              className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:opacity-50"
                               title="Save card image to archive"
                             >
                               {archiveSavingId === card.id ? (
@@ -640,7 +640,7 @@ export default function FlashcardDeckPage() {
                               <PencilIcon className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => deleteCard(card.id)}
-                              className="p-1.5 hover:bg-rose-500/10 rounded-lg text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
+                              className="p-1.5 hover:bg-rose-500/10 rounded-lg text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete">
                               <TrashIcon className="w-3.5 h-3.5" />
                             </button>
                           </>

@@ -125,7 +125,7 @@ export function DutyBoardPanel({ embedded = false }: Props) {
       )}
 
       {loading ? <p className="text-sm text-muted-foreground">Loading current capacity...</p> : null}
-      {error ? <p className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {board ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -136,7 +136,7 @@ export function DutyBoardPanel({ embedded = false }: Props) {
           </div>
 
           {board.warnings.map((warning) => (
-            <p key={warning} className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <p key={warning} className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:text-amber-200">
               {warning}
             </p>
           ))}

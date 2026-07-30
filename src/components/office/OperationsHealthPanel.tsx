@@ -66,13 +66,13 @@ function friendlyJob(name: string) {
 }
 
 function healthState(row: HealthRow) {
-  if (row.consecutive_failures > 0) return { label: 'Failing', cls: 'text-rose-500 bg-rose-500/10 border-rose-500/30' };
-  if (!row.last_finished_at) return { label: 'Waiting for first run', cls: 'text-amber-500 bg-amber-500/10 border-amber-500/30' };
+  if (row.consecutive_failures > 0) return { label: 'Failing', cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30' };
+  if (!row.last_finished_at) return { label: 'Waiting for first run', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30' };
   const grace = Math.max(10, Math.ceil(row.expected_interval_minutes * 0.25)) * 60000;
   if (row.next_expected_at && Date.now() > new Date(row.next_expected_at).getTime() + grace) {
-    return { label: 'Late', cls: 'text-amber-500 bg-amber-500/10 border-amber-500/30' };
+    return { label: 'Late', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30' };
   }
-  return { label: 'Healthy', cls: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30' };
+  return { label: 'Healthy', cls: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
 }
 
 type Props = { embedded?: boolean };
@@ -182,7 +182,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       )}
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-500">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
         </p>
       ) : null}
@@ -228,7 +228,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                       Last checked: {row.last_finished_at ? new Date(row.last_finished_at).toLocaleString() : 'not yet'} |
                       checks every {row.expected_interval_minutes} minutes
                     </p>
-                    {row.last_error ? <p className="mt-1 text-xs text-rose-500">What went wrong: {row.last_error}</p> : null}
+                    {row.last_error ? <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">What went wrong: {row.last_error}</p> : null}
                   </div>
                   <button
                     type="button"
@@ -260,7 +260,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                   <p className="font-bold">
                     {row.job_type} | {row.source}
                   </p>
-                  <p className="mt-1 text-xs text-rose-500">{row.error}</p>
+                  <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{row.error}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Attempts {row.attempts} | admin retries {row.retry_count} | {new Date(row.created_at).toLocaleString()}
                   </p>
@@ -304,7 +304,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                   {row.stream} | {row.action}
                   {row.channel ? ` | ${row.channel}` : ''}
                 </p>
-                <p className="mt-1 text-xs text-rose-500">{row.error || 'Delivery failed without a provider message.'}</p>
+                <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{row.error || 'Delivery failed without a provider message.'}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {new Date(row.created_at).toLocaleString()}
                   {row.entity_id ? ` | ${row.entity_id}` : ''}
@@ -334,7 +334,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
               {history.slice(0, 30).map((row) => (
                 <tr key={row.id} className="border-t border-border">
                   <td className="p-3 font-bold">{row.job_name}</td>
-                  <td className={`p-3 font-black ${row.success ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  <td className={`p-3 font-black ${row.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {row.success ? 'Success' : 'Failed'}
                   </td>
                   <td className="p-3">{row.status_code ?? '-'}</td>

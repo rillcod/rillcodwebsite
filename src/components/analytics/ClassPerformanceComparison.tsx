@@ -295,7 +295,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
           <div className="flex items-center mb-4">
-            <StarIcon className="h-6 w-6 text-green-600 mr-2" />
+            <StarIcon className="h-6 w-6 text-green-600 dark:text-green-400 mr-2" />
             <h3 className="text-lg font-semibold text-foreground">Top Performing Class</h3>
           </div>
           <p className="text-2xl font-bold text-foreground mb-2">{topClass.name}</p>
@@ -318,7 +318,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
 
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-6 border border-yellow-200">
           <div className="flex items-center mb-4">
-            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 mr-2" />
+            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mr-2" />
             <h3 className="text-lg font-semibold text-foreground">Needs Improvement</h3>
           </div>
           <p className="text-2xl font-bold text-foreground mb-2">{needsImprovementClass.name}</p>
@@ -423,77 +423,77 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                   <td className="px-6 py-4 whitespace-nowrap font-medium text-foreground">{classItem.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-foreground">{classItem.students}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:text-blue-200">
                       {getAverageScore(classItem)}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.subjects.scratch >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.subjects.scratch >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.subjects.scratch >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.subjects.scratch >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.subjects.scratch}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.subjects.python >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.subjects.python >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.subjects.python >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.subjects.python >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.subjects.python}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.subjects.webDev >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.subjects.webDev >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.subjects.webDev >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.subjects.webDev >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.subjects.webDev}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.subjects.uiux >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.subjects.uiux >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.subjects.uiux >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.subjects.uiux >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.subjects.uiux}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.subjects.flutter >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.subjects.flutter >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.subjects.flutter >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.subjects.flutter >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.subjects.flutter}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.attendance >= 95 ? 'bg-green-100 text-green-800' :
-                      classItem.attendance >= 90 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.attendance >= 95 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.attendance >= 90 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.attendance}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      classItem.engagement >= 85 ? 'bg-green-100 text-green-800' :
-                      classItem.engagement >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      classItem.engagement >= 85 ? 'bg-green-100 text-green-800 dark:text-green-200' :
+                      classItem.engagement >= 75 ? 'bg-yellow-100 text-yellow-800 dark:text-yellow-200' :
+                      'bg-red-100 text-red-800 dark:text-red-200'
                     }`}>
                       {classItem.engagement}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
-                      <span className="text-sm font-medium text-green-600">{classItem.improvement}</span>
+                      <ArrowTrendingUpIcon className="h-4 w-4 text-green-600 dark:text-green-400 mr-1" />
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">{classItem.improvement}</span>
                     </div>
                   </td>
                 </tr>
@@ -508,14 +508,14 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
         <h3 className="text-lg font-semibold mb-4 text-foreground">Class Performance Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start">
-            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
+            <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Grade 9A Excellence</p>
               <p className="text-sm text-muted-foreground">Highest performing class - consider sharing their strategies with other classes</p>
             </div>
           </div>
           <div className="flex items-start">
-            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-3 mt-0.5" />
+            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Grade 7B Support Needed</p>
               <p className="text-sm text-muted-foreground">Lowest performing class - implement additional support and mentoring</p>
@@ -529,7 +529,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
             </div>
           </div>
           <div className="flex items-start">
-            <UserGroupIcon className="h-5 w-5 text-purple-500 mr-3 mt-0.5" />
+            <UserGroupIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Peer Learning</p>
               <p className="text-sm text-muted-foreground">Implement cross-class collaboration to boost overall performance</p>

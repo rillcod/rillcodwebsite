@@ -106,20 +106,20 @@ function parseInstructions(raw: string): ParsedInstructions {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const CATEGORY_COLOR: Record<string, string> = {
-    coding:       'bg-primary/15 border-primary/30 text-violet-300',
-    web:          'bg-primary/15 border-primary/30 text-blue-300',
-    ai:           'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
-    design:       'bg-pink-500/15 border-pink-500/30 text-pink-300',
-    research:     'bg-amber-500/15 border-amber-500/30 text-amber-300',
-    hardware:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+    coding:       'bg-primary/15 border-primary/30 text-violet-700 dark:text-violet-300',
+    web:          'bg-primary/15 border-primary/30 text-blue-700 dark:text-blue-300',
+    ai:           'bg-cyan-500/15 border-cyan-500/30 text-cyan-700 dark:text-cyan-300',
+    design:       'bg-pink-500/15 border-pink-500/30 text-pink-700 dark:text-pink-300',
+    research:     'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
+    hardware:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
     presentation: 'bg-primary/15 border-primary/30 text-primary',
-    robotics:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+    robotics:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
 };
 
 const DIFFICULTY_COLOR: Record<string, string> = {
-    beginner:     'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-    intermediate: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-    advanced:     'bg-rose-500/10 border-rose-500/20 text-rose-400',
+    beginner:     'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+    intermediate: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
+    advanced:     'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400',
 };
 
 const SUBMISSION_ICON: Record<string, string> = {
@@ -274,8 +274,8 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                             style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
                         />
                         <div className="relative text-center space-y-2 px-8 py-6 bg-black/60 backdrop-blur-md border border-emerald-500/30">
-                            <p className="text-2xl font-black text-white">🎉 All Steps Done!</p>
-                            <p className="text-sm text-emerald-400 font-bold">You're ready to submit your project.</p>
+                            <p className="text-2xl font-black text-foreground">🎉 All Steps Done!</p>
+                            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">You're ready to submit your project.</p>
                         </div>
                     </motion.div>
                 )}
@@ -285,17 +285,17 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
             {(meta.category || meta.difficulty || meta.submission_types?.length || meta.tags?.length) && (
                 <div className="flex flex-wrap gap-2">
                     {meta.category && (
-                        <span className={`px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${CATEGORY_COLOR[meta.category] ?? 'bg-white/5 border-white/10 text-white/50'}`}>
+                        <span className={`px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${CATEGORY_COLOR[meta.category] ?? 'bg-white/5 border-white/10 text-muted-foreground'}`}>
                             {meta.category}
                         </span>
                     )}
                     {meta.difficulty && (
-                        <span className={`px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${DIFFICULTY_COLOR[meta.difficulty] ?? 'bg-white/5 border-white/10 text-white/50'}`}>
+                        <span className={`px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${DIFFICULTY_COLOR[meta.difficulty] ?? 'bg-white/5 border-white/10 text-muted-foreground'}`}>
                             {meta.difficulty}
                         </span>
                     )}
                     {meta.submission_types?.map(t => (
-                        <span key={t} className="px-2.5 py-1 bg-white/5 border border-white/10 text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1">
+                        <span key={t} className="px-2.5 py-1 bg-white/5 border border-white/10 text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                             {SUBMISSION_ICON[t] ?? '📋'} {t}
                         </span>
                     ))}
@@ -311,7 +311,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
             {totalSteps > 0 && (
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Your Progress</span>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Your Progress</span>
                         <span className="text-[10px] font-black text-primary">{doneSteps}/{totalSteps} steps</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -323,7 +323,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                         />
                     </div>
                     {progress === 100 && (
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                             ✓ All steps completed — ready to submit!
                         </p>
                     )}
@@ -339,18 +339,18 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                             onChange={e => setEditIntro(e.target.value)}
                             rows={2}
                             autoFocus
-                            className="w-full bg-white/5 border border-primary/40 px-3 py-2 text-sm text-white/80 outline-none resize-none"
+                            className="w-full bg-white/5 border border-primary/40 px-3 py-2 text-sm text-muted-foreground outline-none resize-none"
                         />
                         <div className="flex gap-2">
                             <button onClick={() => setEditingIntro(false)}
                                 className="px-3 py-1 bg-primary text-white text-[10px] font-black uppercase tracking-widest">Done</button>
                             <button onClick={() => setEditingIntro(false)}
-                                className="px-3 py-1 bg-white/5 text-white/40 text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                                className="px-3 py-1 bg-white/5 text-muted-foreground text-[10px] font-black uppercase tracking-widest">Cancel</button>
                         </div>
                     </div>
                 ) : editIntro ? (
                     <div className="group flex items-start gap-2">
-                        <p className="flex-1 text-sm text-white/60 leading-relaxed border-l-2 border-primary/30 pl-4">{editIntro}</p>
+                        <p className="flex-1 text-sm text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-4">{editIntro}</p>
                         <button onClick={() => setEditingIntro(true)}
                             className="opacity-0 group-hover:opacity-100 text-[9px] text-primary font-black uppercase tracking-widest px-2 py-1 border border-primary/20 hover:bg-primary/10 transition-all shrink-0">
                             Edit
@@ -358,13 +358,13 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                     </div>
                 ) : (
                     <button onClick={() => setEditingIntro(true)}
-                        className="text-[10px] text-white/20 hover:text-primary font-black uppercase tracking-widest transition-colors">
+                        className="text-[10px] text-muted-foreground hover:text-primary font-black uppercase tracking-widest transition-colors">
                         + Add intro text
                     </button>
                 )
             ) : (
                 parsed.intro && (
-                    <p className="text-sm text-white/60 leading-relaxed border-l-2 border-primary/30 pl-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-4">
                         {parsed.intro}
                     </p>
                 )
@@ -373,10 +373,10 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
             {/* ── Sections (Requirements, Deliverables, etc.) ── */}
             {parsed.sections.map((sec, si) => (
                 <div key={si} className="bg-white/[0.02] border border-white/[0.06] p-4 space-y-2">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{sec.heading}</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{sec.heading}</p>
                     <ul className="space-y-1.5">
                         {sec.items.map((item, ii) => (
-                            <li key={ii} className="flex items-start gap-2 text-sm text-white/60">
+                            <li key={ii} className="flex items-start gap-2 text-sm text-muted-foreground">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-1.5 shrink-0" />
                                 {item}
                             </li>
@@ -393,7 +393,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                         <div className="flex items-center justify-between">
                             <button
                                 onClick={() => setExpanded(e => !e)}
-                                className="flex items-center gap-2 text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white/60 transition-colors"
+                                className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-white/60 transition-colors"
                             >
                                 <span>{expanded ? '▾' : '▸'}</span>
                                 {totalSteps} Steps
@@ -462,14 +462,14 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                             autoFocus
                                                             value={editStepTitle}
                                                             onChange={e => setEditStepTitle(e.target.value)}
-                                                            className="w-full bg-white/5 border border-primary/30 px-2 py-1 text-sm text-white outline-none"
+                                                            className="w-full bg-white/5 border border-primary/30 px-2 py-1 text-sm text-foreground outline-none"
                                                             placeholder="Step title"
                                                         />
                                                         <textarea
                                                             value={editStepBody}
                                                             onChange={e => setEditStepBody(e.target.value)}
                                                             rows={2}
-                                                            className="w-full bg-white/5 border border-white/10 px-2 py-1 text-xs text-white/60 outline-none resize-none"
+                                                            className="w-full bg-white/5 border border-white/10 px-2 py-1 text-xs text-muted-foreground outline-none resize-none"
                                                             placeholder="Extra detail (optional)"
                                                         />
                                                         <div className="flex gap-2">
@@ -478,18 +478,18 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                                 Save
                                                             </button>
                                                             <button onClick={() => setEditingStep(null)}
-                                                                className="px-3 py-1 bg-white/5 text-white/40 text-[9px] font-black uppercase tracking-widest">
+                                                                className="px-3 py-1 bg-white/5 text-muted-foreground text-[9px] font-black uppercase tracking-widest">
                                                                 Cancel
                                                             </button>
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <p className={`text-sm font-bold leading-snug ${done ? 'text-white/40 line-through' : 'text-white/90'}`}>
+                                                        <p className={`text-sm font-bold leading-snug ${done ? 'text-muted-foreground line-through' : 'text-muted-foreground'}`}>
                                                             {step.title}
                                                         </p>
                                                         {step.body && (
-                                                            <p className="text-xs text-white/40 mt-1 leading-relaxed">{step.body}</p>
+                                                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.body}</p>
                                                         )}
                                                     </>
                                                 )}
@@ -500,7 +500,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                 <div className="flex items-start gap-1 shrink-0 opacity-0 group-hover:opacity-100 ml-1">
                                                     <button
                                                         onClick={() => startEditStep(step)}
-                                                        className="p-1 text-white/20 hover:text-primary transition-colors"
+                                                        className="p-1 text-muted-foreground hover:text-primary transition-colors"
                                                         title="Edit step"
                                                     >
                                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -510,7 +510,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                     </button>
                                                     <button
                                                         onClick={() => deleteStep(step.number)}
-                                                        className="p-1 text-white/20 hover:text-rose-400 transition-colors"
+                                                        className="p-1 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                                                         title="Delete step"
                                                     >
                                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -527,7 +527,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                 {teacherMode && (
                                     <button
                                         onClick={addStep}
-                                        className="w-full py-2.5 border border-dashed border-white/10 hover:border-primary/30 text-white/20 hover:text-primary text-[10px] font-black uppercase tracking-widest transition-all"
+                                        className="w-full py-2.5 border border-dashed border-white/10 hover:border-primary/30 text-muted-foreground hover:text-primary text-[10px] font-black uppercase tracking-widest transition-all"
                                     >
                                         + Add Step
                                     </button>
@@ -542,13 +542,13 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
             {parsed.notes.map((note, ni) => (
                 <div key={ni} className="flex gap-2.5 p-3 bg-cyan-500/5 border border-cyan-500/15">
                     <span className="text-base shrink-0">💡</span>
-                    <p className="text-xs text-cyan-300/70 leading-relaxed">{note}</p>
+                    <p className="text-xs text-cyan-700/70 dark:text-cyan-300/70 leading-relaxed">{note}</p>
                 </div>
             ))}
 
             {/* ── Fallback: no structure detected — render as readable prose ── */}
             {parsed.steps.length === 0 && parsed.sections.length === 0 && !parsed.intro && (
-                <div className="text-sm text-white/60 leading-relaxed whitespace-pre-line">
+                <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                     {instructions}
                 </div>
             )}

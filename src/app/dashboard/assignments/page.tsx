@@ -17,15 +17,15 @@ import ShareToParentModal from '@/components/share/ShareToParentModal';
 const TYPE_BADGE: Record<string, string> = {
   quiz: 'bg-primary/20 text-primary border-primary/30',
   project: 'bg-primary/20 text-primary border-primary/30',
-  homework: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  exam: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  cbt: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  presentation: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  homework: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+  exam: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
+  cbt: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
+  presentation: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  coding: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
   essay: 'bg-primary/20 text-primary border-primary/30',
-  research: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  lab: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  discussion: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+  research: 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+  lab: 'bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/30',
+  discussion: 'bg-pink-500/20 text-pink-600 dark:text-pink-400 border-pink-500/30',
 };
 
 // Left accent bar colors per type
@@ -44,12 +44,12 @@ const TYPE_ACCENT: Record<string, string> = {
 };
 
 const SUB_BADGE: Record<string, string> = {
-  graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  graded: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
   submitted: 'bg-primary/20 text-primary border-primary/30',
-  late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  late: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  missing: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   pending: 'bg-muted text-muted-foreground border-border',
-  pending_review: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  pending_review: 'bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30',
 };
 
 const SUB_ACCENT: Record<string, string> = {
@@ -374,11 +374,11 @@ function AssignmentsPageInner() {
                 {[
                   { label: 'Total', value: totalItems, color: 'text-primary' },
                   { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-primary' },
-                  { label: 'Graded', value: gradedCount, color: 'text-emerald-400' },
+                  { label: 'Graded', value: gradedCount, color: 'text-emerald-600 dark:text-emerald-400' },
                   {
                     label: 'Overdue',
                     value: overdueCount,
-                    color: overdueCount > 0 ? 'text-rose-400' : 'text-muted-foreground',
+                    color: overdueCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground',
                     pulse: overdueCount > 0,
                   },
                 ].map((stat, idx) => (
@@ -408,24 +408,24 @@ function AssignmentsPageInner() {
         {/* ── ERROR BANNER ── */}
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
         {/* ── NEEDS GRADING ALERT (staff) ── */}
         {isStaff && pendingCount > 0 && (
           <div className="bg-amber-500/5 border border-amber-500/20 p-4 flex items-center gap-4">
-            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-black text-amber-400 uppercase tracking-tight">
+              <p className="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-tight">
                 {pendingCount} submission{pendingCount > 1 ? 's' : ''} awaiting your review
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">Open each submission to grade and leave feedback.</p>
             </div>
             <button
               onClick={() => setStaffTab('needs_grading')}
-              className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-widest transition-all flex-shrink-0"
+              className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest transition-all flex-shrink-0"
             >
               Show Pending
             </button>
@@ -435,16 +435,16 @@ function AssignmentsPageInner() {
         {/* ── OVERDUE ALERT STRIP ── */}
         {!isStaff && overdueCount > 0 && (
           <div className="bg-rose-500/5 border border-rose-500/20 p-4 flex items-center gap-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-black text-rose-400 uppercase tracking-tight">
+              <p className="text-sm font-black text-rose-600 dark:text-rose-400 uppercase tracking-tight">
                 {overdueCount} overdue assignment{overdueCount > 1 ? 's' : ''}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">Submit now to avoid missing marks.</p>
             </div>
             <button
               onClick={() => setFilter('missing')}
-              className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all"
+              className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all"
             >
               Show Overdue
             </button>
@@ -473,7 +473,7 @@ function AssignmentsPageInner() {
                   {tab.label}
                   {badge != null && badge > 0 && (
                     <span className={`px-1.5 py-0.5 text-[8px] font-black rounded-sm ${
-                      staffTab === tab.value ? 'bg-primary/30 text-primary' : 'bg-rose-500/20 text-rose-400'
+                      staffTab === tab.value ? 'bg-primary/30 text-primary' : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
                     }`}>{badge}</span>
                   )}
                 </button>
@@ -615,13 +615,13 @@ function AssignmentsPageInner() {
                     <div className="pl-7 pr-6 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
                           {submittedCnt} submission{submittedCnt > 1 ? 's' : ''} awaiting review
                         </span>
                       </div>
                       <Link
                         href={`/dashboard/assignments/${a.id}`}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-black text-[8px] uppercase tracking-widest transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[8px] uppercase tracking-widest transition-colors"
                       >
                         <AcademicCapIcon className="w-3 h-3" /> Grade Now
                       </Link>
@@ -645,12 +645,12 @@ function AssignmentsPageInner() {
                             </span>
                           )}
                           {a.metadata?.week != null && (
-                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-400 border-violet-500/30">
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30">
                               Week {a.metadata.week}
                             </span>
                           )}
                           {overdue && (
-                            <span className="flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            <span className="flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black uppercase bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                               <ExclamationTriangleIcon className="w-3 h-3" /> Overdue
                             </span>
                           )}
@@ -671,7 +671,7 @@ function AssignmentsPageInner() {
                           {totalSubs > 0 && (
                             <>
                               <span className="text-[11px] text-primary">{submittedCnt} pending</span>
-                              <span className="text-[11px] text-emerald-400">{gradedCnt}/{totalSubs} graded</span>
+                              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">{gradedCnt}/{totalSubs} graded</span>
                             </>
                           )}
                         </div>
@@ -712,7 +712,7 @@ function AssignmentsPageInner() {
                         </Link>
                         <Link
                           href={`/dashboard/assignments/${a.id}/edit`}
-                          className="p-2.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                          className="p-2.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
                           title="Edit"
                         >
                           <PencilIcon className="w-4 h-4" />
@@ -720,7 +720,7 @@ function AssignmentsPageInner() {
                         <button
                           onClick={() => handleDelete(a.id, a.title)}
                           disabled={deleting === a.id}
-                          className="p-2.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                          className="p-2.5 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
                           title="Delete"
                         >
                           <TrashIcon className="w-4 h-4" />
@@ -765,12 +765,12 @@ function AssignmentsPageInner() {
                             </span>
                           )}
                           {a.metadata?.week != null && (
-                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-400 border-violet-500/30">
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30">
                               Week {a.metadata.week}
                             </span>
                           )}
                           {overdue && (
-                            <span className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-400">
+                            <span className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-600 dark:text-rose-400">
                               <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Overdue
                             </span>
                           )}
@@ -793,7 +793,7 @@ function AssignmentsPageInner() {
                             </span>
                           )}
                           {sub.grade != null && (
-                            <span className="text-[11px] text-amber-400 font-bold">
+                            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
                               {sub.grade}/{a.max_points ?? 100} pts
                             </span>
                           )}
@@ -814,7 +814,7 @@ function AssignmentsPageInner() {
                         {sub.status === 'missing' && a.assignment_type === 'cbt' && (
                           <Link
                             href={`/dashboard/cbt/${sub.assignment_id ?? a.id}/take`}
-                            className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                            className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
                           >
                             <CommandLineIcon className="w-3.5 h-3.5" /> Take Test
                           </Link>
@@ -822,7 +822,7 @@ function AssignmentsPageInner() {
                         {sub.status === 'missing' && a.assignment_type === 'coding' && (
                           <Link
                             href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
-                            className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                            className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
                           >
                             <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
                           </Link>

@@ -32,7 +32,7 @@ interface Exam {
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30'}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30'}`}>
       {active ? <LockOpenIcon className="w-3 h-3" /> : <LockClosedIcon className="w-3 h-3" />}
       {active ? 'Active' : 'Inactive'}
     </span>
@@ -134,8 +134,8 @@ export default function ExamsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Exams', value: exams.length, icon: DocumentTextIcon, color: 'text-primary' },
-          { label: 'Active', value: exams.filter(e => e.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400' },
-          { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-400' },
+          { label: 'Active', value: exams.filter(e => e.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400' },
           { label: 'Avg Pass Score', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + e.passing_score, 0) / exams.length)}%` : '—', icon: ChartBarIcon, color: 'text-primary' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-white/[0.08] rounded-xl p-4">
@@ -152,10 +152,10 @@ export default function ExamsPage() {
       <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4">
         <InformationCircleIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
         <div className="text-sm">
-          <p className="font-bold text-blue-300">Written Exams vs CBT Exams</p>
-          <p className="text-blue-300/70 mt-0.5">
+          <p className="font-bold text-blue-700 dark:text-blue-300">Written Exams vs CBT Exams</p>
+          <p className="text-blue-700/70 dark:text-blue-300/70 mt-0.5">
             <strong>Written Exams</strong> are staff-managed and used for manual grading workflows.
-            {' '}<Link href="/dashboard/cbt" className="underline underline-offset-2 hover:text-blue-200">CBT Exams</Link> are auto-graded computer-based tests with coding blocks, best for quick assessment.
+            {' '}<Link href="/dashboard/cbt" className="underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-200">CBT Exams</Link> are auto-graded computer-based tests with coding blocks, best for quick assessment.
           </p>
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function ExamsPage() {
                 </Link>
                 {isStudent && exam.is_active && (
                   <Link href="/dashboard/cbt"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-xl transition-all">
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-all">
                     <CommandLineIcon className="w-3.5 h-3.5" /> Open CBT
                   </Link>
                 )}
@@ -237,11 +237,11 @@ export default function ExamsPage() {
                       <PencilIcon className="w-4 h-4 text-card-foreground/50" />
                     </Link>
                     <button onClick={() => toggleActive(exam)}
-                      className={`p-2 rounded-xl transition-all ${exam.is_active ? 'hover:bg-amber-500/20 text-amber-400' : 'hover:bg-emerald-500/20 text-emerald-400'}`}>
+                      className={`p-2 rounded-xl transition-all ${exam.is_active ? 'hover:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
                       {exam.is_active ? <LockClosedIcon className="w-4 h-4" /> : <LockOpenIcon className="w-4 h-4" />}
                     </button>
                     <button onClick={() => deleteExam(exam.id)} className="p-2 hover:bg-rose-500/20 rounded-xl transition-all">
-                      <TrashIcon className="w-4 h-4 text-rose-400" />
+                      <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                     </button>
                   </>
                 )}

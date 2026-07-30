@@ -55,7 +55,7 @@ function AuthorAvatar({ name }: { name: string }) {
   const initial = (name || 'A')[0].toUpperCase();
   const colors = ['bg-primary','bg-indigo-600','bg-emerald-600','bg-amber-600','bg-rose-600','bg-cyan-600'];
   return (
-    <div className={`w-9 h-9 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 rounded-full ${colors[initial.charCodeAt(0) % colors.length]}`}>
+    <div className={`w-9 h-9 flex items-center justify-center text-foreground text-sm font-bold flex-shrink-0 rounded-full ${colors[initial.charCodeAt(0) % colors.length]}`}>
       {initial}
     </div>
   );
@@ -66,7 +66,7 @@ const PROMPT_GROUPS = [
   {
     label: 'Young Innovators',
     sublabel: 'Ages 6–12',
-    color: 'text-amber-400',
+    color: 'text-amber-600 dark:text-amber-400',
     border: 'border-amber-500/30',
     bg: 'bg-amber-500/5',
     icon: StarIcon,
@@ -96,7 +96,7 @@ const PROMPT_GROUPS = [
   {
     label: 'All Students',
     sublabel: 'Any course',
-    color: 'text-emerald-400',
+    color: 'text-emerald-600 dark:text-emerald-400',
     border: 'border-emerald-500/30',
     bg: 'bg-emerald-500/5',
     icon: BeakerIcon,
@@ -288,13 +288,13 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[10px] font-black text-primary uppercase tracking-widest">This Week</span>
-                    <span className="text-[9px] bg-primary/10 border border-primary/20 text-violet-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">All Students</span>
+                    <span className="text-[9px] bg-primary/10 border border-primary/20 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">All Students</span>
                   </div>
                   <h3 className="text-base font-black text-foreground mb-1">{WEEKLY_CHALLENGE.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-3">{WEEKLY_CHALLENGE.description}</p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {WEEKLY_CHALLENGE.tags.map(t => (
-                      <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-violet-300">{t}</span>
+                      <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-violet-700 dark:text-violet-300">{t}</span>
                     ))}
                   </div>
                   <button
@@ -309,7 +309,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
             {/* Error */}
             {error && (
-              <div className="px-4 py-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm flex items-center justify-between">
+              <div className="px-4 py-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-600 dark:text-rose-400 text-sm flex items-center justify-between">
                 <span>{error}</span>
                 <button onClick={() => setError(null)}><XMarkIcon className="w-4 h-4" /></button>
               </div>
@@ -336,7 +336,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                   />
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
                     <span>Topic:</span>
-                    <span className={charsLeft < 100 ? 'text-rose-400 font-bold' : ''}>{charsLeft} chars left</span>
+                    <span className={charsLeft < 100 ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>{charsLeft} chars left</span>
                   </div>
                   {/* Topic tag row */}
                   <div className="flex flex-wrap gap-1.5">
@@ -378,7 +378,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
               <div className="flex items-center gap-2 flex-wrap pl-12">
                 <button onClick={() => setShowCode(v => !v)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${showCode ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-muted border-border text-muted-foreground hover:text-indigo-400 hover:border-indigo-500/30'}`}>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${showCode ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400' : 'bg-muted border-border text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-500/30'}`}>
                   <CodeBracketIcon className="w-3.5 h-3.5" />
                   {showCode ? 'Remove Code' : 'Add Code'}
                 </button>
@@ -388,7 +388,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                     const p = bank.prompts[Math.floor(Math.random() * bank.prompts.length)];
                     setMessage(p.text);
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-muted border border-border text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 transition-all">
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-muted border border-border text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-all">
                   <LightBulbIcon className="w-3.5 h-3.5" /> Get Inspired
                 </button>
                 <button onClick={handlePost} disabled={posting || !message.trim() || message.length > MAX_CHARS}
@@ -484,7 +484,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                             {isOwn && <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded">You</span>}
                             {(post.user_id === profile.id ? false : isStaff) && <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded">Staff</span>}
                             {post.code_snippet && (
-                              <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded">Code</span>
+                              <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded">Code</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
@@ -496,7 +496,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                           <button
                             onClick={() => handleDelete(post.id)}
                             disabled={deletingId === post.id}
-                            className="p-1.5 text-muted-foreground/40 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all disabled:opacity-40 flex-shrink-0"
+                            className="p-1.5 text-muted-foreground/40 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all disabled:opacity-40 flex-shrink-0"
                             title="Delete post"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
@@ -520,7 +520,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                             </div>
                           ) : (
                             <button onClick={() => setExpandedCode(p => new Set([...p, post.id]))}
-                              className="flex items-center gap-2 w-full px-3 py-2.5 bg-muted border border-border rounded-xl hover:border-indigo-500/40 text-sm text-muted-foreground hover:text-indigo-400 transition-all">
+                              className="flex items-center gap-2 w-full px-3 py-2.5 bg-muted border border-border rounded-xl hover:border-indigo-500/40 text-sm text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
                               <CodeBracketIcon className="w-4 h-4" />
                               <span>View {post.language || 'code'} snippet</span>
                               <span className="ml-auto text-[10px] text-muted-foreground/50">tap to expand</span>
@@ -628,7 +628,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                         <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>{sim.badge}</span>
                     </a>
                   ))}
                 </div>
@@ -652,7 +652,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                         <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>{sim.badge}</span>
                     </a>
                   ))}
                 </div>
@@ -660,7 +660,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
               {/* Track 3: Robotics & IoT */}
               <div className="px-3 pt-3 pb-1">
-                <p className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics & IoT</p>
+                <p className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics & IoT</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '💡', title: 'Blink LED', desc: 'Arduino setup() + loop() basics', path: '/dashboard/missions?lang=robotics', badge: 'Beginner' },
@@ -673,10 +673,10 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                       className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-cyan-500/40 hover:bg-cyan-500/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>{sim.badge}</span>
                     </a>
                   ))}
                 </div>
@@ -684,7 +684,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
               {/* Track 4: Databases */}
               <div className="px-3 pt-3 pb-3">
-                <p className="text-[8px] font-black text-emerald-400/60 uppercase tracking-widest mb-2 px-1">🗄️ Databases & Backend</p>
+                <p className="text-[8px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-widest mb-2 px-1">🗄️ Databases & Backend</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '🔍', title: 'SQL SELECT & WHERE', desc: 'Query a student database', path: '/dashboard/missions?lang=sql', badge: 'Beginner' },
@@ -695,10 +695,10 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                       className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-emerald-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>{sim.badge}</span>
                     </a>
                   ))}
                 </div>
@@ -713,15 +713,15 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
               <div className="px-4 pt-4 pb-3 border-b border-amber-500/10">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-lg">⭐</span>
-                  <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Young Innovators</p>
-                  <span className="ml-auto text-[8px] font-black text-amber-400/50 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full">Ages 6–12</span>
+                  <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Young Innovators</p>
+                  <span className="ml-auto text-[8px] font-black text-amber-600/50 dark:text-amber-400/50 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full">Ages 6–12</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">Fun, visual, step-by-step coding adventures</p>
               </div>
 
               {/* Track 1: Python for Kids */}
               <div className="px-3 pt-3 pb-1">
-                <p className="text-[8px] font-black text-amber-400/60 uppercase tracking-widest mb-2 px-1">🐍 Python Adventures</p>
+                <p className="text-[8px] font-black text-amber-600/60 dark:text-amber-400/60 uppercase tracking-widest mb-2 px-1">🐍 Python Adventures</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '👋', title: 'Hello World!', desc: 'Print your name with Python', path: '/dashboard/protocol?phase=1', badge: '⭐ Start Here' },
@@ -735,10 +735,10 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                       className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-amber-500/40 hover:bg-amber-500/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-amber-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className="text-[8px] text-amber-400/60 shrink-0">{sim.badge}</span>
+                      <span className="text-[8px] text-amber-600/60 dark:text-amber-400/60 shrink-0">{sim.badge}</span>
                     </a>
                   ))}
                 </div>
@@ -768,7 +768,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
               {/* Track 3: Robotics for Kids */}
               <div className="px-3 pt-3 pb-3">
-                <p className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics Fun</p>
+                <p className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics Fun</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '⬆️', title: 'Move Forward', desc: 'robot.forward() basics', path: '/dashboard/playground?lang=robotics', badge: '⭐' },
@@ -779,14 +779,14 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                       className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-cyan-500/40 hover:bg-cyan-500/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className="text-[8px] text-cyan-400/60 shrink-0">{sim.badge}</span>
+                      <span className="text-[8px] text-cyan-600/60 dark:text-cyan-400/60 shrink-0">{sim.badge}</span>
                     </a>
                   ))}
                 </div>
-                <a href="/dashboard/protocol" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 rounded-xl text-[9px] font-black text-amber-400 uppercase tracking-widest transition-all">
+                <a href="/dashboard/protocol" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 rounded-xl text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest transition-all">
                   Start Learning Path →
                 </a>
               </div>
@@ -797,7 +797,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
               <div className="flex items-center gap-2 border-b border-emerald-500/10 pb-3">
                 <span className="text-lg">📚</span>
                 <div>
-                  <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">Developer Reference</p>
+                  <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Developer Reference</p>
                   <p className="text-[8px] text-muted-foreground uppercase tracking-wider">High-Value Learning Resources</p>
                 </div>
               </div>
@@ -819,10 +819,10 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                   >
                     <span className="text-base shrink-0">{res.emoji}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-foreground group-hover:text-emerald-400 transition-colors truncate">{res.title}</p>
+                      <p className="text-[10px] font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">{res.title}</p>
                       <p className="text-[8px] text-muted-foreground truncate">{res.desc}</p>
                     </div>
-                    <span className="text-[8px] font-black uppercase text-emerald-500/70 hover:text-emerald-400 shrink-0">Open ↗</span>
+                    <span className="text-[8px] font-black uppercase text-emerald-600/70 dark:text-emerald-400/70 hover:text-emerald-600 dark:hover:text-emerald-400 shrink-0">Open ↗</span>
                   </a>
                 ))}
               </div>

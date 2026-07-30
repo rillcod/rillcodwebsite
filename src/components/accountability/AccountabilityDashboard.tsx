@@ -41,9 +41,9 @@ function Tile({
   active?: boolean; onClick?: () => void; sub?: string;
 }) {
   const toneCls =
-    tone === 'bad' ? 'text-rose-500'
-      : tone === 'warn' ? 'text-amber-500'
-        : tone === 'good' ? 'text-emerald-500'
+    tone === 'bad' ? 'text-rose-600 dark:text-rose-400'
+      : tone === 'warn' ? 'text-amber-600 dark:text-amber-400'
+        : tone === 'good' ? 'text-emerald-600 dark:text-emerald-400'
           : 'text-foreground';
   return (
     <button
@@ -364,7 +364,7 @@ export default function AccountabilityDashboard({
               Accountability Census
             </h1>
             {pollInterval > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-500 border border-rose-500/20">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-600 dark:text-rose-400 border border-rose-500/20">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
                 LIVE {pollInterval / 1000}s
               </span>
@@ -375,7 +375,7 @@ export default function AccountabilityDashboard({
             with report coverage, parent reachability, and a downloadable concrete report.
           </p>
           {c?.term_context && (
-            <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-500">
+            <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
               Active term: {c.term_context.academic_year} · {c.term_context.term_label}
             </div>
           )}
@@ -413,10 +413,10 @@ export default function AccountabilityDashboard({
       </div>
 
       {error && (
-        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>
+        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
       )}
       {syncFeedback && (
-        <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-500' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'}`}>
+        <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
           <CheckCircleIcon className="w-4 h-4" /> {syncFeedback}
         </p>
       )}
@@ -453,7 +453,7 @@ export default function AccountabilityDashboard({
                   <div>
                     <span className={LABEL}>Platform operational health</span>
                     <div className="flex items-baseline gap-2 mt-2">
-                      <span className={`text-5xl font-black tracking-tighter tabular-nums ${analytics.healthScore >= 85 ? 'text-emerald-500' : analytics.healthScore >= 70 ? 'text-amber-500' : 'text-rose-500'}`}>
+                      <span className={`text-5xl font-black tracking-tighter tabular-nums ${analytics.healthScore >= 85 ? 'text-emerald-600 dark:text-emerald-400' : analytics.healthScore >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {analytics.healthScore}%
                       </span>
                     </div>
@@ -473,7 +473,7 @@ export default function AccountabilityDashboard({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                        <ShieldCheckIcon className="w-4 h-4 text-indigo-500" />
+                        <ShieldCheckIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         Quick actions & focus
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -486,7 +486,7 @@ export default function AccountabilityDashboard({
                           <UserGroupIcon className="w-4 h-4" /> Reach {selectedIds.size} selected
                         </button>
                       ) : (
-                        <button type="button" onClick={() => openReachOut()} className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 px-3 py-2 text-xs font-black uppercase tracking-wider">
+                        <button type="button" onClick={() => openReachOut()} className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-2 text-xs font-black uppercase tracking-wider">
                           <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach parents
                         </button>
                       )}
@@ -646,7 +646,7 @@ export default function AccountabilityDashboard({
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold uppercase tracking-wider">Report publication</span>
-                      <span className="text-xs font-black text-indigo-500">{analytics.publishedPct}%</span>
+                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.publishedPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
                       <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full" />
@@ -654,13 +654,13 @@ export default function AccountabilityDashboard({
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
                       <span>{analytics.publishedReports} published</span>
-                      <span className="text-amber-500 font-bold">{analytics.draftReports} drafts</span>
+                      <span className="text-amber-600 dark:text-amber-400 font-bold">{analytics.draftReports} drafts</span>
                     </div>
                   </div>
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold uppercase tracking-wider">Roster placement</span>
-                      <span className="text-xs font-black text-emerald-500">{analytics.placedPct}%</span>
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{analytics.placedPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
                       <div style={{ width: `${analytics.placedPct}%` }} className="bg-emerald-500 h-full" />
@@ -668,13 +668,13 @@ export default function AccountabilityDashboard({
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
                       <span>{analytics.placedOnRoster} on roster</span>
-                      <span className="text-rose-500 font-bold">{analytics.unplaced} unplaced</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">{analytics.unplaced} unplaced</span>
                     </div>
                   </div>
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold uppercase tracking-wider">Parent email reach</span>
-                      <span className="text-xs font-black text-indigo-500">{analytics.parentEmailReachPct}%</span>
+                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentEmailReachPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
                       <div style={{ width: `${analytics.parentEmailReachPct}%` }} className="bg-indigo-500 h-full" />
@@ -682,7 +682,7 @@ export default function AccountabilityDashboard({
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
                       <span>{analytics.parentEmailMatched} linked</span>
-                      <Link href="/dashboard/parents" className="text-indigo-500 font-bold hover:underline flex items-center gap-1">
+                      <Link href="/dashboard/parents" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1">
                         <UserPlusIcon className="w-3 h-3" /> Manage
                       </Link>
                     </div>
@@ -703,13 +703,13 @@ export default function AccountabilityDashboard({
                     />
                   ))}
                   {Object.keys(flagCounts).length === 0 && (
-                    <div className={`${CARD} p-5 text-sm text-emerald-600 font-bold col-span-full`}>No census flags — clean snapshot.</div>
+                    <div className={`${CARD} p-5 text-sm text-emerald-600 dark:text-emerald-400 font-bold col-span-full`}>No census flags — clean snapshot.</div>
                   )}
                 </div>
               </Section>
 
               <div className={`${CARD} p-4 sm:p-5 bg-indigo-500/5 border-indigo-500/20 flex items-start gap-3`}>
-                <InformationCircleIcon className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                <InformationCircleIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
                   <h3 className="font-bold text-foreground">How to read this census</h3>
                   <p className="text-muted-foreground leading-relaxed">
@@ -761,8 +761,8 @@ export default function AccountabilityDashboard({
             >
               {selectedIds.size > 0 && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs">
-                  <span className="font-bold text-indigo-600">{selectedIds.size} selected</span>
-                  <button type="button" onClick={() => setReachOutModalOpen(true)} className="font-black uppercase tracking-wider text-indigo-600 hover:underline">Batch reach-out</button>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedIds.size} selected</span>
+                  <button type="button" onClick={() => setReachOutModalOpen(true)} className="font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 hover:underline">Batch reach-out</button>
                   <button type="button" onClick={() => setSelectedIds(new Set())} className="text-muted-foreground hover:underline">Clear selection</button>
                 </div>
               )}
@@ -772,7 +772,7 @@ export default function AccountabilityDashboard({
                   <thead>
                     <tr className="border-b border-border text-left">
                       <th className="px-3 py-3 w-10 text-center">
-                        <input type="checkbox" checked={allPaginatedSelected} onChange={toggleSelectAll} className="rounded border-border text-indigo-600" />
+                        <input type="checkbox" checked={allPaginatedSelected} onChange={toggleSelectAll} className="rounded border-border text-indigo-600 dark:text-indigo-400" />
                       </th>
                       {['Person', 'Role', 'School / placement', 'Reports', 'Flags', 'Actions'].map((h) => (
                         <th key={h} className={`${LABEL} px-3 py-3 whitespace-nowrap`}>{h}</th>
@@ -786,7 +786,7 @@ export default function AccountabilityDashboard({
                       return (
                         <tr key={p.id} className={`hover:bg-accent/40 ${selectedIds.has(p.id) ? 'bg-indigo-500/5' : ''}`}>
                           <td className="px-3 py-2.5 text-center">
-                            <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border text-indigo-600" />
+                            <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border text-indigo-600 dark:text-indigo-400" />
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
@@ -797,26 +797,26 @@ export default function AccountabilityDashboard({
                           </td>
                           <td className="px-3 py-2.5">
                             <RoleBadge role={p.role} size="sm" />
-                            {!p.is_active && <div className="text-[10px] text-rose-500 font-bold mt-1">INACTIVE</div>}
+                            {!p.is_active && <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold mt-1">INACTIVE</div>}
                           </td>
                           <td className="px-3 py-2.5 text-muted-foreground">
                             <div>{p.school_name || '—'}</div>
                             {student ? (
                               <div className="text-xs mt-0.5">
-                                {p.class_from_roster || <span className="text-rose-500 font-bold">not on roster</span>}
+                                {p.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">not on roster</span>}
                                 {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
-                                  <div className="text-amber-500">Profile: {p.class_on_profile}</div>
+                                  <div className="text-amber-600 dark:text-amber-400">Profile: {p.class_on_profile}</div>
                                 )}
                               </div>
                             ) : teacher ? (
-                              <div className="text-xs mt-0.5 text-violet-500 font-semibold">Teaching staff</div>
+                              <div className="text-xs mt-0.5 text-violet-600 dark:text-violet-400 font-semibold">Teaching staff</div>
                             ) : null}
                           </td>
                           <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                             {p.reports_total === 0 ? '—' : (
                               <>
                                 {p.reports_published} pub
-                                {p.reports_draft > 0 && <span className="text-amber-500"> · {p.reports_draft} draft</span>}
+                                {p.reports_draft > 0 && <span className="text-amber-600 dark:text-amber-400"> · {p.reports_draft} draft</span>}
                               </>
                             )}
                           </td>
@@ -824,7 +824,7 @@ export default function AccountabilityDashboard({
                             <div className="flex flex-wrap gap-1 max-w-[16rem]">
                               {(p.flags ?? []).length === 0 && <span className="text-xs text-muted-foreground">—</span>}
                               {(p.flags ?? []).map((f) => (
-                                <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-500' : 'bg-muted text-muted-foreground'}`}>
+                                <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-muted text-muted-foreground'}`}>
                                   {f.replace(/_/g, ' ')}
                                 </span>
                               ))}
@@ -833,22 +833,22 @@ export default function AccountabilityDashboard({
                           <td className="px-3 py-2.5 whitespace-nowrap">
                             <div className="flex flex-wrap gap-2">
                               {student && (
-                                <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline">
+                                <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
                                   <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach parent
                                 </button>
                               )}
                               {student && ((p.flags ?? []).includes('no_parent_email') || (p.flags ?? []).includes('no_parent_phone')) && (
-                                <Link href="/dashboard/parents" className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline">
+                                <Link href="/dashboard/parents" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
                                   <LinkIcon className="w-3 h-3" /> Link parent
                                 </Link>
                               )}
                               {student && (p.flags ?? []).includes('no_class') && (
-                                <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline">
+                                <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
                                   <LinkIcon className="w-3 h-3" /> Assign roster
                                 </Link>
                               )}
                               {teacher && (
-                                <button type="button" onClick={() => setTab('teachers')} className="text-xs font-bold text-violet-500 hover:underline">
+                                <button type="button" onClick={() => setTab('teachers')} className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
                                   View teachers
                                 </button>
                               )}
@@ -920,12 +920,12 @@ export default function AccountabilityDashboard({
               )}
 
               {c && c.classes_without_reports.length > 0 && (
-                <Section title="Classes with pupils but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-500" />}>
+                <Section title="Classes with pupils but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
                   <div className={`${CARD} divide-y divide-border`}>
                     {c.classes_without_reports.map((x) => (
                       <div key={x.class} className="flex items-center justify-between px-4 py-3 gap-3">
                         <span className="text-sm font-bold text-foreground">{x.class}</span>
-                        <span className="text-sm font-black text-rose-500">{x.students} pupils · 0 reports</span>
+                        <span className="text-sm font-black text-rose-600 dark:text-rose-400">{x.students} pupils · 0 reports</span>
                       </div>
                     ))}
                   </div>
@@ -953,11 +953,11 @@ export default function AccountabilityDashboard({
                               <td className="px-3 py-2.5 text-muted-foreground">{row.students}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{row.reports}</td>
                               <td className="px-3 py-2.5">{row.published}</td>
-                              <td className="px-3 py-2.5">{row.draft > 0 ? <span className="text-amber-500 font-bold">{row.draft}</span> : '—'}</td>
+                              <td className="px-3 py-2.5">{row.draft > 0 ? <span className="text-amber-600 dark:text-amber-400 font-bold">{row.draft}</span> : '—'}</td>
                               <td className="px-3 py-2.5">
                                 {missing > 0
-                                  ? <span className="text-xs font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">{missing} missing</span>
-                                  : <span className="text-xs font-bold text-emerald-500">0 missing</span>}
+                                  ? <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">{missing} missing</span>
+                                  : <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">0 missing</span>}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-2 justify-end">
@@ -977,10 +977,10 @@ export default function AccountabilityDashboard({
               )}
 
               {backlog && backlog.hidden_by_term_filter.drafts > 0 && (
-                <Section title="Overdue backlog — hidden by active-term filter" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-500" />}>
+                <Section title="Overdue backlog — hidden by active-term filter" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
                   <div className={`${CARD} p-4 text-sm text-muted-foreground`}>
                     Across all terms there are <strong className="text-foreground">{backlog.all_terms.drafts}</strong> unpublished reports —
-                    so <strong className="text-rose-500">{backlog.hidden_by_term_filter.drafts}</strong> drafts sit outside this term view.
+                    so <strong className="text-rose-600 dark:text-rose-400">{backlog.hidden_by_term_filter.drafts}</strong> drafts sit outside this term view.
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Tile value={backlog.all_terms.reports} label="Reports · all terms" />
@@ -1004,8 +1004,8 @@ export default function AccountabilityDashboard({
                               <td className="px-3 py-2.5 font-bold">{o.teacher}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{o.course || '—'}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{o.term}</td>
-                              <td className="px-3 py-2.5 font-black text-rose-500">{o.drafts}</td>
-                              <td className="px-3 py-2.5">{o.oldest_days == null ? '—' : <span className={o.oldest_days >= 60 ? 'font-black text-rose-500' : 'text-amber-500'}>{o.oldest_days} days</span>}</td>
+                              <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400">{o.drafts}</td>
+                              <td className="px-3 py-2.5">{o.oldest_days == null ? '—' : <span className={o.oldest_days >= 60 ? 'font-black text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}>{o.oldest_days} days</span>}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1034,26 +1034,26 @@ export default function AccountabilityDashboard({
           {/* ── COMMS ────────────────────────────────────────────── */}
           {tab === 'comms' && (
             <>
-              <Section title="Parent-student contact reachability" icon={<EnvelopeIcon className="w-3.5 h-3.5 text-indigo-500" />}>
+              <Section title="Parent-student contact reachability" icon={<EnvelopeIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" /> Parent email</span><span className="text-xs font-black text-indigo-500">{analytics.parentEmailReachPct}%</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" /> Parent email</span><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentEmailReachPct}%</span></div>
                     <div className="text-3xl font-black">{analytics.parentEmailMatched}</div>
                     <p className="text-[11px] text-muted-foreground">Students with parent email on file</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" /> Parent phone</span><span className="text-xs font-black text-indigo-500">{analytics.parentPhoneReachPct}%</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" /> Parent phone</span><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentPhoneReachPct}%</span></div>
                     <div className="text-3xl font-black">{analytics.parentPhoneMatched}</div>
                     <p className="text-[11px] text-muted-foreground">Students with parent phone on file</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" /> Fully matched</span><span className="text-xs font-black text-emerald-500">{analytics.parentFullyMatchedPct}%</span></div>
-                    <div className="text-3xl font-black text-emerald-500">{analytics.parentFullyMatched}</div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" /> Fully matched</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{analytics.parentFullyMatchedPct}%</span></div>
+                    <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{analytics.parentFullyMatched}</div>
                     <p className="text-[11px] text-muted-foreground">Both email & phone attached</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold text-rose-500 flex items-center gap-1"><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Unmatched</span><span className="text-xs font-black text-rose-500">{analytics.parentUnmatched}</span></div>
-                    <div className="text-3xl font-black text-rose-500">{analytics.parentUnmatched}</div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Unmatched</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{analytics.parentUnmatched}</span></div>
+                    <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{analytics.parentUnmatched}</div>
                     <p className="text-[11px] text-muted-foreground">Zero parent contact details</p>
                   </div>
                 </div>
@@ -1068,13 +1068,13 @@ export default function AccountabilityDashboard({
                         <div key={idx} className={`${CARD} p-5 space-y-2`}>
                           <div className="flex justify-between">
                             <span className="text-xs font-bold capitalize">{prov.provider}</span>
-                            <span className="text-xs font-black text-emerald-500">{pct}% delivered</span>
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{pct}% delivered</span>
                           </div>
                           <div className="text-3xl font-black">{prov.total_dispatched}</div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden"><div style={{ width: `${pct}%` }} className="h-full bg-emerald-500" /></div>
                           <div className="flex justify-between text-[11px]">
-                            <span className="text-emerald-500 font-bold">{prov.delivered} delivered</span>
-                            <span className={prov.failed_or_bounced ? 'text-rose-500 font-bold' : 'text-muted-foreground'}>{prov.failed_or_bounced} bounced</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">{prov.delivered} delivered</span>
+                            <span className={prov.failed_or_bounced ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-muted-foreground'}>{prov.failed_or_bounced} bounced</span>
                           </div>
                         </div>
                       );
@@ -1102,8 +1102,8 @@ export default function AccountabilityDashboard({
                               <td className="px-3 py-2.5 font-bold capitalize">{em.email_type.replace(/_/g, ' ')}</td>
                               <td className="px-3 py-2.5 capitalize text-muted-foreground">{em.provider || '—'}</td>
                               <td className="px-3 py-2.5">{em.total_dispatched}</td>
-                              <td className="px-3 py-2.5 text-emerald-500 font-bold">{em.delivered}</td>
-                              <td className="px-3 py-2.5">{em.failed_or_bounced > 0 ? <span className="text-rose-500 font-bold">{em.failed_or_bounced}</span> : '0'}</td>
+                              <td className="px-3 py-2.5 text-emerald-600 dark:text-emerald-400 font-bold">{em.delivered}</td>
+                              <td className="px-3 py-2.5">{em.failed_or_bounced > 0 ? <span className="text-rose-600 dark:text-rose-400 font-bold">{em.failed_or_bounced}</span> : '0'}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{em.pending}</td>
                               <td className="px-3 py-2.5 text-right">
                                 <div className="inline-flex items-center gap-2">
@@ -1180,7 +1180,7 @@ export default function AccountabilityDashboard({
                     type="button"
                     onClick={() => downloadPeopleCsv(teachers, 'accountability-teachers.csv')}
                     disabled={teachers.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-600 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
                   >
                     Export teachers CSV
                   </button>
@@ -1188,14 +1188,14 @@ export default function AccountabilityDashboard({
                     type="button"
                     onClick={() => downloadPeopleCsv(students, 'accountability-students.csv')}
                     disabled={students.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-600 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
                   >
                     Export students CSV
                   </button>
                 </div>
 
                 {reportMsg && (
-                  <p className={`text-sm font-bold ${reportMsg.startsWith('Error') ? 'text-rose-500' : 'text-emerald-600'}`}>{reportMsg}</p>
+                  <p className={`text-sm font-bold ${reportMsg.startsWith('Error') ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{reportMsg}</p>
                 )}
               </div>
 
@@ -1251,7 +1251,7 @@ export default function AccountabilityDashboard({
           {c && (
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <p className="text-xs text-muted-foreground">Snapshot taken {fmtDate(c.generated_at)}</p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Cache live
               </span>
             </div>

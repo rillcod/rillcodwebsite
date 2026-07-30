@@ -112,9 +112,9 @@ export function OfficialDirectionStatus({
   if (assigned) {
     return (
       <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex items-start gap-3">
-        <ShieldCheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+        <ShieldCheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-400">
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
             Official curriculum source &middot; available to this school
           </p>
           <p className="text-sm font-bold text-foreground mt-0.5 truncate">
@@ -131,9 +131,9 @@ export function OfficialDirectionStatus({
   if (stale) {
     return (
       <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+        <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-amber-500">
+          <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
             Newer official edition published
           </p>
           <p className="text-sm font-bold text-foreground mt-0.5 truncate">
@@ -151,9 +151,9 @@ export function OfficialDirectionStatus({
   if (unassigned) {
     return (
       <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+        <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-amber-500">
+          <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
             Curriculum source published &middot; not yet available to this
             school
           </p>

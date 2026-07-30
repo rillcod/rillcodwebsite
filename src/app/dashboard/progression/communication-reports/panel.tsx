@@ -212,10 +212,10 @@ export default function CommunicationReportsPage({
                       <span
                         className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] border shadow-sm ${
                           row.status === "open"
-                            ? "border-amber-500/20 text-amber-400 bg-amber-500/5"
+                            ? "border-amber-500/20 text-amber-600 dark:text-amber-400 bg-amber-500/5"
                             : row.status === "reviewing"
-                            ? "border-blue-500/20 text-blue-400 bg-blue-500/5"
-                            : "border-emerald-500/20 text-emerald-400 bg-emerald-500/5"
+                            ? "border-blue-500/20 text-blue-600 dark:text-blue-400 bg-blue-500/5"
+                            : "border-emerald-500/20 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5"
                         }`}
                       >
                         {row.status}

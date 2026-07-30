@@ -22,15 +22,15 @@ const StatsCard: React.FC<StatsCardProps> = ({
 }) => {
   const colorClasses = {
     blue: 'bg-blue-50 text-primary',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
+    green: 'bg-green-50 text-green-600 dark:text-green-400',
+    purple: 'bg-purple-50 text-purple-600 dark:text-purple-400',
     orange: 'bg-orange-50 text-primary',
-    red: 'bg-red-50 text-red-600'
+    red: 'bg-red-50 text-red-600 dark:text-red-400'
   };
 
   const changeColorClasses = {
-    increase: 'text-green-600',
-    decrease: 'text-red-600'
+    increase: 'text-green-600 dark:text-green-400',
+    decrease: 'text-red-600 dark:text-red-400'
   };
 
   return (

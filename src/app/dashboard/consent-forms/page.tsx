@@ -114,9 +114,9 @@ function dueBadge(due: string | null) {
   if (!due) return null;
   const d = new Date(due);
   const daysLeft = Math.ceil((d.getTime() - Date.now()) / 86400000);
-  if (daysLeft < 0) return { label: 'Overdue', cls: 'bg-rose-500/15 text-rose-400 border-rose-500/20' };
-  if (daysLeft === 0) return { label: 'Due today', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
-  if (daysLeft <= 3) return { label: `${daysLeft}d left`, cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
+  if (daysLeft < 0) return { label: 'Overdue', cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20' };
+  if (daysLeft === 0) return { label: 'Due today', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20' };
+  if (daysLeft <= 3) return { label: `${daysLeft}d left`, cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20' };
   return { label: `Due ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, cls: 'bg-muted text-muted-foreground border-border/40' };
 }
 
@@ -1389,7 +1389,7 @@ export default function ConsentFormsPage() {
                   onClick={stripCopySuffix}
                   disabled={strippingCopy}
                   title='Remove "(Copy)" suffix from all form titles'
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
                 >
                   {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
                   <span>{strippingCopy ? 'Cleaning…' : 'Clean Titles'}</span>
@@ -1408,7 +1408,7 @@ export default function ConsentFormsPage() {
             </div>
           </div>
           {stripResult && (
-            <p className="w-full text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+            <p className="w-full text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
               {stripResult} <button onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">×</button>
             </p>
           )}
@@ -1562,7 +1562,7 @@ export default function ConsentFormsPage() {
                 </div>
 
                 {createError && (
-                  <p className="text-rose-400 text-xs flex items-center gap-1.5">
+                  <p className="text-rose-600 dark:text-rose-400 text-xs flex items-center gap-1.5">
                     <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {createError}
                   </p>
                 )}
@@ -1632,7 +1632,7 @@ export default function ConsentFormsPage() {
                 </div>
 
                 {editError && (
-                  <p className="text-rose-400 text-xs flex items-center gap-1.5">
+                  <p className="text-rose-600 dark:text-rose-400 text-xs flex items-center gap-1.5">
                     <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {editError}
                   </p>
                 )}
@@ -1697,7 +1697,7 @@ export default function ConsentFormsPage() {
                           </button>
                         )}
                         {isParent && readModal.has_signed && (
-                          <div className="w-full py-3 bg-emerald-600/15 border border-emerald-500/20 text-emerald-400 font-black rounded-xl text-center text-sm">
+                          <div className="w-full py-3 bg-emerald-600/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black rounded-xl text-center text-sm">
                             ✓ You have already signed this form
                           </div>
                         )}
@@ -1798,7 +1798,7 @@ export default function ConsentFormsPage() {
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">QR Code</p>
                     <h2 className="font-black text-base leading-tight mt-0.5">{qrForm.title}</h2>
                     {qrForm.schools?.name && (
-                      <p className="text-[10px] text-amber-400 font-bold mt-0.5">{qrForm.schools.name}</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">{qrForm.schools.name}</p>
                     )}
                   </div>
                   <button onClick={() => setQrFormId(null)} className="p-1 rounded-lg hover:bg-muted transition-colors ml-3 shrink-0">
@@ -1890,7 +1890,7 @@ export default function ConsentFormsPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0">
-                    <TrashIcon className="w-5 h-5 text-rose-400" />
+                    <TrashIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                   </div>
                   <div>
                     <h3 className="font-black">Delete Form?</h3>
@@ -1971,7 +1971,7 @@ export default function ConsentFormsPage() {
                 )}
 
                 {cloneError && (
-                  <p className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cloneError}</p>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cloneError}</p>
                 )}
 
                 <div className="flex gap-3 pt-1">
@@ -2032,7 +2032,7 @@ export default function ConsentFormsPage() {
                     {/* Title row */}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-start gap-2 min-w-0">
-                        {cf.has_signed && <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
+                        {cf.has_signed && <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
                         <div className="min-w-0">
                           <h3 className="font-bold text-foreground leading-snug break-words [overflow-wrap:anywhere]">{cf.title}</h3>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
@@ -2163,7 +2163,7 @@ export default function ConsentFormsPage() {
                         {isEditor && (
                           <button
                             onClick={() => setConfirmDeleteId(cf.id)}
-                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card text-rose-500 hover:bg-rose-500/10 text-[11px] font-bold transition-colors"
+                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[11px] font-bold transition-colors"
                             title="Delete form"
                           >
                             <TrashIcon className="w-3.5 h-3.5" /> Delete
@@ -2299,7 +2299,7 @@ export default function ConsentFormsPage() {
                           {/* Portal Signatures */}
                           {sigs.length > 0 && (
                             <div className="space-y-2">
-                              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
                                 <CheckCircleIcon className="w-3 h-3" /> Portal Signatures — {sigs.length}
                               </p>
                               <div className="space-y-2">
@@ -2314,7 +2314,7 @@ export default function ConsentFormsPage() {
                                           {s.portal_users?.phone && <p className="text-xs text-muted-foreground">{s.portal_users.phone}</p>}
                                         </div>
                                         <div className="text-right shrink-0">
-                                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">Signed</span>
+                                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Signed</span>
                                           <p className="text-[10px] text-muted-foreground mt-1">
                                             {new Date(s.signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                           </p>
@@ -2345,7 +2345,7 @@ export default function ConsentFormsPage() {
                           {/* Public Leads */}
                           {formLeads.length > 0 && (
                             <div className="space-y-2">
-                              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
                                 <UserGroupIcon className="w-3 h-3" /> Public Registrations — {formLeads.length}
                               </p>
                               <div className="space-y-3">
@@ -2356,14 +2356,14 @@ export default function ConsentFormsPage() {
                                   const isPending  = lead.match_status === 'pending_review';
                                   const isApproved = lead.match_status === 'approved';
                                   const statusCfg: Record<string, { label: string; cls: string }> = {
-                                    new:       { label: 'New',       cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
-                                    contacted: { label: 'Contacted', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
-                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+                                    new:       { label: 'New',       cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+                                    contacted: { label: 'Contacted', cls: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
                                     lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground border-border' },
                                   };
                                   const confCls: Record<string, string> = {
-                                    high:   'bg-rose-500/10 text-rose-400',
-                                    medium: 'bg-amber-500/10 text-amber-400',
+                                    high:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+                                    medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
                                     low:    'bg-muted text-muted-foreground',
                                   };
                                   return (
@@ -2406,10 +2406,10 @@ export default function ConsentFormsPage() {
                                             </span>
                                           )}
                                           {(rd as any).is_existing_parent && (
-                                            <span className="text-xs bg-purple-500/10 text-purple-400 px-2.5 py-1 rounded-lg font-bold">↩️ Existing parent</span>
+                                            <span className="text-xs bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-1 rounded-lg font-bold">↩️ Existing parent</span>
                                           )}
                                           {lead.child_current_school && (
-                                            <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg">
+                                            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-lg">
                                               🏫 {lead.child_current_school}
                                             </span>
                                           )}
@@ -2419,7 +2419,7 @@ export default function ConsentFormsPage() {
                                         <div className="flex flex-wrap gap-2">
                                           {waNumber && (
                                             <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer"
-                                              className="flex items-center gap-1.5 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 px-3 py-1.5 rounded-lg font-bold transition-colors border border-emerald-500/20">
+                                              className="flex items-center gap-1.5 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg font-bold transition-colors border border-emerald-500/20">
                                               💬 {rd.parent_whatsapp}
                                             </a>
                                           )}
@@ -2446,13 +2446,13 @@ export default function ConsentFormsPage() {
                                               </span>
                                             )}
                                             {isApproved && (
-                                              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">✓ Matched to student</span>
+                                              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">✓ Matched to student</span>
                                             )}
                                             {lead.contact_id && (
-                                              <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg font-bold">✓ CRM contact</span>
+                                              <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-lg font-bold">✓ CRM contact</span>
                                             )}
                                             {lead.prospect_id && (
-                                              <span className="text-xs bg-violet-500/10 text-violet-400 px-2.5 py-1 rounded-lg font-bold">✓ Prospect saved</span>
+                                              <span className="text-xs bg-violet-500/10 text-violet-600 dark:text-violet-400 px-2.5 py-1 rounded-lg font-bold">✓ Prospect saved</span>
                                             )}
                                           </div>
                                         )}
@@ -2497,7 +2497,7 @@ export default function ConsentFormsPage() {
                                       {/* Pending review block */}
                                       {isPending && lead.match_candidate && (
                                         <div className="border-t border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-3">
-                                          <p className="text-xs font-black text-amber-400 uppercase tracking-widest">⚠ Possible existing student — please review</p>
+                                          <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">⚠ Possible existing student — please review</p>
                                           <div className="grid grid-cols-2 gap-3">
                                             <div className="bg-card border border-border/30 rounded-xl p-3 space-y-0.5">
                                               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">From Form</p>
@@ -2505,7 +2505,7 @@ export default function ConsentFormsPage() {
                                               <p className="text-xs text-muted-foreground">{rd.child_class || '—'}</p>
                                             </div>
                                             <div className="bg-card border border-amber-500/20 rounded-xl p-3 space-y-0.5">
-                                              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">In System</p>
+                                              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">In System</p>
                                               <p className="font-bold text-foreground">{lead.match_candidate.full_name}</p>
                                               <p className="text-xs text-muted-foreground">{lead.match_candidate.section_class || '—'}</p>
                                             </div>
@@ -2517,7 +2517,7 @@ export default function ConsentFormsPage() {
                                             <button
                                               disabled={reviewingLeadId === lead.id}
                                               onClick={() => reviewLead(cf.id, lead.id, 'approve')}
-                                              className="flex-1 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-sm rounded-xl transition-colors disabled:opacity-40 border border-emerald-500/20"
+                                              className="flex-1 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-black text-sm rounded-xl transition-colors disabled:opacity-40 border border-emerald-500/20"
                                             >
                                               {reviewingLeadId === lead.id ? '…' : '✓ Yes, same student'}
                                             </button>
@@ -2535,7 +2535,7 @@ export default function ConsentFormsPage() {
                                       {/* Approved link */}
                                       {isApproved && lead.matched_student_id && (
                                         <div className="border-t border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5">
-                                          <p className="text-xs text-emerald-400 font-bold">
+                                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                                             ✓ Linked to existing student record{lead.matched_parent_id ? ' · Parent portal account found' : ''}
                                           </p>
                                         </div>

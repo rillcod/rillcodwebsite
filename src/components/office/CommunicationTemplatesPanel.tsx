@@ -148,12 +148,12 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       )}
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-500">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
         </p>
       ) : null}
       {message ? (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-500">{message}</p>
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">{message}</p>
       ) : null}
 
       <section className="rounded-2xl border border-border bg-card p-5">
@@ -281,10 +281,10 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${
                           template.status === 'approved'
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : template.status === 'retired'
                               ? 'border-border bg-muted text-muted-foreground'
-                              : 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+                              : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                         }`}
                       >
                         {template.status}
@@ -330,7 +330,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                         type="button"
                         disabled={saving === template.id}
                         onClick={() => void request({ action: 'retire', templateId: template.id }, template.id)}
-                        className="min-h-11 touch-manipulation rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black text-rose-500 disabled:opacity-50"
+                        className="min-h-11 touch-manipulation rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black text-rose-600 dark:text-rose-400 disabled:opacity-50"
                       >
                         Retire
                       </button>
@@ -357,10 +357,10 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                           <td
                             className={`py-2 font-bold ${
                               version.test_status === 'passed'
-                                ? 'text-emerald-500'
+                                ? 'text-emerald-600 dark:text-emerald-400'
                                 : version.test_status === 'failed'
-                                  ? 'text-rose-500'
-                                  : 'text-amber-500'
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : 'text-amber-600 dark:text-amber-400'
                             }`}
                           >
                             {version.test_status}

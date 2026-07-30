@@ -89,13 +89,13 @@ export default function BillingStickyNotices() {
         <div key={notice.id} className="border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 rounded-xl">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 flex items-center gap-1.5">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
                 <ExclamationTriangleIcon className="w-3.5 h-3.5" />
                 Billing Notice (Sticky)
               </p>
               <h3 className="text-sm sm:text-base font-black text-foreground mt-1">{notice.title}</h3>
               <p className="text-xs text-muted-foreground mt-1">{notice.message}</p>
-              <p className="text-[10px] font-bold text-amber-300/90 mt-2 uppercase tracking-wider">
+              <p className="text-[10px] font-bold text-amber-700/90 dark:text-amber-300/90 mt-2 uppercase tracking-wider">
                 Due: {notice.due_date ? new Date(notice.due_date).toLocaleDateString('en-GB') : 'As soon as possible'}
               </p>
             </div>
@@ -103,7 +103,7 @@ export default function BillingStickyNotices() {
               {!isNativeApp && (
                 <Link
                 href={paymentHref}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 text-amber-200 hover:bg-amber-500/10 rounded-xl"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 rounded-xl"
               >
                 <BanknotesIcon className="w-3.5 h-3.5" />
                 Pay Now
@@ -120,7 +120,7 @@ export default function BillingStickyNotices() {
                 <button
                   onClick={() => resolveNotice(notice.id)}
                   disabled={resolvingId === notice.id}
-                  className="px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 rounded-xl disabled:opacity-50"
+                  className="px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 rounded-xl disabled:opacity-50"
                 >
                   {resolvingId === notice.id ? 'Resolving...' : 'Resolve'}
                 </button>

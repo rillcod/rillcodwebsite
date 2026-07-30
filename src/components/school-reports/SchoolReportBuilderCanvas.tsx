@@ -632,7 +632,7 @@ export function SchoolReportBuilderCanvas({
                 type="button"
                 disabled={busy}
                 onClick={() => void onDelete()}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 dark:text-rose-300 disabled:opacity-50"
               >
                 <TrashIcon className="h-4 w-4" />
                 {working === 'delete' ? 'Deleting…' : 'Delete draft permanently'}
@@ -693,7 +693,7 @@ export function SchoolReportBuilderCanvas({
         </div>
         {(aiNote || aiError) && (
           <div className="border-t border-border/60 px-4 py-2 text-xs md:px-5">
-            {aiError ? <p className="font-bold text-rose-600">{aiError}</p> : <p className="text-emerald-700">{aiNote}</p>}
+            {aiError ? <p className="font-bold text-rose-600 dark:text-rose-400">{aiError}</p> : <p className="text-emerald-700 dark:text-emerald-300">{aiNote}</p>}
           </div>
         )}
       </div>
@@ -1180,7 +1180,7 @@ export function SchoolReportBuilderCanvas({
                     </ol>
                     {finance?.matchDiagnostics?.nearMisses?.length ? (
                       <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-                        <p className="text-xs font-black text-amber-800">
+                        <p className="text-xs font-black text-amber-800 dark:text-amber-200">
                           {finance.matchDiagnostics.candidateCount} school invoice(s) found — none matched{' '}
                           {snapshot.period.termLabel}, {snapshot.period.academicYear}
                         </p>
@@ -1266,8 +1266,8 @@ export function SchoolReportBuilderCanvas({
               </section>
               {canManage && !published && onDelete ? (
                 <section className="rounded-2xl border border-rose-500/40 bg-rose-500/5 p-5">
-                  <h3 className="font-black text-rose-800">Remove this draft</h3>
-                  <p className="mt-2 text-sm text-rose-900/80">
+                  <h3 className="font-black text-rose-800 dark:text-rose-200">Remove this draft</h3>
+                  <p className="mt-2 text-sm text-rose-900/80 dark:text-rose-200/80">
                     Deleting permanently removes this report book and its snapshot. The school will not see it. You can
                     generate a fresh book for the same term afterward.
                   </p>
@@ -1476,8 +1476,8 @@ function BookPreview({
         <div
           className={`rounded-xl border px-3 py-2 text-xs ${
             finance?.attached
-              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-800'
-              : 'border-rose-500/30 bg-rose-500/5 text-rose-800'
+              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-800 dark:text-emerald-200'
+              : 'border-rose-500/30 bg-rose-500/5 text-rose-800 dark:text-rose-200'
           }`}
         >
           {finance?.attached ? (

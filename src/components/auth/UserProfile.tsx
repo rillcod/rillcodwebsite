@@ -71,7 +71,7 @@ export default function UserProfile() {
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60"
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 transition-colors disabled:opacity-60"
             >
               <LogOut className="w-4 h-4 mr-3" />
               {signingOut ? 'Signing out…' : 'Sign Out'}

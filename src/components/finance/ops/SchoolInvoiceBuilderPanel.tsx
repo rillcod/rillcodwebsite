@@ -641,18 +641,18 @@ export function SchoolInvoiceBuilderPanel({
             : 'Build a school term invoice — figures, reminders, and payment tracking stay on one record.'}
         </p>
         {editingInvoiceId && (
-          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest">
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest">
             Editing existing invoice
             <button
               onClick={() => { setEditingInvoiceId(null); setForm(makeBlank()); setLinkedInvoice(null); }}
-              className="ml-1 hover:text-amber-200 transition-colors"
+              className="ml-1 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
               title="Discard and start a new invoice"
             >✕</button>
           </div>
         )}
         {!editingInvoiceId && linkedInvoice && (
           <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            <p className="text-xs text-amber-200 flex-1">
+            <p className="text-xs text-amber-800 dark:text-amber-200 flex-1">
               Invoice <span className="font-mono font-bold">{linkedInvoice.invoice_number}</span> already exists for this school and term.
             </p>
             <button
@@ -885,7 +885,7 @@ export function SchoolInvoiceBuilderPanel({
                           setForm((f) => ({ ...f, tiers: f.tiers.filter((_, i) => i !== idx) }))
                         }
                         disabled={form.tiers.length === 1}
-                        className="p-2 text-muted-foreground hover:text-red-400 disabled:opacity-25 transition-colors shrink-0"
+                        className="p-2 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-25 transition-colors shrink-0"
                         title="Remove tier"
                       >
                         ✕
@@ -1113,7 +1113,7 @@ export function SchoolInvoiceBuilderPanel({
               </button>
             )}
             {!editingInvoiceId && computed.balance > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-400">
+              <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
                 <CheckBadgeIcon className="w-3 h-3" />
                 {computed.revenueShareOn
                   ? `Rillcod will collect ₦${computed.balance.toLocaleString()}`
@@ -1171,7 +1171,7 @@ function Stat({
     tone === 'primary'
       ? 'text-primary'
       : tone === 'emerald'
-      ? 'text-emerald-400'
+      ? 'text-emerald-600 dark:text-emerald-400'
       : 'text-foreground';
   return (
     <div>

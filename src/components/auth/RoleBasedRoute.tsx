@@ -53,7 +53,7 @@ export default function RoleBasedRoute({
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-white/50">Verifying permissions...</p>
+          <p className="text-muted-foreground">Verifying permissions...</p>
         </div>
       </div>
     );
@@ -64,11 +64,11 @@ export default function RoleBasedRoute({
     return fallback || (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
-          <Shield className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">
+          <Shield className="w-12 h-12 mx-auto mb-4 text-red-600 dark:text-red-400" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">
             Authentication Required
           </h2>
-          <p className="text-white/50">
+          <p className="text-muted-foreground">
             Please log in to access this page.
           </p>
         </div>
@@ -81,17 +81,17 @@ export default function RoleBasedRoute({
     return fallback || (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-yellow-600 dark:text-yellow-400" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">
             Insufficient Permissions
           </h2>
-          <p className="text-white/50 mb-4">
+          <p className="text-muted-foreground mb-4">
             You don't have permission to access this page.
           </p>
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-muted-foreground">
             Your role: <span className="font-medium capitalize">{profile.role}</span>
           </p>
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-muted-foreground">
             Required roles: {allowedRoles.map(role => role.charAt(0).toUpperCase() + role.slice(1)).join(', ')}
           </p>
         </div>
@@ -107,11 +107,11 @@ export default function RoleBasedRoute({
     return fallback || (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center max-w-md px-6">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-600 dark:text-red-400" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">
             {pendingPlacement ? 'Account Pending Placement' : 'Account Deactivated'}
           </h2>
-          <p className="text-white/50">
+          <p className="text-muted-foreground">
             {needsClass
               ? 'Your account needs a class assignment before you can access the portal. Ask your school or teacher to place you in a class.'
               : needsSchool

@@ -210,8 +210,8 @@ export default function EditExamPage() {
 
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <AcademicCapIcon className="w-5 h-5 text-emerald-400" />
-                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Edit Exam</span>
+                        <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Edit Exam</span>
                     </div>
                     <h1 className="text-3xl font-extrabold">Edit CBT Exam</h1>
                     <p className="text-muted-foreground text-sm mt-1">Update exam settings and manage questions</p>
@@ -219,14 +219,14 @@ export default function EditExamPage() {
 
                 {error && (
                     <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                        <p className="text-rose-400 text-sm">{error}</p>
+                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                        <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
                 {success && (
                     <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-                        <CheckIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                        <p className="text-emerald-400 text-sm font-semibold">{success}</p>
+                        <CheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                        <p className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">{success}</p>
                     </div>
                 )}
 
@@ -237,7 +237,7 @@ export default function EditExamPage() {
 
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                Exam Title <span className="text-rose-400">*</span>
+                                Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
                             </label>
                             <input type="text" required value={form.title}
                                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -247,7 +247,7 @@ export default function EditExamPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                    Programme <span className="text-rose-400">*</span>
+                                    Programme <span className="text-rose-600 dark:text-rose-400">*</span>
                                 </label>
                                 <select required value={form.program_id}
                                     onChange={e => {
@@ -267,7 +267,7 @@ export default function EditExamPage() {
 
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                    Course {form.program_id ? <span className="text-rose-400">*</span> : <span className="text-white/30">(select programme first)</span>}
+                                    Course {form.program_id ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(select programme first)</span>}
                                 </label>
                                 <select value={form.course_id}
                                     onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
@@ -338,7 +338,7 @@ export default function EditExamPage() {
                                 </p>
                             </div>
                             <button type="button" onClick={addQuestion}
-                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
                                 <PlusIcon className="w-4 h-4" /> Add Question
                             </button>
                         </div>
@@ -358,17 +358,17 @@ export default function EditExamPage() {
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic mr-1">#{qi + 1}</span>
                                             {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
-                                                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-500 italic flex items-center gap-1">
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                                                     <SparklesIcon className="w-2.5 h-2.5" /> Manual Eval
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-400 italic flex items-center gap-1">
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 italic flex items-center gap-1">
                                                     <CheckCircleIcon className="w-2.5 h-2.5" /> Auto Graded
                                                 </span>
                                             )}
                                         </div>
                                         {q._new && (
-                                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest italic">
+                                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-[9px] font-black uppercase tracking-widest italic">
                                                 New
                                             </span>
                                         )}
@@ -383,7 +383,7 @@ export default function EditExamPage() {
                                             <ChevronDownIcon className="w-3.5 h-3.5" />
                                         </button>
                                         <button type="button" onClick={() => removeQuestion(questions.indexOf(q))}
-                                            className="p-1.5 text-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-400 rounded-xl transition-colors">
+                                            className="p-1.5 text-rose-600/60 dark:text-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-colors">
                                             <TrashIcon className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
@@ -482,7 +482,7 @@ export default function EditExamPage() {
                                                                 className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none" 
                                                             />
                                                             {isCorrect && (
-                                                                <span className="hidden sm:block text-[8px] font-black text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
+                                                                <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
                                                             )}
                                                         </div>
                                                     );

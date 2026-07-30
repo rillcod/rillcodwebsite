@@ -61,18 +61,18 @@ const Hero: React.FC = () => {
                 className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border-2 border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/10 transition-all shadow-lg"
               >
                 ☀️ Enroll Child Now
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-amber-500" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-amber-600 dark:text-amber-400" />
               </Link>
             </div>
 
             <p className="text-[11px] sm:text-xs text-muted-foreground mb-10 max-w-md">
-              <span className="font-bold text-amber-500">{cta.batchLabel}</span>
+              <span className="font-bold text-amber-600 dark:text-amber-400">{cta.batchLabel}</span>
               {' · '}
-              <span className="font-bold text-emerald-500">In-person {cta.onsiteFeeLabel}</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">In-person {cta.onsiteFeeLabel}</span>
               {' · '}Online {cta.onlineFeeLabel}
               {' · '}{cta.classDays}
               {cta.deadlineLabel ? (
-                <> · Closes <span className="font-bold text-rose-500">{cta.deadlineLabel}</span></>
+                <> · Closes <span className="font-bold text-rose-600 dark:text-rose-400">{cta.deadlineLabel}</span></>
               ) : null}
             </p>
 
@@ -122,7 +122,7 @@ const Hero: React.FC = () => {
                     className="group/cta flex items-center justify-between w-full bg-background/95 backdrop-blur-sm border border-amber-500/40 hover:border-amber-500 px-5 py-4 hover:bg-amber-600 transition-all duration-300 shadow-2xl rounded-xl"
                   >
                     <div className="min-w-0 text-left">
-                      <p className="text-[9px] font-black text-amber-500 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors truncate">
+                      <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors truncate">
                         ☀️ {cta.title}
                       </p>
                       <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">

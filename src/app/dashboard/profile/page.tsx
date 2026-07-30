@@ -176,37 +176,37 @@ export default function ProfilePage() {
   );
 
   const roleColor: Record<string, string> = {
-    admin: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-    teacher: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
-    student: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+    admin: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
+    teacher: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20',
+    student: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
     school: 'text-primary bg-primary/10 border-primary/20',
   };
 
   const statCards: { label: string; value: number; icon: any; color: string }[] = [];
   if (profile.role === 'student') {
     statCards.push(
-      { label: 'Courses', value: stats.enrolled ?? 0, icon: BookOpenIcon, color: 'text-indigo-400' },
-      { label: 'Work Submitted', value: stats.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-400' },
-      { label: 'Avg Score', value: stats.avgScore ?? 0, icon: ChartBarIcon, color: 'text-emerald-400' },
+      { label: 'Courses', value: stats.enrolled ?? 0, icon: BookOpenIcon, color: 'text-indigo-600 dark:text-indigo-400' },
+      { label: 'Work Submitted', value: stats.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-600 dark:text-amber-400' },
+      { label: 'Avg Score', value: stats.avgScore ?? 0, icon: ChartBarIcon, color: 'text-emerald-600 dark:text-emerald-400' },
     );
   } else if (profile.role === 'teacher') {
     statCards.push(
-      { label: 'Classes', value: stats.classes ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
-      { label: 'Lessons', value: stats.lessons ?? 0, icon: BookOpenIcon, color: 'text-cyan-400' },
-      { label: 'Assignments', value: stats.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-400' },
+      { label: 'Classes', value: stats.classes ?? 0, icon: AcademicCapIcon, color: 'text-teal-600 dark:text-teal-400' },
+      { label: 'Lessons', value: stats.lessons ?? 0, icon: BookOpenIcon, color: 'text-cyan-600 dark:text-cyan-400' },
+      { label: 'Assignments', value: stats.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-600 dark:text-amber-400' },
     );
   } else if (profile.role === 'school') {
     statCards.push(
-      { label: 'My Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-400' },
-      { label: 'Assigned Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
-      { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-400' },
+      { label: 'My Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-600 dark:text-indigo-400' },
+      { label: 'Assigned Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-600 dark:text-teal-400' },
+      { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-600 dark:text-amber-400' },
     );
   } else {
     statCards.push(
-      { label: 'Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-400' },
-      { label: 'Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
+      { label: 'Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-600 dark:text-indigo-400' },
+      { label: 'Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-600 dark:text-teal-400' },
       { label: 'Schools', value: stats.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary' },
-      { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-400' },
+      { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-600 dark:text-amber-400' },
     );
   }
 
@@ -215,16 +215,16 @@ export default function ProfilePage() {
       <div className="max-w-5xl mx-auto px-6 sm:px-12 py-12 md:py-16 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {needsContact && profile.role === 'parent' && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
-            <p className="font-bold uppercase tracking-widest text-[10px] text-amber-400 mb-1">Complete your contact details</p>
-            <p className="text-amber-50/90 leading-relaxed">
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-100">
+            <p className="font-bold uppercase tracking-widest text-[10px] text-amber-600 dark:text-amber-400 mb-1">Complete your contact details</p>
+            <p className="text-amber-800/90 dark:text-amber-100/90 leading-relaxed">
               Google only covers name and email. Confirm your full name and add a valid phone number to continue. Other parent details (relationship, linked students, child records) are collected when the school invites you or when you claim a child — Google does not skip those.
             </p>
-            {saveError && <p className="mt-2 text-rose-300 text-xs font-bold">{saveError}</p>}
+            {saveError && <p className="mt-2 text-rose-700 dark:text-rose-300 text-xs font-bold">{saveError}</p>}
           </div>
         )}
         {saveError && !(needsContact && profile.role === 'parent') && (
-          <p className="text-rose-400 text-sm font-bold">{saveError}</p>
+          <p className="text-rose-600 dark:text-rose-400 text-sm font-bold">{saveError}</p>
         )}
 
         {/* Header card */}
@@ -252,10 +252,10 @@ export default function ProfilePage() {
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
                 <div className="absolute -bottom-2 -right-2 bg-background border border-border p-3 rounded-xl shadow-xl">
-                    <ShieldCheckIcon className={`w-6 h-6 ${profile.role === 'teacher' ? 'text-teal-400' : 'text-indigo-400'}`} />
+                    <ShieldCheckIcon className={`w-6 h-6 ${profile.role === 'teacher' ? 'text-teal-600 dark:text-teal-400' : 'text-indigo-600 dark:text-indigo-400'}`} />
                 </div>
                 {avatarError && (
-                  <p className="absolute -bottom-10 left-0 text-xs text-red-400 whitespace-nowrap">{avatarError}</p>
+                  <p className="absolute -bottom-10 left-0 text-xs text-red-600 dark:text-red-400 whitespace-nowrap">{avatarError}</p>
                 )}
               </div>
 
@@ -345,7 +345,7 @@ export default function ProfilePage() {
                         <div className="space-y-3">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Primary Email</label>
                             <div className="flex items-center gap-4 text-xl font-bold group min-w-0">
-                                <EnvelopeIcon className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                                <EnvelopeIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
                                 <span className="selection:bg-indigo-500 truncate">{profile.email}</span>
                             </div>
                         </div>
@@ -363,7 +363,7 @@ export default function ProfilePage() {
                                 />
                             ) : (
                                 <div className="flex items-center gap-4 text-xl font-bold group">
-                                    <PhoneIcon className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    <PhoneIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
                                     <span className={profile.phone ? 'text-foreground' : 'text-muted-foreground italic font-medium'}>{profile.phone || 'None provided'}</span>
                                 </div>
                             )}
@@ -378,7 +378,7 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {schools.map((s: any, i: number) => (
                           <div key={i} className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-xl p-6 hover:bg-teal-500/5 hover:border-teal-500/30 transition-all group">
-                            <div className="w-14 h-14 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
+                            <div className="w-14 h-14 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
                                 <BuildingOfficeIcon className="w-6 h-6" />
                             </div>
                             <div className="min-w-0">
@@ -396,7 +396,7 @@ export default function ProfilePage() {
                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] px-4">My Courses</h3>
                     <div className="flex flex-wrap gap-3">
                       {programmes.map((name, i) => (
-                        <div key={i} className="px-5 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-sm flex items-center gap-2">
+                        <div key={i} className="px-5 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-sm flex items-center gap-2">
                           <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
                           {name}
                         </div>
@@ -438,24 +438,24 @@ export default function ProfilePage() {
                 <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-6">
                   <h3 className="font-black text-foreground">Privacy &amp; account</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">You can request deletion of your account and associated personal data.</p>
-                  <Link href="/account-deletion" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-rose-500/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-500 hover:bg-rose-500/10">
+                  <Link href="/account-deletion" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-rose-500/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 hover:bg-rose-500/10">
                     Request account deletion
                   </Link>
                 </div>
                 {profile.role === 'student' ? (
                   <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-xl space-y-3">
-                    <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
+                    <RocketLaunchIcon className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                     <h4 className="font-black text-foreground">Keep Going</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Your scores and submitted work are saved here. Open any course to continue where you left off.
                     </p>
-                    <Link href="/dashboard/courses" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors pt-1">
+                    <Link href="/dashboard/courses" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors pt-1">
                       Go to my courses <ChevronRightIcon className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 ) : (
                   <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-xl space-y-3">
-                    <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
+                    <RocketLaunchIcon className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                     <h4 className="font-black text-foreground">Learning Center</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Manage classes, lessons, and student progress from your dashboard.

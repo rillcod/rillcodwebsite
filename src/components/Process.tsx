@@ -72,7 +72,7 @@ const Process: React.FC = () => {
                 {/* You are HERE pointer */}
                 {index === 0 && (
                   <div className="absolute top-[-40px] left-[calc(16.6%-40px)] hidden md:block">
-                    <div className="bg-yellow-400 text-yellow-800 font-bold px-4 py-2 rounded-lg shadow-md transform rotate-[-5deg] animate-bounce">
+                    <div className="bg-yellow-400 text-yellow-800 dark:text-yellow-200 font-bold px-4 py-2 rounded-lg shadow-md transform rotate-[-5deg] animate-bounce">
                       You start HERE!
                     </div>
                   </div>

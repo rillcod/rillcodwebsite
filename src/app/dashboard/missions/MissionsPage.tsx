@@ -1477,9 +1477,9 @@ ORDER BY enrolled DESC;`,
 const XP_PER_LEVEL = 500;
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
-  Beginner: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
-  Intermediate: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
-  Advanced: 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
+  Beginner: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
+  Intermediate: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
+  Advanced: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
 };
 
 export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
@@ -1610,7 +1610,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
+              <CheckBadgeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Completed</span>
             </div>
             <p className="text-2xl font-black text-foreground relative z-10">{completedIds.size} <span className="text-sm font-medium text-muted-foreground/40">/ {MISSIONS.length}</span></p>
@@ -1618,7 +1618,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <BoltIcon className="w-4 h-4 text-amber-500" />
+              <BoltIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">XP Earned</span>
             </div>
             <p className="text-2xl font-black text-foreground relative z-10">{totalXP}</p>
@@ -1634,7 +1634,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <StarIcon className="w-4 h-4 text-cyan-500" />
+              <StarIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Remaining XP</span>
             </div>
             <p className="text-2xl font-black text-foreground relative z-10">{XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)}</p>
@@ -1686,7 +1686,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           {/* Search + difficulty filter */}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search missions..."
@@ -1719,10 +1719,10 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
         {filteredMissions.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24">
             <div className="w-20 h-20 bg-white/[0.02] border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 transform rotate-12">
-              <RocketLaunchIcon className="w-10 h-10 text-white/20" />
+              <RocketLaunchIcon className="w-10 h-10 text-muted-foreground" />
             </div>
-            <p className="text-white font-black text-xl mb-2 tracking-tight">No missions found</p>
-            <p className="text-white/50 text-sm font-medium">Try tweaking your search or applying different filters.</p>
+            <p className="text-foreground font-black text-xl mb-2 tracking-tight">No missions found</p>
+            <p className="text-muted-foreground text-sm font-medium">Try tweaking your search or applying different filters.</p>
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1759,7 +1759,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                           <span className="px-3 py-1 bg-muted border border-border rounded-full text-[9px] uppercase font-black tracking-widest text-muted-foreground">
                             {mission.language}
                           </span>
-                          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-500 font-black tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+                          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-black tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
                             <BoltIcon className="w-3.5 h-3.5" />
                             {mission.xp} XP
                           </span>
@@ -1769,7 +1769,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                       </div>
                       {isCompleted && (
                         <div className="flex-shrink-0 bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] transform rotate-12">
-                          <CheckBadgeIcon className="w-8 h-8 text-emerald-400" />
+                          <CheckBadgeIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
                         </div>
                       )}
                     </div>
@@ -1809,7 +1809,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                         )}
                       </button>
                       {isCompleted && (
-                        <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-black ml-auto uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                        <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-black ml-auto uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
                           <CheckCircleIcon className="w-4 h-4" />
                           Validated
                         </span>
@@ -1862,7 +1862,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                                 : getHint(mission)
                             }
                             disabled={hintLoading === mission.id}
-                            className="flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all rounded-xl disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all rounded-xl disabled:opacity-50"
                           >
                             <LightBulbIcon className="w-4 h-4" />
                             {hintLoading === mission.id
@@ -1877,14 +1877,14 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                           {!isCompleted && (
                             <button
                               onClick={() => markComplete(mission.id)}
-                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] ml-auto"
+                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] ml-auto"
                             >
                               <CheckBadgeIcon className="w-5 h-5" />
                               Submit Solution (+{mission.xp} XP)
                             </button>
                           )}
                           {isCompleted && (
-                            <span className="ml-auto flex items-center gap-2 text-[11px] text-emerald-500 font-black uppercase tracking-widest bg-emerald-500/10 px-5 py-3 border border-emerald-500/30 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                            <span className="ml-auto flex items-center gap-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest bg-emerald-500/10 px-5 py-3 border border-emerald-500/30 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                               <CheckBadgeIcon className="w-5 h-5" />
                               Exercise Completed
                             </span>
@@ -1898,12 +1898,12 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                               <div className="bg-amber-500/10 border border-amber-500/30 p-5 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 rounded-full blur-[40px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
                                 <div className="flex items-center gap-2 mb-3 relative z-10">
-                                  <LightBulbIcon className="w-5 h-5 text-amber-400 animate-pulse drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-                                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
+                                  <LightBulbIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                                     AI Assist Intel
                                   </span>
                                 </div>
-                                <p className="text-[14px] text-amber-100/90 leading-relaxed font-medium relative z-10">{hints[mission.id]}</p>
+                                <p className="text-[14px] text-amber-800/90 dark:text-amber-100/90 leading-relaxed font-medium relative z-10">{hints[mission.id]}</p>
                               </div>
                             </motion.div>
                           )}

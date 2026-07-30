@@ -112,7 +112,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
       )}
 
       {snapshotMeta?.error ? (
-        <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800">
+        <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
           {snapshotMeta.error}
           {snapshotMeta.stale ? ' Counts below may be from an earlier refresh.' : ''}
         </p>
@@ -256,7 +256,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
               </div>
               {filteredAttention.length === 0 ? (
                 <div className="p-10 text-center">
-                  <p className="text-xl font-black text-emerald-600">All clear</p>
+                  <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">All clear</p>
                   <p className="mt-2 text-sm text-muted-foreground">The automatic office can continue working. Check again later.</p>
                 </div>
               ) : (
@@ -268,7 +268,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                           <div className="flex flex-wrap gap-2">
                             <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-black">{row.reason}</span>
                             {row.restricted ? (
-                              <span className="rounded-full bg-rose-500/10 px-2 py-1 text-[11px] font-black text-rose-600">
+                              <span className="rounded-full bg-rose-500/10 px-2 py-1 text-[11px] font-black text-rose-600 dark:text-rose-400">
                                 Private: approved staff only
                               </span>
                             ) : null}
@@ -328,7 +328,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                         <div className="shrink-0 text-left sm:text-right">
                           <p
                             className={`text-sm font-black ${
-                              row.result.toLowerCase() === 'failed' ? 'text-rose-600' : 'text-emerald-600'
+                              row.result.toLowerCase() === 'failed' ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                             }`}
                           >
                             {resultLabel(row.result)}

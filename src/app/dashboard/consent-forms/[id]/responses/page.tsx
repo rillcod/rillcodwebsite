@@ -2600,16 +2600,16 @@ export default function ResponsesPage() {
       {siblingReview && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12121e] p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-white">Possible siblings on this roster</h3>
-            <p className="mt-1 text-[13px] leading-relaxed text-white/60">
+            <h3 className="text-base font-semibold text-foreground">Possible siblings on this roster</h3>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               These students are at the same school and their name matches{' '}
-              <span className="text-white/80">{siblingReview.parentName}</span>. They were{' '}
-              <span className="text-amber-400">not</span> linked automatically — a shared surname is
+              <span className="text-muted-foreground">{siblingReview.parentName}</span>. They were{' '}
+              <span className="text-amber-600 dark:text-amber-400">not</span> linked automatically — a shared surname is
               not proof of a family. Link only the children you can confirm.
             </p>
 
             {siblingReview.linked.length > 0 && (
-              <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+              <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
                 Already linked automatically (their record names this parent):{' '}
                 {siblingReview.linked.join(', ')}
               </p>
@@ -2622,9 +2622,9 @@ export default function ResponsesPage() {
                   className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm text-white">{c.name ?? 'Unnamed student'}</span>
+                    <span className="block truncate text-sm text-foreground">{c.name ?? 'Unnamed student'}</span>
                     {c.matchedToken && (
-                      <span className="block text-[11px] text-white/45">
+                      <span className="block text-[11px] text-muted-foreground">
                         matched on “{c.matchedToken}” — check this is a family name, not a first name
                       </span>
                     )}
@@ -2642,14 +2642,14 @@ export default function ResponsesPage() {
               ))}
             </ul>
             {siblingReview.candidates.length === 0 && (
-              <p className="mt-4 text-xs text-white/50">Nothing left to review.</p>
+              <p className="mt-4 text-xs text-muted-foreground">Nothing left to review.</p>
             )}
 
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setSiblingReview(null)}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/5"
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-muted-foreground hover:bg-white/5"
               >
                 Done
               </button>

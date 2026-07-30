@@ -146,14 +146,14 @@ function SubmissionContextBar({
       <ContextPill
         icon={null}
         label={`Status: ${sub.status.replace(/_/g, ' ')}`}
-        color="border-amber-500/30 bg-amber-500/10 text-amber-500"
+        color="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
       />
       {/* AI Suggestion */}
       {hasAI && (
         <ContextPill
           icon={<SparklesIcon className="w-3 h-3" />}
           label={`AI Suggested: ${sub.ai_suggested_grade}/${sub.assignments?.max_points ?? 100}`}
-          color="border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+          color="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
         />
       )}
     </div>
@@ -199,7 +199,7 @@ function QueueSidebar({
                 <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                   #{idx + 1}
                 </span>
-                {isDone && <span className="text-[9px] font-black text-emerald-400">✓ Graded</span>}
+                {isDone && <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">✓ Graded</span>}
               </div>
               <p className={`text-xs font-bold truncate ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {s.portal_users?.full_name ?? 'Student'}
@@ -222,7 +222,7 @@ function EmptyQueue({ scoped }: { scoped: boolean }) {
   return (
     <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl flex flex-col items-center gap-3">
       <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-        <CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+        <CheckCircleIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
       </div>
       <div>
         <p className="font-black text-foreground text-lg">All caught up!</p>
@@ -362,8 +362,8 @@ export default function GradingQueuePage() {
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentCheckIcon className="w-5 h-5 text-amber-500" />
-            <span className="text-xs font-black uppercase tracking-widest text-amber-500">Grading Center</span>
+            <ClipboardDocumentCheckIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Grading Center</span>
           </div>
           <h1 className="text-3xl font-black text-foreground">Grading Queue</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
@@ -384,7 +384,7 @@ export default function GradingQueuePage() {
             <ClipboardDocumentCheckIcon className="w-4 h-4" />
             Assignment Queue
             {submissions.length > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'assignments' ? 'bg-white/25' : 'bg-amber-500/20 text-amber-500'}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'assignments' ? 'bg-white/25' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}`}>
                 {submissions.length}
               </span>
             )}
@@ -400,7 +400,7 @@ export default function GradingQueuePage() {
             <AcademicCapIcon className="w-4 h-4" />
             CBT Evaluations
             {cbtSessions.length > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'cbt' ? 'bg-white/25' : 'bg-violet-500/20 text-violet-400'}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'cbt' ? 'bg-white/25' : 'bg-violet-500/20 text-violet-600 dark:text-violet-400'}`}>
                 {cbtSessions.length}
               </span>
             )}
@@ -436,12 +436,12 @@ export default function GradingQueuePage() {
         {/* ── Error ───────────────────────────────────────────────────────── */}
         {error && (
           <div className="flex items-start gap-3 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
-            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-rose-400">Notice</p>
-              <p className="text-[11px] text-rose-400/80 mt-0.5">{error}</p>
+              <p className="text-xs font-bold text-rose-600 dark:text-rose-400">Notice</p>
+              <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5">{error}</p>
             </div>
-            <button onClick={() => void loadAll()} className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 shrink-0">
+            <button onClick={() => void loadAll()} className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 shrink-0">
               Retry
             </button>
           </div>
@@ -561,7 +561,7 @@ export default function GradingQueuePage() {
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Kind / Type</p>
-                                    <p className="text-xs font-bold text-purple-400 mt-0.5 truncate">{kind}</p>
+                                    <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5 truncate">{kind}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assignment</p>
@@ -573,11 +573,11 @@ export default function GradingQueuePage() {
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Section</p>
-                                    <p className="text-xs font-bold text-teal-400 mt-0.5 truncate">{studentSection || 'No Section'}</p>
+                                    <p className="text-xs font-bold text-teal-600 dark:text-teal-400 mt-0.5 truncate">{studentSection || 'No Section'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
-                                    <p className="text-xs font-bold text-blue-400 mt-0.5 truncate">{assignment?.school_name || 'Rillcod Online School'}</p>
+                                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{assignment?.school_name || 'Rillcod Online School'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{courseTitle ? 'Course' : 'Term'}</p>
@@ -623,7 +623,7 @@ export default function GradingQueuePage() {
                                     setGrade(g => ({ ...g, [sub.id]: String(sub.ai_suggested_grade) }));
                                     setFeedback(f => ({ ...f, [sub.id]: sub.ai_suggested_feedback ?? '' }));
                                   }}
-                                  className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-500 hover:text-emerald-400 transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                                 >
                                   <SparklesIcon className="w-3.5 h-3.5" />
                                   Pre-fill AI score ({sub.ai_suggested_grade}/{maxPts})
@@ -710,8 +710,8 @@ export default function GradingQueuePage() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <AcademicCapIcon className="w-5 h-5 text-violet-400" />
-                    <span className="text-xs font-black uppercase tracking-widest text-violet-400">CBT Written Response Queue</span>
+                    <AcademicCapIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">CBT Written Response Queue</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Computer-based test sessions with written responses that need manual teacher scoring.
@@ -721,7 +721,7 @@ export default function GradingQueuePage() {
 
                 {cbtSessions.length === 0 ? (
                   <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl">
-                    <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
+                    <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-600 dark:text-emerald-400 mb-3" />
                     <p className="font-black text-foreground">No CBT responses pending</p>
                     <p className="text-sm text-muted-foreground mt-1">All written responses have been reviewed.</p>
                   </div>
@@ -738,13 +738,13 @@ export default function GradingQueuePage() {
                             <ContextPill
                               icon={<AcademicCapIcon className="w-3 h-3" />}
                               label="CBT Evaluation"
-                              color="border-violet-500/30 bg-violet-500/10 text-violet-400"
+                              color="border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400"
                             />
                             {schoolName && (
                               <ContextPill
                                 icon={<BuildingOfficeIcon className="w-3 h-3" />}
                                 label={schoolName}
-                                color="border-blue-500/30 bg-blue-500/10 text-blue-500"
+                                color="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
                               />
                             )}
                             {cls && (
@@ -766,7 +766,7 @@ export default function GradingQueuePage() {
                           {/* Content row */}
                           <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-black text-sm shrink-0">
+                              <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-600 dark:text-violet-400 font-black text-sm shrink-0">
                                 {initials(session.portal_users?.full_name)}
                               </div>
                               <div className="min-w-0">

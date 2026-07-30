@@ -144,7 +144,7 @@ export default function ImportExportPanel({
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg"
+            className="p-3 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm rounded-lg"
           >
             {error}
           </motion.div>
@@ -154,7 +154,7 @@ export default function ImportExportPanel({
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-lg flex items-center gap-2"
+            className="p-3 bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2"
           >
             <CheckIcon className="w-4 h-4" />
             {success}

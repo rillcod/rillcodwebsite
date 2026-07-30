@@ -46,12 +46,12 @@ type VaultLanguage =
   | 'bash';
 
 const LANGUAGE_COLORS: Record<string, string> = {
-  javascript: 'bg-yellow-500/15 text-yellow-400',
+  javascript: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400',
   python: 'bg-primary/15 text-primary',
   html: 'bg-primary/15 text-primary',
-  css: 'bg-pink-500/15 text-pink-400',
-  typescript: 'bg-cyan-500/15 text-cyan-400',
-  sql: 'bg-emerald-500/15 text-emerald-400',
+  css: 'bg-pink-500/15 text-pink-600 dark:text-pink-400',
+  typescript: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
+  sql: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   bash: 'bg-slate-500/15 text-muted-foreground/70',
 };
 
@@ -561,7 +561,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
 
         {/* Error */}
         {error && (
-          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center justify-between">
+          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm flex items-center justify-between">
             <span>{error}</span>
             <button onClick={() => setError(null)}>
               <XMarkIcon className="w-4 h-4" />
@@ -573,8 +573,8 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
             { label: 'Total Snippets', value: stats.total, icon: <CodeBracketIcon className="w-4 h-4 text-primary" /> },
-            { label: 'Languages', value: stats.languages, icon: <ArchiveBoxIcon className="w-4 h-4 text-emerald-400" /> },
-            { label: 'Last Saved', value: stats.lastSaved, icon: <ClockIcon className="w-4 h-4 text-amber-400" /> },
+            { label: 'Languages', value: stats.languages, icon: <ArchiveBoxIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+            { label: 'Last Saved', value: stats.lastSaved, icon: <ClockIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> },
           ].map((stat) => (
             <div key={stat.label} className="bg-card border border-border p-4 rounded-xl shadow-sm">
               <div className="flex items-center gap-2 mb-1">
@@ -828,21 +828,21 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                       <button
                         onClick={() => handleAIExplain(item)}
                         disabled={aiExplaining === item.id}
-                        className="p-1.5 text-muted-foreground hover:text-amber-400 border border-border hover:border-amber-500/50 transition-all disabled:opacity-50 rounded-lg"
+                        className="p-1.5 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 border border-border hover:border-amber-500/50 transition-all disabled:opacity-50 rounded-lg"
                         title="AI Explain"
                       >
                         <SparklesIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 text-muted-foreground hover:text-emerald-400 border border-border hover:border-emerald-500/50 transition-all rounded-lg"
+                        className="p-1.5 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 border border-border hover:border-emerald-500/50 transition-all rounded-lg"
                         title="Edit"
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-muted-foreground hover:text-rose-400 border border-border hover:border-rose-500/50 transition-all rounded-lg"
+                        className="p-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 border border-border hover:border-rose-500/50 transition-all rounded-lg"
                         title="Delete"
                       >
                         <TrashIcon className="w-4 h-4" />
@@ -869,7 +869,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                   <div className="border-t border-border">
                     <button
                       onClick={() => toggleExplanation(item.id)}
-                      className="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-amber-400 hover:bg-amber-500/5 transition-colors"
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/5 transition-colors"
                     >
                       <SparklesIcon className="w-3.5 h-3.5" />
                       AI Explanation
@@ -881,9 +881,9 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                     </button>
                     {expandedExplanations.has(item.id) && (
                       <div className="px-4 pb-4">
-                        <div className="bg-amber-500/5 border border-amber-500/20 px-4 py-3 text-sm text-amber-200 leading-relaxed">
+                        <div className="bg-amber-500/5 border border-amber-500/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
                           {aiExplaining === item.id ? (
-                            <div className="flex items-center gap-2 text-amber-400">
+                            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                               <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                               Explaining...
                             </div>
@@ -897,7 +897,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 )}
                 {aiExplaining === item.id && !aiExplanations[item.id] && (
                   <div className="border-t border-border px-4 py-3">
-                    <div className="flex items-center gap-2 text-amber-400 text-sm">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
                       <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                       Analyzing code...
                     </div>

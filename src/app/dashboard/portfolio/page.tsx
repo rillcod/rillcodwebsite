@@ -54,10 +54,10 @@ const CAT_COLORS: Record<string, string> = {
   Coding: 'bg-primary/20 text-primary',
   Robotics: 'bg-primary/20 text-primary',
   'Web Design': 'bg-primary/20 text-primary',
-  'AI/ML': 'bg-emerald-500/20 text-emerald-400',
-  IoT: 'bg-yellow-500/20 text-yellow-400',
-  'Game Dev': 'bg-pink-500/20 text-pink-400',
-  Art: 'bg-rose-500/20 text-rose-400',
+  'AI/ML': 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  IoT: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
+  'Game Dev': 'bg-pink-500/20 text-pink-600 dark:text-pink-400',
+  Art: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
 };
 
 // ─── Auto-Transfer Component ──────────────────────────────
@@ -192,8 +192,8 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
   if (completedWork.length === 0) return (
     <div className="bg-card/30 border border-border/50 p-8 text-center relative overflow-hidden group">
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-500/40 mb-4" />
-      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Archive Synchronized</p>
+      <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-600/40 dark:text-emerald-400/40 mb-4" />
+      <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] mb-1">Archive Synchronized</p>
       <p className="text-muted-foreground text-xs font-medium">All completed coursework is already in your portfolio.</p>
     </div>
   );
@@ -223,7 +223,7 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 ${
                     work.type === 'assignment' ? 'bg-primary/10 text-primary' :
-                    work.type === 'lesson' ? 'bg-emerald-500/10 text-emerald-400' :
+                    work.type === 'lesson' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
                     'bg-primary/10 text-primary'
                   }`}>
                     {work.type}
@@ -334,11 +334,11 @@ function DrawingCanvas() {
     <div className="bg-card/30 border border-border overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background/50 flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center bg-pink-500/10 text-pink-400 border border-pink-500/20">
+          <div className="w-8 h-8 flex items-center justify-center bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20">
             <PaintBrushIcon className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-[10px] font-black text-pink-400 uppercase tracking-[0.2em]">Creative Studio</h3>
+            <h3 className="text-[10px] font-black text-pink-600 dark:text-pink-400 uppercase tracking-[0.2em]">Creative Studio</h3>
             <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter opacity-70">Canvas active • {brush}px point</p>
           </div>
         </div>
@@ -369,7 +369,7 @@ function DrawingCanvas() {
               Eraser
             </button>
             <button onClick={clearCanvas} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-background border border-border transition-all">Reset</button>
-            <button onClick={downloadCanvas} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all" title="Archive Illustration">
+            <button onClick={downloadCanvas} className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all" title="Archive Illustration">
               <ArrowDownTrayIcon className="w-4 h-4" />
             </button>
           </div>
@@ -391,7 +391,7 @@ function DrawingCanvas() {
           onTouchMove={draw}
           onTouchEnd={stopDraw}
         />
-        <div className="absolute bottom-4 right-4 text-[9px] font-black text-white/10 uppercase tracking-[0.3em] pointer-events-none select-none">
+        <div className="absolute bottom-4 right-4 text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] pointer-events-none select-none">
           Draft Neural Design v1.0
         </div>
       </div>
@@ -459,7 +459,7 @@ function ImageUpload({ value, onChange, userId }: {
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
-      {error && <p className="text-rose-400 text-xs">{error}</p>}
+      {error && <p className="text-rose-600 dark:text-rose-400 text-xs">{error}</p>}
     </div>
   );
 }
@@ -623,7 +623,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
           <img src={project.image_url} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent flex items-center justify-center">
-             <RocketLaunchIcon className="w-16 h-16 text-white/5 rotate-12" />
+             <RocketLaunchIcon className="w-16 h-16 text-muted-foreground rotate-12" />
           </div>
         )}
 
@@ -638,12 +638,12 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
           <div className="absolute top-3 right-3 flex gap-2 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300">
             {onToggleFeatured && (
               <button onClick={onToggleFeatured} disabled={saving}
-                className={`p-2 backdrop-blur-md transition-colors ${project.is_featured ? 'bg-amber-500 text-black' : 'bg-black/60 text-white/70 hover:text-amber-400'}`}>
+                className={`p-2 backdrop-blur-md transition-colors ${project.is_featured ? 'bg-amber-500 text-black' : 'bg-black/60 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400'}`}>
                 {project.is_featured ? <StarSolid className="w-4 h-4" /> : <StarIcon className="w-4 h-4" />}
               </button>
             )}
             {onEdit && (
-              <button onClick={onEdit} disabled={saving} className="p-2 bg-black/60 backdrop-blur-md text-white/70 hover:text-white transition-colors">
+              <button onClick={onEdit} disabled={saving} className="p-2 bg-black/60 backdrop-blur-md text-muted-foreground hover:text-white transition-colors">
                 <PencilIcon className="w-4 h-4" />
               </button>
             )}
@@ -1008,12 +1008,12 @@ export default function PortfolioPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {saveError && (
-              <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {saveError}
               </span>
             )}
             {!saveError && tab === 'projects' && (
-              <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
                 <CloudArrowUpIcon className="w-3.5 h-3.5" /> Synced
               </span>
             )}
@@ -1033,8 +1033,8 @@ export default function PortfolioPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Deployed Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-primary', bg: 'bg-primary/5' },
-              { label: 'Priority Assets', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400', bg: 'bg-amber-400/5' },
-              { label: 'External Links', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-400', bg: 'bg-emerald-400/5' },
+              { label: 'Priority Assets', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-400/5' },
+              { label: 'External Links', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-400/5' },
             ].map(s => (
               <div key={s.label} className="relative bg-card/40 backdrop-blur-md border border-border group overflow-hidden">
                 <div className={`absolute top-0 left-0 w-[2px] h-full ${s.color.replace('text-', 'bg-')} opacity-40`} />
@@ -1110,8 +1110,8 @@ export default function PortfolioPage() {
             {featuredProjects.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <StarSolid className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest">Featured Projects</h2>
+                  <StarSolid className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <h2 className="text-sm font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Featured Projects</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {featuredProjects.map(p => (

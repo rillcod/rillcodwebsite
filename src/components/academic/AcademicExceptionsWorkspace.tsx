@@ -15,32 +15,32 @@ const QUEUE_META: Record<StudentExceptionKind, { label: string; hint: string; to
   displaced: {
     label: 'Displaced',
     hint: 'Active but not on any class roster this term',
-    tone: 'text-amber-600',
+    tone: 'text-amber-600 dark:text-amber-400',
   },
   hollow_shell: {
     label: 'Hollow shells',
     hint: 'Old accounts with zero real records — safe to hard purge',
-    tone: 'text-rose-600',
+    tone: 'text-rose-600 dark:text-rose-400',
   },
   placeholder_noise: {
     label: 'Placeholder noise',
     hint: 'Test/empty profiles with no parent, class, or reports',
-    tone: 'text-orange-600',
+    tone: 'text-orange-600 dark:text-orange-400',
   },
   withdrawn_active: {
     label: 'Withdrawn but active',
     hint: 'Ended enrolment but login still active — review before purge',
-    tone: 'text-violet-600',
+    tone: 'text-violet-600 dark:text-violet-400',
   },
   class_mismatch: {
     label: 'Class mismatch',
     hint: 'Profile class disagrees with roster',
-    tone: 'text-sky-600',
+    tone: 'text-sky-600 dark:text-sky-400',
   },
   missing_parent_contact: {
     label: 'Missing parent',
     hint: 'No parent email or phone — link before outreach',
-    tone: 'text-indigo-600',
+    tone: 'text-indigo-600 dark:text-indigo-400',
   },
 };
 
@@ -236,7 +236,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
 
   if (error && !data) {
     return (
-      <div className={`${CARD} border-rose-500/30 bg-rose-500/5 p-6 text-sm text-rose-600`}>
+      <div className={`${CARD} border-rose-500/30 bg-rose-500/5 p-6 text-sm text-rose-600 dark:text-rose-400`}>
         {error}
         <button type="button" onClick={() => void load()} className="ml-3 font-bold underline">Retry</button>
       </div>
@@ -291,7 +291,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
             <span className="rounded-full border border-border bg-background px-2.5 py-1 font-bold text-muted-foreground">
               Rules {data?.rules_version || String((automation as { rules_version?: string } | null)?.rules_version || '—')}
             </span>
-            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 font-bold text-emerald-600">
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 font-bold text-emerald-600 dark:text-emerald-400">
               Observable dry-run → hard purge
             </span>
             <span className="rounded-full border border-border bg-background px-2.5 py-1 font-bold text-muted-foreground">
@@ -354,10 +354,10 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-black text-foreground">{row.full_name || '(no name)'}</h3>
                         {!row.is_active && (
-                          <span className="text-[10px] font-black uppercase text-rose-500">Inactive</span>
+                          <span className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400">Inactive</span>
                         )}
                         {row.purge_eligible && (
-                          <span className="text-[10px] font-black uppercase text-rose-600 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">
                             Purge candidate
                           </span>
                         )}
@@ -368,7 +368,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                       <p className="text-xs text-muted-foreground mt-0.5">{row.email || '—'} · {row.school_name || 'No school'}</p>
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                         <span className="rounded-md bg-muted px-2 py-0.5">
-                          Roster: {row.class_from_roster || <span className="text-rose-500 font-bold">not placed</span>}
+                          Roster: {row.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">not placed</span>}
                         </span>
                         {row.class_on_profile && (
                           <span className="rounded-md bg-muted px-2 py-0.5">Profile: {row.class_on_profile}</span>
@@ -383,7 +383,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                       <ul className="mt-2 space-y-0.5">
                         {row.reasons.map((r) => (
                           <li key={r} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                            <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+                            <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                             {r}
                           </li>
                         ))}
@@ -402,7 +402,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                       {(queue === 'missing_parent_contact' || row.recommended_action === 'link_parent') && (
                         <Link
                           href={`/dashboard/parents/add?student_id=${encodeURIComponent(row.id)}`}
-                          className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-indigo-600"
+                          className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400"
                         >
                           Link parent
                         </Link>
@@ -412,7 +412,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                           type="button"
                           disabled={isBusy}
                           onClick={() => void syncClass(row)}
-                          className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-sky-600 disabled:opacity-50"
+                          className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 disabled:opacity-50"
                         >
                           {syncingId === row.id ? 'Syncing…' : 'Sync class'}
                         </button>
@@ -431,7 +431,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                             type="button"
                             disabled={isBusy || !dry}
                             onClick={() => void deactivateAccount(row)}
-                            className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-violet-700 disabled:opacity-40"
+                            className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-violet-700 dark:text-violet-300 disabled:opacity-40"
                           >
                             Deactivate login
                           </button>
@@ -466,14 +466,14 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
                       <p className="font-bold text-foreground mb-1">Automation preview (dry-run)</p>
                       <p>{dry.note}</p>
                       {typeof dry.completedPayments === 'number' && dry.completedPayments > 0 && (
-                        <p className="text-rose-600 font-bold mt-1">
+                        <p className="text-rose-600 dark:text-rose-400 font-bold mt-1">
                           {dry.completedPayments} completed payment(s) — do not purge without finance review.
                         </p>
                       )}
                     </div>
                   )}
                   {fb && (
-                    <p className={`text-xs font-bold ${fb.startsWith('Error') ? 'text-rose-600' : 'text-emerald-600'}`}>{fb}</p>
+                    <p className={`text-xs font-bold ${fb.startsWith('Error') ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{fb}</p>
                   )}
                 </article>
               );

@@ -153,7 +153,7 @@ export function OfflineIndicator() {
     <div className="fixed top-[calc(var(--safe-area-top)+1rem)] left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300">
       <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-xl shadow-xl">
         <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shrink-0" />
-        <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+        <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
           You're offline — some features may be limited
         </p>
       </div>

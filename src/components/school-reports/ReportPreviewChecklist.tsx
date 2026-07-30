@@ -31,7 +31,7 @@ export function ReportPreviewChecklist({
         </div>
         <span
           className={`rounded-full px-3 py-1 text-[11px] font-black uppercase ${
-            completeness.readyToPublish ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'
+            completeness.readyToPublish ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
           }`}
         >
           {completeness.readyToPublish ? 'Ready' : 'Incomplete'}

@@ -235,13 +235,13 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           <label className={labelCls(attempted && !form.studentName.trim())}>Learner full name *</label>
                           <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
                             className={inputCls(attempted && !form.studentName.trim())} placeholder="Student's full name" />
-                          {attempted && !form.studentName.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Student's name is required</p>}
+                          {attempted && !form.studentName.trim() && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Student's name is required</p>}
                         </div>
                         <div>
                           <label className={labelCls(attempted && !form.parentName.trim())}>Parent / guardian / self (if adult) *</label>
                           <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
                             className={inputCls(attempted && !form.parentName.trim())} placeholder="Your name or parent/guardian" />
-                          {attempted && !form.parentName.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Contact name is required</p>}
+                          {attempted && !form.parentName.trim() && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Contact name is required</p>}
                         </div>
                       </div>
 
@@ -253,15 +253,15 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <input type="tel" name="phone" required value={form.phone} onChange={handleChange} onBlur={handlePhoneBlur}
                               className={inputCls(attempted && (!form.phone.trim() || !isValidWhatsApp(form.phone))) + " pr-10"} placeholder="+234..." />
                             {form.phone && (
-                              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.phone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.phone) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                 {isValidWhatsApp(form.phone) ? '✓' : '…'}
                               </span>
                             )}
                           </div>
                           {form.phone && !isValidWhatsApp(form.phone) && (
-                            <p className="text-[9px] text-rose-500 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
+                            <p className="text-[9px] text-rose-600 dark:text-rose-400 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
                           )}
-                          {attempted && !form.phone.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Parent's phone is required</p>}
+                          {attempted && !form.phone.trim() && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Parent's phone is required</p>}
                         </div>
 
                         {/* Student Phone */}
@@ -271,13 +271,13 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <input type="tel" name="studentPhone" value={form.studentPhone} onChange={handleChange} onBlur={handleStudentPhoneBlur}
                               className={inputCls(!!(attempted && form.studentPhone.trim() && !isValidWhatsApp(form.studentPhone))) + " pr-10"} placeholder="+234..." />
                             {form.studentPhone && (
-                              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.studentPhone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.studentPhone) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                 {isValidWhatsApp(form.studentPhone) ? '✓' : '…'}
                               </span>
                             )}
                           </div>
                           {form.studentPhone && !isValidWhatsApp(form.studentPhone) && (
-                            <p className="text-[9px] text-rose-500 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
+                            <p className="text-[9px] text-rose-600 dark:text-rose-400 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
                           )}
                         </div>
                       </div>
@@ -287,7 +287,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                         <label className={labelCls(attempted && !form.email.trim())}>Parent Email Address *</label>
                         <input type="email" name="email" required value={form.email} onChange={handleChange} onBlur={handleEmailBlur}
                           className={inputCls(attempted && !form.email.trim())} placeholder="parent@example.com" />
-                        {attempted && !form.email.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Parent's email is required for credentials and receipt delivery</p>}
+                        {attempted && !form.email.trim() && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Parent's email is required for credentials and receipt delivery</p>}
                         {emailHint && (
                           <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-2 mt-2 flex items-center justify-between text-xs">
                             <p className="text-primary font-bold">Did you mean <span className="underline select-all">{emailHint}</span>?</p>
@@ -314,7 +314,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             I confirm I am the learner (adult/individual) or the parent/guardian, and I consent to participation and processing of academic records.
                           </span>
                         </label>
-                        {attempted && !form.parentConsent && <p className="text-rose-500 text-[9px] font-bold mt-1">Consent is required to register.</p>}
+                        {attempted && !form.parentConsent && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Consent is required to register.</p>}
 
                         <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-border bg-card p-3 hover:border-primary/40 transition-all">
                           <input type="checkbox" name="whatsappConsent" checked={form.whatsappConsent} onChange={handleChange} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
@@ -385,7 +385,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <option value="">Select grade or status</option>
                             {SPECIAL_LEARNER_GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
                           </select>
-                          {attempted && !form.currentClass && <p className="text-rose-500 text-[9px] font-bold mt-1">Grade or status is required</p>}
+                          {attempted && !form.currentClass && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Grade or status is required</p>}
                         </div>
                       </div>
 
@@ -394,7 +394,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           <label className={labelCls(attempted && !form.age)}>Age *</label>
                           <input type="number" name="age" required min={cta.ageMin} max={cta.ageMax} value={form.age} onChange={handleChange}
                             className={inputCls(attempted && !form.age)} placeholder="8–99 (adults welcome)" />
-                          {attempted && !form.age && <p className="text-rose-500 text-[9px] font-bold mt-1">Age is required (adults & individuals welcome)</p>}
+                          {attempted && !form.age && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Age is required (adults & individuals welcome)</p>}
                         </div>
                         <div>
                           <label className={labelCls(attempted && !form.gender)}>Gender *</label>
@@ -404,7 +404,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                           </select>
-                          {attempted && !form.gender && <p className="text-rose-500 text-[9px] font-bold mt-1">Gender is required</p>}
+                          {attempted && !form.gender && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Gender is required</p>}
                         </div>
                       </div>
 
@@ -418,7 +418,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <option value="Onsite">Onsite (In-Person centre) — ₦40,000 for the cohort</option>
                             <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                           </select>
-                          {attempted && !form.preferredMode && <p className="text-rose-500 text-[9px] font-bold mt-1">Mode is required</p>}
+                          {attempted && !form.preferredMode && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Mode is required</p>}
                           {(form.preferredMode === 'Online' || form.preferredMode === 'Hybrid') && (
                             <div className="bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-lg text-[9px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
                               <strong className="text-amber-600 dark:text-amber-400">Batch B · 2nd cohort</strong>
@@ -427,7 +427,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           )}
                           {(form.preferredMode === 'Onsite' || form.preferredMode === 'Hybrid') && (
                             <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-lg text-[9px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 flex gap-2">
-                              <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                               <span>
                                 <strong className="text-emerald-600 dark:text-emerald-400">{SUMMER_CENTRE.name}</strong>
                                 {' — '}{SUMMER_CENTRE.address}
@@ -455,7 +455,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
                       {/* Track Options */}
                       <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl text-left">
-                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Included Program Track</p>
+                        <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Included Program Track</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xl">🚀</span>
                           <div>
@@ -604,7 +604,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                     className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
                                       ? "bg-muted text-muted-foreground border-muted animate-pulse"
                                       : form.paymentReference.startsWith('http')
-                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
                                         : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
                                       }`}
                                   >
@@ -631,7 +631,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                       <button
                                         type="button"
                                         onClick={handleReceiptRemove}
-                                        className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-wider rounded-lg border border-rose-500/20 transition-colors cursor-pointer"
+                                        className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase tracking-wider rounded-lg border border-rose-500/20 transition-colors cursor-pointer"
                                       >
                                         Remove Receipt
                                       </button>
@@ -647,7 +647,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                   </div>
                                 )}
                               </div>
-                              {attempted && !form.paymentReference.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Reference name is required</p>}
+                              {attempted && !form.paymentReference.trim() && <p className="text-rose-600 dark:text-rose-400 text-[9px] font-bold mt-1">Reference name is required</p>}
                             </div>
                           </div>
                         )}

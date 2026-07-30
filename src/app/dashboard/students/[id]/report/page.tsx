@@ -15,11 +15,11 @@ import Link from 'next/link';
 import { brandContact } from '@/config/brand';
 
 function letterGrade(pct: number) {
-  if (pct >= 90) return { letter: 'A', color: 'text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
+  if (pct >= 90) return { letter: 'A', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
   if (pct >= 80) return { letter: 'B', color: 'text-primary', bg: 'bg-primary/20    border-primary/30' };
-  if (pct >= 70) return { letter: 'C', color: 'text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
-  if (pct >= 60) return { letter: 'D', color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20' };
-  return { letter: 'F', color: 'text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
+  if (pct >= 70) return { letter: 'C', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
+  if (pct >= 60) return { letter: 'D', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' };
+  return { letter: 'F', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
 }
 
 function RingProgress({ pct, size = 88, stroke = 9, color = '#8b5cf6' }: {
@@ -152,8 +152,8 @@ export default function StudentProgressReportPage() {
 
   if (error || !student) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-      <ExclamationTriangleIcon className="w-12 h-12 text-rose-400" />
-      <p className="text-rose-400">{error ?? 'Student not found'}</p>
+      <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400" />
+      <p className="text-rose-600 dark:text-rose-400">{error ?? 'Student not found'}</p>
       <Link href="/dashboard/students" className="text-primary hover:text-primary text-sm flex items-center gap-1">
         <ArrowLeftIcon className="w-4 h-4" /> Back to Students
       </Link>
@@ -318,9 +318,9 @@ export default function StudentProgressReportPage() {
             <p className="text-xs text-muted-foreground text-center mt-2">Overall Score</p>
           </div>
           {[
-            { label: 'Graded', value: graded.length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Graded', value: graded.length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+            { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
             <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 print:border-border">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -349,7 +349,7 @@ export default function StudentProgressReportPage() {
                       {e.completion_date ? ` · Completed: ${new Date(e.completion_date).toLocaleDateString()}` : ''}
                     </p>
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
                       e.status === 'completed' ? 'bg-primary/20 text-primary border-primary/30' :
                         'bg-muted text-muted-foreground border-border'
                     }`}>{e.status}</span>
@@ -410,10 +410,10 @@ export default function StudentProgressReportPage() {
                             : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
                               s.status === 'submitted' ? 'bg-primary/20 text-primary border-primary/30' :
-                                s.status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                                  'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                s.status === 'late' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' :
+                                  'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30'
                             }`}>{s.status}</span>
                         </td>
                       </tr>
@@ -440,7 +440,7 @@ export default function StudentProgressReportPage() {
         {/* ── Instructor notes (placeholder — editable later) ── */}
         <div className="bg-card shadow-sm border border-border rounded-xl p-6 print:border-border space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <SparklesIcon className="w-4 h-4 text-amber-400" />
+            <SparklesIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <h3 className="font-bold text-foreground print:text-black">Instructor's Evaluation</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

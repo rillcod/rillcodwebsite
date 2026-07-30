@@ -107,7 +107,7 @@ export default function PwaUpdateBanner({ enabled = true }: { enabled?: boolean 
           type="button"
           onClick={() => void applyUpdate()}
           disabled={applying}
-          className="mt-3 w-full min-h-[44px] rounded-lg border border-cyan-500/50 bg-cyan-500/15 text-cyan-200 text-[11px] font-black uppercase tracking-widest hover:bg-cyan-500/25 transition-colors disabled:opacity-60 touch-manipulation"
+          className="mt-3 w-full min-h-[44px] rounded-lg border border-cyan-500/50 bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 text-[11px] font-black uppercase tracking-widest hover:bg-cyan-500/25 transition-colors disabled:opacity-60 touch-manipulation"
         >
           {applying ? "Updating…" : "Refresh to update"}
         </button>

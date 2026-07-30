@@ -20,10 +20,10 @@ import { generateTempPassword } from '@/lib/utils/password';
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    approved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
     active: 'bg-primary/20   text-primary   border-primary/30',
-    pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
-    rejected: 'bg-rose-500/20   text-rose-400   border-rose-500/30',
+    pending: 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30',
+    rejected: 'bg-rose-500/20   text-rose-600 dark:text-rose-400   border-rose-500/30',
     inactive: 'bg-muted      text-muted-foreground   border-border',
   };
   return (
@@ -457,7 +457,7 @@ export default function SchoolsPage() {
           <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
-                <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
+                <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <h2 className="text-lg font-extrabold text-foreground">School Sync Complete</h2>
               </div>
               <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
@@ -467,15 +467,15 @@ export default function SchoolsPage() {
             <div className="p-6 overflow-y-auto space-y-4">
               {syncResult.error ? (
                 <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                  <p className="text-rose-400 text-sm">{syncResult.error}</p>
+                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                  <p className="text-rose-600 dark:text-rose-400 text-sm">{syncResult.error}</p>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-emerald-400' },
-                      { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-400' },
+                      { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
+                      { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-600 dark:text-rose-400' },
                     ].map(s => (
                       <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-3 text-center">
                         <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -491,7 +491,7 @@ export default function SchoolsPage() {
                           <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-3 font-mono text-xs">
                             <p className="text-foreground font-bold">{c.name}</p>
                             <p className="text-muted-foreground mt-0.5">{c.email}</p>
-                            <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
+                            <p className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
                           </div>
                         ))}
                       </div>
@@ -499,8 +499,8 @@ export default function SchoolsPage() {
                   )}
                   {syncResult.errors?.length > 0 && (
                     <div>
-                      <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                      <p className="text-xs font-bold text-rose-600/60 dark:text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
+                      <div className="space-y-1 text-xs text-rose-600/80 dark:text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
                         {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                       </div>
                     </div>
@@ -555,7 +555,7 @@ export default function SchoolsPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30'
                 : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
             >
@@ -573,8 +573,8 @@ export default function SchoolsPage() {
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -582,9 +582,9 @@ export default function SchoolsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Schools', value: counts.total, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Active', value: counts.approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Pending', value: counts.pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { label: 'Rejected', value: counts.rejected, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+            { label: 'Active', value: counts.approved, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Pending', value: counts.pending, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Rejected', value: counts.rejected, icon: XCircleIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
             <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -599,13 +599,13 @@ export default function SchoolsPage() {
         {/* Pending alert */}
         {counts.pending > 0 && (
           <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-            <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
+            <ClockIcon className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="font-bold text-amber-400">{counts.pending} school{counts.pending !== 1 ? 's' : ''} awaiting approval</p>
+              <p className="font-bold text-amber-600 dark:text-amber-400">{counts.pending} school{counts.pending !== 1 ? 's' : ''} awaiting approval</p>
               <p className="text-xs text-muted-foreground mt-0.5">Review and approve or reject below</p>
             </div>
             <button onClick={() => setFilter('pending')}
-              className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors">
+              className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-xl transition-colors">
               Show Pending
             </button>
           </div>
@@ -635,7 +635,7 @@ export default function SchoolsPage() {
             onClick={() => setShowArchived(v => !v)}
             className={`px-4 py-3 rounded-xl text-sm font-bold border transition-colors whitespace-nowrap ${
               showArchived
-                ? 'bg-amber-500/15 border-amber-500/40 text-amber-500'
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400'
                 : 'bg-card border-border text-muted-foreground hover:text-foreground'
             }`}
             title={showArchived ? 'Back to active schools' : 'View archived schools'}
@@ -645,7 +645,7 @@ export default function SchoolsPage() {
         </div>
 
         {showArchived && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-500 font-semibold">
+          <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 font-semibold">
             Viewing archived schools. Their records are preserved — click <strong>Restore</strong> to bring one back.
           </div>
         )}
@@ -715,7 +715,7 @@ export default function SchoolsPage() {
                         </button>
                         {showArchived ? (
                           <button onClick={() => handleRestore(s.id)} disabled={restoring === s.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20">
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20">
                             <CheckCircleIcon className="w-3.5 h-3.5" /> {restoring === s.id ? '…' : 'Restore'}
                           </button>
                         ) : (
@@ -726,7 +726,7 @@ export default function SchoolsPage() {
                             </button>
                             <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
                               title="Deactivate (soft) — records preserved, restorable"
-                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15">
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15">
                               <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Deactivate'}
                             </button>
                             <SchoolWipeButton school={{ id: s.id, name: s.name }} onWiped={() => setSchools(prev => prev.filter(x => x.id !== s.id))} />
@@ -749,7 +749,7 @@ export default function SchoolsPage() {
                       </button>
                       {showArchived ? (
                         <button onClick={() => handleRestore(s.id)} disabled={restoring === s.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20 whitespace-nowrap">
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20 whitespace-nowrap">
                           <CheckCircleIcon className="w-3.5 h-3.5" /> {restoring === s.id ? '…' : 'Restore'}
                         </button>
                       ) : (
@@ -760,7 +760,7 @@ export default function SchoolsPage() {
                           </button>
                           <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
                             title="Deactivate (soft) — records preserved, restorable"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15 whitespace-nowrap">
+                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15 whitespace-nowrap">
                             <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Deactivate'}
                           </button>
                           <SchoolWipeButton school={{ id: s.id, name: s.name }} onWiped={() => setSchools(prev => prev.filter(x => x.id !== s.id))} />
@@ -866,7 +866,7 @@ export default function SchoolsPage() {
                                   <p className="text-xs text-muted-foreground truncate">{t.email}</p>
                                 </div>
                                 <button onClick={() => removeTeacher(ts.id)} disabled={assigning === ts.id}
-                                  className="px-3 py-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all disabled:opacity-50">
+                                  className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all disabled:opacity-50">
                                   Remove
                                 </button>
                               </div>
@@ -912,12 +912,12 @@ export default function SchoolsPage() {
                     {accCreated ? (
                       <div className="space-y-4">
                         <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                          <ShieldCheckIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                          <ShieldCheckIcon className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mx-auto mb-3" />
                           <h4 className="font-bold text-foreground">Portal Account Created</h4>
                           <p className="text-sm text-muted-foreground mt-1">Copy these credentials for the school administrator.</p>
                         </div>
 
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
                           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                           <span>The school administrator should change this password on first login.</span>
                         </div>
@@ -1357,7 +1357,7 @@ function SchoolSelfView() {
               {recentStudents.length === 0 ? (
                 <div className="text-center py-8">
                   <UserGroupIcon className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-white/25 text-sm">No students registered yet</p>
+                  <p className="text-muted-foreground text-sm">No students registered yet</p>
                   <Link href="/dashboard/students/import" className="inline-flex items-center gap-1.5 mt-3 text-xs text-primary hover:text-primary transition-colors">
                     <PlusIcon className="w-3.5 h-3.5" /> Import Students
                   </Link>
@@ -1373,9 +1373,9 @@ function SchoolSelfView() {
                         <p className="font-semibold text-foreground text-sm truncate">{s.full_name}</p>
                         <p className="text-xs text-muted-foreground">{s.grade_level ?? 'No grade level'}</p>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex-shrink-0 ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                        s.status === 'pending' ? 'bg-amber-500/20  text-amber-400  border-amber-500/30' :
-                          'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex-shrink-0 ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
+                        s.status === 'pending' ? 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30' :
+                          'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30'
                         }`}>{s.status}</span>
                     </div>
                   ))}

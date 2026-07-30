@@ -34,12 +34,12 @@ const typeIcons: Record<string, typeof InformationCircleIcon> = {
 
 const typeColors: Record<string, string> = {
   info: 'bg-primary/10 text-primary',
-  success: 'bg-emerald-500/10 text-emerald-400',
-  warning: 'bg-amber-500/10 text-amber-400',
-  error: 'bg-rose-500/10 text-rose-400',
-  achievement: 'bg-yellow-500/10 text-yellow-400',
-  streak: 'bg-orange-500/10 text-orange-400',
-  celebration: 'bg-purple-500/10 text-purple-400',
+  success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  error: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+  achievement: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+  streak: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  celebration: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
 };
 
 function relativeTime(iso: string): string {

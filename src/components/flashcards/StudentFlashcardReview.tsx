@@ -192,10 +192,10 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
   if (sessionComplete) {
     const perf = accuracy >= 90 ? 'excellent' : accuracy >= 70 ? 'good' : accuracy >= 50 ? 'fair' : 'retry';
     const perfConfig = {
-      excellent: { emoji: '🏆', msg: 'Outstanding! You crushed it!',    color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20' },
+      excellent: { emoji: '🏆', msg: 'Outstanding! You crushed it!',    color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20' },
       good:      { emoji: '🌟', msg: 'Great job! Keep it up!',          color: 'text-primary',   bg: 'bg-primary/10 border-primary/20' },
       fair:      { emoji: '💪', msg: 'Good effort! Practice more!',     color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
-      retry:     { emoji: '📚', msg: 'Keep going — you\'ll get there!', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20' },
+      retry:     { emoji: '📚', msg: 'Keep going — you\'ll get there!', color: 'text-rose-600 dark:text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20' },
     }[perf];
 
     return (
@@ -218,8 +218,8 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Correct',   value: sessionStats.correct,   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', emoji: '✅' },
-                { label: 'Incorrect', value: sessionStats.incorrect, color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/20',       emoji: '❌' },
+                { label: 'Correct',   value: sessionStats.correct,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', emoji: '✅' },
+                { label: 'Incorrect', value: sessionStats.incorrect, color: 'text-rose-600 dark:text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/20',       emoji: '❌' },
                 { label: 'Accuracy',  value: `${accuracy}%`,         color: 'text-primary',  bg: 'bg-primary/10 border-primary/20',   emoji: '🎯' },
                 { label: 'Best Streak', value: sessionStats.maxStreak, color: 'text-primary', bg: 'bg-primary/10 border-primary/20',  emoji: '🔥' },
               ].map(s => (
@@ -236,8 +236,8 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
             {/* XP earned */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <BoltIcon className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-black text-amber-400">
+              <BoltIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-black text-amber-600 dark:text-amber-400">
                 +{cards.length * 10 + Math.floor(accuracy * 0.5) + sessionStats.maxStreak * 5} XP Earned!
               </span>
             </motion.div>
@@ -275,7 +275,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
         </div>
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-1">
-            <span className="text-emerald-400 font-black">{sessionStats.correct}</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-black">{sessionStats.correct}</span>
             <span className="text-muted-foreground/50 text-xs">✓</span>
           </div>
           {sessionStats.streak > 1 && (
@@ -285,7 +285,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
             </div>
           )}
           <div className="flex items-center gap-1">
-            <span className="text-rose-400 font-black">{sessionStats.incorrect}</span>
+            <span className="text-rose-600 dark:text-rose-400 font-black">{sessionStats.incorrect}</span>
             <span className="text-muted-foreground/50 text-xs">✗</span>
           </div>
         </div>
@@ -304,9 +304,9 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
         {currentCard.difficulty_level && (
           <motion.div key={currentIndex} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
             className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-              currentCard.difficulty_level === 'hard'   ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' :
-              currentCard.difficulty_level === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                                                          'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              currentCard.difficulty_level === 'hard'   ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400' :
+              currentCard.difficulty_level === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' :
+                                                          'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
             }`}>
             {currentCard.difficulty_level === 'hard' ? '🔥 Hard' : currentCard.difficulty_level === 'medium' ? '⚡ Medium' : '✅ Easy'}
           </motion.div>
@@ -393,7 +393,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.92 }}
                   onClick={() => handleResponse(btn.value)}
-                  className={`flex flex-col items-center justify-center gap-1 py-3 sm:py-4 rounded-2xl text-white font-black transition-all shadow-lg ${btn.color}`}
+                  className={`flex flex-col items-center justify-center gap-1 py-3 sm:py-4 rounded-2xl text-foreground font-black transition-all shadow-lg ${btn.color}`}
                 >
                   <span className="text-xl sm:text-2xl">{btn.emoji}</span>
                   <span className="text-[9px] sm:text-[10px] uppercase tracking-widest">{btn.label}</span>

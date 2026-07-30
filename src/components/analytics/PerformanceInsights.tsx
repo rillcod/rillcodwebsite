@@ -34,9 +34,9 @@ export function PerformanceInsights() {
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-teal-50 rounded-2xl">
-                                <Target className="w-5 h-5 text-teal-600" />
+                                <Target className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                             </div>
-                            <Badge variant="outline" className="text-green-600 bg-green-50 border-green-100">+12%</Badge>
+                            <Badge variant="outline" className="text-green-600 dark:text-green-400 bg-green-50 border-green-100">+12%</Badge>
                         </div>
                         <div className="mt-4">
                             <p className="text-2xl font-black text-foreground dark:text-slate-100">94.2%</p>
@@ -64,7 +64,7 @@ export function PerformanceInsights() {
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-purple-50 rounded-2xl">
-                                <Clock className="w-5 h-5 text-purple-600" />
+                                <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                             </div>
                             <Badge variant="outline" className="text-muted-foreground/70 bg-background border-slate-100">-2m</Badge>
                         </div>
@@ -134,7 +134,7 @@ export function PerformanceInsights() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Robotics & IoT</span>
-                                <span className="text-teal-600">92%</span>
+                                <span className="text-teal-600 dark:text-teal-400">92%</span>
                             </div>
                             <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-teal-500 rounded-full" style={{ width: '92%' }} />
@@ -154,7 +154,7 @@ export function PerformanceInsights() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Artificial Intelligence</span>
-                                <span className="text-purple-600">85%</span>
+                                <span className="text-purple-600 dark:text-purple-400">85%</span>
                             </div>
                             <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-purple-500 rounded-full" style={{ width: '85%' }} />

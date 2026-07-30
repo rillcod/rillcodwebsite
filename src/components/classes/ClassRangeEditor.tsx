@@ -49,7 +49,7 @@ export function ClassRangeEditor({ classId, initialRange, canEdit }: {
           {busy ? 'Saving…' : 'Update range'}
         </button>
       </div>
-      {message && <p className="mt-2 text-xs text-red-400">{message}</p>}
+      {message && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{message}</p>}
     </div>
   );
 }

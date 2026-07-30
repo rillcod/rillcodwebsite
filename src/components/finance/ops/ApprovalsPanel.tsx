@@ -398,7 +398,7 @@ export function ApprovalsPanel() {
         {isAdmin && (
           <button
             onClick={() => setShowManualVerify((v) => !v)}
-            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-emerald-600/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/25 rounded-md"
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-emerald-600/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/25 rounded-md"
           >
             <CheckBadgeIcon className="w-4 h-4" /> Verify payment
           </button>
@@ -536,7 +536,7 @@ export function ApprovalsPanel() {
         </div>
       ) : list.length === 0 ? (
         <div className="border border-dashed border-border rounded-xl p-10 text-center">
-          <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-400/60" />
+          <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-600/60 dark:text-emerald-400/60" />
           <p className="text-sm font-bold text-foreground mt-2">All clear</p>
           <p className="text-xs text-muted-foreground mt-1">Nothing waiting for your review.</p>
         </div>
@@ -653,7 +653,7 @@ function TxList({
                     <span className="font-bold text-foreground">Submitted: ₦{proof.amountCharged.toLocaleString()}</span>
                   )}
                   {proof.balanceDue != null && proof.balanceDue > 0 && (
-                    <span className="font-bold text-amber-400">Balance: ₦{proof.balanceDue.toLocaleString()}</span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400">Balance: ₦{proof.balanceDue.toLocaleString()}</span>
                   )}
                   {proof.transferReference && (
                     <span className="font-mono text-muted-foreground">Ref: {proof.transferReference}</span>
@@ -663,7 +663,7 @@ function TxList({
                       href={proofUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md font-black uppercase tracking-wider"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-md font-black uppercase tracking-wider"
                     >
                       <PaperClipIcon className="w-3 h-3" />
                       {isPdfProofUrl(proofUrl) ? 'Parent proof (PDF)' : 'Parent proof (image)'}
@@ -686,7 +686,7 @@ function TxList({
                   <button
                     disabled={busyId === tx.id}
                     onClick={() => onReject(tx.id)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600/20 border border-rose-600/40 hover:bg-rose-600/30 text-rose-300 text-[10px] font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600/20 border border-rose-600/40 hover:bg-rose-600/30 text-rose-700 dark:text-rose-300 text-[10px] font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                   >
                     <XCircleIcon className="w-3 h-3" /> Reject
                   </button>
@@ -722,9 +722,9 @@ function TxList({
 
 function proofAgeBadge(createdAt: string): { label: string; cls: string } {
   const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
-  if (days < 7) return { label: `${days}d in queue`, cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' };
-  if (days < 14) return { label: `${days}d in queue`, cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400' };
-  return { label: `${days}d overdue`, cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400' };
+  if (days < 7) return { label: `${days}d in queue`, cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' };
+  if (days < 14) return { label: `${days}d in queue`, cls: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400' };
+  return { label: `${days}d overdue`, cls: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' };
 }
 
 function ProofQueueList({
@@ -742,13 +742,13 @@ function ProofQueueList({
     <div className="space-y-2">
       {stale.length > 0 && onAutoReject && (
         <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-2">
-          <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 shrink-0" />
-          <p className="text-xs text-rose-300 flex-1">
+          <ExclamationTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          <p className="text-xs text-rose-700 dark:text-rose-300 flex-1">
             {stale.length} proof{stale.length === 1 ? '' : 's'} in queue for 30+ days.
           </p>
           <button
             onClick={() => stale.forEach(inv => onAutoReject(inv))}
-            className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 border border-rose-500/40 rounded px-2 py-1"
+            className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 border border-rose-500/40 rounded px-2 py-1"
           >
             Reject all stale
           </button>
@@ -770,10 +770,10 @@ function ProofQueueList({
                   <span className="text-[11px] font-mono text-muted-foreground">
                     #{inv.invoice_number}
                   </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
                     {inv.latest_proof_status || 'proof submitted'}
                   </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/30">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/30">
                     {inv.proof_count || 0} proof{Number(inv.proof_count || 0) === 1 ? '' : 's'}
                   </span>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${age.cls}`}>
@@ -819,12 +819,12 @@ function ProofQueueList({
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; cls: string; Icon: typeof CheckCircleIcon }> = {
-    completed: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', Icon: CheckCircleIcon },
-    success: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', Icon: CheckCircleIcon },
-    pending: { label: 'Pending', cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400', Icon: ClockIcon },
+    completed: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400', Icon: CheckCircleIcon },
+    success: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400', Icon: CheckCircleIcon },
+    pending: { label: 'Pending', cls: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400', Icon: ClockIcon },
     processing: { label: 'Processing', cls: 'bg-primary/10 border-primary/30 text-primary', Icon: ClockIcon },
-    failed: { label: 'Failed', cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400', Icon: XCircleIcon },
-    refunded: { label: 'Refunded', cls: 'bg-purple-500/10 border-purple-500/30 text-purple-400', Icon: ArrowPathIcon },
+    failed: { label: 'Failed', cls: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400', Icon: XCircleIcon },
+    refunded: { label: 'Refunded', cls: 'bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400', Icon: ArrowPathIcon },
   };
   const c = cfg[status] ?? cfg.pending;
   const Icon = c.Icon;

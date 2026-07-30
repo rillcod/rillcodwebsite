@@ -246,30 +246,30 @@ export default function OverviewPage() {
 
   const adminStats = [
     { label: 'Approved Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/schools' },
-    { label: 'School Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
+    { label: 'School Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
     { label: 'Active Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
-    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
+    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
   ];
 
   const teacherStats = [
     { label: 'My Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
     { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
-    { label: 'Needs Grading', value: counts.pending ?? 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/grades' },
-    { label: 'Assignments', value: counts.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
+    { label: 'Needs Grading', value: counts.pending ?? 0, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/grades' },
+    { label: 'Assignments', value: counts.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
   ];
 
   const studentStats = [
     { label: 'Submissions', value: counts.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/grades' },
     { label: 'Enrolled In', value: counts.enrolled ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/courses' },
-    { label: 'Assignments', value: 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/assignments' },
-    { label: 'Progress', value: 0, icon: TrophyIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/progress' },
+    { label: 'Assignments', value: 0, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/assignments' },
+    { label: 'Progress', value: 0, icon: TrophyIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/progress' },
   ];
 
   const schoolStats = [
     { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
     { label: 'Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
-    { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
-    { label: 'School Overview', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/school-overview' },
+    { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
+    { label: 'School Overview', value: 0, icon: ChartBarIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/school-overview' },
   ];
 
   const stats = role === 'admin' ? adminStats : role === 'teacher' ? teacherStats : role === 'school' ? schoolStats : studentStats;
@@ -341,7 +341,7 @@ export default function OverviewPage() {
                   <button
                     disabled={!!confirmingChildId}
                     onClick={() => confirmChildLink(s.id)}
-                    className="shrink-0 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl border border-emerald-500/20 transition-colors disabled:opacity-50"
+                    className="shrink-0 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl border border-emerald-500/20 transition-colors disabled:opacity-50"
                   >
                     {confirmingChildId === s.id ? '…' : 'Yes, my child'}
                   </button>
@@ -358,7 +358,7 @@ export default function OverviewPage() {
           <div className="flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
             <span className="text-xl">✅</span>
             <div>
-              <p className="text-sm font-black text-emerald-400">Child linked successfully!</p>
+              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">Child linked successfully!</p>
               <p className="text-xs text-muted-foreground">You can now view your child&apos;s progress, results and activity from your dashboard.</p>
             </div>
           </div>
@@ -423,8 +423,8 @@ export default function OverviewPage() {
                       <p className="text-xs text-muted-foreground">{s.school_name ?? 'No school'} · {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full border capitalize
-                      ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                        s.status === 'pending' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                      ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
+                        s.status === 'pending' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' :
                           'bg-muted text-muted-foreground border-border'}`}>
                       {s.status}
                     </span>
@@ -447,11 +447,11 @@ export default function OverviewPage() {
                         <p className="text-xs text-muted-foreground">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : ''}</p>
                       </div>
                       {pct != null ? (
-                        <span className={`text-sm font-extrabold ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                        <span className={`text-sm font-extrabold ${pct >= 70 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {pct}%
                         </span>
                       ) : (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 capitalize">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 capitalize">
                           {s.status}
                         </span>
                       )}

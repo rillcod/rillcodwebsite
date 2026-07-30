@@ -92,7 +92,7 @@ export default function CommandPalette() {
     <CommandDialog open={open} onOpenChange={setOpen}>
       <div className="bg-background border border-border rounded-3xl overflow-hidden shadow-2xl">
         <div className="flex items-center border-b border-border px-6 py-4">
-          <MagnifyingGlassIcon className="w-5 h-5 text-cyan-400 mr-4 opacity-50" />
+          <MagnifyingGlassIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400 mr-4 opacity-50" />
           <CommandInput
             placeholder="Search activities, modules, or pupils..."
             className="flex-1 bg-transparent border-none focus:ring-0 text-foreground placeholder-muted-foreground text-sm font-medium h-10 outline-none"
@@ -110,10 +110,10 @@ export default function CommandPalette() {
           </CommandEmpty>
 
           {results.lessons.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Operative Modules</span>}>
+            <CommandGroup heading={<span className="text-[10px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-[0.3em] px-4 py-2 block">Operative Modules</span>}>
               {results.lessons.map((l) => (
                 <CommandItem key={l.id} onSelect={() => runCommand(() => router.push(`/dashboard/lessons/${l.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:scale-110 transition-transform">
+                  <div className="p-3 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 rounded-xl group-hover:scale-110 transition-transform">
                     <BookOpenIcon className="w-5 h-5" />
                   </div>
                   <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{l.title}</span>
@@ -136,10 +136,10 @@ export default function CommandPalette() {
           )}
 
           {canRosterSearch && results.students.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Students</span>}>
+            <CommandGroup heading={<span className="text-[10px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-[0.3em] px-4 py-2 block">Students</span>}>
               {results.students.map((s) => (
                 <CommandItem key={s.id} onSelect={() => runCommand(() => router.push(`/dashboard/students/${s.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl group-hover:scale-110 transition-transform">
+                  <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl group-hover:scale-110 transition-transform">
                     <UserGroupIcon className="w-5 h-5" />
                   </div>
                   <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{s.full_name}</span>
@@ -153,7 +153,7 @@ export default function CommandPalette() {
           <CommandGroup heading={<span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] px-4 py-2 block">Quick Actions</span>}>
             {(staff || profile.role === 'student') && (
               <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/lessons'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-all">
+                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-all">
                   <CommandLineIcon className="w-5 h-5" />
                 </div>
                 <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Lesson Hub</span>
@@ -167,7 +167,7 @@ export default function CommandPalette() {
             </CommandItem>
             {staff && (
               <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-all">
+                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-emerald-500/20 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-all">
                   <CogIcon className="w-5 h-5" />
                 </div>
                 <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Parameters</span>
@@ -181,7 +181,7 @@ export default function CommandPalette() {
              <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">↑↓</kbd> Navigate</span>
              <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">ENTER</kbd> Activate</span>
            </div>
-           <span className="text-cyan-500/40">Nucleus AI Search v1.0</span>
+           <span className="text-cyan-600/40 dark:text-cyan-400/40">Nucleus AI Search v1.0</span>
         </div>
       </div>
     </CommandDialog>

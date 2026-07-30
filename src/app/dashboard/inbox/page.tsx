@@ -136,14 +136,14 @@ const AVATAR_COLORS: Record<InboxCategory, string> = {
   teachers: 'bg-primary',
 };
 const ROLE_COLORS: Record<string, string> = {
-  student: 'bg-emerald-500/20 text-emerald-400',
+  student: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
   parent: 'bg-primary/20 text-primary',
   teacher: 'bg-primary/20 text-primary',
   school: 'bg-primary/20 text-primary',
-  admin: 'bg-rose-500/20 text-rose-400',
+  admin: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
-  students: 'bg-emerald-900/40 text-emerald-500',
+  students: 'bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
   parents: 'bg-primary/40 text-primary',
   school: 'bg-blue-900/40 text-primary',
   teachers: 'bg-violet-900/40 text-primary',
@@ -162,20 +162,20 @@ const renderMessageBody = (body: string) => {
 
       return (
         <div className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/10 text-[13px] my-1 max-w-full text-left">
-          <div className="flex items-center gap-1.5 font-semibold text-indigo-400">
+          <div className="flex items-center gap-1.5 font-semibold text-indigo-600 dark:text-indigo-400">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
             <span>WhatsApp Business Template</span>
           </div>
-          <div className="flex items-center gap-1 font-mono text-[11.5px] bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 text-indigo-300 w-fit">
+          <div className="flex items-center gap-1 font-mono text-[11.5px] bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 text-indigo-700 dark:text-indigo-300 w-fit">
             <span>Name:</span>
             <span className="font-bold">{templateName}</span>
           </div>
           {variables.length > 0 && (
             <div className="flex flex-col gap-1 mt-1">
-              <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Variables</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Variables</span>
               <div className="flex flex-wrap gap-1">
                 {variables.map((v, i) => (
-                  <span key={i} className="text-[11px] bg-white/5 border border-white/10 text-white/80 px-2 py-0.5 rounded font-mono break-all">
+                  <span key={i} className="text-[11px] bg-white/5 border border-white/10 text-muted-foreground px-2 py-0.5 rounded font-mono break-all">
                     {v}
                   </span>
                 ))}
@@ -1582,9 +1582,9 @@ export default function UnifiedInbox() {
   if (!hasAccess) return (
     <div className="h-full bg-[#111b21] flex items-center justify-center p-4">
       <div className="text-center max-w-md">
-        <X className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
-        <p className="text-white/50 mb-6">Your account does not have inbox access.</p>
+        <X className="w-16 h-16 text-rose-600 dark:text-rose-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
+        <p className="text-muted-foreground mb-6">Your account does not have inbox access.</p>
         <Link href="/dashboard" className="px-6 py-2 bg-primary text-white font-bold rounded-xl">Back to Dashboard</Link>
       </div>
     </div>
@@ -1606,7 +1606,7 @@ export default function UnifiedInbox() {
         {/* Sidebar Header */}
         <div className="h-[56px] px-4 flex items-center justify-between bg-[#202c33] shrink-0 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <h2 className="text-white font-black text-[16px] tracking-tight">
+            <h2 className="text-foreground font-black text-[16px] tracking-tight">
               {sidebarView === 'contacts' ? 'Contacts' : 'Inbox'}
             </h2>
             {sidebarView === 'chats' && totalUnread > 0 && (
@@ -1615,16 +1615,16 @@ export default function UnifiedInbox() {
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); setContactError(''); }}
-              className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="Add contact">
+              className="p-2 text-muted-foreground hover:bg-white/10 rounded-full transition-colors" title="Add contact">
               <UserPlus className="w-5 h-5" />
             </button>
             {sidebarView === 'chats' ? (
               <>
                 <button onClick={() => setFilterUnread(v => !v)} title={filterUnread ? 'Show all' : 'Unread only'}
-                  className={`p-2 rounded-full transition-colors ${filterUnread ? 'bg-primary text-white' : 'text-white/50 hover:bg-white/10'}`}>
+                  className={`p-2 rounded-full transition-colors ${filterUnread ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-white/10'}`}>
                   <Filter className="w-4 h-4" />
                 </button>
-                <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-primary hover:bg-white/10 rounded-full transition-colors" title="Compose email">
+                <button onClick={() => openEmailCompose()} className="p-2 text-muted-foreground hover:text-primary hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
                 </button>
                 <button
@@ -1635,7 +1635,7 @@ export default function UnifiedInbox() {
                         ? startSupportConversation
                         : () => setShowNewMessagePicker(true)
                   }
-                  className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New message">
+                  className="p-2 text-muted-foreground hover:bg-white/10 rounded-full transition-colors" title="New message">
                   <Plus className="w-5 h-5" />
                 </button>
               </>
@@ -1644,7 +1644,7 @@ export default function UnifiedInbox() {
               <button
                 onClick={() => { setSidebarView(v => v === 'chats' ? 'contacts' : 'chats'); setActiveContact(null); }}
                 title={sidebarView === 'chats' ? 'View contacts' : 'Back to chats'}
-                className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-primary/20 text-primary' : 'text-white/50 hover:bg-white/10'}`}
+                className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-white/10'}`}
               >
                 <BookUser className="w-5 h-5" />
               </button>
@@ -1663,7 +1663,7 @@ export default function UnifiedInbox() {
                     // Students need to see the sidebar when on the Teachers tab
                     if (profile?.role === 'student' && tab.id === 'teachers') setShowSidebar(true);
                   }}
-                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
+                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-white/60 hover:bg-white/[0.03]'
                     }`}>
                   <tab.icon className="w-[15px] h-[15px]" />{tab.label}
                 </button>
@@ -1673,12 +1673,12 @@ export default function UnifiedInbox() {
             {/* Search */}
             <div className="px-3 py-2.5 bg-[#111b21] shrink-0">
               <div className="relative">
-                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input value={convSearch} onChange={e => setConvSearch(e.target.value)}
                   placeholder={`Search ${activeTab === 'school' && isSchool ? 'teachers' : activeTab}…`}
-                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
+                  className="w-full bg-[#2a3942] text-foreground text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
                 {convSearch && (
-                  <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                  <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white/60">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -1697,7 +1697,7 @@ export default function UnifiedInbox() {
                     key={q.id}
                     type="button"
                     onClick={() => setQueueFilter(q.id as typeof queueFilter)}
-                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${queueFilter === q.id ? 'bg-primary/30 text-violet-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${queueFilter === q.id ? 'bg-primary/30 text-violet-800 dark:text-violet-200' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                       }`}
                   >
                     {q.label}
@@ -1713,15 +1713,15 @@ export default function UnifiedInbox() {
                   <div className="grid grid-cols-3 gap-2">
                     <button onClick={startSupportConversation} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-primary/40 rounded-lg transition-all group">
                       <MessageSquare className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-[8px] font-bold text-white/50 uppercase">In-App</span>
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase">In-App</span>
                     </button>
                     <a href={brandContact.whatsapp} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-emerald-500/40 rounded-lg transition-all group">
-                      <Phone className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
-                      <span className="text-[8px] font-bold text-white/50 uppercase">WhatsApp</span>
+                      <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase">WhatsApp</span>
                     </a>
                     <button onClick={openSupportEmailCompose} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-primary/40 rounded-lg transition-all group">
                       <Mail className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-[8px] font-bold text-white/50 uppercase">Email</span>
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase">Email</span>
                     </button>
                   </div>
                 </div>
@@ -1730,9 +1730,9 @@ export default function UnifiedInbox() {
             {profile?.role === 'student' && activeTab === 'teachers' && (
               <div className="px-3 pb-3 shrink-0">
                 <div className="bg-violet-900/20 border border-violet-500/20 p-3 rounded-lg">
-                  <h4 className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em] mb-1">Direct to Teacher</h4>
-                  <p className="text-[10px] text-white/40 mb-2">Pick any of your teachers to start a private conversation.</p>
-                  <button onClick={() => setShowNewChat(true)} className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-lg text-[10px] font-bold text-violet-300 transition-all">
+                  <h4 className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-[0.2em] mb-1">Direct to Teacher</h4>
+                  <p className="text-[10px] text-muted-foreground mb-2">Pick any of your teachers to start a private conversation.</p>
+                  <button onClick={() => setShowNewChat(true)} className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-lg text-[10px] font-bold text-violet-700 dark:text-violet-300 transition-all">
                     <GraduationCap className="w-3.5 h-3.5" /> Pick a Teacher
                   </button>
                 </div>
@@ -1745,13 +1745,13 @@ export default function UnifiedInbox() {
                 <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : fetchError ? (
                 <div className="text-center p-12">
-                  <p className="text-rose-400 text-sm mb-3">{fetchError}</p>
+                  <p className="text-rose-600 dark:text-rose-400 text-sm mb-3">{fetchError}</p>
                   <button onClick={() => fetchConversations(activeTab)} className="text-primary text-sm font-bold hover:underline">Retry</button>
                 </div>
               ) : filteredConvs.length === 0 ? (
                 <div className="text-center p-12">
-                  <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/30 text-sm">
+                  <MessageSquare className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">
                     {convSearch || filterUnread
                       ? 'No matching conversations.'
                       : (profile?.role === 'student' && activeTab === 'teachers')
@@ -1784,7 +1784,7 @@ export default function UnifiedInbox() {
                       className={`flex items-center px-3 py-3 cursor-pointer transition-all border-b border-white/[0.04] group relative ${activeConv?.id === conv.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
 
                       <div className="relative shrink-0 mr-3">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-[15px] text-white ${AVATAR_COLORS[conv.type]}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-[15px] text-foreground ${AVATAR_COLORS[conv.type]}`}>
                           {initials(conv.contact_name)}
                         </div>
                         {/* Status dot or assigned staff avatar */}
@@ -1807,9 +1807,9 @@ export default function UnifiedInbox() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                            <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
+                            <span className="font-bold text-foreground text-[15px] truncate">{conv.contact_name}</span>
                             {conv.opted_out && (
-                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/35 shrink-0">
                                 Opted Out
                               </span>
                             )}
@@ -1819,12 +1819,12 @@ export default function UnifiedInbox() {
 
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary text-white shadow-sm shadow-primary/40">You</span>}
-                          {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
-                          {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 truncate max-w-[80px]">{conv.school_name}</span>}
+                          {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-muted-foreground'}`}>{conv.role}</span>}
+                          {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-muted-foreground truncate max-w-[80px]">{conv.school_name}</span>}
                         </div>
 
                         <div className="flex justify-between items-center mt-1">
-                          <p className={`text-[14px] truncate mr-2 ${conv.unread_count > 0 ? 'text-white/90 font-medium' : 'text-[#8696a0]'}`}>
+                          <p className={`text-[14px] truncate mr-2 ${conv.unread_count > 0 ? 'text-muted-foreground font-medium' : 'text-[#8696a0]'}`}>
                             {conv.last_message_preview || 'No messages yet'}
                           </p>
                           {conv.unread_count > 0 && (
@@ -1846,24 +1846,24 @@ export default function UnifiedInbox() {
             {/* Contact search + filters */}
             <div className="px-3 py-2 bg-[#111b21] shrink-0 space-y-2">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
                   placeholder="Search contacts…"
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                  className="w-full bg-[#2a3942] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 {contactSearch && (
-                  <button onClick={() => setContactSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"><X className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setContactSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white/60"><X className="w-3.5 h-3.5" /></button>
                 )}
               </div>
               {/* Role filter chips */}
               <div className="flex gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar">
                 {['all', 'student', 'parent', 'teacher', 'school', 'external'].map(r => (
                   <button key={r} onClick={() => setContactRoleFilter(r)}
-                    className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${contactRoleFilter === r ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                    className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${contactRoleFilter === r ? 'bg-primary text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}>
                     {r}
                   </button>
                 ))}
                 <button onClick={() => setShowAdvancedFilters(v => !v)}
-                  className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 ${showAdvancedFilters || contactSchoolFilter || contactClassFilter ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                  className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 ${showAdvancedFilters || contactSchoolFilter || contactClassFilter ? 'bg-primary/20 text-primary' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}>
                   <Filter className="w-2.5 h-2.5" /> More
                 </button>
               </div>
@@ -1872,17 +1872,17 @@ export default function UnifiedInbox() {
               {showAdvancedFilters && (
                 <div className="space-y-2 pt-1">
                   <div className="relative">
-                    <School className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <School className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <select value={contactSchoolFilter} onChange={e => setContactSchoolFilter(e.target.value)}
-                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
+                      className="w-full bg-[#2a3942] text-foreground text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
                       <option value="">All Schools</option>
                       {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="relative">
-                    <GraduationCap className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <GraduationCap className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <select value={contactClassFilter} onChange={e => setContactClassFilter(e.target.value)}
-                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
+                      className="w-full bg-[#2a3942] text-foreground text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
                       <option value="">All Classes / Grades</option>
                       {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -1899,7 +1899,7 @@ export default function UnifiedInbox() {
 
             {/* Contact count */}
             <div className="px-4 py-1.5 shrink-0 flex items-center justify-between">
-              <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                 {contactsLoading ? 'Loading…' : `${filteredContacts.length} contact${filteredContacts.length !== 1 ? 's' : ''}`}
               </span>
               <button onClick={fetchContacts} className="text-[10px] text-primary/60 hover:text-primary font-bold transition-colors">Refresh</button>
@@ -1911,8 +1911,8 @@ export default function UnifiedInbox() {
                 <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filteredContacts.length === 0 ? (
                 <div className="text-center p-12">
-                  <UserCircle className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/30 text-sm">{contactSearch || contactRoleFilter !== 'all' ? 'No matching contacts.' : 'No contacts yet.'}</p>
+                  <UserCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">{contactSearch || contactRoleFilter !== 'all' ? 'No matching contacts.' : 'No contacts yet.'}</p>
                   <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); }}
                     className="mt-3 text-primary text-sm font-bold hover:underline">Add one →</button>
                 </div>
@@ -1929,13 +1929,13 @@ export default function UnifiedInbox() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-[14px] truncate">{contact.full_name}</span>
-                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${ROLE_COLORS[contact.role] || 'bg-white/10 text-white/40'}`}>{contact.role}</span>
-                          {contact.source === 'whatsapp' && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-900/40 text-emerald-500 shrink-0">WA</span>}
+                          <span className="font-bold text-foreground text-[14px] truncate">{contact.full_name}</span>
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${ROLE_COLORS[contact.role] || 'bg-white/10 text-muted-foreground'}`}>{contact.role}</span>
+                          {contact.source === 'whatsapp' && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 shrink-0">WA</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {contact.phone && <span className="text-[11px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{contact.phone}</span>}
-                          {contact.school_name && <span className="text-[11px] text-white/30 truncate max-w-[110px]">{contact.school_name}</span>}
+                          {contact.phone && <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{contact.phone}</span>}
+                          {contact.school_name && <span className="text-[11px] text-muted-foreground truncate max-w-[110px]">{contact.school_name}</span>}
                           {contact.class_name && <span className="text-[11px] text-primary">{contact.class_name}</span>}
                         </div>
                       </div>
@@ -1957,20 +1957,20 @@ export default function UnifiedInbox() {
                         )}
                         {contact.email && (
                           <button onClick={() => openEmailCompose(contact)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-violet-300 text-[11px] font-black rounded-full transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-violet-700 dark:text-violet-300 text-[11px] font-black rounded-full transition-colors">
                             <Mail className="w-3 h-3" /> Email
                           </button>
                         )}
                         <button onClick={() => openEditContact(contact)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 text-[11px] font-black rounded-full transition-colors">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-muted-foreground text-[11px] font-black rounded-full transition-colors">
                           <Pencil className="w-3 h-3" /> Edit
                         </button>
                         {/* Full detail row */}
                         {(contact.email || contact.school_name) && (
                           <div className="w-full mt-1 bg-[#111b21] rounded-xl p-2 space-y-1">
-                            {contact.email && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Email:</span> {contact.email}</p>}
-                            {contact.school_name && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">School:</span> {contact.school_name}</p>}
-                            {contact.class_name && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Class:</span> {contact.class_name}</p>}
+                            {contact.email && <p className="text-[11px] text-muted-foreground"><span className="text-muted-foreground font-bold">Email:</span> {contact.email}</p>}
+                            {contact.school_name && <p className="text-[11px] text-muted-foreground"><span className="text-muted-foreground font-bold">School:</span> {contact.school_name}</p>}
+                            {contact.class_name && <p className="text-[11px] text-muted-foreground"><span className="text-muted-foreground font-bold">Class:</span> {contact.class_name}</p>}
                           </div>
                         )}
                       </div>
@@ -1990,31 +1990,31 @@ export default function UnifiedInbox() {
             {/* Chat Header */}
             <div className="h-[56px] px-4 bg-[#202c33] flex items-center justify-between border-b border-white/[0.06] shrink-0 z-10">
               <div className="flex items-center flex-1 min-w-0 gap-3">
-                <button onClick={() => { setShowSidebar(true); setActiveConv(null); setShowInfo(false); }} className="md:hidden text-white/50 hover:text-white">
+                <button onClick={() => { setShowSidebar(true); setActiveConv(null); setShowInfo(false); }} className="md:hidden text-muted-foreground hover:text-white">
                   <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <button onClick={() => setShowInfo(v => !v)} className="flex items-center gap-2 min-w-0 text-left group">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-lg ${AVATAR_COLORS[activeConv.type]}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-foreground shrink-0 shadow-lg ${AVATAR_COLORS[activeConv.type]}`}>
                       {initials(activeConv.contact_name)}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <h3 className="font-bold text-white text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
+                        <h3 className="font-bold text-foreground text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
                         {activeConv.opted_out && (
-                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/35 shrink-0">
                             Opted Out
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-white/40 truncate flex items-center gap-1.5">
+                      <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
                         {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
                           activeConv.subject ? activeConv.subject :
                             activeConv.student_name ? `Re: ${activeConv.student_name}` :
                               activeConv.role || 'Chat'}
 
                         {activeConv.type === 'students' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase">
                             Company WhatsApp
                           </span>
                         )}
@@ -2022,7 +2022,7 @@ export default function UnifiedInbox() {
                         {/* Assignment Status Pill */}
                         {activeConv.type === 'students' && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
-                            activeConv.assigned_staff_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/30'
+                            activeConv.assigned_staff_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-muted-foreground'
                             }`}>
                             {activeConv.assigned_staff_id === profile?.id ? 'Assigned to you' :
                               activeConv.assigned_staff_id ? `Assigned to ${staff.find(s => s.id === activeConv.assigned_staff_id)?.full_name || 'Staff'}` : 'Unassigned'}
@@ -2043,7 +2043,7 @@ export default function UnifiedInbox() {
                       onClick={() => setShowAssignMenu(v => !v)}
                       disabled={!!assigningId}
                       aria-expanded={showAssignMenu}
-                      className="flex items-center gap-1.5 min-h-9 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
+                      className="flex items-center gap-1.5 min-h-9 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
                     >
                       {assigningId === activeConv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
                       <span>{activeConv.assigned_staff_id ? 'Reassign' : 'Assign'}</span>
@@ -2051,7 +2051,7 @@ export default function UnifiedInbox() {
                     {showAssignMenu && (
                     <div className="absolute right-0 top-full mt-2 w-56 bg-[#233138] rounded-xl shadow-2xl border border-white/[0.08] z-50 overflow-hidden">
                       <div className="p-2 border-b border-white/5">
-                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-2 py-1">Assign to Staff</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2 py-1">Assign to Staff</p>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                         <button
@@ -2060,7 +2060,7 @@ export default function UnifiedInbox() {
                         >
                           <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white">ME</div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-bold text-white truncate">Assign to myself</p>
+                            <p className="text-[12px] font-bold text-foreground truncate">Assign to myself</p>
                             <p className="text-[10px] text-primary font-bold uppercase tracking-tight">You</p>
                           </div>
                           {activeConv.assigned_staff_id === profile?.id && <Check className="w-4 h-4 text-primary" />}
@@ -2076,21 +2076,21 @@ export default function UnifiedInbox() {
                               {s.avatar_url ? <img src={s.avatar_url} alt="" className="w-full h-full object-cover" /> : initials(s.full_name)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[12px] font-bold text-white truncate">{s.full_name}</p>
-                              <p className="text-[10px] text-white/30 font-bold uppercase tracking-tight">{s.role}</p>
+                              <p className="text-[12px] font-bold text-foreground truncate">{s.full_name}</p>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{s.role}</p>
                             </div>
                             {activeConv.assigned_staff_id === s.id && <Check className="w-4 h-4 text-primary" />}
                           </button>
                         ))}
                         <button
                           onClick={() => assignConversation(activeConv.id, null)}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-rose-500/10 transition-colors text-white/40 hover:text-rose-400 group/unassign"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-rose-500/10 transition-colors text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 group/unassign"
                         >
                           <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover/unassign:bg-rose-500/20">
                             <X className="w-4 h-4" />
                           </div>
                           <span className="text-[12px] font-bold">Unassign</span>
-                          {!activeConv.assigned_staff_id && <Check className="w-4 h-4 text-white/20" />}
+                          {!activeConv.assigned_staff_id && <Check className="w-4 h-4 text-muted-foreground" />}
                         </button>
                       </div>
                     </div>
@@ -2102,7 +2102,7 @@ export default function UnifiedInbox() {
                 {activeConv.type === 'students' && isTeacher && !activeConv.assigned_staff_id && (
                   <button
                     onClick={() => assignToMe(activeConv.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     Claim Chat
@@ -2112,25 +2112,25 @@ export default function UnifiedInbox() {
                 <button
                   onClick={() => openEmailCompose(activeConv)}
                   title="Send branded company email"
-                  className="p-2 text-white/50 hover:text-primary hover:bg-white/10 rounded-full transition-colors"
+                  className="p-2 text-muted-foreground hover:text-primary hover:bg-white/10 rounded-full transition-colors"
                 >
                   <Mail className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
+                <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-muted-foreground hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
                 {(isStaff || (profile?.role === 'student' && activeConv.type === 'teachers')) && (
                   deleteConfirmConvId === activeConv.id ? (
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-rose-400 text-[10px] font-black hidden sm:inline">Delete?</span>
-                      <button onClick={() => deleteConversation(activeConv)} className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black rounded-lg transition-colors">Yes</button>
-                      <button onClick={() => setDeleteConfirmConvId(null)} className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/40 text-[10px] font-black rounded-lg transition-colors">No</button>
+                      <span className="text-rose-600 dark:text-rose-400 text-[10px] font-black hidden sm:inline">Delete?</span>
+                      <button onClick={() => deleteConversation(activeConv)} className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black rounded-lg transition-colors">Yes</button>
+                      <button onClick={() => setDeleteConfirmConvId(null)} className="px-2 py-1 bg-white/5 hover:bg-white/10 text-muted-foreground text-[10px] font-black rounded-lg transition-colors">No</button>
                     </div>
                   ) : (
                     <button
                       onClick={() => deleteConversation(activeConv)}
                       title="Delete conversation"
-                      className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
+                      className="p-2 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -2153,7 +2153,7 @@ export default function UnifiedInbox() {
                     className="px-3 py-1 bg-primary hover:bg-primary text-white text-[11px] font-black rounded-full transition-colors">
                     Add Contact
                   </button>
-                  <button onClick={() => setShowSaveBanner(false)} className="text-white/30 hover:text-white/60">
+                  <button onClick={() => setShowSaveBanner(false)} className="text-muted-foreground hover:text-white/60">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -2166,14 +2166,14 @@ export default function UnifiedInbox() {
               <div className="flex-1 overflow-y-auto px-4 py-3 md:px-[6%] flex flex-col gap-1 custom-scrollbar"
                 style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath opacity='0.03' fill='%23ffffff' d='M25 25h10v10H25zm30 30h10v10H55zm-20 20h10v10H35zm40-40h10v10H75zM15 65h10v10H15zm50-50h10v10H65z'/%3E%3C/svg%3E\")", backgroundSize: '100px 100px' }}>
                 {msgLoading ? (
-                  <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-white/25" /></div>
+                  <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
                 ) : messages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-center py-12">
                     <div className="bg-[#182229] rounded-xl px-6 py-5 max-w-xs border border-white/[0.06]">
-                      <p className="text-white/40 text-[13px]">No messages yet.</p>
+                      <p className="text-muted-foreground text-[13px]">No messages yet.</p>
                       {activeConv.type === 'students' && activeConv.phone_number && (
                         <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
-                          className="mt-3 text-[11px] text-emerald-400 font-bold flex items-center justify-center gap-1 hover:underline">
+                          className="mt-3 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-1 hover:underline">
                           <Phone className="w-3 h-3" /> {newMessage.trim() ? 'Open WA (message pre-filled)' : 'Open in WhatsApp'}
                         </a>
                       )}
@@ -2187,7 +2187,7 @@ export default function UnifiedInbox() {
                       <React.Fragment key={msg.id}>
                         {showDate && (
                           <div className="flex justify-center my-3">
-                            <span className="bg-[#202c33] text-white/50 text-[11px] font-bold px-3 py-1 rounded-full">{formatDateSep(msg.created_at)}</span>
+                            <span className="bg-[#202c33] text-muted-foreground text-[11px] font-bold px-3 py-1 rounded-full">{formatDateSep(msg.created_at)}</span>
                           </div>
                         )}
                         <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-0.5`}>
@@ -2204,13 +2204,13 @@ export default function UnifiedInbox() {
                               <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                                 <span className="text-primary text-[11px] font-black">{activeConv.contact_name}</span>
                                 {activeConv.role && (
-                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>{activeConv.role}</span>
+                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-muted-foreground'}`}>{activeConv.role}</span>
                                 )}
                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[activeConv.type]}`}>
                                   {activeConv.type === 'students' ? 'WhatsApp' : activeConv.type === 'parents' ? 'Parent' : activeConv.type === 'teachers' ? 'Teacher' : 'School'}
                                 </span>
                                 {activeConv.school_name && (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/40 truncate max-w-[120px]">{activeConv.school_name}</span>
+                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-muted-foreground truncate max-w-[120px]">{activeConv.school_name}</span>
                                 )}
                                 {activeConv.class_name && (
                                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">{activeConv.class_name}</span>
@@ -2276,21 +2276,21 @@ export default function UnifiedInbox() {
 
                       {/* Avatar + name */}
                       <div className="flex flex-col items-center gap-2 px-4">
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-2xl text-white shadow-lg ring-4 ring-white/[0.08] ${AVATAR_COLORS[activeConv.type]}`}>
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-2xl text-foreground shadow-lg ring-4 ring-white/[0.08] ${AVATAR_COLORS[activeConv.type]}`}>
                           {initials(activeConv.contact_name)}
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1.5 min-w-0">
-                            <h3 className="font-black text-white text-[15px] leading-tight">{activeConv.contact_name}</h3>
+                            <h3 className="font-black text-foreground text-[15px] leading-tight">{activeConv.contact_name}</h3>
                             {activeConv.opted_out && (
-                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/35 shrink-0">
                                 Opted Out
                               </span>
                             )}
                           </div>
                           <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
                             {activeConv.role && (
-                              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>
+                              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-muted-foreground'}`}>
                                 {activeConv.role}
                               </span>
                             )}
@@ -2348,7 +2348,7 @@ export default function UnifiedInbox() {
                             <span className="mt-0.5 shrink-0" style={{ color: '#8696a0' }}>{item.icon}</span>
                             <div className="min-w-0">
                               <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#8696a0' }}>{item.label}</p>
-                              <p className="text-white text-[12px] font-bold break-words">{item.value}</p>
+                              <p className="text-foreground text-[12px] font-bold break-words">{item.value}</p>
                             </div>
                           </div>
                         ))}
@@ -2357,7 +2357,7 @@ export default function UnifiedInbox() {
                         {activeConv.type === 'students' && activeConv.phone_number && newMessage.trim() && (
                           <a href={buildWaUrl(activeConv.phone_number, newMessage)}
                             target="_blank" rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-[12px] font-black transition-all active:scale-95"
+                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-foreground text-[12px] font-black transition-all active:scale-95"
                             style={{ background: '#00a884' }}
                             onClick={() => setNewMessage('')}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
@@ -2375,7 +2375,7 @@ export default function UnifiedInbox() {
                             <div className="grid grid-cols-1 gap-2">
                               <select value={convPriority}
                                 onChange={e => setConvPriority((e.target.value as 'low' | 'medium' | 'high') || 'medium')}
-                                className="w-full text-white text-[12px] rounded-xl px-3 py-2.5 outline-none appearance-none"
+                                className="w-full text-foreground text-[12px] rounded-xl px-3 py-2.5 outline-none appearance-none"
                                 style={{ background: '#2a3942' }}>
                                 <option value="low">Low priority</option>
                                 <option value="medium">Medium priority</option>
@@ -2383,7 +2383,7 @@ export default function UnifiedInbox() {
                               </select>
                               <input type="datetime-local" value={convSlaDueAt}
                                 onChange={e => setConvSlaDueAt(e.target.value)}
-                                className="w-full text-white text-[12px] rounded-xl px-3 py-2.5 outline-none"
+                                className="w-full text-foreground text-[12px] rounded-xl px-3 py-2.5 outline-none"
                                 style={{ background: '#2a3942' }} />
                             </div>
                             <button type="button" onClick={saveConversationMeta} disabled={savingConvMeta}
@@ -2410,7 +2410,7 @@ export default function UnifiedInbox() {
             {/* Message Input */}
             <div className="shrink-0 bg-[#202c33] border-none px-2 py-2 md:px-4 md:py-3">
               {(sendError || cooldownSeconds > 0) && (
-                <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10 gap-3">
+                <div className="px-4 py-2 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10 gap-3">
                   <span className="flex-1 flex items-center gap-2">
                     {cooldownSeconds > 0 ? (
                       <>
@@ -2435,23 +2435,23 @@ export default function UnifiedInbox() {
                 </div>
               )}
               {policySignal && (
-                <div className="px-4 py-2 bg-amber-500/10 text-amber-300 text-[11px] font-bold border-b border-amber-500/10 flex items-center justify-between">
+                <div className="px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px] font-bold border-b border-amber-500/10 flex items-center justify-between">
                   <span>{policySignal}</span>
-                  <button onClick={() => setPolicySignal('')}><X className="w-3 h-3 text-amber-300/50" /></button>
+                  <button onClick={() => setPolicySignal('')}><X className="w-3 h-3 text-amber-700/50 dark:text-amber-300/50" /></button>
                 </div>
               )}
               {isParentOrStudent && showConfirmDetailsCard && (
                 <div className="border-b border-amber-500/20 bg-amber-500/10 px-3 py-3">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-200">Confirm your details</p>
-                  <p className="mt-1 text-[11px] text-white/75">Please confirm once so support emails always include your school and class.</p>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-200">Confirm your details</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Please confirm once so support emails always include your school and class.</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <input value={confirmDetailsForm.full_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, full_name: e.target.value }))} placeholder="Full name" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
-                    <input value={confirmDetailsForm.email} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
-                    <input value={confirmDetailsForm.phone} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none sm:col-span-2" />
+                    <input value={confirmDetailsForm.full_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, full_name: e.target.value }))} placeholder="Full name" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-foreground outline-none" />
+                    <input value={confirmDetailsForm.email} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-foreground outline-none" />
+                    <input value={confirmDetailsForm.phone} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-foreground outline-none sm:col-span-2" />
                     {/* School & class are NOT asked here — they resolve automatically from the
                         child's record and reach support with every message. */}
                   </div>
-                  <label className="mt-2 flex items-center gap-2 text-[11px] text-white/80">
+                  <label className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <input type="checkbox" checked={confirmDetailsForm.confirmed} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, confirmed: e.target.checked }))} />
                     I confirm these details are correct.
                   </label>
@@ -2459,7 +2459,7 @@ export default function UnifiedInbox() {
                     <button type="button" onClick={submitConfirmDetails} disabled={confirmingDetails || !confirmDetailsForm.confirmed} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-black text-black disabled:opacity-50">
                       {confirmingDetails ? 'Saving...' : 'Confirm details'}
                     </button>
-                    <button type="button" onClick={() => setShowConfirmDetailsCard(false)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/80">
+                    <button type="button" onClick={() => setShowConfirmDetailsCard(false)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-muted-foreground">
                       Hide for now
                     </button>
                   </div>
@@ -2468,9 +2468,9 @@ export default function UnifiedInbox() {
               {activeConv?.opted_out ? (
                 <div className="px-5 py-4 bg-red-950/20 border-t border-red-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 select-none">
                   <div className="flex items-start gap-2.5 min-w-0">
-                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0 animate-pulse" />
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0 animate-pulse" />
                     <div>
-                      <p className="text-sm font-bold text-white leading-none">WhatsApp Outbound Blocked</p>
+                      <p className="text-sm font-bold text-foreground leading-none">WhatsApp Outbound Blocked</p>
                       <p className="text-[12px] text-[#8696a0] mt-1.5 leading-relaxed">
                         This contact has opted out of WhatsApp messages by texting "STOP". They must text "START" or "SUBSCRIBE" to opt back in before you can reply.
                       </p>
@@ -2478,7 +2478,7 @@ export default function UnifiedInbox() {
                   </div>
                   {activeConv.phone_number && (
                     <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500/25 hover:bg-red-500/35 border border-red-500/30 text-white text-[12px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shrink-0 self-start sm:self-center">
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500/25 hover:bg-red-500/35 border border-red-500/30 text-foreground text-[12px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shrink-0 self-start sm:self-center">
                       <ExternalLink className="w-4 h-4" /> Direct WA Link
                     </a>
                   )}
@@ -2534,7 +2534,7 @@ export default function UnifiedInbox() {
                       placeholder="Type a message" rows={1}
                       className="w-full bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
                     {newMessage.length > 3500 && (
-                      <span className={`absolute bottom-1.5 right-2 text-[9px] font-black pointer-events-none ${newMessage.length > 4000 ? 'text-rose-400' : 'text-amber-400'}`}>
+                      <span className={`absolute bottom-1.5 right-2 text-[9px] font-black pointer-events-none ${newMessage.length > 4000 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                         {4096 - newMessage.length}
                       </span>
                     )}
@@ -2581,7 +2581,7 @@ export default function UnifiedInbox() {
                 Company WhatsApp, teacher, parent, and student communication in one workspace.
               </p>
             </div>
-            <p className="text-white/15 text-[11px] mt-2 font-bold uppercase tracking-widest">
+            <p className="text-muted-foreground text-[11px] mt-2 font-bold uppercase tracking-widest">
               Select a conversation to start
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-7">
@@ -2590,10 +2590,10 @@ export default function UnifiedInbox() {
                   <Plus className="w-4 h-4" /> New Chat
                 </button>
               )}
-              <button onClick={isTeacher ? openAdminEmailCompose : isParentOrStudent ? openSupportEmailCompose : () => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-primary/20 hover:bg-primary/30 text-violet-300 text-[13px] font-black rounded-full border border-primary/20 transition-colors">
+              <button onClick={isTeacher ? openAdminEmailCompose : isParentOrStudent ? openSupportEmailCompose : () => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-primary/20 hover:bg-primary/30 text-violet-700 dark:text-violet-300 text-[13px] font-black rounded-full border border-primary/20 transition-colors">
                 <Mail className="w-4 h-4" /> {isTeacher ? 'Company Email' : isParentOrStudent ? 'Support Email' : 'Company Email'}
               </button>
-              <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] text-white/50 text-[13px] font-black rounded-full border border-white/[0.07] transition-colors">
+              <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] text-muted-foreground text-[13px] font-black rounded-full border border-white/[0.07] transition-colors">
                 <BookUser className="w-4 h-4" /> Contacts
               </button>
             </div>
@@ -2603,24 +2603,24 @@ export default function UnifiedInbox() {
                 className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 hover:border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
-                  <MessageSquare className="w-5 h-5 text-emerald-400" />
+                  <MessageSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Fast Response</p>
-                <h3 className="text-base font-black text-white mt-2">Start WhatsApp Chat</h3>
-                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Direct line to rillcod support. Chat in real-time for quick answers.</p>
-                <div className="mt-4 flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Fast Response</p>
+                <h3 className="text-base font-black text-foreground mt-2">Start WhatsApp Chat</h3>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Direct line to rillcod support. Chat in real-time for quick answers.</p>
+                <div className="mt-4 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest">
                   Open Channel <ChevronRight className="w-3 h-3" />
                 </div>
               </button>
 
               <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:border-cyan-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group">
                 <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mb-3 group-hover:bg-cyan-500/30 transition-colors">
-                  <FileText className="w-5 h-5 text-cyan-400" />
+                  <FileText className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
-                <h3 className="text-base font-black text-white mt-2">Open Support Ticket</h3>
-                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
-                <div className="mt-4 flex items-center gap-1.5 text-cyan-400 text-[10px] font-black uppercase tracking-widest">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-700 dark:text-cyan-300">Formal Support</p>
+                <h3 className="text-base font-black text-foreground mt-2">Open Support Ticket</h3>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
+                <div className="mt-4 flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-widest">
                   Create Ticket <ChevronRight className="w-3 h-3" />
                 </div>
               </Link>
@@ -2629,9 +2629,9 @@ export default function UnifiedInbox() {
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:bg-primary/30 transition-colors">
                   <Mail className="w-5 h-5 text-primary" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Company Email</p>
-                <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
-                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded company email to <span className="text-violet-300">{brandContact.email}</span>.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">Company Email</p>
+                <h3 className="text-base font-black text-foreground mt-2">Contact Support Team</h3>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Send a branded company email to <span className="text-violet-700 dark:text-violet-300">{brandContact.email}</span>.</p>
                 <div className="mt-4 flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-widest">
                   Send Email <ChevronRight className="w-3 h-3" />
                 </div>
@@ -2647,20 +2647,20 @@ export default function UnifiedInbox() {
                   }}
                   className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 hover:border-amber-400/40 transition-colors text-left"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Teacher Contact</p>
-                  <h3 className="text-sm font-black text-white mt-2">Find Teachers</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Open the directory filtered to teachers who can reply through the company WhatsApp lane.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">Teacher Contact</p>
+                  <h3 className="text-sm font-black text-foreground mt-2">Find Teachers</h3>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Open the directory filtered to teachers who can reply through the company WhatsApp lane.</p>
                 </button>
                 <button onClick={openAdminEmailCompose} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 hover:border-rose-400/40 transition-colors text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Admin Escalation</p>
-                  <h3 className="text-sm font-black text-white mt-2">Contact Admin Team</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Escalate urgent academic or account issues for admin review.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-700 dark:text-rose-300">Admin Escalation</p>
+                  <h3 className="text-sm font-black text-foreground mt-2">Contact Admin Team</h3>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Escalate urgent academic or account issues for admin review.</p>
                 </button>
                 {profile?.role === 'student' && (
                   <Link href="/dashboard/assignments" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 hover:border-emerald-400/40 transition-colors">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Assignment Alerts</p>
-                    <h3 className="text-sm font-black text-white mt-2">Assignments & Projects</h3>
-                    <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Coursework updates continue inside your assignment system alongside this WhatsApp lane.</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Assignment Alerts</p>
+                    <h3 className="text-sm font-black text-foreground mt-2">Assignments & Projects</h3>
+                    <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Coursework updates continue inside your assignment system alongside this WhatsApp lane.</p>
                   </Link>
                 )}
               </div>
@@ -2668,9 +2668,9 @@ export default function UnifiedInbox() {
             {isTeacher && (
               <div className="w-full max-w-3xl mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                 <button onClick={openAdminEmailCompose} className="rounded-2xl border border-primary/20 bg-primary/10 p-4 hover:border-primary/40 transition-colors text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Company Email</p>
-                  <h3 className="text-sm font-black text-white mt-2">Email Admin</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Use the branded company email flow for escalations and formal teacher-to-admin communication.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">Company Email</p>
+                  <h3 className="text-sm font-black text-foreground mt-2">Email Admin</h3>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Use the branded company email flow for escalations and formal teacher-to-admin communication.</p>
                 </button>
                 <button
                   onClick={() => {
@@ -2680,14 +2680,14 @@ export default function UnifiedInbox() {
                   }}
                   className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 hover:border-amber-400/40 transition-colors text-left"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Peer Contact</p>
-                  <h3 className="text-sm font-black text-white mt-2">Open Teacher Contacts</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Jump straight into the teacher directory when you need to coordinate as a company representative.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">Peer Contact</p>
+                  <h3 className="text-sm font-black text-foreground mt-2">Open Teacher Contacts</h3>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Jump straight into the teacher directory when you need to coordinate as a company representative.</p>
                 </button>
                 <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 hover:border-cyan-400/40 transition-colors">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Support</p>
-                  <h3 className="text-sm font-black text-white mt-2">Open Staff Ticket</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Create a tracked support request when the issue should not live only in chat.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-700 dark:text-cyan-300">Support</p>
+                  <h3 className="text-sm font-black text-foreground mt-2">Open Staff Ticket</h3>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Create a tracked support request when the issue should not live only in chat.</p>
                 </Link>
               </div>
             )}
@@ -2710,14 +2710,14 @@ export default function UnifiedInbox() {
             {/* Header */}
             <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
               <button onClick={() => setShowNewChat(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0">
-                <ChevronLeft className="w-5 h-5 text-white/70" />
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#0284c7' }}>
                   <MessageSquare className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">New In-App Message</h2>
+                  <h2 className="text-foreground font-black text-[16px]">New In-App Message</h2>
                   <p className="text-[11px]" style={{ color: '#8696a0' }}>
                     {activeTab === 'students' ? 'Search students' : activeTab === 'parents' ? 'Search parents' : activeTab === 'teachers' ? 'Search teachers' : isSchool ? 'Search teachers' : 'Search partner schools'}
                   </p>
@@ -2731,7 +2731,7 @@ export default function UnifiedInbox() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                 <input autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
                   placeholder="Search by name, school…"
-                  className="w-full text-white text-[14px] rounded-xl pl-9 pr-4 py-2.5 outline-none"
+                  className="w-full text-foreground text-[14px] rounded-xl pl-9 pr-4 py-2.5 outline-none"
                   style={{ background: '#2a3942', caretColor: '#00a884' }}
                 />
               </div>
@@ -2749,15 +2749,15 @@ export default function UnifiedInbox() {
                     <button key={item.id} onClick={() => startNewConversation(item)}
                       className="w-full flex items-center px-4 py-3.5 hover:bg-white/[0.05] active:bg-white/10 transition-colors text-left group"
                       style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-[15px] text-white shrink-0 mr-3.5 ${AVATAR_COLORS[activeTab]}`}>
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-[15px] text-foreground shrink-0 mr-3.5 ${AVATAR_COLORS[activeTab]}`}>
                         {initials(item.full_name || item.name || 'U')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white text-[14px] truncate">{item.full_name || item.name}</p>
+                        <p className="font-bold text-foreground text-[14px] truncate">{item.full_name || item.name}</p>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
                           {item.phone && <span className="text-[11px] flex items-center gap-0.5" style={{ color: '#00a884' }}><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
                           {item.school_name && <span className="text-[11px] truncate" style={{ color: '#8696a0' }}>{item.school_name}</span>}
-                          {item.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
+                          {item.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-muted-foreground'}`}>{item.role}</span>}
                           {!item.phone && activeTab === 'students' && <span className="text-[10px] font-bold" style={{ color: '#f87171' }}>No phone</span>}
                         </div>
                       </div>
@@ -2778,7 +2778,7 @@ export default function UnifiedInbox() {
                         <Plus className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-black text-white text-[14px]">Message +{directorySearch.replace(/\D/g, '')} via WhatsApp</p>
+                        <p className="font-black text-foreground text-[14px]">Message +{directorySearch.replace(/\D/g, '')} via WhatsApp</p>
                         <p className="text-[11px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#00a884' }}>Start WhatsApp conversation</p>
                       </div>
                     </button>
@@ -2814,65 +2814,65 @@ export default function UnifiedInbox() {
                   {editingContact ? <Pencil className="w-4 h-4 text-primary" /> : <UserPlus className="w-4 h-4 text-primary" />}
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">{editingContact ? 'Edit Contact' : 'New Contact'}</h2>
-                  <p className="text-white/30 text-xs">{editingContact ? 'Update contact details' : 'Add to your contact book'}</p>
+                  <h2 className="text-foreground font-black text-[16px]">{editingContact ? 'Edit Contact' : 'New Contact'}</h2>
+                  <p className="text-muted-foreground text-xs">{editingContact ? 'Update contact details' : 'Add to your contact book'}</p>
                 </div>
               </div>
               <button onClick={() => { setShowAddContact(false); setEditingContact(null); setContactError(''); }}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-white/50" /></button>
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
 
             {/* Form */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
               {contactError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm font-bold flex items-center gap-2">
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-600 dark:text-rose-400 text-sm font-bold flex items-center gap-2">
                   <X className="w-4 h-4 shrink-0" />{contactError}
                 </div>
               )}
 
               {/* Full Name */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  Full Name <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                  Full Name <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <div className="relative">
-                  <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={addContactForm.full_name} onChange={e => setAddContactForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="e.g. Amara Okonkwo" autoFocus
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Phone / WhatsApp</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Phone / WhatsApp</label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={addContactForm.phone} onChange={e => setAddContactForm(f => ({ ...f, phone: e.target.value }))}
                     placeholder="+234 800 000 0000" type="tel"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Email</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Email</label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={addContactForm.email} onChange={e => setAddContactForm(f => ({ ...f, email: e.target.value }))}
                     placeholder="name@school.edu.ng" type="email"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
               {/* Role */}
               {!editingContact && (
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Role / Type</label>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Role / Type</label>
                   <div className="flex gap-2 flex-wrap">
                     {['student', 'parent', 'teacher', 'school', 'external'].map(r => (
                       <button key={r} type="button" onClick={() => setAddContactForm(f => ({ ...f, role: r }))}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase transition-colors ${addContactForm.role === r ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase transition-colors ${addContactForm.role === r ? 'bg-primary text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}>
                         {r}
                       </button>
                     ))}
@@ -2882,39 +2882,39 @@ export default function UnifiedInbox() {
 
               {/* School */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">School / Organisation</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">School / Organisation</label>
                 <div className="relative">
-                  <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={addContactForm.school_name} onChange={e => setAddContactForm(f => ({ ...f, school_name: e.target.value }))}
                     placeholder="e.g. Lagos Academy"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
               {/* Class */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Class / Group</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Class / Group</label>
                 <div className="relative">
-                  <GraduationCap className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <GraduationCap className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={addContactForm.class_name} onChange={e => setAddContactForm(f => ({ ...f, class_name: e.target.value }))}
                     placeholder="e.g. JSS 2A"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Notes (optional)</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Notes (optional)</label>
                 <textarea value={addContactForm.notes} onChange={e => setAddContactForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Any additional context…" rows={2}
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl px-4 py-2.5 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                  className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl px-4 py-2.5 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex gap-3">
               <button onClick={() => { setShowAddContact(false); setEditingContact(null); setContactError(''); }}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-muted-foreground text-sm font-black transition-colors">
                 Cancel
               </button>
               <button onClick={saveContact} disabled={savingContact || !addContactForm.full_name.trim()}
@@ -2931,36 +2931,36 @@ export default function UnifiedInbox() {
           <div className="w-full max-w-sm bg-[#202c33] rounded-2xl overflow-hidden shadow-2xl">
             <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
               <div>
-                <h2 className="text-white font-black text-[16px]">New Conversation</h2>
-                <p className="text-white/40 text-xs mt-0.5">
+                <h2 className="text-foreground font-black text-[16px]">New Conversation</h2>
+                <p className="text-muted-foreground text-xs mt-0.5">
                   With: <strong className="text-primary">{subjectDialog.pendingItem?.full_name || subjectDialog.pendingItem?.name || 'Contact'}</strong>
                 </p>
               </div>
               <button onClick={() => setSubjectDialog({ open: false, subject: '', pendingItem: null })} className="p-2 hover:bg-white/10 rounded-full">
-                <X className="w-5 h-5 text-white/50" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  Subject / Topic <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                  Subject / Topic <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <div className="relative">
-                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
                     autoFocus
                     value={subjectDialog.subject}
                     onChange={e => setSubjectDialog(d => ({ ...d, subject: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') confirmSubjectAndCreate(); }}
                     placeholder="e.g. Student progress update"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40"
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40"
                   />
                 </div>
               </div>
             </div>
             <div className="px-5 pb-5 flex gap-3">
               <button onClick={() => setSubjectDialog({ open: false, subject: '', pendingItem: null })}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-muted-foreground text-sm font-black transition-colors">
                 Cancel
               </button>
               <button onClick={confirmSubjectAndCreate} disabled={!subjectDialog.subject.trim()}
@@ -2988,14 +2988,14 @@ export default function UnifiedInbox() {
             <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
               <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0">
-                <ChevronLeft className="w-5 h-5 text-white/70" />
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7c3aed' }}>
                   <Mail className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">New Email</h2>
+                  <h2 className="text-foreground font-black text-[16px]">New Email</h2>
                   <p className="text-[11px]" style={{ color: '#8696a0' }}>via {brandContact.email}</p>
                 </div>
               </div>
@@ -3025,7 +3025,7 @@ export default function UnifiedInbox() {
                   <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.to} onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
                     placeholder="recipient@email.com" type="email" autoFocus={!emailForm.to}
-                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    className="w-full text-foreground text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
                     style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
                 {emailForm.to_name && (
@@ -3040,7 +3040,7 @@ export default function UnifiedInbox() {
                   <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.cc} onChange={e => setEmailForm(f => ({ ...f, cc: e.target.value }))}
                     placeholder="cc@email.com"
-                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    className="w-full text-foreground text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
                     style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
               </div>
@@ -3054,7 +3054,7 @@ export default function UnifiedInbox() {
                   <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
                     placeholder="e.g. Student Progress Update – Term 2"
-                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    className="w-full text-foreground text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
                     style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
               </div>
@@ -3069,7 +3069,7 @@ export default function UnifiedInbox() {
                   onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
                   placeholder="Write your message…"
                   rows={7}
-                  className="w-full text-white text-[14px] rounded-xl px-4 py-3 outline-none resize-none leading-relaxed"
+                  className="w-full text-foreground text-[14px] rounded-xl px-4 py-3 outline-none resize-none leading-relaxed"
                   style={{ background: '#2a3942', caretColor: '#7c3aed' }}
                 />
               </div>
@@ -3093,7 +3093,7 @@ export default function UnifiedInbox() {
                 Discard
               </button>
               <button onClick={sendEmail} disabled={sendingEmail || !emailForm.to.trim() || !emailForm.subject.trim() || !emailForm.body.trim()}
-                className="flex-1 py-3 rounded-xl text-white text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                className="flex-1 py-3 rounded-xl text-foreground text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
                 style={{ background: '#7c3aed' }}>
                 {sendingEmail
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
@@ -3115,8 +3115,8 @@ export default function UnifiedInbox() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
                 <UserCircle className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-white font-black text-lg">Complete Your Profile</h2>
-              <p className="text-white/40 text-xs mt-1 leading-relaxed">
+              <h2 className="text-foreground font-black text-lg">Complete Your Profile</h2>
+              <p className="text-muted-foreground text-xs mt-1 leading-relaxed">
                 Before sending a message, please fill in your details so recipients know who you are.
               </p>
             </div>
@@ -3124,30 +3124,30 @@ export default function UnifiedInbox() {
             {/* Form */}
             <div className="p-5 space-y-3">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Your Full Name <span className="text-rose-400">*</span></label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Your Full Name <span className="text-rose-600 dark:text-rose-400">*</span></label>
                 <div className="relative">
-                  <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={profileForm.full_name} onChange={e => setProfileForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="e.g. Mrs. Adaeze Okafor" autoFocus
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Phone / WhatsApp</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Phone / WhatsApp</label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
                     placeholder="+234 800 000 0000" type="tel"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">School / Organisation</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">School / Organisation</label>
                 <div className="relative">
-                  <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={profileForm.school_name} onChange={e => setProfileForm(f => ({ ...f, school_name: e.target.value }))}
                     placeholder="e.g. Lagos Academy"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full bg-[#2a3942] text-foreground text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
             </div>
@@ -3155,7 +3155,7 @@ export default function UnifiedInbox() {
             {/* Actions */}
             <div className="px-5 pb-5 flex gap-3">
               <button onClick={() => { setShowProfilePopup(false); setPendingSendBody(''); }}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-muted-foreground text-sm font-black transition-colors">
                 Cancel
               </button>
               <button onClick={saveProfileAndSend} disabled={savingProfile || !profileForm.full_name.trim()}
@@ -3197,10 +3197,10 @@ export default function UnifiedInbox() {
                 onClick={() => setShowNewMessagePicker(false)}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0"
               >
-                <ChevronLeft className="w-5 h-5 text-white/70" />
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <div>
-                <h2 className="text-white font-black text-[17px] tracking-tight">New Message</h2>
+                <h2 className="text-foreground font-black text-[17px] tracking-tight">New Message</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: '#8696a0' }}>Choose how to reach out</p>
               </div>
             </div>
@@ -3220,7 +3220,7 @@ export default function UnifiedInbox() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-[15px]">WhatsApp</p>
+                  <p className="text-foreground font-bold text-[15px]">WhatsApp</p>
                   <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Start a chat with any phone number</p>
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
@@ -3237,7 +3237,7 @@ export default function UnifiedInbox() {
                   <Mail className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-[15px]">Email</p>
+                  <p className="text-foreground font-bold text-[15px]">Email</p>
                   <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Send branded email via {brandContact.email}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
@@ -3254,7 +3254,7 @@ export default function UnifiedInbox() {
                   <MessageSquare className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-[15px]">In-App Message</p>
+                  <p className="text-foreground font-bold text-[15px]">In-App Message</p>
                   <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Message students, teachers or schools in the platform</p>
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
@@ -3286,7 +3286,7 @@ export default function UnifiedInbox() {
                 onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
                 className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0"
               >
-                <ChevronLeft className="w-5 h-5 text-white/70" />
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#00a884' }}>
@@ -3296,7 +3296,7 @@ export default function UnifiedInbox() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">New WhatsApp Chat</h2>
+                  <h2 className="text-foreground font-black text-[16px]">New WhatsApp Chat</h2>
                   <p className="text-[11px]" style={{ color: '#8696a0' }}>Enter any phone number</p>
                 </div>
               </div>
@@ -3324,7 +3324,7 @@ export default function UnifiedInbox() {
                     onKeyDown={e => { if (e.key === 'Enter') startQuickChat(); }}
                     placeholder="+234 800 000 0000"
                     type="tel"
-                    className="w-full text-white text-[15px] rounded-xl pl-10 pr-4 py-3.5 outline-none placeholder-white/20"
+                    className="w-full text-foreground text-[15px] rounded-xl pl-10 pr-4 py-3.5 outline-none placeholder-white/20"
                     style={{ background: '#2a3942', caretColor: '#00a884' }}
                   />
                 </div>
@@ -3337,12 +3337,12 @@ export default function UnifiedInbox() {
               {quickChatNumber.replace(/\D/g, '').length >= 7 && (
                 <div className="rounded-xl p-3.5 flex items-center gap-3"
                   style={{ background: 'rgba(0,168,132,0.08)', border: '1px solid rgba(0,168,132,0.25)' }}>
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white font-black text-lg"
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-foreground font-black text-lg"
                     style={{ background: '#00a884' }}>
                     {quickChatNumber.replace(/\D/g, '').slice(-2)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-[14px] font-bold truncate">+{quickChatNumber.replace(/\D/g, '')}</p>
+                    <p className="text-foreground text-[14px] font-bold truncate">+{quickChatNumber.replace(/\D/g, '')}</p>
                     <p className="text-[11px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#00a884' }}>Ready to message</p>
                   </div>
                   <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: '#00a884' }} />
@@ -3362,7 +3362,7 @@ export default function UnifiedInbox() {
               <button
                 onClick={startQuickChat}
                 disabled={!quickChatNumber.trim() || quickChatNumber.replace(/\D/g, '').length < 7}
-                className="flex-1 py-3 rounded-xl text-white text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                className="flex-1 py-3 rounded-xl text-foreground text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
                 style={{ background: '#00a884' }}
               >
                 <Send className="w-4 h-4" /> Start Chat

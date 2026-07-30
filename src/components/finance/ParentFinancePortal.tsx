@@ -55,11 +55,11 @@ interface BankAccount {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; style: string; icon: any }> = {
-  paid:    { label: 'Paid',    style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', icon: CheckCircleIcon },
+  paid:    { label: 'Paid',    style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400', icon: CheckCircleIcon },
   sent:    { label: 'Due',     style: 'bg-primary/10 border-primary/30 text-primary',              icon: ClockIcon },
-  pending: { label: 'Pending', style: 'bg-amber-500/10 border-amber-500/30 text-amber-400',      icon: ClockIcon },
-  partially_paid: { label: 'Part Paid', style: 'bg-amber-500/10 border-amber-500/30 text-amber-400', icon: ClockIcon },
-  overdue: { label: 'Overdue', style: 'bg-rose-500/10 border-rose-500/30 text-rose-400',          icon: ExclamationTriangleIcon },
+  pending: { label: 'Pending', style: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',      icon: ClockIcon },
+  partially_paid: { label: 'Part Paid', style: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400', icon: ClockIcon },
+  overdue: { label: 'Overdue', style: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400',          icon: ExclamationTriangleIcon },
   draft:   { label: 'Draft',   style: 'bg-muted border-border text-muted-foreground',             icon: ClockIcon },
 };
 
@@ -137,8 +137,8 @@ function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; st
   if (submitted) {
     return (
       <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl mt-2">
-        <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-        <p className="text-[11px] text-emerald-400 font-bold">Evidence submitted — admin/teacher will review and confirm your payment.</p>
+        <DocumentCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">Evidence submitted — admin/teacher will review and confirm your payment.</p>
       </div>
     );
   }
@@ -157,7 +157,7 @@ function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; st
             placeholder="Full name" className={inp} />
         </div>
         <div>
-          <label className={lbl}>Grade Level <span className="text-rose-400">*</span></label>
+          <label className={lbl}>Grade Level <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} className={inp}>
             <option value="">— Select grade —</option>
             {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
@@ -167,12 +167,12 @@ function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; st
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={lbl}>Receipt / Transaction No. <span className="text-rose-400">*</span></label>
+          <label className={lbl}>Receipt / Transaction No. <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)}
             placeholder="e.g. TRF-20240901" className={inp} />
         </div>
         <div>
-          <label className={lbl}>Date of Payment <span className="text-rose-400">*</span></label>
+          <label className={lbl}>Date of Payment <span className="text-rose-600 dark:text-rose-400">*</span></label>
           <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className={inp} />
         </div>
       </div>
@@ -204,7 +204,7 @@ function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; st
         </label>
       </div>
 
-      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">{error}</p>}
 
       <button onClick={handleSubmit} disabled={submitting}
         className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
@@ -284,7 +284,7 @@ function PayModal({
             <>
               {error && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                  <p className="text-xs text-rose-400">{error}</p>
+                  <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
                 </div>
               )}
               <button onClick={initiate} disabled={loading}
@@ -364,13 +364,13 @@ function PayModal({
                           ))}
                         </div>
                         {acc.payment_note && (
-                          <p className="text-[10px] text-amber-400 italic mt-1">{acc.payment_note}</p>
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 italic mt-1">{acc.payment_note}</p>
                         )}
                       </div>
                     ))}
 
                     <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                      <p className="text-[10px] text-amber-400 leading-relaxed">
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
                         <span className="font-black">Important:</span> After paying, submit your payment evidence below. Include your receipt number, grade level, and date of payment. Admin/teacher will confirm and your receipt will be issued automatically.
                       </p>
                     </div>
@@ -495,17 +495,17 @@ function ParentInvoicesContent() {
         }`}>
           <div className="flex items-center gap-3">
             {paymentParam === 'cancelled' ? (
-              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             ) : (
-              <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             )}
-            <p className={`text-sm font-bold ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>
+            <p className={`text-sm font-bold ${paymentParam === 'cancelled' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
               {paymentParam === 'cancelled'
                 ? 'Payment was cancelled. No receipt will be issued until payment is completed.'
                 : 'Payment initiated! Your receipt will be automatically generated and sent once confirmed.'}
             </p>
           </div>
-          <button onClick={() => setShowPaymentBanner(false)} className={`font-black text-sm shrink-0 ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>✕</button>
+          <button onClick={() => setShowPaymentBanner(false)} className={`font-black text-sm shrink-0 ${paymentParam === 'cancelled' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>✕</button>
         </div>
       )}
 
@@ -546,12 +546,12 @@ function ParentInvoicesContent() {
               <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-600 to-rose-400 opacity-[0.04]" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 relative z-10">Outstanding</p>
-                <p className="text-2xl font-black text-rose-400 relative z-10">{formatCurrency(totalOwed, invoices[0]?.currency ?? 'NGN')}</p>
+                <p className="text-2xl font-black text-rose-600 dark:text-rose-400 relative z-10">{formatCurrency(totalOwed, invoices[0]?.currency ?? 'NGN')}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-emerald-400 opacity-[0.04]" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 relative z-10">Total Paid</p>
-                <p className="text-2xl font-black text-emerald-400 relative z-10">{formatCurrency(totalPaid, 'NGN')}</p>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 relative z-10">{formatCurrency(totalPaid, 'NGN')}</p>
               </div>
             </div>
           )}
@@ -655,7 +655,7 @@ function ParentInvoicesContent() {
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                              className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                             >
                               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.139.565 4.143 1.548 5.877L.057 23.43a.75.75 0 0 0 .928.928l5.554-1.49A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.5a10.45 10.45 0 0 1-5.348-1.467l-.383-.228-3.975 1.066 1.067-3.894-.25-.4A10.451 10.451 0 0 1 1.5 12C1.5 6.201 6.201 1.5 12 1.5S22.5 6.201 22.5 12 17.799 22.5 12 22.5z"/></svg>
                               WhatsApp Admin
@@ -664,7 +664,7 @@ function ParentInvoicesContent() {
                         )}
 
                         {inv.status === 'paid' && (
-                          <div className="mt-3 flex items-center gap-2 text-emerald-400">
+                          <div className="mt-3 flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                             <CheckCircleIcon className="w-4 h-4" />
                             <span className="text-[11px] font-black uppercase tracking-widest">Paid — Receipt auto-issued</span>
                           </div>
@@ -710,10 +710,10 @@ function ParentInvoicesContent() {
                         : '—';
                       const statusClass =
                         pay.payment_status === 'completed'
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                           : pay.payment_status === 'pending'
-                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                            : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                            : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400';
                       return (
                         <div key={pay.id}>
                           {/* Mobile stacked card */}

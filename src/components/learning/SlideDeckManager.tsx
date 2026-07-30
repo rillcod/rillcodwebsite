@@ -146,7 +146,7 @@ export default function SlideDeckManager({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Slides ({slides.length})</p>
-                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/25 rounded-lg cursor-pointer hover:bg-violet-500/20 transition-all">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-300 bg-violet-500/10 border border-violet-500/25 rounded-lg cursor-pointer hover:bg-violet-500/20 transition-all">
                   <PlusIcon className="w-3.5 h-3.5" /> Add
                   <input type="file" className="hidden" accept="image/*" multiple onChange={e => { addImages(e.target.files); e.currentTarget.value = ''; }} />
                 </label>
@@ -156,10 +156,10 @@ export default function SlideDeckManager({
                   <div key={`${key}-${i}`} className="relative group border border-border rounded-lg overflow-hidden bg-muted/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={slideUrl(key)} alt={`Slide ${i + 1}`} className="w-full h-24 object-cover" />
-                    <span className="absolute top-1 left-1 text-[9px] font-black text-white bg-black/60 px-1.5 py-0.5 rounded">{i + 1}</span>
+                    <span className="absolute top-1 left-1 text-[9px] font-black text-foreground bg-black/60 px-1.5 py-0.5 rounded">{i + 1}</span>
                     <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => move(i, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center bg-black/70 text-white text-xs rounded disabled:opacity-30">↑</button>
-                      <button onClick={() => move(i, 1)} disabled={i === slides.length - 1} className="w-6 h-6 flex items-center justify-center bg-black/70 text-white text-xs rounded disabled:opacity-30">↓</button>
+                      <button onClick={() => move(i, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center bg-black/70 text-foreground text-xs rounded disabled:opacity-30">↑</button>
+                      <button onClick={() => move(i, 1)} disabled={i === slides.length - 1} className="w-6 h-6 flex items-center justify-center bg-black/70 text-foreground text-xs rounded disabled:opacity-30">↓</button>
                       <button onClick={() => remove(i)} className="w-6 h-6 flex items-center justify-center bg-rose-500/80 hover:bg-rose-500 text-white rounded"><TrashIcon className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -168,8 +168,8 @@ export default function SlideDeckManager({
             </div>
           )}
 
-          {busy && <p className="text-xs text-amber-400">{busy}</p>}
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {busy && <p className="text-xs text-amber-600 dark:text-amber-400">{busy}</p>}
+          {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
         </div>
 
         <div className="flex gap-2 px-5 py-4 border-t border-border shrink-0">

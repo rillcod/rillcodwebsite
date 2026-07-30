@@ -826,7 +826,7 @@ export default function CRMPage() {
     return (
       <div className="flex items-center justify-center min-h-screen text-muted-foreground">
         <div className="text-center">
-          <AlertCircle className="mx-auto mb-3 text-rose-500" size={32} />
+          <AlertCircle className="mx-auto mb-3 text-rose-600 dark:text-rose-400" size={32} />
           <p className="font-semibold text-foreground">CRM access is for staff only</p>
         </div>
       </div>
@@ -1023,13 +1023,13 @@ export default function CRMPage() {
                                 <div className="space-y-0.5">
                                   {(c.phone || c.phone_number) && (
                                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground/90">
-                                      <Phone size={8} className="shrink-0 text-emerald-500/70" />
+                                      <Phone size={8} className="shrink-0 text-emerald-600/70 dark:text-emerald-400/70" />
                                       <span className="truncate">{c.phone || c.phone_number}</span>
                                     </div>
                                   )}
                                   {c.email && (
                                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground/90">
-                                      <Mail size={8} className="shrink-0 text-sky-500/70" />
+                                      <Mail size={8} className="shrink-0 text-sky-600/70 dark:text-sky-400/70" />
                                       <span className="truncate">{c.email}</span>
                                     </div>
                                   )}
@@ -1379,14 +1379,14 @@ export default function CRMPage() {
                           <div key={task.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${task.status === 'completed' ? 'bg-muted/20 border-border/80 opacity-60' : isOverdue(task) ? 'bg-rose-500/5 dark:bg-rose-950/10 border-rose-500/20' : 'bg-card border-border'}`}>
                             <button onClick={() => toggleTask(task)} className="mt-0.5 shrink-0">
                               {task.status === 'completed'
-                                ? <CheckCircle size={16} className="text-emerald-500" />
+                                ? <CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
                                 : <Circle size={16} className="text-muted-foreground hover:text-primary" />}
                             </button>
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{task.title}</p>
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 {task.due_at && (
-                                  <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue(task) ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                                  <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue(task) ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                                     <Calendar size={9} /> {fmtDate(task.due_at)}
                                   </span>
                                 )}
@@ -1394,7 +1394,7 @@ export default function CRMPage() {
                                 {task.owner_name && <span className="text-[10px] text-muted-foreground/80">→ {task.owner_name}</span>}
                               </div>
                             </div>
-                            <button onClick={() => deleteTask(task.id)} className="shrink-0 p-1 rounded text-muted-foreground/60 hover:text-rose-500 transition-colors">
+                            <button onClick={() => deleteTask(task.id)} className="shrink-0 p-1 rounded text-muted-foreground/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                               <Trash2 size={13} />
                             </button>
                           </div>
@@ -1501,7 +1501,7 @@ export default function CRMPage() {
                                 </div>
                                 {opp.notes && <p className="text-xs text-muted-foreground mt-1">{opp.notes}</p>}
                               </div>
-                              <button onClick={() => deleteOpp(opp.id)} className="shrink-0 p-1 rounded text-muted-foreground/60 hover:text-rose-500 transition-colors">
+                              <button onClick={() => deleteOpp(opp.id)} className="shrink-0 p-1 rounded text-muted-foreground/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                                 <Trash2 size={13} />
                               </button>
                             </div>
@@ -1561,7 +1561,7 @@ export default function CRMPage() {
                                 </a>
                               )}
                               <button onClick={() => deleteAttachment(a.id)}
-                                className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-rose-500 transition-colors">
+                                className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
                                 <Trash2 size={13} />
                               </button>
                             </div>
@@ -1588,7 +1588,7 @@ export default function CRMPage() {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              {newErr && <p className="text-xs text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{newErr}</p>}
+              {newErr && <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{newErr}</p>}
               <div className="grid grid-cols-1 gap-3">
                 {([
                   ['Full name *', newName, setNewName, 'text', true],
@@ -1671,7 +1671,7 @@ export default function CRMPage() {
             </div>
             <div className="p-5 space-y-4">
               {linkError && (
-                <p className="text-xs text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
                   {linkError}
                 </p>
               )}

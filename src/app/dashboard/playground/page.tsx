@@ -26,11 +26,11 @@ import StudioUI from './StudioUI';
 // ─── Constants ───────────────────────────────────────────────
 const LANGUAGES = [
   { id: 'python',     name: 'Python',      emoji: '🐍', color: 'text-primary',    bg: 'bg-primary/10',    border: 'border-primary/30',    desc: 'Powerful & Readable' },
-  { id: 'javascript', name: 'JavaScript',  emoji: '⚡', color: 'text-yellow-400',  bg: 'bg-yellow-500/10',  border: 'border-yellow-500/30',  desc: 'Web & Beyond' },
+  { id: 'javascript', name: 'JavaScript',  emoji: '⚡', color: 'text-yellow-600 dark:text-yellow-400',  bg: 'bg-yellow-500/10',  border: 'border-yellow-500/30',  desc: 'Web & Beyond' },
   { id: 'html',       name: 'HTML/CSS',    emoji: '🌐', color: 'text-primary',  bg: 'bg-primary/10',  border: 'border-primary/30',  desc: 'UI & Web Design' },
-  { id: 'blockly',    name: 'Blockly',     emoji: '🧩', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', desc: 'Visual Logic' },
-  { id: 'scratch',    name: 'Scratch Lab', emoji: '🎮', color: 'text-pink-400',    bg: 'bg-pink-500/10',    border: 'border-pink-500/30',    desc: 'Drag-Drop Blocks' },
-  { id: 'robotics',   name: 'Robotics',    emoji: '🤖', color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    desc: 'Simulate & Code' },
+  { id: 'blockly',    name: 'Blockly',     emoji: '🧩', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', desc: 'Visual Logic' },
+  { id: 'scratch',    name: 'Scratch Lab', emoji: '🎮', color: 'text-pink-600 dark:text-pink-400',    bg: 'bg-pink-500/10',    border: 'border-pink-500/30',    desc: 'Drag-Drop Blocks' },
+  { id: 'robotics',   name: 'Robotics',    emoji: '🤖', color: 'text-cyan-600 dark:text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    desc: 'Simulate & Code' },
 ];
 
 const STARTER_CODE: Record<string, string> = {
@@ -61,7 +61,7 @@ function XPToast({ xp, reason }: { xp: number; reason: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-500/20 to-primary/20 border border-amber-500/30 rounded-xl shadow-xl">
       <span className="text-2xl animate-bounce">⚡</span>
-      <div><p className="text-xs font-black text-amber-400 uppercase tracking-widest">+{xp} XP</p><p className="text-[10px] text-amber-300/70">{reason}</p></div>
+      <div><p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">+{xp} XP</p><p className="text-[10px] text-amber-700/70 dark:text-amber-300/70">{reason}</p></div>
     </div>
   );
 }
@@ -130,7 +130,7 @@ function RobotSimulator({ code, isRunning, onFinish, commands: propCmds }: { cod
     <div className="relative w-full bg-[#0d1526] overflow-hidden border border-border rounded-xl shadow-2xl" style={{ aspectRatio: '1/1', maxHeight: 320 }}>
       <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur rounded-lg border border-white/10">
         <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-        <span className="text-[8px] font-black text-white/50 uppercase tracking-widest">{isRunning ? 'Running' : 'Ready'}</span>
+        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{isRunning ? 'Running' : 'Ready'}</span>
       </div>
       <canvas ref={canvasRef} width={600} height={600} className="w-full h-full" />
     </div>
@@ -474,9 +474,9 @@ import json; robot=Robot()`);
     const next = pts >= 5000 ? 10000 : pts >= 2000 ? 5000 : pts >= 500 ? 2000 : 500;
     const prev = pts >= 5000 ? 5000 : pts >= 2000 ? 2000 : pts >= 500 ? 500 : 0;
     const pct  = Math.min(100, Math.round(((pts - prev) / (next - prev)) * 100));
-    if (pts >= 5000) return { label: 'Platinum', color: 'text-cyan-300',   bar: 'bg-cyan-400',   emoji: '💎', pts, pct };
-    if (pts >= 2000) return { label: 'Gold',     color: 'text-amber-300',  bar: 'bg-amber-400',  emoji: '🥇', pts, pct };
-    if (pts >= 500)  return { label: 'Silver',   color: 'text-slate-300',  bar: 'bg-slate-400',  emoji: '🥈', pts, pct };
+    if (pts >= 5000) return { label: 'Platinum', color: 'text-cyan-700 dark:text-cyan-300',   bar: 'bg-cyan-400',   emoji: '💎', pts, pct };
+    if (pts >= 2000) return { label: 'Gold',     color: 'text-amber-700 dark:text-amber-300',  bar: 'bg-amber-400',  emoji: '🥇', pts, pct };
+    if (pts >= 500)  return { label: 'Silver',   color: 'text-slate-700 dark:text-slate-300',  bar: 'bg-slate-400',  emoji: '🥈', pts, pct };
     return               { label: 'Bronze',   color: 'text-primary', bar: 'bg-primary', emoji: '🥉', pts, pct };
   }, [userPoints]);
 

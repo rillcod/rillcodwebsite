@@ -131,7 +131,7 @@ const ProgramExplorer: React.FC = () => {
                     <p className={`text-xs font-black uppercase tracking-widest ${activeTab === p.id ? 'text-white' : 'text-foreground'}`}>
                       {p.title}
                     </p>
-                    <p className={`text-[9px] font-bold ${activeTab === p.id ? 'text-white/70' : 'text-muted-foreground'}`}>
+                    <p className={`text-[9px] font-bold ${activeTab === p.id ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                       {p.age}
                     </p>
                   </div>
@@ -173,9 +173,9 @@ const ProgramExplorer: React.FC = () => {
                   <div className="flex flex-col md:flex-row md:items-center gap-6 mb-10">
                     <div className={`w-20 h-20 ${activeProgram.bg} border ${activeProgram.border} flex items-center justify-center p-4 shadow-inner`}>
                       <activeProgram.icon className={`w-10 h-10 ${activeProgram.id === 'scratch' ? 'text-primary' : 
-                        activeProgram.id === 'ict' ? 'text-emerald-500' :
+                        activeProgram.id === 'ict' ? 'text-emerald-600 dark:text-emerald-400' :
                         activeProgram.id === 'web' ? 'text-primary' :
-                        activeProgram.id === 'python' ? 'text-primary' : 'text-pink-500'}`} />
+                        activeProgram.id === 'python' ? 'text-primary' : 'text-pink-600 dark:text-pink-400'}`} />
                     </div>
                     <div>
                       <span className={`text-[10px] font-black uppercase tracking-[0.4em] px-3 py-1 bg-muted border border-border mb-2 inline-block`}>

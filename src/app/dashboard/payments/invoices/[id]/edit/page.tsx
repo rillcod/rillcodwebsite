@@ -14,8 +14,8 @@ type LineItem = { description: string; quantity: number; unit_price: number; tot
 
 const STATUSES: { value: string; label: string; color: string }[] = [
   { value: 'draft',     label: 'Draft',     color: 'border-border text-muted-foreground' },
-  { value: 'sent',      label: 'Sent',      color: 'border-amber-500/40 text-amber-400' },
-  { value: 'overdue',   label: 'Overdue',   color: 'border-rose-500/40 text-rose-400' },
+  { value: 'sent',      label: 'Sent',      color: 'border-amber-500/40 text-amber-600 dark:text-amber-400' },
+  { value: 'overdue',   label: 'Overdue',   color: 'border-rose-500/40 text-rose-600 dark:text-rose-400' },
   { value: 'cancelled', label: 'Cancelled', color: 'border-border text-muted-foreground' },
 ];
 
@@ -181,7 +181,7 @@ export default function EditInvoicePage() {
   if (invoice?.status === 'paid') {
     return (
       <div className="max-w-2xl mx-auto py-16 text-center space-y-4">
-        <CheckCircleIcon className="w-12 h-12 text-emerald-400 mx-auto" />
+        <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto" />
         <p className="text-lg font-black text-foreground">Invoice is already paid</p>
         <p className="text-sm text-muted-foreground">Paid invoices cannot be edited.</p>
         <button onClick={() => router.back()} className="text-xs font-black uppercase tracking-widest text-primary underline">Go back</button>
@@ -213,13 +213,13 @@ export default function EditInvoicePage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+        <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
           <XMarkIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+        <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400">
           <CheckCircleIcon className="w-4 h-4" /> Invoice saved successfully.
         </div>
       )}
@@ -317,7 +317,7 @@ export default function EditInvoicePage() {
                     className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-right font-mono focus:outline-none focus:border-primary transition-colors"
                   />
                   <button type="button" title="Remove item" onClick={() => removeItem(idx)} disabled={form.items.length === 1}
-                    className="flex items-center justify-center w-9 h-9 border border-border text-rose-400/50 hover:text-rose-400 hover:border-rose-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                    className="flex items-center justify-center w-9 h-9 border border-border text-rose-600/50 dark:text-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
                     <TrashIcon className="w-3.5 h-3.5" />
                   </button>
                   {item.unit_price > 0 && (

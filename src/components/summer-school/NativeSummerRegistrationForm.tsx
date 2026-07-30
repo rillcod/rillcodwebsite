@@ -72,10 +72,10 @@ export function NativeSummerRegistrationForm({
     return (
       <div className="space-y-5 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/25 bg-emerald-500/10">
-          <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-500">Registration received</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600 dark:text-emerald-400">Registration received</p>
           <h3 className="mt-2 text-xl font-black text-foreground">{successInfo.studentName} is on the list</h3>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
             {emailDelivered ? <>Enrolment request confirmation sent to <span className="font-bold text-foreground">{form.email}</span>.</> : <>The learner details were saved, but the confirmation email was not delivered. You can retry below without registering again.</>}
@@ -117,9 +117,9 @@ export function NativeSummerRegistrationForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 via-primary/5 to-transparent p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10"><ShieldCheck className="h-4 w-4 text-cyan-400" /></div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10"><ShieldCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" /></div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Android registration</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Android registration</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Register for {programmeTitle} here. Billing is handled separately through the registered email.</p>
           </div>
         </div>

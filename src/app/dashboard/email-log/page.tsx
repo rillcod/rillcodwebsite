@@ -94,10 +94,10 @@ function StatusPill({ r }: { r: Row }) {
     : delivered ? 'delivered'
     : (r.status || 'unknown');
   const cls = failed
-    ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
     : delivered
-      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-      : 'bg-amber-500/10 text-amber-500 border-amber-500/30';
+      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
   return (
     <span className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${cls}`}>
       {label}
@@ -109,8 +109,8 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
   value: number; label: string; tone?: 'default' | 'good' | 'warn' | 'bad';
   active?: boolean; onClick?: () => void;
 }) {
-  const toneCls = tone === 'bad' ? 'text-rose-500' : tone === 'warn' ? 'text-amber-500'
-    : tone === 'good' ? 'text-emerald-500' : 'text-foreground';
+  const toneCls = tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'warn' ? 'text-amber-600 dark:text-amber-400'
+    : tone === 'good' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground';
   return (
     <button onClick={onClick} disabled={!onClick}
       className={`${CARD} p-5 text-left transition-all ${onClick ? 'hover:border-indigo-500/50 cursor-pointer' : 'cursor-default'} ${active ? 'border-indigo-500 ring-1 ring-indigo-500/40' : ''}`}>
@@ -256,13 +256,13 @@ export default function EmailLogPage() {
     || !!channel || !!provider || !!school || !!role || !!search || range !== 'all';
 
   if (authLoading || !profile) {
-    return <div className="p-8"><ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+    return <div className="p-8"><ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" /></div>;
   }
   if (profile.role !== 'admin') {
     return (
       <div className="p-8">
         <div className={`${CARD} p-8 flex items-start gap-4`}>
-          <ShieldCheckIcon className="w-6 h-6 text-rose-500 shrink-0" />
+          <ShieldCheckIcon className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" />
           <div>
             <h2 className="font-black text-foreground">Administrators only</h2>
             <p className="text-sm text-muted-foreground">The delivery log covers every recipient, so it is admin-only.</p>
@@ -288,7 +288,7 @@ export default function EmailLogPage() {
       </div>
 
       {error && (
-        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>
+        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
       )}
 
       {/*
@@ -331,7 +331,7 @@ export default function EmailLogPage() {
 
       {summary && summary.engaged === 0 && summary.delivered > 0 && (
         <div className={`${CARD} p-4 flex items-start gap-3`}>
-          <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">
             No opens recorded. Delivery and bounce events are arriving, so if you want open and click
             tracking too, add <span className="font-mono text-xs">email.opened</span> and{' '}
@@ -466,7 +466,7 @@ export default function EmailLogPage() {
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <StatusPill r={r} />
                     {(r.error || r.provider_reason) && (
-                      <div className="mt-1 max-w-[16rem] text-xs text-rose-500">{r.error || r.provider_reason}</div>
+                      <div className="mt-1 max-w-[16rem] text-xs text-rose-600 dark:text-rose-400">{r.error || r.provider_reason}</div>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">

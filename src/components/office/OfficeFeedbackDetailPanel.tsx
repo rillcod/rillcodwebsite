@@ -21,11 +21,11 @@ interface FeedbackRecord {
 }
 
 const statusClasses: Record<string, string> = {
-  new: 'bg-amber-500/15 text-amber-600',
-  in_progress: 'bg-blue-500/15 text-blue-600',
-  resolved: 'bg-emerald-500/15 text-emerald-600',
-  closed: 'bg-slate-500/15 text-slate-600',
-  reopened: 'bg-violet-500/15 text-violet-600',
+  new: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  in_progress: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  resolved: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  closed: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  reopened: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
 };
 
 type Props = { feedbackId: string };
@@ -113,7 +113,7 @@ export function OfficeFeedbackDetailPanel({ feedbackId }: Props) {
   if (error && !feedback) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-rose-600">{error}</p>
+        <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>
         <button
           type="button"
           onClick={() => office?.clearFeedback()}
@@ -214,9 +214,9 @@ export function OfficeFeedbackDetailPanel({ feedbackId }: Props) {
             </button>
             <span className="text-xs text-muted-foreground">Signed in as {profile?.full_name || 'Administrator'}</span>
           </div>
-          {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
           {delivery ? (
-            <p className="mt-4 text-sm text-emerald-700">
+            <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">
               Saved. In-app: {delivery.in_app ? 'sent' : 'not available'}; email: {delivery.email ? 'sent' : 'not delivered'}.
               Desk and Help Requests will refresh automatically.
             </p>

@@ -175,7 +175,7 @@ export default function MarkerIntegrityPage({
             label: "Duplicate links",
             value: totalConflicts,
             sub: "Links needing review",
-            color: totalConflicts > 0 ? "text-rose-400" : "text-foreground",
+            color: totalConflicts > 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground",
           },
           {
             label: "Cross-content links",
@@ -248,8 +248,8 @@ export default function MarkerIntegrityPage({
                     <p
                       className={`text-xs font-mono font-bold truncate group-hover:text-primary transition-colors ${
                         col.color === "rose"
-                          ? "text-rose-400"
-                          : "text-amber-400"
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-amber-600 dark:text-amber-400"
                       }`}
                     >
                       {row.marker}

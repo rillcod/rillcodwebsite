@@ -38,9 +38,9 @@ const STATE_STYLE: Record<
 
 function StateIcon({ state }: { state: StageState }) {
   if (state === "done")
-    return <CheckCircleIcon className="h-5 w-5 text-emerald-500" />;
+    return <CheckCircleIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
   if (state === "blocked")
-    return <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />;
+    return <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />;
   if (state === "ready")
     return <ArrowRightIcon className="h-5 w-5 text-primary" />;
   return <ClockIcon className="h-5 w-5 text-muted-foreground opacity-60" />;
@@ -124,7 +124,7 @@ export function NextActionCard({
   if (!next) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5">
-        <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" />
+        <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <p className="text-sm font-bold text-foreground">{fallback}</p>
       </div>
     );

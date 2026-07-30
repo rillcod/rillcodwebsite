@@ -115,7 +115,7 @@ export default function StudioUI(p: StudioUIProps) {
             </button>
             {(lang === 'python' || lang === 'robotics') && (
               <button onClick={initPyodide} className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-[9px] font-black transition-all hover:bg-muted touch-manipulation">
-                {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python</span></>}
+                {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-600 dark:text-emerald-400">Python</span></>}
               </button>
             )}
             {isTeacher && (
@@ -124,7 +124,7 @@ export default function StudioUI(p: StudioUIProps) {
               </button>
             )}
             <button onClick={copyCode} className="p-2 rounded-lg hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all touch-manipulation" title="Copy code">
-              {copiedCode ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <DocumentTextIcon className="w-4 h-4" />}
+              {copiedCode ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <DocumentTextIcon className="w-4 h-4" />}
             </button>
             {saveToVault && (
               <button onClick={saveToVault} className="flex items-center gap-1 px-2 py-1.5 bg-card border border-border hover:bg-muted rounded-lg text-primary text-[9px] font-black transition-all touch-manipulation" title="Save Snippet to Code Vault">
@@ -143,7 +143,7 @@ export default function StudioUI(p: StudioUIProps) {
               </button>
             )}
             {(assignmentSubmitted || mySubmission?.status === 'submitted' || mySubmission?.status === 'graded') && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-[8px] font-black">
+              <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 text-[8px] font-black">
                 <CheckCircleIcon className="w-3 h-3" /><span className="hidden sm:inline">{mySubmission?.status === 'graded' ? 'Graded' : 'Submitted'}</span>
               </div>
             )}
@@ -162,7 +162,7 @@ export default function StudioUI(p: StudioUIProps) {
           <span className="flex items-center gap-1 px-2 py-0.5 bg-muted/20 border border-border rounded-full text-muted-foreground text-[8px] font-black shrink-0"><BoltIcon className="w-3 h-3" />{totalRuns} runs</span>
           {(lang === 'python' || lang === 'robotics') && (
             <button onClick={initPyodide} className="flex items-center gap-1 px-2 py-0.5 bg-muted/20 border border-border rounded-full text-[8px] font-black shrink-0 touch-manipulation">
-              {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading Python…</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python ready</span></>}
+              {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading Python…</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-600 dark:text-emerald-400">Python ready</span></>}
             </button>
           )}
         </div>
@@ -193,27 +193,27 @@ export default function StudioUI(p: StudioUIProps) {
                 {/* Assignment */}
                 {assignmentId && assignmentData && (
                   <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 space-y-2">
-                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">📋 Assignment</p>
+                    <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">📋 Assignment</p>
                     <p className="text-sm font-black text-foreground leading-tight">{assignmentData.title}</p>
                     {assignmentData.description && <p className="text-[10px] text-foreground/50 leading-relaxed line-clamp-3">{assignmentData.description}</p>}
                     {assignmentData.instructions && (
                       <div className="p-2 bg-amber-500/10 rounded-lg">
-                        <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Instructions</p>
+                        <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Instructions</p>
                         <p className="text-[10px] text-foreground/50 leading-relaxed">{assignmentData.instructions}</p>
                       </div>
                     )}
                     <div className="flex items-center justify-between text-[9px] font-black text-foreground/30 uppercase">
                       {assignmentData.due_date && <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />Due {new Date(assignmentData.due_date).toLocaleDateString()}</span>}
-                      <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-amber-400" />{assignmentData.max_points || 100}pts</span>
+                      <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-amber-600 dark:text-amber-400" />{assignmentData.max_points || 100}pts</span>
                     </div>
                     {mySubmission?.status === 'graded' && mySubmission.grade != null && (
                       <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center">
-                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Your Score</p>
-                        <p className="text-2xl font-black text-emerald-400">{mySubmission.grade}<span className="text-sm opacity-50">/{assignmentData.max_points || 100}</span></p>
+                        <p className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Your Score</p>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{mySubmission.grade}<span className="text-sm opacity-50">/{assignmentData.max_points || 100}</span></p>
                         {mySubmission.feedback && <p className="text-[9px] text-foreground/40 mt-1 italic">"{mySubmission.feedback}"</p>}
                       </div>
                     )}
-                    <a href={`/dashboard/assignments/${assignmentId}`} className="block text-center text-[9px] font-black text-amber-400/60 hover:text-amber-400 uppercase tracking-widest transition-colors">View Assignment →</a>
+                    <a href={`/dashboard/assignments/${assignmentId}`} className="block text-center text-[9px] font-black text-amber-600/60 dark:text-amber-400/60 hover:text-amber-600 dark:hover:text-amber-400 uppercase tracking-widest transition-colors">View Assignment →</a>
                   </div>
                 )}
 
@@ -228,8 +228,8 @@ export default function StudioUI(p: StudioUIProps) {
                           className="flex items-start gap-2 p-2.5 bg-card border border-border hover:border-amber-500/30 hover:bg-amber-500/5 rounded-xl transition-all group touch-manipulation">
                           <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${overdue ? 'bg-rose-500' : 'bg-amber-500'}`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-muted-foreground group-hover:text-amber-400 truncate">{task.title}</p>
-                            <p className={`text-[8px] font-black uppercase ${overdue ? 'text-rose-400' : 'text-muted-foreground/40'}`}>{overdue ? '⚠ Overdue' : task.due_date ? `Due ${new Date(task.due_date).toLocaleDateString()}` : ''} · {task.max_points}pts</p>
+                            <p className="text-[10px] font-bold text-muted-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 truncate">{task.title}</p>
+                            <p className={`text-[8px] font-black uppercase ${overdue ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground/40'}`}>{overdue ? '⚠ Overdue' : task.due_date ? `Due ${new Date(task.due_date).toLocaleDateString()}` : ''} · {task.max_points}pts</p>
                           </div>
                         </a>
                       );
@@ -276,7 +276,7 @@ export default function StudioUI(p: StudioUIProps) {
                                 <p className="text-[8px] text-muted-foreground">{new Date(proj.updated_at).toLocaleDateString()}</p>
                               </div>
                             </div>
-                            <button onClick={(e) => deleteProject(proj.id, e)} className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-400 rounded-lg transition-all touch-manipulation">
+                            <button onClick={(e) => deleteProject(proj.id, e)} className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-all touch-manipulation">
                               <TrashIcon className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -333,7 +333,7 @@ export default function StudioUI(p: StudioUIProps) {
                       ].map(h => (
                         <button key={h.cmd} onClick={() => setCode((prev: string) => prev + '\n' + h.cmd)}
                           className="w-full text-left p-2 rounded-xl bg-card border border-border hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group touch-manipulation">
-                          <p className="font-mono text-[9px] text-cyan-400 group-hover:text-cyan-300">{h.cmd}</p>
+                          <p className="font-mono text-[9px] text-cyan-600 dark:text-cyan-400 group-hover:text-cyan-700 dark:group-hover:text-cyan-300">{h.cmd}</p>
                           <p className="text-[8px] text-muted-foreground/60 mt-0.5">{h.desc}</p>
                         </button>
                       ))}
@@ -351,7 +351,7 @@ export default function StudioUI(p: StudioUIProps) {
           {/* Mobile robotics canvas */}
           {view === 'canvas' && lang === 'robotics' && (
             <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto md:hidden">
-              <div className="flex items-center gap-2"><RocketLaunchIcon className="w-4 h-4 text-cyan-400" /><p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Robot Simulator</p></div>
+              <div className="flex items-center gap-2"><RocketLaunchIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /><p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Robot Simulator</p></div>
               <RobotSimulator code={code} isRunning={running} onFinish={onRobotFinish} commands={robotCmds} />
               <div className="p-3 bg-muted/20 border border-border rounded-xl">
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-2">Quick Commands</p>
@@ -359,7 +359,7 @@ export default function StudioUI(p: StudioUIProps) {
                   {['robot.forward(50)', 'robot.turnRight(90)', 'robot.penDown()', 'robot.setColor("blue")'].map(cmd => (
                     <button key={cmd} onClick={() => setCode((prev: string) => prev + '\n' + cmd)}
                       className="p-2 bg-card border border-border rounded-lg hover:border-cyan-500/30 text-left touch-manipulation active:scale-95 transition-all">
-                      <p className="font-mono text-[8px] text-cyan-400 truncate">{cmd}</p>
+                      <p className="font-mono text-[8px] text-cyan-600 dark:text-cyan-400 truncate">{cmd}</p>
                     </button>
                   ))}
                 </div>
@@ -380,11 +380,11 @@ export default function StudioUI(p: StudioUIProps) {
                 )}
                 {(lang === 'python' || lang === 'javascript') && (
                   <button onClick={() => setEditorMode('blocks')}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all touch-manipulation ${editorMode === 'blocks' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}>
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all touch-manipulation ${editorMode === 'blocks' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}>
                     🧩 Blocks
                   </button>
                 )}
-                {lang === 'scratch' && <span className="px-2.5 py-1.5 text-[9px] font-black text-pink-400 uppercase tracking-wide flex items-center gap-1">🎮 Scratch Lab</span>}
+                {lang === 'scratch' && <span className="px-2.5 py-1.5 text-[9px] font-black text-pink-600 dark:text-pink-400 uppercase tracking-wide flex items-center gap-1">🎮 Scratch Lab</span>}
               </div>
               <div className="flex items-center gap-2">
                 {lang === 'html' && (
@@ -438,8 +438,8 @@ export default function StudioUI(p: StudioUIProps) {
               {lang === 'robotics' && (
                 <div className="hidden lg:flex w-72 flex-col border-l border-border bg-card/30">
                   <div className="p-3 border-b border-border flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2"><RocketLaunchIcon className="w-4 h-4 text-cyan-400" /><span className="text-[9px] font-black uppercase tracking-widest text-cyan-400">Simulator</span></div>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black ${running ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-muted/30 text-muted-foreground border border-border'}`}>
+                    <div className="flex items-center gap-2"><RocketLaunchIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /><span className="text-[9px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Simulator</span></div>
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black ${running ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-muted/30 text-muted-foreground border border-border'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground'}`} />{running ? 'Active' : 'Standby'}
                     </div>
                   </div>
@@ -451,7 +451,7 @@ export default function StudioUI(p: StudioUIProps) {
                         {['robot.forward(50)', 'robot.turnRight(90)', 'robot.penDown()', 'robot.setColor("red")'].map(cmd => (
                           <button key={cmd} onClick={() => setCode((prev: string) => prev + '\n' + cmd)}
                             className="p-1.5 bg-card border border-border rounded-lg hover:border-cyan-500/30 hover:bg-cyan-500/5 text-left transition-all touch-manipulation">
-                            <p className="font-mono text-[7px] text-cyan-400 truncate">{cmd}</p>
+                            <p className="font-mono text-[7px] text-cyan-600 dark:text-cyan-400 truncate">{cmd}</p>
                           </button>
                         ))}
                       </div>
@@ -470,14 +470,14 @@ export default function StudioUI(p: StudioUIProps) {
             </div>
             <div className="h-9 border-b border-border/50 flex items-center px-3 justify-between bg-muted/10 shrink-0 mt-1">
               <div className="flex items-center gap-2">
-                <CommandLineIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400/80">{lang === 'html' ? 'Preview' : 'Console'}</span>
-                {consoleLogs.length > 0 && <span className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[7px] font-black text-emerald-400">{consoleLogs.length}</span>}
+                <CommandLineIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600/80 dark:text-emerald-400/80">{lang === 'html' ? 'Preview' : 'Console'}</span>
+                {consoleLogs.length > 0 && <span className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[7px] font-black text-emerald-600 dark:text-emerald-400">{consoleLogs.length}</span>}
               </div>
               <div className="flex items-center gap-2">
-                {running && <span className="flex items-center gap-1 text-[8px] text-emerald-400 font-black animate-pulse"><ArrowPathIcon className="w-3 h-3 animate-spin" />Running…</span>}
+                {running && <span className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black animate-pulse"><ArrowPathIcon className="w-3 h-3 animate-spin" />Running…</span>}
                 {lang !== 'html' && consoleLogs.length > 0 && (
-                  <button onClick={() => setConsoleLogs([])} className="p-1 hover:bg-muted/50 rounded-lg transition-colors touch-manipulation"><TrashIcon className="w-3.5 h-3.5 text-muted-foreground hover:text-rose-400" /></button>
+                  <button onClick={() => setConsoleLogs([])} className="p-1 hover:bg-muted/50 rounded-lg transition-colors touch-manipulation"><TrashIcon className="w-3.5 h-3.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400" /></button>
                 )}
               </div>
             </div>
@@ -490,10 +490,10 @@ export default function StudioUI(p: StudioUIProps) {
                 <div className="space-y-1">
                   {consoleLogs.length === 0 && !running && <p className="text-muted-foreground/40 italic text-[11px]">▶ Run your code to see output here…</p>}
                   {consoleLogs.map((log, i) => (
-                    <div key={i} className={`py-0.5 pl-3 border-l-2 text-[11px] leading-relaxed ${log.startsWith('❌') ? 'border-rose-500 text-rose-400' : log.startsWith('✅') ? 'border-emerald-500 text-emerald-400' : 'border-emerald-500/30 text-foreground/80'}`}>{log}</div>
+                    <div key={i} className={`py-0.5 pl-3 border-l-2 text-[11px] leading-relaxed ${log.startsWith('❌') ? 'border-rose-500 text-rose-600 dark:text-rose-400' : log.startsWith('✅') ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-emerald-500/30 text-foreground/80'}`}>{log}</div>
                   ))}
                   {running && (
-                    <div className="flex items-center gap-2 text-emerald-400/60 text-[10px] animate-pulse">
+                    <div className="flex items-center gap-2 text-emerald-600/60 dark:text-emerald-400/60 text-[10px] animate-pulse">
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />executing…
                     </div>
                   )}
@@ -522,11 +522,11 @@ export default function StudioUI(p: StudioUIProps) {
             <span className="text-[7px] font-black uppercase tracking-widest">{lang === 'html' ? 'Preview' : 'Output'}</span>
           </button>
           {lang === 'robotics' ? (
-            <button onClick={() => setView('canvas')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'canvas' ? 'text-cyan-400 bg-cyan-500/10' : 'text-muted-foreground'}`}>
+            <button onClick={() => setView('canvas')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'canvas' ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10' : 'text-muted-foreground'}`}>
               <RocketLaunchIcon className="w-5 h-5" /><span className="text-[7px] font-black uppercase tracking-widest">Robot</span>
             </button>
           ) : (
-            <button onClick={() => setShowLeaderboard(true)} className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 text-muted-foreground hover:text-amber-400">
+            <button onClick={() => setShowLeaderboard(true)} className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400">
               <TrophyIcon className="w-5 h-5" /><span className="text-[7px] font-black uppercase tracking-widest">Ranks</span>
             </button>
           )}
@@ -545,7 +545,7 @@ export default function StudioUI(p: StudioUIProps) {
               className="w-full sm:max-w-sm bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
               <div className="flex justify-center pt-3 pb-1 sm:hidden"><div className="w-10 h-1 bg-muted-foreground/30 rounded-full" /></div>
               <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-amber-500/10 to-primary/10 shrink-0">
-                <div className="flex items-center gap-3"><TrophyIcon className="w-5 h-5 text-amber-400" /><div><h3 className="text-sm font-black uppercase tracking-widest">Leaderboard</h3><p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Top Coders 🏆</p></div></div>
+                <div className="flex items-center gap-3"><TrophyIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" /><div><h3 className="text-sm font-black uppercase tracking-widest">Leaderboard</h3><p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Top Coders 🏆</p></div></div>
                 <button onClick={() => setShowLeaderboard(false)} className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors touch-manipulation"><XMarkIcon className="w-4 h-4" /></button>
               </div>
               <div className="px-5 py-3 border-b border-border bg-muted/5 shrink-0">

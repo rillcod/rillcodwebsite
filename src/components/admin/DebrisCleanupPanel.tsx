@@ -304,12 +304,12 @@ export default function DebrisCleanupPanel() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label="Old hollow shells" count={data?.hollow_accounts?.count ?? 0} hint={`${minAgeDays}+ days · no records · not fresh`} Icon={UserIcon} accent="text-rose-500" />
-        <MetricCard label="Soft-deleted accounts" count={data?.deleted_accounts.count ?? 0} hint="Already marked deleted" Icon={UserIcon} accent="text-orange-500" />
-        <MetricCard label="Stale unpaid regs" count={data?.stale_unpaid_students?.count ?? 0} hint="Pending · unpaid · 14+ days" Icon={DocumentTextIcon} accent="text-amber-500" />
-        <MetricCard label="Broken parent links" count={data?.disconnected_links?.count ?? 0} hint="Parent or student gone" Icon={UserGroupIcon} accent="text-orange-500" />
-        <MetricCard label="Orphaned content" count={(data?.orphaned_lessons.count ?? 0) + (data?.orphaned_assignments.count ?? 0)} hint="Missing lesson plans" Icon={DocumentTextIcon} accent="text-violet-500" />
-        <MetricCard label="Empty classes" count={data?.empty_classes.count ?? 0} hint={purgeEmptyClasses ? 'Will purge if enabled' : 'Listed only'} Icon={UserGroupIcon} accent="text-teal-500" />
+        <MetricCard label="Old hollow shells" count={data?.hollow_accounts?.count ?? 0} hint={`${minAgeDays}+ days · no records · not fresh`} Icon={UserIcon} accent="text-rose-600 dark:text-rose-400" />
+        <MetricCard label="Soft-deleted accounts" count={data?.deleted_accounts.count ?? 0} hint="Already marked deleted" Icon={UserIcon} accent="text-orange-600 dark:text-orange-400" />
+        <MetricCard label="Stale unpaid regs" count={data?.stale_unpaid_students?.count ?? 0} hint="Pending · unpaid · 14+ days" Icon={DocumentTextIcon} accent="text-amber-600 dark:text-amber-400" />
+        <MetricCard label="Broken parent links" count={data?.disconnected_links?.count ?? 0} hint="Parent or student gone" Icon={UserGroupIcon} accent="text-orange-600 dark:text-orange-400" />
+        <MetricCard label="Orphaned content" count={(data?.orphaned_lessons.count ?? 0) + (data?.orphaned_assignments.count ?? 0)} hint="Missing lesson plans" Icon={DocumentTextIcon} accent="text-violet-600 dark:text-violet-400" />
+        <MetricCard label="Empty classes" count={data?.empty_classes.count ?? 0} hint={purgeEmptyClasses ? 'Will purge if enabled' : 'Listed only'} Icon={UserGroupIcon} accent="text-teal-600 dark:text-teal-400" />
       </div>
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -322,7 +322,7 @@ export default function DebrisCleanupPanel() {
 
         {totalDebris === 0 ? (
           <div className="p-12 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircleIcon className="w-6 h-6" />
             </div>
             <p className="font-black text-foreground text-lg">No old hollow shells found</p>
@@ -335,7 +335,7 @@ export default function DebrisCleanupPanel() {
             {(data?.hollow_accounts?.count ?? 0) > 0 && (
               <DebrisList
                 title={purgeHollowAccounts ? `Old hollow shells (${minAgeDays}+ days, no records)` : 'Old hollow shells (enable checkbox to purge)'}
-                tone="text-rose-500"
+                tone="text-rose-600 dark:text-rose-400"
                 items={(data?.hollow_accounts?.items ?? []).map((u) => ({
                   id: u.id,
                   primary: u.full_name || 'Hollow account',
@@ -347,7 +347,7 @@ export default function DebrisCleanupPanel() {
             {(data?.stale_unpaid_students?.count ?? 0) > 0 && (
               <DebrisList
                 title="Stale unpaid registrations (14+ days, never paid)"
-                tone="text-amber-500"
+                tone="text-amber-600 dark:text-amber-400"
                 items={(data?.stale_unpaid_students?.items ?? []).map((s) => ({
                   id: s.id,
                   primary: s.full_name || 'Unpaid registration',
@@ -359,7 +359,7 @@ export default function DebrisCleanupPanel() {
             {(data?.empty_classes.count ?? 0) > 0 && (
               <DebrisList
                 title={purgeEmptyClasses ? 'Empty classes (will be purged)' : 'Empty classes (listed only)'}
-                tone="text-teal-500"
+                tone="text-teal-600 dark:text-teal-400"
                 items={(data?.empty_classes.items ?? []).map((c) => ({
                   id: c.id,
                   primary: c.name || 'Unnamed class',
@@ -371,7 +371,7 @@ export default function DebrisCleanupPanel() {
             {(data?.deleted_accounts.count ?? 0) > 0 && (
               <DebrisList
                 title="Soft-deleted accounts"
-                tone="text-orange-500"
+                tone="text-orange-600 dark:text-orange-400"
                 items={(data?.deleted_accounts.items ?? []).map((u) => ({
                   id: u.id,
                   primary: u.full_name || 'Deleted account',
@@ -383,7 +383,7 @@ export default function DebrisCleanupPanel() {
             {(data?.orphaned_lessons.count ?? 0) > 0 && (
               <DebrisList
                 title="Orphaned lessons"
-                tone="text-amber-500"
+                tone="text-amber-600 dark:text-amber-400"
                 items={(data?.orphaned_lessons.items ?? []).map((l) => ({
                   id: l.id,
                   primary: l.title || 'Untitled lesson',
@@ -395,7 +395,7 @@ export default function DebrisCleanupPanel() {
             {(data?.orphaned_assignments.count ?? 0) > 0 && (
               <DebrisList
                 title="Orphaned assignments"
-                tone="text-violet-500"
+                tone="text-violet-600 dark:text-violet-400"
                 items={(data?.orphaned_assignments.items ?? []).map((a) => ({
                   id: a.id,
                   primary: a.title || 'Untitled assignment',
@@ -407,7 +407,7 @@ export default function DebrisCleanupPanel() {
             {(data?.disconnected_links?.count ?? 0) > 0 && (
               <DebrisList
                 title="Broken parent links"
-                tone="text-orange-500"
+                tone="text-orange-600 dark:text-orange-400"
                 items={(data?.disconnected_links?.items ?? []).map((l) => ({
                   id: l.id,
                   primary: 'Parent ↔ student link',

@@ -229,7 +229,7 @@ export default function SchoolTeacherMessagesPage() {
                           )}
                           <div className={`px-3 py-2 rounded-xl text-sm ${
                             isOwn 
-                              ? 'bg-primary/90 text-white' 
+                              ? 'bg-primary/90 text-foreground' 
                               : 'bg-muted border border-border text-foreground'
                           }`}>
                             {msg.content}

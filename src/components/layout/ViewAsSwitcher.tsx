@@ -67,7 +67,7 @@ export default function ViewAsSwitcher({ compact = false }: { compact?: boolean 
             : 'px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.22em]'
         } ${
           isSimulating
-            ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
+            ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25'
             : 'bg-sidebar-foreground/5 border-sidebar-foreground/15 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-primary/30'
         }`}
       >
@@ -109,7 +109,7 @@ export default function ViewAsSwitcher({ compact = false }: { compact?: boolean 
                       <p className="text-[10px] text-muted-foreground leading-tight truncate">{ROLE_DESCRIPTIONS[r]}</p>
                     </div>
                     {active && !isSelf && (
-                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">live</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">live</span>
                     )}
                   </button>
                 </li>

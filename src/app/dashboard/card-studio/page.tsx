@@ -697,7 +697,7 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
         </button>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</span>
+            <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-600 dark:text-rose-400">Hidden</span>}</span>
             {r.roleLabel === 'Student' && (
               <span title={reportDotTitle(r)}
                 className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
@@ -1630,7 +1630,7 @@ export default function CardStudioPage() {
   if (!canAccess) return (
     <div className="flex items-center justify-center min-h-screen bg-background text-muted-foreground">
       <div className="text-center">
-        <CreditCardIcon className="w-8 h-8 mx-auto mb-3 text-rose-400"/>
+        <CreditCardIcon className="w-8 h-8 mx-auto mb-3 text-rose-600 dark:text-rose-400"/>
         <p className="font-semibold text-foreground">Card Studio access is for staff only</p>
       </div>
     </div>
@@ -1699,7 +1699,7 @@ export default function CardStudioPage() {
               {PRESET_COLORS.map(c=>(
                 <button key={c} title={c} onClick={()=>update({accentColor:c})} style={{background:c}}
                   className={`w-7 h-7 transition-all relative rounded-md ${cfg.accentColor===c?'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110':'hover:scale-105 opacity-80 hover:opacity-100'}`}>
-                  {cfg.accentColor===c&&<span className="absolute inset-0 flex items-center justify-center text-white text-[10px] font-bold">✓</span>}
+                  {cfg.accentColor===c&&<span className="absolute inset-0 flex items-center justify-center text-foreground text-[10px] font-bold">✓</span>}
                 </button>
               ))}
             </div>
@@ -2117,7 +2117,7 @@ export default function CardStudioPage() {
                           `Class — ${className}`,
                           { groupBy: 'section' },
                         )}
-                        className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                        className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap"
                       >
                         Print class
                       </button>
@@ -2133,7 +2133,7 @@ export default function CardStudioPage() {
                             </span>
                             <button
                               onClick={() => void printDesignCards(items, `Section — ${sectionName}`, { groupBy: 'none' })}
-                              className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                              className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap"
                             >
                               Print
                             </button>
@@ -2161,7 +2161,7 @@ export default function CardStudioPage() {
                                 <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel ? 'bg-primary border-primary' : 'border-border'}`}>
                                   {sel && <span className="text-primary-foreground text-[8px]">✓</span>}
                                 </div>
-                                <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
+                                <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-600 dark:text-rose-400">HIDDEN</span>}</p>
                                 <span title={reportDotTitle(s)} className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                               </div>
                             );
@@ -2181,7 +2181,7 @@ export default function CardStudioPage() {
                       <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b border-border sticky top-0 z-10">
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">{groupPrefix}: {groupLabel}</span>
                         <button onClick={()=>void printDesignCards(classStudents, `${groupPrefix} — ${groupLabel}`, { groupBy: 'none' })}
-                          className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap">
+                          className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap">
                           Print
                         </button>
                         <button onClick={()=>setDesignSelectedIds(prev=>{
@@ -2205,12 +2205,12 @@ export default function CardStudioPage() {
                             <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
                             </div>
-                            <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
+                            <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-600 dark:text-rose-400">HIDDEN</span>}</p>
                             <span title={reportDotTitle(s)}
                               className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                             {canDeleteAccounts && (
                               <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name || 'Unknown', email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
-                                className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
+                                className="p-1 rounded border border-rose-600/30 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10" title="Permanently wipe account">
                                 <TrashIcon className="w-3 h-3"/>
                               </button>
                             )}
@@ -2235,14 +2235,14 @@ export default function CardStudioPage() {
                           {sel&&<span className="text-primary-foreground text-[9px]">✓</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
+                          <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-600 dark:text-rose-400">HIDDEN</span>}</p>
                           <p className="text-[9px] text-muted-foreground truncate">{[s.grade, s.section_class].filter(Boolean).join(' · ') || '—'}</p>
                         </div>
                         <span title={reportDotTitle(s)}
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                         {canDeleteAccounts && (
                           <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name || 'Unknown', email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
-                            className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
+                            className="p-1 rounded border border-rose-600/30 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10" title="Permanently wipe account">
                             <TrashIcon className="w-3 h-3"/>
                           </button>
                         )}
@@ -2343,7 +2343,7 @@ export default function CardStudioPage() {
         <div className={`${manageToolsOpen ? 'block' : 'hidden'} md:block`}>
         {showHiddenAccounts && canDeleteAccounts && records.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">Hidden accounts — soft-deleted but still in database</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Hidden accounts — soft-deleted but still in database</span>
             <button disabled={bulkDeleting} onClick={()=>purgeAllHidden()}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-lg disabled:opacity-50 transition-colors bg-background">
               <TrashIcon className="w-3 h-3"/> Wipe all hidden ({records.length})
@@ -2503,7 +2503,7 @@ export default function CardStudioPage() {
             </>)}
             {manageView !== 'roster' && (
             <button onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
               <PrinterIcon className="w-3 h-3"/> Print All Cards
             </button>
             )}
@@ -2576,7 +2576,7 @@ export default function CardStudioPage() {
                           `RC roster — ${className}`,
                           { splitByClass: false, groupMode: 'section' },
                         )}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
                       >
                         <PrinterIcon className="w-3 h-3"/> Roster PDF
                       </button>
@@ -2600,7 +2600,7 @@ export default function CardStudioPage() {
                         {cardType === 'student' && (
                           <button
                             onClick={() => void printManageRosterPdf(sectionItems, `RC roster — ${sectionName}`, { splitByClass: false })}
-                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
                           >
                             <PrinterIcon className="w-3 h-3"/> Roster
                           </button>
@@ -2650,7 +2650,7 @@ export default function CardStudioPage() {
                     </button>
                     {cardType === 'student' && (
                       <button onClick={()=>void printManageRosterPdf(list, `RC roster — ${groupLabel}`, { splitByClass: false })}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background">
+                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background">
                         <PrinterIcon className="w-3 h-3"/> Roster PDF
                       </button>
                     )}
@@ -2709,7 +2709,7 @@ export default function CardStudioPage() {
                         <ArrowDownTrayIcon className="w-3 h-3"/> Save
                       </button>
                       <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 rounded-md bg-background">
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 rounded-md bg-background">
                         <PrinterIcon className="w-3 h-3"/> Print all
                       </button>
                     </div>
@@ -2735,7 +2735,7 @@ export default function CardStudioPage() {
                             checked={checked}
                             disabled={disabled}
                             onChange={() => toggleRosterGrade(grade)}
-                            className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30 shrink-0"
+                            className="h-3.5 w-3.5 rounded border-border text-emerald-600 dark:text-emerald-400 focus:ring-emerald-500/30 shrink-0"
                           />
                           <span className="text-[10px] font-black uppercase tracking-wide text-foreground">{grade}</span>
                           <span className="text-[10px] text-muted-foreground">({withReport})</span>
@@ -2790,7 +2790,7 @@ export default function CardStudioPage() {
                         checked={classChecked}
                         disabled={classDisabled}
                         onChange={() => toggleRosterGrade(group.className)}
-                        className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
+                        className="h-3.5 w-3.5 rounded border-border text-emerald-600 dark:text-emerald-400 focus:ring-emerald-500/30"
                       />
                     </label>
                     <div className="h-3.5 w-0.5 bg-emerald-500 shrink-0"/>
@@ -2803,7 +2803,7 @@ export default function CardStudioPage() {
                         const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
                         void printManageRosterPdf(classRecords, `RC roster — ${group.className}`, { splitByClass: false });
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-md bg-background"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md bg-background"
                     >
                       <PrinterIcon className="w-3 h-3"/> Print
                     </button>

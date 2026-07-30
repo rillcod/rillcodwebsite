@@ -477,7 +477,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
 
             <SectionHit selected={selection === 'hero' || selection === 'basics'} onSelect={() => setSelection('hero')} label="Hero">
               <section className="text-center space-y-6 py-8 bg-background/80 rounded-2xl border border-border/60 px-4">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-500 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 rounded-full text-[10px] font-black uppercase tracking-widest">
                   ☀️ {content.season_badge || form.title || 'Season badge'}
                 </div>
                 <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none">
@@ -499,7 +499,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   ].map((m) => (
                     <div
                       key={m.label}
-                      className={`border p-3 rounded-xl ${m.highlight ? 'bg-rose-500/15 border-rose-500/30 text-rose-500' : 'bg-card border-border'}`}
+                      className={`border p-3 rounded-xl ${m.highlight ? 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400' : 'bg-card border-border'}`}
                     >
                       <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">{m.label}</p>
                       <p className="text-xs font-black mt-1">{m.val}</p>
@@ -534,7 +534,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                     >
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-2xl">{t.icon || '📚'}</span>
-                        <span className="text-[10px] font-black text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full uppercase">
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full uppercase">
                           {t.week || 'Module'}
                         </span>
                       </div>
@@ -552,7 +552,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{bonus.icon}</span>
                     <div>
-                      <p className="text-[9px] text-amber-500 uppercase font-black tracking-widest">{bonus.badge}</p>
+                      <p className="text-[9px] text-amber-600 dark:text-amber-400 uppercase font-black tracking-widest">{bonus.badge}</p>
                       <h3 className="text-xl font-black uppercase">{bonus.title}</h3>
                     </div>
                   </div>
@@ -609,7 +609,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       }`}
                     >
                       <div className="space-y-1">
-                        <span className="text-xs font-black text-amber-500 uppercase tracking-widest">{w.num || `Week ${i + 1}`}</span>
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">{w.num || `Week ${i + 1}`}</span>
                         <div className="text-[9px] font-black text-foreground/50 bg-muted border border-border w-fit px-2 py-0.5 rounded-full uppercase">
                           {w.tag || 'tag'}
                         </div>
@@ -843,7 +843,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                           <button type="button" className="text-[10px] font-bold" disabled={i === tracks.length - 1} onClick={() => patchContent({ tracks: moveItem(tracks, i, i + 1) })}>↓</button>
                           <button
                             type="button"
-                            className="text-[10px] font-bold text-rose-500"
+                            className="text-[10px] font-bold text-rose-600 dark:text-rose-400"
                             onClick={() => patchContent({ tracks: tracks.filter((x) => x.id !== t.id) })}
                           >
                             Del
@@ -898,7 +898,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                             />
                             <button
                               type="button"
-                              className="text-[10px] font-bold text-rose-500 shrink-0"
+                              className="text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0"
                               onClick={() => update({ topics: (t.topics || []).filter((_, j) => j !== ti) })}
                             >
                               Del
@@ -971,7 +971,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       />
                       <button
                         type="button"
-                        className="text-[10px] font-bold text-rose-500"
+                        className="text-[10px] font-bold text-rose-600 dark:text-rose-400"
                         onClick={() => patchBonus({ items: (content.bonus?.items || []).filter((_, j) => j !== i) })}
                       >
                         Remove item
@@ -1018,7 +1018,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                           <button type="button" className="text-[10px] font-bold" disabled={i === weeks.length - 1} onClick={() => patchContent({ weeks: moveItem(weeks, i, i + 1) })}>↓</button>
                           <button
                             type="button"
-                            className="text-[10px] font-bold text-rose-500"
+                            className="text-[10px] font-bold text-rose-600 dark:text-rose-400"
                             onClick={() => patchContent({ weeks: weeks.filter((_, j) => j !== i) })}
                           >
                             Del
@@ -1111,7 +1111,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       <button type="button" className="text-[10px] font-bold" disabled={i === (content.outcomes || []).length - 1} onClick={() => patchContent({ outcomes: moveItem(content.outcomes || [], i, i + 1) })}>↓</button>
                       <button
                         type="button"
-                        className="text-[10px] font-bold text-rose-500 ml-auto"
+                        className="text-[10px] font-bold text-rose-600 dark:text-rose-400 ml-auto"
                         onClick={() => patchContent({ outcomes: (content.outcomes || []).filter((_, j) => j !== i) })}
                       >
                         Remove

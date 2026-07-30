@@ -342,13 +342,13 @@ function ReportingPeriodLock({ term, period, set, unlocked, setUnlocked, readOnl
     if (readOnly || !unlocked) {
         return (
             <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
-                <span className="text-emerald-400">🔒</span>
-                <p className="text-[11px] text-emerald-300 font-bold">
+                <span className="text-emerald-600 dark:text-emerald-400">🔒</span>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">
                     Creating <span className="underline">{term || '—'}</span> reports for <span className="underline">{period || '— set year —'}</span>.
                 </p>
                 {!readOnly && (
                     <button type="button" onClick={() => setUnlocked(true)}
-                        className="ml-auto text-[10px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
+                        className="ml-auto text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline underline-offset-2">
                         Change period
                     </button>
                 )}
@@ -514,7 +514,7 @@ function SessionModuleFields({ config, set, idPrefix, suggestions }: {
                     </button>
                 </div>
                 {sugg.modules.length === 0 && (
-                    <p className="mt-2 text-[10px] font-semibold text-amber-400">No curriculum modules were found for this course. Add course curriculum or enter the fields manually.</p>
+                    <p className="mt-2 text-[10px] font-semibold text-amber-600 dark:text-amber-400">No curriculum modules were found for this course. Add course curriculum or enter the fields manually.</p>
                 )}
             </div>
         </>
@@ -2725,7 +2725,7 @@ function ReportBuilderInner() {
     // Ensure isStaff is definitely defined and checked
     if (profile && !isStaff) return (
         <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-            <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mb-4" />
+            <ExclamationTriangleIcon className="w-12 h-12 text-amber-600 dark:text-amber-400 mb-4" />
             <h1 className="text-xl font-bold text-foreground mb-2">Access Restricted</h1>
             <p className="text-muted-foreground text-sm text-center max-w-md">
                 You do not have permission to create or edit progress reports.
@@ -2839,9 +2839,9 @@ function ReportBuilderInner() {
                                                 onClick={() => {
                                                     if (!alreadyAdded) setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sug] }));
                                                 }}
-                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-muted/20 border-border text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground'}`}>
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600/50 dark:text-emerald-400/50 cursor-default' : 'bg-muted/20 border-border text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground'}`}>
                                                 {alreadyAdded
-                                                    ? <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                                                    ? <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                                                     : <PlusIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/50" />
                                                 }
                                                 {sug}
@@ -2883,7 +2883,7 @@ function ReportBuilderInner() {
                                         <span className="flex-1 leading-snug">{m}</span>
                                         <button type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                            className="text-primary/40 hover:text-rose-400 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove milestone">
+                                            className="text-primary/40 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove milestone">
                                             <XMarkIcon className="w-3 h-3" />
                                         </button>
                                     </div>
@@ -3019,7 +3019,7 @@ function ReportBuilderInner() {
                                 </Field>
                             </div>
                             {sessionConfig.class_id && (
-                                <p className="text-[11px] text-emerald-400 font-semibold">
+                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                                     Class selected: {sessionConfig.section_class || '—'}
                                     {sessionConfig.course_name ? ` · Course: ${sessionConfig.course_name}` : ''}
                                 </p>
@@ -3066,8 +3066,8 @@ function ReportBuilderInner() {
 
                             {!sessionConfig.school_section ? (
                                 <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                                    <p className="text-[11px] text-amber-300/80 font-semibold">Pick a report context above to choose the term &amp; academic year.</p>
+                                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                    <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-semibold">Pick a report context above to choose the term &amp; academic year.</p>
                                 </div>
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
@@ -3078,8 +3078,8 @@ function ReportBuilderInner() {
                                 <>
                                     <DurationField value={sessionConfig.course_duration} set={setSessionConfig} prominent placeholder alsoSetTerm />
                                     <div className="flex items-center gap-2 bg-sky-500/10 border border-sky-500/25 rounded-xl px-4 py-2.5">
-                                        <CheckCircleIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                                        <p className="text-[11px] text-sky-300 font-bold">
+                                        <CheckCircleIcon className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+                                        <p className="text-[11px] text-sky-700 dark:text-sky-300 font-bold">
                                             Cohort-based report — {sessionConfig.course_duration || '— set duration —'} (no school term / academic year).
                                         </p>
                                     </div>
@@ -3203,7 +3203,7 @@ function ReportBuilderInner() {
                                             <button
                                                 type="button"
                                                 onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                                className="text-primary/40 hover:text-rose-400 transition-colors"
+                                                className="text-primary/40 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                                                 aria-label="Remove"
                                             >
                                                 <XMarkIcon className="w-3 h-3" />
@@ -3238,8 +3238,8 @@ function ReportBuilderInner() {
                                 <>
                                     {!periodReady && (
                                         <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 mb-2">
-                                            <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                                            <p className="text-[11px] text-amber-300/80 font-semibold">{missing} before continuing.</p>
+                                            <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                            <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-semibold">{missing} before continuing.</p>
                                         </div>
                                     )}
                                     <button
@@ -3295,8 +3295,8 @@ function ReportBuilderInner() {
                             </div>
                             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
-                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
-                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-600 dark:text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-300/70">Drafts</p></div>
+                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-300/70">Published</p></div>
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
                         </div>
@@ -3355,11 +3355,11 @@ function ReportBuilderInner() {
                                 <div className="flex flex-wrap items-center gap-3">
                                     <button
                                         onClick={() => { setOverrideFilters(v => !v); setClassFilter(''); setSearch(''); }}
-                                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${overrideFilters ? 'border-amber-500/40 bg-amber-500/20 text-amber-400' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}>
+                                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${overrideFilters ? 'border-amber-500/40 bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}>
                                         {overrideFilters ? '✓ Showing all' : 'Override — show all'}
                                     </button>
                                     {overrideFilters && (
-                                        <span className="text-[11px] text-amber-400/70">School & class filters are OFF.</span>
+                                        <span className="text-[11px] text-amber-600/70 dark:text-amber-400/70">School & class filters are OFF.</span>
                                     )}
                                 </div>
 
@@ -3434,7 +3434,7 @@ function ReportBuilderInner() {
                                             <p className="text-sm text-muted-foreground">No portal students found with current filters.</p>
                                             <p className="mx-auto max-w-md text-xs text-muted-foreground">
                                                 Reports require a student portal account so published results can be shown to the right student and parent.
-                                                Try the <strong className="text-amber-400">Override — show all</strong> toggle, or create/import the student first.
+                                                Try the <strong className="text-amber-600 dark:text-amber-400">Override — show all</strong> toggle, or create/import the student first.
                                             </p>
                                         </div>
                                     );
@@ -3490,7 +3490,7 @@ function ReportBuilderInner() {
                                                                     </div>
                                                                     <p className="truncate text-xs text-muted-foreground">{s.school_name ?? s.email}</p>
                                                                     {(s as any)._source === 'students_table' && (
-                                                                        <span className="text-[11px] font-semibold text-amber-400">Pre-portal</span>
+                                                                        <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Pre-portal</span>
                                                                     )}
                                                                 </div>
                                                                 <span className="ml-auto flex-shrink-0 font-mono text-[10px] text-muted-foreground">#{idx + 1}</span>
@@ -3502,7 +3502,7 @@ function ReportBuilderInner() {
                                                                 title="Permanently wipe — removes auth login and all records"
                                                                 disabled={wipingStudentId === s.id}
                                                                 onClick={(e) => { e.stopPropagation(); void wipeStudentFromBuilder(s as PortalUser); }}
-                                                                className="absolute right-2 top-2 flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-rose-600/40 bg-rose-600/10 p-2.5 text-rose-500 opacity-100 transition-all hover:bg-rose-600/20 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100"
+                                                                className="absolute right-2 top-2 flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-rose-600/40 bg-rose-600/10 p-2.5 text-rose-600 dark:text-rose-400 opacity-100 transition-all hover:bg-rose-600/20 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100"
                                                             >
                                                                 {wipingStudentId === s.id
                                                                     ? <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-500 border-t-transparent"/>
@@ -3608,8 +3608,8 @@ function ReportBuilderInner() {
                         >
                             <div ref={classProgressRef} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
-                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
-                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-600 dark:text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-300/70">Drafts</p></div>
+                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-300/70">Published</p></div>
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
                             <div className="space-y-3">
@@ -3744,7 +3744,7 @@ function ReportBuilderInner() {
                                                 }));
                                                 setSuggestedModule(null);
                                             }}
-                                            className="min-h-9 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-[11px] font-bold text-amber-300"
+                                            className="min-h-9 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300"
                                         >
                                             Apply
                                         </button>
@@ -3801,17 +3801,17 @@ function ReportBuilderInner() {
                         {/* Alerts */}
                         {error && (
                             <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                                <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                                <p className="text-rose-400 text-sm">{error}</p>
-                                <button onClick={() => setError('')} className="ml-auto text-rose-400/50 hover:text-rose-400 transition-colors flex-shrink-0">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                                <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+                                <button onClick={() => setError('')} className="ml-auto text-rose-600/50 dark:text-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex-shrink-0">
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
                             </div>
                         )}
                         {success && (
                             <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-                                <CheckIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                                <p className="text-emerald-400 text-sm font-semibold">{success}</p>
+                                <CheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                                <p className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">{success}</p>
                             </div>
                         )}
 
@@ -3849,10 +3849,10 @@ function ReportBuilderInner() {
                                                         proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
                                                     }))}
                                                     className={`h-7 px-2 text-[10px] font-black uppercase tracking-wider border rounded-lg transition-all ${
-                                                        color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                                                        color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
                                                         : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
-                                                        : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
-                                                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                                                        : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
+                                                        : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
                                                     }`}
                                                 >
                                                     {label}
@@ -4170,7 +4170,7 @@ function ReportBuilderInner() {
                                     </p>
                                 </div>
                                 <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${
-                                    livePreviewOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary'
+                                    livePreviewOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-primary/20 text-primary'
                                 }`}>
                                     {livePreviewOpen ? '✓ Live' : 'Show'}
                                 </span>
@@ -4595,7 +4595,7 @@ function ReportBuilderInner() {
                                         <div className={cn("absolute inset-1 border-[0.5px]", t.border, "opacity-40")} />
                                         <span className={cn(
                                             "relative z-10 text-[10px] font-black uppercase tracking-tighter",
-                                            t.id === 'executive' ? "text-slate-800" : "text-white"
+                                            t.id === 'executive' ? "text-slate-800 dark:text-slate-200" : "text-white"
                                         )}>{t.name}</span>
                                         {modernTemplateId === t.id && (
                                             <div className="absolute top-0 right-0 bg-primary text-white p-0.5">

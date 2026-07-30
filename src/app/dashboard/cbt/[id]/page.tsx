@@ -171,8 +171,8 @@ export default function ExamDetailPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <AcademicCapIcon className="w-5 h-5 text-emerald-400" />
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{exam.programs?.name}</span>
+                <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{exam.programs?.name}</span>
               </div>
               <h1 className="text-2xl font-extrabold mb-2">{exam.title}</h1>
               {exam.description && (
@@ -183,7 +183,7 @@ export default function ExamDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                 {exam.is_active ? 'Active' : 'Inactive'}
               </span>
               {isStaff && (
@@ -308,7 +308,7 @@ export default function ExamDetailPage() {
                   </div>
                   {canManageExam && (
                     <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-colors">
                       <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
                     </Link>
                   )}
@@ -339,16 +339,16 @@ export default function ExamDetailPage() {
             }`}>
               <div className="flex items-center gap-2">
                 {mySession.status === 'passed'
-                  ? <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
+                  ? <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   : mySession.status === 'pending_grading'
-                    ? <ClockIcon className="w-5 h-5 text-amber-400" />
-                    : <XCircleIcon className="w-5 h-5 text-rose-400" />}
+                    ? <ClockIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    : <XCircleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />}
                 <span className={`font-bold ${
                   mySession.status === 'passed'
-                    ? 'text-emerald-400'
+                    ? 'text-emerald-600 dark:text-emerald-400'
                     : mySession.status === 'pending_grading'
-                      ? 'text-amber-400'
-                      : 'text-rose-400'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'
                 }`}>
                   {mySession.status === 'passed' ? 'Passed' : mySession.status === 'pending_grading' ? 'Pending grading' : 'Failed'} — Score: {mySession.score}%
                 </span>
@@ -404,20 +404,20 @@ export default function ExamDetailPage() {
               {/* Summary stats bar */}
               <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-4 items-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-auto">Answer Review</p>
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                   <CheckIcon className="w-3.5 h-3.5" />
                   Correct: {correctCount}/{autoTotal}
                 </span>
-                <span className="flex items-center gap-1.5 text-xs font-bold text-rose-400">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
                   <XMarkIcon className="w-3.5 h-3.5" />
                   Incorrect: {incorrectCount}
                 </span>
                 {pendingCount > 0 && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                     Pending Review: {pendingCount}
                   </span>
                 )}
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${scorePct >= passing ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${scorePct >= passing ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
                   Score: {scorePct}%
                 </span>
               </div>
@@ -430,15 +430,15 @@ export default function ExamDetailPage() {
                   const isFillOrCode = !isMCQ && !isManual;
 
                   const badgeCls = isManual
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                     : isCorrect
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400';
                   const badgeLabel = isManual ? 'Pending' : isCorrect ? 'Correct' : 'Incorrect';
 
                   const ptsCls = isManual
-                    ? 'text-amber-400'
-                    : isCorrect ? 'text-emerald-400' : 'text-rose-400';
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : isCorrect ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
                   const ptsLabel = isManual ? `?/${pts} pts` : `${earnedPts}/${pts} pts`;
 
                   return (
@@ -468,8 +468,8 @@ export default function ExamDetailPage() {
                             const isWrong = isSelected && !isAnswer;
 
                             let optCls = 'border-border text-muted-foreground';
-                            if (isAnswer) optCls = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
-                            if (isWrong)  optCls = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                            if (isAnswer) optCls = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400';
+                            if (isWrong)  optCls = 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400';
 
                             return (
                               <div key={oi} className={`flex items-center gap-2.5 px-3 py-2 border rounded-xl text-xs font-medium ${optCls}`}>
@@ -490,13 +490,13 @@ export default function ExamDetailPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-8">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Your Answer</p>
-                            <div className={`px-3 py-2.5 border rounded-xl text-xs font-mono ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                            <div className={`px-3 py-2.5 border rounded-xl text-xs font-mono ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
                               {studentAnswer || <span className="italic opacity-60">No answer</span>}
                             </div>
                           </div>
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Correct Answer</p>
-                            <div className="px-3 py-2.5 border rounded-xl text-xs font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                            <div className="px-3 py-2.5 border rounded-xl text-xs font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                               {q.correct_answer || <span className="italic opacity-60">N/A</span>}
                             </div>
                           </div>
@@ -510,7 +510,7 @@ export default function ExamDetailPage() {
                           <div className="px-3 py-2.5 border border-border bg-white/5 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                             {studentAnswer || <span className="italic text-muted-foreground">No answer submitted</span>}
                           </div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Awaiting manual review</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Awaiting manual review</p>
                         </div>
                       )}
                     </div>
@@ -526,7 +526,7 @@ export default function ExamDetailPage() {
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h2 className="font-bold flex items-center gap-2">
-                <ChartBarIcon className="w-5 h-5 text-emerald-400" /> Student Results ({sessions.length})
+                <ChartBarIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Student Results ({sessions.length})
               </h2>
               <span className="text-xs text-muted-foreground">
                 {sessions.filter(s => s.status === 'passed').length} passed
@@ -543,13 +543,13 @@ export default function ExamDetailPage() {
                     <div className="text-right">
                       <div className="flex items-center gap-2 mb-1">
                         {s.status === 'pending_grading' ? (
-                          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                             Pending Grading
                           </span>
                         ) : (
                           <span className={`px-2.5 py-1 rounded-xl border text-[10px] font-black uppercase tracking-widest ${
-                            s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                            : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                            s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                            : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                             : 'bg-card shadow-sm border-border text-muted-foreground'
                           }`}>
                             {s.status === 'passed' ? `Passed` : s.status === 'failed' ? 'Failed' : s.status} {s.score != null ? `— ${s.score}%` : ''}
@@ -593,7 +593,7 @@ export default function ExamDetailPage() {
                       {q.options && Array.isArray(q.options) && (
                         <div className="mt-2 space-y-1">
                           {q.options.map((opt: string, oi: number) => (
-                            <p key={oi} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? 'bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground'}`}>
+                            <p key={oi} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                               {String.fromCharCode(65 + oi)}. <CbtMarkdown text={opt} className="inline" />
                             </p>
                           ))}
@@ -602,7 +602,7 @@ export default function ExamDetailPage() {
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span>{q.points} pts</span>
                         <span className="capitalize">{q.question_type?.replace('_', ' ')}</span>
-                        <span className="text-emerald-400">Answer: {q.correct_answer}</span>
+                        <span className="text-emerald-600 dark:text-emerald-400">Answer: {q.correct_answer}</span>
                       </div>
                     </div>
                   </div>

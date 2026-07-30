@@ -127,13 +127,13 @@ export default function ClassReplays({ heading = 'Class Replays' }: { heading?: 
                     <span className="text-[10px] font-black uppercase tracking-widest">{r.status === 'recording' ? '● Recording' : 'Processing…'}</span>
                   </span>
                 ) : failed ? (
-                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">Recording failed</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Recording failed</span>
                 ) : (
                   <PlayCircleIcon className="h-12 w-12 text-primary/80 transition-transform group-hover:scale-110" />
                 )}
-                {dur && !pending && <span className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">{dur}</span>}
+                {dur && !pending && <span className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-foreground">{dur}</span>}
                 {r.lesson_id && (
-                  <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">
+                  <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-foreground">
                     <BookOpenIcon className="h-3 w-3" /> Lesson
                   </span>
                 )}
@@ -154,7 +154,7 @@ export default function ClassReplays({ heading = 'Class Replays' }: { heading?: 
                           <button onClick={() => rename(r)} disabled={busy} className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-black uppercase tracking-wide text-foreground hover:border-primary/50 disabled:opacity-50">
                             <PencilSquareIcon className="h-3 w-3" /> Rename
                           </button>
-                          <button onClick={() => remove(r.id)} disabled={busy} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-600/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-300 hover:bg-rose-600/20 disabled:opacity-50">
+                          <button onClick={() => remove(r.id)} disabled={busy} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-600/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-700 dark:text-rose-300 hover:bg-rose-600/20 disabled:opacity-50">
                             <TrashIcon className="h-3 w-3" /> Delete
                           </button>
                           <button onClick={() => setManageId(null)} className="ml-auto px-2 py-1 text-[10px] font-black uppercase tracking-wide text-muted-foreground hover:text-foreground">Done</button>
@@ -192,8 +192,8 @@ export default function ClassReplays({ heading = 'Class Replays' }: { heading?: 
       {active?.playback_url && (
         <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 p-0 sm:p-6" onClick={() => setActive(null)}>
           <div className="flex w-full max-w-4xl items-center justify-between px-4 py-3" onClick={(e) => e.stopPropagation()}>
-            <p className="min-w-0 truncate text-sm font-black text-white">{active.title}</p>
-            <button onClick={() => setActive(null)} className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20" aria-label="Close">
+            <p className="min-w-0 truncate text-sm font-black text-foreground">{active.title}</p>
+            <button onClick={() => setActive(null)} className="rounded-full bg-white/10 p-2 text-foreground hover:bg-white/20" aria-label="Close">
               <XMarkIcon className="h-5 w-5" />
             </button>
           </div>

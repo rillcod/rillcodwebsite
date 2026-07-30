@@ -31,7 +31,7 @@ export default function NewSchoolReportPage() {
       </header>
 
       {setup.error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {setup.error}
         </p>
       ) : null}

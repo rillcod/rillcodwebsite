@@ -124,11 +124,11 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   },
   published: {
     label: "Published",
-    cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    cls: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
   },
   archived: {
     label: "Archived",
-    cls: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    cls: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
   },
 };
 
@@ -1264,7 +1264,7 @@ function LessonPlansPageInner() {
                               e.preventDefault();
                               openDeleteConfirm(plan);
                             }}
-                            className="p-1.5 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-all"
+                            className="p-1.5 text-rose-600/30 dark:text-rose-400/30 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-all"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
                           </button>
@@ -1456,7 +1456,7 @@ function LessonPlansPageInner() {
             <div className="p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-rose-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TrashIcon className="w-5 h-5 text-rose-500" />
+                  <TrashIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-black text-foreground">
@@ -1481,7 +1481,7 @@ function LessonPlansPageInner() {
               )}
               {deletionSummary && (
                 <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 text-sm">
-                  <p className="text-xs font-bold text-rose-400 mb-3">
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mb-3">
                     This will also delete:
                   </p>
                   <div className="grid grid-cols-2 gap-3">
@@ -1623,15 +1623,15 @@ function LessonPlansPageInner() {
 type ChipTone = "violet" | "cyan" | "emerald";
 const CHIP_TONE: Record<ChipTone, { active: string; idle: string }> = {
   violet: {
-    active: "bg-primary/20 text-violet-300 border-primary/40",
+    active: "bg-primary/20 text-violet-700 dark:text-violet-300 border-primary/40",
     idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
   },
   cyan: {
-    active: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
+    active: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/40",
     idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
   },
   emerald: {
-    active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+    active: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
     idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
   },
 };

@@ -18,9 +18,9 @@ interface ProofRecord {
 }
 
 const PROOF_STATUS_STYLES: Record<ProofStatus, string> = {
-  pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  rejected: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  pending: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  approved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  rejected: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   request_more: 'bg-primary/20 text-primary border-primary/30',
 };
 
@@ -155,7 +155,7 @@ export function ProofReviewModal({
                           {new Date(proof.created_at).toLocaleString()}
                         </p>
                         {proof.payer_note && (
-                          <div className="mt-2 bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-300 italic rounded-md">
+                          <div className="mt-2 bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 italic rounded-md">
                             &ldquo;{proof.payer_note}&rdquo;
                           </div>
                         )}
@@ -168,7 +168,7 @@ export function ProofReviewModal({
                           href={proof.signed_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-blue-300 underline"
+                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-blue-700 dark:hover:text-blue-300 underline"
                         >
                           <DocumentTextIcon className="w-4 h-4" /> View PDF Evidence
                         </a>

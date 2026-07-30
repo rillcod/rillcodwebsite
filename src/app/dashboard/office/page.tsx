@@ -222,7 +222,7 @@ function OfficeCenterInner() {
               {snapshotMeta?.stale ? (
                 <>
                   {' · '}
-                  <span className="font-bold text-amber-700">Counts may be stale</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-300">Counts may be stale</span>
                 </>
               ) : snapshotMeta?.lastUpdatedAt ? (
                 <>

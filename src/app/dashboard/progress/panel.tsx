@@ -801,8 +801,8 @@ export default function ProgressPage({
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -841,7 +841,7 @@ export default function ProgressPage({
 
               <div className="bg-card shadow-sm border border-border rounded-xl p-4 h-[280px]">
                 <div className="flex items-center gap-2 mb-2 px-2">
-                  <SparklesIcon className="w-4 h-4 text-cyan-400" />
+                  <SparklesIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     Skill Mastery
                   </span>
@@ -904,21 +904,21 @@ export default function ProgressPage({
                     label: "Graded",
                     value: completed,
                     icon: CheckCircleIcon,
-                    color: "text-emerald-400",
+                    color: "text-emerald-600 dark:text-emerald-400",
                     bg: "bg-emerald-500/10",
                   },
                   {
                     label: "Pending",
                     value: pending,
                     icon: ClockIcon,
-                    color: "text-amber-400",
+                    color: "text-amber-600 dark:text-amber-400",
                     bg: "bg-amber-500/10",
                   },
                   {
                     label: "Best Score",
                     value: best != null ? `${best}%` : "—",
                     icon: TrophyIcon,
-                    color: "text-yellow-400",
+                    color: "text-yellow-600 dark:text-yellow-400",
                     bg: "bg-yellow-500/10",
                   },
                   {
@@ -934,8 +934,8 @@ export default function ProgressPage({
                     icon: ChartBarIcon,
                     color: avgScore
                       ? avgScore >= 70
-                        ? "text-emerald-400"
-                        : "text-amber-400"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
                       : "text-muted-foreground",
                     bg: "bg-card shadow-sm",
                   },
@@ -974,7 +974,7 @@ export default function ProgressPage({
                       Coding & Logic
                     </span>
                     , you are performing in the{" "}
-                    <span className="text-emerald-400 font-bold">top 15%</span>{" "}
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">top 15%</span>{" "}
                     of your class. Keep up the consistent effort to reach
                     Diamond tier!
                   </p>
@@ -999,14 +999,14 @@ export default function ProgressPage({
                 label: "Graded",
                 value: completed,
                 icon: CheckCircleIcon,
-                color: "text-emerald-400",
+                color: "text-emerald-600 dark:text-emerald-400",
                 bg: "bg-emerald-500/10",
               },
               {
                 label: "Awaiting Grade",
                 value: pending,
                 icon: ClockIcon,
-                color: "text-amber-400",
+                color: "text-amber-600 dark:text-amber-400",
                 bg: "bg-amber-500/10",
               },
               {
@@ -1015,8 +1015,8 @@ export default function ProgressPage({
                 icon: ChartBarIcon,
                 color: avgScore
                   ? avgScore >= 70
-                    ? "text-emerald-400"
-                    : "text-amber-400"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
                 bg: "bg-primary/10",
               },
@@ -1083,7 +1083,7 @@ export default function ProgressPage({
                         className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize
                         ${
                           e.status === "active"
-                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                             : e.status === "completed"
                             ? "bg-primary/20 text-primary border-primary/30"
                             : "bg-muted text-muted-foreground border-border"
@@ -1190,7 +1190,7 @@ export default function ProgressPage({
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground flex items-center gap-2">
-                <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-400" />
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 {isStaff ? "Recent Submissions" : "Assignment Results"}
               </h3>
             </div>

@@ -143,7 +143,7 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
                 window.location.href = '/dashboard/study-groups';
               }
             }}
-            className="p-1.5 text-muted-foreground hover:text-rose-400 transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase"
+            className="p-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase"
           >
             <TrashIcon className="w-3.5 h-3.5" /> Delete Group
           </button>
@@ -179,13 +179,13 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
                       </p>
                     )}
                     <div className="flex items-center gap-2">
-                      <div className={`px-3 py-2 rounded-xl text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-card border border-border text-foreground'}`}>
+                      <div className={`px-3 py-2 rounded-xl text-sm ${isOwn ? 'bg-primary/90 text-foreground' : 'bg-card border border-border text-foreground'}`}>
                         {msg.content}
                       </div>
                       {isModerator && (
                         <button 
                           onClick={() => deleteMessage(msg.id)}
-                          className="opacity-0 group-hover/msg:opacity-100 p-1.5 text-muted-foreground hover:text-rose-400 transition-all"
+                          className="opacity-0 group-hover/msg:opacity-100 p-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                         </button>

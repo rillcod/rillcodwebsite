@@ -283,13 +283,13 @@ export default function ScratchSynthesisLab({ initialBlocks, onChange, readOnly 
   const paletteCat = PALETTE[activeCategory];
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1117] text-white overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0f1117] text-foreground overflow-hidden">
 
       {/* ── Mobile tab toggle ── */}
       <div className="flex md:hidden border-b border-white/10 shrink-0">
         {(['palette', 'workspace'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${tab === t ? 'bg-white/10 text-yellow-400' : 'text-white/40'}`}>
+            className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${tab === t ? 'bg-white/10 text-yellow-600 dark:text-yellow-400' : 'text-muted-foreground'}`}>
             {t === 'palette' ? '🎨 Blocks' : '🔧 Workspace'}
           </button>
         ))}
@@ -310,7 +310,7 @@ export default function ScratchSynthesisLab({ initialBlocks, onChange, readOnly 
                   <span style={{ fontSize: 16 }}>{c.emoji}</span>
                   <div>
                     <p className="text-xs font-black uppercase tracking-wide leading-none" style={{ color: c.color }}>{c.label}</p>
-                    <p className="text-[9px] text-white/30 mt-0.5">{c.blocks.length} blocks</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{c.blocks.length} blocks</p>
                   </div>
                 </button>
               );
@@ -319,7 +319,7 @@ export default function ScratchSynthesisLab({ initialBlocks, onChange, readOnly 
 
           {/* Block palette for active category */}
           <div className="flex-1 border-t border-white/10 overflow-y-auto p-3">
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">
               {readOnly ? 'Read only' : 'Click to add →'}
             </p>
             <div className="flex flex-col gap-1.5">
@@ -350,16 +350,16 @@ export default function ScratchSynthesisLab({ initialBlocks, onChange, readOnly 
           {/* Workspace toolbar */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-[#0d0f17] shrink-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Workspace</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Workspace</span>
               {sequence.length > 0 && (
-                <span className="text-[9px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full font-bold">
+                <span className="text-[9px] bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full font-bold">
                   {sequence.length} block{sequence.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
             {!readOnly && sequence.length > 0 && (
               <button onClick={clearAll}
-                className="text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-red-400 px-2 py-1 border border-white/10 hover:border-red-500/30 rounded transition-colors">
+                className="text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-red-600 dark:hover:text-red-400 px-2 py-1 border border-white/10 hover:border-red-500/30 rounded transition-colors">
                 Clear all
               </button>
             )}
@@ -380,7 +380,7 @@ export default function ScratchSynthesisLab({ initialBlocks, onChange, readOnly 
             {sequence.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-4 opacity-40">
                 <div style={{ fontSize: 48 }}>🧩</div>
-                <p className="text-sm font-black text-white/50 uppercase tracking-widest text-center">
+                <p className="text-sm font-black text-muted-foreground uppercase tracking-widest text-center">
                   {readOnly ? 'No blocks added yet' : 'Click blocks on the left\nto build your script!'}
                 </p>
               </div>

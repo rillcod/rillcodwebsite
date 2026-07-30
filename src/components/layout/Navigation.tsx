@@ -130,7 +130,7 @@ const Navigation = () => {
                     href={href}
                     className={`${navLinkCls(href)} ${
                       isSummer && !isActive(href)
-                        ? 'border border-amber-500/20 text-amber-500 hover:text-amber-400 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10'
+                        ? 'border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10'
                         : ''
                     }`}
                   >
@@ -227,7 +227,7 @@ const Navigation = () => {
                             isActive(href)
                               ? 'text-primary bg-primary/10 border border-primary/20'
                               : isSummer
-                              ? 'text-amber-500 hover:text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                              ? 'text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 bg-amber-500/10 border border-amber-500/20'
                               : 'text-foreground hover:text-primary hover:bg-muted'
                           }`}
                         >

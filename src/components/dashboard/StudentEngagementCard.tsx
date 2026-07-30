@@ -157,14 +157,14 @@ export default function StudentEngagementCard({ studentId }: Props) {
           }`}>
             <div className="flex items-center gap-1.5">
               <CheckCircleIcon className={`w-4 h-4 ${
-                submissionPct >= 80 ? 'text-emerald-400' :
-                submissionPct >= 60 ? 'text-amber-400' : 'text-rose-400'
+                submissionPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                submissionPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
               }`} />
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Submitted</span>
             </div>
             <p className={`text-2xl font-black ${
-              submissionPct >= 80 ? 'text-emerald-400' :
-              submissionPct >= 60 ? 'text-amber-400' : 'text-rose-400'
+              submissionPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+              submissionPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
             }`}>
               {Math.round(submissionPct)}<span className="text-xs">%</span>
             </p>
@@ -176,8 +176,8 @@ export default function StudentEngagementCard({ studentId }: Props) {
         {submissionPct < 80 && (
           <div className={`px-3 py-2 border text-[10px] leading-relaxed ${
             submissionPct < 40
-              ? 'border-rose-500/30 bg-rose-500/5 text-rose-400'
-              : 'border-amber-500/30 bg-amber-500/5 text-amber-400'
+              ? 'border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400'
+              : 'border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400'
           }`}>
             <span className="font-black">Grade cap active:</span> Max {actCap.maxScore}/100 (
             {(() => {

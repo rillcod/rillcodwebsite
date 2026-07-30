@@ -98,7 +98,7 @@ export default function EditParentPage() {
 
       {error ? (
         <div className="bg-rose-500/10 border border-rose-500/20 p-6 text-center">
-          <p className="text-sm text-rose-400 font-bold">{error}</p>
+          <p className="text-sm text-rose-600 dark:text-rose-400 font-bold">{error}</p>
           <button onClick={() => fetchData()} className="mt-4 text-xs font-black uppercase tracking-widest text-foreground underline">Retry</button>
         </div>
       ) : parent ? (

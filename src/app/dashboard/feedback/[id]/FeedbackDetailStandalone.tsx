@@ -22,11 +22,11 @@ interface FeedbackRecord {
 }
 
 const statusClasses: Record<string, string> = {
-  new: 'bg-amber-500/15 text-amber-600',
-  in_progress: 'bg-blue-500/15 text-blue-600',
-  resolved: 'bg-emerald-500/15 text-emerald-600',
-  closed: 'bg-slate-500/15 text-slate-600',
-  reopened: 'bg-violet-500/15 text-violet-600',
+  new: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  in_progress: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  resolved: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  closed: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  reopened: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
 };
 
 /** Non-admin feedback detail (customers, teachers). Admins use Office Center. */
@@ -118,7 +118,7 @@ export default function FeedbackDetailStandalone() {
   if (error && !feedback) {
     return (
       <div className="p-8">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <Link href="/dashboard/feedback" className="text-primary underline">
           Back to feedback
         </Link>
@@ -164,7 +164,7 @@ export default function FeedbackDetailStandalone() {
 
       {feedback.admin_response && !canRespond ? (
         <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6">
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Rillcod response</p>
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Rillcod response</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">{feedback.admin_response}</p>
           {feedback.responded_at ? (
             <p className="mt-4 text-xs text-muted-foreground">Responded {new Date(feedback.responded_at).toLocaleString()}</p>
@@ -206,9 +206,9 @@ export default function FeedbackDetailStandalone() {
             </button>
             <span className="text-xs text-muted-foreground">Signed in as {profile?.full_name || 'Staff'}</span>
           </div>
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
           {delivery ? (
-            <p className="mt-4 text-sm text-emerald-700">
+            <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">
               Saved. In-app: {delivery.in_app ? 'sent' : 'not available'}; email: {delivery.email ? 'sent' : 'not delivered'}.
             </p>
           ) : null}
@@ -256,13 +256,13 @@ export default function FeedbackDetailStandalone() {
               type="button"
               disabled={saving}
               onClick={() => void customerAction({ status: 'reopened' })}
-              className="rounded-xl border border-amber-500/40 px-4 py-2 text-sm font-black text-amber-600"
+              className="rounded-xl border border-amber-500/40 px-4 py-2 text-sm font-black text-amber-600 dark:text-amber-400"
             >
               I still need help
             </button>
           </div>
           {feedback.satisfaction_score ? (
-            <p className="mt-3 text-xs text-emerald-600">Saved rating: {feedback.satisfaction_score}/5</p>
+            <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">Saved rating: {feedback.satisfaction_score}/5</p>
           ) : null}
         </section>
       ) : null}

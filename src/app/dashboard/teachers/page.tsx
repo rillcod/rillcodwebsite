@@ -325,8 +325,8 @@ function TeacherPersonalDashboard() {
                 : "—",
               color:
                 s.status === "submitted"
-                  ? "text-amber-400"
-                  : "text-emerald-400",
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-emerald-600 dark:text-emerald-400",
             }))
           );
 
@@ -599,7 +599,7 @@ function TeacherPersonalDashboard() {
                     <div
                       className={`mt-2 sm:mt-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
                         cls.day === "Active"
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                           : "bg-card shadow-sm text-muted-foreground border-border"
                       }`}
                     >
@@ -613,7 +613,7 @@ function TeacherPersonalDashboard() {
             {/* ── QUICK ACTIONS ── */}
             <div className="pt-6 sm:pt-8">
               <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-3">
-                <TrophyIcon className="w-6 h-6 text-amber-500" />
+                <TrophyIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 Tools
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -661,7 +661,7 @@ function TeacherPersonalDashboard() {
                           {act.time}
                         </span>
                       </div>
-                      <p className="text-sm font-bold text-slate-300 group-hover:text-foreground transition-colors">
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:text-foreground transition-colors">
                         {act.subtitle}
                       </p>
                     </div>
@@ -673,7 +673,7 @@ function TeacherPersonalDashboard() {
             {/* Performance Summary */}
             <div className="bg-background border border-border rounded-xl p-6 sm:p-8 shadow-2xl shadow-primary/5">
               <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-3">
-                <StarIcon className="w-4 h-4 text-amber-400 shadow-xl" /> Scores
+                <StarIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 shadow-xl" /> Scores
               </h3>
               <div className="space-y-6">
                 {perfData.length === 0 ? (
@@ -713,7 +713,7 @@ function TeacherPersonalDashboard() {
                 <div className="relative bg-card shadow-sm border border-amber-500/20 rounded-xl p-6 sm:p-8">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
-                      <ClipboardDocumentListIcon className="w-6 h-6 text-amber-400" />
+                      <ClipboardDocumentListIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-black text-foreground uppercase tracking-widest">
@@ -724,7 +724,7 @@ function TeacherPersonalDashboard() {
                       </p>
                       <Link
                         href="/dashboard/grading"
-                        className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-400 hover:text-foreground uppercase tracking-widest transition-all"
+                        className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-600 dark:text-amber-400 hover:text-foreground uppercase tracking-widest transition-all"
                       >
                         Action <ArrowRightIcon className="w-3.5 h-3.5" />
                       </Link>
@@ -755,13 +755,13 @@ function TeacherPersonalDashboard() {
               label: "Pending",
               value: stats.pendingGrades,
               icon: DocumentTextIcon,
-              color: "text-amber-400",
+              color: "text-amber-600 dark:text-amber-400",
             },
             {
               label: "Efficiency",
               value: `${stats.avgPerformance}%`,
               icon: FireIcon,
-              color: "text-emerald-400",
+              color: "text-emerald-600 dark:text-emerald-400",
             },
           ].map((item) => (
             <div
@@ -1216,7 +1216,7 @@ function AdminTeacherView() {
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
-                  <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
+                  <ShieldCheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground">
@@ -1235,7 +1235,7 @@ function AdminTeacherView() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>
                   Copy these now. The teacher should change their password on
@@ -1609,9 +1609,9 @@ function AdminTeacherView() {
                               {toggling === t.id ? (
                                 <ArrowPathIcon className="w-4 h-4 animate-spin" />
                               ) : t.is_active ? (
-                                <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                                <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                               ) : (
-                                <XMarkIcon className="w-4 h-4 text-rose-500" />
+                                <XMarkIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                               )}
                             </button>
                             <button
@@ -1621,7 +1621,7 @@ function AdminTeacherView() {
                                 setResetPw("");
                                 setResetMsg(null);
                               }}
-                              className="p-2 rounded-lg hover:bg-amber-500/10 text-amber-600/70 hover:text-amber-600"
+                              className="p-2 rounded-lg hover:bg-amber-500/10 text-amber-600/70 dark:text-amber-400/70 hover:text-amber-600 dark:hover:text-amber-400"
                               title="Reset password"
                             >
                               <KeyIcon className="w-4 h-4" />
@@ -1652,7 +1652,7 @@ function AdminTeacherView() {
                               type="button"
                               onClick={() => handleDeleteTeacher(t.id)}
                               disabled={deleting === t.id}
-                              className="p-2 rounded-lg hover:bg-rose-500/10 text-rose-500/50 hover:text-rose-500 disabled:opacity-50"
+                              className="p-2 rounded-lg hover:bg-rose-500/10 text-rose-600/50 dark:text-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-50"
                               title="Delete teacher"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -1718,7 +1718,7 @@ function AdminTeacherView() {
                           </span>
                         ))
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-600">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-600 dark:text-amber-400">
                           Unassigned
                         </span>
                       )}
@@ -1741,9 +1741,9 @@ function AdminTeacherView() {
                         {toggling === t.id ? (
                           <ArrowPathIcon className="w-4 h-4 animate-spin" />
                         ) : t.is_active ? (
-                          <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                          <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         ) : (
-                          <XMarkIcon className="w-4 h-4 text-rose-500" />
+                          <XMarkIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                         )}
                       </button>
                       <button
@@ -1753,7 +1753,7 @@ function AdminTeacherView() {
                           setResetPw("");
                           setResetMsg(null);
                         }}
-                        className="p-2 rounded-xl border border-border bg-background text-amber-600"
+                        className="p-2 rounded-xl border border-border bg-background text-amber-600 dark:text-amber-400"
                         title="Reset password"
                       >
                         <KeyIcon className="w-4 h-4" />
@@ -1762,7 +1762,7 @@ function AdminTeacherView() {
                         type="button"
                         onClick={() => handleDeleteTeacher(t.id)}
                         disabled={deleting === t.id}
-                        className="p-2 rounded-xl border border-border bg-background text-rose-500"
+                        className="p-2 rounded-xl border border-border bg-background text-rose-600 dark:text-rose-400"
                         title="Delete"
                       >
                         <TrashIcon className="w-4 h-4" />
@@ -1789,7 +1789,7 @@ function AdminTeacherView() {
           <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
-                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">
+                <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-0.5">
                   Admin Action
                 </p>
                 <h2 className="text-lg font-extrabold text-foreground">
@@ -1814,8 +1814,8 @@ function AdminTeacherView() {
                 <div
                   className={`rounded-xl px-4 py-3 text-sm border ${
                     resetMsg.ok
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                      : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                      : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
                   }`}
                 >
                   {resetMsg.text}
@@ -1908,13 +1908,13 @@ function AdminTeacherView() {
               <div className="px-6 py-5 space-y-5">
                 {/* Alerts */}
                 {inviteErr && (
-                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">
+                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-600 dark:text-rose-400 text-sm">
                     <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     {inviteErr}
                   </div>
                 )}
                 {inviteOk && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-600 dark:text-emerald-400 text-sm">
                     {inviteOk}
                   </div>
                 )}
@@ -1929,7 +1929,7 @@ function AdminTeacherView() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                        Full Name <span className="text-rose-400">*</span>
+                        Full Name <span className="text-rose-600 dark:text-rose-400">*</span>
                       </label>
                       <input
                         name="full_name"
@@ -1995,7 +1995,7 @@ function AdminTeacherView() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                        Email Address <span className="text-rose-400">*</span>
+                        Email Address <span className="text-rose-600 dark:text-rose-400">*</span>
                       </label>
                       <input
                         name="email"

@@ -167,7 +167,7 @@ export function AutomationControlsPanel({ embedded = false }: Props) {
       ) : null}
 
       {error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-500">
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
         </p>
       ) : null}
@@ -202,7 +202,7 @@ export function AutomationControlsPanel({ embedded = false }: Props) {
                       disabled={saving !== null}
                       className={`min-h-11 min-w-24 shrink-0 touch-manipulation rounded-xl border px-3 py-2 text-xs font-black uppercase disabled:opacity-50 ${
                         on && !blockedByMarketing
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500'
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                           : 'border-border bg-muted text-muted-foreground'
                       }`}
                     >

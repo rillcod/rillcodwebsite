@@ -9,11 +9,11 @@ import type { AtRiskStudent, AtRiskSignal } from '@/services/analytics.service';
 const SIGNAL_CONFIG: Record<AtRiskSignal, { label: string; className: string }> = {
   no_login: {
     label: 'No Login 7d',
-    className: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
+    className: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30',
   },
   low_attendance: {
     label: 'Low Attendance',
-    className: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+    className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30',
   },
   overdue_assignments: {
     label: 'Overdue Work',
@@ -62,10 +62,10 @@ export function AtRiskList({ schoolId, classId }: Props) {
     return (
       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-8 text-center">
         <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <UserCircleIcon className="w-6 h-6 text-emerald-400" />
+          <UserCircleIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <p className="text-emerald-400 font-bold">All students on track!</p>
-        <p className="text-emerald-400/60 text-sm mt-1">No learners flagged for risk currently.</p>
+        <p className="text-emerald-600 dark:text-emerald-400 font-bold">All students on track!</p>
+        <p className="text-emerald-600/60 dark:text-emerald-400/60 text-sm mt-1">No learners flagged for risk currently.</p>
       </div>
     );
   }
@@ -79,10 +79,10 @@ export function AtRiskList({ schoolId, classId }: Props) {
         >
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-500/20 shrink-0">
-              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
             </div>
             <div>
-              <p className="font-bold text-white">{student.full_name}</p>
+              <p className="font-bold text-foreground">{student.full_name}</p>
               {/* Req 5.4 — triggered_signals as labelled badges */}
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {student.triggered_signals.map(signal => {

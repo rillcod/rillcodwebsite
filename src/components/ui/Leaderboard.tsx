@@ -39,7 +39,7 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                             <div className="absolute -bottom-2 -right-2 bg-slate-300 text-foreground w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ring-2 ring-white">2</div>
                         </div>
                         <p className="text-sm font-bold text-foreground/80 dark:text-slate-300 truncate w-24 text-center">{topThree[1].portal_users.full_name}</p>
-                        <Badge variant="secondary" className="mt-2 font-mono text-teal-600 bg-teal-50">{topThree[1].points} pts</Badge>
+                        <Badge variant="secondary" className="mt-2 font-mono text-teal-600 dark:text-teal-400 bg-teal-50">{topThree[1].points} pts</Badge>
                     </div>
                 )}
 
@@ -48,16 +48,16 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                     <div className="flex flex-col items-center group -mt-12 animate-in slide-in-from-bottom-8 duration-1000">
                         <div className="relative mb-4">
                             <div className="absolute -top-10 left-1/2 -translate-x-1/2">
-                                <Trophy className="w-10 h-10 text-yellow-500 animate-bounce" />
+                                <Trophy className="w-10 h-10 text-yellow-600 dark:text-yellow-400 animate-bounce" />
                             </div>
                             <Avatar className="w-24 h-24 border-4 border-yellow-400 ring-8 ring-teal-500/5 group-hover:scale-110 transition-transform shadow-2xl shadow-yellow-500/20">
                                 <AvatarImage src={topThree[0].portal_users.profile_image_url} />
-                                <AvatarFallback className="bg-yellow-400 text-yellow-900">{topThree[0].portal_users.full_name.substring(0, 2)}</AvatarFallback>
+                                <AvatarFallback className="bg-yellow-400 text-yellow-900 dark:text-yellow-200">{topThree[0].portal_users.full_name.substring(0, 2)}</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ring-4 ring-white">1</div>
+                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 dark:text-yellow-200 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ring-4 ring-white">1</div>
                         </div>
                         <p className="text-base font-black text-foreground dark:text-slate-100 truncate w-32 text-center">{topThree[0].portal_users.full_name}</p>
-                        <Badge className="mt-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-1 rounded-full font-bold">{topThree[0].points} XP</Badge>
+                        <Badge className="mt-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 dark:text-yellow-200 px-4 py-1 rounded-full font-bold">{topThree[0].points} XP</Badge>
                     </div>
                 )}
 
@@ -72,7 +72,7 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                             <div className="absolute -bottom-2 -right-2 bg-primary text-primary/70 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white">3</div>
                         </div>
                         <p className="text-sm font-bold text-foreground/80 dark:text-slate-300 truncate w-24 text-center">{topThree[2].portal_users.full_name}</p>
-                        <Badge variant="secondary" className="mt-2 font-mono text-teal-600 bg-teal-50">{topThree[2].points} pts</Badge>
+                        <Badge variant="secondary" className="mt-2 font-mono text-teal-600 dark:text-teal-400 bg-teal-50">{topThree[2].points} pts</Badge>
                     </div>
                 )}
             </div>
@@ -83,14 +83,14 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                     <CardTitle className="text-sm font-bold text-muted-foreground flex items-center gap-2">
                         <Medal className="w-4 h-4" /> RECENT MOVERS
                     </CardTitle>
-                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </CardHeader>
                 <CardContent className="p-0 bg-card dark:bg-slate-900">
                     <div className="divide-y divide-slate-50 dark:divide-slate-800">
                         {rest.map((entry, idx) => (
                             <div key={entry.id} className="flex items-center justify-between px-6 py-4 hover:bg-background/50 dark:hover:bg-slate-800/50 transition-colors group">
                                 <div className="flex items-center gap-4">
-                                    <span className="text-xs font-black text-slate-300 dark:text-muted-foreground w-4 group-hover:text-teal-500 transition-colors">#{entry.rank}</span>
+                                    <span className="text-xs font-black text-slate-300 dark:text-muted-foreground w-4 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">#{entry.rank}</span>
                                     <Avatar className="w-10 h-10 border-2 border-slate-100 dark:border-slate-800">
                                         <AvatarImage src={entry.portal_users.profile_image_url} />
                                         <AvatarFallback>{entry.portal_users.full_name.substring(0, 2)}</AvatarFallback>
@@ -98,15 +98,15 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                                     <div>
                                         <p className="text-sm font-bold text-foreground dark:text-slate-200">{entry.portal_users.full_name}</p>
                                         <div className="flex items-center gap-1">
-                                            <Zap className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                                            <Zap className="w-3 h-3 text-yellow-600 dark:text-yellow-400 fill-yellow-500" />
                                             <span className="text-[10px] text-muted-foreground/70 font-bold">Lvl 12 Polymath</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <p className="text-sm font-black text-teal-600">{entry.points}</p>
-                                        <div className="flex items-center gap-1 justify-end text-[10px] text-green-500 font-bold uppercase">
+                                        <p className="text-sm font-black text-teal-600 dark:text-teal-400">{entry.points}</p>
+                                        <div className="flex items-center gap-1 justify-end text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">
                                             <ChevronUp className="w-3 h-3" /> 2
                                         </div>
                                     </div>

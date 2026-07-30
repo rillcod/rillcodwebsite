@@ -435,9 +435,9 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     <span className="font-black text-foreground text-sm tabular-nums">
                       {fmt(row.currency, Number(row.amount_due ?? 0))}
                     </span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-xl ${row.status === 'paid' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                        row.status === 'past_due' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
-                          row.status === 'due' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-xl ${row.status === 'paid' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                        row.status === 'past_due' ? 'text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10' :
+                          row.status === 'due' ? 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10' :
                             'text-muted-foreground border-border'
                       }`}>
                       {row.status === 'past_due' ? 'Overdue' : row.status.replace(/_/g, ' ')}
@@ -449,7 +449,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                 {/* Pay Now button strip for due/past_due cycles (school + teacher) */}
                 {canInitiatePayment && isDue && (
                   <div className="border-t border-border px-4 py-3 bg-amber-500/5 flex items-center justify-between gap-3">
-                    <p className="text-xs text-amber-400 font-bold">
+                    <p className="text-xs text-amber-600 dark:text-amber-400 font-bold">
                       {row.status === 'past_due' ? 'This cycle is overdue — please pay immediately.' : 'Payment due for this billing cycle.'}
                     </p>
                     <button
@@ -583,7 +583,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                           type="button"
                           disabled={deleting === row.id}
                           onClick={() => void deleteCycle(row.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                           {deleting === row.id ? 'Archiving…' : 'Archive'}
