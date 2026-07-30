@@ -43,11 +43,32 @@ export async function forceDeleteCurriculumDraft(
     .neq("status", "archived");
   if (detachErr) return { ok: false, error: detachErr.message };
 
-  const { error: releaseErr } = await admin
+  // Find linked releases
+  const { data: releases } = await admin
     .from("academic_curriculum_releases")
-    .update({ source_curriculum_id: null })
+    .select("id")
     .eq("source_curriculum_id", id);
-  if (releaseErr) return { ok: false, error: releaseErr.message };
+
+  if (releases && releases.length > 0) {
+    const releaseIds = releases.map((r: { id: string }) => r.id);
+    await admin
+      .from("academic_offering_curriculum_directions")
+      .delete()
+      .in("release_id", releaseIds);
+    await admin
+      .from("academic_curriculum_adoptions")
+      .delete()
+      .in("release_id", releaseIds);
+    await admin
+      .from("academic_curriculum_releases")
+      .delete()
+      .in("id", releaseIds);
+  } else {
+    await admin
+      .from("academic_curriculum_releases")
+      .update({ source_curriculum_id: null })
+      .eq("source_curriculum_id", id);
+  }
 
   await admin
     .from("academic_curriculum_quality_runs")
