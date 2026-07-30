@@ -28,6 +28,7 @@ import {
 } from '@/lib/curriculum/href';
 
 import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
+import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
 function enrollSkipMessage(json: any, requested: number): string | null {
@@ -1022,7 +1023,7 @@ export default function ClassDetailPage() {
   if (!canView) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
-        <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/40 mx-auto mb-4" />
+        <ExclamationTriangleIcon className="w-12 h-12 text-rose-600/40 dark:text-rose-400/40 mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">You need staff access to view this page.</p>
       </div>
     </div>
@@ -1031,10 +1032,10 @@ export default function ClassDetailPage() {
   if (error || !cls) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
       <div className="w-16 h-16 bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
-        <ExclamationTriangleIcon className="w-8 h-8 text-rose-400" />
+        <ExclamationTriangleIcon className="w-8 h-8 text-rose-600 dark:text-rose-400" />
       </div>
       <div className="text-center space-y-2">
-        <p className="text-rose-400 font-bold text-sm">{error ?? 'Class not found'}</p>
+        <p className="text-rose-600 dark:text-rose-400 font-bold text-sm">{error ?? 'Class not found'}</p>
         <p className="text-muted-foreground text-xs">The class could not be loaded.</p>
       </div>
       <Link href="/dashboard/classes" className="px-6 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold transition-all">
@@ -1113,7 +1114,7 @@ export default function ClassDetailPage() {
       desc: 'Lessons, course focus, class sessions',
       icon: BookOpenIcon,
       stat: `${items.lessons.length} lessons`,
-      tone: 'text-cyan-400',
+      tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
       id: 'assessment' as const,
@@ -1121,7 +1122,7 @@ export default function ClassDetailPage() {
       desc: 'Assignments, CBT, grades and reports',
       icon: ChartBarIcon,
       stat: `${openAssignments + activeExamCount} open`,
-      tone: 'text-amber-400',
+      tone: 'text-amber-600 dark:text-amber-400',
     },
     {
       id: 'communication' as const,
@@ -1129,7 +1130,7 @@ export default function ClassDetailPage() {
       desc: 'Attendance, broadcast, parent updates',
       icon: ClipboardDocumentCheckIcon,
       stat: `${sessions.length} sessions`,
-      tone: 'text-emerald-400',
+      tone: 'text-emerald-600 dark:text-emerald-400',
     },
   ];
   const selectedOperation = operationCards.find(card => card.id === activeOperation) ?? operationCards[0];
@@ -1154,8 +1155,8 @@ export default function ClassDetailPage() {
                     Workspace
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                    cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
-                    cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                    cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                    cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' :
                     'border-border bg-background text-muted-foreground'
                   }`}>
                     {cls.status}
@@ -1179,7 +1180,7 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4">
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4">
                     Broadcast
                   </button>
                   <Link href={`/dashboard/attendance?class_id=${id}`}
@@ -1194,9 +1195,9 @@ export default function ClassDetailPage() {
             <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 lg:grid-cols-4">
               {[
                 { label: 'Active', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
-                { label: 'Withdrawn', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-400' },
-                { label: 'Open work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-400' },
-                { label: 'Marked', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-400' },
+                { label: 'Withdrawn', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-600 dark:text-amber-400' },
+                { label: 'Open work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'Marked', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-600 dark:text-cyan-400' },
               ].map(metric => (
                 <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-background/70 p-2.5 sm:rounded-2xl sm:p-4">
                   <p className={`text-xl font-black sm:text-2xl ${metric.tone}`}>{metric.value}</p>
@@ -1208,7 +1209,7 @@ export default function ClassDetailPage() {
           </div>
 
           {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
-            <div className="border-b border-rose-500/20 bg-rose-500/10 px-3 py-3 text-sm font-semibold leading-snug text-rose-400 sm:px-5">
+            <div className="border-b border-rose-500/20 bg-rose-500/10 px-3 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400 sm:px-5">
               Class capacity has been reached. Move students to another class or increase capacity before adding more.
             </div>
           )}
@@ -1298,7 +1299,7 @@ export default function ClassDetailPage() {
                           <p className="mt-2 break-words rounded-lg bg-muted px-2 py-1.5 text-xs text-foreground">“{request.reason}”</p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button type="button" disabled={transferBusy === request.id} onClick={() => decideTransfer(request.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50">Approve & Move</button>
-                            <button type="button" disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-300 disabled:opacity-50">Decline</button>
+                            <button type="button" disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-700 dark:text-rose-300 disabled:opacity-50">Decline</button>
                           </div>
                         </div>
                       ))}
@@ -1308,7 +1309,7 @@ export default function ClassDetailPage() {
                             <p className="break-words text-sm font-bold text-foreground">{request.student?.full_name}</p>
                             <p className="break-words text-xs text-muted-foreground">Awaiting {request.from_teacher?.full_name} · {request.from_class?.name} → {request.to_class?.name}</p>
                           </div>
-                          <span className="w-fit flex-shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Pending</span>
+                          <span className="w-fit flex-shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Pending</span>
                         </div>
                       ))}
                     </div>
@@ -1321,15 +1322,15 @@ export default function ClassDetailPage() {
                         <p className="mt-0.5 break-words text-xs text-muted-foreground">
                           {currentTermStudents.length} active
                           {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
-                          {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
+                          {offBandCount ? <span className="text-amber-600 dark:text-amber-400"> · {offBandCount} off-band</span> : ''}
                           {reportIndicatorEnabled && currentTermStudents.length > 0 && (
-                            <span className={needsReportCount ? 'text-amber-400' : 'text-emerald-400'}>
+                            <span className={needsReportCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
                               {' · '}{reportedCount}/{currentTermStudents.length} reports{' '}
                               {needsReportCount ? (
                                 <button
                                   type="button"
                                   onClick={() => setShowNeedsReportOnly(v => !v)}
-                                  className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-300' : ''}`}
+                                  className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-700 dark:text-amber-300' : ''}`}
                                   title="Show only students who still need a report"
                                 >
                                   · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered)' : ''}
@@ -1345,7 +1346,7 @@ export default function ClassDetailPage() {
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" />
                             Transfer / Move
                           </Link>
-                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-400 transition-colors hover:bg-amber-500/20">
+                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/20">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
                             Ownership Requests
                           </Link>
@@ -1452,7 +1453,7 @@ export default function ClassDetailPage() {
                                       : student.has_draft_report
                                         ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
                                         : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
-                                    const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
+                                    const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}`;
                                     return isStaff ? (
                                       <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
                                         {label}
@@ -1462,7 +1463,7 @@ export default function ClassDetailPage() {
                                     );
                                   })()}
                                   {offBand && (
-                                    <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400">
+                                    <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">
                                       Off-band
                                     </span>
                                   )}
@@ -1503,7 +1504,7 @@ export default function ClassDetailPage() {
                                   onClick={() => removeStudent(student.id)}
                                   disabled={processingStudent === student.id}
                                   title="Withdraw from this class (keeps class history)"
-                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
                                 >
                                   {processingStudent === student.id ? '…' : 'Withdraw'}
                                 </button>
@@ -1514,7 +1515,7 @@ export default function ClassDetailPage() {
                       })}
                       {isStaff && visibleInactive.length > 0 && (
                         <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 backdrop-blur supports-[backdrop-filter]:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-300/90">
+                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-700/90 dark:text-amber-300/90">
                             <input
                               type="checkbox"
                               className="h-4 w-4 accent-red-600"
@@ -1531,7 +1532,7 @@ export default function ClassDetailPage() {
                             type="button"
                             onClick={() => bulkHardDelete(false)}
                             disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
                             {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
@@ -1550,12 +1551,12 @@ export default function ClassDetailPage() {
                                 title="Select for permanent deletion"
                               />
                             )}
-                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-600 dark:text-amber-400">
                               {(student.full_name ?? '?')[0].toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="break-words text-sm font-bold text-foreground">{student.full_name}</p>
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600/80 dark:text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
                             </div>
                           </div>
                           {isStaff && (
@@ -1568,7 +1569,7 @@ export default function ClassDetailPage() {
                                 onClick={() => bulkHardDelete(false, [student.id])}
                                 disabled={hardDeleting}
                                 title="Permanently delete this student from the whole system"
-                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
                               >
                                 <TrashIcon className="h-3.5 w-3.5" />
                                 Delete
@@ -1658,7 +1659,7 @@ export default function ClassDetailPage() {
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
                     className="min-w-0 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-left transition-colors hover:border-emerald-500/40 sm:p-5"
                   >
-                    <CloudArrowUpIcon className="mb-3 h-7 w-7 text-emerald-400 sm:mb-4 sm:h-8 sm:w-8" />
+                    <CloudArrowUpIcon className="mb-3 h-7 w-7 text-emerald-600 dark:text-emerald-400 sm:mb-4 sm:h-8 sm:w-8" />
                     <h3 className="text-sm font-black text-foreground">Broadcast Desk</h3>
                     <p className="mt-1 text-xs text-muted-foreground">Send class update to reachable students and parents.</p>
                   </button>
@@ -1736,7 +1737,7 @@ export default function ClassDetailPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <CalendarIcon className="w-4 h-4 text-emerald-400" />
+                        <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Class Dates</p>
@@ -1748,7 +1749,7 @@ export default function ClassDetailPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                        <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                        <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Programme</p>
@@ -1780,7 +1781,7 @@ export default function ClassDetailPage() {
                         disabled={pathVisibilitySaving === 'class'}
                         className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
                           pathClassMode === 'full'
-                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
                             : 'bg-background border-border text-muted-foreground hover:text-foreground'
                         }`}
                       >
@@ -1792,7 +1793,7 @@ export default function ClassDetailPage() {
                         disabled={pathVisibilitySaving === 'class'}
                         className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
                           pathClassMode === 'milestone'
-                            ? 'bg-primary/15 border-primary/30 text-violet-300'
+                            ? 'bg-primary/15 border-primary/30 text-violet-700 dark:text-violet-300'
                             : 'bg-background border-border text-muted-foreground hover:text-foreground'
                         }`}
                       >
@@ -1813,7 +1814,7 @@ export default function ClassDetailPage() {
                               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                                 Per-child override
                                 {customised > 0 && (
-                                  <span className="ml-2 normal-case tracking-normal text-[10px] text-violet-300 font-semibold">· {customised} customised</span>
+                                  <span className="ml-2 normal-case tracking-normal text-[10px] text-violet-700 dark:text-violet-300 font-semibold">· {customised} customised</span>
                                 )}
                               </span>
                               <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground">
@@ -1878,7 +1879,7 @@ export default function ClassDetailPage() {
                         ))}
                       </select>
                       {programCourses.length === 0 && (
-                        <p className="text-[10px] text-rose-400 italic">
+                        <p className="text-[10px] text-rose-600 dark:text-rose-400 italic">
                           No active courses found for this program. Assign courses to this program to enable focus locks.
                         </p>
                       )}
@@ -1929,7 +1930,7 @@ export default function ClassDetailPage() {
                               <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="Edit">
                                 <PencilIcon className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
+                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete">
                                 <TrashIcon className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -2052,13 +2053,13 @@ export default function ClassDetailPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                    <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <h2 className="text-sm font-bold text-foreground">CBT Exams</h2>
                     <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
                   {isStaff && (
                     <Link href={`/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-amber-400" /> New Exam
+                      <PlusIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> New Exam
                     </Link>
                   )}
                 </div>
@@ -2074,7 +2075,7 @@ export default function ClassDetailPage() {
                         className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                            <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                            <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                           </div>
                           <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
                         </div>
@@ -2082,7 +2083,7 @@ export default function ClassDetailPage() {
                           <span>{ex.duration_minutes} mins</span>
                           <span>·</span>
                           <span>{ex.total_questions} questions</span>
-                          {ex.is_active && <span className="ml-auto text-emerald-400 font-bold">Active</span>}
+                          {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
                         </div>
                       </div>
                     ) : (
@@ -2090,15 +2091,15 @@ export default function ClassDetailPage() {
                         className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                            <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                            <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                           </div>
-                          <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <span>{ex.duration_minutes} mins</span>
                           <span>·</span>
                           <span>{ex.total_questions} questions</span>
-                          {ex.is_active && <span className="ml-auto text-emerald-400 font-bold">Active</span>}
+                          {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
                         </div>
                       </Link>
                     ))}
@@ -2124,10 +2125,10 @@ export default function ClassDetailPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Link href={`/dashboard/grading?class_id=${id}${cls?.term_id ? `&term_id=${cls.term_id}` : ''}`} className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap">
+                    <Link href={`/dashboard/grading?class_id=${id}${cls?.term_id ? `&term_id=${cls.term_id}` : ''}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
                       Grading Queue →
                     </Link>
-                    <Link href={`/dashboard/reports/builder?class=${id}${cls?.term_id ? `&term=${cls.term_id}` : ''}`} className="text-xs font-bold text-primary hover:text-violet-300 transition-colors whitespace-nowrap">
+                    <Link href={`/dashboard/reports/builder?class=${id}${cls?.term_id ? `&term=${cls.term_id}` : ''}`} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
                       Build Report Cards →
                     </Link>
                     <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">
@@ -2149,7 +2150,7 @@ export default function ClassDetailPage() {
                           {items.assignments.map(a => (
                             <th key={a.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
                               <div className="line-clamp-1 mb-0.5" title={a.title}>{a.title}</div>
-                              <div className="text-[10px] text-amber-400/70">{a.max_points ?? '?'} pts</div>
+                              <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70">{a.max_points ?? '?'} pts</div>
                             </th>
                           ))}
                           {items.cbt.map(c => (
@@ -2254,7 +2255,7 @@ export default function ClassDetailPage() {
                                       <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-xl border border-primary/10">Pending</span>
                                     )
                                   ) : (
-                                    <span className="text-[10px] text-white/10 font-black uppercase tracking-widest">—</span>
+                                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
                                   )}
                                 </td>
                               );
@@ -2268,7 +2269,7 @@ export default function ClassDetailPage() {
                                   {sess ? (
                                     score !== null ? (
                                       <div className="space-y-2">
-                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : percentage >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                           {score}
                                         </span>
                                         <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden mx-auto">
@@ -2276,10 +2277,10 @@ export default function ClassDetailPage() {
                                         </div>
                                       </div>
                                     ) : (
-                                      <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-xl border border-cyan-500/10 animate-pulse">Running</span>
+                                      <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-xl border border-cyan-500/10 animate-pulse">Running</span>
                                     )
                                   ) : (
-                                    <span className="text-[10px] text-white/5 font-black uppercase tracking-widest">—</span>
+                                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
                                   )}
                                 </td>
                               );
@@ -2341,7 +2342,7 @@ export default function ClassDetailPage() {
                           setBulkRemoving(false);
                         }
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-400 text-xs font-bold transition-all rounded-xl disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all rounded-xl disabled:opacity-50"
                     >
                       {bulkRemoving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
                       Unenrol {checkedEnrollIds.size}
@@ -2403,7 +2404,7 @@ export default function ClassDetailPage() {
                             className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
                           />
                         )}
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/10 text-primary'}`}>
+                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-primary/10 text-primary'}`}>
                           {(enr.full_name ?? '?')[0].toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -2424,7 +2425,7 @@ export default function ClassDetailPage() {
                               setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
                             }}
                             title="Unenrol from class"
-                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-400 flex items-center justify-center transition-colors sm:opacity-0 sm:group-hover:opacity-100 rounded-xl"
+                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors sm:opacity-0 sm:group-hover:opacity-100 rounded-xl"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
                           </button>
@@ -2439,7 +2440,7 @@ export default function ClassDetailPage() {
             {inactiveTermStudents.length > 0 && (
               <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-amber-500/20 rounded-2xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-amber-500/10 bg-amber-500/5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-300">Paused / Historical</h3>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Paused / Historical</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     These students keep old results and can be reinstated into this term.
                   </p>
@@ -2447,7 +2448,7 @@ export default function ClassDetailPage() {
                 <div className="divide-y divide-white/5 max-h-[260px] overflow-y-auto custom-scrollbar">
                   {inactiveTermStudents.map((student: any) => (
                     <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="px-4 py-3 flex items-center gap-3">
-                      <div className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 bg-amber-500/10 text-amber-300">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                         {(student.full_name ?? '?')[0].toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -2475,7 +2476,7 @@ export default function ClassDetailPage() {
             {isStaff && (
               <button
                 onClick={handleExportLogins}
-                className="w-full py-3 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-sm text-emerald-400"
+                className="w-full py-3 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-sm text-emerald-600 dark:text-emerald-400"
               >
                 <CloudArrowDownIcon className="w-4 h-4" />
                 Export Login Credentials
@@ -2535,7 +2536,7 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => { setEnrolMode('paste'); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
-                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-900 dark:text-slate-200 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                   >
                     Paste names
                   </button>
@@ -2586,7 +2587,7 @@ export default function ClassDetailPage() {
                       </button>
                       <div className="flex-1" />
                       {requestableTransfers.length > 0 && (
-                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-[10px] font-bold text-slate-950 rounded-xl transition-all">
+                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-[10px] font-bold text-slate-900 dark:text-slate-200 rounded-xl transition-all">
                           Request all {requestableTransfers.length} transfers
                         </button>
                       )}
@@ -2618,7 +2619,7 @@ export default function ClassDetailPage() {
                         <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground" />
                         <p className="text-sm font-semibold text-muted-foreground">No eligible students found</p>
                         <p className="text-xs text-muted-foreground">All students in your school are already enrolled here, or none are registered.</p>
-                        <button onClick={() => setEnrolMode('create')} className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
+                        <button onClick={() => setEnrolMode('create')} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
                           Create a new class instead →
                         </button>
                       </div>
@@ -2675,7 +2676,7 @@ export default function ClassDetailPage() {
                             }`}
                           >
                             <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
-                              {isChecked ? <CheckIconOutline className="w-3 h-3 text-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-300" /> : null}
+                              {isChecked ? <CheckIconOutline className="w-3 h-3 text-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
@@ -2683,13 +2684,13 @@ export default function ClassDetailPage() {
                                 <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                                 {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">{student.school_name}</span>}
                                 {canDirectClaim && (
-                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-400">
+                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400">
                                     Direct claim
                                   </span>
                                 )}
                               </div>
                               {student.class_id && (
-                                <div className="mt-1 text-[10px] text-amber-300/90">
+                                <div className="mt-1 text-[10px] text-amber-700/90 dark:text-amber-300/90">
                                   <p><span className="font-black">Class:</span> {student.current_class_name || student.section_class || 'Another class'}</p>
                                   <p><span className="font-black">Owner:</span> {student.current_teacher_name || 'Unknown teacher'}{student.current_teacher_email ? ` · ${student.current_teacher_email}` : ''}</p>
                                 </div>
@@ -2697,14 +2698,14 @@ export default function ClassDetailPage() {
                             </div>
                             {requiresRequest ? (
                               student.pending_transfer_request_id ? (
-                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Request pending</span>
+                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Request pending</span>
                               ) : (
-                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-950 hover:bg-amber-400">
+                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-900 dark:text-slate-200 hover:bg-amber-400">
                                   Request transfer
                                 </button>
                               )
                             ) : isBlocked ? (
-                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
                             ) : null}
                           </div>
                         );
@@ -2728,9 +2729,9 @@ export default function ClassDetailPage() {
                           )}
                           {filtInOther.length > 0 && (
                             <div>
-                              <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest mb-2">
+                              <p className="text-[10px] font-black text-amber-600/60 dark:text-amber-400/60 uppercase tracking-widest mb-2">
                                 In another class — move or request ({filtInOther.length})
-                                {filtInOther.length > visibleInOther.length && <span className="text-amber-400/30"> — showing {visibleInOther.length}</span>}
+                                {filtInOther.length > visibleInOther.length && <span className="text-amber-600/30 dark:text-amber-400/30"> — showing {visibleInOther.length}</span>}
                               </p>
                               <div className="space-y-1.5">{visibleInOther.map(s => renderStudent(s, 'amber'))}</div>
                             </div>
@@ -2786,9 +2787,9 @@ export default function ClassDetailPage() {
                             key={step.id}
                             className={`rounded-xl border px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-widest ${
                               active
-                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200'
                                 : done
-                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                   : 'border-border bg-muted/20 text-muted-foreground'
                             }`}
                           >
@@ -2799,15 +2800,15 @@ export default function ClassDetailPage() {
                     </div>
 
                     <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-4">
-                      <p className="text-sm font-black text-amber-100">Full ownership claim</p>
-                      <p className="mt-1.5 text-xs leading-relaxed text-amber-100/80">
+                      <p className="text-sm font-black text-amber-800 dark:text-amber-100">Full ownership claim</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-amber-800/80 dark:text-amber-100/80">
                         Wherever they are now — another teacher, withdrawn, inactive, or soft-paused —
-                        matched kids land in <strong className="text-amber-50">{cls?.name ?? 'this class'}</strong> as
+                        matched kids land in <strong className="text-amber-800 dark:text-amber-100">{cls?.name ?? 'this class'}</strong> as
                         active roster members with ownership, reports authorship, and programme enrollment corrected.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {['Bypass transfer wait', 'Reactivate withdrawn', 'Take ownership', 'Same school only'].map((chip) => (
-                          <span key={chip} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-200">
+                          <span key={chip} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-200">
                             {chip}
                           </span>
                         ))}
@@ -2815,7 +2816,7 @@ export default function ClassDetailPage() {
                     </div>
 
                     {pasteError && (
-                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-300">
+                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
                         {pasteError}
                       </div>
                     )}
@@ -2871,10 +2872,10 @@ export default function ClassDetailPage() {
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                           {[
-                            { label: 'Claim now', value: claimable.length, tone: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/10' },
+                            { label: 'Claim now', value: claimable.length, tone: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/10' },
                             { label: 'Already here', value: alreadyHere.length, tone: 'text-muted-foreground border-border bg-muted/30' },
-                            { label: 'Ambiguous', value: ambiguous.length, tone: 'text-amber-400 border-amber-500/25 bg-amber-500/10' },
-                            { label: 'Not found', value: unmatched.length, tone: 'text-rose-300 border-rose-500/25 bg-rose-500/10' },
+                            { label: 'Ambiguous', value: ambiguous.length, tone: 'text-amber-600 dark:text-amber-400 border-amber-500/25 bg-amber-500/10' },
+                            { label: 'Not found', value: unmatched.length, tone: 'text-rose-700 dark:text-rose-300 border-rose-500/25 bg-rose-500/10' },
                           ].map((metric) => (
                             <div key={metric.label} className={`rounded-xl border p-3 ${metric.tone}`}>
                               <p className="text-xl font-black">{metric.value}</p>
@@ -2886,7 +2887,7 @@ export default function ClassDetailPage() {
                         {claimable.length > 0 && (
                           <div className="overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06]">
                             <div className="border-b border-emerald-500/20 px-3 py-2.5">
-                              <p className="text-xs font-black text-emerald-400">Will claim with full ownership ({claimable.length})</p>
+                              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">Will claim with full ownership ({claimable.length})</p>
                               <p className="mt-0.5 text-[10px] text-muted-foreground">Moved into this class · ownership transferred · roster set active</p>
                             </div>
                             <ul className="max-h-52 divide-y divide-border/60 overflow-y-auto">
@@ -2897,7 +2898,7 @@ export default function ClassDetailPage() {
                                   || row.student?.is_active === false;
                                 return (
                                   <li key={`c-${row.input}`} className="flex items-start gap-3 px-3 py-2.5">
-                                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-[11px] font-black text-emerald-400">
+                                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-[11px] font-black text-emerald-600 dark:text-emerald-400">
                                       {(row.student?.full_name || row.input || '?')[0].toUpperCase()}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -2913,11 +2914,11 @@ export default function ClassDetailPage() {
                                           </span>
                                         ) : null}
                                         {reactivate ? (
-                                          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-300">
+                                          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-700 dark:text-amber-300">
                                             Reactivate
                                           </span>
                                         ) : (
-                                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-400">
+                                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">
                                             Take ownership
                                           </span>
                                         )}
@@ -2939,7 +2940,7 @@ export default function ClassDetailPage() {
 
                         {ambiguous.length > 0 && (
                           <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-amber-400">Ambiguous — skipped ({ambiguous.length})</p>
+                            <p className="mb-2 text-xs font-black text-amber-600 dark:text-amber-400">Ambiguous — skipped ({ambiguous.length})</p>
                             <p className="mb-2 text-[11px] text-muted-foreground">More than one student matched these names. Disambiguate with a unique spelling, then rematch.</p>
                             <ul className="space-y-2 text-xs">
                               {ambiguous.map((row: any) => (
@@ -2956,7 +2957,7 @@ export default function ClassDetailPage() {
 
                         {unmatched.length > 0 && (
                           <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-rose-300">Not found at this school ({unmatched.length})</p>
+                            <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Not found at this school ({unmatched.length})</p>
                             <p className="mb-2 break-words text-xs text-muted-foreground">{unmatched.map((r: any) => r.input).join(' · ')}</p>
                             <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
                               Register these as new students in Bulk Register →
@@ -2969,7 +2970,7 @@ export default function ClassDetailPage() {
                     {pasteStep === 'done' && pasteResult && (
                       <div className="space-y-4">
                         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center sm:p-6">
-                          <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-400" />
+                          <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-600 dark:text-emerald-400" />
                           <p className="mt-3 text-lg font-black text-foreground">
                             {resultSummary.claimed ?? claimed.length} student{(resultSummary.claimed ?? claimed.length) === 1 ? '' : 's'} claimed
                           </p>
@@ -2979,10 +2980,10 @@ export default function ClassDetailPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                           {[
-                            { label: 'Claimed', value: resultSummary.claimed ?? 0, tone: 'text-emerald-400' },
+                            { label: 'Claimed', value: resultSummary.claimed ?? 0, tone: 'text-emerald-600 dark:text-emerald-400' },
                             { label: 'Already here', value: resultSummary.alreadyHere ?? 0, tone: 'text-muted-foreground' },
-                            { label: 'Failed', value: resultSummary.failed ?? 0, tone: 'text-rose-300' },
-                            { label: 'Not found', value: resultSummary.unmatched ?? 0, tone: 'text-amber-400' },
+                            { label: 'Failed', value: resultSummary.failed ?? 0, tone: 'text-rose-700 dark:text-rose-300' },
+                            { label: 'Not found', value: resultSummary.unmatched ?? 0, tone: 'text-amber-600 dark:text-amber-400' },
                           ].map((metric) => (
                             <div key={metric.label} className="rounded-xl border border-border bg-background p-3">
                               <p className={`text-xl font-black ${metric.tone}`}>{metric.value}</p>
@@ -2991,7 +2992,7 @@ export default function ClassDetailPage() {
                           ))}
                         </div>
                         {pasteResult.capacityStopped && (
-                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
                             Stopped at class capacity — free seats or raise capacity, then claim the rest.
                           </div>
                         )}
@@ -3010,8 +3011,8 @@ export default function ClassDetailPage() {
                         )}
                         {failed.length > 0 && (
                           <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-rose-300">Failed</p>
-                            <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-rose-200/90">
+                            <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Failed</p>
+                            <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-rose-800/90 dark:text-rose-200/90">
                               {failed.map((row: any, i: number) => (
                                 <li key={`fail-${i}`} className="break-words">
                                   <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
@@ -3073,7 +3074,7 @@ export default function ClassDetailPage() {
                             type="button"
                             onClick={() => void claimPastedNames()}
                             disabled={pasteClaiming || pasteMatching || claimable.length === 0 || isFull}
-                            className="min-h-11 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40"
+                            className="min-h-11 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-slate-900 dark:text-slate-200 disabled:opacity-40"
                           >
                             {pasteClaiming
                               ? 'Claiming ownership…'
@@ -3103,7 +3104,7 @@ export default function ClassDetailPage() {
                 <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar space-y-3">
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Register a new class and immediately enrol the {selectedStudentIds.size > 0 ? `${selectedStudentIds.size} selected` : 'selected'} student{selectedStudentIds.size !== 1 ? 's' : ''} into it.
-                    {selectedStudentIds.size === 0 && <span className="text-amber-400/70"> Select students first on the other tab.</span>}
+                    {selectedStudentIds.size === 0 && <span className="text-amber-600/70 dark:text-amber-400/70"> Select students first on the other tab.</span>}
                   </p>
                   <input
                     type="text"
@@ -3180,7 +3181,7 @@ export default function ClassDetailPage() {
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => !transferBusy && setTransferCandidate(null)} />
           <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
               <div><h3 className="font-black text-foreground">Request student transfer</h3><p className="mt-1 text-xs text-muted-foreground">The current teacher will review this request. Approval moves the student automatically.</p></div>
             </div>
             <div className="mt-5 rounded-xl border border-border bg-background p-4 text-sm">
@@ -3190,10 +3191,10 @@ export default function ClassDetailPage() {
             </div>
             <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason for transfer</label>
             <textarea autoFocus rows={4} value={transferReason} onChange={(event) => setTransferReason(event.target.value)} placeholder="Explain why this student should move (at least 10 characters)." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-amber-500/50" />
-            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
+            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
             <div className="mt-5 flex gap-3">
               <button type="button" onClick={() => setTransferCandidate(null)} disabled={!!transferBusy} className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs font-black text-muted-foreground">Cancel</button>
-              <button type="button" onClick={submitTransferRequest} disabled={!!transferBusy || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40">{transferBusy ? 'Sending request…' : 'Send to current teacher'}</button>
+              <button type="button" onClick={submitTransferRequest} disabled={!!transferBusy || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-900 dark:text-slate-200 disabled:opacity-40">{transferBusy ? 'Sending request…' : 'Send to current teacher'}</button>
             </div>
           </div>
         </div>
@@ -3203,7 +3204,7 @@ export default function ClassDetailPage() {
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => transferBusy !== 'bulk' && setShowBulkTransferModal(false)} />
           <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
               <div><h3 className="font-black text-foreground">Request all available transfers</h3><p className="mt-1 text-xs text-muted-foreground">One reason will be sent for every student owned by another teacher. Existing pending requests are skipped.</p></div>
             </div>
             <div className="mt-4 max-h-32 overflow-y-auto rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground">
@@ -3211,10 +3212,10 @@ export default function ClassDetailPage() {
             </div>
             <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason for all requests</label>
             <textarea autoFocus rows={4} value={transferReason} onChange={(event) => setTransferReason(event.target.value)} placeholder="Explain why these students should move (at least 10 characters)." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-amber-500/50" />
-            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
+            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
             <div className="mt-5 flex gap-3">
               <button type="button" onClick={() => setShowBulkTransferModal(false)} disabled={transferBusy === 'bulk'} className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs font-black text-muted-foreground">Cancel</button>
-              <button type="button" onClick={submitAllTransferRequests} disabled={transferBusy === 'bulk' || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40">{transferBusy === 'bulk' ? 'Sending requests...' : 'Send all requests'}</button>
+              <button type="button" onClick={submitAllTransferRequests} disabled={transferBusy === 'bulk' || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-900 dark:text-slate-200 disabled:opacity-40">{transferBusy === 'bulk' ? 'Sending requests...' : 'Send all requests'}</button>
             </div>
           </div>
         </div>
@@ -3373,12 +3374,12 @@ export default function ClassDetailPage() {
                     {reachableStudents.length} of {enrollments.length} students have WhatsApp consent and a valid phone number.
                   </p>
                   {reachableStudents.length === 0 && (
-                    <div className="flex items-center gap-2 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-[10px] text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
                       ⚠️ No contact coordinates available for broadcast.
                     </div>
                   )}
                   {reachableStudents.length < enrollments.length && reachableStudents.length > 0 && (
-                    <div className="flex items-center gap-2 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
                       ⚠️ {enrollments.length - reachableStudents.length} students will skip this broadcast (no phones).
                     </div>
                   )}
@@ -3440,9 +3441,9 @@ export default function ClassDetailPage() {
               
               {!loadingReachable && enrollments.length > reachableStudents.length && (
                 <div className="border border-amber-500/10 rounded-2xl p-4 bg-amber-500/[0.01]">
-                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3 flex items-center justify-between">
                     <span>Unreachable Students ({enrollments.length - reachableStudents.length})</span>
-                    <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">Missing Data</span>
+                    <span className="text-[8px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">Missing Data</span>
                   </p>
                   <div className="space-y-2 max-h-28 overflow-y-auto pr-1">
                     {enrollments
@@ -3450,7 +3451,7 @@ export default function ClassDetailPage() {
                       .map((student: any) => (
                         <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-b-0 opacity-60">
                           <span className="font-semibold text-foreground">{student.full_name}</span>
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full text-rose-400">📵 No phone</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full text-rose-600 dark:text-rose-400">📵 No phone</span>
                         </div>
                       ))}
                   </div>
@@ -3473,7 +3474,7 @@ export default function ClassDetailPage() {
               <button
                 onClick={handleBroadcast}
                 disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0 || (broadcastForm.use_template && !broadcastForm.template_name.trim())}
-                className="flex-[2] py-3 bg-[#25D366] hover:bg-[#1fbc55] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-xl shadow-[#25D366]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                className="flex-[2] py-3 bg-[#25D366] hover:bg-[#1fbc55] disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-xl shadow-[#25D366]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
               >
                 {broadcasting ? (
                   <>

@@ -311,12 +311,12 @@ const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> =
     },
     assessment: {
       label: "Assessment",
-      color: "text-amber-400  bg-amber-500/10  border-amber-500/30",
+      color: "text-amber-600 dark:text-amber-400  bg-amber-500/10  border-amber-500/30",
       icon: ClipboardDocumentListIcon,
     },
     examination: {
       label: "Examination",
-      color: "text-rose-400   bg-rose-500/10   border-rose-500/30",
+      color: "text-rose-600 dark:text-rose-400   bg-rose-500/10   border-rose-500/30",
       icon: DocumentTextIcon,
     },
   };
@@ -337,7 +337,7 @@ const TRACK_META: Record<
   },
   completed: {
     label: "Completed",
-    color: "text-emerald-400",
+    color: "text-emerald-600 dark:text-emerald-400",
     icon: CheckCircleIcon,
   },
   skipped: {
@@ -3527,7 +3527,7 @@ export default function CurriculumPage() {
             </div>
           ) : loadError ? (
             <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
-              <p className="text-sm text-rose-400">{loadError}</p>
+              <p className="text-sm text-rose-600 dark:text-rose-400">{loadError}</p>
               <button
                 onClick={() => setSelectedCourse(null)}
                 className="text-xs text-muted-foreground border border-border px-3 py-1.5 hover:bg-muted/30"
@@ -4128,7 +4128,7 @@ export default function CurriculumPage() {
                                   title: "Teach and track",
                                   desc: "Open the class workspace, teach from the official flow, then mark delivered weeks.",
                                   icon: PresentationChartLineIcon,
-                                  color: "text-emerald-400",
+                                  color: "text-emerald-600 dark:text-emerald-400",
                                   bg: "bg-emerald-500/10 border-emerald-500/20",
                                 },
                               ].map((s, i) => (
@@ -4200,7 +4200,7 @@ export default function CurriculumPage() {
                                           {plan.classes?.name ||
                                             "Unnamed Class"}
                                         </p>
-                                        <h5 className="text-sm font-black text-white group-hover:text-primary transition-colors truncate">
+                                        <h5 className="text-sm font-black text-foreground group-hover:text-primary transition-colors truncate">
                                           {plan.courses?.title ||
                                             "Unknown Course"}
                                         </h5>
@@ -4231,7 +4231,7 @@ export default function CurriculumPage() {
                                       Open Lesson Plan →
                                     </span>
                                     <span className="text-[9px] font-medium text-muted-foreground flex items-center gap-1">
-                                      <CheckCircleIcon className="w-3 h-3 text-emerald-500" />{" "}
+                                      <CheckCircleIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />{" "}
                                       Active Plan
                                     </span>
                                   </div>
@@ -4269,7 +4269,7 @@ export default function CurriculumPage() {
                                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                                   {prog.name}
                                 </p>
-                                <h3 className="text-sm font-black text-white group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5em]">
+                                <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5em]">
                                   {course.title}
                                 </h3>
                               </div>
@@ -4318,15 +4318,15 @@ export default function CurriculumPage() {
                   </div>
                 ) : loadError ? (
                   <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
-                    <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
-                    <p className="text-sm text-rose-400 font-bold">
+                    <ExclamationTriangleIcon className="w-10 h-10 text-rose-600 dark:text-rose-400" />
+                    <p className="text-sm text-rose-600 dark:text-rose-400 font-bold">
                       {loadError}
                     </p>
                     <button
                       onClick={() =>
                         selectedCourse && loadCurriculum(selectedCourse.id)
                       }
-                      className="px-4 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      className="px-4 py-2 text-xs font-bold border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                     >
                       Try Again
                     </button>
@@ -4436,7 +4436,7 @@ export default function CurriculumPage() {
                                 }
                               }}
                               disabled={deleting}
-                              className="text-[10px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors"
+                              className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors"
                             >
                               Delete All
                             </button>
@@ -4479,7 +4479,7 @@ export default function CurriculumPage() {
                                         {/* Christian STEM Badge */}
                                         {c.content?.metadata?.christian_stem !==
                                           false && (
-                                          <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                                             <StarIcon className="w-2.5 h-2.5 shrink-0" />
                                             Christian STEM
                                           </span>
@@ -4493,25 +4493,25 @@ export default function CurriculumPage() {
                                           let config = {
                                             label: "School Plan",
                                             style:
-                                              "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+                                              "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
                                           };
                                           if (fmt === "bootcamp") {
                                             config = {
                                               label: "Bootcamp",
                                               style:
-                                                "bg-blue-500/10 border-blue-500/20 text-blue-400",
+                                                "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400",
                                             };
                                           } else if (fmt === "online") {
                                             config = {
                                               label: "Online Course",
                                               style:
-                                                "bg-purple-500/10 border-purple-500/20 text-purple-400",
+                                                "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400",
                                             };
                                           } else if (fmt === "selfpaced") {
                                             config = {
                                               label: "Self-Paced",
                                               style:
-                                                "bg-orange-500/10 border-orange-500/20 text-orange-400",
+                                                "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400",
                                             };
                                           }
 
@@ -4526,12 +4526,12 @@ export default function CurriculumPage() {
 
                                         {/* Scope Badge */}
                                         {c.school_id ? (
-                                          <span className="inline-flex items-center gap-1 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <span className="inline-flex items-center gap-1 bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                                             <BuildingOfficeIcon className="w-2.5 h-2.5 shrink-0" />
                                             School-Scoped
                                           </span>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <span className="inline-flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                                             <ShieldCheckIcon className="w-2.5 h-2.5 shrink-0" />
                                             Platform Template
                                           </span>
@@ -4570,7 +4570,7 @@ export default function CurriculumPage() {
                                         handleClone(c.id);
                                       }}
                                       disabled={cloning}
-                                      className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400 border border-emerald-500/0 hover:border-emerald-500/30 px-2 py-1 transition-all hover:bg-emerald-500/10 disabled:opacity-50"
+                                      className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-600/70 dark:text-emerald-400/70 hover:text-emerald-600 dark:hover:text-emerald-400 border border-emerald-500/0 hover:border-emerald-500/30 px-2 py-1 transition-all hover:bg-emerald-500/10 disabled:opacity-50"
                                       title="Clone to my school"
                                     >
                                       {cloning ? (
@@ -4589,7 +4589,7 @@ export default function CurriculumPage() {
                                         void handleDeleteCurriculum(c.id);
                                       }}
                                       disabled={deleting}
-                                      className="text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10 disabled:opacity-50"
+                                      className="text-[9px] font-black uppercase tracking-widest text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10 disabled:opacity-50"
                                       title="Delete this syllabus copy"
                                     >
                                       Delete
@@ -4624,7 +4624,7 @@ export default function CurriculumPage() {
                     {deleteError && (
                       <div
                         role="alert"
-                        className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200"
+                        className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-200"
                       >
                         <p className="font-bold">Delete blocked</p>
                         <p className="mt-1 text-xs leading-5">{deleteError}</p>
@@ -4637,7 +4637,7 @@ export default function CurriculumPage() {
                                 force: true,
                               })
                             }
-                            className="mt-3 rounded-xl border border-rose-400/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                            className="mt-3 rounded-xl border border-rose-400/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-800 dark:text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
                           >
                             Clean blockers and delete this draft
                           </button>
@@ -4700,7 +4700,7 @@ export default function CurriculumPage() {
                                       onClick={(e) =>
                                         void deleteImplementation(impl.id, e)
                                       }
-                                      className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 disabled:opacity-50"
+                                      className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-50"
                                     >
                                       {deletingImpl === impl.id
                                         ? "Removing…"
@@ -4767,7 +4767,7 @@ export default function CurriculumPage() {
                           <div
                             className={`flex items-center gap-1.5 px-2 border-r border-border h-full ${
                               curriculum.school_id
-                                ? "text-emerald-400"
+                                ? "text-emerald-600 dark:text-emerald-400"
                                 : "text-primary"
                             }`}
                           >
@@ -4907,7 +4907,7 @@ export default function CurriculumPage() {
                                         type="button"
                                         onClick={handleDeleteActiveYear}
                                         disabled={deleting}
-                                        className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                        className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                                         title={`Delete Year ${activeYear} and all its terms`}
                                       >
                                         <TrashIcon className="w-3 h-3" />
@@ -5001,7 +5001,7 @@ export default function CurriculumPage() {
                                     type="button"
                                     onClick={handleDeleteActiveTerm}
                                     disabled={deleting}
-                                    className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                    className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                                     title={`Delete Term ${activeTerm} of Year ${activeYear}`}
                                   >
                                     <TrashIcon className="w-3.5 h-3.5" />
@@ -5073,7 +5073,7 @@ export default function CurriculumPage() {
                           {allWeeks.length > 0 && completedCount > 0 && (
                             <>
                               <span className="w-1 h-1 rounded-full bg-white/20" />
-                              <span className="text-emerald-400 font-black">
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black">
                                 {completedCount}/{allWeeks.length} taught
                               </span>
                             </>
@@ -5105,7 +5105,7 @@ export default function CurriculumPage() {
                                     <>
                                       <span className="w-1 h-1 rounded-full bg-white/20" />
                                       {isViewingToday ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                                           Now · Prog.T{todayProg}{" "}
                                           {PROG_PHASE[todayProg]}
@@ -5182,7 +5182,7 @@ export default function CurriculumPage() {
                                     title="Tap to change which national term is Programme Term 1 for this school"
                                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group ${
                                       effectiveProgramStartTerm !== 1
-                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
                                         : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
                                   >
@@ -5236,7 +5236,7 @@ export default function CurriculumPage() {
                             <button
                               onClick={() => togglePublish(false)}
                               disabled={publishing}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0 cursor-pointer"
+                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0 cursor-pointer"
                               title="Make private"
                             >
                               {publishing ? (
@@ -5322,7 +5322,7 @@ export default function CurriculumPage() {
                             <button
                               onClick={() => void handleDeleteCurriculum()}
                               disabled={deleting}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
+                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
                             >
                               {deleting ? (
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -5417,8 +5417,8 @@ export default function CurriculumPage() {
                                 );
                                 const PILL_COLOR: Record<number, string> = {
                                   1: "bg-primary/10 border-primary/25 text-primary",
-                                  2: "bg-blue-500/10 border-blue-500/25 text-blue-400",
-                                  3: "bg-purple-500/10 border-purple-500/25 text-purple-400",
+                                  2: "bg-blue-500/10 border-blue-500/25 text-blue-600 dark:text-blue-400",
+                                  3: "bg-purple-500/10 border-purple-500/25 text-purple-600 dark:text-purple-400",
                                 };
                                 const DOT_COLOR: Record<number, string> = {
                                   1: "bg-primary",
@@ -5810,7 +5810,7 @@ export default function CurriculumPage() {
                                     key={i}
                                     className="flex gap-3 text-sm text-foreground/80"
                                   >
-                                    <span className="text-emerald-400 font-black shrink-0 text-xs mt-0.5">
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-black shrink-0 text-xs mt-0.5">
                                       ✓
                                     </span>
                                     <span>{o}</span>
@@ -5836,7 +5836,7 @@ export default function CurriculumPage() {
                           className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-muted/20 transition-colors"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <BoltIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                            <BoltIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
                             <div>
                               <p className="text-xs font-black text-foreground">
                                 Smart Teaching Template
@@ -5965,7 +5965,7 @@ export default function CurriculumPage() {
                                           }
                                           className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-colors ${
                                             qaClassGradeMode === "optional"
-                                              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
+                                              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200"
                                               : "border-border text-muted-foreground hover:bg-muted/30"
                                           } disabled:opacity-60`}
                                         >
@@ -5991,7 +5991,7 @@ export default function CurriculumPage() {
                                           Use template exactly as-is
                                         </button>
                                         {qaClassModeErr && (
-                                          <p className="text-[10px] text-rose-400 font-bold w-full">
+                                          <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold w-full">
                                             {qaClassModeErr}
                                           </p>
                                         )}
@@ -6017,7 +6017,7 @@ export default function CurriculumPage() {
                                         {
                                           label: "Done",
                                           val: String(done),
-                                          color: "text-emerald-300",
+                                          color: "text-emerald-700 dark:text-emerald-300",
                                         },
                                         {
                                           label: "Active",
@@ -6029,7 +6029,7 @@ export default function CurriculumPage() {
                                           val: String(skipped),
                                           color:
                                             skipped > 0
-                                              ? "text-amber-300"
+                                              ? "text-amber-700 dark:text-amber-300"
                                               : "text-muted-foreground",
                                         },
                                         {
@@ -6041,10 +6041,10 @@ export default function CurriculumPage() {
                                           color:
                                             avgScoreVal !== null
                                               ? avgScoreVal >= 75
-                                                ? "text-emerald-300"
+                                                ? "text-emerald-700 dark:text-emerald-300"
                                                 : avgScoreVal >= 60
-                                                ? "text-amber-300"
-                                                : "text-rose-300"
+                                                ? "text-amber-700 dark:text-amber-300"
+                                                : "text-rose-700 dark:text-rose-300"
                                               : "text-muted-foreground",
                                         },
                                       ];
@@ -6088,7 +6088,7 @@ export default function CurriculumPage() {
                                       type="button"
                                       onClick={() => void runQaSpinePreview()}
                                       disabled={!qaClassId || qaPreviewLoading}
-                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black rounded-lg border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black rounded-lg border border-cyan-500/40 text-cyan-800 dark:text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
                                     >
                                       {qaPreviewLoading ? (
                                         <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -6117,17 +6117,17 @@ export default function CurriculumPage() {
                                   </div>
 
                                   {qaNeedsFreshPreview && (
-                                    <p className="text-amber-400 text-[10px]">
+                                    <p className="text-amber-600 dark:text-amber-400 text-[10px]">
                                       Preview first before filling topics.
                                     </p>
                                   )}
                                   {qaPreviewErr && (
-                                    <p className="text-rose-400 text-[11px] font-bold">
+                                    <p className="text-rose-600 dark:text-rose-400 text-[11px] font-bold">
                                       {qaPreviewErr}
                                     </p>
                                   )}
                                   {qaApplyErr && (
-                                    <p className="text-rose-400 text-[11px] font-bold">
+                                    <p className="text-rose-600 dark:text-rose-400 text-[11px] font-bold">
                                       {qaApplyErr}
                                     </p>
                                   )}
@@ -6160,7 +6160,7 @@ export default function CurriculumPage() {
                                           {/* Header */}
                                           <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-2">
-                                              <p className="text-[10px] font-black uppercase text-cyan-300 tracking-wide">
+                                              <p className="text-[10px] font-black uppercase text-cyan-700 dark:text-cyan-300 tracking-wide">
                                                 Week Plan Preview
                                               </p>
                                               <span className="text-[9px] text-muted-foreground/50 font-mono">
@@ -6175,7 +6175,7 @@ export default function CurriculumPage() {
                                                     void regenAllTermsProgressive()
                                                   }
                                                   title="Personalise all 3 terms with AI — each term builds on the previous"
-                                                  className="inline-flex items-center gap-1 text-[9px] font-black text-purple-300 hover:text-purple-100 border border-purple-500/30 hover:border-purple-400/50 bg-purple-500/5 hover:bg-purple-500/10 rounded-md px-2 py-1 transition-all"
+                                                  className="inline-flex items-center gap-1 text-[9px] font-black text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-100 border border-purple-500/30 hover:border-purple-400/50 bg-purple-500/5 hover:bg-purple-500/10 rounded-md px-2 py-1 transition-all"
                                                 >
                                                   <SparklesIcon className="w-3 h-3" />
                                                   All 3 terms progressive
@@ -6201,23 +6201,23 @@ export default function CurriculumPage() {
                                             <div className="px-3 py-2.5 bg-amber-500/8 border-b border-amber-500/20">
                                               <div className="flex items-start gap-2.5">
                                                 <div className="shrink-0 w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
-                                                  <span className="text-amber-400 text-[10px] font-black">
+                                                  <span className="text-amber-600 dark:text-amber-400 text-[10px] font-black">
                                                     !
                                                   </span>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                  <p className="text-[10px] font-bold text-amber-300">
+                                                  <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
                                                     No programme-specific
                                                     template found
                                                   </p>
-                                                  <p className="text-[9px] text-amber-300/70 mt-0.5">
+                                                  <p className="text-[9px] text-amber-700/70 dark:text-amber-300/70 mt-0.5">
                                                     Topics below are generic
                                                     defaults — not specific to
                                                     your programme or course.
                                                     Replace them with
                                                     AI-generated content
                                                     tailored to{" "}
-                                                    <strong className="text-amber-200">
+                                                    <strong className="text-amber-800 dark:text-amber-200">
                                                       {selectedCourse?.title ??
                                                         "this course"}
                                                     </strong>
@@ -6231,7 +6231,7 @@ export default function CurriculumPage() {
                                                   onClick={() =>
                                                     void regenAllTermsProgressive()
                                                   }
-                                                  className="mt-2 w-full inline-flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-black text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-all"
+                                                  className="mt-2 w-full inline-flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-black text-amber-800 dark:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-all"
                                                 >
                                                   <SparklesIcon className="w-3 h-3" />
                                                   Fix all 3 terms with AI now
@@ -6245,8 +6245,8 @@ export default function CurriculumPage() {
                                           {qaSpineRegenLoading &&
                                             qaSpineRegenProgress && (
                                               <div className="px-3 py-2 bg-cyan-500/5 border-b border-cyan-500/10 flex items-center gap-2">
-                                                <ArrowPathIcon className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
-                                                <p className="text-[10px] text-cyan-300">
+                                                <ArrowPathIcon className="w-3 h-3 animate-spin text-cyan-600 dark:text-cyan-400 shrink-0" />
+                                                <p className="text-[10px] text-cyan-700 dark:text-cyan-300">
                                                   {qaSpineRegenProgress}
                                                 </p>
                                               </div>
@@ -6279,8 +6279,8 @@ export default function CurriculumPage() {
                                                 t.term === 1
                                                   ? "bg-primary/15 text-primary border-primary/30"
                                                   : t.term === 2
-                                                  ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
-                                                  : "bg-purple-500/15 text-purple-300 border-purple-500/30";
+                                                  ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                                                  : "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30";
                                               return (
                                                 <div
                                                   key={t.term}
@@ -6304,7 +6304,7 @@ export default function CurriculumPage() {
                                                         (Nat.T{t.national_term})
                                                       </span>
                                                       {aiEditCount > 0 && (
-                                                        <span className="shrink-0 text-[8px] font-bold text-cyan-400/80 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-px rounded-full">
+                                                        <span className="shrink-0 text-[8px] font-bold text-cyan-600/80 dark:text-cyan-400/80 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-px rounded-full">
                                                           ✓ {aiEditCount} AI
                                                         </span>
                                                       )}
@@ -6330,7 +6330,7 @@ export default function CurriculumPage() {
                                                             } using T${
                                                               t.term
                                                             } as context`}
-                                                            className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 hover:text-emerald-200 hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded px-1.5 py-0.5 transition-all"
+                                                            className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600/70 dark:text-emerald-400/70 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded px-1.5 py-0.5 transition-all"
                                                           >
                                                             Adopt &amp; continue
                                                             ↓
@@ -6352,7 +6352,7 @@ export default function CurriculumPage() {
                                                           selectedQaClass?.name ??
                                                           "this class"
                                                         }`}
-                                                        className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 rounded px-1.5 py-0.5 transition-all disabled:opacity-40"
+                                                        className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-600/70 dark:text-cyan-400/70 hover:text-cyan-800 dark:hover:text-cyan-200 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 rounded px-1.5 py-0.5 transition-all disabled:opacity-40"
                                                       >
                                                         <SparklesIcon className="w-2.5 h-2.5" />
                                                         Personalise
@@ -6411,14 +6411,14 @@ export default function CurriculumPage() {
                                                           {isLocked ? (
                                                             <span
                                                               title="Completed — will be skipped during AI regen"
-                                                              className="shrink-0 text-emerald-500/60 text-[9px]"
+                                                              className="shrink-0 text-emerald-600/60 dark:text-emerald-400/60 text-[9px]"
                                                             >
                                                               ✓
                                                             </span>
                                                           ) : diffFlag ? (
                                                             <span
                                                               title={diffFlag}
-                                                              className="shrink-0 text-amber-400 text-[9px] cursor-help"
+                                                              className="shrink-0 text-amber-600 dark:text-amber-400 text-[9px] cursor-help"
                                                             >
                                                               ⚠
                                                             </span>
@@ -6452,7 +6452,7 @@ export default function CurriculumPage() {
                                                               isLocked
                                                                 ? "text-foreground/30 border-transparent cursor-default"
                                                                 : edited
-                                                                ? "text-cyan-200 border-cyan-500/30 font-medium"
+                                                                ? "text-cyan-800 dark:text-cyan-200 border-cyan-500/30 font-medium"
                                                                 : "text-muted-foreground border-transparent hover:border-border/40 focus:border-primary/60"
                                                             }`}
                                                           />
@@ -6474,10 +6474,10 @@ export default function CurriculumPage() {
                                                                 qaSpineRegenLoading
                                                               }
                                                               title="Regenerate this week with AI"
-                                                              className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-20 transition-all"
+                                                              className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-cyan-700 dark:hover:text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-20 transition-all"
                                                             >
                                                               {weekRegenLoading ? (
-                                                                <ArrowPathIcon className="w-2.5 h-2.5 animate-spin text-cyan-400" />
+                                                                <ArrowPathIcon className="w-2.5 h-2.5 animate-spin text-cyan-600 dark:text-cyan-400" />
                                                               ) : (
                                                                 <SparklesIcon className="w-2.5 h-2.5" />
                                                               )}
@@ -6498,12 +6498,12 @@ export default function CurriculumPage() {
                                             diffCount > 0) && (
                                             <div className="px-3 py-2 bg-muted/10 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1">
                                               {qaSpineRegenNote && (
-                                                <p className="text-[9px] text-cyan-400/70 italic">
+                                                <p className="text-[9px] text-cyan-600/70 dark:text-cyan-400/70 italic">
                                                   {qaSpineRegenNote}
                                                 </p>
                                               )}
                                               {editCount > 0 && (
-                                                <p className="text-[9px] text-cyan-400/60">
+                                                <p className="text-[9px] text-cyan-600/60 dark:text-cyan-400/60">
                                                   {editCount} topic
                                                   {editCount === 1
                                                     ? ""
@@ -6513,7 +6513,7 @@ export default function CurriculumPage() {
                                                 </p>
                                               )}
                                               {diffCount > 0 && (
-                                                <p className="text-[9px] text-amber-400/50">
+                                                <p className="text-[9px] text-amber-600/50 dark:text-amber-400/50">
                                                   ⚠ = may be challenging based
                                                   on class performance
                                                 </p>
@@ -6528,7 +6528,7 @@ export default function CurriculumPage() {
                                   {(qaLaneSuggestLoading ||
                                     qaLaneSuggestion) && (
                                     <div className="border border-cyan-500/20 rounded-lg overflow-hidden">
-                                      <p className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/5 border-b border-cyan-500/10">
+                                      <p className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-300 bg-cyan-500/5 border-b border-cyan-500/10">
                                         Lane Intelligence
                                       </p>
                                       <div className="p-3 space-y-3">
@@ -6547,11 +6547,11 @@ export default function CurriculumPage() {
                                                   className={`px-2 py-0.5 text-[10px] font-black rounded border ${
                                                     qaLaneSuggestion.avg_score >=
                                                     75
-                                                      ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+                                                      ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
                                                       : qaLaneSuggestion.avg_score >=
                                                         60
-                                                      ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
-                                                      : "border-rose-500/40 text-rose-300 bg-rose-500/10"
+                                                      ? "border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10"
+                                                      : "border-rose-500/40 text-rose-700 dark:text-rose-300 bg-rose-500/10"
                                                   }`}
                                                 >
                                                   {qaLaneSuggestion.avg_score}%
@@ -6572,8 +6572,8 @@ export default function CurriculumPage() {
                                                   className={`px-2 py-0.5 text-[10px] font-black rounded border ${
                                                     qaLaneSuggestion.direction ===
                                                     "up"
-                                                      ? "border-emerald-500/40 text-emerald-200 bg-emerald-500/5"
-                                                      : "border-amber-500/40 text-amber-200 bg-amber-500/5"
+                                                      ? "border-emerald-500/40 text-emerald-800 dark:text-emerald-200 bg-emerald-500/5"
+                                                      : "border-amber-500/40 text-amber-800 dark:text-amber-200 bg-amber-500/5"
                                                   }`}
                                                 >
                                                   {qaLaneSuggestion.direction ===
@@ -6607,7 +6607,7 @@ export default function CurriculumPage() {
                                                         qaLaneSuggestion
                                                           .score_distribution
                                                           .excelling,
-                                                      cls: "bg-emerald-500/10 text-emerald-300",
+                                                      cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                                                     },
                                                     {
                                                       label: "Developing",
@@ -6615,7 +6615,7 @@ export default function CurriculumPage() {
                                                         qaLaneSuggestion
                                                           .score_distribution
                                                           .developing,
-                                                      cls: "bg-amber-500/10 text-amber-300",
+                                                      cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
                                                     },
                                                     {
                                                       label: "Struggling",
@@ -6623,7 +6623,7 @@ export default function CurriculumPage() {
                                                         qaLaneSuggestion
                                                           .score_distribution
                                                           .struggling,
-                                                      cls: "bg-rose-500/10 text-rose-300",
+                                                      cls: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                                                     },
                                                   ].map((d) => (
                                                     <div
@@ -6645,7 +6645,7 @@ export default function CurriculumPage() {
                                             {qaLaneSuggestion.weak_topics
                                               .length > 0 && (
                                               <div>
-                                                <p className="text-[9px] font-black uppercase text-rose-400 mb-1.5">
+                                                <p className="text-[9px] font-black uppercase text-rose-600 dark:text-rose-400 mb-1.5">
                                                   Topics needing reinforcement
                                                 </p>
                                                 <ul className="space-y-1">
@@ -6658,8 +6658,8 @@ export default function CurriculumPage() {
                                                         <span
                                                           className={`w-8 text-right font-black shrink-0 ${
                                                             t.avg_score < 50
-                                                              ? "text-rose-400"
-                                                              : "text-amber-400"
+                                                              ? "text-rose-600 dark:text-rose-400"
+                                                              : "text-amber-600 dark:text-amber-400"
                                                           }`}
                                                         >
                                                           {t.avg_score}%
@@ -6718,7 +6718,7 @@ export default function CurriculumPage() {
                                                     setQaPreviewEdits({});
                                                     setQaLaneSuggestion(null);
                                                   }}
-                                                  className="px-3 py-1.5 text-[10px] font-black rounded border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 transition-colors"
+                                                  className="px-3 py-1.5 text-[10px] font-black rounded border border-cyan-500/40 text-cyan-800 dark:text-cyan-200 hover:bg-cyan-500/10 transition-colors"
                                                 >
                                                   Accept → Lane{" "}
                                                   {
@@ -6755,7 +6755,7 @@ export default function CurriculumPage() {
                                     if (skipped.length === 0) return null;
                                     return (
                                       <div className="p-3 border border-amber-500/30 rounded-lg space-y-2 bg-amber-500/5">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-300">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
                                           {skipped.length} Missed Topic
                                           {skipped.length === 1 ? "" : "s"} —
                                           Recovery Plan
@@ -6859,7 +6859,7 @@ export default function CurriculumPage() {
                                                 void injectRecoveryWeeks()
                                               }
                                               disabled={qaRecoveryInjecting}
-                                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-black rounded border border-amber-500/40 text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-black rounded border border-amber-500/40 text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
                                             >
                                               {qaRecoveryInjecting && (
                                                 <ArrowPathIcon className="w-3 h-3 animate-spin" />
@@ -7112,7 +7112,7 @@ export default function CurriculumPage() {
               {/* Scrollable body */}
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
                 {generationTargetCurriculum && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400 flex gap-2">
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-600 dark:text-amber-400 flex gap-2">
                     <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>
                       This will create a new version (v
@@ -7326,7 +7326,7 @@ export default function CurriculumPage() {
                         </option>
                       </select>
                       {programmeYear > 1 && (
-                        <p className="text-[9px] text-amber-500 font-bold mt-1">
+                        <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold mt-1">
                           Year {programmeYear} content will build directly on
                           all prior year topics. Prior year terms are preserved
                           in the curriculum.
@@ -7384,7 +7384,7 @@ export default function CurriculumPage() {
                         </option>
                       </select>
                       {programStartTerm !== 1 && (
-                        <p className="text-[9px] text-amber-500 font-bold mt-1">
+                        <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold mt-1">
                           Foundations content will be placed in Term{" "}
                           {programStartTerm} of the national calendar.
                         </p>
@@ -7450,7 +7450,7 @@ export default function CurriculumPage() {
                                 className={`text-[8px] font-black mt-0.5 ${
                                   isProgT1
                                     ? isSelected
-                                      ? "text-yellow-300"
+                                      ? "text-yellow-700 dark:text-yellow-300"
                                       : "text-primary"
                                     : "opacity-50"
                                 }`}
@@ -7734,7 +7734,7 @@ export default function CurriculumPage() {
                   {sourceName ? (
                     <div className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/25 rounded-xl">
                       <span className="text-sm">📄</span>
-                      <span className="text-xs text-violet-300 font-bold truncate flex-1">
+                      <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">
                         {sourceName} — grounding the AI
                       </span>
                       <button
@@ -7777,10 +7777,10 @@ export default function CurriculumPage() {
                 </div>
 
                 {genError && (
-                  <p className="text-rose-400 text-xs">{genError}</p>
+                  <p className="text-rose-600 dark:text-rose-400 text-xs">{genError}</p>
                 )}
                 {generating && (
-                  <div className="flex items-center gap-2 text-amber-400 text-xs">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs">
                     <SparklesIcon className="w-3.5 h-3.5 animate-spin" />
                     <span>
                       {genProgress ||
@@ -8010,7 +8010,7 @@ export default function CurriculumPage() {
               <div className="flex items-center justify-between p-5 border-b border-border">
                 <div>
                   <h2 className="font-black flex items-center gap-2 text-sm">
-                    <DocumentDuplicateIcon className="w-4 h-4 text-emerald-400" />
+                    <DocumentDuplicateIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     Clone to My School
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -8037,10 +8037,10 @@ export default function CurriculumPage() {
                     className="w-full flex items-center gap-3 p-4 bg-background border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 rounded-xl transition-all text-left group disabled:opacity-50"
                   >
                     <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                      <BuildingOfficeIcon className="w-4 h-4 text-emerald-400" />
+                      <BuildingOfficeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black truncate group-hover:text-emerald-400 transition-colors">
+                      <p className="text-sm font-black truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {school.name}
                       </p>
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
@@ -8050,7 +8050,7 @@ export default function CurriculumPage() {
                     {cloning ? (
                       <ArrowPathIcon className="w-4 h-4 text-muted-foreground animate-spin shrink-0" />
                     ) : (
-                      <DocumentDuplicateIcon className="w-4 h-4 text-muted-foreground group-hover:text-emerald-400 transition-colors shrink-0" />
+                      <DocumentDuplicateIcon className="w-4 h-4 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors shrink-0" />
                     )}
                   </button>
                 ))}
@@ -8280,7 +8280,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {plan.classwork?.title && (
         <Section
           label="In-Class Assessment"
-          color="text-emerald-400"
+          color="text-emerald-600 dark:text-emerald-400"
           icon={ClipboardDocumentListIcon}
         >
           <div className="space-y-3">
@@ -8296,7 +8296,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
                   {plan.classwork.materials.map((m, i) => (
                     <li
                       key={i}
-                      className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 font-black uppercase tracking-widest"
+                      className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-1 font-black uppercase tracking-widest"
                     >
                       {m}
                     </li>
@@ -8312,7 +8312,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {plan.assignment?.title && (
         <Section
           label="Post-Session Mission"
-          color="text-amber-400"
+          color="text-amber-600 dark:text-amber-400"
           icon={DocumentTextIcon}
         >
           <div className="space-y-2">
@@ -8322,7 +8322,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
             <p className="text-xs text-foreground/70 leading-relaxed">
               {plan.assignment.instructions}
             </p>
-            <div className="inline-flex items-center gap-2 text-[10px] text-amber-400 font-black uppercase tracking-widest bg-amber-400/5 max-w-full px-2 py-1 border border-amber-400/10 overflow-hidden">
+            <div className="inline-flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 font-black uppercase tracking-widest bg-amber-400/5 max-w-full px-2 py-1 border border-amber-400/10 overflow-hidden">
               <ClockIcon className="w-3 h-3 shrink-0" />
               <span className="truncate">Deadline: {plan.assignment.due}</span>
             </div>
@@ -8334,7 +8334,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {plan.project && (
         <Section
           label="Neural Project: Milestone"
-          color="text-rose-400"
+          color="text-rose-600 dark:text-rose-400"
           icon={RocketLaunchIcon}
         >
           <div className="space-y-4">
@@ -8355,7 +8355,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
                       key={i}
                       className="flex gap-2 text-xs text-foreground/70"
                     >
-                      <span className="text-rose-400 font-black">›</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-black">›</span>
                       <span>{d}</span>
                     </li>
                   ))}
@@ -8370,14 +8370,14 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {plan.resources?.length > 0 && (
         <Section
           label="Archives & Tools"
-          color="text-cyan-400"
+          color="text-cyan-600 dark:text-cyan-400"
           icon={DocumentTextIcon}
         >
           <ul className="flex flex-wrap gap-2">
             {plan.resources.map((r, i) => (
               <li
                 key={i}
-                className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 font-black uppercase tracking-widest"
+                className="text-[10px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 px-3 py-1 font-black uppercase tracking-widest"
               >
                 {r}
               </li>
@@ -8390,7 +8390,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {plan.engagement_tips?.length > 0 && (
         <Section
           label="Delivery Strategies"
-          color="text-pink-400"
+          color="text-pink-600 dark:text-pink-400"
           icon={SparklesIcon}
         >
           <ul className="space-y-3">
@@ -8399,7 +8399,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
                 key={i}
                 className="flex gap-3 text-xs text-foreground/80 leading-relaxed"
               >
-                <span className="text-pink-400 shrink-0 select-none">💡</span>
+                <span className="text-pink-600 dark:text-pink-400 shrink-0 select-none">💡</span>
                 <span>{t}</span>
               </li>
             ))}
@@ -8444,7 +8444,7 @@ function AssessmentPlanView({
       {plan.format && (
         <Section
           label="Format"
-          color="text-amber-400"
+          color="text-amber-600 dark:text-amber-400"
           icon={ClipboardDocumentListIcon}
         >
           <p className="text-xs text-foreground/80 leading-relaxed">
@@ -8472,7 +8472,7 @@ function AssessmentPlanView({
       )}
 
       {plan.scoring_guide && (
-        <Section label="Scoring Guide" color="text-emerald-400" icon={StarIcon}>
+        <Section label="Scoring Guide" color="text-emerald-600 dark:text-emerald-400" icon={StarIcon}>
           <p className="text-xs text-foreground/70 leading-relaxed border-l-2 border-emerald-500/20 pl-3 py-1">
             {plan.scoring_guide}
           </p>
@@ -8482,7 +8482,7 @@ function AssessmentPlanView({
       {plan.teacher_prep?.length > 0 && (
         <Section
           label="Teacher Preparation"
-          color="text-cyan-400"
+          color="text-cyan-600 dark:text-cyan-400"
           icon={UserGroupIcon}
         >
           <ol className="space-y-2">
@@ -8491,7 +8491,7 @@ function AssessmentPlanView({
                 key={i}
                 className="flex gap-3 text-xs text-foreground/80 leading-relaxed"
               >
-                <span className="text-cyan-400 font-black shrink-0 w-4">
+                <span className="text-cyan-600 dark:text-cyan-400 font-black shrink-0 w-4">
                   {i + 1}.
                 </span>
                 <span>{s}</span>
@@ -8504,7 +8504,7 @@ function AssessmentPlanView({
       {plan.sample_questions && plan.sample_questions.length > 0 && (
         <Section
           label="Sample Questions"
-          color="text-rose-400"
+          color="text-rose-600 dark:text-rose-400"
           icon={AcademicCapIcon}
         >
           <ol className="space-y-3">
@@ -8513,7 +8513,7 @@ function AssessmentPlanView({
                 key={i}
                 className="flex gap-3 text-xs text-foreground/80 leading-relaxed"
               >
-                <span className="text-rose-400 font-black shrink-0 w-5 flex items-center justify-center bg-rose-500/10 text-[10px] h-5 border border-rose-500/20">
+                <span className="text-rose-600 dark:text-rose-400 font-black shrink-0 w-5 flex items-center justify-center bg-rose-500/10 text-[10px] h-5 border border-rose-500/20">
                   {i + 1}
                 </span>
                 <span>{q}</span>

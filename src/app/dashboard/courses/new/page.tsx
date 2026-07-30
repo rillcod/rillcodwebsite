@@ -126,8 +126,8 @@ export default function NewCoursePage() {
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <p className="text-rose-400 text-sm">{error}</p>
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -136,7 +136,7 @@ export default function NewCoursePage() {
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-              Course Title <span className="text-rose-400">*</span>
+              Course Title <span className="text-rose-600 dark:text-rose-400">*</span>
             </label>
             <input type="text" required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -147,7 +147,7 @@ export default function NewCoursePage() {
           {/* Programme */}
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-              Programme <span className="text-rose-400">*</span>
+              Programme <span className="text-rose-600 dark:text-rose-400">*</span>
             </label>
             <select required value={form.program_id}
               onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}

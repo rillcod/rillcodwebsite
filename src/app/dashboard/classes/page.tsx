@@ -13,8 +13,8 @@ import {
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
-  active:    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  active:    'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  scheduled: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
   completed: 'bg-primary/20 text-primary border-primary/30',
 };
 
@@ -121,7 +121,7 @@ export default function ClassesPage() {
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link
             href="/dashboard/classes/transfer-requests"
-            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors hover:bg-amber-500/20"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/20"
           >
             <ArrowsRightLeftIcon className="h-4 w-4" />
             Transfer Requests
@@ -156,10 +156,10 @@ export default function ClassesPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
-          <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-300 transition-colors">
+          <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-700 dark:hover:text-rose-300 transition-colors">
             Retry
           </button>
         </div>
@@ -170,8 +170,8 @@ export default function ClassesPage() {
         {[
           { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', border: 'border-primary/10 hover:border-primary/20', color: 'text-primary' },
           { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   border: 'border-primary/10 hover:border-primary/20', color: 'text-primary'   },
-          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-400' },
-          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-400'  },
+          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-600 dark:text-purple-400'  },
         ].map(s => (
           <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}>
             <div className={`absolute top-0 right-0 w-20 h-20 ${s.bg} rounded-full blur-3xl opacity-30 -mr-8 -mt-8`} />
@@ -285,8 +285,8 @@ export default function ClassesPage() {
                       <span className="truncate">{cls.schedule || 'No schedule'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
-                      <UserGroupIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isFull ? 'text-rose-400' : 'text-primary/70'}`} />
-                      <span className={isFull ? 'text-rose-400 font-bold' : ''}>
+                      <UserGroupIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isFull ? 'text-rose-600 dark:text-rose-400' : 'text-primary/70'}`} />
+                      <span className={isFull ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>
                         {cls.current_students ?? 0} / {cls.max_students ?? '∞'} students
                       </span>
                     </div>
@@ -315,7 +315,7 @@ export default function ClassesPage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] text-muted-foreground font-bold">
                         <span>Enrolment</span>
-                        <span className={isFull ? 'text-rose-400' : nearFull ? 'text-amber-400' : 'text-primary'}>
+                        <span className={isFull ? 'text-rose-600 dark:text-rose-400' : nearFull ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}>
                           {Math.round(((cls.current_students ?? 0) / cls.max_students) * 100)}%
                         </span>
                       </div>
@@ -356,7 +356,7 @@ export default function ClassesPage() {
                       <button
                         onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
                         disabled={deleting === cls.id}
-                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-rose-500/5 hover:text-rose-400 disabled:opacity-40"
+                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-40"
                       >
                         {deleting === cls.id
                           ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
@@ -379,9 +379,9 @@ export default function ClassesPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Students',          desc: 'Student records',        icon: UserGroupIcon,    color: 'text-primary',     bg: 'bg-primary/10',     href: '/dashboard/students'   },
-              { label: 'Grading Center',    desc: 'Work needing action',    icon: DocumentTextIcon, color: 'text-amber-400',   bg: 'bg-amber-500/10',   href: '/dashboard/grading'    },
-              { label: 'Curriculum guide', desc: 'The approved direction for teaching', icon: AcademicCapIcon,  color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/curriculum' },
-              { label: 'Gradebook',         desc: 'Results and outcomes',   icon: BookOpenIcon,     color: 'text-purple-400',  bg: 'bg-purple-500/10',  href: '/dashboard/grades'     },
+              { label: 'Grading Center',    desc: 'Work needing action',    icon: DocumentTextIcon, color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/10',   href: '/dashboard/grading'    },
+              { label: 'Curriculum guide', desc: 'The approved direction for teaching', icon: AcademicCapIcon,  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/curriculum' },
+              { label: 'Gradebook',         desc: 'Results and outcomes',   icon: BookOpenIcon,     color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-500/10',  href: '/dashboard/grades'     },
             ].map(a => (
               <Link
                 key={a.label}
@@ -409,7 +409,7 @@ export default function ClassesPage() {
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
-                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div>
                   <p className="text-sm font-black text-foreground uppercase tracking-tight">Delete Class</p>

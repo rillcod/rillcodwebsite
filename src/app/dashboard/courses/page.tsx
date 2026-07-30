@@ -20,9 +20,9 @@ const GRADIENTS = [
   'from-primary to-primary from-primary to-primary', 'from-rose-600 to-rose-400',
 ];
 const LEVEL_BADGE: Record<string, string> = {
-  beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  intermediate: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  beginner: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  intermediate: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  advanced: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
 };
 
 function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram, onToggleLock, locking }: {
@@ -49,24 +49,24 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
       <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-primary'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
             {course.programs?.name ?? 'No Program'}
           </span>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {isAlwaysPublic && (
               <span
-                className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-400 border-sky-500/20 flex items-center gap-1"
+                className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 flex items-center gap-1"
                 title="Flagship programme — always visible to every learner, regardless of lock state"
               >
                 <GlobeAltIcon className="w-2.5 h-2.5" /> Public
               </span>
             )}
             {course.is_locked && !isAlwaysPublic && (
-              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20 flex items-center gap-1">
+              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 flex items-center gap-1">
                 <LockClosedIcon className="w-2.5 h-2.5" /> Locked
               </span>
             )}
-            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
+            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
               {course.is_active ? 'Active' : 'Inactive'}
             </span>
           </div>
@@ -82,14 +82,14 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           return (
             <div className="flex flex-wrap items-center gap-1 mb-2">
               {subject && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-primary/10 text-violet-300 border-primary/25">
+                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-primary/10 text-violet-700 dark:text-violet-300 border-primary/25">
                   {subject}
                 </span>
               )}
               {grades.slice(0, 4).map((g) => (
                 <span
                   key={g}
-                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-cyan-500/10 text-cyan-300 border-cyan-500/25"
+                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/25"
                   title={`Target grade: ${g}`}
                 >
                   {g}
@@ -142,10 +142,10 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
                 }
                 className={`p-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   isAlwaysPublic
-                    ? 'text-sky-400 bg-sky-500/10'
+                    ? 'text-sky-600 dark:text-sky-400 bg-sky-500/10'
                     : course.is_locked
-                      ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
-                      : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-400'
+                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                      : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400'
                 }`}>
                 {isAlwaysPublic
                   ? <GlobeAltIcon className="w-3.5 h-3.5" />
@@ -156,7 +156,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
               <button
                 onClick={() => onDelete(course.id, course.title)}
                 disabled={deleting === course.id}
-                className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
+                className="p-2 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
                 <TrashIcon className="w-3.5 h-3.5" />
               </button>
             </>
@@ -355,15 +355,15 @@ export default function CoursesPage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-600 dark:text-rose-400 text-sm">{error}</div>
         )}
 
         {/* Visibility policy explainer (staff-only) */}
         {canEdit && (
           <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl px-5 py-3 flex items-start gap-3">
-            <GlobeAltIcon className="w-5 h-5 text-sky-400 mt-0.5 flex-shrink-0" />
+            <GlobeAltIcon className="w-5 h-5 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" />
             <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              <span className="font-black text-sky-400 uppercase tracking-widest mr-1">Visibility policy:</span>
+              <span className="font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest mr-1">Visibility policy:</span>
               <span className="text-foreground font-bold">Young Innovator</span> and{' '}
               <span className="text-foreground font-bold">Teen Developer</span> courses are always visible to every learner — their lock toggle is disabled.
               All other courses are <span className="font-bold">locked from students by default</span> once created; click the lock icon on a card to publish it to learners.
@@ -375,9 +375,9 @@ export default function CoursesPage() {
         {canEdit && courses.filter(c => !c.program_id).length > 0 && (
           <div className="flex items-center justify-between gap-4 bg-rose-500/10 border border-rose-500/30 rounded-xl px-5 py-3">
             <div className="flex items-center gap-3">
-              <span className="text-rose-400 text-lg font-black">⚠</span>
+              <span className="text-rose-600 dark:text-rose-400 text-lg font-black">⚠</span>
               <div>
-                <p className="text-sm font-black text-rose-400 uppercase tracking-widest">
+                <p className="text-sm font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">
                   {courses.filter(c => !c.program_id).length} course{courses.filter(c => !c.program_id).length !== 1 ? 's' : ''} not assigned to any program
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">All courses must be categorised into a program to be properly visible to students.</p>
@@ -441,14 +441,14 @@ export default function CoursesPage() {
         {(() => {
           const statItems = isStaff ? [
             { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Active', value: courses.filter((c: any) => c.is_active).length, icon: BoltIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Active', value: courses.filter((c: any) => c.is_active).length, icon: BoltIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Total Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Submissions', value: courses.reduce((s: number, c: any) => s + (c.assignment_submissions?.length ?? 0), 0), icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Submissions', value: courses.reduce((s: number, c: any) => s + (c.assignment_submissions?.length ?? 0), 0), icon: UserGroupIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
           ] : [
             { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'In Progress', value: courses.filter((c: any) => c.status === 'active').length, icon: ClockIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Completed', value: courses.filter((c: any) => c.status === 'completed').length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Completed', value: courses.filter((c: any) => c.status === 'completed').length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
           ];
           return (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -503,11 +503,11 @@ export default function CoursesPage() {
               {grouped.map((group, gi) => (
                 <div key={group.programId}>
                   <div className="flex items-center gap-3 mb-4">
-                    <AcademicCapIcon className={`w-5 h-5 flex-shrink-0 ${group.programId === '__none__' ? 'text-rose-400' : 'text-primary'}`} />
-                    <h2 className={`text-base font-black uppercase tracking-tight ${group.programId === '__none__' ? 'text-rose-400' : 'text-foreground'}`}>{group.programName}</h2>
+                    <AcademicCapIcon className={`w-5 h-5 flex-shrink-0 ${group.programId === '__none__' ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`} />
+                    <h2 className={`text-base font-black uppercase tracking-tight ${group.programId === '__none__' ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>{group.programName}</h2>
                     <span className="text-[10px] font-black text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">{group.courses.length} courses</span>
                     {group.programId === '__none__' && canEdit && (
-                      <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 border border-rose-500/20 px-2 py-0.5">
+                      <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-500/10 border border-rose-500/20 px-2 py-0.5">
                         ⚠ Needs program assignment
                       </span>
                     )}
@@ -549,7 +549,7 @@ export default function CoursesPage() {
                           </span>
                         )}
                         {enr.status === 'completed' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                             <CheckCircleIcon className="w-3 h-3" /> Completed
                           </span>
                         )}
@@ -558,7 +558,7 @@ export default function CoursesPage() {
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {prog?.duration_weeks && <span>{prog.duration_weeks} weeks</span>}
                         <span>Enrolled {new Date(enr.enrollment_date).toLocaleDateString()}</span>
-                        {enr.grade && <span className="text-amber-400 font-bold">Grade: {enr.grade}</span>}
+                        {enr.grade && <span className="text-amber-600 dark:text-amber-400 font-bold">Grade: {enr.grade}</span>}
                       </div>
                       {enr.progress_pct != null && (
                         <div className="flex items-center gap-2 mt-2">

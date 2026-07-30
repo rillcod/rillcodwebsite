@@ -94,7 +94,7 @@ export default function SpecialProgramsAdminPage() {
     return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   }
   if (!isAdmin) {
-    return <div className="p-8 text-sm text-rose-500">Admin access required.</div>;
+    return <div className="p-8 text-sm text-rose-600 dark:text-rose-400">Admin access required.</div>;
   }
 
   return (
@@ -128,11 +128,11 @@ export default function SpecialProgramsAdminPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-black text-foreground truncate">{p.title}</h2>
                   {p.is_featured && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                       Featured
                     </span>
                   )}
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_published ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_published ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                     {p.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
@@ -151,14 +151,14 @@ export default function SpecialProgramsAdminPage() {
                   Open
                 </Link>
                 {!p.is_featured && (
-                  <button type="button" onClick={() => setFeatured(p.id)} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-amber-500/40 text-amber-500 rounded-md hover:bg-amber-500/10">
+                  <button type="button" onClick={() => setFeatured(p.id)} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-amber-500/40 text-amber-600 dark:text-amber-400 rounded-md hover:bg-amber-500/10">
                     Set featured
                   </button>
                 )}
                 <button type="button" onClick={() => openEdit(p)} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-border rounded-md hover:bg-muted">
                   Edit page
                 </button>
-                <button type="button" onClick={() => remove(p.id)} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-rose-500/30 text-rose-500 rounded-md hover:bg-rose-500/10">
+                <button type="button" onClick={() => remove(p.id)} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-rose-500/30 text-rose-600 dark:text-rose-400 rounded-md hover:bg-rose-500/10">
                   Delete
                 </button>
               </div>

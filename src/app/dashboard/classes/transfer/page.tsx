@@ -239,7 +239,7 @@ export default function ClassTransferPage() {
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <Link href="/dashboard/classes/transfer-requests" className="inline-flex items-center gap-2 self-start rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors">
+          <Link href="/dashboard/classes/transfer-requests" className="inline-flex items-center gap-2 self-start rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 transition-colors">
             <ArrowsRightLeftIcon className="h-4 w-4" /> Ownership Requests
           </Link>
           <Link href="/dashboard/classes"
@@ -250,13 +250,13 @@ export default function ClassTransferPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
         </div>
       )}
       {result && (
-        <div className={`flex items-center gap-3 p-4 border text-sm rounded-xl ${result.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+        <div className={`flex items-center gap-3 p-4 border text-sm rounded-xl ${result.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
           {result.ok ? <CheckCircleIcon className="w-4 h-4 flex-shrink-0" /> : <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />}
           <span className="flex-1">{result.msg}</span>
           <button onClick={() => setResult(null)} className="text-xs underline opacity-80 hover:opacity-100">Dismiss</button>
@@ -393,7 +393,7 @@ export default function ClassTransferPage() {
               {destClass ? <span className="font-medium text-muted-foreground"> → {destClass.name}</span> : ''}
             </p>
             {!destClass && selected.size > 0 && (
-              <p className="text-xs text-amber-400">Choose a destination class to move them.</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Choose a destination class to move them.</p>
             )}
           </div>
           <div className="flex w-full min-w-0 flex-col-reverse gap-2 sm:w-auto sm:flex-row">
@@ -401,7 +401,7 @@ export default function ClassTransferPage() {
               onClick={deactivate}
               disabled={moving || selected.size === 0}
               title="Withdraw the selected students from this class (keeps their history)"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-card px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-card px-4 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
             >
               Withdraw
             </button>

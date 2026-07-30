@@ -219,8 +219,8 @@ export default function EditClassPage() {
 
                 {error && (
                     <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                        <p className="text-rose-400 text-sm">{error}</p>
+                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                        <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
 
@@ -228,7 +228,7 @@ export default function EditClassPage() {
 
                     <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                            Class Name <span className="text-rose-400">*</span>
+                            Class Name <span className="text-rose-600 dark:text-rose-400">*</span>
                         </label>
                         <input type="text" required value={form.name}
                             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -267,7 +267,7 @@ export default function EditClassPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                Programme <span className="text-rose-400">*</span>
+                                Programme <span className="text-rose-600 dark:text-rose-400">*</span>
                             </label>
                             <select required value={form.program_id}
                                 onChange={e => setForm(f => ({ ...f, program_id: e.target.value, current_course_id: '' }))}
@@ -312,7 +312,7 @@ export default function EditClassPage() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School <span className="text-rose-400">*</span></label>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School <span className="text-rose-600 dark:text-rose-400">*</span></label>
                         <select required value={form.school_id}
                             onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
@@ -326,14 +326,14 @@ export default function EditClassPage() {
                     {/* Roster is managed elsewhere — this page edits class SETTINGS only. */}
                     <div className="pt-4 border-t border-border">
                         <div className="flex items-start gap-3 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
-                            <UserGroupIcon className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
+                            <UserGroupIcon className="w-5 h-5 text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-foreground">Editing class settings only</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     Students are enrolled when a class is created. To move students between classes, use the dedicated <strong>Transfer</strong> tool — no need to re-pick students here.
                                 </p>
                                 <Link href="/dashboard/classes/transfer"
-                                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-black text-sky-400 hover:text-sky-300">
+                                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-black text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300">
                                     <ArrowsRightLeftIcon className="w-4 h-4" /> Open Transfer
                                 </Link>
                             </div>

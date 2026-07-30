@@ -38,7 +38,7 @@ const TERM_LABELS: Record<
   3: {
     label: "Third Term",
     months: "Apr – Jun",
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+    color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
   },
 };
 
@@ -496,7 +496,7 @@ export default function CurriculumProgressPage({
               label: "Fully Completed",
               value: totalCompleted,
               icon: CheckCircleIcon,
-              color: "text-emerald-400",
+              color: "text-emerald-600 dark:text-emerald-400",
             },
             {
               label: "Weeks Delivered",
@@ -508,7 +508,7 @@ export default function CurriculumProgressPage({
               label: "Upcoming Assessments",
               value: upcomingCount,
               icon: ExclamationTriangleIcon,
-              color: "text-amber-400",
+              color: "text-amber-600 dark:text-amber-400",
             },
           ].map(({ label, value, icon: Icon, color }) => (
             <div
@@ -595,7 +595,7 @@ export default function CurriculumProgressPage({
                     setFilterTerm("");
                     setFilterQuery("");
                   }}
-                  className="text-xs text-rose-400 hover:text-rose-300 font-bold transition-colors px-2 py-2 border border-rose-500/30 hover:bg-rose-500/10 rounded-lg whitespace-nowrap"
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold transition-colors px-2 py-2 border border-rose-500/30 hover:bg-rose-500/10 rounded-lg whitespace-nowrap"
                 >
                   Clear
                 </button>
@@ -861,7 +861,7 @@ export default function CurriculumProgressPage({
                             <p
                               className={`text-sm font-black ${
                                 adoptedCount > 0
-                                  ? "text-emerald-400"
+                                  ? "text-emerald-600 dark:text-emerald-400"
                                   : "text-muted-foreground"
                               }`}
                             >
@@ -875,9 +875,9 @@ export default function CurriculumProgressPage({
                             <p
                               className={`text-sm font-black ${
                                 avgProgress >= 75
-                                  ? "text-emerald-400"
+                                  ? "text-emerald-600 dark:text-emerald-400"
                                   : avgProgress > 0
-                                  ? "text-amber-400"
+                                  ? "text-amber-600 dark:text-amber-400"
                                   : "text-muted-foreground"
                               }`}
                             >
@@ -943,11 +943,11 @@ export default function CurriculumProgressPage({
           </div>
         ) : fetchError ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-rose-500/20 rounded-xl">
-            <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
-            <p className="text-rose-400 font-bold text-sm">{fetchError}</p>
+            <ExclamationTriangleIcon className="w-10 h-10 text-rose-600 dark:text-rose-400" />
+            <p className="text-rose-600 dark:text-rose-400 font-bold text-sm">{fetchError}</p>
             <button
               onClick={() => setRetryKey((k) => k + 1)}
-              className="text-xs px-4 py-2 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors font-bold rounded-lg"
+              className="text-xs px-4 py-2 border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors font-bold rounded-lg"
             >
               Retry
             </button>
@@ -1062,7 +1062,7 @@ export default function CurriculumProgressPage({
                         }
                         className={`p-2 rounded-lg border transition-all shrink-0 mt-0.5 ${
                           curr.is_visible_to_school
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                             : "border-zinc-500/30 bg-zinc-500/10 text-muted-foreground/70 hover:bg-zinc-500/20"
                         } disabled:opacity-40`}
                       >
@@ -1114,12 +1114,12 @@ function SchoolProgressRow({
     if (school.pct === 0)
       return {
         label: "Not Started",
-        cls: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
+        cls: "text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
       };
     if (school.pct >= 90)
       return {
         label: "Completed",
-        cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+        cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
       };
 
     const term3Info = school.term_progress.find((t) => t.term === 3);
@@ -1128,13 +1128,13 @@ function SchoolProgressRow({
     if (term3Info && term3Info.pct > 15) {
       return {
         label: "Ahead of Pace",
-        cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 animate-pulse",
+        cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20 animate-pulse",
       };
     }
     if (term2Info && term2Info.pct < 80) {
       return {
         label: "Behind Schedule",
-        cls: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+        cls: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
       };
     }
     return {
@@ -1166,7 +1166,7 @@ function SchoolProgressRow({
               {pacing.label}
             </span>
             {school.upcoming_assessments.length > 0 && (
-              <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider rounded-full shrink-0">
+              <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 uppercase tracking-wider rounded-full shrink-0">
                 {school.upcoming_assessments.length} upcoming assessment
                 {school.upcoming_assessments.length !== 1 ? "s" : ""}
               </span>
@@ -1290,7 +1290,7 @@ function SchoolProgressRow({
 
                           if (isCompleted) {
                             bgCls =
-                              "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
                             statusText = "Completed";
                           } else if (isInProgress) {
                             bgCls =
@@ -1298,7 +1298,7 @@ function SchoolProgressRow({
                             statusText = "Currently teaching";
                           } else if (isSkipped) {
                             bgCls =
-                              "bg-amber-500/10 text-amber-500/80 border-amber-500/20";
+                              "bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border-amber-500/20";
                             statusText = "Skipped";
                           }
 
@@ -1358,7 +1358,7 @@ function SchoolProgressRow({
           {/* Upcoming assessments */}
           {school.upcoming_assessments.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                 Upcoming Assessments & Milestones
               </p>
               <div className="space-y-1.5">
@@ -1367,7 +1367,7 @@ function SchoolProgressRow({
                     key={i}
                     className="flex items-start gap-2.5 text-xs bg-amber-500/5 border border-amber-500/20 px-3.5 py-2.5 rounded-xl flex-wrap"
                   >
-                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <span className="text-foreground font-bold flex-1 min-w-0 truncate">
                       {ev.topic}
                     </span>
@@ -1378,8 +1378,8 @@ function SchoolProgressRow({
                     <span
                       className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
                         ev.type === "examination"
-                          ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                          : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                          : "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                       } font-black uppercase tracking-wider rounded`}
                     >
                       {ev.type}
@@ -1392,7 +1392,7 @@ function SchoolProgressRow({
 
           {/* Skipped weeks */}
           {school.skipped > 0 && (
-            <div className="flex items-center gap-2 text-[10px] text-amber-500 bg-amber-500/5 border border-amber-500/20 px-3 py-1.5 rounded-lg w-max font-bold">
+            <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/5 border border-amber-500/20 px-3 py-1.5 rounded-lg w-max font-bold">
               <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {school.skipped} week(s) skipped in planning / schedules

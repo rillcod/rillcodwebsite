@@ -436,7 +436,7 @@ function ClassHealPageInner() {
         {activeTab === 'roster' && (
         <>
         {msg && (
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold ${msg.type === 'ok' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}`}>
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold ${msg.type === 'ok' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'}`}>
             {msg.type === 'ok' ? <CheckCircleIcon className="w-4 h-4 shrink-0" /> : <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />}
             {msg.text}
           </div>
@@ -449,24 +449,24 @@ function ClassHealPageInner() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-card border border-border rounded-xl px-4 py-3 flex flex-col gap-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Issues</span>
-            <span className={`text-2xl font-black ${totalIssues > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>{totalIssues}</span>
+            <span className={`text-2xl font-black ${totalIssues > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{totalIssues}</span>
           </div>
           <div className="bg-card border border-violet-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Conflicts</span>
-            <span className="text-2xl font-black text-violet-400">{data?.teacherConflict.length ?? 0}</span>
+            <span className="text-2xl font-black text-violet-600 dark:text-violet-400">{data?.teacherConflict.length ?? 0}</span>
           </div>
           <div className="bg-card border border-emerald-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Protected</span>
-            <span className="text-2xl font-black text-emerald-400">{data?.protectedCount ?? 0}</span>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{data?.protectedCount ?? 0}</span>
             <span className="text-[10px] text-muted-foreground leading-tight">students with a primary teacher lock</span>
           </div>
           <div className="bg-card border border-sky-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No Class</span>
-            <span className="text-2xl font-black text-sky-400">{data?.noClass.length ?? 0}</span>
+            <span className="text-2xl font-black text-sky-600 dark:text-sky-400">{data?.noClass.length ?? 0}</span>
           </div>
           <div className="bg-card border border-rose-500/20 rounded-xl px-4 py-3 flex flex-col gap-1 col-span-2 sm:col-span-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Duplicates</span>
-            <span className="text-2xl font-black text-rose-400">{data?.duplicateAccounts.length ?? 0}</span>
+            <span className="text-2xl font-black text-rose-600 dark:text-rose-400">{data?.duplicateAccounts.length ?? 0}</span>
             <span className="text-[10px] text-muted-foreground leading-tight">same email, multiple accounts</span>
           </div>
         </div>
@@ -514,9 +514,9 @@ function ClassHealPageInner() {
                 <div className="grid grid-cols-2 gap-1.5 text-[11px] text-muted-foreground sm:flex sm:flex-wrap sm:gap-x-3 sm:gap-y-1 sm:text-xs">
                   <span>Scanned <strong className="text-foreground">{namingScan.scanned}</strong></span>
                   <span><strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename</span>
-                  <span><strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''}</span>
-                  <span><strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate(s)</span>
-                  <span className="col-span-2 sm:col-span-1"><strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review</span>
+                  <span><strong className="text-sky-600 dark:text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''}</span>
+                  <span><strong className="text-rose-600 dark:text-rose-400">{namingScan.conflicts}</strong> duplicate(s)</span>
+                  <span className="col-span-2 sm:col-span-1"><strong className="text-amber-600 dark:text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review</span>
                 </div>
                 {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length > 0 && (
                   <div className="flex gap-3 sm:ml-auto">
@@ -538,7 +538,7 @@ function ClassHealPageInner() {
                 )}
               </div>
               {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length === 0 ? (
-                <p className="text-xs text-emerald-400 font-bold">Every class already follows the convention.</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">Every class already follows the convention.</p>
               ) : (
                 <div className="max-h-72 overflow-y-auto overflow-x-hidden rounded-xl border border-border divide-y divide-border/60">
                   {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').slice(0, 200).map((c: any) => (
@@ -553,7 +553,7 @@ function ClassHealPageInner() {
                         className="rounded border-border shrink-0 mt-0.5"
                       />
                       <div className="min-w-0 flex-1 space-y-1">
-                        <span className={`inline-block px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
+                        <span className={`inline-block px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
                         <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 min-w-0">
                           <span className="text-muted-foreground line-through break-words sm:truncate">{c.from}</span>
                           <span className="text-muted-foreground/50 hidden sm:inline shrink-0">→</span>
@@ -566,7 +566,7 @@ function ClassHealPageInner() {
                 </div>
               )}
               {namingScan.needsReview?.length > 0 && (
-                <p className="text-[11px] text-amber-400/80 break-words">Need review (no programme/grade to derive): {namingScan.needsReview.slice(0, 8).map((r: any) => r.name).join(', ')}{namingScan.needsReview.length > 8 ? '…' : ''}</p>
+                <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 break-words">Need review (no programme/grade to derive): {namingScan.needsReview.slice(0, 8).map((r: any) => r.name).join(', ')}{namingScan.needsReview.length > 8 ? '…' : ''}</p>
               )}
             </div>
           )}
@@ -574,7 +574,7 @@ function ClassHealPageInner() {
 
         {totalIssues === 0 && (
           <div className="text-center py-16 bg-card border border-emerald-500/20 rounded-xl">
-            <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
+            <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-600 dark:text-emerald-400 mb-3" />
             <p className="text-lg font-bold text-foreground">All clear — no anomalies found.</p>
           </div>
         )}
@@ -613,7 +613,7 @@ function ClassHealPageInner() {
                       </p>
                       <p className="text-xs mt-0.5">
                         <span className="text-muted-foreground">Current class: </span>
-                        <span className={s.class_name ? 'text-foreground font-medium' : 'text-amber-400 italic'}>
+                        <span className={s.class_name ? 'text-foreground font-medium' : 'text-amber-600 dark:text-amber-400 italic'}>
                           {s.class_name ?? (s.section_class ? `"${s.section_class}" (unlinked)` : 'None')}
                         </span>
                       </p>
@@ -649,7 +649,7 @@ function ClassHealPageInner() {
         {/* ── Teacher Audit & Restore ──────────────────────────── */}
         <div className="bg-card border border-violet-500/20 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-            <ArrowPathIcon className="w-5 h-5 text-violet-400 shrink-0" />
+            <ArrowPathIcon className="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0" />
             <div className="flex-1">
               <h2 className="text-sm font-extrabold text-foreground">Teacher Audit & Restore</h2>
               <p className="text-xs text-muted-foreground">
@@ -698,7 +698,7 @@ function ClassHealPageInner() {
 
             {auditData && (
               <div className="space-y-6">
-                <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">
+                <p className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest">
                   Audit results for {auditData.teacher_name} — {auditData.schoolAudit.length} school(s)
                 </p>
                 {auditData.schoolAudit.map(school => {
@@ -739,10 +739,10 @@ function ClassHealPageInner() {
                           <span>{school.students_in_classes.length} enrolled</span>
                           {school.displaced_students.length > 0 && <>
                             <span>·</span>
-                            <span className="text-amber-400 font-bold">{school.displaced_students.length} displaced</span>
+                            <span className="text-amber-600 dark:text-amber-400 font-bold">{school.displaced_students.length} displaced</span>
                           </>}
                           {!school.in_teacher_schools && (
-                            <span className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black border border-rose-500/30">
+                            <span className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black border border-rose-500/30">
                               Missing teacher_schools link
                             </span>
                           )}
@@ -783,7 +783,7 @@ function ClassHealPageInner() {
                                   <span className="text-xs text-muted-foreground ml-2">
                                     {cls.student_count} student{cls.student_count !== 1 ? 's' : ''}
                                     {allInClass.some(id => schoolSel.has(id)) && (
-                                      <span className="ml-2 text-violet-400 font-bold">
+                                      <span className="ml-2 text-violet-600 dark:text-violet-400 font-bold">
                                         · {allInClass.filter(id => schoolSel.has(id)).length} selected
                                       </span>
                                     )}
@@ -808,11 +808,11 @@ function ClassHealPageInner() {
                                       <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
                                         {cls.students.map((s: AuditStudent) => (
                                           <div key={s.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition border ${schoolSel.has(s.id) ? 'bg-violet-500/10 border-violet-500/30' : 'border-transparent hover:bg-muted/30'}`}>
-                                            <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0 cursor-pointer" />
+                                            <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-600 dark:text-violet-400 shrink-0 cursor-pointer" />
                                             <div className="flex-1 min-w-0">
                                               <div className="flex items-center gap-1.5 flex-wrap">
                                                 <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
-                                                {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                                {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                                               </div>
                                               <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                                             </div>
@@ -820,7 +820,7 @@ function ClassHealPageInner() {
                                               title="Remove from class"
                                               onClick={() => applyAction('remove_from_class', [s.id])}
                                               disabled={working}
-                                              className="p-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition shrink-0">
+                                              className="p-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition shrink-0">
                                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                           </div>
@@ -839,8 +839,8 @@ function ClassHealPageInner() {
                     {/* ── No classes yet — warn + offer create ── */}
                     {school.classes.length === 0 && school.displaced_students.length > 0 && (
                       <div className="px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                        <p className="text-xs font-bold text-amber-400">No class exists for this teacher at {school.school_name} yet.</p>
-                        <p className="text-xs text-amber-500/70 mt-0.5">Create a class below to assign the {school.displaced_students.length} displaced student(s).</p>
+                        <p className="text-xs font-bold text-amber-600 dark:text-amber-400">No class exists for this teacher at {school.school_name} yet.</p>
+                        <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">Create a class below to assign the {school.displaced_students.length} displaced student(s).</p>
                       </div>
                     )}
 
@@ -848,7 +848,7 @@ function ClassHealPageInner() {
                     {school.displaced_students.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                          <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                             {school.displaced_students.length} displaced — need placement
                           </p>
                           {school.displaced_students.filter(s => (s.displacement_sources ?? []).length >= 2).length > 0 && (
@@ -867,19 +867,19 @@ function ClassHealPageInner() {
                             const multiSignal = sources.length >= 2;
                             return (
                               <div key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
-                                <input type="checkbox" checked={checked} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0 cursor-pointer" />
+                                <input type="checkbox" checked={checked} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-600 dark:text-violet-400 shrink-0 cursor-pointer" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                                     {multiSignal && (
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">
                                         {hasReports && hasBatch && hasRegistered ? 'All 3 Signals' : hasReports && hasBatch ? 'Reports + Batch' : hasReports && hasRegistered ? 'Reports + Registered' : 'Batch + Registered'}
                                       </span>
                                     )}
-                                    {!multiSignal && hasReports && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>}
-                                    {!multiSignal && hasBatch && <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>}
-                                    {!multiSignal && hasRegistered && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>}
+                                    {!multiSignal && hasReports && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-600 dark:text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>}
+                                    {!multiSignal && hasBatch && <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>}
+                                    {!multiSignal && hasRegistered && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-600 dark:text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>}
                                   </div>
                                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                                     {s.current_class_name
@@ -899,7 +899,7 @@ function ClassHealPageInner() {
                                   </div>
                                 ) : (
                                   <button onClick={() => setAuditConfirmDelete(s.id)} title="Delete student"
-                                    className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition shrink-0">
+                                    className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition shrink-0">
                                     <TrashIcon className="w-3.5 h-3.5" />
                                   </button>
                                 )}
@@ -915,7 +915,7 @@ function ClassHealPageInner() {
                       <div className="flex items-center gap-3 flex-wrap">
                         <button
                           onClick={() => selectIds(school.displaced_students.map(s => s.id))}
-                          className="text-xs font-bold text-amber-400 hover:underline"
+                          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
                         >
                           Select all displaced
                         </button>
@@ -1095,7 +1095,7 @@ function ClassHealPageInner() {
                     </div>
 
                     {school.displaced_students.length === 0 && school.classes.length > 0 && (
-                      <p className="text-xs text-emerald-400 font-semibold">All students correctly assigned to this teacher's classes.</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">All students correctly assigned to this teacher's classes.</p>
                     )}
                   </div>
                   );
@@ -1108,7 +1108,7 @@ function ClassHealPageInner() {
         {/* ── Claim a Class ───────────────────────────────────── */}
         <div className="bg-card border border-sky-500/20 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-sky-400 shrink-0" />
+            <CheckCircleIcon className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
             <div className="flex-1">
               <h2 className="text-sm font-extrabold text-foreground">Claim a Class for a Teacher</h2>
               <p className="text-xs text-muted-foreground">
@@ -1178,7 +1178,7 @@ function ClassHealPageInner() {
         {/* ── Class Ownership Drain ───────────────────────────── */}
         <div className="bg-card border border-orange-500/20 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-orange-400 shrink-0" />
+            <ExclamationTriangleIcon className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0" />
             <div className="flex-1">
               <h2 className="text-sm font-extrabold text-foreground">Class Ownership Drain</h2>
               <p className="text-xs text-muted-foreground">
@@ -1223,7 +1223,7 @@ function ClassHealPageInner() {
             {classAuditData && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-xs font-bold text-orange-400 uppercase tracking-widest">{classAuditData.class_name}</p>
+                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">{classAuditData.class_name}</p>
                   <span className="text-xs text-muted-foreground">· Teacher: {classAuditData.teacher_name ?? '—'}</span>
                   <span className="text-xs text-muted-foreground">· {classAuditData.school_name ?? '—'}</span>
                 </div>
@@ -1231,12 +1231,12 @@ function ClassHealPageInner() {
                 {/* Summary counts */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2.5 text-center">
-                    <p className="text-2xl font-black text-emerald-400">{classAuditData.correct.length}</p>
-                    <p className="text-[10px] font-black text-emerald-400/70 uppercase tracking-widest">Correct</p>
+                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{classAuditData.correct.length}</p>
+                    <p className="text-[10px] font-black text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest">Correct</p>
                   </div>
                   <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5 text-center">
-                    <p className="text-2xl font-black text-amber-400">{classAuditData.misplaced.length}</p>
-                    <p className="text-[10px] font-black text-amber-400/70 uppercase tracking-widest">Misplaced</p>
+                    <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{classAuditData.misplaced.length}</p>
+                    <p className="text-[10px] font-black text-amber-600/70 dark:text-amber-400/70 uppercase tracking-widest">Misplaced</p>
                   </div>
                   <div className="bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-center">
                     <p className="text-2xl font-black text-muted-foreground">{classAuditData.noSignal.length}</p>
@@ -1248,7 +1248,7 @@ function ClassHealPageInner() {
                 {classAuditData.misplaced.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                         {classAuditData.misplaced.length} misplaced — preview of what drain will do
                       </p>
                     </div>
@@ -1259,26 +1259,26 @@ function ClassHealPageInner() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                               </div>
                               <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-[11px]">
                             <span className="text-muted-foreground">Signal:</span>
-                            <span className="font-bold text-violet-400">{s.signal_teacher_name ?? s.signal_teacher_id ?? '?'}</span>
+                            <span className="font-bold text-violet-600 dark:text-violet-400">{s.signal_teacher_name ?? s.signal_teacher_id ?? '?'}</span>
                             {s.displacement_sources.length > 0 && (
-                              <span className="px-1.5 py-0.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded text-[9px] font-black uppercase">
+                              <span className="px-1.5 py-0.5 bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded text-[9px] font-black uppercase">
                                 {s.displacement_sources.map(src => src === 'report_authored' ? 'Reports' : src === 'batch_registered' ? 'Batch' : 'Registered').join(' + ')}
                               </span>
                             )}
                             {s.dest_class_id ? (
                               <>
                                 <span className="text-muted-foreground">→ move to</span>
-                                <span className="font-bold text-emerald-400">{s.dest_class_name}</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">{s.dest_class_name}</span>
                               </>
                             ) : (
-                              <span className="text-rose-400 italic">No dest class found — will be skipped</span>
+                              <span className="text-rose-600 dark:text-rose-400 italic">No dest class found — will be skipped</span>
                             )}
                           </div>
                         </div>
@@ -1315,7 +1315,7 @@ function ClassHealPageInner() {
                 {/* Correctly placed — collapsible */}
                 {classAuditData.correct.length > 0 && (
                   <details className="group">
-                    <summary className="cursor-pointer text-xs font-bold text-emerald-400 flex items-center gap-2 select-none list-none">
+                    <summary className="cursor-pointer text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 select-none list-none">
                       <ChevronDownIcon className="w-3.5 h-3.5 group-open:rotate-180 transition-transform shrink-0" />
                       {classAuditData.correct.length} correctly placed (stays in class)
                     </summary>
@@ -1325,7 +1325,7 @@ function ClassHealPageInner() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
-                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                             </div>
                             <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                           </div>
@@ -1354,7 +1354,7 @@ function ClassHealPageInner() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
-                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                             </div>
                             <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                           </div>
@@ -1366,8 +1366,8 @@ function ClassHealPageInner() {
 
                 {classAuditData.misplaced.length === 0 && (
                   <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <p className="text-xs font-bold text-emerald-400">All signals agree — no drain needed for this class.</p>
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">All signals agree — no drain needed for this class.</p>
                   </div>
                 )}
               </div>
@@ -1377,8 +1377,8 @@ function ClassHealPageInner() {
             {drainResult && (
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <p className="text-sm font-bold text-emerald-400">
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                     Drain complete — {drainResult.moved} moved
                     {drainResult.skipped > 0 ? `, ${drainResult.skipped} skipped (no destination class)` : ''}
                   </p>
@@ -1392,7 +1392,7 @@ function ClassHealPageInner() {
                           <p className="font-semibold text-foreground truncate flex-1 min-w-0">{d.student_name}</p>
                           <span className="text-muted-foreground shrink-0 hidden sm:inline">{d.from_class}</span>
                           <span className="text-muted-foreground shrink-0">→</span>
-                          <span className="font-bold text-emerald-400 shrink-0 truncate max-w-[120px]">{d.to_class}</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0 truncate max-w-[120px]">{d.to_class}</span>
                         </div>
                       ))}
                     </div>
@@ -1407,7 +1407,7 @@ function ClassHealPageInner() {
         {(data?.missingTeacherSchools.length ?? 0) > 0 && (
           <div className="bg-card border border-rose-500/30 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
               <div className="flex-1">
                 <h2 className="text-sm font-extrabold text-foreground">Missing Teacher–School Links</h2>
                 <p className="text-xs text-muted-foreground">
@@ -1417,7 +1417,7 @@ function ClassHealPageInner() {
                   Click "Fix" to add the missing link, or "Fix All" to repair all teachers at once.
                 </p>
               </div>
-              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                 {data!.missingTeacherSchools.length}
               </span>
             </div>
@@ -1458,7 +1458,7 @@ function ClassHealPageInner() {
         {(data?.duplicateAccounts.length ?? 0) > 0 && (
           <div className="bg-card border border-rose-500/30 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
               <div className="flex-1">
                 <h2 className="text-sm font-extrabold text-foreground">Duplicate Student Accounts</h2>
                 <p className="text-xs text-muted-foreground">
@@ -1467,7 +1467,7 @@ function ClassHealPageInner() {
                   the correct class and school, then delete the other(s).
                 </p>
               </div>
-              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                 {data!.duplicateAccounts.length}
               </span>
             </div>
@@ -1475,7 +1475,7 @@ function ClassHealPageInner() {
               {data!.duplicateAccounts.map(group => (
                 <div key={group.label} className={`rounded-xl border p-4 space-y-3 ${group.duplicateType === 'email' ? 'border-rose-500/20 bg-rose-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                   <div className="flex items-start gap-2 flex-wrap">
-                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${group.duplicateType === 'email' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${group.duplicateType === 'email' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30'}`}>
                       {group.duplicateType === 'email' ? 'Same Email' : 'Same Name + School'}
                     </span>
                     <p className="text-xs text-foreground font-mono bg-muted px-2 py-0.5 rounded">{group.label}</p>
@@ -1489,13 +1489,13 @@ function ClassHealPageInner() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-foreground truncate">{acc.full_name}</p>
                             {acc.primary_teacher_id && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">Protected</span>
+                              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">Protected</span>
                             )}
                             <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded font-mono shrink-0">#{i + 1}</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
                             <p>School: <span className="text-foreground font-medium">{acc.school_name ?? acc.school_id ?? '—'}</span></p>
-                            <p>Class: <span className={acc.class_name ? 'text-foreground font-medium' : 'text-amber-400 italic'}>{acc.class_name ?? (acc.section_class ? `"${acc.section_class}" (unlinked)` : 'None')}</span></p>
+                            <p>Class: <span className={acc.class_name ? 'text-foreground font-medium' : 'text-amber-600 dark:text-amber-400 italic'}>{acc.class_name ?? (acc.section_class ? `"${acc.section_class}" (unlinked)` : 'None')}</span></p>
                             <p>Created: <span className="text-foreground">{new Date(acc.created_at).toLocaleDateString()}</span></p>
                           </div>
                         </div>
@@ -1503,7 +1503,7 @@ function ClassHealPageInner() {
                           disabled={working}
                           onClick={() => applyAction('delete_portal_user', [acc.id])}
                           title="Delete this duplicate account"
-                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0 mt-0.5"
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-600 dark:text-rose-400 shrink-0 mt-0.5"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
@@ -1520,7 +1520,7 @@ function ClassHealPageInner() {
         {(data?.teacherConflict.length ?? 0) > 0 && (
           <div className="bg-card border border-violet-500/30 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-violet-400 shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0" />
               <div className="flex-1">
                 <h2 className="text-sm font-extrabold text-foreground">Teacher–Class Conflict</h2>
                 <p className="text-xs text-muted-foreground">
@@ -1530,7 +1530,7 @@ function ClassHealPageInner() {
                   Use "Restore Students to Teacher" above to fix in bulk, or reassign individually below.
                 </p>
               </div>
-              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/30">
                 {data!.teacherConflict.length}
               </span>
             </div>
@@ -1549,12 +1549,12 @@ function ClassHealPageInner() {
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Enrolled class</p>
                       <p className="text-xs font-semibold text-foreground leading-snug">
                         {s.current_class_name ?? '?'}{' '}
-                        <span className="text-amber-400">({s.current_class_teacher_name ?? 'Unknown'})</span>
+                        <span className="text-amber-600 dark:text-amber-400">({s.current_class_teacher_name ?? 'Unknown'})</span>
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Reports written by</p>
-                      <p className="text-xs font-semibold text-violet-400 leading-snug">{s.report_teacher_name ?? 'Unknown'}</p>
+                      <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 leading-snug">{s.report_teacher_name ?? 'Unknown'}</p>
                     </div>
                   </div>
 
@@ -1583,7 +1583,7 @@ function ClassHealPageInner() {
                         disabled={working}
                         onClick={() => applyAction('delete_portal_user', [s.id])}
                         title="Delete student account"
-                        className="p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0"
+                        className="p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-600 dark:text-rose-400 shrink-0"
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -1599,7 +1599,7 @@ function ClassHealPageInner() {
         {((data?.noSchoolParents?.length ?? 0) + (data?.noSchoolTeachers?.length ?? 0) + (data?.noSchoolSchoolAccounts?.length ?? 0)) > 0 && (
           <div className="bg-card border border-amber-500/30 rounded-xl overflow-hidden">
             <div className="px-4 sm:px-5 py-4 flex flex-wrap items-center gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div className="flex-1 min-w-0">
                 <h2 className="text-sm font-extrabold text-foreground">Accounts Without a School</h2>
                 <p className="text-xs text-muted-foreground">
@@ -1625,12 +1625,12 @@ function ClassHealPageInner() {
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             {/* Panel header */}
             <div className="px-4 sm:px-5 py-4 border-b border-border flex flex-wrap items-center gap-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div className="flex-1 min-w-0">
                 <h2 className="text-sm font-extrabold text-foreground">Students Without a School</h2>
                 <p className="text-xs text-muted-foreground">Cross-checked against the registration registry. Assign, sync, or delete each student.</p>
               </div>
-              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">{data!.noSchool.length}</span>
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">{data!.noSchool.length}</span>
             </div>
 
             {/* Sort + filter bar */}
@@ -1679,7 +1679,7 @@ function ClassHealPageInner() {
                           <p className="text-xs text-muted-foreground truncate">{s.email}</p>
                         </div>
                         {hasRegistry && (
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">Registry found</span>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">Registry found</span>
                         )}
                       </div>
 
@@ -1690,7 +1690,7 @@ function ClassHealPageInner() {
                           {s.registry.school_name && <p>School: <span className="text-foreground font-semibold">{s.registry.school_name}</span></p>}
                           {s.registry.section && <p>Section: <span className="text-foreground font-semibold">{s.registry.section}</span></p>}
                           {s.registry.grade_level && <p>Grade: <span className="text-foreground font-semibold">{s.registry.grade_level}</span></p>}
-                          {s.registry.status && <p>Status: <span className={`font-semibold ${s.registry.status === 'approved' ? 'text-emerald-400' : 'text-amber-400'}`}>{s.registry.status}</span></p>}
+                          {s.registry.status && <p>Status: <span className={`font-semibold ${s.registry.status === 'approved' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{s.registry.status}</span></p>}
                         </div>
                       )}
 
@@ -1752,7 +1752,7 @@ function ClassHealPageInner() {
                         {/* Delete */}
                         {nsConfirmDelete === s.id ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-rose-400 font-bold">Confirm delete?</span>
+                            <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">Confirm delete?</span>
                             <button disabled={working}
                               onClick={() => { applyAction('delete_portal_user', [s.id]); setNsConfirmDelete(null); }}
                               className="px-2.5 py-1 bg-rose-600 text-white text-xs font-black rounded-xl disabled:opacity-40">Yes</button>
@@ -1762,7 +1762,7 @@ function ClassHealPageInner() {
                         ) : (
                           <button
                             onClick={() => setNsConfirmDelete(s.id)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 ml-auto"
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-600 dark:text-rose-400 ml-auto"
                             title="Delete this portal account"
                           >
                             <TrashIcon className="w-4 h-4" />
@@ -1820,7 +1820,7 @@ function ClassHealPageInner() {
               {data!.noClass.map(s => (
                 noClassConfirmDelete === s.id ? (
                   <div key={s.id} className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                    <span className="text-xs text-rose-400 font-bold flex-1">Delete {s.full_name}?</span>
+                    <span className="text-xs text-rose-600 dark:text-rose-400 font-bold flex-1">Delete {s.full_name}?</span>
                     <button disabled={working} onClick={() => { applyAction('delete_portal_user', [s.id]); setNoClassConfirmDelete(null); }}
                       className="px-2.5 py-1 bg-rose-600 text-white text-xs font-black rounded-xl disabled:opacity-40">Yes, delete</button>
                     <button onClick={() => setNoClassConfirmDelete(null)}
@@ -1850,7 +1850,7 @@ function ClassHealPageInner() {
                     {safe.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                          <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest shrink-0">{safe.length} safe to align</p>
+                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest shrink-0">{safe.length} safe to align</p>
                           <div className="flex flex-wrap gap-2">
                             <button onClick={() => selAll(safe.map(s => s.id), setSelMismatched)}
                               className="text-xs font-bold text-primary hover:underline">Select all</button>
@@ -1875,7 +1875,7 @@ function ClassHealPageInner() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {s.school_name || 'No school'} → class belongs to <span className="font-bold text-emerald-400">{s.class_school_name || s.class_school_id || 'Unknown'}</span>
+                                {s.school_name || 'No school'} → class belongs to <span className="font-bold text-emerald-600 dark:text-emerald-400">{s.class_school_name || s.class_school_id || 'Unknown'}</span>
                                 {s.class_name ? ` (${s.class_name})` : ''}
                               </p>
                             </div>
@@ -1886,15 +1886,15 @@ function ClassHealPageInner() {
                     {conflicted.length > 0 && (
                       <div className="space-y-2">
                         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                          <p className="text-xs font-bold text-amber-400 mb-1">{conflicted.length} student(s) — fix class assignment first</p>
-                          <p className="text-xs text-amber-500/70">These students are in the wrong class (class teacher ≠ report author). Fix them in the Teacher–Class Conflict section above, then alignment will work correctly.</p>
+                          <p className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">{conflicted.length} student(s) — fix class assignment first</p>
+                          <p className="text-xs text-amber-600/70 dark:text-amber-400/70">These students are in the wrong class (class teacher ≠ report author). Fix them in the Teacher–Class Conflict section above, then alignment will work correctly.</p>
                         </div>
                         {conflicted.map(s => (
                           <div key={s.id} className="flex items-start gap-3 px-4 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase shrink-0">Fix class first</span>
+                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded font-black uppercase shrink-0">Fix class first</span>
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
                                 {s.school_name || 'No school'} · class: {s.class_name || s.class_school_name || 'Unknown'}
@@ -1926,7 +1926,7 @@ function ClassHealPageInner() {
                     disabled={working}
                     onClick={() => applyAction('delete_class', [], { deleteClassId: c.id })}
                     className="p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition">
-                    <TrashIcon className="w-4 h-4 text-rose-400" />
+                    <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                   </button>
                 </div>
               ))}
@@ -1972,7 +1972,7 @@ function ClassHealPageInner() {
 
               {txDone ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
-                  <CheckCircleIcon className="w-14 h-14 text-emerald-400" />
+                  <CheckCircleIcon className="w-14 h-14 text-emerald-600 dark:text-emerald-400" />
                   <p className="text-base font-extrabold text-foreground">{txDone}</p>
                   <button onClick={() => { setShowTransfer(false); load(); }}
                     className="px-6 py-2.5 bg-primary text-white text-sm font-black rounded-xl transition hover:opacity-90">
@@ -2041,7 +2041,7 @@ function ClassHealPageInner() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                                   </div>
                                   <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
                                 </div>
@@ -2076,16 +2076,16 @@ function ClassHealPageInner() {
                       ) : (data?.classes ?? []).filter(c => c.school_id === txSrcSchool && c.id !== txSrcClass).map(c => (
                         <button key={c.id}
                           onClick={() => setTxDstClass(c.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${txDstClass === c.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'border-border hover:bg-muted/30 text-foreground'}`}>
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${txDstClass === c.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'border-border hover:bg-muted/30 text-foreground'}`}>
                           <p className="text-sm font-bold truncate">{c.name}</p>
-                          {txDstClass === c.id && <CheckCircleIcon className="w-5 h-5 shrink-0 text-emerald-400" />}
+                          {txDstClass === c.id && <CheckCircleIcon className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {txDstClass && (
-                    <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                    <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
                       Permanently moves students within the same school and transfers full authorship to the destination class teacher.
                     </div>
                   )}
@@ -2145,10 +2145,10 @@ function ClassHealPageInner() {
 
 function Section({ title, count, description, children, color = 'amber' }: { title: string; count: number; description: string; children: React.ReactNode; color?: 'amber' | 'rose' | 'violet' | 'sky' }) {
   const colors = {
-    amber: { icon: 'text-amber-400', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', border: 'border-border' },
-    rose:  { icon: 'text-rose-400',  badge: 'bg-rose-500/20 text-rose-400 border-rose-500/30',   border: 'border-rose-500/20' },
-    violet:{ icon: 'text-violet-400',badge: 'bg-violet-500/20 text-violet-400 border-violet-500/30', border: 'border-violet-500/20' },
-    sky:   { icon: 'text-sky-400',   badge: 'bg-sky-500/20 text-sky-400 border-sky-500/30',     border: 'border-sky-500/20' },
+    amber: { icon: 'text-amber-600 dark:text-amber-400', badge: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30', border: 'border-border' },
+    rose:  { icon: 'text-rose-600 dark:text-rose-400',  badge: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',   border: 'border-rose-500/20' },
+    violet:{ icon: 'text-violet-600 dark:text-violet-400',badge: 'bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30', border: 'border-violet-500/20' },
+    sky:   { icon: 'text-sky-600 dark:text-sky-400',   badge: 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30',     border: 'border-sky-500/20' },
   }[color];
   return (
     <div className={`bg-card border ${colors.border} rounded-xl overflow-hidden`}>
@@ -2210,12 +2210,12 @@ function StudentRow({ student, selected, onToggle, onDelete, onRemoveFromClass }
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
             {student.school_name && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded font-bold shrink-0 truncate max-w-[120px]">
+              <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 rounded font-bold shrink-0 truncate max-w-[120px]">
                 {student.school_name}
               </span>
             )}
             {isProtected && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">
+              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">
                 Protected
               </span>
             )}
@@ -2226,13 +2226,13 @@ function StudentRow({ student, selected, onToggle, onDelete, onRemoveFromClass }
       <div className="flex items-center gap-1 shrink-0">
         {onRemoveFromClass && (
           <button onClick={onRemoveFromClass} title="Remove from class"
-            className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition">
+            className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         )}
         {onDelete && (
           <button onClick={onDelete} title="Delete student account"
-            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition">
+            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition">
             <TrashIcon className="w-3.5 h-3.5" />
           </button>
         )}

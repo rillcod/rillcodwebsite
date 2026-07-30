@@ -140,9 +140,9 @@ export default function CourseDetailPage() {
   }, [profile?.id, id, authLoading]); // eslint-disable-line
 
   const LEVEL_COLOR: Record<string, string> = {
-    beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    intermediate: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    beginner: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    intermediate: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    advanced: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   };
 
   const TYPE_ICON: Record<string, any> = {
@@ -294,7 +294,7 @@ export default function CourseDetailPage() {
 
   if (error || !course) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-      <p className="text-rose-400 font-semibold">{error ?? 'Course not found'}</p>
+      <p className="text-rose-600 dark:text-rose-400 font-semibold">{error ?? 'Course not found'}</p>
       <Link href="/dashboard/courses" className="text-sm text-primary hover:underline">← Back to Courses</Link>
     </div>
   );
@@ -398,14 +398,14 @@ export default function CourseDetailPage() {
                           {i + 1}
                         </span>
                         <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-4 h-4 text-cyan-400" />
+                          <Icon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{lesson.title}</p>
                           <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type}{lesson.duration_minutes ? ` · ${lesson.duration_minutes}m` : ''}</p>
                         </div>
                         {lesson.status === 'published' && (
-                          <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                         )}
                         <Link href={`/dashboard/lessons/${lesson.id}`}
                           className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors">
@@ -425,7 +425,7 @@ export default function CourseDetailPage() {
                 <span className="text-xs text-muted-foreground">{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
               </div>
               {sessionError && (
-                <div className="px-5 py-3 text-sm text-rose-400 border-b border-border">{sessionError}</div>
+                <div className="px-5 py-3 text-sm text-rose-600 dark:text-rose-400 border-b border-border">{sessionError}</div>
               )}
               {sessions.length === 0 ? (
                 <div className="py-12 text-center">
@@ -450,7 +450,7 @@ export default function CourseDetailPage() {
                         <button
                           onClick={() => handleJoinSession(session.id)}
                           disabled={!isJoinable}
-                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${isJoinable ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-card shadow-sm cursor-not-allowed'}`}
+                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${isJoinable ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-card shadow-sm cursor-not-allowed'}`}
                         >
                           <PlayIcon className="w-3 h-3" /> Join
                         </button>
@@ -519,7 +519,7 @@ export default function CourseDetailPage() {
                           />
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
                           >
                             Create Room
                           </button>
@@ -720,7 +720,7 @@ export default function CourseDetailPage() {
             <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                   {course.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
@@ -733,7 +733,7 @@ export default function CourseDetailPage() {
               {myEnrollment && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border capitalize ${myEnrollment.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border capitalize ${myEnrollment.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                     {myEnrollment.status}
                   </span>
                 </div>
@@ -765,7 +765,7 @@ export default function CourseDetailPage() {
                             {enr.enrollment_date ? new Date(enr.enrollment_date).toLocaleDateString() : '—'}
                           </p>
                         </div>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${enr.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${enr.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                           {enr.status}
                         </span>
                       </div>

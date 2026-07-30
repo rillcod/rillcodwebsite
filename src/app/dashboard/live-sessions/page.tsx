@@ -126,19 +126,19 @@ const PLATFORM_CONFIG: Record<LiveSession['platform'] | 'jitsi', {
   label: string; textClass: string; bgClass: string; borderClass: string; dot: string;
 }> = {
   zoom:        { label: 'Zoom',        textClass: 'text-primary',    bgClass: 'bg-primary/10',    borderClass: 'border-primary/30',    dot: 'bg-primary' },
-  google_meet: { label: 'Google Meet', textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/30', dot: 'bg-emerald-400' },
-  teams:       { label: 'Teams',       textClass: 'text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/30',  dot: 'bg-purple-400' },
-  discord:     { label: 'Discord',     textClass: 'text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/30',  dot: 'bg-indigo-400' },
+  google_meet: { label: 'Google Meet', textClass: 'text-emerald-600 dark:text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/30', dot: 'bg-emerald-400' },
+  teams:       { label: 'Teams',       textClass: 'text-purple-600 dark:text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/30',  dot: 'bg-purple-400' },
+  discord:     { label: 'Discord',     textClass: 'text-indigo-600 dark:text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/30',  dot: 'bg-indigo-400' },
   jitsi:       { label: 'In-App',      textClass: 'text-primary',  bgClass: 'bg-primary/10',  borderClass: 'border-primary/30',  dot: 'bg-primary' },
-  other:       { label: 'Other',       textClass: 'text-white/40',    bgClass: 'bg-white/5',        borderClass: 'border-white/10',       dot: 'bg-white/30' },
+  other:       { label: 'Other',       textClass: 'text-muted-foreground',    bgClass: 'bg-white/5',        borderClass: 'border-white/10',       dot: 'bg-white/30' },
 };
 const STATUS_CONFIG: Record<LiveSession['status'], {
   label: string; textClass: string; bgClass: string; borderClass: string; pulse?: boolean;
 }> = {
-  scheduled: { label: 'Scheduled', textClass: 'text-amber-400',   bgClass: 'bg-amber-500/10',   borderClass: 'border-amber-500/30' },
-  live:      { label: 'LIVE',      textClass: 'text-emerald-300', bgClass: 'bg-emerald-500/15', borderClass: 'border-emerald-400/40', pulse: true },
+  scheduled: { label: 'Scheduled', textClass: 'text-amber-600 dark:text-amber-400',   bgClass: 'bg-amber-500/10',   borderClass: 'border-amber-500/30' },
+  live:      { label: 'LIVE',      textClass: 'text-emerald-700 dark:text-emerald-300', bgClass: 'bg-emerald-500/15', borderClass: 'border-emerald-400/40', pulse: true },
   completed: { label: 'Completed', textClass: 'text-primary',    bgClass: 'bg-primary/10',    borderClass: 'border-primary/30' },
-  cancelled: { label: 'Cancelled', textClass: 'text-rose-400',    bgClass: 'bg-rose-500/10',    borderClass: 'border-rose-500/30' },
+  cancelled: { label: 'Cancelled', textClass: 'text-rose-600 dark:text-rose-400',    bgClass: 'bg-rose-500/10',    borderClass: 'border-rose-500/30' },
 };
 
 // ─── Polls Modal ──────────────────────────────────────────────────────────────
@@ -239,11 +239,11 @@ function PollsModal({ session, canManage, userId, onClose }: {
           <div className="flex items-center gap-3">
             <ChartBarIcon className="w-5 h-5 text-primary" />
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-widest">Session Polls</p>
-              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Session Polls</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -255,22 +255,22 @@ function PollsModal({ session, canManage, userId, onClose }: {
             </div>
           ) : polls.length === 0 && !creating ? (
             <div className="text-center py-12 space-y-2">
-              <ChartBarIcon className="w-10 h-10 text-white/10 mx-auto" />
-              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No polls yet</p>
+              <ChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No polls yet</p>
             </div>
           ) : polls.map((poll: any) => {
             const options: any[] = poll.options ?? poll.live_session_poll_options ?? [];
             const total = options.reduce((s: number, o: any) => s + (o.response_count ?? 0), 0);
             const hasVoted = !!voted[poll.id];
             const statusColors: Record<string, string> = {
-              draft: 'text-white/30 border-white/10',
-              live: 'text-emerald-400 border-emerald-500/30',
-              closed: 'text-white/20 border-white/5',
+              draft: 'text-muted-foreground border-white/10',
+              live: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+              closed: 'text-muted-foreground border-white/5',
             };
             return (
               <div key={poll.id} className="bg-white/[0.02] border border-white/[0.06] p-5 space-y-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-black text-white">{poll.question}</p>
+                  <p className="text-sm font-black text-foreground">{poll.question}</p>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border ${statusColors[poll.status] ?? statusColors.draft}`}>
                       {poll.status}
@@ -281,7 +281,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                           <button
                             onClick={() => togglePollStatus(poll.id, poll.status)}
                             disabled={!!submitting}
-                            className="p-1.5 bg-white/5 hover:bg-emerald-600/20 border border-white/10 hover:border-emerald-500/30 text-white/30 hover:text-emerald-400 transition-all"
+                            className="p-1.5 bg-white/5 hover:bg-emerald-600/20 border border-white/10 hover:border-emerald-500/30 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
                             title={poll.status === 'draft' ? 'Go Live' : 'Close Poll'}
                           >
                             <PlayIcon className="w-3 h-3" />
@@ -290,7 +290,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                         <button
                           onClick={() => deletePoll(poll.id)}
                           disabled={!!submitting}
-                          className="p-1.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-white/30 hover:text-rose-400 transition-all"
+                          className="p-1.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all"
                         >
                           <TrashIcon className="w-3 h-3" />
                         </button>
@@ -316,9 +316,9 @@ function PollsModal({ session, canManage, userId, onClose }: {
                           <div className="absolute left-0 top-0 bottom-0 bg-white/[0.04] transition-all" style={{ width: `${pct}%` }} />
                         )}
                         <div className="relative flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-white">{opt.option_text ?? opt.text}</span>
+                          <span className="text-xs font-bold text-foreground">{opt.option_text ?? opt.text}</span>
                           {(hasVoted || canManage) && (
-                            <span className="text-[10px] font-black text-white/40">{pct}%</span>
+                            <span className="text-[10px] font-black text-muted-foreground">{pct}%</span>
                           )}
                         </div>
                       </button>
@@ -326,10 +326,10 @@ function PollsModal({ session, canManage, userId, onClose }: {
                   })}
                 </div>
                 {(hasVoted || canManage) && (
-                  <p className="text-[10px] text-white/30 font-bold">{total} response{total !== 1 ? 's' : ''}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold">{total} response{total !== 1 ? 's' : ''}</p>
                 )}
                 {poll.status === 'live' && !hasVoted && !canManage && (
-                  <p className="text-[10px] text-emerald-400/60 font-bold uppercase tracking-widest">Click an option to vote</p>
+                  <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 font-bold uppercase tracking-widest">Click an option to vote</p>
                 )}
               </div>
             );
@@ -337,17 +337,17 @@ function PollsModal({ session, canManage, userId, onClose }: {
 
           {creating && (
             <div className="bg-white/[0.02] border border-white/10 p-5 space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">New Poll</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">New Poll</p>
               <input
                 value={form.question}
                 onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
                 placeholder="Ask a question…"
-                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-foreground placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
               />
               <select
                 value={form.type}
                 onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
-                className="px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white/60 focus:outline-none focus:border-primary"
+                className="px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-muted-foreground focus:outline-none focus:border-primary"
               >
                 <option value="poll" className="bg-[#0d0d0d]">Poll</option>
                 <option value="quiz" className="bg-[#0d0d0d]">Quiz</option>
@@ -359,12 +359,12 @@ function PollsModal({ session, canManage, userId, onClose }: {
                     value={opt}
                     onChange={e => setForm(f => { const o = [...f.options]; o[i] = e.target.value; return { ...f, options: o }; })}
                     placeholder={`Option ${i + 1}${i < 2 ? ' *' : ''}`}
-                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
+                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-foreground placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
                   />
                 ))}
               </div>
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-white/30 hover:text-white border border-white/10 transition-all">Cancel</button>
+                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-muted-foreground hover:text-white border border-white/10 transition-all">Cancel</button>
                 <button
                   onClick={createPoll}
                   disabled={!!submitting}
@@ -448,13 +448,13 @@ function RoomsModal({ session, canManage, onClose }: {
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <UsersIcon className="w-5 h-5 text-purple-400" />
+            <UsersIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-widest">Breakout Rooms</p>
-              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Breakout Rooms</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -466,18 +466,18 @@ function RoomsModal({ session, canManage, onClose }: {
             </div>
           ) : rooms.length === 0 && !creating ? (
             <div className="text-center py-12 space-y-2">
-              <UsersIcon className="w-10 h-10 text-white/10 mx-auto" />
-              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No breakout rooms</p>
+              <UsersIcon className="w-10 h-10 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No breakout rooms</p>
             </div>
           ) : rooms.map((room: any) => (
             <div key={room.id} className="bg-white/[0.02] border border-white/[0.06] p-5 flex items-center justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-sm font-black text-white">{room.name}</p>
-                <p className="text-[10px] text-white/30 font-bold">
+                <p className="text-sm font-black text-foreground">{room.name}</p>
+                <p className="text-[10px] text-muted-foreground font-bold">
                   {room.participant_count ?? 0} participant{(room.participant_count ?? 0) !== 1 ? 's' : ''}
                   {room.max_participants ? ` / ${room.max_participants} max` : ''}
                 </p>
-                <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${room.status === 'active' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-white/20 border-white/5'}`}>
+                <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${room.status === 'active' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-muted-foreground border-white/5'}`}>
                   {room.status}
                 </span>
               </div>
@@ -485,7 +485,7 @@ function RoomsModal({ session, canManage, onClose }: {
                 <button
                   onClick={() => joinRoom(room.id)}
                   disabled={!!joining}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-400 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
                 >
                   {joining === room.id
                     ? <div className="w-3.5 h-3.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
@@ -498,22 +498,22 @@ function RoomsModal({ session, canManage, onClose }: {
 
           {creating && (
             <div className="bg-white/[0.02] border border-white/10 p-5 space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">New Room</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">New Room</p>
               <input
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Room name (e.g. Group A)"
-                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-foreground placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all"
               />
               <input
                 type="number"
                 value={form.maxParticipants}
                 onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))}
                 placeholder="Max participants (optional)"
-                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-foreground placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all"
               />
               <div className="flex gap-3">
-                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-white/30 hover:text-white border border-white/10 transition-all">Cancel</button>
+                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-muted-foreground hover:text-white border border-white/10 transition-all">Cancel</button>
                 <button
                   onClick={createRoom}
                   disabled={saving}
@@ -566,11 +566,11 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
           <div className="flex items-center gap-3">
             <EyeIcon className="w-5 h-5 text-primary" />
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-widest">Attendance</p>
-              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Attendance</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -582,13 +582,13 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
             </div>
           ) : records.length === 0 ? (
             <div className="text-center py-12 space-y-2">
-              <UsersIcon className="w-10 h-10 text-white/10 mx-auto" />
-              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No attendance recorded</p>
+              <UsersIcon className="w-10 h-10 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No attendance recorded</p>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between px-1 pb-2 border-b border-white/5">
-                <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                   {records.length} attendee{records.length !== 1 ? 's' : ''}
                 </p>
               </div>
@@ -606,12 +606,12 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
                         <UserCircleIcon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-white">{name}</p>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{role}</p>
+                        <p className="text-xs font-black text-foreground">{name}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{role}</p>
                       </div>
                     </div>
                     <div className="text-right space-y-0.5">
-                      <p className="text-[10px] text-white/50 font-bold">
+                      <p className="text-[10px] text-muted-foreground font-bold">
                         {joined} → {left}
                       </p>
                       <p className="text-[9px] text-primary/70 font-black uppercase tracking-widest">{dur}</p>
@@ -717,11 +717,11 @@ function QAModal({ session, canManage, userId, onClose }: {
           <div className="flex items-center gap-3">
             <ChatBubbleLeftEllipsisIcon className="w-5 h-5 text-primary" />
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-widest">Live Q&A</p>
-              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Live Q&A</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -734,9 +734,9 @@ function QAModal({ session, canManage, userId, onClose }: {
             </div>
           ) : questions.length === 0 ? (
             <div className="text-center py-12 space-y-2">
-              <ChatBubbleLeftEllipsisIcon className="w-10 h-10 text-white/10 mx-auto" />
-              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No questions yet</p>
-              <p className="text-white/10 text-[10px]">Be the first to ask something</p>
+              <ChatBubbleLeftEllipsisIcon className="w-10 h-10 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">No questions yet</p>
+              <p className="text-muted-foreground text-[10px]">Be the first to ask something</p>
             </div>
           ) : questions.map((q: any) => {
             const user = Array.isArray(q.portal_users) ? q.portal_users[0] : q.portal_users;
@@ -747,25 +747,25 @@ function QAModal({ session, canManage, userId, onClose }: {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{user?.full_name ?? 'Student'}</span>
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{user?.full_name ?? 'Student'}</span>
                       {q.answered && (
-                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20">Answered</span>
+                        <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20">Answered</span>
                       )}
                     </div>
-                    <p className="text-sm text-white font-medium leading-relaxed">{q.body}</p>
+                    <p className="text-sm text-foreground font-medium leading-relaxed">{q.body}</p>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* Upvote */}
                     <button
                       onClick={() => upvote(q.id)}
-                      className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/30 text-white/30 hover:text-primary transition-all"
+                      className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-all"
                     >
                       <span className="text-[10px] font-black">▲</span>
                       <span className="text-[10px] font-black">{q.upvotes ?? 0}</span>
                     </button>
                     {/* Delete (own or staff) */}
                     {(isOwn || canManage) && (
-                      <button onClick={() => remove(q.id)} className="p-1.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-white/20 hover:text-rose-400 transition-all">
+                      <button onClick={() => remove(q.id)} className="p-1.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all">
                         <TrashIcon className="w-3 h-3" />
                       </button>
                     )}
@@ -775,8 +775,8 @@ function QAModal({ session, canManage, userId, onClose }: {
                 {/* Answer */}
                 {q.answered && q.answer && (
                   <div className="pl-3 border-l-2 border-emerald-500/40 mt-2">
-                    <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest mb-1">Answer</p>
-                    <p className="text-xs text-white/70 leading-relaxed">{q.answer}</p>
+                    <p className="text-[9px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-widest mb-1">Answer</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{q.answer}</p>
                   </div>
                 )}
 
@@ -790,19 +790,19 @@ function QAModal({ session, canManage, userId, onClose }: {
                         onKeyDown={e => e.key === 'Enter' && answer(q.id)}
                         placeholder="Type your answer…"
                         autoFocus
-                        className="flex-1 px-3 py-2 bg-white/[0.03] border border-emerald-500/30 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-all"
+                        className="flex-1 px-3 py-2 bg-white/[0.03] border border-emerald-500/30 text-xs text-foreground placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-all"
                       />
                       <button onClick={() => answer(q.id)} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all">
                         Answer
                       </button>
-                      <button onClick={() => { setAnswering(null); setAnswerText(''); }} className="px-3 py-2 bg-white/5 border border-white/10 text-white/30 hover:text-white text-[10px] font-black transition-all">
+                      <button onClick={() => { setAnswering(null); setAnswerText(''); }} className="px-3 py-2 bg-white/5 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black transition-all">
                         ✕
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => { setAnswering(q.id); setAnswerText(''); }}
-                      className="text-[9px] font-black text-emerald-400/50 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                      className="text-[9px] font-black text-emerald-600/50 dark:text-emerald-400/50 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-widest transition-colors"
                     >
                       + Answer this
                     </button>
@@ -822,7 +822,7 @@ function QAModal({ session, canManage, userId, onClose }: {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submit()}
               placeholder={canManage ? 'Post an announcement or comment…' : 'Ask a question…'}
-              className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
+              className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-foreground placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
             />
             <button
               onClick={submit}
@@ -832,7 +832,7 @@ function QAModal({ session, canManage, userId, onClose }: {
               {sending ? '…' : 'Send'}
             </button>
           </div>
-          <p className="text-[9px] text-white/20 mt-2">Press Enter to send</p>
+          <p className="text-[9px] text-muted-foreground mt-2">Press Enter to send</p>
         </div>
       </div>
     </div>
@@ -854,11 +854,11 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
           <div className="flex items-center gap-3">
             <FilmIcon className="w-5 h-5 text-primary" />
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-widest">Recording</p>
-              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[400px]">{session.title}</p>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Recording</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[400px]">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -885,8 +885,8 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
             <video src={url} controls className="w-full max-h-[60vh] bg-background" />
           ) : (
             <div className="flex flex-col items-center gap-4 py-10">
-              <FilmIcon className="w-12 h-12 text-white/20" />
-              <p className="text-white/40 text-sm">Recording available at external link</p>
+              <FilmIcon className="w-12 h-12 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">Recording available at external link</p>
               <a
                 href={url}
                 target="_blank"
@@ -959,7 +959,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
               {statusCfg.label}
             </div>
             {countdown && (
-              <div className="flex items-center gap-1.5 px-3 py-1 border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase tracking-widest animate-pulse">
+              <div className="flex items-center gap-1.5 px-3 py-1 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest animate-pulse">
                 <ClockIcon className="w-3 h-3" />
                 {countdown}
               </div>
@@ -980,7 +980,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
                 onClick={() => onDelete(session.id)}
                 title="Delete session"
                 aria-label="Delete session"
-                className="p-2.5 bg-muted hover:bg-rose-500/15 border border-border hover:border-rose-500/40 text-muted-foreground hover:text-rose-500 transition-all rounded-sm"
+                className="p-2.5 bg-muted hover:bg-rose-500/15 border border-border hover:border-rose-500/40 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all rounded-sm"
               >
                 <TrashIcon className="w-4 h-4" />
               </button>
@@ -996,20 +996,20 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
         </div>
 
         <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-border pt-5">
-          <div className="flex items-center gap-3 text-white/30 group/meta">
+          <div className="flex items-center gap-3 text-muted-foreground group/meta">
             <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
               <CalendarDaysIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{formatDateTime(session.scheduled_at).split(',')[0]}</span>
           </div>
-          <div className="flex items-center gap-3 text-white/30 group/meta">
+          <div className="flex items-center gap-3 text-muted-foreground group/meta">
             <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
               <ClockIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{session.duration_minutes}m</span>
           </div>
           {session.host && (
-            <div className="col-span-2 flex items-center gap-3 text-white/30 group/meta">
+            <div className="col-span-2 flex items-center gap-3 text-muted-foreground group/meta">
               <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
                 <UserCircleIcon className="w-4 h-4 text-primary flex-shrink-0" />
               </div>
@@ -1040,7 +1040,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
             {session.status === 'live' && (
               <button
                 onClick={() => onEnd(session)}
-                className="w-full flex items-center justify-center gap-3 py-3 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all"
+                className="w-full flex items-center justify-center gap-3 py-3 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 <StopCircleIcon className="w-4 h-4" />
                 End Session
@@ -1087,7 +1087,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
           </button>
           <div className="w-[1px] bg-border" />
           <button onClick={() => onRooms(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-purple-400 hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
             <UsersIcon className="w-4 h-4" /> Rooms
           </button>
           {canManage && (
@@ -1115,8 +1115,8 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
   const [form, setForm] = useState<SessionForm>(initial);
   const set = (k: keyof SessionForm, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white font-medium focus:outline-none focus:border-primary/60 placeholder:text-white/20 transition-all";
-  const labelCls = "block text-[9px] font-black text-white/30 uppercase tracking-[0.35em] mb-2";
+  const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-foreground font-medium focus:outline-none focus:border-primary/60 placeholder:text-white/20 transition-all";
+  const labelCls = "block text-[9px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
@@ -1127,18 +1127,18 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
               <VideoCameraIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-widest">{isEdit ? 'Edit Session' : 'Schedule Live Session'}</h2>
-              <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mt-0.5">Broadcast Uplink</p>
+              <h2 className="text-sm font-black text-foreground uppercase tracking-widest">{isEdit ? 'Edit Session' : 'Schedule Live Session'}</h2>
+              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-0.5">Broadcast Uplink</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:text-primary transition-all text-white/40">
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:text-primary transition-all text-muted-foreground">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
           {error && (
-            <div className="px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest">
+            <div className="px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black uppercase tracking-widest">
               {error}
             </div>
           )}
@@ -1222,7 +1222,7 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
                     // Stop polling after 2 minutes
                     setTimeout(() => clearInterval(poll), 120000);
                   }}
-                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400/60 hover:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all"
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-600/60 dark:text-emerald-400/60 hover:text-emerald-600 dark:hover:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all"
                 >
                   <LinkIcon className="w-3.5 h-3.5" />
                   Generate Google Meet Link — auto-fills when ready
@@ -1233,7 +1233,7 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
             {/* Jitsi: show the auto-generated room URL (read-only) */}
             {isJitsiUrl(form.session_url) && (
               <div>
-                <label className={labelCls}>Room URL <span className="text-emerald-500">auto-generated ✓</span></label>
+                <label className={labelCls}>Room URL <span className="text-emerald-600 dark:text-emerald-400">auto-generated ✓</span></label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1244,7 +1244,7 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
                   <button
                     type="button"
                     onClick={() => { navigator.clipboard.writeText(form.session_url); }}
-                    className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/30 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex-shrink-0"
+                    className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex-shrink-0"
                     title="Copy room URL"
                   >
                     Copy
@@ -1335,7 +1335,7 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
                     });
                   }
                 }}
-                className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20"
+                className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20"
               >
                 Delete Session
               </button>
@@ -1343,7 +1343,7 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onClose} disabled={saving}
-              className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors disabled:opacity-50">
+              className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white transition-colors disabled:opacity-50">
               Cancel
             </button>
           </div>
@@ -1392,10 +1392,10 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Session is Live!</p>
-          <p className="text-xs font-bold text-white truncate mt-0.5">{session.title}</p>
-          <p className="text-[9px] text-white/30 mt-0.5">
-            Joining automatically in <span className="text-emerald-400 font-black">{secs}s</span>
+          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Session is Live!</p>
+          <p className="text-xs font-bold text-foreground truncate mt-0.5">{session.title}</p>
+          <p className="text-[9px] text-muted-foreground mt-0.5">
+            Joining automatically in <span className="text-emerald-600 dark:text-emerald-400 font-black">{secs}s</span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1407,7 +1407,7 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
           </button>
           <button
             onClick={onDismiss}
-            className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/30 hover:text-white transition-all"
+            className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -1429,7 +1429,7 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
   return (
     <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card border border-border rounded-2xl">
       <div className="w-20 h-20 bg-muted border border-border rounded-2xl flex items-center justify-center">
-        <VideoCameraIcon className="w-10 h-10 text-white/10" />
+        <VideoCameraIcon className="w-10 h-10 text-muted-foreground" />
       </div>
       <div className="text-center space-y-2">
         <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.4em]">{title}</p>
@@ -1726,7 +1726,7 @@ export default function LiveSessionsPage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                   </span>
-                  <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
                     {liveSessions.length} Channel{liveSessions.length !== 1 ? 's' : ''} Open
                   </span>
                 </div>
@@ -1753,7 +1753,7 @@ export default function LiveSessionsPage() {
                 { label: 'Total',  value: sessions.length,     color: 'white' },
               ].map(stat => (
                 <div key={stat.label} className="bg-muted/50 dark:bg-white/[0.03] border border-border p-5 min-w-[100px] text-center backdrop-blur-md rounded-xl">
-                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-400' : 'text-foreground'}`}>{stat.value}</p>
+                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{stat.value}</p>
                   <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">{stat.label}</p>
                 </div>
               ))}
@@ -1773,7 +1773,7 @@ export default function LiveSessionsPage() {
 
         {/* ── Error ── */}
         {error && (
-          <div className="px-6 py-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest">
+          <div className="px-6 py-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black uppercase tracking-widest">
             {error}
           </div>
         )}
@@ -1782,15 +1782,15 @@ export default function LiveSessionsPage() {
         {filter !== 'past' && liveSessions.length > 0 && (
           <div className="flex items-center gap-6 px-8 py-5 bg-emerald-500/5 border border-emerald-500/20">
             <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <SignalIcon className="w-5 h-5 text-emerald-400" />
+              <SignalIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">Broadcast Active</p>
-              <p className="text-[9px] font-bold text-emerald-500/50 uppercase tracking-[0.2em] mt-0.5">
+              <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Broadcast Active</p>
+              <p className="text-[9px] font-bold text-emerald-600/50 dark:text-emerald-400/50 uppercase tracking-[0.2em] mt-0.5">
                 {liveSessions.length} live session{liveSessions.length !== 1 ? 's' : ''} in progress — join now
               </p>
             </div>
-            <ArrowRightIcon className="w-4 h-4 text-emerald-400 ml-auto" />
+            <ArrowRightIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 ml-auto" />
           </div>
         )}
 
@@ -1808,7 +1808,7 @@ export default function LiveSessionsPage() {
             >
               {t.label}
               {t.count > 0 && (
-                <span className={`text-[8px] font-black px-2 py-0.5 rounded ${filter === t.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                <span className={`text-[8px] font-black px-2 py-0.5 rounded ${filter === t.key ? 'bg-white/20 text-foreground' : 'bg-muted text-muted-foreground'}`}>
                   {t.count}
                 </span>
               )}

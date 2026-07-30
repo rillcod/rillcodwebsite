@@ -287,7 +287,7 @@ export default function AddClassPage() {
   if (!isStaff) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
-        <ExclamationTriangleIcon className="w-8 h-8 text-rose-400 mx-auto mb-3" />
+        <ExclamationTriangleIcon className="w-8 h-8 text-rose-600 dark:text-rose-400 mx-auto mb-3" />
         <p className="text-sm font-bold text-foreground mb-1">Access Denied</p>
         <p className="text-xs text-muted-foreground">Staff access is required to create classes.</p>
       </div>
@@ -317,7 +317,7 @@ export default function AddClassPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -387,12 +387,12 @@ export default function AddClassPage() {
             {composed.name && (
               <div className="flex flex-wrap gap-1.5 mt-2.5">
                 {composed.tier && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-primary/15 text-primary border border-primary/20">{composed.tier}</span>}
-                {composed.band?.label && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-sky-500/15 text-sky-400 border border-sky-500/20">{composed.band.label}</span>}
+                {composed.band?.label && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/20">{composed.band.label}</span>}
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-muted text-muted-foreground border border-border">{schoolName || 'Independent / Online'}</span>
                 {(() => {
                   const t = academicTerms.find(term => term.id === form.term_id);
                   return t ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       {t.academic_year} · {t.term_label}
                     </span>
                   ) : null;
@@ -587,7 +587,7 @@ export default function AddClassPage() {
             </div>
           ) : availableStudents.length === 0 ? (
             <div className="py-12 border border-dashed border-border flex flex-col items-center justify-center text-center">
-              <ExclamationTriangleIcon className="w-7 h-7 text-amber-400/40 mb-3" />
+              <ExclamationTriangleIcon className="w-7 h-7 text-amber-600/40 dark:text-amber-400/40 mb-3" />
               <p className="text-sm font-bold text-foreground mb-1">No students found</p>
               <p className="text-xs text-muted-foreground max-w-xs">
                 No verified student accounts match this programme and school combination.

@@ -137,9 +137,9 @@ export default function ProgramsPage() {
   };
 
   const DIFF_COLORS: Record<string, string> = {
-    beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    intermediate: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    beginner: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    intermediate: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    advanced: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   };
 
   const filtered = programs.filter(p => {
@@ -183,15 +183,15 @@ export default function ProgramsPage() {
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-600 dark:text-rose-400 text-sm">{error}</div>
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Programs', value: programs.length, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Active', value: programs.filter(p => p.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Active', value: programs.filter(p => p.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Total Slots', value: programs.reduce((s, p) => s + (p.max_students || 0), 0), icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Avg Value', value: programs.length ? `₦${(programs.reduce((s, p) => s + (Number(p.price) || 0), 0) / programs.length).toLocaleString()}` : '—', icon: BanknotesIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Avg Value', value: programs.length ? `₦${(programs.reduce((s, p) => s + (Number(p.price) || 0), 0) / programs.length).toLocaleString()}` : '—', icon: BanknotesIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
           ].map(s => (
             <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -241,16 +241,16 @@ export default function ProgramsPage() {
                 <div className="p-6 flex flex-col flex-1">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                         {p.is_active ? 'Active' : 'Draft'}
                       </span>
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {p.difficulty_level}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_teachers ? 'bg-sky-500/20 text-sky-400 border-sky-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_teachers ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
                         {p.visible_to_teachers ? 'Teachers ✓' : 'Teachers —'}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_students ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_students ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
                         {p.visible_to_students ? 'Students ✓' : 'Students —'}
                       </span>
                     </div>
@@ -260,7 +260,7 @@ export default function ProgramsPage() {
                           <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
                         </button>
                         <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
-                          <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                          <TrashIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                         </button>
                       </div>
                     )}

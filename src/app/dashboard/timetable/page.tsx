@@ -109,12 +109,12 @@ function SlotMenu({
                 onClick={() => setSub('move')}
                 className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-400" /> Move to Day
+                <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Move to Day
               </button>
               <div className="border-t border-border" />
               <button
                 onClick={() => { setOpen(false); onDelete(slot.id); }}
-                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors"
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
               >
                 <TrashIcon className="w-3.5 h-3.5" /> Delete Slot
               </button>
@@ -160,7 +160,7 @@ function SlotMenu({
                   onClick={() => { onMove(slot.id, day); setOpen(false); setSub(null); }}
                   className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-400" /> {day}
+                  <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> {day}
                 </button>
               ))}
             </>
@@ -243,7 +243,7 @@ function SlotCell({
         </div>
       )}
       {isCurrent && (
-        <p className="text-[9px] font-black text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
+        <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
       )}
     </div>
   );
@@ -928,9 +928,9 @@ export default function TimetablePage() {
         )}
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm flex items-center justify-between">
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-600 dark:text-rose-400 text-sm flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-rose-400/60 hover:text-rose-400"><XMarkIcon className="w-4 h-4" /></button>
+            <button onClick={() => setError(null)} className="text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400"><XMarkIcon className="w-4 h-4" /></button>
           </div>
         )}
 
@@ -1068,7 +1068,7 @@ export default function TimetablePage() {
                         </p>
                       </div>
                       {tt.section && <Badge text={tt.section} color={activeTimetable === tt.id ? 'bg-muted text-foreground' : 'bg-muted text-muted-foreground'} />}
-                      {!tt.is_active && <Badge text="Inactive" color="bg-rose-500/20 text-rose-400" />}
+                      {!tt.is_active && <Badge text="Inactive" color="bg-rose-500/20 text-rose-600 dark:text-rose-400" />}
                       {isAdmin && (
                         <span className="flex items-center gap-1 ml-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <button onClick={() => openEditTT(tt)}
@@ -1077,7 +1077,7 @@ export default function TimetablePage() {
                           </button>
                           <button onClick={() => deleteTT(tt.id)}
                             className="p-1 hover:bg-rose-500/20 rounded-xl transition-colors" title="Delete timetable">
-                            <TrashIcon className="w-3 h-3 text-rose-400/60 hover:text-rose-400" />
+                            <TrashIcon className="w-3 h-3 text-rose-600/60 dark:text-rose-400/60 hover:text-rose-600 dark:hover:text-rose-400" />
                           </button>
                         </span>
                       )}
@@ -1254,7 +1254,7 @@ export default function TimetablePage() {
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Partner School <span className="text-rose-400">*</span>
+                  Partner School <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <select value={ttForm.school_id} onChange={e => setTTForm(s => ({ ...s, school_id: e.target.value }))}
                   className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.school_id ? 'border-rose-500/40' : 'border-border'}`}>
@@ -1265,7 +1265,7 @@ export default function TimetablePage() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Timetable Title <span className="text-rose-400">*</span>
+                  Timetable Title <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <input value={ttForm.title} onChange={e => setTTForm(s => ({ ...s, title: e.target.value }))}
                   placeholder={`${ttForm.academic_year || 'Academic Year'} ${ttForm.term || 'Term'} — Class / Program`}
@@ -1284,7 +1284,7 @@ export default function TimetablePage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year <span className="text-rose-400">*</span></label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year <span className="text-rose-600 dark:text-rose-400">*</span></label>
                   <select value={ttForm.academic_year} onChange={e => setTTForm(s => ({ ...s, academic_year: e.target.value }))}
                     className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.academic_year ? 'border-rose-500/40' : 'border-border'}`}>
                     <option value="">— Select year —</option>
@@ -1292,7 +1292,7 @@ export default function TimetablePage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term <span className="text-rose-400">*</span></label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term <span className="text-rose-600 dark:text-rose-400">*</span></label>
                   <select value={ttForm.term} onChange={e => setTTForm(s => ({ ...s, term: e.target.value }))}
                     className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.term ? 'border-rose-500/40' : 'border-border'}`}>
                     <option value="">— Select term —</option>
@@ -1345,7 +1345,7 @@ export default function TimetablePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject / Activity <span className="text-rose-400">*</span></label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject / Activity <span className="text-rose-600 dark:text-rose-400">*</span></label>
                 <input value={slotForm.subject} onChange={e => setSlotForm(s => ({ ...s, subject: e.target.value }))}
                   placeholder="e.g. Python Programming"
                   className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
