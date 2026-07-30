@@ -20,6 +20,7 @@
     "deploy": "node scripts/opennext-build.mjs && opennextjs-cloudflare deploy",
     "preview": "node scripts/opennext-build.mjs && opennextjs-cloudflare preview",
     "cf:build": "node scripts/opennext-build.mjs",
+    "cf:pages": "npm install --no-audit --no-fund && node scripts/opennext-build.mjs",
     "supabase": "npx supabase",
     "supabase:login": "npx supabase login",
     "supabase:link": "npx supabase link",
@@ -171,6 +172,7 @@
   "overrides": {
     "jwks-rsa": {
       "jose": "^5.10.0"
-    }
+    },
+    "esbuild": "0.27.3"
   }
 }
