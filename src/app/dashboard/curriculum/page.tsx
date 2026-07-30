@@ -57,6 +57,8 @@ import {
   type SyllabusContent,
   type SyllabusPreviewRole,
 } from "@/components/curriculum/SyllabusPreview";
+import { MasterCurriculumRoster } from "@/components/curriculum/MasterCurriculumRoster";
+import { CurriculumBuildingBlockInspector } from "@/components/curriculum/CurriculumBuildingBlockInspector";
 import { CurriculumPrintDoc } from "@/components/curriculum/CurriculumPrintDoc";
 import {
   CurriculumOverviewPrintDoc,
@@ -411,6 +413,30 @@ export default function CurriculumPage() {
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [currentCourseId, setCurrentCourseId] = useState<string | null>(null);
+
+  // ── Master Roster & Building Block Inspector state ──
+  const [allCurricula, setAllCurricula] = useState<any[]>([]);
+  const [curriculumViewMode, setCurriculumViewMode] = useState<
+    'roster' | 'inspector' | 'builder'
+  >('roster');
+
+  const loadAllCurricula = useCallback(async () => {
+    try {
+      const res = await fetch('/api/curricula', { cache: 'no-store' });
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.data)) {
+        setAllCurricula(json.data);
+      }
+    } catch (e) {
+      console.error('Failed to load master curricula roster:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      void loadAllCurricula();
+    }
+  }, [profile, loadAllCurricula]);
 
   useEffect(() => {
     if (profile?.role === "student" && profile?.class_id) {
@@ -3755,6 +3781,46 @@ export default function CurriculumPage() {
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
             <PlanningBreadcrumb current="syllabus" />
             <div className="flex-1 hidden md:block" />
+
+            {/* Plain-English Mode Switcher Tabs for Staff */}
+            {["admin", "teacher", "school"].includes(profile?.role || "") && (
+              <div className="flex items-center gap-1 bg-muted/40 border border-border p-1 rounded-xl my-1 md:my-0">
+                <button
+                  type="button"
+                  onClick={() => setCurriculumViewMode("roster")}
+                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                    curriculumViewMode === "roster"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📋 All Curricula ({allCurricula.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurriculumViewMode("inspector")}
+                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                    curriculumViewMode === "inspector"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  🧩 Building Blocks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurriculumViewMode("builder")}
+                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                    curriculumViewMode === "builder"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  🪄 Syllabus Builder
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setShowHelp((h) => !h)}
@@ -3813,7 +3879,48 @@ export default function CurriculumPage() {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
+        {/* View Mode 1: Master Curriculum Roster */}
+        {curriculumViewMode === "roster" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
+          <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
+            <MasterCurriculumRoster
+              curricula={allCurricula}
+              isAdmin={profile?.role === "admin"}
+              onRefresh={loadAllCurricula}
+              onSelectCurriculum={(item) => {
+                const prog = programs.find((p) =>
+                  (p.courses ?? []).some((c) => c.id === item.course_id)
+                );
+                const course = prog?.courses?.find((c) => c.id === item.course_id);
+                if (prog && course) {
+                  setSelectedProgram(prog);
+                  setSelectedCourse(course);
+                }
+                setCurriculum(item);
+                setCurriculumViewMode("builder");
+              }}
+            />
+          </div>
+        )}
+
+        {/* View Mode 2: Building Block Inspector */}
+        {curriculumViewMode === "inspector" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
+          <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
+            <CurriculumBuildingBlockInspector
+              programs={programs}
+              courses={programs.flatMap((p) => (p.courses ?? []).map((c) => ({ ...c, program_id: p.id })))}
+              curricula={allCurricula}
+              onSelectCourse={(prog, course) => {
+                setSelectedProgram(prog);
+                setSelectedCourse(course);
+                setCurriculumViewMode("builder");
+              }}
+            />
+          </div>
+        )}
+
+        {/* View Mode 3: Traditional Builder & Generator View */}
+        {(curriculumViewMode === "builder" || !["admin", "teacher", "school"].includes(profile?.role || "")) && (
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
           {/* ── Mobile scope bar — sticky, shows current Program › Course and
              gives one-tap access to Browse, Preview-as-role, Publish toggle.
              The intent is that the teacher never loses context of what they
@@ -6916,6 +7023,7 @@ export default function CurriculumPage() {
             }
           </main>
         </div>
+        )}
 
         {/* ── Week Detail Panel ── */}
         {activeWeek && (
