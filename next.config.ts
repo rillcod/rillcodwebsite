@@ -61,6 +61,12 @@ const nextConfig: NextConfig = {
     // Lower peak RAM on Vercel’s 8GB builders (large app + next-pwa webpack).
     webpackMemoryOptimizations: true,
     cpus: 1,
+    // Compile server / edge / client each in its own short-lived child process
+    // so each compilation's heap is freed before the next phase instead of
+    // accumulating in one process. Next disables this by default whenever a
+    // custom `webpack` config is present — and next-pwa always adds one — so it
+    // has to be opted into explicitly here.
+    webpackBuildWorker: true,
     // Reduce duplicate module instances from barrel imports
     optimizePackageImports: [
       '@supabase/supabase-js',

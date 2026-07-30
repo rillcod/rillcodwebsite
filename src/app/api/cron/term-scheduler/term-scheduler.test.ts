@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scheduledWeekForDate } from '@/app/api/cron/term-scheduler/route';
+import { scheduledWeekForDate } from '@/app/api/cron/term-scheduler/schedule';
 
 describe('term scheduler timing', () => {
   it('waits until the school or programme start date', () => {

@@ -5,6 +5,7 @@ import { buildAssignmentEmail, isInAppEmail } from '@/lib/email/rillcod-transact
 import { notificationsService } from '@/services/notifications.service';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { scheduledWeekForDate } from './schedule';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,14 +14,6 @@ function adminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-}
-
-export function scheduledWeekForDate(termStart: string, cadenceDays: number, now = new Date()): number {
-  const startsAt = new Date(termStart).getTime();
-  if (!Number.isFinite(startsAt)) return 0;
-  const elapsedDays = Math.floor((now.getTime() - startsAt) / 86_400_000);
-  if (elapsedDays < 0) return 0;
-  return Math.floor(elapsedDays / Math.max(1, Number(cadenceDays) || 7)) + 1;
 }
 
 // GET or POST /api/cron/term-scheduler
