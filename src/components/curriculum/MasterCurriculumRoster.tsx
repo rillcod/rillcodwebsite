@@ -175,6 +175,25 @@ export function MasterCurriculumRoster({
     }
   };
 
+  // Explicitly Unpublish and Retire official releases
+  const handleUnpublish = async (id: string) => {
+    if (!window.confirm('Are you sure you want to UNPUBLISH and RETIRE this official curriculum edition? It will be hidden from all schools and marked retired.')) return;
+    try {
+      const res = await fetch('/api/curricula/unpublish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ curriculum_id: id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Unpublish failed');
+
+      toast.success('Curriculum edition explicitly unpublished and retired!');
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Unpublish failed');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Controls & Status Bar */}
@@ -387,15 +406,25 @@ export function MasterCurriculumRoster({
                       </button>
 
                       {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteItem(item.id)}
-                          disabled={deletingId === item.id}
-                          className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition disabled:opacity-50"
-                          title="Delete this curriculum"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleUnpublish(item.id)}
+                            className="px-2.5 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/20 font-bold text-xs rounded-xl transition flex items-center gap-1"
+                            title="Unpublish & Retire this official release"
+                          >
+                            <EyeSlashIcon className="w-3.5 h-3.5" /> Unpublish
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteItem(item.id)}
+                            disabled={deletingId === item.id}
+                            className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition disabled:opacity-50"
+                            title="Delete this curriculum"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
