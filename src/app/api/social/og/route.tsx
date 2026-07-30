@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
+// Node runtime required for @opennextjs/cloudflare (Workers already run at the edge).
+export const runtime = 'nodejs';
 
 export async function GET() {
   return new ImageResponse(
