@@ -1,6 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { loadBrandLogoDataUrl } from '@/lib/og/brand-logo';
 
 export const alt = 'Rillcod Technologies — Tech Education & Innovation Hub';
 export const size = {
@@ -10,13 +9,7 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  let logoSrc: string | null = null;
-  try {
-    const logoBuffer = readFileSync(join(process.cwd(), 'public/images/logo.png'));
-    logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-  } catch {
-    logoSrc = null;
-  }
+  const logoSrc = await loadBrandLogoDataUrl();
 
   return new ImageResponse(
     (
