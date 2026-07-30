@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const db: any = createAdminClient();
   let query = db
     .from('academic_curriculum_delivery_schedules')
-    .select('*, schools(name), classes(name), courses(title), release:academic_curriculum_releases(title, academic_session, audience_label)')
+    .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases(title, academic_session, audience_label)')
     .order('updated_at', { ascending: false });
   if (url.searchParams.get('school_id')) query = query.eq('school_id', url.searchParams.get('school_id'));
   if (url.searchParams.get('class_id')) query = query.eq('class_id', url.searchParams.get('class_id'));
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const write = existing
     ? db.from('academic_curriculum_delivery_schedules').update(payload).eq('id', existing.id)
     : db.from('academic_curriculum_delivery_schedules').insert(payload);
-  const { data, error } = await write.select('*, schools(name), classes(name), courses(title)').single();
+  const { data, error } = await write.select('*, schools(name), classes!class_id(name), courses(title)').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({
     data: {

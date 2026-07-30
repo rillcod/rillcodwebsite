@@ -18,7 +18,7 @@ export async function GET() {
       .order('adopted_at', { ascending: false }),
     db.from('classes').select('id, name, school_id, program_id, status').eq('status', 'active').order('name'),
     db.from('academic_curriculum_delivery_schedules')
-      .select('*, schools(name), classes(name), courses(title), release:academic_curriculum_releases(title, audience_label)')
+      .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases(title, audience_label)')
       .eq('status', 'active')
       .order('updated_at', { ascending: false }),
   ]);

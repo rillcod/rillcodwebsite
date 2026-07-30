@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const status = new URL(req.url).searchParams.get('status');
   let query = db
     .from('academic_curriculum_proposals')
-    .select('*, courses(title), schools(name), classes(name), proposed_by_user:portal_users!academic_curriculum_proposals_proposed_by_fkey(full_name, email)')
+    .select('*, courses(title), schools(name), classes!class_id(name), proposed_by_user:portal_users!academic_curriculum_proposals_proposed_by_fkey(full_name, email)')
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
   if (actor.role === 'teacher') query = query.eq('proposed_by', actor.id);

@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     if (parentsMissingSchool.length) {
       const { data: links } = await db
         .from('parent_student_links')
-        .select('parent_id, students(school_name)')
+        .select('parent_id, students!student_id(school_name)')
         .in('parent_id', parentsMissingSchool.map((p) => p.id));
 
       const byParent = new Map<string, string>();
