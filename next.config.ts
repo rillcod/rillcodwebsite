@@ -34,12 +34,18 @@ const nextConfig: NextConfig = {
 
   // Keep pdf engines out of the webpack bundle so AFM/TTF paths resolve from
   // node_modules on Vercel (bundling rewrites __dirname → .next/server/chunks).
+  // `jose` must stay external for OpenNext/Cloudflare: workerd uses a different
+  // export condition, and Nesting jose@4 under firebase-admin/jwks-rsa breaks
+  // esbuild unless OpenNext can copy the workerd entrypoints.
   serverExternalPackages: [
     'pdfmake',
     'pdfkit',
     '@foliojs-fork/pdfkit',
     'fontkit',
     '@foliojs-fork/fontkit',
+    'jose',
+    'jwks-rsa',
+    'firebase-admin',
   ],
 
   // Ensure font metric / TTF files are traced into serverless functions.
