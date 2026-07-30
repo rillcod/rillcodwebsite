@@ -11,11 +11,33 @@ import { brandContact } from '@/config/brand';
 import { sendFcmToToken } from '@/lib/push/fcm';
 import { sendApnsToToken } from '@/lib/push/apns';
 
-webpush.setVapidDetails(
-  `mailto:${brandContact.email}`,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-  process.env.VAPID_PRIVATE_KEY || '',
-);
+/**
+ * Configure VAPID lazily, at send time rather than on import.
+ *
+ * `setVapidDetails` validates the key and throws on an empty one, so calling it at
+ * module scope made merely importing this file fail wherever the keys are absent.
+ * Next.js imports every route module during "Collecting page data", so a build in any
+ * environment without VAPID configured (CI) died with "No key set vapidDetails.publicKey".
+ * Returns false when push is not configured, letting callers skip web push instead.
+ */
+let vapidState: boolean | null = null;
+function ensureVapidConfigured(): boolean {
+  if (vapidState !== null) return vapidState;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+  const privateKey = process.env.VAPID_PRIVATE_KEY || '';
+  if (!publicKey || !privateKey) {
+    vapidState = false;
+    return vapidState;
+  }
+  try {
+    webpush.setVapidDetails(`mailto:${brandContact.email}`, publicKey, privateKey);
+    vapidState = true;
+  } catch (error) {
+    console.error('[push] invalid VAPID configuration — web push disabled:', error);
+    vapidState = false;
+  }
+  return vapidState;
+}
 
 export interface PushPayload {
   title: string;
@@ -93,6 +115,9 @@ async function sendWebPush(
     url: payload.url,
     icon: payload.icon,
   });
+
+  // Not configured — skip web push entirely; native FCM/APNs is sent separately.
+  if (!ensureVapidConfigured()) return { sent: 0, deleted: 0 };
 
   for (const row of rows) {
     try {
