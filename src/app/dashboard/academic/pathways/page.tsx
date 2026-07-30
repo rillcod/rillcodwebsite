@@ -72,8 +72,8 @@ export default function AcademicPathwaysPage() {
       </form>
     </details>}
     {error && <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
-    {message && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">{message}</div>}
-    {issues.length > 0 && <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="font-black text-amber-800">{issues.length} learner placement{issues.length === 1 ? '' : 's'} need attention</p><p className="mt-1 text-sm text-amber-800">Their enrollment type does not match their current class. No new results will cross that boundary.</p></section>}
+    {message && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">{message}</div>}
+    {issues.length > 0 && <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="font-black text-amber-800 dark:text-amber-200">{issues.length} learner placement{issues.length === 1 ? '' : 's'} need attention</p><p className="mt-1 text-sm text-amber-800 dark:text-amber-200">Their enrollment type does not match their current class. No new results will cross that boundary.</p></section>}
     <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
       <section className="space-y-3">
         {offerings.map((item) => <button key={item.id} onClick={() => { setSelected(item.id); setReleaseId(''); }} className={`w-full rounded-2xl border p-4 text-left ${selected === item.id ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>

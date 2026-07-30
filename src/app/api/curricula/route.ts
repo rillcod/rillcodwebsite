@@ -5,6 +5,10 @@ import OpenAI from "openai";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { getParentLinkScope } from "@/lib/parents/links";
 import { geminiGenerateText } from "@/lib/gemini/client";
+import {
+  consolidateSameScopeCurricula,
+  forceDeleteCurriculumDraft,
+} from "@/lib/curriculum/force-delete-draft";
 
 function adminClient() {
   return createClient(
@@ -1088,28 +1092,52 @@ export async function POST(req: NextRequest) {
     aiContent.terms = mergedTerms;
   }
 
-  // Update existing or insert new — scope by (course_id, targetSchoolId).
-  // Always use admin client here so RLS never silently drops the write.
+  // Update existing or insert new — one live row per (course_id, school_id).
+  // Prefer an explicit curriculum_id (open editor), else newest same-scope row.
+  // Always bump version on that row and remove same-scope orphans.
   if (course_id) {
-    let existingQuery = admin
-      .from("course_curricula")
-      .select("id, version")
-      .eq("course_id", course_id);
-    if (targetSchoolId) {
-      existingQuery = existingQuery.eq(
-        "school_id",
-        targetSchoolId
-      ) as typeof existingQuery;
-    } else {
-      existingQuery = existingQuery.is(
-        "school_id",
-        null
-      ) as typeof existingQuery;
+    const preferredId =
+      typeof body.curriculum_id === "string" && body.curriculum_id.trim()
+        ? body.curriculum_id.trim()
+        : null;
+
+    let existing: { id: string; version: number } | null = null;
+    if (preferredId) {
+      const { data: preferred } = await admin
+        .from("course_curricula")
+        .select("id, version, school_id, course_id")
+        .eq("id", preferredId)
+        .maybeSingle();
+      if (
+        preferred &&
+        preferred.course_id === course_id &&
+        (preferred.school_id ?? null) === (targetSchoolId ?? null)
+      ) {
+        existing = preferred as { id: string; version: number };
+      }
     }
-    const { data: existingRows } = await existingQuery
-      .order("created_at", { ascending: false })
-      .limit(5);
-    const existing = existingRows?.[0] ?? null;
+
+    if (!existing) {
+      let existingQuery = admin
+        .from("course_curricula")
+        .select("id, version")
+        .eq("course_id", course_id);
+      if (targetSchoolId) {
+        existingQuery = existingQuery.eq(
+          "school_id",
+          targetSchoolId
+        ) as typeof existingQuery;
+      } else {
+        existingQuery = existingQuery.is(
+          "school_id",
+          null
+        ) as typeof existingQuery;
+      }
+      const { data: existingRows } = await existingQuery
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      existing = (existingRows?.[0] as { id: string; version: number } | undefined) ?? null;
+    }
 
     if (existing) {
       const { data, error } = await admin
@@ -1124,7 +1152,23 @@ export async function POST(req: NextRequest) {
         .single();
       if (error)
         return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ data });
+
+      const consolidated = await consolidateSameScopeCurricula(admin, {
+        courseId: course_id,
+        schoolId: targetSchoolId,
+        keepId: (existing as { id: string }).id,
+      });
+      if (consolidated.error) {
+        return NextResponse.json(
+          { error: consolidated.error, data },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        data,
+        consolidated_orphans: consolidated.removed,
+      });
     }
   }
 
@@ -1145,6 +1189,15 @@ export async function POST(req: NextRequest) {
 
   if (error)
     return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (course_id && data?.id) {
+    await consolidateSameScopeCurricula(admin, {
+      courseId: course_id,
+      schoolId: targetSchoolId,
+      keepId: data.id as string,
+    });
+  }
+
   return NextResponse.json({ data }, { status: 201 });
 }
 
@@ -1174,6 +1227,14 @@ export async function DELETE(req: NextRequest) {
   }
 
   const admin = adminClient();
+  const force = url.searchParams.get("force") === "1";
+
+  if (force) {
+    const cleaned = await forceDeleteCurriculumDraft(admin, id);
+    if (!cleaned.ok)
+      return NextResponse.json({ error: cleaned.error }, { status: 500 });
+    return NextResponse.json({ success: true, forced: true });
+  }
 
   const [
     { count: releaseCount },
@@ -1201,7 +1262,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "This curriculum is part of the official academic record and cannot be deleted. Publish a new edition or archive future use instead.",
+          "This curriculum is linked to editions, plans, or week records. Retry with force=1 to unlink safely and delete this draft.",
+        can_force: true,
         official_release_count: releaseCount ?? 0,
         linked_plan_count: planCount ?? 0,
         delivery_record_count: trackingCount ?? 0,

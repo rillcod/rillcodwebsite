@@ -338,7 +338,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Academic Office" },
           {
-            name: "Overview",
+            name: "0 · Overview",
             href: "/dashboard/academic",
             icon: ShieldCheckIcon,
           },

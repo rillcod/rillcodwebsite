@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
+import { buildClassTeachingHref } from '@/lib/curriculum/href';
 
 type Klass = {
   id: string;
@@ -39,10 +41,22 @@ const enrollmentLabel: Record<string, string> = {
 type ListFilter = 'all' | 'manual' | 'automatic' | 'draft' | 'published';
 
 export default function CentralResultsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CentralResultsPageInner />
+    </Suspense>
+  );
+}
+
+function CentralResultsPageInner() {
+  const searchParams = useSearchParams();
+  const linkedClassId = searchParams.get('class_id') ?? '';
+  const linkedCourseId = searchParams.get('course_id') ?? '';
+
   const [data, setData] = useState<Data>({ classes: [], students: [], plans: [], reports: [] });
-  const [classId, setClassId] = useState('');
+  const [classId, setClassId] = useState(linkedClassId);
   const [studentId, setStudentId] = useState('');
-  const [courseId, setCourseId] = useState('');
+  const [courseId, setCourseId] = useState(linkedCourseId);
   const [mode, setMode] = useState<'automatic' | 'manual'>('automatic');
   const [listFilter, setListFilter] = useState<ListFilter>('all');
   const [search, setSearch] = useState('');
@@ -58,11 +72,21 @@ export default function CentralResultsPage() {
     if (!response.ok) return setError(body.error || 'Unable to open results.');
     setData(body.data);
     setError('');
-  }, []);
+    if (linkedClassId) setClassId((current) => current || linkedClassId);
+    if (linkedCourseId) setCourseId((current) => current || linkedCourseId);
+  }, [linkedClassId, linkedCourseId]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (linkedClassId) setClassId(linkedClassId);
+  }, [linkedClassId]);
+
+  useEffect(() => {
+    if (linkedCourseId) setCourseId(linkedCourseId);
+  }, [linkedCourseId]);
 
   const activeClass = data.classes.find((item) => item.id === classId);
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
@@ -156,6 +180,14 @@ export default function CentralResultsPage() {
         <Link href="/dashboard/academic" className="text-sm font-bold text-primary">
           Back to Academic Office
         </Link>
+        {classId ? (
+          <Link
+            href={buildClassTeachingHref({ classId, courseId })}
+            className="ml-4 text-sm font-bold text-muted-foreground hover:text-foreground"
+          >
+            Back to class teaching
+          </Link>
+        ) : null}
         <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground">Results workspace</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
           Academic prepare desk. Lead with <strong className="text-foreground">automatic from evidence</strong>,

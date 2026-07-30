@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { forceDeleteCurriculumDraft } from "@/lib/curriculum/force-delete-draft";
 
 export const dynamic = "force-dynamic";
 
@@ -121,9 +122,11 @@ export async function PATCH(
   }
   if (body.content !== undefined) {
     updatePayload.content = body.content;
-    // Set version manually if passed, otherwise keep current version (no auto-bumping)
+    // Content edits bump the version number on this same row (no new copies).
     updatePayload.version =
-      typeof body.version === "number" ? body.version : row.version ?? 1;
+      typeof body.version === "number"
+        ? body.version
+        : Number(row.version ?? 1) + 1;
   } else {
     // Support isolated version and description metadata updates
     let mergedContent: any = null;
@@ -210,8 +213,10 @@ export async function PATCH(
 }
 
 // DELETE /api/curricula/[id] — cascade delete: syllabus + tracking + linked lesson plans
+// Admin may pass ?force=1 to clear soft blockers (draft plans, week tracking,
+// unlink official editions from this draft) without destroying published editions.
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const caller = await requireTeacher();
@@ -227,11 +232,12 @@ export async function DELETE(
     );
 
   const { id } = await context.params;
+  const force = new URL(req.url).searchParams.get("force") === "1";
   const admin = createAdminClient() as any;
 
   const { data: row, error: rowErr } = await admin
     .from("course_curricula")
-    .select("id, school_id")
+    .select("id, school_id, course_id, version")
     .eq("id", id)
     .maybeSingle();
   if (rowErr)
@@ -251,7 +257,7 @@ export async function DELETE(
 
   const [
     { count: releaseCount },
-    { count: planCount },
+    { data: holdingPlans },
     { count: trackingCount },
   ] = await Promise.all([
     admin
@@ -260,39 +266,36 @@ export async function DELETE(
       .eq("source_curriculum_id", id),
     admin
       .from("lesson_plans")
-      .select("id", { count: "exact", head: true })
+      .select("id, status, classes!lesson_plans_class_id_fkey(name)")
       .eq("curriculum_version_id", id),
     admin
       .from("curriculum_week_tracking")
       .select("id", { count: "exact", head: true })
       .eq("curriculum_id", id),
   ]);
-  if (
-    (releaseCount ?? 0) > 0 ||
-    (planCount ?? 0) > 0 ||
-    (trackingCount ?? 0) > 0
-  ) {
-    // Naming what holds it is the difference between a refusal a person can
-    // act on and one that just looks like the button is broken.
-    const { data: holdingPlans } = await admin
-      .from("lesson_plans")
-      .select("id, status, classes!lesson_plans_class_id_fkey(name)")
-      .eq("curriculum_version_id", id)
-      .limit(5);
-    const classNames = (holdingPlans ?? [])
-      .map((p: any) => {
-        const klass = Array.isArray(p.classes) ? p.classes[0] : p.classes;
-        return klass?.name ?? "an unnamed class";
-      })
-      .filter((v: string, i: number, all: string[]) => all.indexOf(v) === i);
 
+  const plans = holdingPlans ?? [];
+  const planCount = plans.length;
+  const draftPlans = plans.filter((p: any) => p.status === "draft" || p.status === "archived");
+  const livePlans = plans.filter((p: any) => p.status !== "draft" && p.status !== "archived");
+  const classNames = plans
+    .map((p: any) => {
+      const klass = Array.isArray(p.classes) ? p.classes[0] : p.classes;
+      return klass?.name ?? "an unnamed class";
+    })
+    .filter((v: string, i: number, all: string[]) => all.indexOf(v) === i);
+
+  const hasBlockers =
+    (releaseCount ?? 0) > 0 || planCount > 0 || (trackingCount ?? 0) > 0;
+
+  if (hasBlockers && !force) {
     const reasons: string[] = [];
     if ((releaseCount ?? 0) > 0) {
       reasons.push(
-        `${releaseCount} official edition${releaseCount === 1 ? " has" : "s have"} been published from it`
+        `${releaseCount} official edition${releaseCount === 1 ? " was" : "s were"} published from it`
       );
     }
-    if ((planCount ?? 0) > 0) {
+    if (planCount > 0) {
       reasons.push(
         `${planCount} teaching plan${planCount === 1 ? "" : "s"} still use${planCount === 1 ? "s" : ""} it${
           classNames.length ? ` (${classNames.join(", ")})` : ""
@@ -305,31 +308,40 @@ export async function DELETE(
       );
     }
 
-    const onlyDraftPlans =
-      (releaseCount ?? 0) === 0 &&
-      (trackingCount ?? 0) === 0 &&
-      (holdingPlans ?? []).length > 0 &&
-      (holdingPlans ?? []).every((p: any) => p.status === "draft");
-
     return NextResponse.json(
       {
-        error: `Cannot delete: ${reasons.join("; ")}.${
-          onlyDraftPlans
-            ? " Those plans are still drafts, so you can delete them from the class first, then delete this curriculum."
-            : " Publish a replacement edition or archive future use instead."
-        }`,
+        error: `Cannot delete yet: ${reasons.join("; ")}. Use force cleanup to unlink editions, remove draft plans and clear week records, then delete this copy.`,
+        can_force: true,
         official_release_count: releaseCount ?? 0,
-        linked_plan_count: planCount ?? 0,
+        linked_plan_count: planCount,
+        draft_plan_count: draftPlans.length,
+        live_plan_count: livePlans.length,
         delivery_record_count: trackingCount ?? 0,
         holding_classes: classNames,
-        only_draft_plans: onlyDraftPlans,
+        only_draft_plans: livePlans.length === 0 && draftPlans.length > 0,
       },
       { status: 409 }
     );
   }
+
+  if (force) {
+    const cleaned = await forceDeleteCurriculumDraft(admin, id);
+    if (!cleaned.ok)
+      return NextResponse.json({ error: cleaned.error }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      deleted: { curriculum: id },
+      forced: true,
+    });
+  }
+
   const { error } = await admin.from("course_curricula").delete().eq("id", id);
   if (error)
     return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ success: true, deleted: { curriculum: id } });
+  return NextResponse.json({
+    success: true,
+    deleted: { curriculum: id },
+    forced: false,
+  });
 }

@@ -43,12 +43,15 @@ export function LaneChrome({
     return best;
   })();
 
-  // The Academic home, guide and other non-stage pages share this layout but
-  // are not steps in the lane, so they get no stepper at all.
-  if (activeIndex < 0) return null;
+  // The Academic home shows Overview as the start of the lane.
+  // Stage pages show their step. Guide/results show nothing.
+  const isOverviewHome = pathname === "/dashboard/academic";
+  if (activeIndex < 0 && !isOverviewHome) return null;
 
   const stageHref = (href: string) =>
     lane === "asset" ? mergeAssetLaneHref(href, searchParams) : href;
+
+  const displayIndex = isOverviewHome ? -1 : activeIndex;
 
   return (
     <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
@@ -57,17 +60,40 @@ export function LaneChrome({
           <p className="text-sm font-black text-foreground">
             {LANES[lane].label}
           </p>
-          {activeIndex >= 0 && (
-            <p className="text-xs text-muted-foreground">
-              Step {activeIndex + 1} of {stages.length}
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {isOverviewHome
+              ? "Start at Overview"
+              : `Step ${displayIndex + 1} of ${stages.length}`}
+          </p>
         </div>
         <nav aria-label={`${LANES[lane].label} stages`} className="overflow-x-auto">
           <ol className="flex min-w-max items-center gap-2" role="list">
+            <li>
+              <Link
+                href="/dashboard/academic"
+                aria-current={isOverviewHome ? "page" : undefined}
+                title="Academic Overview — start of the flow"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  isOverviewHome
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                    isOverviewHome
+                      ? "bg-primary-foreground/20"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  0
+                </span>
+                <span>Overview</span>
+              </Link>
+            </li>
             {stages.map((stage, index) => {
-              const active = index === activeIndex;
-              const earlier = activeIndex >= 0 && index < activeIndex;
+              const active = !isOverviewHome && index === activeIndex;
+              const earlier = !isOverviewHome && activeIndex >= 0 && index < activeIndex;
               return (
                 <li key={stage.id}>
                   <Link

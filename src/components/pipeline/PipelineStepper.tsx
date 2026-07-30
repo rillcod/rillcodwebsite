@@ -53,6 +53,8 @@ export interface PipelineStepperProps {
   courseTitle?: string | null;
   /** Optional curriculum version id (from curriculum page) — lesson plans will prefill `curriculum_version_id`. */
   curriculumId?: string | null;
+  /** Optional class id so tools can return to teaching. */
+  classId?: string | null;
   /** Optional lesson-plan id, populated when navigating from Step 2 detail. */
   lessonPlanId?: string | null;
   /** Extra wrapper classes. */
@@ -65,7 +67,10 @@ function buildHref(step: PipelineStep, p: PipelineStepperProps): string {
   if (p.courseId) q.set('course_id', p.courseId);
   if (p.programId) q.set('program_id', p.programId);
   if (p.curriculumId) q.set('curriculum_id', p.curriculumId);
-  if (p.lessonPlanId && step === 'lessons') q.set('lesson_plan_id', p.lessonPlanId);
+  if (p.classId) q.set('return_class_id', p.classId);
+  if (p.lessonPlanId && (step === 'lessons' || step === 'flashcards')) {
+    q.set('lesson_plan_id', p.lessonPlanId);
+  }
   const qs = q.toString();
   return qs ? `${base}?${qs}` : base;
 }

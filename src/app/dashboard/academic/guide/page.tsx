@@ -162,7 +162,7 @@ export default function AcademicOfficeGuidePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <article className="rounded-3xl border border-emerald-500/25 bg-emerald-500/5 p-6"><h2 className="flex items-center gap-2 text-xl font-black text-foreground"><CheckCircleIcon className="h-6 w-6 text-emerald-600" /> What happens automatically</h2><ul className="mt-4 space-y-3">{AUTOMATIC.map((item) => <li key={item} className="flex gap-2 text-sm leading-6 text-muted-foreground"><CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul></article>
+        <article className="rounded-3xl border border-emerald-500/25 bg-emerald-500/5 p-6"><h2 className="flex items-center gap-2 text-xl font-black text-foreground"><CheckCircleIcon className="h-6 w-6 text-emerald-700 dark:text-emerald-300" /> What happens automatically</h2><ul className="mt-4 space-y-3">{AUTOMATIC.map((item) => <li key={item} className="flex gap-2 text-sm leading-6 text-muted-foreground"><CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />{item}</li>)}</ul></article>
         <article className="rounded-3xl border border-primary/25 bg-primary/5 p-6"><h2 className="flex items-center gap-2 text-xl font-black text-foreground"><UserGroupIcon className="h-6 w-6 text-primary" /> What remains a human decision</h2><ul className="mt-4 space-y-3">{HUMAN.map((item) => <li key={item} className="flex gap-2 text-sm leading-6 text-muted-foreground"><ArrowRightIcon className="mt-1 h-4 w-4 shrink-0 text-primary" />{item}</li>)}</ul></article>
       </section>
 

@@ -97,7 +97,7 @@ export function OfficialDirectionStatus({
             href={publishHref}
             className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70 transition-colors"
           >
-            Publish this course &rarr;
+            Review &amp; certify &rarr;
           </Link>
         )}
       </div>

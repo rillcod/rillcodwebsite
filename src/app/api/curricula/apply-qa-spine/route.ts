@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
     .from("course_curricula")
     .update({
       content: nextContent as unknown as Json,
-      version: Number((curriculum as { version?: number }).version ?? 1),
+      version: Number((curriculum as { version?: number }).version ?? 1) + 1,
       updated_at: new Date().toISOString(),
     })
     .eq("id", curriculumId)

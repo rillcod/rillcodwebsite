@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { fetchSubmissionsForGrading, fetchStudentGrades } from '@/services/dashboard.service';
@@ -841,6 +842,9 @@ function exportPDF(items: any[], isStaff: boolean, profile: any) {
 // ─── Main Page ────────────────────────────────────────────────
 export default function GradesPage() {
     const { profile, loading: authLoading } = useAuth();
+    const searchParams = useSearchParams();
+    const linkedClassId = searchParams.get('class_id') ?? '';
+    const linkedCourseId = searchParams.get('course_id') ?? '';
 
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -848,7 +852,7 @@ export default function GradesPage() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
     const [filterProgram, setFilterProgram] = useState('');
-    const [filterCourse, setFilterCourse] = useState('');
+    const [filterCourse, setFilterCourse] = useState(linkedCourseId);
     const [programs, setPrograms] = useState<any[]>([]);
     const [allCourses, setAllCourses] = useState<any[]>([]);
     const [teacherClasses, setTeacherClasses] = useState<any[]>([]);
@@ -863,7 +867,14 @@ export default function GradesPage() {
     }>>([]);
     const [sessionTermId, setSessionTermId] = useState<string>('');
     const [liveTermId, setLiveTermId] = useState<string>('');
-    const [filterClass, setFilterClass] = useState<string>('');
+    const [filterClass, setFilterClass] = useState<string>(linkedClassId);
+
+    useEffect(() => {
+      if (linkedClassId) setFilterClass(linkedClassId);
+    }, [linkedClassId]);
+    useEffect(() => {
+      if (linkedCourseId) setFilterCourse(linkedCourseId);
+    }, [linkedCourseId]);
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';

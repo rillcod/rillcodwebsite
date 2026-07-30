@@ -168,7 +168,7 @@ function AcademicDirectionPageInner() {
                 and respecting when each school actually begins. Teachers receive a clear weekly direction, while quality checks and publishing stay safely managed here.
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100 lg:max-w-xs">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-400/10 p-4 text-sm text-emerald-800 dark:border-emerald-400/20 dark:text-emerald-100 lg:max-w-xs">
               <div className="mb-1 flex items-center gap-2 font-bold"><ShieldCheckIcon className="h-5 w-5" /> Central control</div>
               Quality checks are managed here. Teachers receive clear guidance without technical controls.
             </div>
@@ -244,14 +244,14 @@ function AcademicDirectionPageInner() {
                 <SparklesIcon className="h-5 w-5" />
                 {checking ? 'Reviewing the academic direction…' : 'Run full academic review'}
               </button>
-              {error && <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">{error}</p>}
+              {error && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-400/10 p-3 text-sm text-rose-800 dark:border-rose-400/30 dark:text-rose-200">{error}</p>}
             </div>
           </section>
 
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
             {!report ? (
               <div className="flex min-h-[540px] flex-col items-center justify-center px-6 text-center">
-                <span className="mb-5 rounded-full bg-violet-400/10 p-5 text-violet-300"><ClipboardDocumentCheckIcon className="h-10 w-10" /></span>
+                <span className="mb-5 rounded-full bg-violet-400/10 p-5 text-violet-700 dark:text-violet-300"><ClipboardDocumentCheckIcon className="h-10 w-10" /></span>
                 <h2 className="text-xl font-black">A useful review, not a technical report</h2>
                 <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
                   The engine will show what is ready, what must be corrected before publication, and what would make teaching easier.
@@ -283,7 +283,7 @@ function AcademicDirectionPageInner() {
                     <div key={key} className="rounded-xl border border-border bg-muted/20 p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-bold text-muted-foreground">{DIMENSION_LABELS[key] ?? key}</p>
-                        <span className={`text-sm font-black ${value.score >= 85 ? 'text-emerald-300' : value.score >= 70 ? 'text-amber-300' : 'text-rose-300'}`}>{value.score}</span>
+                        <span className={`text-sm font-black ${value.score >= 85 ? 'text-emerald-700 dark:text-emerald-300' : value.score >= 70 ? 'text-amber-700 dark:text-amber-300' : 'text-rose-700 dark:text-rose-300'}`}>{value.score}</span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${value.score}%` }} /></div>
                     </div>
@@ -292,13 +292,13 @@ function AcademicDirectionPageInner() {
                 </details>
                 {report.mustFix.length > 0 && (
                   <div className="mb-7">
-                    <h3 className="mb-3 flex items-center gap-2 font-black text-rose-200"><ExclamationTriangleIcon className="h-5 w-5" /> Must fix before publication</h3>
+                    <h3 className="mb-3 flex items-center gap-2 font-black text-rose-700 dark:text-rose-200"><ExclamationTriangleIcon className="h-5 w-5" /> Must fix before publication</h3>
                     <div className="space-y-3">{report.mustFix.map((issue, index) => <IssueCard key={`${issue.code}-${index}`} issue={issue} />)}</div>
                   </div>
                 )}
                 {report.improvements.length > 0 && (
                   <div className="mb-7">
-                    <h3 className="mb-3 flex items-center gap-2 font-black text-amber-100"><SparklesIcon className="h-5 w-5" /> Improvements that will help teachers</h3>
+                    <h3 className="mb-3 flex items-center gap-2 font-black text-amber-800 dark:text-amber-100"><SparklesIcon className="h-5 w-5" /> Improvements that will help teachers</h3>
                     <div className="space-y-3">{report.improvements.slice(0, 5).map((issue, index) => <IssueCard key={`${issue.code}-${index}`} issue={issue} />)}</div>
                     {report.improvements.length > 5 && <p className="mt-3 text-xs text-muted-foreground">Showing the first 5 of {report.improvements.length} suggestions. Similar week-by-week items can be improved together.</p>}
                   </div>
@@ -312,7 +312,7 @@ function AcademicDirectionPageInner() {
                   </Link>
                 ) : (
                   <div className="space-y-3">
-                    <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">
+                    <p className="rounded-xl border border-rose-500/30 bg-rose-400/10 p-3 text-sm text-rose-800 dark:border-rose-400/30 dark:text-rose-200">
                       Publication is blocked until every must-fix item is resolved. Return to the builder, apply the fixes above, then run the review again.
                     </p>
                     <Link href={builderHref} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground hover:bg-primary/90">
@@ -331,7 +331,7 @@ function AcademicDirectionPageInner() {
 
 function IssueCard({ issue }: { issue: QualityIssue }) {
   return (
-    <article className={`rounded-xl border p-4 ${issue.severity === 'must_fix' ? 'border-rose-400/20 bg-rose-400/5' : 'border-amber-400/20 bg-amber-400/5'}`}>
+    <article className={`rounded-xl border p-4 ${issue.severity === 'must_fix' ? 'border-rose-500/30 bg-rose-400/10 dark:border-rose-400/20 dark:bg-rose-400/5' : 'border-amber-500/30 bg-amber-400/10 dark:border-amber-400/20 dark:bg-amber-400/5'}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{issue.location}</p>

@@ -47,7 +47,11 @@ import {
 } from "@/lib/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { buildAddLessonQueryFromCurriculum } from "@/lib/curriculum/add-lesson-from-curriculum";
-import { buildCurriculumHref, buildDistributeHref } from "@/lib/curriculum/href";
+import {
+  buildCertifyHref,
+  buildClassTeachingHref,
+  buildCurriculumHref,
+} from "@/lib/curriculum/href";
 import {
   SyllabusPreview,
   type SyllabusContent,
@@ -463,6 +467,7 @@ export default function CurriculumPage() {
   );
   const [loadError, setLoadError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [cloning, setCloning] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState<{
     curriculumId: string;
@@ -2434,26 +2439,38 @@ export default function CurriculumPage() {
     setGenProgress("");
 
     // Apply a freshly-generated/updated curriculum doc to UI state.
-    const finalizeDoc = (doc: CurriculumDoc) => {
+    // One live row per scope: drop same-scope siblings from the local list.
+    const finalizeDoc = (doc: CurriculumDoc, orphansRemoved = 0) => {
       const scope = doc.school_id ? doc.school_id : "platform";
       setCurriculum(doc);
       setGenerateScope(scope);
       restoreGradeForScope(scope);
       setCurriculumList((prev) => {
-        const others = prev.filter((p) => p.id !== doc.id);
+        const others = prev.filter((p) => {
+          if (p.id === doc.id) return false;
+          const sameScope =
+            (p.school_id ?? null) === (doc.school_id ?? null) &&
+            p.course_id === doc.course_id;
+          return !sameScope;
+        });
         return [doc, ...others];
       });
       setTracking([]);
       setShowGenerate(false);
+
+      const orphanNote =
+        orphansRemoved > 0
+          ? ` Removed ${orphansRemoved} older same-scope draft${orphansRemoved === 1 ? "" : "s"}.`
+          : "";
       if (!doc.school_id && isAdmin) {
-        toast.success("Curriculum created. Completing the readiness check next.");
+        toast.success(`Curriculum updated to v${doc.version}.${orphanNote} Run the academic review next.`);
         router.push(
-          buildDistributeHref({ curriculumId: doc.id, courseId: doc.course_id })
+          buildCertifyHref({ curriculumId: doc.id, courseId: doc.course_id })
         );
       } else {
-        toast.success("Curriculum is ready for this school.");
+        toast.success(`Curriculum updated to v${doc.version}.${orphanNote}`);
       }
-      // Snap to Prog.T1 after generation — use PST from new doc metadata, fallback to form value
+
       const newPst = Number(
         (doc.content?.metadata as { program_start_term?: number } | undefined)
           ?.program_start_term ?? programStartTerm
@@ -2464,10 +2481,18 @@ export default function CurriculumPage() {
       }
     };
 
+    const targetSchoolId =
+      effectiveScope === "platform" ? null : effectiveScope;
+    const openMatchesScope =
+      !!curriculum &&
+      curriculum.course_id === selectedCourse.id &&
+      (curriculum.school_id ?? null) === targetSchoolId;
+
     const baseBody = {
       course_id: selectedCourse.id,
       course_name: selectedCourse.title,
-      school_id: effectiveScope === "platform" ? null : effectiveScope,
+      school_id: targetSchoolId,
+      ...(openMatchesScope ? { curriculum_id: curriculum.id } : {}),
       grade_level: form.grade_level,
       subject_area: form.subject_area,
       notes: form.notes,
@@ -2489,6 +2514,7 @@ export default function CurriculumPage() {
         const baseWeeks = Math.max(1, Math.round(weeks / totalModules));
         const priorThemes: string[] = [];
         let lastDoc: CurriculumDoc | null = null;
+        let orphansRemoved = 0;
 
         for (let m = 1; m <= totalModules; m++) {
           setGenProgress(`Generating module ${m} of ${totalModules}…`);
@@ -2501,6 +2527,7 @@ export default function CurriculumPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               ...baseBody,
+              ...(lastDoc?.id ? { curriculum_id: lastDoc.id } : {}),
               online_duration_weeks: weeks,
               online_sessions_per_week: spw,
               module_index: m,
@@ -2521,6 +2548,10 @@ export default function CurriculumPage() {
             break; // keep the modules already saved
           }
           lastDoc = json.data as CurriculumDoc;
+          orphansRemoved = Math.max(
+            orphansRemoved,
+            Number(json.consolidated_orphans ?? 0)
+          );
           const thisTerm = (
             lastDoc.content?.terms as
               | Array<{ term?: number; title?: string }>
@@ -2528,7 +2559,7 @@ export default function CurriculumPage() {
           )?.find((t) => Number(t.term) === m);
           if (thisTerm?.title) priorThemes.push(thisTerm.title);
         }
-        if (lastDoc) finalizeDoc(lastDoc);
+        if (lastDoc) finalizeDoc(lastDoc, orphansRemoved);
         return;
       }
 
@@ -2575,7 +2606,10 @@ export default function CurriculumPage() {
         setGenError(json.error || "Generation failed");
         return;
       }
-      finalizeDoc(json.data as CurriculumDoc);
+      finalizeDoc(
+        json.data as CurriculumDoc,
+        Number(json.consolidated_orphans ?? 0)
+      );
     } catch {
       setGenError("Network error — please try again");
     } finally {
@@ -3151,41 +3185,77 @@ export default function CurriculumPage() {
   }
 
   // ── Delete this curriculum version ──────────────────────────────────────
-  async function handleDeleteCurriculum() {
-    if (!curriculum) return;
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this curriculum version? This will also remove linked tracking and lesson plans. This action cannot be undone."
+  async function handleDeleteCurriculum(targetId?: string, opts?: { force?: boolean }) {
+    const id = targetId || curriculum?.id;
+    if (!id) return;
+    const label =
+      curriculumList.find((c) => c.id === id)?.content?.description ||
+      `version ${curriculumList.find((c) => c.id === id)?.version ?? ""}`;
+
+    if (!opts?.force) {
+      if (
+        !window.confirm(
+          `Delete this curriculum copy (${label})?\n\nIf something still uses it, you will be offered a safe cleanup that keeps official editions intact.`
+        )
       )
-    )
-      return;
+        return;
+    }
 
     setDeleting(true);
+    setDeleteError("");
     try {
-      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+      const qs = opts?.force ? "?force=1" : "";
+      const res = await fetch(`/api/curricula/${id}${qs}`, {
         method: "DELETE",
       });
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        if (res.status === 409 && j?.can_force && !opts?.force) {
+          const detail = [
+            j.official_release_count
+              ? `${j.official_release_count} official edition(s) will be unlinked (not deleted)`
+              : null,
+            j.draft_plan_count
+              ? `${j.draft_plan_count} draft plan(s) will be removed`
+              : null,
+            j.live_plan_count
+              ? `${j.live_plan_count} live plan(s) will be detached`
+              : null,
+            j.delivery_record_count
+              ? `${j.delivery_record_count} week record(s) will be cleared`
+              : null,
+            Array.isArray(j.holding_classes) && j.holding_classes.length
+              ? `Classes: ${j.holding_classes.join(", ")}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          const ok = window.confirm(
+            `${j.error || "This copy is linked to other records."}\n\n${detail}\n\nClean up blockers and delete this copy now? Official editions stay published.`
+          );
+          if (ok) {
+            await handleDeleteCurriculum(id, { force: true });
+            return;
+          }
+          setDeleteError(j.error || "Delete blocked");
+          return;
+        }
         throw new Error(j.error || "Failed to delete curriculum");
       }
-      toast.success("Curriculum version deleted");
+      toast.success(opts?.force ? "Copy cleaned up and deleted" : "Curriculum version deleted");
 
-      // Update local lists
-      const newList = curriculumList.filter((c) => c.id !== curriculum.id);
+      const newList = curriculumList.filter((c) => c.id !== id);
       setCurriculumList(newList);
-
-      if (newList.length > 0) {
-        // Switch to the first available version
-        setCurriculum(newList[0]);
-      } else {
-        // No versions left, close the syllabus view
-        setCurriculum(null);
+      if (curriculum?.id === id) {
+        if (newList.length > 0) setCurriculum(newList[0]);
+        else setCurriculum(null);
+        setTracking([]);
       }
+      setDeleteError("");
     } catch (e: any) {
-      // The refusal names what is holding the curriculum, so give it room and
-      // time to be read rather than flashing a truncated line.
-      toast.error(e.message || "Deletion failed", {
+      const msg = e.message || "Deletion failed";
+      setDeleteError(msg);
+      toast.error(msg, {
         duration: 9000,
         style: { maxWidth: "34rem" },
       });
@@ -4115,7 +4185,10 @@ export default function CurriculumPage() {
                                   key={plan.id}
                                   href={
                                     plan.class_id
-                                      ? `/dashboard/classes/${plan.class_id}?operation=teaching&course_id=${plan.course_id}`
+                                      ? buildClassTeachingHref({
+                                          classId: plan.class_id,
+                                          courseId: plan.course_id,
+                                        })
                                       : "/dashboard/classes"
                                   }
                                   className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
@@ -4310,19 +4383,21 @@ export default function CurriculumPage() {
                               onClick={async () => {
                                 if (
                                   !confirm(
-                                    `Delete ALL ${curriculumList.length} syllabus versions for "${selectedCourse?.title}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`
+                                    `Delete ALL ${curriculumList.length} visible copies for "${selectedCourse?.title}"?\n\nEach copy will use safe cleanup (unlink editions, remove draft plans, clear week records). Official published editions are kept.`
                                   )
                                 )
                                   return;
                                 setDeleting(true);
+                                setDeleteError("");
                                 try {
                                   let successCount = 0;
                                   const failedIds = new Set<string>();
                                   const failures: string[] = [];
-                                  for (const c of curriculumList) {
-                                    const res = await fetch(`/api/curricula/${c.id}`, {
-                                      method: "DELETE",
-                                    });
+                                  for (const c of [...curriculumList]) {
+                                    const res = await fetch(
+                                      `/api/curricula/${c.id}?force=1`,
+                                      { method: "DELETE" }
+                                    );
                                     if (res.ok) {
                                       successCount++;
                                     } else {
@@ -4344,12 +4419,14 @@ export default function CurriculumPage() {
                                     setTracking([]);
                                   }
                                   if (failures.length === 0) {
-                                    toast.success("All syllabus versions deleted");
+                                    toast.success("All syllabus copies deleted");
                                   } else if (successCount === 0) {
+                                    setDeleteError(failures[0]);
                                     toast.error(
                                       `Could not delete any version. ${failures[0]}`
                                     );
                                   } else {
+                                    setDeleteError(failures[0]);
                                     toast.error(
                                       `Deleted ${successCount} version(s), but ${failures.length} failed. ${failures[0]}`
                                     );
@@ -4507,40 +4584,13 @@ export default function CurriculumPage() {
                                   {/* Delete — school curricula only (admin always, teacher only their own) */}
                                   {isAdmin && (
                                     <button
-                                      onClick={async (e) => {
+                                      onClick={(e) => {
                                         e.stopPropagation();
-                                        if (
-                                          !confirm(
-                                            `Delete "${
-                                              c.content?.description ||
-                                              `Version ${c.version}`
-                                            }"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`
-                                          )
-                                        )
-                                          return;
-                                        const res = await fetch(
-                                          `/api/curricula/${c.id}`,
-                                          { method: "DELETE" }
-                                        );
-                                        if (res.ok) {
-                                          const updated = curriculumList.filter(
-                                            (x) => x.id !== c.id
-                                          );
-                                          setCurriculumList(updated);
-                                          toast.success(
-                                            "Syllabus version deleted"
-                                          );
-                                        } else {
-                                          const j = await res
-                                            .json()
-                                            .catch(() => ({}));
-                                          toast.error(
-                                            j.error ?? "Delete failed"
-                                          );
-                                        }
+                                        void handleDeleteCurriculum(c.id);
                                       }}
-                                      className="text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10"
-                                      title="Delete this syllabus version"
+                                      disabled={deleting}
+                                      className="text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10 disabled:opacity-50"
+                                      title="Delete this syllabus copy"
                                     >
                                       Delete
                                     </button>
@@ -4563,13 +4613,37 @@ export default function CurriculumPage() {
                       isSchoolScoped={officialStatus.isSchoolScoped}
                       publishHref={
                         canPublish && curriculum && !curriculum.school_id
-                          ? buildDistributeHref({
+                          ? buildCertifyHref({
                               curriculumId: curriculum.id,
                               courseId: curriculum.course_id,
                             })
                           : undefined
                       }
                     />
+
+                    {deleteError && (
+                      <div
+                        role="alert"
+                        className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200"
+                      >
+                        <p className="font-bold">Delete blocked</p>
+                        <p className="mt-1 text-xs leading-5">{deleteError}</p>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            disabled={deleting}
+                            onClick={() =>
+                              void handleDeleteCurriculum(curriculum.id, {
+                                force: true,
+                              })
+                            }
+                            className="mt-3 rounded-xl border border-rose-400/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                          >
+                            Clean blockers and delete this draft
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* ── Classes using this curriculum ──
                        These are exactly what blocks deletion, and the page
@@ -4607,10 +4681,13 @@ export default function CurriculumPage() {
                                 <div className="flex shrink-0 items-center gap-2">
                                   {klass?.id && (
                                     <Link
-                                      href={`/dashboard/classes/${klass.id}?operation=teaching`}
+                                      href={buildClassTeachingHref({
+                                        classId: klass.id,
+                                        courseId: curriculum?.course_id,
+                                      })}
                                       className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70"
                                     >
-                                      Open
+                                      Teach
                                     </Link>
                                   )}
                                   {/* Removing a teaching plan is a delivery
@@ -5142,14 +5219,14 @@ export default function CurriculumPage() {
                         )}
                         {canPublish && !curriculum.school_id && (
                           <Link
-                            href={buildDistributeHref({
+                            href={buildCertifyHref({
                               curriculumId: curriculum.id,
                               courseId: curriculum.course_id,
                             })}
                             className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
-                            Check readiness &amp; assign
+                            Review &amp; certify
                           </Link>
                         )}
                         {canPublish &&
@@ -5240,11 +5317,10 @@ export default function CurriculumPage() {
                         >
                           <ChartBarIcon className="w-3.5 h-3.5" /> Open classes
                         </Link>
-                        {showAdvancedCurriculumControls &&
-                          (isAdmin ||
-                            (isTeacher && !!curriculum.school_id)) && (
+                        {(isAdmin ||
+                          (isTeacher && !!curriculum.school_id)) && (
                             <button
-                              onClick={handleDeleteCurriculum}
+                              onClick={() => void handleDeleteCurriculum()}
                               disabled={deleting}
                               className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
                             >

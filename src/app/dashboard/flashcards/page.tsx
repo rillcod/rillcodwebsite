@@ -161,7 +161,7 @@ export default function FlashcardsPage() {
           {isTeacher && (
             <div className="flex flex-col sm:flex-row gap-3">
               {returnClassId ? (
-                <Link href={`/dashboard/classes/${returnClassId}?operation=teaching`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>
+                <Link href={`/dashboard/classes/${returnClassId}?operation=teaching${courseIdParam ? `&course_id=${courseIdParam}` : ''}`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>
               ) : (
                 <Link href="/dashboard/classes" className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Classes</Link>
               )}

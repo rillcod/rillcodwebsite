@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowPathIcon, CalendarDaysIcon, CheckCircleIcon, ClockIcon, InformationCircleIcon } from '@/lib/icons';
-import { buildDistributeHref } from '@/lib/curriculum/href';
+import { buildDistributeHref, buildClassTeachingHref } from '@/lib/curriculum/href';
 
 type Assignment = { id: string; school_id: string; course_id: string; release_id: string; academic_session?: string | null; schools?: { name?: string } | null; courses?: { title?: string; program_id?: string | null } | null; release?: { title?: string; audience_label?: string | null } | null };
 type Klass = { id: string; name: string; school_id: string; program_id?: string | null };
@@ -90,7 +90,7 @@ function CurriculumTimingPageInner() {
     <Link href={buildDistributeHref({ courseId: assignment?.course_id ?? linkedCourseId })} className="mb-5 inline-flex text-sm font-bold text-muted-foreground hover:text-foreground">
       &larr; School assignment
     </Link>
-    <header className="mb-7 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6"><p className="text-xs font-black uppercase tracking-widest text-cyan-600">Academic Office</p><h1 className="mt-2 text-3xl font-black">School timing</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">Tell the system when teaching actually begins. The official learning sequence stays intact, while each school or class starts from its real calendar position.</p></header>
+    <header className="mb-7 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6"><p className="text-xs font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-300">Academic Office</p><h1 className="mt-2 text-3xl font-black">School timing</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">Tell the system when teaching actually begins. The official learning sequence stays intact, while each school or class starts from its real calendar position.</p></header>
     {loaded && assignments.length === 0 && (
       <p className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-muted-foreground">
         No school assignments exist yet. Protect and assign an official edition first, then return here to set each school&apos;s real entry point.
@@ -108,11 +108,26 @@ function CurriculumTimingPageInner() {
           <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold">School begins in<select value={entryTerm} onChange={(e) => setEntryTerm(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background p-3"><option value={1}>First Term</option><option value={2}>Second Term</option><option value={3}>Third Term</option></select></label><label className="text-sm font-bold">First teaching week<select value={entryWeek} onChange={(e) => setEntryWeek(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background p-3">{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>Week {index + 1}</option>)}</select></label></div>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4"><p className="text-sm font-black">Where should the programme continue from?</p><p className="mt-1 text-xs text-muted-foreground">Usually Year 1, First Term, Week 1. Change this only when learners are joining an existing programme.</p><div className="mt-3 grid grid-cols-3 gap-3"><label className="text-xs font-bold">Year<input type="number" min={1} max={6} value={programmeYear} onChange={(e) => setProgrammeYear(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" /></label><label className="text-xs font-bold">Term<select value={programmeTerm} onChange={(e) => setProgrammeTerm(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2"><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option></select></label><label className="text-xs font-bold">Week<input type="number" min={1} max={12} value={programmeWeek} onChange={(e) => setProgrammeWeek(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" /></label></div></div>
           <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold">Sessions each week<input type="number" min={1} max={14} value={sessionsPerWeek} onChange={(e) => setSessionsPerWeek(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background p-3" /></label><label className="text-sm font-bold">Pacing<select value={pacing} onChange={(e) => setPacing(e.target.value)} className="mt-2 w-full rounded-xl border border-border bg-background p-3"><option value="standard">Standard pace</option><option value="accelerated">Faster pace</option><option value="extended">More time for mastery</option><option value="custom">Custom pace</option></select></label></div>
-          <div className="flex gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-muted-foreground"><InformationCircleIcon className="h-5 w-5 shrink-0 text-amber-500" /><span>If teaching begins in {termLabel(entryTerm)}, Week {entryWeek}, earlier calendar weeks will not be marked late or missed.</span></div>
+          <div className="flex gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-muted-foreground"><InformationCircleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" /><span>If teaching begins in {termLabel(entryTerm)}, Week {entryWeek}, earlier calendar weeks will not be marked late or missed.</span></div>
           <button onClick={save} disabled={busy || !assignment} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-black text-primary-foreground disabled:opacity-50">{busy ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckCircleIcon className="h-5 w-5" />} Save school timing</button>
           {message && (
-            <Link href="/dashboard/classes" className="inline-flex w-full items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-black text-foreground hover:bg-muted">
-              Open classes to start teaching
+            <Link
+              href={
+                classId
+                  ? buildClassTeachingHref({
+                      classId,
+                      courseId: assignment?.course_id,
+                    })
+                  : availableClasses[0]?.id
+                    ? buildClassTeachingHref({
+                        classId: availableClasses[0].id,
+                        courseId: assignment?.course_id,
+                      })
+                    : "/dashboard/classes"
+              }
+              className="inline-flex w-full items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-black text-foreground hover:bg-muted"
+            >
+              Open class teaching
             </Link>
           )}
         </div></section>

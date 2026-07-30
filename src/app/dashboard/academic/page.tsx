@@ -5,10 +5,14 @@ import Link from "next/link";
 import { buildCurriculumHref, buildCertifyHref } from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
-import { NextActionCard } from "@/components/academic/StageList";
+import { NextActionCard, StageList } from "@/components/academic/StageList";
 import AcademicExceptionsWorkspace from "@/components/academic/AcademicExceptionsWorkspace";
-import { LANES, stagesInLane } from "@/lib/academic/lanes";
-import type { StageStatus } from "@/lib/academic/status";
+import { LANES } from "@/lib/academic/lanes";
+import { nextAction, type StageStatus } from "@/lib/academic/status";
+import {
+  overviewAssetStages,
+  overviewDeliveryStages,
+} from "@/lib/academic/overview-flow";
 
 type SpineData = {
   classes: { id: string; name: string }[];
@@ -188,47 +192,38 @@ export default function AcademicSpinePage() {
 
   const totals = data?.totals ?? {};
 
-  // The single next move, derived from the real gap rather than hand-written.
+  // The single next move — earliest incomplete stage wins so Overview never
+  // jumps past writing into certify when curricula are still missing.
+  const overviewFacts = overview
+    ? {
+        centralCourses: overview.central_courses,
+        certifiedCourses: overview.certified_courses,
+        readyToCertifyCount: overview.ready_to_certify.length,
+        readyToCertifyCourseId: overview.ready_to_certify[0]?.courseId ?? null,
+        awaitingCurriculumCount: overview.awaiting_curriculum_count,
+        awaitingCurriculumCourseId:
+          overview.awaiting_curriculum_sample[0]?.courseId ?? null,
+        assignedDirections: totals.assigned_directions ?? 0,
+        stuckPlans: overview.stuck_plans,
+        classesWithPlans: totals.classes_with_teaching_plans ?? 0,
+        classesTotal: totals.classes ?? 0,
+      }
+    : null;
+
+  const assetStages = overviewFacts
+    ? overviewAssetStages(overviewFacts)
+    : [];
+  const deliveryStages = overviewFacts
+    ? overviewDeliveryStages(overviewFacts)
+    : [];
+
   const next: StageStatus | null = (() => {
-    if (!isAdmin || !overview) return null;
-    // A written draft is one action away, so it outranks the far longer job of
-    // writing a curriculum from nothing.
-    const ready = overview.ready_to_certify;
-    if (ready.length > 0) {
-      return {
-        id: "certify",
-        state: "ready",
-        headline: `${ready.length} course${
-          ready.length === 1 ? " is" : "s are"
-        } written and waiting to be certified.`,
-        detail: `Start with ${ready[0].title}. Until a course is certified, no class can begin a teaching plan for it.`,
-        actionLabel: "Certify a course",
-        actionHref: buildCertifyHref({ courseId: ready[0].courseId }),
-      };
-    }
-    if (overview.awaiting_curriculum_count > 0) {
-      return {
-        id: "author",
-        state: "ready",
-        headline: `${overview.awaiting_curriculum_count} courses have no curriculum yet.`,
-        detail:
-          "A course cannot be certified or taught until its curriculum is written.",
-        actionLabel: "Author curriculum",
-        actionHref: "/dashboard/curriculum",
-      };
-    }
-    if (overview.stuck_plans > 0) {
-      return {
-        id: "plan",
-        state: "blocked",
-        headline: `${overview.stuck_plans} class plan(s) are not on an official edition.`,
-        detail:
-          "Each one is waiting on a certification or assignment decision before it can be repaired.",
-        actionLabel: "Review assignments",
-        actionHref: "/dashboard/academic/distribute",
-      };
-    }
-    return null;
+    if (!isAdmin || !overviewFacts) return null;
+    return (
+      nextAction(assetStages) ??
+      nextAction(deliveryStages) ??
+      null
+    );
   })();
 
   const certifiedPct =
@@ -281,14 +276,15 @@ export default function AcademicSpinePage() {
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-primary">Academic Office</p>
+            <p className="text-sm font-semibold text-primary">Academic Office · Overview</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">
-              Your complete academic operation in one place
+              Start here — then follow the curriculum to class
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              The Academic Office builds one official curriculum per course.
-              Teachers then deliver it to their classes. This page shows where
-              that work actually stands and what to do next.
+              This is step zero of the academic flow. Write the curriculum,
+              certify it, assign schools, set timing, then teach from the class
+              with lessons, slides, flashcards, grades, CBT and results. Later
+              steps stay closed until earlier ones are ready.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -483,9 +479,12 @@ export default function AcademicSpinePage() {
             ))}
           </section>
 
-          {/* The two lanes, straight from the kernel — never hand-written. */}
+          {/* Status-aware lanes — no free jump from Overview to Certify. */}
           <section className="grid gap-4 lg:grid-cols-2">
-            {(["asset", "delivery"] as const).map((laneId) => {
+            {([
+              ["asset", assetStages] as const,
+              ["delivery", deliveryStages] as const,
+            ]).map(([laneId, statuses]) => {
               const lane = LANES[laneId];
               return (
                 <article
@@ -498,28 +497,65 @@ export default function AcademicSpinePage() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {lane.summary}
                   </p>
-                  <ol className="mt-4 space-y-2" role="list">
-                    {stagesInLane(laneId).map((s) => (
-                      <li key={s.id}>
-                        <Link
-                          href={s.href}
-                          className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/50 hover:bg-primary/5"
-                        >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-black text-muted-foreground">
-                            {s.step}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-bold text-foreground">
-                              {s.label}
-                            </span>
-                            <span className="block text-xs leading-5 text-muted-foreground">
-                              {s.purpose}
-                            </span>
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="mt-4">
+                    {statuses.length > 0 ? (
+                      <StageList statuses={statuses} lane={laneId} />
+                    ) : !isAdmin ? (
+                      <ol className="space-y-2" role="list">
+                        {(laneId === "asset"
+                          ? [
+                              {
+                                label: "Curriculum",
+                                href: "/dashboard/curriculum",
+                                purpose: "Read the official course direction.",
+                              },
+                              {
+                                label: "Classes",
+                                href: "/dashboard/classes",
+                                purpose: "Teach from your assigned classes.",
+                              },
+                            ]
+                          : [
+                              {
+                                label: "Classes",
+                                href: "/dashboard/classes",
+                                purpose: "Plan, teach, slides and flashcards.",
+                              },
+                              {
+                                label: "Grades",
+                                href: "/dashboard/grades",
+                                purpose: "Mark assignments and CBT.",
+                              },
+                              {
+                                label: "Results",
+                                href: "/dashboard/academic/results",
+                                purpose: "Prepare and publish learner results.",
+                              },
+                            ]
+                        ).map((item) => (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/50 hover:bg-primary/5"
+                            >
+                              <span className="min-w-0">
+                                <span className="block text-sm font-bold text-foreground">
+                                  {item.label}
+                                </span>
+                                <span className="block text-xs leading-5 text-muted-foreground">
+                                  {item.purpose}
+                                </span>
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Loading stage status…
+                      </p>
+                    )}
+                  </div>
                 </article>
               );
             })}

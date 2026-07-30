@@ -8,6 +8,17 @@ import {
   ExclamationTriangleIcon,
 } from "@/lib/icons";
 import type { StageStatus } from "@/lib/academic/status";
+import {
+  buildAssignmentNewHref,
+  buildClassAssessmentHref,
+  buildCbtNewHref,
+  buildFlashcardsHref,
+  buildGradesHref,
+  buildLessonPlanHref,
+  buildLessonSlidesHref,
+  buildProjectNewHref,
+  buildResultsHref,
+} from "@/lib/curriculum/href";
 
 type Props = {
   classId: string;
@@ -175,11 +186,15 @@ export function ClassTeachingWorkspace({
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Unable to create flashcards");
-      window.location.href = `/dashboard/flashcards?deckId=${
-        j.data.id
-      }&topic=${encodeURIComponent(
-        item.title || item.topic || title
-      )}&autoGenerate=true&return_class_id=${classId}`;
+      window.location.href = buildFlashcardsHref({
+        deckId: j.data.id,
+        classId,
+        courseId,
+        lessonId: item.id || null,
+        lessonPlanId: plan.id,
+        topic: item.title || item.topic || title,
+        autoGenerate: true,
+      });
     } catch (e: any) {
       setError(e.message);
       setBusy(false);
@@ -372,7 +387,7 @@ export function ClassTeachingWorkspace({
              belongs to this class. Without this link they were unreachable
              from here. */}
           <Link
-            href={`/dashboard/lesson-plans/${plan.id}`}
+            href={buildLessonPlanHref(plan.id)}
             className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-transparent p-4 transition-colors hover:border-primary/50"
           >
             <span className="min-w-0">
@@ -389,12 +404,39 @@ export function ClassTeachingWorkspace({
             </span>
           </Link>
 
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Link
+              href={buildClassAssessmentHref({ classId, courseId })}
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+            >
+              Assessment desk
+            </Link>
+            <Link
+              href={buildGradesHref({ classId, courseId })}
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+            >
+              Grades
+            </Link>
+            <Link
+              href={buildResultsHref({ classId, courseId })}
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+            >
+              Results
+            </Link>
+            <Link
+              href="/dashboard/parent-results"
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+            >
+              Parent portal
+            </Link>
+          </div>
+
           <div className="rounded-2xl border border-border bg-background p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black">Plan · Teach · Track</h3>
                 <p className="text-xs text-muted-foreground">
-                  Delivery is the progression record.
+                  Delivery is the progression record. From each week open slides, flashcards, assignments, projects and CBT.
                 </p>
               </div>
               <button
@@ -494,6 +536,7 @@ export function ClassTeachingWorkspace({
                   const project = projectsByWeek.get(week);
                   const hasSlides = lesson && slideLessonIds.has(item.id);
                   const flashcardDeck = flashcardsByWeek.get(week);
+                  const topic = item.title || item.topic || `Week ${week}`;
                   return (
                     <div
                       key={key + i}
@@ -522,7 +565,7 @@ export function ClassTeachingWorkspace({
                           Week {week}
                         </p>
                         <p className="text-sm font-bold">
-                          {item.title || item.topic || `Planned week ${week}`}
+                          {topic}
                         </p>
                       </div>
                       {canEdit && (
@@ -533,7 +576,10 @@ export function ClassTeachingWorkspace({
                             </span>
                             {lesson && (
                               <Link
-                                href={`/dashboard/lessons/${item.id}?tab=materials#learning-slides`}
+                                href={buildLessonSlidesHref({
+                                  lessonId: item.id,
+                                  returnClassId: classId,
+                                })}
                                 className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                               >
                                 {hasSlides ? "Open slides" : "Add slides"}
@@ -541,7 +587,14 @@ export function ClassTeachingWorkspace({
                             )}
                             {flashcardDeck ? (
                               <Link
-                                href={`/dashboard/flashcards?deckId=${flashcardDeck.id}&return_class_id=${classId}`}
+                                href={buildFlashcardsHref({
+                                  deckId: flashcardDeck.id,
+                                  classId,
+                                  courseId,
+                                  lessonId: lesson ? item.id : null,
+                                  lessonPlanId: plan.id,
+                                  topic,
+                                })}
                                 className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                               >
                                 Open flashcards
@@ -561,11 +614,13 @@ export function ClassTeachingWorkspace({
                               Assess
                             </span>
                             <Link
-                              href={`/dashboard/assignments/new?class_id=${classId}&course_id=${courseId}&lesson_plan_id=${
-                                plan.id
-                              }&lesson_id=${
-                                lesson ? item.id : ""
-                              }&week=${week}&type=homework`}
+                              href={buildAssignmentNewHref({
+                                classId,
+                                courseId,
+                                lessonPlanId: plan.id,
+                                lessonId: lesson ? item.id : null,
+                                week,
+                              })}
                               className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                             >
                               Assignment
@@ -573,27 +628,30 @@ export function ClassTeachingWorkspace({
                           <Link
                             href={project
                               ? `/dashboard/projects/${project.id}`
-                              : `/dashboard/projects/new?class_id=${classId}&course_id=${courseId}&school_id=${
-                                  data?.class?.school_id || ""
-                                }&lesson_plan_id=${plan.id}&lesson_id=${
-                                  lesson ? item.id : ""
-                                }&week=${week}`}
+                              : buildProjectNewHref({
+                                  classId,
+                                  courseId,
+                                  schoolId: data?.class?.school_id,
+                                  lessonPlanId: plan.id,
+                                  lessonId: lesson ? item.id : null,
+                                  week,
+                                })}
                             className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                           >
                             {project ? "Open project" : "Create project"}
                           </Link>
                           <Link
-                            href={`/dashboard/cbt/new?class_id=${classId}&program_id=${
-                              data?.class?.program_id || ""
-                            }&course_id=${courseId}&school_id=${
-                              data?.class?.school_id || ""
-                            }&lesson_plan_id=${plan.id}&lesson_id=${
-                              lesson ? item.id : ""
-                            }&curriculum_id=${
-                              plan.curriculum_version_id || ""
-                            }&week=${week}&topic=${encodeURIComponent(
-                              item.title || item.topic || `Week ${week}`
-                            )}&exam_type=evaluation`}
+                            href={buildCbtNewHref({
+                              classId,
+                              courseId,
+                              programId: data?.class?.program_id,
+                              schoolId: data?.class?.school_id,
+                              lessonPlanId: plan.id,
+                              lessonId: lesson ? item.id : null,
+                              curriculumId: plan.curriculum_version_id,
+                              week,
+                              topic,
+                            })}
                             className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                           >
                             Evaluation

@@ -20,7 +20,12 @@ import { AddStudentModal } from '@/features/students/components/AddStudentModal'
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
+import {
+  buildAssignmentNewHref,
+  buildCbtNewHref,
+  buildGradesHref,
+  buildResultsHref,
+} from '@/lib/curriculum/href';
 
 import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 // Turn an enroll PUT response into a human message about students that were NOT added,
@@ -1589,24 +1594,53 @@ export default function ClassDetailPage() {
               )}
 
               {activeOperation === 'assessment' && (
-                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-3">
+                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {[
-                    { label: 'Assignments', value: items.assignments.length, action: 'New Assignment', href: `/dashboard/assignments/new?class_id=${id}` },
-                    { label: 'CBT Exams', value: items.cbt.length, action: 'New Exam', href: `/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}` },
-                    { label: 'Gradebook', value: gradedSubmissionCount, action: 'Open Gradebook', onClick: () => setActiveTab('gradebook') },
+                    {
+                      label: 'Assignments',
+                      value: items.assignments.length,
+                      action: 'New Assignment',
+                      href: buildAssignmentNewHref({
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                      }),
+                    },
+                    {
+                      label: 'CBT Exams',
+                      value: items.cbt.length,
+                      action: 'New Exam',
+                      href: buildCbtNewHref({
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                        programId: cls?.program_id,
+                        schoolId: cls?.school_id,
+                      }),
+                    },
+                    {
+                      label: 'Gradebook',
+                      value: gradedSubmissionCount,
+                      action: 'Open Gradebook',
+                      href: buildGradesHref({
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                      }),
+                    },
+                    {
+                      label: 'Results',
+                      value: items.submissions.length + items.cbtSessions.length,
+                      action: 'Open Results',
+                      href: buildResultsHref({
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                      }),
+                    },
                   ].map(card => (
                     <div key={card.label} className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
                       <p className="text-2xl font-black text-foreground sm:text-3xl">{card.value}</p>
                       <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
-                      {'href' in card ? (
-                        <Link href={card.href as string} className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
-                          {card.action}
-                        </Link>
-                      ) : (
-                        <button type="button" onClick={card.onClick} className="mt-4 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
-                          {card.action}
-                        </button>
-                      )}
+                      <Link href={card.href} className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
+                        {card.action}
+                      </Link>
                     </div>
                   ))}
                 </div>
