@@ -45,6 +45,8 @@ type FinanceFailure = {
 };
 
 const JOB_NAMES: Record<string, string> = {
+  'academic-readiness': 'Prepare classes for teaching',
+  'auto-generate-content': 'Generate lesson content',
   'billing-reminders': 'Billing reminders',
   'invoice-reminders': 'Invoice reminders',
   'payment-reminders': 'Balance payment reminders',

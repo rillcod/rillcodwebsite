@@ -22,6 +22,23 @@ export function studentEmailBase(fullName: string | null | undefined): string {
   return (fullName || 'student').trim().toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, '') || 'student';
 }
 
+/**
+ * True when an auth account already owns this address. `portal_users` alone is not
+ * enough: an auth user can exist without a portal row (a half-finished provision, or a
+ * test account), and handing that address back makes `createUser` fail with a duplicate
+ * that no portal lookup could have predicted.
+ */
+async function authAccountExists(admin: AnySupabase, email: string): Promise<boolean> {
+  try {
+    const { data, error } = await (admin as any).auth.admin.listUsers({ page: 1, perPage: 1, filter: `email.eq.${email}` });
+    if (error) return false; // Fall back to the portal_users check rather than block provisioning.
+    const users: Array<{ email?: string | null }> = data?.users ?? [];
+    return users.some((u) => (u.email || '').toLowerCase() === email.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export async function generateUniqueStudentLoginEmail(
   admin: AnySupabase,
   fullName: string | null | undefined,
@@ -31,7 +48,7 @@ export async function generateUniqueStudentLoginEmail(
     const digits = Math.floor(100 + Math.random() * 900); // 3-digit suffix
     const candidate = `${base}${digits}@${STUDENT_EMAIL_DOMAIN}`;
     const { data } = await admin.from('portal_users').select('id').eq('email', candidate).maybeSingle();
-    if (!data) return candidate;
+    if (!data && !(await authAccountExists(admin, candidate))) return candidate;
   }
   // Extremely unlikely fallback — timestamp tail guarantees uniqueness.
   return `${base}${Date.now().toString().slice(-6)}@${STUDENT_EMAIL_DOMAIN}`;

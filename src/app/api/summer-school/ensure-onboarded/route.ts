@@ -21,12 +21,13 @@
  *   • Idempotent — running twice produces the same result
  *   • Rate-limited by IP (10 req / hour)
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
+import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import {
   isSpecialProgramBalancePaymentType,
@@ -154,6 +155,7 @@ export async function POST(req: NextRequest) {
     }
 
     const activation = await sendSpecialProgramActivation(onboard, prospect as any);
+    after(() => runClassAcademicReadiness(onboard.classId));
 
     return NextResponse.json({
       onboarded: true,

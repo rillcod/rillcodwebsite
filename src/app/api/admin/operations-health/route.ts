@@ -5,6 +5,8 @@ import { notificationsService } from '@/services/notifications.service';
 import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
 
 const CRON_PATHS: Record<string, string> = {
+  'academic-readiness': '/api/cron/academic-readiness',
+  'auto-generate-content': '/api/cron/auto-generate-content',
   'billing-reminders': '/api/cron/billing-reminders',
   'invoice-reminders': '/api/cron/invoice-reminders',
   'lead-nurture': '/api/cron/lead-nurture',
@@ -14,6 +16,7 @@ const CRON_PATHS: Record<string, string> = {
   'process-certificates': '/api/cron/process-certificates',
   'process-notifications': '/api/cron/process-notifications',
   'receipt-sweep': '/api/cron/receipt-sweep',
+  'school-report-readiness': '/api/cron/school-report-readiness',
   'streak-reminder': '/api/cron/streak-reminder',
   'term-scheduler': '/api/cron/term-scheduler',
   'weekly-summary': '/api/cron/weekly-summary',

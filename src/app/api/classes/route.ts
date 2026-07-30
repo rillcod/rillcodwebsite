@@ -14,15 +14,10 @@ function adminClient() {
   );
 }
 
+import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
+
 function prepareAcademicClass(classId: string) {
-  after(async () => {
-    try {
-      const { runAcademicReadinessAutomation } = await import('@/lib/academic/readiness-automation');
-      await runAcademicReadinessAutomation(adminClient() as any, { classIds: [classId], limit: 1 });
-    } catch (error) {
-      console.error('[classes] academic readiness automation failed:', classId, error);
-    }
-  });
+  after(() => runClassAcademicReadiness(classId));
 }
 
 type Caller = { role: string; id: string; school_id: string | null };

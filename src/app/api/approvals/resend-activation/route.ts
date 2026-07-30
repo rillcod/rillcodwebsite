@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { sendTermRegistrationActivation } from '@/lib/registration/term-activation';
 import { sendSchoolPartnershipActivation } from '@/lib/registration/school-activation';
 import { sendSpecialProgramActivation, onboardSummerStudent } from '@/lib/summer-school/onboard';
+import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 
 function adminClient() {
   return createClient(
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
   try {
     const onboard = await onboardSummerStudent(admin, prospect as any, { approvedBy: caller.id });
     const activation = await sendSpecialProgramActivation(onboard, prospect as any, { force: true });
+    after(() => runClassAcademicReadiness(onboard.classId));
     return NextResponse.json({
       success: true,
       delivered: activation.email,

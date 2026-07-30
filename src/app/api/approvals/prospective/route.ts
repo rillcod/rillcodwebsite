@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
+import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 import { isSpecialProgramProspect } from '@/lib/summer-school/balance-prospect';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 
@@ -160,6 +161,7 @@ export async function POST(request: NextRequest) {
       try {
         const onboard = await onboardSummerStudent(admin, refreshed as any, { approvedBy: caller.id });
         activation = await sendSpecialProgramActivation(onboard, refreshed as any, { force: true });
+        after(() => runClassAcademicReadiness(onboard.classId));
       } catch (activationErr) {
         console.error('Failed to send activation after prospective approval settlement:', activationErr);
       }
@@ -197,6 +199,7 @@ export async function POST(request: NextRequest) {
     } catch (mailErr) {
       console.error('Failed to send activation email on manual approval:', mailErr);
     }
+    after(() => runClassAcademicReadiness(onboard.classId));
 
     return NextResponse.json({
       success: true,

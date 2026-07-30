@@ -28,6 +28,10 @@
       "schedule": "0 10 * * *"
     },
     {
+      "path": "/api/cron/academic-readiness",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/weekly-summary",
       "schedule": "0 9 1 * *"
     },

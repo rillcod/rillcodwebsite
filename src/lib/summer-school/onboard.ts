@@ -65,6 +65,7 @@ export interface SummerOnboardResult {
   student: OnboardedAccount & { studentRowId: string | null };
   schoolId: string;
   schoolName: string;
+  classId: string;
   whatsappOptIn: boolean;
   parentPhone: string | null;
 }
@@ -600,6 +601,7 @@ export async function onboardSummerStudent(
     student: { id: studentPortalId, studentRowId, email: studentEmail, password: studentCreated ? studentPw : null, created: studentCreated },
     schoolId: school.id,
     schoolName: school.name,
+    classId,
     whatsappOptIn,
     parentPhone,
   };

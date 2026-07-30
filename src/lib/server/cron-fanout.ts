@@ -31,3 +31,26 @@ export async function fanoutCrons(hostUrl: string, paths: string[]): Promise<Rec
   }));
   return out;
 }
+
+/** True when every child returned `ok`. */
+export function fanoutAllSucceeded(result: Record<string, string>): boolean {
+  return Object.values(result).every((status) => status === 'ok');
+}
+
+export function fanoutFailures(result: Record<string, string>): Array<[string, string]> {
+  return Object.entries(result).filter(([, status]) => status !== 'ok');
+}
+
+/**
+ * Run cron children one after another so upstream work (e.g. academic-readiness)
+ * finishes before downstream consumers (e.g. auto-generate-content).
+ */
+export async function fanoutCronsSequential(hostUrl: string, paths: string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const path of paths) {
+    const batch = await fanoutCrons(hostUrl, [path]);
+    out[path] = batch[path] ?? 'error';
+    if (out[path] !== 'ok') break;
+  }
+  return out;
+}

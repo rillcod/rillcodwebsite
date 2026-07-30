@@ -17,7 +17,9 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
-import { fanoutCrons } from '@/lib/server/cron-fanout';
+import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
+import { claimDailyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
+import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 import {
   retryPaidCredentialDelivery,
   retryUnonboardedPaidStudent,
@@ -27,9 +29,13 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
-// Code-base cron jobs that aren't on the external scheduler — triggered from this daily sweep so
-// they run without a separate cron-job.org entry. Each runs as its own invocation (own timeout).
-const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'lead-nurture', 'auto-generate-content'];
+// Code-base cron jobs that aren't on the external scheduler — triggered once per day from this
+// sweep (daily guard below) so they run without a separate cron-job.org entry.
+// integrity-sweep already has its own Vercel schedule; auto-generate-content chains from
+// academic-readiness so plans are prepared before content generation.
+const DAILY_FANOUT = ['assignment-reminders', 'form-followup', 'lead-nurture', 'academic-readiness'];
+const DAILY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_daily_fanout_date';
+const FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_fanout';
 // NOTE: Do NOT fan out `weekly-summary` here. That job sends the monthly parent update
 // and must run at most once per month (see vercel.json). Fanning it from this 15-minute
 // sweep re-mailed parents every run whenever Redis fell back to in-memory.
@@ -86,6 +92,7 @@ async function handle(req: NextRequest) {
 
       // Activation email (both logins + next steps + receipt PDF) and WhatsApp.
       await sendSpecialProgramActivation(onboard, prospect);
+      if (onboard.classId) after(() => runClassAcademicReadiness(onboard.classId!));
 
       report.onboarded++;
     } catch (err: any) {
@@ -134,6 +141,7 @@ async function handle(req: NextRequest) {
         console.error('[onboarding-sweep] drift CRM sync failed:', crmErr);
       }
       await sendSpecialProgramActivation(onboard, prospect);
+      if (onboard.classId) after(() => runClassAcademicReadiness(onboard.classId!));
       report.repaired++;
     } catch (err: any) {
       report.failed++;
@@ -201,12 +209,25 @@ async function handle(req: NextRequest) {
     }
   }
 
-  // Fan out the unregistered code-base crons in the background so they run daily too, without a
-  // separate scheduler entry. after() keeps this invocation alive to dispatch them AFTER the
-  // scheduler already got its fast response — so the host never blocks or times out.
+  // Fan out the unregistered code-base crons once per day (not every 15-min sweep).
+  // after() keeps this invocation alive to dispatch them AFTER the scheduler response.
   after(async () => {
-    const fan = await fanoutCrons(req.url, DAILY_FANOUT);
-    console.log('[onboarding-sweep] fan-out:', fan);
+    try {
+      const claim = await claimDailyGuard(admin as any, DAILY_FANOUT_GUARD_KEY);
+      if (!claim) {
+        console.log('[onboarding-sweep] daily fan-out skipped (already ran today)');
+        return;
+      }
+      const fan = await fanoutCrons(req.url, DAILY_FANOUT);
+      await recordFanoutResult(admin as any, FANOUT_RESULT_KEY, 'onboarding-sweep', fan);
+      console.log('[onboarding-sweep] fan-out:', fan);
+      const failed = fanoutFailures(fan);
+      if (failed.length) {
+        await claim.release(`fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+      }
+    } catch (fanErr) {
+      console.error('[onboarding-sweep] daily fan-out failed:', fanErr);
+    }
   });
 
   return NextResponse.json({ success: true, ...report });
