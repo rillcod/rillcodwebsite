@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+/** Optional URL: empty/invalid values become undefined so one bad optional does not abort builds. */
+const optionalUrl = z.preprocess((val) => {
+    if (val == null) return undefined;
+    if (typeof val !== 'string') return undefined;
+    const trimmed = val.trim();
+    if (!trimmed) return undefined;
+    const parsed = z.string().url().safeParse(trimmed);
+    return parsed.success ? trimmed : undefined;
+}, z.string().url().optional());
+
 const envSchema = z.object({
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -47,7 +57,7 @@ const envSchema = z.object({
     ZOOM_CLIENT_SECRET: z.string().optional(),
 
     // Storage (Cloudflare R2)
-    R2_ENDPOINT: z.string().url().optional(),
+    R2_ENDPOINT: optionalUrl,
     R2_ACCESS_KEY_ID: z.string().optional(),
     R2_SECRET_ACCESS_KEY: z.string().optional(),
     R2_BUCKET_NAME: z.string().optional(),
@@ -58,7 +68,7 @@ const envSchema = z.object({
     ENABLE_GAMIFICATION: z.string().optional().default('false'),
 
     /** Fallback WhatsApp group invite when none is configured in whatsapp_groups */
-    NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: z.string().url().optional(),
+    NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: optionalUrl,
 });
 
 /**
