@@ -96,26 +96,38 @@ export async function ensureClassWithTutor(
   termId?: string | null,
 ): Promise<string | null> {
   // Resolve only an active teacher already assigned to this school.
+  //
+  // The `guard_class_primary_owner` trigger rejects the insert unless the owner is a
+  // portal_users row with role 'teacher' that is active, not deleted, and attached to
+  // this school. A teacher_schools row can point at ANY staff account — ONLINE SCHOOL
+  // has the ADMINISTRATION admin linked ahead of the real teacher — so every candidate
+  // is checked for eligibility rather than taking whichever row comes back first.
   let tutorId: string | null = null;
 
-  if (!tutorId) {
-    const { data: ts } = await admin
-      .from('teacher_schools')
-      .select('teacher_id')
-      .eq('school_id', schoolId)
-      .limit(1)
-      .maybeSingle();
-    tutorId = (ts as any)?.teacher_id ?? null;
+  // Mirrors the trigger: role 'teacher', is_active not false, is_deleted not true.
+  const eligibleTeacher = (query: any) => query
+    .eq('role', 'teacher')
+    .not('is_active', 'is', false)
+    .not('is_deleted', 'is', true);
+
+  const { data: links } = await admin
+    .from('teacher_schools')
+    .select('teacher_id')
+    .eq('school_id', schoolId);
+  const linkedIds = ((links ?? []) as Array<{ teacher_id: string | null }>)
+    .map((l) => l.teacher_id)
+    .filter((id): id is string => !!id);
+  if (linkedIds.length) {
+    const { data: linked } = await eligibleTeacher(
+      admin.from('portal_users').select('id').in('id', linkedIds),
+    ).limit(1).maybeSingle();
+    tutorId = (linked as any)?.id ?? null;
   }
 
   if (!tutorId) {
-    const { data: t } = await admin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'teacher')
-      .eq('school_id', schoolId)
-      .limit(1)
-      .maybeSingle();
+    const { data: t } = await eligibleTeacher(
+      admin.from('portal_users').select('id').eq('school_id', schoolId),
+    ).limit(1).maybeSingle();
     tutorId = (t as any)?.id ?? null;
   }
 
@@ -188,22 +200,35 @@ export async function ensureClassWithTutor(
   });
 
   // Prefer exact session matches; fall back to legacy null-term rows in the same pool.
+  // The fallback has to apply when the session pool yields no NAME match, not only when
+  // it is empty: a school with one term-pinned class ("… · Generative Art · Teens") and
+  // the legacy cohort class ("Summer School 2026", term_id NULL) would otherwise never
+  // see the legacy row and would create a duplicate on every run.
   const sameSession = resolvedTermId
     ? classes.filter((c) => c.term_id === resolvedTermId)
     : classes;
-  const searchPool = sameSession.length ? sameSession : classes;
+  const searchPools = sameSession.length && sameSession.length !== classes.length
+    ? [sameSession, classes]
+    : [sameSession.length ? sameSession : classes];
 
-  // 1) A class of the SAME tier whose band covers this grade (most specific wins) — this is
-  //    what lets a single-grade child land in a fixed band, or vice versa.
-  const covering = band
-    ? searchPool
-        .filter((c) => c.tier && canonicalTier(c.tier) === tier
-          && bandCoversGrade({ lvl: c.band_lvl ?? '', low: c.band_low ?? 0, high: c.band_high ?? 0 }, gradeRange))
-        .sort((a, b) => ((a.band_high ?? 0) - (a.band_low ?? 0)) - ((b.band_high ?? 0) - (b.band_low ?? 0)))
-    : [];
-  // 2) Else the exact canonical name, or a legacy class with the same band label.
-  const existing = covering[0]
-    ?? searchPool.find((c) => c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)));
+  // Within each pool: 1) a class of the SAME tier whose band covers this grade (most
+  // specific wins) — this is what lets a single-grade child land in a fixed band, or vice
+  // versa; 2) else the exact canonical name, or a legacy class with the same band label.
+  const matchIn = (pool: typeof classes) => {
+    const covering = band
+      ? pool
+          .filter((c) => c.tier && canonicalTier(c.tier) === tier
+            && bandCoversGrade({ lvl: c.band_lvl ?? '', low: c.band_low ?? 0, high: c.band_high ?? 0 }, gradeRange))
+          .sort((a, b) => ((a.band_high ?? 0) - (a.band_low ?? 0)) - ((b.band_high ?? 0) - (b.band_low ?? 0)))
+      : [];
+    return covering[0]
+      ?? pool.find((c) => c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)));
+  };
+  let existing: (typeof classes)[number] | undefined;
+  for (const pool of searchPools) {
+    existing = matchIn(pool);
+    if (existing) break;
+  }
 
   if (existing?.id) {
     const patch: Record<string, unknown> = {};
@@ -223,25 +248,29 @@ export async function ensureClassWithTutor(
   }
 
   if (!tutorId) {
-    const { data: anyTeacher } = await admin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'teacher')
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
+    const { data: anyTeacher } = await eligibleTeacher(
+      admin.from('portal_users').select('id'),
+    ).limit(1).maybeSingle();
     tutorId = (anyTeacher as any)?.id ?? null;
   }
 
+  // No admin fallback: the guard trigger requires role 'teacher', so an admin owner
+  // can never be inserted — it only turned a missing-teacher case into a hard failure.
   if (!tutorId) {
-    const { data: anyAdmin } = await admin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'admin')
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
-    tutorId = (anyAdmin as any)?.id ?? null;
+    console.error('[ensureClassWithTutor] no eligible teacher exists for school', schoolId);
+    return null;
+  }
+
+  // The owner must be attached to this school or the guard trigger rejects the insert.
+  // A teacher borrowed from elsewhere by the fallback above has no link yet.
+  const { data: ownerLink } = await admin
+    .from('teacher_schools')
+    .select('teacher_id')
+    .eq('teacher_id', tutorId)
+    .eq('school_id', schoolId)
+    .maybeSingle();
+  if (!ownerLink) {
+    await admin.from('teacher_schools').insert({ teacher_id: tutorId, school_id: schoolId });
   }
 
   const { data: created, error } = await admin
