@@ -138,7 +138,11 @@ interface CardConfig {
   cornerRadius: 'sharp' | 'rounded' | 'pill';
   bgColor: string; showLogo: boolean; showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
-  width: string; height: string; qrScale?: number; logoScale?: number; headerScale?: number; showCardLabel?: boolean;
+  width: string; height: string; qrScale?: number; logoScale?: number; headerScale?: number; codeScale?: number; showCardLabel?: boolean;
+  /** The printed RC code beside the QR. Hide it when the QR alone is enough. */
+  showCode?: boolean;
+  /** Plain-English "how to check this card" line printed on the back, under the code. */
+  checkNote?: string; showCheckNote?: boolean;
   badgeMode?: 'class' | 'label' | 'custom'; badgeText?: string;
   fields: FieldConfig[];
   typo: {
@@ -183,7 +187,9 @@ const DEFAULT_CONFIG: CardConfig = {
   orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
   cardLabel: 'Student Access Card', footerLeft: 'rillcod.com/login', footerRight: 'Student ID',
   cornerRadius: 'sharp', bgColor: '#ffffff', showLogo: true, showPhotoSlot: false, showCardLabel: true,
-  badgeMode: 'label', badgeText: '', logoScale: 1, headerScale: 1,
+  badgeMode: 'label', badgeText: '', logoScale: 1, headerScale: 1, codeScale: 1, showCode: true,
+  checkNote: 'Scan the QR or enter this code at rillcod.com/result-check to confirm this card.',
+  showCheckNote: true,
   cardOrientation: 'portrait', width: '54mm', height: '85.6mm',
   fields: DEFAULT_FIELDS, typo: DEFAULT_TYPO,
 };
@@ -331,6 +337,11 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
   const logoScale = cfg.logoScale ?? 1;
   const headerScale = cfg.headerScale ?? 1;
   const ff = (fam: string) => fam === 'mono' ? 'monospace' : "'Inter','Segoe UI',system-ui,sans-serif";
+  /** Scale a CSS length that carries its unit, e.g. '2.5mm' * 1.6 -> '4mm'. */
+  const scaleLen = (value: string, factor: number) => {
+    const m = /^\s*([\d.]+)\s*([a-z%]*)\s*$/i.exec(value);
+    return m ? `${Math.round(parseFloat(m[1]) * factor * 100) / 100}${m[2]}` : value;
+  };
   const ts = (s: TypoStyle, extra?: React.CSSProperties): React.CSSProperties => ({
     fontSize:s.fontSize, fontWeight:parseInt(s.fontWeight), color:s.color, fontFamily:ff(s.fontFamily), ...extra,
   });
@@ -393,10 +404,17 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
           <div style={{width:'30%',minWidth:'25mm',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,padding:'10px 8px',background:'#fafafa',flexShrink:0}}>
             <QrPlaceholder size={Math.round(54*(cfg.qrScale??1))} color={acc}/>
             <div style={ts(t.footer,{textTransform:'uppercase',letterSpacing:0.5,textAlign:'center'})}>Scan to verify</div>
-            <div style={ts(t.accentValue,{textAlign:'center'})}>{SAMPLE.id}</div>
+            {cfg.showCode!==false && (
+              <div style={ts(t.accentValue,{textAlign:'center',fontSize:scaleLen(t.accentValue.fontSize,cfg.codeScale??1),lineHeight:1.15,wordBreak:'break-all'})}>{SAMPLE.id}</div>
+            )}
           </div>
         )}
       </div>
+      {cfg.showCheckNote!==false && !!cfg.checkNote && (
+        <div style={{padding:'3px 12px',borderTop:'1px solid #f3f4f6',background:'#fafafa',textAlign:'center'}}>
+          <span style={ts(t.footer,{lineHeight:1.3})}>{cfg.checkNote}</span>
+        </div>
+      )}
       <div style={{display:'flex',justifyContent:'space-between',padding:'4px 12px',borderTop:'1px solid #f3f4f6',background:'#fafafa'}}>
         <span style={ts(t.footer)}>{cfg.footerLeft}</span>
         <span style={ts(t.footer,{fontFamily:'monospace',fontWeight:700,color:'#374151'})}>{cfg.footerRight==='Student ID'?SAMPLE.id:cfg.footerRight}</span>
@@ -583,11 +601,17 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             </div>}
             {r.badge&&r.badge!==r.gradeLevel&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
           </div>
-          <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
+          <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18,Math.round(48*(config.codeScale??1))),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
             <LocalQr data={verifyUrl} size={HD_QR_PRINT_PX} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
-            <div style={{fontSize:6,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>
+            {config.showCode!==false && <div style={{fontSize:Math.round(6*(config.codeScale??1)*10)/10,lineHeight:1.15,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>}
           </div>
         </div>
+        {config.showCheckNote!==false && !!config.checkNote && (
+          /* How to verify, in plain words — so the card explains itself without training. */
+          <div style={{padding:'3px 10px',borderTop:'1px solid #f3f4f6',fontSize:5.5,lineHeight:1.3,color:'#6b7280',fontWeight:600,background:'#fafafa',textAlign:'center'}}>
+            {config.checkNote}
+          </div>
+        )}
         <div style={{display:'flex',justifyContent:'space-between',padding:'4px 10px',borderTop:'1px solid #f3f4f6',fontSize:6,color:'#9ca3af',fontWeight:600,background:'#fafafa'}}>
           <span>{config.footerLeft}</span>
           <span style={{fontFamily:'monospace',color:'#374151',fontWeight:900}}>{config.cardLabel}</span>
@@ -1733,6 +1757,46 @@ export default function CardStudioPage() {
             <input type="range" min={0.5} max={2} step={0.05} value={cfg.qrScale??1}
               onChange={e=>update({qrScale:parseFloat(e.target.value)})}
               className="w-full accent-primary cursor-pointer"/>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-bold">Card Number</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-mono font-bold text-primary">{Math.round((cfg.codeScale??1)*100)}%</span>
+                <button onClick={()=>update({showCode:cfg.showCode===false})}
+                  className={`px-2 py-0.5 text-[8px] font-bold uppercase border rounded-md transition-all ${cfg.showCode!==false?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground'}`}>
+                  {cfg.showCode!==false?'Shown':'Hidden'}
+                </button>
+              </div>
+            </div>
+            <div className={`flex gap-1.5 mb-2 ${cfg.showCode===false?'opacity-40 pointer-events-none':''}`}>
+              {([{label:'Compact',v:0.85},{label:'Standard',v:1},{label:'Large',v:1.6}]).map(s=>{
+                const active=Math.abs((cfg.codeScale??1)-s.v)<0.001;
+                return (
+                  <button key={s.label} onClick={()=>update({codeScale:s.v})}
+                    className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all truncate rounded-md ${active?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* The RC code is the one people read out or type in, so allow it larger than the QR. */}
+            <input type="range" min={0.5} max={3} step={0.05} value={cfg.codeScale??1} disabled={cfg.showCode===false}
+              onChange={e=>update({codeScale:parseFloat(e.target.value)})}
+              className="w-full accent-primary cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"/>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-bold">Check Instruction</div>
+              <button onClick={()=>update({showCheckNote:cfg.showCheckNote===false})}
+                className={`px-2 py-0.5 text-[8px] font-bold uppercase border rounded-md transition-all ${cfg.showCheckNote!==false?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground'}`}>
+                {cfg.showCheckNote!==false?'On':'Off'}
+              </button>
+            </div>
+            <textarea rows={2} value={cfg.checkNote??''} onChange={e=>update({checkNote:e.target.value})}
+              placeholder="Scan the QR or enter this code at rillcod.com/result-check to confirm this card."
+              className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] leading-snug focus:outline-none focus:border-primary rounded-md resize-none"/>
+            <p className="mt-1 text-[8px] leading-snug text-muted-foreground">Printed on the back so anyone holding the card knows how to confirm it.</p>
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Header Badge</div>
