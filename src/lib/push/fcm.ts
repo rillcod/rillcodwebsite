@@ -1,6 +1,9 @@
 /**
  * Firebase Admin (FCM) for Android (and iOS when using FCM registration tokens).
  * Requires FIREBASE_SERVICE_ACCOUNT_JSON (stringified service-account JSON).
+ *
+ * On Cloudflare/OpenNext builds, next.config aliases `firebase-admin` to a stub —
+ * Workers cannot bundle jwks-rsa → jose under the workerd export condition.
  */
 
 import admin from 'firebase-admin';

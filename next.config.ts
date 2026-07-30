@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
+import path from "path";
 // @ts-ignore
 import withPWAInit from "next-pwa";
 // @ts-ignore
 import runtimeCaching from "next-pwa/cache";
+
+/** Cloudflare Pages sets CF_PAGES=1; local OpenNext scripts set OPENNEXT_CLOUDFLARE=1. */
+const isCloudflareBuild =
+  process.env.CF_PAGES === "1" || process.env.OPENNEXT_CLOUDFLARE === "1";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -34,9 +39,9 @@ const nextConfig: NextConfig = {
 
   // Keep pdf engines out of the webpack bundle so AFM/TTF paths resolve from
   // node_modules on Vercel (bundling rewrites __dirname → .next/server/chunks).
-  // `jose` must stay external for OpenNext/Cloudflare: workerd uses a different
-  // export condition, and Nesting jose@4 under firebase-admin/jwks-rsa breaks
-  // esbuild unless OpenNext can copy the workerd entrypoints.
+  // `jose` must stay external for OpenNext/Cloudflare (workerd export condition).
+  // Do NOT externalize firebase-admin / jwks-rsa — copying them into .open-next
+  // pulls a nested jose that esbuild cannot resolve for workerd.
   serverExternalPackages: [
     'pdfmake',
     'pdfkit',
@@ -44,8 +49,6 @@ const nextConfig: NextConfig = {
     'fontkit',
     '@foliojs-fork/fontkit',
     'jose',
-    'jwks-rsa',
-    'firebase-admin',
   ],
 
   // Ensure font metric / TTF files are traced into serverless functions.
@@ -103,9 +106,18 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   // next-pwa already injects webpack; disable persistent cache on Vercel to cut peak RAM.
-  webpack: (config, { dev }) => {
+  webpack: (config, { dev, isServer }) => {
     if (!dev && process.env.VERCEL) {
       config.cache = false;
+    }
+    // Swap firebase-admin for a no-op on Cloudflare so OpenNext never copies
+    // jwks-rsa/jose into the worker bundle (build-time "Could not resolve jose").
+    if (isServer && isCloudflareBuild) {
+      config.resolve = config.resolve ?? {};
+      config.resolve.alias = {
+        ...(config.resolve.alias as Record<string, string | false | string[]>),
+        "firebase-admin": path.join(__dirname, "src/lib/push/firebase-admin-stub.cjs"),
+      };
     }
     return config;
   },
