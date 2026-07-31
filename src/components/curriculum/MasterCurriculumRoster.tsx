@@ -412,7 +412,7 @@ export function MasterCurriculumRoster({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-indigo-600/10 border border-primary/20 p-6 backdrop-blur-xl shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-muted border border-primary/20 p-6 backdrop-blur-xl shadow-lg">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -719,7 +719,7 @@ export function MasterCurriculumRoster({
                             <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
                               {programName}
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
                               v{item.version ?? 1}
                             </span>
 
@@ -727,14 +727,14 @@ export function MasterCurriculumRoster({
                             {liveEdition ? (
                               <span
                                 title={`Published for ${liveEdition.academic_session ?? 'the current session'} — schools can build teaching plans from it`}
-                                className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30"
+                                className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30"
                               >
                                 Published{liveEdition.academic_session ? ` · ${liveEdition.academic_session}` : ''}
                               </span>
                             ) : (
                               <span
                                 title="Not published yet. Classes cannot teach from this until an edition is published."
-                                className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30"
+                                className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30"
                               >
                                 Draft — not published
                               </span>
@@ -754,8 +754,8 @@ export function MasterCurriculumRoster({
                               onClick={() => handleToggleVisibility(item)}
                               className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-sm ${
                                 isVisible
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
                               }`}
                             >
                               <span className={`w-2 h-2 rounded-full ${isVisible ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
@@ -806,7 +806,7 @@ export function MasterCurriculumRoster({
                             <button
                               type="button"
                               onClick={() => handleUnpublish(item.id)}
-                              className="px-3 py-2 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                              className="px-3 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
                               title="Unpublish & Retire this official release"
                             >
                               <EyeSlashIcon className="w-3.5 h-3.5" /> Unpublish
@@ -816,7 +816,7 @@ export function MasterCurriculumRoster({
                               type="button"
                               onClick={() => handleDeleteItem(item.id)}
                               disabled={deletingId === item.id}
-                              className="p-2.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+                              className="p-2.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
                               title="Delete this curriculum"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -839,7 +839,7 @@ export function MasterCurriculumRoster({
                                   <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">
                                     Term {t.term} {t.title ? `· ${t.title}` : ''}
                                   </span>
-                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
+                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 </div>
                                 <p className="text-xs font-bold text-foreground truncate">
                                   {(t.weeks ?? []).length} weeks planned
@@ -954,7 +954,7 @@ export function MasterCurriculumRoster({
               </div>
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Delete everything</h3>
-                <p className="text-xs text-rose-400 font-bold">This cannot be undone</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400 font-bold">This cannot be undone</p>
               </div>
             </div>
 
@@ -966,7 +966,7 @@ export function MasterCurriculumRoster({
             </p>
 
             <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl space-y-2">
-              <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">
                 Type RESET to confirm deletion:
               </p>
               <input
