@@ -115,16 +115,23 @@ export async function unpublishCurriculumRelease(
         .delete()
         .in('release_id', releaseIds);
 
-      await admin
+      // 'paused', not 'archived': the column only permits active | paused | conflict, so the old
+      // value failed the check constraint every time — and the error was discarded, so schools
+      // stayed adopted to a curriculum the office believed it had withdrawn. 'paused' is what the
+      // direction resolver already treats as "not in force" (it matches status='active' only),
+      // and it keeps the adoption history instead of deleting it.
+      const { error: pauseError } = await admin
         .from('academic_curriculum_adoptions')
-        .update({ status: 'archived' })
+        .update({ status: 'paused' })
         .in('release_id', releaseIds);
+      if (pauseError) return { ok: false, count: 0, error: pauseError.message };
 
       // 3. Mark releases as retired
-      await admin
+      const { error: retireError } = await admin
         .from('academic_curriculum_releases')
         .update({ status: 'retired' })
         .in('id', releaseIds);
+      if (retireError) return { ok: false, count: 0, error: retireError.message };
     }
 
     // 4. Hide source curriculum from school view

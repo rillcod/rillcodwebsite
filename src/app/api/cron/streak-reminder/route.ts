@@ -5,6 +5,7 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { resolveOptedInUsers } from '@/lib/notifications/opt-in';
 import { loadTermWindow } from '@/lib/notifications/term-window';
 export const dynamic = 'force-dynamic';
@@ -20,12 +21,15 @@ function adminClient() {
 }
 
 // GET or POST /api/cron/streak-reminder
+// Really runs every 15 minutes on its own scheduler entry (verified against cron_run_history:
+// 672 runs in 7 days, max gap 15 minutes). at-risk-students also fans it out; the external entry
+// is what sets the cadence. The per-user daily guard lives in the handler, not the schedule.
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('streak-reminder', 15, () => handleRequest(req));
+  return runMonitoredCron('streak-reminder', cronInterval('streak-reminder'), () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('streak-reminder', 15, () => handleRequest(req));
+  return runMonitoredCron('streak-reminder', cronInterval('streak-reminder'), () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

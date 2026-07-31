@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOfficeOptional } from './OfficeContext';
+import { cronLabel } from '@/lib/operations/cron-registry';
 
 type HealthRow = {
   job_name: string;
@@ -44,26 +45,8 @@ type FinanceFailure = {
   created_at: string;
 };
 
-const JOB_NAMES: Record<string, string> = {
-  'academic-readiness': 'Prepare classes for teaching',
-  'auto-generate-content': 'Generate lesson content',
-  'billing-reminders': 'Billing reminders',
-  'invoice-reminders': 'Invoice reminders',
-  'payment-reminders': 'Balance payment reminders',
-  'process-notifications': 'Send waiting messages',
-  'process-certificates': 'Prepare certificates',
-  'weekly-summary': 'Monthly parent update',
-  'receipt-sweep': 'Check payment receipts',
-  'term-scheduler': 'Prepare the next school term',
-  'lead-nurture': 'Follow up interested customers',
-  'streak-reminder': 'Learning activity reminders',
-  'onboarding-sweep': 'Help new users get started',
-  'live-session-reminders': 'Class and live-session reminders',
-};
-
-function friendlyJob(name: string) {
-  return JOB_NAMES[name] || name.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+// Labels live in the cron registry alongside the schedule, so a new job is named once.
+const friendlyJob = cronLabel;
 
 function healthState(row: HealthRow) {
   if (row.consecutive_failures > 0) return { label: 'Failing', cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30' };

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { buildMonthlyParentUpdateEmail } from '@/lib/communication/monthly-parent-email';
 import { monthlyPeriodKey, markSentThisMonth, wasSentThisMonth } from '@/lib/communication/monthly-send-guard';
 import { getParentLinkScope } from '@/lib/parents/links';
@@ -11,8 +12,6 @@ import { loadTermWindow } from '@/lib/notifications/term-window';
 import { optionalStudentPortalUserId, studentDisplayName } from '@/lib/supabase/id-contract';
 
 export const dynamic = 'force-dynamic';
-
-const MONTHLY_MINUTES = 30 * 24 * 60; // cron monitor expects ~monthly cadence
 
 function adminClient() {
   return createClient(
@@ -23,11 +22,11 @@ function adminClient() {
 
 /** Parent monthly update (uses existing weekly-summary cron + weekly_summary pref). */
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('weekly-summary', MONTHLY_MINUTES, () => handleRequest(req));
+  return runMonitoredCron('weekly-summary', cronInterval('weekly-summary'), () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('weekly-summary', MONTHLY_MINUTES, () => handleRequest(req));
+  return runMonitoredCron('weekly-summary', cronInterval('weekly-summary'), () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

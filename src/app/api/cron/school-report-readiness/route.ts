@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { termNumberFromLabel } from '@/lib/reports/academic-period';
 import { runReportPreflight } from '@/lib/school-reports/preflight';
 import {
@@ -22,11 +23,11 @@ function adminClient() {
 }
 
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('school-report-readiness', 1440, () => handleRequest(req));
+  return runMonitoredCron('school-report-readiness', cronInterval('school-report-readiness'), () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('school-report-readiness', 1440, () => handleRequest(req));
+  return runMonitoredCron('school-report-readiness', cronInterval('school-report-readiness'), () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

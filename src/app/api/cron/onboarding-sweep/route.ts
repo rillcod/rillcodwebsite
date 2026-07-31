@@ -16,9 +16,10 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
-import { claimDailyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
+import { claimDailyGuard, claimHourlyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
 import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 import {
   retryPaidCredentialDelivery,
@@ -36,6 +37,10 @@ export const maxDuration = 120;
 const DAILY_FANOUT = ['assignment-reminders', 'form-followup', 'lead-nurture', 'academic-readiness'];
 const DAILY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_daily_fanout_date';
 const FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_fanout';
+// Weekly teaching content needs more than one pass a day — see the hourly fan-out below.
+const HOURLY_FANOUT = ['auto-generate-content'];
+const HOURLY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_hourly_fanout_hour';
+const HOURLY_FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_hourly_fanout';
 // NOTE: Do NOT fan out `weekly-summary` here. That job sends the monthly parent update
 // and must run at most once per month (see vercel.json). Fanning it from this 15-minute
 // sweep re-mailed parents every run whenever Redis fell back to in-memory.
@@ -48,8 +53,8 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
+export async function GET(req: NextRequest) { return runMonitoredCron('onboarding-sweep', cronInterval('onboarding-sweep'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('onboarding-sweep', cronInterval('onboarding-sweep'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {
@@ -227,6 +232,26 @@ async function handle(req: NextRequest) {
       }
     } catch (fanErr) {
       console.error('[onboarding-sweep] daily fan-out failed:', fanErr);
+    }
+  });
+
+  // Hourly fan-out. Weekly teaching content cannot be produced on a daily job: each run is bounded
+  // by a ~50s budget (roughly 4-5 classes), so a once-a-day sweep tops out near 30 classes a week
+  // and silently under-serves the rest. Hourly clears 60 classes with room to spare, and reuses
+  // this 15-minute host rather than needing another cron-job.org entry.
+  after(async () => {
+    try {
+      const claim = await claimHourlyGuard(admin as any, HOURLY_FANOUT_GUARD_KEY);
+      if (!claim) return;
+      const fan = await fanoutCrons(req.url, HOURLY_FANOUT);
+      await recordFanoutResult(admin as any, HOURLY_FANOUT_RESULT_KEY, 'onboarding-sweep', fan);
+      console.log('[onboarding-sweep] hourly fan-out:', fan);
+      const failed = fanoutFailures(fan);
+      if (failed.length) {
+        await claim.release(`hourly fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+      }
+    } catch (fanErr) {
+      console.error('[onboarding-sweep] hourly fan-out failed:', fanErr);
     }
   });
 

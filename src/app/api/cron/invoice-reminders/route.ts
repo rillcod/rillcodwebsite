@@ -17,6 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 
@@ -263,11 +264,11 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
 // Manual trigger or cron
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('invoice-reminders', 1440, () => handleRequest(req, 'cron'));
+  return runMonitoredCron('invoice-reminders', cronInterval('invoice-reminders'), () => handleRequest(req, 'cron'));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('invoice-reminders', 1440, () => handleRequest(req, 'manual'));
+  return runMonitoredCron('invoice-reminders', cronInterval('invoice-reminders'), () => handleRequest(req, 'manual'));
 }
 
 async function handleRequest(req: NextRequest, type: 'cron' | 'manual') {

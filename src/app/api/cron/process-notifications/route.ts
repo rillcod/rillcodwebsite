@@ -9,6 +9,7 @@ import { runCommunicationFollowup } from '@/lib/communication/followup-runner';
 
 import { loadOfficeAutomationControls, type OfficeAutomationControls } from '@/lib/communication/automation-controls';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
 export const dynamic = 'force-dynamic';
 
@@ -100,5 +101,5 @@ async function handleRequest(req: Request) {
     });
 }
 
-export async function GET(req: Request) { return runMonitoredCron('process-notifications', 1, () => handleRequest(req)); }
-export async function POST(req: Request) { return runMonitoredCron('process-notifications', 1, () => handleRequest(req)); }
+export async function GET(req: Request) { return runMonitoredCron('process-notifications', cronInterval('process-notifications'), () => handleRequest(req)); }
+export async function POST(req: Request) { return runMonitoredCron('process-notifications', cronInterval('process-notifications'), () => handleRequest(req)); }

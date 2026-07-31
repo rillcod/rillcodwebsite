@@ -22,6 +22,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { logAudit } from '@/lib/audit/log';
 import {
   isParentLinkConflict,
@@ -43,8 +45,10 @@ async function fetchAll(admin: ReturnType<typeof adminClient>, table: string, co
   return out;
 }
 
-export async function GET(req: NextRequest) { return handle(req); }
-export async function POST(req: NextRequest) { return handle(req); }
+// Monitored: this runs on its own daily schedule and silently repairs live records, so a run
+// that stops happening — or starts reporting errors — has to be visible in Operations Health.
+export async function GET(req: NextRequest) { return runMonitoredCron('integrity-sweep', cronInterval('integrity-sweep'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('integrity-sweep', cronInterval('integrity-sweep'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {
@@ -117,13 +121,18 @@ async function handle(req: NextRequest) {
 
     // ── 2b. Purge stale unpaid registration attempts (14+ days, never paid) ──
     const staleBefore = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: staleStudents } = await admin
+    // `students` has no `section_class` — that column is on portal_users. Selecting it made this
+    // whole read fail with 42703, and because the error was discarded the sweep reported success
+    // while never purging a single stale registration. Alias the real column so the CRM consumer
+    // (sync-dropped-payer, which reads `section_class`) still gets the shape it expects.
+    const { data: staleStudents, error: staleStudentsError } = await admin
       .from('students')
-      .select('id, full_name, parent_name, parent_email, parent_phone, grade_level, section_class, course_interest, school_name, enrollment_type, preferred_schedule')
+      .select('id, full_name, parent_name, parent_email, parent_phone, grade_level, section_class:section, course_interest, school_name, enrollment_type, preferred_schedule')
       .eq('status', 'pending')
       .is('registration_payment_at', null)
       .lt('created_at', staleBefore)
       .limit(200);
+    if (staleStudentsError) report.errors.push(`stale students read: ${staleStudentsError.message}`);
     const staleStudentIds = (staleStudents ?? []).map((s: any) => s.id).filter(Boolean);
     for (const s of staleStudents ?? []) {
       try {

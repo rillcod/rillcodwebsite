@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { liveSessionService } from '@/services/live-session.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,5 +19,5 @@ async function handleRequest(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('live-session-reminders', 15, () => handleRequest(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('live-session-reminders', 15, () => handleRequest(req)); }
+export async function GET(req: NextRequest) { return runMonitoredCron('live-session-reminders', cronInterval('live-session-reminders'), () => handleRequest(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('live-session-reminders', cronInterval('live-session-reminders'), () => handleRequest(req)); }

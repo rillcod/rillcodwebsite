@@ -18,9 +18,32 @@ export function todayUtcDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** The current UTC hour as `YYYY-MM-DDTHH` — one token per hour, and it sorts. */
+export function currentUtcHour(): string {
+  return new Date().toISOString().slice(0, 13);
+}
+
 /** Returns null when the day is already claimed for this key. */
 export async function claimDailyGuard(db: DbClient, key: string): Promise<DailyGuardClaim | null> {
-  const today = todayUtcDate();
+  return claimPeriodGuard(db, key, todayUtcDate());
+}
+
+/**
+ * Returns null when the hour is already claimed for this key. Lets a 15-minute host cron drive an
+ * hourly child without a separate scheduler entry — the same trick `claimDailyGuard` plays for
+ * daily children.
+ */
+export async function claimHourlyGuard(db: DbClient, key: string): Promise<DailyGuardClaim | null> {
+  return claimPeriodGuard(db, key, currentUtcHour());
+}
+
+/** Claim `key` for one period. `period` is any token that changes when the next period starts. */
+export async function claimPeriodGuard(
+  db: DbClient,
+  key: string,
+  period: string,
+): Promise<DailyGuardClaim | null> {
+  const today = period;
   const { data: priorRun, error: readError } = await db
     .from('app_settings')
     .select('value')

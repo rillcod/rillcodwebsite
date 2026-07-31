@@ -1262,7 +1262,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "This curriculum is linked to editions, plans, or week records. Retry with force=1 to unlink safely and delete this draft.",
+          "This curriculum is linked to editions, plans, or week records. Retry with force=1 to clean blockers and delete this draft.",
         can_force: true,
         official_release_count: releaseCount ?? 0,
         linked_plan_count: planCount ?? 0,

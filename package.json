@@ -10,6 +10,7 @@
     "lint": "next lint",
     "lint:encoding": "node scripts/check-encoding.mjs",
     "audit:embeds": "npx tsx scripts/audit-supabase-embeds.ts",
+    "cron:table": "npx tsx scripts/print-cron-table.ts",
     "test": "vitest run",
     "test:smoke:registration": "npx tsx scripts/smoke-registration-entry-paths.ts",
     "test:watch": "vitest",

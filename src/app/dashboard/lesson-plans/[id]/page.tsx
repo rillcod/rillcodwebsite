@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { buildCurriculumHref } from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
+import ThisWeekPanel from "@/components/lesson-plans/ThisWeekPanel";
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -2241,6 +2242,13 @@ export default function LessonPlanDetailPage() {
       {/* Week Entries */}
       {activeTab === "weeks" && (
         <div className="space-y-3">
+          {/* This week: prepare it and see how the class is doing, without leaving the tab. */}
+          <ThisWeekPanel
+            planId={id}
+            termStart={plan.term_start ?? null}
+            canGenerate={canGenerateProgression}
+          />
+
           {/* Quick Generate bar */}
           {canGenerateProgression && plan.course_id && plan.school_id && (
             <div className="print:hidden bg-card border border-white/[0.08] rounded-2xl p-4">

@@ -944,26 +944,38 @@ Use server-side authorisation on every action. Hiding a button is not authorisat
 
 External scheduler requests must use HTTPS and `Authorization: Bearer <CRON_SECRET>` or `x-cron-secret`. Keep the secret only in the scheduler and production environment. Alert on non-2xx responses and missed schedules.
 
-| Job | Recommended schedule (WAT) | Maximum healthy age | Purpose |
-|---|---:|---:|---|
-| `process-notifications` | Every 2-5 minutes | 10 minutes | Email queue, WhatsApp outbox, scheduled newsletters |
-| `live-session-reminders` | Every 10-15 minutes | 20 minutes | Upcoming live sessions |
-| `onboarding-sweep` | Every 15 minutes | 30 minutes | Repair paid but incomplete onboarding |
-| `assignment-reminders` | Daily 18:00 | 26 hours | Upcoming assignment reminders |
-| `integrity-sweep` | Daily 05:00 | 26 hours | Operational data integrity |
-| `form-followup` | Daily 09:00 | 26 hours | Form and registration follow-up |
-| `lead-nurture` | Daily 10:00 | 26 hours | State-aware lead nurture |
-| `auto-generate-content` | Daily 04:00 | 26 hours | Approved academic plan generation |
-| `invoice-reminders` | Daily 08:00 | 26 hours | Student invoice reminders |
-| `billing-reminders` | Daily 08:30 | 26 hours | Partner-school billing |
-| `payment-reminders` | Daily 09:00 | 26 hours | Outstanding registration balances |
-| `receipt-sweep` | Daily 06:30 | 26 hours | Missing receipt recovery |
-| `at-risk-students` | Daily 07:00 | 26 hours | Student-success intervention detection |
-| `streak-reminder` | Daily 18:00 | 26 hours | Engagement reminder |
-| `weekly-summary` | Friday 17:00 | 8 days | Parent summary |
-| `term-scheduler` | Monday 05:00 | 8 days | Release approved term content |
-| `process-certificates` | Every 30 minutes | 1 hour | Certificate queue |
-| `publish-newsletters` | Every 5 minutes if not piggybacked | 10 minutes | Scheduled newsletter publication |
+`src/lib/operations/cron-registry.ts` is the single source of truth for this table. Regenerate it
+with `npm run cron:table` after adding, retiming, or retiring a job — do not hand-edit it. The
+registry also feeds each route's health interval and the Operations Health panel, and
+`cron-registry.test.ts` fails the build if a route and its entry ever disagree.
+
+| Job | Schedule (WAT) | Maximum healthy age | Triggered by | Purpose |
+|---|---:|---:|---|---|
+| `process-notifications` | Every 2-5 minutes | 11 minutes | External scheduler | Email queue, WhatsApp outbox, scheduled newsletters |
+| `live-session-reminders` | Every 10-15 minutes | 25 minutes | External scheduler | Upcoming live sessions |
+| `onboarding-sweep` | Every 15 minutes | 25 minutes | External scheduler | Repair paid but incomplete onboarding; hosts the daily fan-out |
+| `process-certificates` | Every 30 minutes | 75 minutes | External scheduler | Certificate queue |
+| `communication-followup` | Hourly | 75 minutes | External scheduler | Hourly owner reminder for unanswered customer communication |
+| `integrity-sweep` | Daily 03:00 | 30 hours | External scheduler | Operational data integrity and self-healing repair |
+| `academic-readiness` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | Prepare official teaching plans and notify teachers |
+| `term-scheduler` | Weekly | 8.8 days | External scheduler | Release approved term content |
+| `receipt-sweep` | Every 30 minutes | 75 minutes | External scheduler | Missing receipt recovery |
+| `at-risk-students` | Daily 07:00 | 30 hours | External scheduler | Student-success detection; fans out registration and payment recovery |
+| `invoice-reminders` | Daily 07:00 | 30 hours | External scheduler | Student invoice reminders |
+| `billing-reminders` | Daily 08:00 | 30 hours | External scheduler | Partner-school billing |
+| `payment-reminders` | Daily 09:00 | 30 hours | External scheduler | Outstanding registration balances |
+| `school-report-readiness` | Daily 10:00 | 30 hours | External scheduler | Partner-school reporting readiness |
+| `weekly-summary` | Monthly, 1st at 09:00 | 37.5 days | External scheduler | Parent summary |
+| `assignment-reminders` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | Upcoming assignment reminders |
+| `form-followup` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | Form and registration follow-up |
+| `lead-nurture` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | State-aware lead nurture |
+| `streak-reminder` | Every 15 minutes (also fanned out by at-risk-students) | 25 minutes | External scheduler | Engagement reminder |
+| `auto-generate-content` | Hourly (fan-out); also chained from academic-readiness | 75 minutes | Fan-out from `onboarding-sweep` | Approved academic plan generation |
+| `publish-newsletters` | Optional; the same work runs inside process-notifications | 15 minutes | Runs inside `process-notifications` | Scheduled newsletter publication |
+
+Only the `External scheduler` rows need an entry on cron-job.org. **`communication-followup` has
+never been confirmed as registered** — nothing in this repo triggers it. It is now monitored, so
+Operations Health shows it as "Waiting for first run" until someone verifies the scheduler entry.
 
 ### 12.1 Fan-out warning
 

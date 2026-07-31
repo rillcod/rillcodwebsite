@@ -5,6 +5,7 @@ import { buildAssignmentEmail, isInAppEmail } from '@/lib/email/rillcod-transact
 import { notificationsService } from '@/services/notifications.service';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { scheduledWeekForDate } from './schedule';
 
 export const dynamic = 'force-dynamic';
@@ -18,11 +19,11 @@ function adminClient() {
 
 // GET or POST /api/cron/term-scheduler
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('term-scheduler', 1440, () => handleRequest(req));
+  return runMonitoredCron('term-scheduler', cronInterval('term-scheduler'), () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('term-scheduler', 1440, () => handleRequest(req));
+  return runMonitoredCron('term-scheduler', cronInterval('term-scheduler'), () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

@@ -98,6 +98,9 @@ export class NextAppContainer extends Container {
   }
 }
 
+// Cron expression → container route. Inert until `[triggers]` is restored in wrangler.toml at
+// production cutover; see the note there for why staging must not fire these. Schedules and
+// cadences for every job are documented in src/lib/operations/cron-registry.ts.
 const CRON_PATHS: Record<string, string> = {
   "0 7 * * *": "/api/cron/invoice-reminders",
   "0 8 * * *": "/api/cron/billing-reminders",
