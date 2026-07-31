@@ -60,7 +60,52 @@ function SchoolDirectionPageInner() {
   const [qualityBlock, setQualityBlock] = useState<QualityBlock | null>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
+  // Schools still adopted onto a retired edition. They look distributed everywhere while
+  // having no live direction to teach from, so they are surfaced on the step that owns
+  // school assignment rather than behind another page.
+  const [stranded, setStranded] = useState<{
+    groups: Array<{
+      courseId: string;
+      courseTitle: string;
+      retiredEdition: { id: string; title: string; release_number: number | null };
+      liveEdition: { id: string; title: string; release_number: number | null } | null;
+      schools: Array<{ id: string; name: string }>;
+      resolvable: boolean;
+    }>;
+    totals: { groups: number; schools: number; resolvable: number };
+  } | null>(null);
+  const [repointing, setRepointing] = useState<string | null>(null);
+  const [strandedOpen, setStrandedOpen] = useState<string | null>(null);
   const [form, setForm] = useState({ curriculum_id: '', academic_session: '2026/2027', audience_label: 'All assigned learner levels', grade_key: '', effective_term_number: 1, change_summary: 'Initial approved curriculum direction.', source_name: 'Rillcod Academic Office', framework: 'Rillcod Coding and Robotics Academic Standard' });
+
+  /** Move stranded schools onto the live edition, or drop the dead adoptions entirely. */
+  const repointStranded = useCallback(async (courseId: string, mode: 'move' | 'clear') => {
+    if (mode === 'clear' && !window.confirm(
+      'Remove these school assignments? The course will read as not distributed until a new edition is assigned.',
+    )) return;
+    setRepointing(courseId);
+    setError('');
+    try {
+      const response = await fetch('/api/curriculum-governance/stranded', {
+        method: mode === 'move' ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Could not update those assignments.');
+      setMessage(
+        mode === 'move'
+          ? `Moved ${payload.assignment?.applied_count ?? payload.requestedSchools} school(s) onto edition #${payload.movedTo?.release_number ?? ''}.`
+          : `Cleared ${payload.removedAdoptions} stale assignment(s) and ${payload.removedDirections} direction(s).`,
+      );
+      const refreshed = await fetch('/api/curriculum-governance/stranded', { cache: 'no-store' });
+      setStranded(refreshed.ok ? await refreshed.json() : null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update those assignments.');
+    } finally {
+      setRepointing(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     const response = await fetch('/api/curriculum-studio/official-directions', { cache: 'no-store' });
@@ -71,6 +116,10 @@ function SchoolDirectionPageInner() {
     const nextDrafts: Draft[] = payload.data.curriculum_drafts ?? [];
     setDrafts(nextDrafts);
     setDirections(payload.data.official_directions ?? []);
+    fetch('/api/curriculum-governance/stranded', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => { if (payload?.groups) setStranded(payload); })
+      .catch(() => undefined);
     fetch('/api/settings/academic-year')
       .then((response) => response.ok ? response.json() : null)
       .then((payload) => {
@@ -166,6 +215,86 @@ function SchoolDirectionPageInner() {
       </header>
       {message && <p className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">{message}</p>}
       {error && <p role="alert" className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">{error}</p>}
+
+      {stranded && stranded.groups.length > 0 && (
+        <section className="mb-5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-foreground">
+                {stranded.totals.schools} school{stranded.totals.schools === 1 ? '' : 's'} are still assigned to a retired edition
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                They look distributed, but the edition behind them is retired, so there is nothing live for those classes to follow.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {stranded.groups.map((group) => {
+                  const open = strandedOpen === group.courseId;
+                  const workingOn = repointing === group.courseId;
+                  return (
+                    <div key={group.courseId} className="rounded-xl border border-amber-500/30 bg-background/60 p-3">
+                      <p className="text-sm font-black text-foreground">{group.courseTitle}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {group.schools.length} school{group.schools.length === 1 ? '' : 's'} on “{group.retiredEdition.title}” (retired)
+                        {group.liveEdition
+                          ? ` · live edition available: #${group.liveEdition.release_number ?? '—'}`
+                          : ' · no live edition exists for this course'}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setStrandedOpen(open ? null : group.courseId)}
+                        className="mt-2 text-[11px] font-bold text-primary hover:underline"
+                      >
+                        {open ? 'Hide schools' : `Show the ${group.schools.length} school${group.schools.length === 1 ? '' : 's'}`}
+                      </button>
+                      {open && (
+                        <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                          {group.schools.map((school) => (
+                            <li key={school.id} className="truncate rounded-lg bg-muted px-2 py-1 text-[11px] text-foreground">
+                              {school.name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {isAdmin && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {group.resolvable && (
+                            <button
+                              type="button"
+                              disabled={workingOn}
+                              onClick={() => void repointStranded(group.courseId, 'move')}
+                              className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
+                            >
+                              {workingOn ? 'Working…' : `Move to edition #${group.liveEdition?.release_number ?? ''}`}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={workingOn}
+                            onClick={() => void repointStranded(group.courseId, 'clear')}
+                            className="rounded-xl border border-rose-500/40 px-4 py-2 text-xs font-black text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
+                          >
+                            {workingOn ? 'Working…' : 'Unadopt and clear'}
+                          </button>
+                        </div>
+                      )}
+                      {!group.resolvable && (
+                        <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                          Nothing to move onto. Either clear these so the course reads as undistributed, or certify a new edition first.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {qualityBlock && (
         <section className="mb-5 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5">
           <div className="flex items-start gap-3">
