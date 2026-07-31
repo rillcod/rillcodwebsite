@@ -962,7 +962,7 @@ including the invoice, billing and payment reminders that email parents.
 | `live-session-reminders` | Every 10-15 minutes | 25 minutes | External scheduler | Upcoming live sessions |
 | `onboarding-sweep` | Every 15 minutes | 25 minutes | External scheduler | Repair paid but incomplete onboarding; hosts the daily fan-out |
 | `process-certificates` | Every 30 minutes | 75 minutes | External scheduler | Certificate queue |
-| `communication-followup` | Hourly | 75 minutes | External scheduler | Hourly owner reminder for unanswered customer communication |
+| `communication-followup` | Hourly (fan-out) | 75 minutes | Fan-out from `onboarding-sweep` | Hourly owner reminder for unanswered customer communication |
 | `integrity-sweep` | Daily 03:00 | 30 hours | External scheduler | Operational data integrity and self-healing repair |
 | `academic-readiness` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | Prepare official teaching plans and notify teachers |
 | `term-scheduler` | Weekly | 8.8 days | External scheduler | Release approved term content |

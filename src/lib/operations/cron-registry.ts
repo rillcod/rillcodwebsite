@@ -94,13 +94,16 @@ export const CRON_REGISTRY = [
   },
   {
     name: 'communication-followup',
+    // Previously had no trigger anywhere in the repo and no confirmed cron-job.org entry, so the
+    // owner reminder it sends may never have fired at all. Now driven by onboarding-sweep's hourly
+    // fan-out, which does not depend on anyone remembering to register it. Safe if an external
+    // entry also exists: followup-runner only selects cases whose last reminder is over an hour
+    // old, so a second caller in the same hour finds nothing to send.
     label: 'Owner follow-up reminders',
     intervalMinutes: 60,
-    trigger: 'external',
-    schedule: 'Hourly',
-    // NOTE: no trigger for this job exists anywhere in the repo, and it is not clear it was ever
-    // added to cron-job.org. It is monitored so Operations Health shows "Waiting for first run"
-    // until someone confirms the scheduler entry, instead of it staying invisible.
+    trigger: 'fanout',
+    triggeredBy: 'onboarding-sweep',
+    schedule: 'Hourly (fan-out)',
     purpose: 'Hourly owner reminder for unanswered customer communication',
   },
   {

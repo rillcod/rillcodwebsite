@@ -38,7 +38,11 @@ const DAILY_FANOUT = ['assignment-reminders', 'form-followup', 'lead-nurture', '
 const DAILY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_daily_fanout_date';
 const FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_fanout';
 // Weekly teaching content needs more than one pass a day — see the hourly fan-out below.
-const HOURLY_FANOUT = ['auto-generate-content'];
+// communication-followup rides here too: nothing in this repo triggered it and its cron-job.org
+// entry was never confirmed, so the owner reminder it sends may never have fired. Its own query
+// only picks up cases whose last reminder is over an hour old, so it self-throttles — a duplicate
+// external entry cannot double-remind anyone.
+const HOURLY_FANOUT = ['auto-generate-content', 'communication-followup'];
 const HOURLY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_hourly_fanout_hour';
 const HOURLY_FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_hourly_fanout';
 // NOTE: Do NOT fan out `weekly-summary` here. That job sends the monthly parent update
