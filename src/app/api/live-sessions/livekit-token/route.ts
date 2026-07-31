@@ -8,6 +8,12 @@ import {
   requireLiveSessionAccess,
   requireLiveSessionUser,
 } from '@/lib/live-sessions/authz';
+import { ensureLiveKitRoom, roomNameForSession } from '@/lib/live-sessions/livekit-server';
+
+/** Browser client needs ws(s):// — tolerate https:// pasted into env. */
+function clientLiveKitUrl(url: string) {
+  return url.trim().replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
+}
 
 // POST /api/live-sessions/livekit-token
 // Body: { sessionId: string }
@@ -50,38 +56,40 @@ export async function POST(req: NextRequest) {
     if (!isModerator && !isSessionJoinWindowOpen(session)) {
       return NextResponse.json({ error: 'This session is not open for joining yet.' }, { status: 403 });
     }
-    if (isModerator && ['completed', 'cancelled'].includes(String(session.status))) {
+    if (['completed', 'cancelled'].includes(String(session.status))) {
       return NextResponse.json({ error: 'This session is no longer active.' }, { status: 400 });
     }
 
     const displayName = profile?.full_name ?? 'Participant';
-    const roomName    = `rillcod-${sessionId.slice(0, 12)}`;
-    const identity    = profile.id;
+    const roomName = roomNameForSession(sessionId);
+    const identity = profile.id;
+
+    // Best-effort room open — never block the token on LiveKit admin API latency.
+    // Blocking here made the UI sit on "Starting meeting…" forever.
+    void ensureLiveKitRoom(sessionId);
 
     const at = new AccessToken(API_KEY, API_SECRET, {
       identity,
       name: displayName,
-      // Generous TTL so a long session (or a device that sleeps and wakes) can still
-      // reconnect on the same token; a terminal drop re-issues a fresh one on rejoin.
       ttl: '12h',
     });
 
     at.addGrant({
-      roomJoin:       true,
-      room:           roomName,
-      canPublish:     true,
-      canSubscribe:   true,
+      roomJoin: true,
+      room: roomName,
+      canPublish: true,
+      canSubscribe: true,
       canPublishData: true,
-      // Moderator gets room admin privileges
-      roomAdmin:      isModerator,
-      roomCreate:     isModerator,
+      // Anyone in the session can open the room (host may still be connecting).
+      roomCreate: true,
+      roomAdmin: isModerator,
     });
 
     const token = await at.toJwt();
 
     return NextResponse.json({
       token,
-      url:      LIVEKIT_URL,
+      url: clientLiveKitUrl(LIVEKIT_URL),
       roomName,
       isModerator,
       displayName,

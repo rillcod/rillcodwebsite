@@ -7,6 +7,7 @@ import {
   requireLiveSessionStaff as requireStaff,
 } from '@/lib/live-sessions/authz';
 import { notifySessionLive } from '@/lib/live-sessions/notify';
+import { ensureLiveKitRoom } from '@/lib/live-sessions/livekit-server';
 
 // Auto-log a completed session to CRM interactions for the school and attendees
 async function autoLogCRM(session: any, staffName: string) {
@@ -114,6 +115,8 @@ export async function PATCH(
 
   // Push + in-app notification when session goes live
   if (before?.status !== 'live' && data?.status === 'live') {
+    // Open the LiveKit room immediately so students can join without waiting for the host client.
+    ensureLiveKitRoom(id).catch((e) => console.warn('[livekit] ensure on go-live', e));
     notifySessionLive(data).catch(() => {});
   }
 

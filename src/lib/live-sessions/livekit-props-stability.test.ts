@@ -73,6 +73,14 @@ describe('LiveKitRoom prop stability', () => {
   });
 });
 
+function loadTokenSource(): string {
+  const start = src.indexOf('const loadToken');
+  expect(start, 'loadToken must exist').toBeGreaterThan(-1);
+  const end = src.indexOf('[sessionId, armConnectWatchdog]', start);
+  expect(end, 'loadToken deps must exist').toBeGreaterThan(start);
+  return src.slice(start, end);
+}
+
 describe('LiveKitMeeting reconnect invariants', () => {
   it('only resets the retry budget from onConnected, never from a token fetch', () => {
     // `setAutoTry(0)` on token success made a failing media connect retry forever.
@@ -85,13 +93,11 @@ describe('LiveKitMeeting reconnect invariants', () => {
     );
     expect(connected).toMatch(/setAutoTry\(0\)/);
 
-    const loadToken = src.slice(src.indexOf('const loadToken'), src.indexOf('useEffect(() => {'));
-    expect(loadToken).not.toMatch(/setAutoTry/);
+    expect(loadTokenSource()).not.toMatch(/setAutoTry/);
   });
 
   it('never flips to the live phase optimistically on token success', () => {
-    const loadToken = src.slice(src.indexOf('const loadToken'), src.indexOf('useEffect(() => {'));
-    expect(loadToken).not.toMatch(/setPhase\('live'\)/);
+    expect(loadTokenSource()).not.toMatch(/setPhase\('live'\)/);
   });
 
   it('is memoised so the parent page realtime feed cannot re-render it', () => {
@@ -116,6 +122,33 @@ describe('LiveKitMeeting reconnect invariants', () => {
     expect(src).toMatch(/exitedRef/);
     const recordLeave = src.slice(src.indexOf('const recordLeave'), src.indexOf('const recordRejoin'));
     expect(recordLeave).not.toMatch(/exitedRef/);
+  });
+
+  it('ignores intentional remount disconnects so rejoin cannot loop', () => {
+    // useLiveKitRoom calls room.disconnect() on unmount → onDisconnected(CLIENT_INITIATED).
+    // Without swallowing that, phase flips to dropped mid-rejoin forever.
+    expect(src).toMatch(/intentionalUnmountRef/);
+    expect(src).toMatch(/DisconnectReason\.CLIENT_INITIATED/);
+    const disconnected = src.slice(
+      src.indexOf('const handleDisconnected'),
+      src.indexOf('const handleError'),
+    );
+    expect(disconnected).toMatch(/intentionalUnmountRef\.current/);
+    expect(disconnected).toMatch(/CLIENT_INITIATED/);
+  });
+
+  it('clears credentials before a rejoin so the old Room fully unmounts', () => {
+    // Intentionally NOT clearing token up-front — that remount storm caused
+    // stuck "Connecting…" / CLIENT_INITIATED disconnects for everyone.
+    const loadToken = loadTokenSource();
+    expect(loadToken).not.toMatch(/setToken\(null\)/);
+    expect(loadToken).not.toMatch(/setServerUrl\(null\)/);
+  });
+
+  it('does not treat onError as a terminal drop (avoids connect storms)', () => {
+    const handleError = src.slice(src.indexOf('const handleError'), src.indexOf('useEffect(() => {\n    const onVis'));
+    expect(handleError).not.toMatch(/setPhase\('dropped'\)/);
+    expect(handleError).not.toMatch(/setPhase\(\(p\)/);
   });
 });
 

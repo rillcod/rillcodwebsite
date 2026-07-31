@@ -68,6 +68,45 @@ export async function getStudentProgramIds(admin: SupabaseClient, userId: string
   return [...ids];
 }
 
+/** Schools a student belongs to — profile school first, class school only as fallback. */
+export async function resolveStudentSchoolId(
+  admin: SupabaseClient,
+  userId: string,
+  primarySchoolId?: string | null,
+): Promise<string | null> {
+  if (primarySchoolId) return primarySchoolId;
+
+  const { data: profile } = await admin
+    .from('portal_users')
+    .select('school_id, class_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const profileSchool = (profile as any)?.school_id ?? null;
+  if (profileSchool) return profileSchool;
+
+  const classId = (profile as any)?.class_id ?? null;
+  if (!classId) return null;
+
+  const { data: klass } = await admin
+    .from('classes')
+    .select('school_id')
+    .eq('id', classId)
+    .maybeSingle();
+
+  return (klass as any)?.school_id ?? null;
+}
+
+/** @deprecated Prefer resolveStudentSchoolId — school first, then class. */
+export async function getStudentSchoolIds(
+  admin: SupabaseClient,
+  userId: string,
+  primarySchoolId?: string | null,
+) {
+  const id = await resolveStudentSchoolId(admin, userId, primarySchoolId);
+  return id ? [id] : [];
+}
+
 export async function canAccessLiveSession(
   admin: SupabaseClient,
   caller: LiveSessionCaller,
@@ -86,14 +125,20 @@ export async function canAccessLiveSession(
   }
 
   if (caller.role === 'student') {
+    // Open / global session (no school, no programme)
     if (!session.school_id && !session.program_id) return true;
-    const programIds = session.program_id
-      ? await getStudentProgramIds(admin, caller.id)
-      : [];
-    if (session.program_id && programIds.includes(session.program_id)) return true;
-    // A school-scoped live session is intentionally broad: every student in that
-    // school can join, even without a separate programme enrollment row.
-    if (session.school_id && caller.school_id === session.school_id) return true;
+
+    // School first (profile school, else class school) — never class-over-school.
+    if (session.school_id) {
+      const schoolId = await resolveStudentSchoolId(admin, caller.id, caller.school_id);
+      if (schoolId && schoolId === session.school_id) return true;
+    }
+
+    if (session.program_id) {
+      const programIds = await getStudentProgramIds(admin, caller.id);
+      if (programIds.includes(session.program_id)) return true;
+    }
+
     return false;
   }
 
@@ -119,8 +164,10 @@ export async function canManageLiveSession(
   if (caller.role === 'school') {
     return !!caller.school_id && !!session.school_id && caller.school_id === session.school_id;
   }
-  if (caller.role !== 'teacher') return false;
-
+  if (caller.role === 'teacher' && session.school_id) {
+    const schoolIds = await getTeacherSchoolIds(admin, caller.id, caller.school_id);
+    return schoolIds.includes(session.school_id);
+  }
   return false;
 }
 

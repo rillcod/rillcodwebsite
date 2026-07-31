@@ -35,6 +35,48 @@ export function roomServiceClient() {
   return new RoomServiceClient(httpUrl(env.url), env.apiKey, env.apiSecret);
 }
 
+/**
+ * Make sure the LiveKit room exists before anyone tries to join.
+ * Without this, only the host (roomCreate grant) could open the room — students
+ * who joined first (or while the host was stuck reconnecting) got rejected.
+ */
+export async function ensureLiveKitRoom(sessionId: string): Promise<void> {
+  const rs = roomServiceClient();
+  if (!rs) return;
+  const name = roomNameForSession(sessionId);
+  try {
+    await rs.createRoom({
+      name,
+      // Keep an empty room around so late joiners still have somewhere to land.
+      emptyTimeout: 60 * 60,
+      maxParticipants: 120,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Already exists is success. Anything else is best-effort — token still has roomCreate.
+    if (!/already exists|conflict|409/i.test(msg)) {
+      console.warn('[livekit] ensureLiveKitRoom', name, msg);
+    }
+  }
+}
+
+/**
+ * Drop a zombie participant with the same identity so a fresh join isn't rejected
+ * as DUPLICATE_IDENTITY after a reconnect loop left a ghost connection.
+ */
+export async function clearStaleLiveKitParticipant(
+  sessionId: string,
+  identity: string,
+): Promise<void> {
+  const rs = roomServiceClient();
+  if (!rs || !identity) return;
+  try {
+    await rs.removeParticipant(roomNameForSession(sessionId), identity);
+  } catch {
+    /* not present — fine */
+  }
+}
+
 export function egressClient() {
   const env = livekitEnv();
   if (!env) return null;

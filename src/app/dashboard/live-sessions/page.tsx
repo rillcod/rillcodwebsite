@@ -923,8 +923,8 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
   const countdown = getCountdown(session.scheduled_at);
   const isLive = session.status === 'live';
   const isActive = session.status === 'scheduled' || isLive;
-  // Show join if active — for Jitsi we don't need a URL (auto-generated on click)
-  const showJoin = isActive && (!!session.session_url || isInApp);
+  // Live sessions always offer Join — handleJoin falls back to LiveKit if there is no URL yet.
+  const showJoin = isActive && (isLive || !!session.session_url || isInApp);
   const showRecording = session.status === 'completed' && !!session.recording_url;
 
   return (
@@ -1530,15 +1530,13 @@ export default function LiveSessionsPage() {
             fetch(`/api/live-sessions/${updated.id}/join`, { method: 'POST' }).catch(() => {});
 
             if (isJitsiUrl(updated.session_url) || isLiveKitUrl(updated.session_url)) {
-              // Students only — delay 6s so teacher joins first and becomes moderator
+              // Room is created server-side on go-live — students can enter immediately.
               if (profile.role === 'student') {
-                setTimeout(() => {
-                  setSessions(prev => {
-                    const full = prev.find(s => s.id === updated.id);
-                    if (full) setJitsiSession({ ...full, ...updated });
-                    return prev;
-                  });
-                }, 6000);
+                setSessions(prev => {
+                  const full = prev.find(s => s.id === updated.id);
+                  if (full) setJitsiSession({ ...full, ...updated });
+                  return prev;
+                });
               }
             } else {
               // External URL: show dismissible toast with countdown

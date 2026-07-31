@@ -6,6 +6,7 @@ import {
   getStudentProgramIds,
   getTeacherSchoolIds,
   requireLiveSessionUser as requireAuth,
+  resolveStudentSchoolId,
 } from '@/lib/live-sessions/authz';
 import { notifySessionScheduled } from '@/lib/live-sessions/notify';
 
@@ -33,8 +34,11 @@ export async function GET(_request: NextRequest) {
     if (!caller.school_id) return NextResponse.json({ data: [] });
     query = query.eq('school_id', caller.school_id);
   } else if (caller.role === 'student') {
+    // School first (profile → class fallback), then programmes. Blank profile school
+    // used to hide every school-scoped class from the list.
     const filters: string[] = ['school_id.is.null'];
-    if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);
+    const schoolId = await resolveStudentSchoolId(admin as any, caller.id, caller.school_id);
+    if (schoolId) filters.push(`school_id.eq.${schoolId}`);
     const programIds = await getStudentProgramIds(admin as any, caller.id);
     if (programIds.length > 0) filters.push(`program_id.in.(${programIds.join(',')})`);
     query = query.or(filters.join(','));

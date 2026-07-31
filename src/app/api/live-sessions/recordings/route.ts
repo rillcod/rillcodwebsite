@@ -4,6 +4,7 @@ import {
   requireLiveSessionUser as requireAuth,
   canAccessLiveSession,
   getStudentProgramIds,
+  resolveStudentSchoolId,
 } from '@/lib/live-sessions/authz';
 import { r2SignedUrl } from '@/lib/r2/client';
 
@@ -40,7 +41,8 @@ export async function GET(req: NextRequest) {
   // Candidate scoping (widen the set; canAccessLiveSession still gates each row below).
   if (caller.role === 'student') {
     const filters = ['school_id.is.null'];
-    if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);
+    const schoolId = await resolveStudentSchoolId(admin as any, caller.id, caller.school_id);
+    if (schoolId) filters.push(`school_id.eq.${schoolId}`);
     const programIds = await getStudentProgramIds(admin as any, caller.id);
     if (programIds.length > 0) filters.push(`program_id.in.(${programIds.join(',')})`);
     query = query.or(filters.join(','));
