@@ -625,8 +625,11 @@ export async function GET(req: NextRequest) {
   const admin = adminClient();
   let query = admin
     .from("course_curricula")
+    // Editions come along too: without them the roster cannot tell a draft from a published
+    // curriculum, so a freshly generated one looked identical to a live one and nobody could
+    // see whether schools were actually teaching from it.
     .select(
-      "*, courses!course_id(title), portal_users!course_curricula_created_by_fkey(full_name), schools(id, name)"
+      "*, courses!course_id(title), portal_users!course_curricula_created_by_fkey(full_name), schools(id, name), academic_curriculum_releases!source_curriculum_id(id, status, academic_session)"
     )
     .order("created_at", { ascending: false });
 

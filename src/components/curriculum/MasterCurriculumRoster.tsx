@@ -676,6 +676,17 @@ export function MasterCurriculumRoster({
               const isSelected = selectedIds.includes(item.id);
               const blockers = blockersById[item.id];
 
+              // A curriculum is only being taught from once it has a published edition. Until
+              // then it is a draft, however finished it looks — that distinction was invisible,
+              // so a freshly generated syllabus read exactly like a live one.
+              const editions = Array.isArray(item.academic_curriculum_releases)
+                ? item.academic_curriculum_releases
+                : item.academic_curriculum_releases
+                  ? [item.academic_curriculum_releases]
+                  : [];
+              const liveEdition = editions.find((e: any) => e?.status === 'published');
+              const withdrawnCount = editions.filter((e: any) => e?.status !== 'published').length;
+
               return (
                 <div
                   key={item.id}
@@ -711,6 +722,32 @@ export function MasterCurriculumRoster({
                             <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
                               v{item.version ?? 1}
                             </span>
+
+                            {/* The one thing you need to know at a glance: is anyone teaching from this? */}
+                            {liveEdition ? (
+                              <span
+                                title={`Published for ${liveEdition.academic_session ?? 'the current session'} — schools can build teaching plans from it`}
+                                className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30"
+                              >
+                                Published{liveEdition.academic_session ? ` · ${liveEdition.academic_session}` : ''}
+                              </span>
+                            ) : (
+                              <span
+                                title="Not published yet. Classes cannot teach from this until an edition is published."
+                                className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30"
+                              >
+                                Draft — not published
+                              </span>
+                            )}
+
+                            {!liveEdition && withdrawnCount > 0 && (
+                              <span
+                                title="An earlier edition was published then withdrawn. Publishing again is allowed."
+                                className="text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border"
+                              >
+                                {withdrawnCount === 1 ? '1 withdrawn edition' : `${withdrawnCount} withdrawn editions`}
+                              </span>
+                            )}
 
                             <button
                               type="button"
@@ -819,10 +856,19 @@ export function MasterCurriculumRoster({
                           </div>
                         </div>
 
-                        <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 space-y-3">
+                        {/* Same list, two meanings. On a published curriculum these are the classes
+                            teaching from it — the way a teacher reaches their class — so it must not
+                            wear danger colours. It only reads as an obstacle when you are deleting. */}
+                        <div className={`rounded-xl p-4 space-y-3 border ${
+                          liveEdition
+                            ? 'bg-muted/20 border-border'
+                            : 'bg-rose-500/5 border-rose-500/20'
+                        }`}>
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs font-black text-rose-500 uppercase tracking-wider">
-                              What is still using this
+                            <p className={`text-xs font-black uppercase tracking-wider ${
+                              liveEdition ? 'text-foreground' : 'text-rose-500'
+                            }`}>
+                              {liveEdition ? 'Where this is being taught' : 'What is still using this'}
                             </p>
                             <button
                               type="button"
@@ -840,9 +886,16 @@ export function MasterCurriculumRoster({
                             <p className="text-xs text-rose-500">{blockers.error}</p>
                           )}
                           {!blockers?.loading && blockers?.dependents?.length === 0 && !blockers?.error && (
-                            <p className="text-xs text-emerald-600 font-bold">
-                              Nothing is using this curriculum. It is safe to delete.
-                            </p>
+                            liveEdition ? (
+                              <p className="text-xs text-muted-foreground">
+                                Published, but no class is teaching from it yet. A class picks it up
+                                once its teaching plan is prepared for the term.
+                              </p>
+                            ) : (
+                              <p className="text-xs text-emerald-600 font-bold">
+                                Nothing is using this curriculum. It is safe to delete.
+                              </p>
+                            )
                           )}
                           {(blockers?.dependents?.length || 0) > 0 && (
                             <ul className="space-y-2 max-h-64 overflow-y-auto">
