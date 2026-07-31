@@ -6,7 +6,7 @@ import {
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BookOpenIcon, SparklesIcon, ChevronDownIcon,
   ChevronRightIcon, BuildingOfficeIcon,
-  ClipboardIcon, ArrowRightIcon,
+  ArrowRightIcon,
 } from '@/lib/icons';
 import { toast } from 'react-hot-toast';
 
@@ -126,15 +126,6 @@ export function MasterCurriculumRoster({
     }
   };
 
-  const copyId = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(id);
-      toast.success('Curriculum ID copied');
-    } catch {
-      toast.error('Could not copy ID');
-    }
-  };
-
   const loadBlockers = async (id: string) => {
     setBlockersById((prev) => ({
       ...prev,
@@ -184,16 +175,31 @@ export function MasterCurriculumRoster({
         if (res.status === 409 && json.can_force && !force) {
           await loadBlockers(id);
           setExpandedId(id);
+          const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
           const detail = [
-            json.official_release_count ? `${json.official_release_count} official edition(s)` : null,
-            json.draft_plan_count ? `${json.draft_plan_count} draft plan(s)` : null,
-            json.live_plan_count ? `${json.live_plan_count} live plan(s)` : null,
-            json.delivery_record_count ? `${json.delivery_record_count} tracking week(s)` : null,
-          ].filter(Boolean).join(', ');
+            json.official_release_count
+              ? plural(json.official_release_count, 'published edition', 'published editions')
+              : null,
+            json.draft_plan_count
+              ? plural(json.draft_plan_count, 'teaching plan not yet in use', 'teaching plans not yet in use')
+              : null,
+            json.live_plan_count
+              ? plural(json.live_plan_count, 'teaching plan in use by a class', 'teaching plans in use by classes')
+              : null,
+            json.delivery_record_count
+              ? plural(json.delivery_record_count, 'week already taught', 'weeks already taught')
+              : null,
+          ].filter(Boolean).join('\n• ');
+
+          // Say plainly what will be lost. "Live plans" and "weeks already taught" mean real
+          // teaching history, so name that rather than hiding it behind the word "blockers".
+          const warning = json.live_plan_count || json.delivery_record_count
+            ? '\n\nThis includes work classes are already using. Deleting removes it for good.'
+            : '';
 
           if (
             window.confirm(
-              `This curriculum is held by:\n${detail || json.error}\n\nForce-delete will clear those blockers and remove this copy. Continue?`
+              `This curriculum is still being used by:\n\n• ${detail || json.error}${warning}\n\nDelete it and everything above?`
             )
           ) {
             await handleDeleteItem(id, true);
@@ -204,7 +210,7 @@ export function MasterCurriculumRoster({
         throw new Error(json.error || 'Failed to delete curriculum');
       }
 
-      toast.success(force ? 'Cleaned blockers and deleted curriculum' : 'Curriculum deleted');
+      toast.success(force ? 'Curriculum deleted, along with everything that was using it' : 'Curriculum deleted');
       setSelectedIds((prev) => prev.filter((x) => x !== id));
       onRefresh();
     } catch (err: any) {
@@ -236,7 +242,7 @@ export function MasterCurriculumRoster({
 
   const handleBulkDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Force-delete ${selectedIds.length} selected curriculum record(s)? Blockers will be cleaned.`)) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected curricula and everything using them?`)) return;
 
     setIsProcessingBulk(true);
     setLastOpErrors(null);
@@ -417,15 +423,14 @@ export function MasterCurriculumRoster({
                 Master Curriculum Roster
               </span>
               <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
-                {curricula.length} Total Database Items
+                {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
               </span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">
-              All Curricula &amp; Master Directory
+              Curricula
             </h1>
             <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-              Search by course, school, or full curriculum ID. Expand any row to see exactly what is holding it,
-              then force-clean or wipe leftover orphan editions.
+              Open a row to see what is using it before you delete.
             </p>
           </div>
 
@@ -447,7 +452,7 @@ export function MasterCurriculumRoster({
                   className="px-4 py-2.5 text-xs font-bold bg-card border border-amber-500/40 text-amber-600 hover:bg-amber-500/10 rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
                 >
                   <ExclamationTriangleIcon className="w-4 h-4" />
-                  {debrisLoading ? 'Scanning…' : 'Inspect Debris'}
+                  {debrisLoading ? 'Checking…' : 'Check for leftovers'}
                 </button>
                 <button
                   type="button"
@@ -575,7 +580,7 @@ export function MasterCurriculumRoster({
                 onClick={() => setShowPurgeModal(true)}
                 className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-amber-600 text-white rounded-xl hover:bg-amber-700"
               >
-                Purge Orphan Debris
+                Clear leftovers
               </button>
             )}
           </div>
@@ -633,11 +638,13 @@ export function MasterCurriculumRoster({
         <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl space-y-4 shadow-sm">
           <BookOpenIcon className="w-14 h-14 text-muted-foreground/30 mx-auto animate-bounce" />
           <div className="space-y-1">
-            <p className="text-base font-black text-foreground">No Curricula Match Your Filter</p>
+            <p className="text-base font-black text-foreground">
+              {search ? 'Nothing matches that search' : 'No curricula yet'}
+            </p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
               {search
-                ? 'Try clearing your search (course, school, or paste a full curriculum UUID).'
-                : 'No curriculum syllabi exist in the database yet. Click Syllabus Builder to generate one.'}
+                ? 'Try a different course or school name.'
+                : 'Use the Syllabus Builder to create your first one.'}
             </p>
           </div>
         </div>
@@ -715,7 +722,7 @@ export function MasterCurriculumRoster({
                               }`}
                             >
                               <span className={`w-2 h-2 rounded-full ${isVisible ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                              {isVisible ? 'Visible to School' : 'Hidden from School (Click to Unhide)'}
+                              {isVisible ? 'Schools can see this' : 'Hidden from schools'}
                             </button>
                           </div>
 
@@ -736,19 +743,6 @@ export function MasterCurriculumRoster({
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            <code className="text-[11px] font-mono bg-muted/60 border border-border px-2 py-1 rounded-lg text-foreground break-all">
-                              {item.id}
-                            </code>
-                            <button
-                              type="button"
-                              onClick={() => void copyId(item.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-border rounded-lg hover:bg-muted"
-                              title="Copy curriculum ID"
-                            >
-                              <ClipboardIcon className="w-3.5 h-3.5" /> Copy ID
-                            </button>
-                          </div>
                         </div>
                       </div>
 
@@ -799,7 +793,7 @@ export function MasterCurriculumRoster({
                       <div className="mt-4 pt-4 border-t border-border/60 space-y-4 animate-in fade-in">
                         <div className="bg-muted/20 rounded-xl p-4 space-y-3">
                           <p className="text-xs font-black text-foreground uppercase tracking-wider">
-                            Academic Terms &amp; Weekly Content Map
+                            Terms and weekly lessons
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {terms.map((t: any) => (
@@ -811,7 +805,7 @@ export function MasterCurriculumRoster({
                                   <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
                                 </div>
                                 <p className="text-xs font-bold text-foreground truncate">
-                                  {(t.weeks ?? []).length} Weekly Sessions
+                                  {(t.weeks ?? []).length} weeks planned
                                 </p>
                                 <div className="text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border/40 max-h-24 overflow-y-auto custom-scrollbar">
                                   {(t.weeks ?? []).slice(0, 4).map((w: any) => (
@@ -828,26 +822,26 @@ export function MasterCurriculumRoster({
                         <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 space-y-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-black text-rose-500 uppercase tracking-wider">
-                              Holding / debris for this ID
+                              What is still using this
                             </p>
                             <button
                               type="button"
                               onClick={() => void loadBlockers(item.id)}
                               className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 border border-border rounded-lg hover:bg-muted"
                             >
-                              Refresh blockers
+                              Check again
                             </button>
                           </div>
 
                           {blockers?.loading && (
-                            <p className="text-xs text-muted-foreground">Loading blockers…</p>
+                            <p className="text-xs text-muted-foreground">Checking…</p>
                           )}
                           {blockers?.error && (
                             <p className="text-xs text-rose-500">{blockers.error}</p>
                           )}
                           {!blockers?.loading && blockers?.dependents?.length === 0 && !blockers?.error && (
                             <p className="text-xs text-emerald-600 font-bold">
-                              No blockers found — soft delete should succeed.
+                              Nothing is using this curriculum. It is safe to delete.
                             </p>
                           )}
                           {(blockers?.dependents?.length || 0) > 0 && (
@@ -906,15 +900,16 @@ export function MasterCurriculumRoster({
                 <ExclamationTriangleIcon className="w-8 h-8 flex-shrink-0 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Master Reset / Wipe All</h3>
-                <p className="text-xs text-rose-400 font-bold">Danger Zone — Administrative Clean Slate</p>
+                <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Delete everything</h3>
+                <p className="text-xs text-rose-400 font-bold">This cannot be undone</p>
               </div>
             </div>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Permanently deletes <strong className="text-foreground">{curricula.length} curriculum records</strong>,
-              clears delivery schedules / adoptions / tracking that block them, and then purges orphan editions left behind.
-              Failures are listed on this page so nothing silent remains.
+              Deletes all <strong className="text-foreground">
+                {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
+              </strong> and everything built from them — teaching plans, lessons, assignments and
+              the record of which schools were using them. Anything that fails is listed here.
             </p>
 
             <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl space-y-2">
@@ -947,7 +942,7 @@ export function MasterCurriculumRoster({
                 disabled={resetConfirmInput.trim() !== 'RESET' || isProcessingBulk}
                 className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md"
               >
-                {isProcessingBulk ? 'Wiping All...' : 'Confirm Wipe All'}
+                {isProcessingBulk ? 'Deleting...' : 'Yes, delete everything'}
               </button>
             </div>
           </div>
@@ -957,10 +952,10 @@ export function MasterCurriculumRoster({
       {showPurgeModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-amber-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
-            <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Purge Orphan Debris</h3>
+            <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Clear leftovers</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Removes orphan official editions and teaching debris (orphan lesson plans, lessons,
-              assignments, flashcards, exams, CBT) that no longer have a valid parent.
+              Removes lessons, assignments, flashcards and exams whose curriculum no longer exists.
+              Nothing still in use is touched.
             </p>
             <input
               type="text"

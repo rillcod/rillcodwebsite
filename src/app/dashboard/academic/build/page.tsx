@@ -4161,24 +4161,20 @@ export default function CurriculumPage() {
                           {prog.name || (prog as any).title}
                         </span>
                         {(() => {
-                          // Written-vs-total per programme, so the gap is visible without
-                          // opening anything.
+                          // Show only what needs doing. A running "0/71" on every row is a number,
+                          // not a task — it says the same thing whether or not anyone can act on it.
+                          // A finished programme needs no badge at all; silence is the good state.
                           const written = activeCourses.filter(
                             (c) => (coverage[c.id]?.drafts ?? 0) > 0
                           ).length;
-                          const complete = written === activeCourses.length && activeCourses.length > 0;
+                          const remaining = activeCourses.length - written;
+                          if (activeCourses.length === 0 || remaining === 0) return null;
                           return (
                             <span
-                              title={`${written} of ${activeCourses.length} course(s) have a curriculum`}
-                              className={`ml-auto px-1.5 py-0.5 text-[9px] font-black shrink-0 ${
-                                complete
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : written > 0
-                                    ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
-                                    : "bg-muted text-muted-foreground"
-                              }`}
+                              title={`${remaining} of ${activeCourses.length} courses in this programme still need a curriculum`}
+                              className="ml-auto px-1.5 py-0.5 text-[9px] font-black shrink-0 bg-amber-500/15 text-amber-800 dark:text-amber-200"
                             >
-                              {written}/{activeCourses.length}
+                              {remaining} to write
                             </span>
                           );
                         })()}
