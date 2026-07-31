@@ -123,9 +123,13 @@ export async function healUnassignedStudents(admin: AnySupabase): Promise<HealRe
         .eq('id', user.id);
 
       // Update students table row if exists
+      // students has no parent_id column — the parent is reached by parent_email, or through
+      // parent_student_links. Asking for it failed this read, so studentRow came back null and the
+      // whole block below was skipped: the school was never written to the students row and the
+      // parent link was never synced.
       const { data: studentRow } = await admin
         .from('students')
-        .select('id, parent_email, parent_id')
+        .select('id, parent_email')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -139,16 +143,13 @@ export async function healUnassignedStudents(admin: AnySupabase): Promise<HealRe
           .eq('id', studentRow.id);
 
         // Sync parent_student_links if parent account exists
-        if (studentRow.parent_id || studentRow.parent_email) {
-          let pId = studentRow.parent_id;
-          if (!pId && studentRow.parent_email) {
-            const { data: pUser } = await admin
-              .from('portal_users')
-              .select('id')
-              .eq('email', studentRow.parent_email)
-              .maybeSingle();
-            pId = pUser?.id ?? null;
-          }
+        if (studentRow.parent_email) {
+          const { data: pUser } = await admin
+            .from('portal_users')
+            .select('id')
+            .eq('email', studentRow.parent_email)
+            .maybeSingle();
+          const pId = pUser?.id ?? null;
           if (pId) {
             try {
               await syncExplicitParentStudentLink(admin, pId, studentRow.id);

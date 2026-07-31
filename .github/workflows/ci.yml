@@ -41,5 +41,14 @@ jobs:
       - name: Supabase embed audit
         run: npm run audit:embeds
 
+      # Replays every select() against the real schema. Skips automatically unless real
+      # service-role credentials are provided, because the env block above uses placeholders.
+      # To enforce it, add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets.
+      - name: Schema drift check
+        run: npm run check:schema
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Production build
         run: npm run build

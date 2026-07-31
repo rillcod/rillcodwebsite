@@ -18,7 +18,9 @@ export async function GET() {
       .order('adopted_at', { ascending: false }),
     db.from('classes').select('id, name, school_id, program_id, status').eq('status', 'active').order('name'),
     db.from('academic_curriculum_delivery_schedules')
-      .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(title, audience_label)')
+      // Plain embed: delivery_schedules reaches releases by exactly one foreign key, so it needs
+      // no hint. (The adoptions hint two queries above does not apply here — different table.)
+      .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases(title, audience_label)')
       .eq('status', 'active')
       .order('updated_at', { ascending: false }),
   ]);
