@@ -494,6 +494,28 @@ export default function CurriculumPage() {
   const [loadError, setLoadError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  // What is actually holding this copy — itemised, so the blockers can be seen and
+  // opened rather than described as a count in an error string.
+  const [blockers, setBlockers] = useState<{
+    dependents: Array<{
+      kind: "official_edition" | "teaching_plan" | "delivery_record";
+      id: string;
+      label: string;
+      detail: string;
+      onCleanup: "unlinked" | "deleted" | "detached";
+      safe: boolean;
+      href?: string;
+    }>;
+    summary: {
+      total: number;
+      official_editions: number;
+      teaching_plans: number;
+      live_plans: number;
+      delivery_weeks: number;
+      fully_safe: boolean;
+    };
+  } | null>(null);
+  const [blockersLoading, setBlockersLoading] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState<{
     curriculumId: string;
@@ -3229,6 +3251,7 @@ export default function CurriculumPage() {
 
     setDeleting(true);
     setDeleteError("");
+    setBlockers(null);
     try {
       const qs = opts?.force ? "?force=1" : "";
       const res = await fetch(`/api/curricula/${id}${qs}`, {
@@ -3237,33 +3260,19 @@ export default function CurriculumPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 409 && j?.can_force && !opts?.force) {
-          const detail = [
-            j.official_release_count
-              ? `${j.official_release_count} official edition(s) will be unlinked (not deleted)`
-              : null,
-            j.draft_plan_count
-              ? `${j.draft_plan_count} draft plan(s) will be removed`
-              : null,
-            j.live_plan_count
-              ? `${j.live_plan_count} live plan(s) will be detached`
-              : null,
-            j.delivery_record_count
-              ? `${j.delivery_record_count} week record(s) will be cleared`
-              : null,
-            Array.isArray(j.holding_classes) && j.holding_classes.length
-              ? `Classes: ${j.holding_classes.join(", ")}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n");
-          const ok = window.confirm(
-            `${j.error || "This copy is linked to other records."}\n\n${detail}\n\nClean up blockers and delete this copy now? Official editions stay published.`
-          );
-          if (ok) {
-            await handleDeleteCurriculum(id, { force: true });
-            return;
-          }
+          // Show WHAT is holding it, not just how many. A confirm() full of counts
+          // cannot be inspected, and the records it refers to are invisible from here.
           setDeleteError(j.error || "Delete blocked");
+          setBlockersLoading(true);
+          try {
+            const depRes = await fetch(`/api/curricula/${id}/dependents`);
+            const dep = await depRes.json().catch(() => null);
+            setBlockers(depRes.ok && dep?.dependents ? dep : null);
+          } catch {
+            setBlockers(null);
+          } finally {
+            setBlockersLoading(false);
+          }
           return;
         }
         throw new Error(j.error || "Failed to delete curriculum");
@@ -3784,39 +3793,39 @@ export default function CurriculumPage() {
 
             {/* Plain-English Mode Switcher Tabs for Staff */}
             {["admin", "teacher", "school"].includes(profile?.role || "") && (
-              <div className="flex items-center gap-1 bg-muted/40 border border-border p-1 rounded-xl my-1 md:my-0">
+              <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-md border border-border p-1.5 rounded-2xl shadow-inner my-1 md:my-0">
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("roster")}
-                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "roster"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  📋 All Curricula ({allCurricula.length})
+                  <span>📋</span> All Curricula ({allCurricula.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("inspector")}
-                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "inspector"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  🧩 Building Blocks
+                  <span>🧩</span> Building Blocks
                 </button>
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("builder")}
-                  className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition ${
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "builder"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  🪄 Syllabus Builder
+                  <span>🪄</span> Syllabus Builder
                 </button>
               </div>
             )}
@@ -4735,6 +4744,64 @@ export default function CurriculumPage() {
                       >
                         <p className="font-bold">Delete blocked</p>
                         <p className="mt-1 text-xs leading-5">{deleteError}</p>
+
+                        {blockersLoading && (
+                          <p className="mt-3 text-xs italic opacity-80">Finding what is holding it…</p>
+                        )}
+
+                        {blockers && blockers.dependents.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">
+                              Holding this copy ({blockers.summary.total})
+                            </p>
+                            {blockers.dependents.map((d) => (
+                              <div
+                                key={`${d.kind}-${d.id}`}
+                                className="rounded-xl border border-rose-500/25 bg-background/60 p-3"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black text-foreground">{d.label}</p>
+                                    <p className="mt-0.5 break-words text-[11px] text-muted-foreground">{d.detail}</p>
+                                  </div>
+                                  <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                      d.onCleanup === "unlinked"
+                                        ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                                        : d.onCleanup === "detached"
+                                          ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                                          : "bg-rose-500/15 text-rose-700 dark:text-rose-200"
+                                    }`}
+                                  >
+                                    {d.onCleanup === "unlinked"
+                                      ? "stays published"
+                                      : d.onCleanup === "detached"
+                                        ? "kept, unlinked"
+                                        : "will be removed"}
+                                  </span>
+                                </div>
+                                {d.href && (
+                                  <Link
+                                    href={d.href}
+                                    className="mt-2 inline-block text-[11px] font-bold text-primary hover:underline"
+                                  >
+                                    {d.kind === "official_edition"
+                                      ? "Open in the builder →"
+                                      : d.kind === "teaching_plan"
+                                        ? "Open this plan →"
+                                        : "Open this class →"}
+                                  </Link>
+                                )}
+                              </div>
+                            ))}
+                            <p className="text-[11px] leading-5 opacity-90">
+                              {blockers.summary.fully_safe
+                                ? "Nothing here is teaching history — official editions stay published and only draft records go."
+                                : "Some of these are real delivery history. Review them before cleaning up."}
+                            </p>
+                          </div>
+                        )}
+
                         {isAdmin && (
                           <button
                             type="button"

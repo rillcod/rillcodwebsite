@@ -5,7 +5,8 @@ import {
   TrashIcon, EyeIcon, EyeSlashIcon, MagnifyingGlassIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   ShieldCheckIcon, BookOpenIcon, SparklesIcon, ChevronDownIcon,
-  ChevronRightIcon, BuildingOfficeIcon, TagIcon
+  ChevronRightIcon, BuildingOfficeIcon, TagIcon,
+  DocumentCheckIcon, RocketLaunchIcon
 } from '@/lib/icons';
 import { toast } from 'react-hot-toast';
 
@@ -81,7 +82,7 @@ export function MasterCurriculumRoster({
 
           if (
             window.confirm(
-              `This curriculum is linked to other items:\n• ${detail}\n\nDo you want to FORCE DELETE and clean up these blockers?`
+              `This curriculum is linked to active records:\n• ${detail}\n\nDo you want to FORCE DELETE and clean up these blockers?`
             )
           ) {
             await handleDeleteItem(id, true);
@@ -91,7 +92,7 @@ export function MasterCurriculumRoster({
         throw new Error(json.error || 'Failed to delete curriculum');
       }
 
-      toast.success(force ? 'Force deleted curriculum and cleaned dependencies' : 'Curriculum deleted successfully');
+      toast.success(force ? 'Cleaned dependencies and deleted curriculum' : 'Curriculum deleted successfully');
       setSelectedIds((prev) => prev.filter((x) => x !== id));
       onRefresh();
     } catch (err: any) {
@@ -168,7 +169,7 @@ export function MasterCurriculumRoster({
         const json = await res.json();
         throw new Error(json.error || 'Failed to update visibility');
       }
-      toast.success(newStatus ? 'Curriculum published to school' : 'Curriculum hidden from school view');
+      toast.success(newStatus ? 'Curriculum published to school view' : 'Curriculum hidden from school view');
       onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update visibility');
@@ -177,7 +178,7 @@ export function MasterCurriculumRoster({
 
   // Explicitly Unpublish and Retire official releases
   const handleUnpublish = async (id: string) => {
-    if (!window.confirm('Are you sure you want to UNPUBLISH and RETIRE this official curriculum edition? It will be hidden from all schools and marked retired.')) return;
+    if (!window.confirm('Are you sure you want to UNPUBLISH and RETIRE this official curriculum edition? It will be hidden from all schools.')) return;
     try {
       const res = await fetch('/api/curricula/unpublish', {
         method: 'POST',
@@ -195,67 +196,72 @@ export function MasterCurriculumRoster({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Controls & Status Bar */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Sleek Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-indigo-600/10 border border-primary/20 p-6 backdrop-blur-xl shadow-lg">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest bg-brand-red-600/10 px-2 py-0.5 rounded-full border border-brand-red-600/20">
-                Master Roster Mode
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
+                <SparklesIcon className="w-3 h-3 animate-pulse" />
+                Master Curriculum Roster
               </span>
-              <span className="text-xs text-muted-foreground font-bold">
-                {curricula.length} Total Curricula in Database
+              <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
+                {curricula.length} Total Database Items
               </span>
             </div>
-            <h2 className="text-lg font-black text-foreground uppercase tracking-tight mt-1">
-              All Curricula &amp; Hidden Items
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Inspect every curriculum item across all programs, terms, and visibility flags. Unhide or delete items cleanly.
+            <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">
+              All Curricula &amp; Master Directory
+            </h1>
+            <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+              Transparent, full-spectrum inspection of every course syllabus in your database. Easily unhide draft items, force-clean dependencies, or wipe data to start completely fresh.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <button
               type="button"
               onClick={onRefresh}
-              className="px-3 py-2 text-xs font-bold border border-border rounded-xl hover:bg-muted transition flex items-center gap-1.5"
+              className="px-4 py-2.5 text-xs font-bold bg-card border border-border text-foreground hover:bg-muted rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
             >
-              <ArrowPathIcon className="w-3.5 h-3.5" /> Refresh
+              <ArrowPathIcon className="w-4 h-4 text-primary" /> Refresh
             </button>
 
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => setShowResetModal(true)}
-                className="px-3 py-2 text-xs font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white rounded-xl transition flex items-center gap-1.5"
+                className="px-4 py-2.5 text-xs font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/30 hover:bg-rose-600 hover:text-white rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
               >
-                <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Start Fresh / Wipe All
+                <ExclamationTriangleIcon className="w-4 h-4" /> Start Fresh / Wipe All
               </button>
             )}
           </div>
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/60">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 mt-5 border-t border-border/60">
           <div className="relative">
-            <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+            <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3.5 top-3" />
             <input
               type="text"
               placeholder="Search by course, program, or school..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:border-primary"
+              className="w-full pl-10 pr-4 py-2 text-xs bg-background/80 border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-inner"
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-background border border-border rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-background/80 border border-border rounded-xl p-1 shadow-inner">
             <button
               type="button"
               onClick={() => setVisibilityFilter('all')}
-              className={`flex-1 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition ${
-                visibilityFilter === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                visibilityFilter === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               All ({curricula.length})
@@ -263,8 +269,10 @@ export function MasterCurriculumRoster({
             <button
               type="button"
               onClick={() => setVisibilityFilter('visible')}
-              className={`flex-1 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition ${
-                visibilityFilter === 'visible' ? 'bg-emerald-600 text-white' : 'text-muted-foreground hover:text-foreground'
+              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                visibilityFilter === 'visible'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Visible ({curricula.filter((c) => c.is_visible_to_school).length})
@@ -272,8 +280,10 @@ export function MasterCurriculumRoster({
             <button
               type="button"
               onClick={() => setVisibilityFilter('hidden')}
-              className={`flex-1 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition ${
-                visibilityFilter === 'hidden' ? 'bg-amber-600 text-white' : 'text-muted-foreground hover:text-foreground'
+              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                visibilityFilter === 'hidden'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Hidden ({curricula.filter((c) => !c.is_visible_to_school).length})
@@ -285,7 +295,7 @@ export function MasterCurriculumRoster({
               type="button"
               onClick={handleBulkDeleteSelected}
               disabled={isProcessingBulk}
-              className="py-2 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
+              className="py-2.5 px-4 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 animate-in fade-in"
             >
               <TrashIcon className="w-4 h-4" />
               Delete Selected ({selectedIds.length})
@@ -294,35 +304,37 @@ export function MasterCurriculumRoster({
         </div>
       </div>
 
-      {/* Curricula Table / List */}
+      {/* Curricula Cards Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-dashed border-border rounded-xl space-y-3">
-          <BookOpenIcon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-          <p className="text-sm font-bold text-foreground">No curricula found</p>
-          <p className="text-xs text-muted-foreground">
-            {search ? 'Try clearing your search query' : 'No curriculum records exist yet. Click Generate Curriculum to create one.'}
-          </p>
+        <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl space-y-4 shadow-sm">
+          <BookOpenIcon className="w-14 h-14 text-muted-foreground/30 mx-auto animate-bounce" />
+          <div className="space-y-1">
+            <p className="text-base font-black text-foreground">No Curricula Match Your Filter</p>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {search ? 'Try clearing your search term or switching visibility filters.' : 'No curriculum syllabi exist in the database yet. Click Syllabus Builder to generate one.'}
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-          <div className="p-3 bg-muted/40 border-b border-border flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground cursor-pointer">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={selectedIds.length === filtered.length && filtered.length > 0}
                 onChange={toggleSelectAll}
-                className="rounded border-border accent-primary"
+                className="rounded border-border accent-primary w-4 h-4"
               />
               Select All Shown ({filtered.length})
             </label>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Showing {filtered.length} of {curricula.length} Total Records
+              Showing {filtered.length} of {curricula.length} Records
             </span>
           </div>
 
-          <div className="divide-y divide-border">
+          <div className="grid grid-cols-1 gap-4">
             {filtered.map((item) => {
-              const title = item.courses?.title || item.content?.description || 'Untitled Course Curriculum';
+              const title = item.courses?.title || item.content?.description || 'Untitled Course Syllabus';
               const programName = item.courses?.programs?.name || 'General Program';
               const schoolName = item.schools?.name || 'Platform Shared Template';
               const isVisible = item.is_visible_to_school;
@@ -333,132 +345,147 @@ export function MasterCurriculumRoster({
               return (
                 <div
                   key={item.id}
-                  className={`p-4 transition-colors ${
-                    isSelected ? 'bg-primary/5' : 'hover:bg-muted/20'
+                  className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ${
+                    isSelected
+                      ? 'bg-primary/5 border-primary shadow-md'
+                      : isVisible
+                      ? 'bg-card border-border hover:border-emerald-500/40 hover:shadow-lg'
+                      : 'bg-card/70 border-amber-500/30 hover:border-amber-500/60 hover:shadow-lg'
                   }`}
                 >
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(item.id)}
-                        className="mt-1 rounded border-border accent-primary"
-                      />
+                  {/* Left Accent Status Strip */}
+                  <div
+                    className={`absolute top-0 left-0 bottom-0 w-1.5 ${
+                      isVisible ? 'bg-gradient-to-b from-emerald-400 to-teal-600' : 'bg-gradient-to-b from-amber-400 to-orange-600'
+                    }`}
+                  />
 
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                            {programName}
-                          </span>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                            v{item.version ?? 1}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleVisibility(item)}
-                            className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border transition flex items-center gap-1 ${
-                              isVisible
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                            }`}
-                          >
-                            {isVisible ? <EyeIcon className="w-3 h-3" /> : <EyeSlashIcon className="w-3 h-3" />}
-                            {isVisible ? 'Visible to School' : 'Hidden from School (Click to Unhide)'}
-                          </button>
-                        </div>
+                  <div className="p-5 pl-7 space-y-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(item.id)}
+                          className="mt-1 rounded border-border accent-primary w-4 h-4"
+                        />
 
-                        <h3 className="text-base font-black text-foreground tracking-tight truncate">
-                          {title}
-                        </h3>
-
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <BuildingOfficeIcon className="w-3.5 h-3.5" />
-                            {schoolName}
-                          </span>
-                          <span>•</span>
-                          <span>{terms.length} Academic Term(s)</span>
-                          <span>•</span>
-                          <span>
-                            Created {new Date(item.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
-                      <button
-                        type="button"
-                        onClick={() => onSelectCurriculum(item)}
-                        className="px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-bold text-xs rounded-xl border border-primary/20 transition flex items-center gap-1"
-                      >
-                        <BookOpenIcon className="w-3.5 h-3.5" /> Inspect Syllabus
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                        className="p-2 border border-border text-muted-foreground hover:text-foreground rounded-xl transition"
-                      >
-                        {isExpanded ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
-                      </button>
-
-                      {isAdmin && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleUnpublish(item.id)}
-                            className="px-2.5 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/20 font-bold text-xs rounded-xl transition flex items-center gap-1"
-                            title="Unpublish & Retire this official release"
-                          >
-                            <EyeSlashIcon className="w-3.5 h-3.5" /> Unpublish
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(item.id)}
-                            disabled={deletingId === item.id}
-                            className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition disabled:opacity-50"
-                            title="Delete this curriculum"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Expanded Breakdown */}
-                  {isExpanded && (
-                    <div className="mt-4 pt-3 border-t border-border/60 bg-muted/20 rounded-xl p-4 space-y-3">
-                      <p className="text-xs font-bold text-foreground">Terms &amp; Weekly Topics Breakdown:</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {terms.map((t: any) => (
-                          <div key={t.term} className="bg-card border border-border p-3 rounded-lg space-y-1">
-                            <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest block">
-                              Term {t.term} {t.title ? `· ${t.title}` : ''}
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+                              {programName}
                             </span>
-                            <p className="text-xs font-bold text-foreground truncate">
-                              {(t.weeks ?? []).length} Weeks / Sessions
-                            </p>
-                            <div className="text-[11px] text-muted-foreground space-y-0.5 max-h-24 overflow-y-auto custom-scrollbar">
-                              {(t.weeks ?? []).slice(0, 4).map((w: any) => (
-                                <p key={w.week} className="truncate">
-                                  W{w.week}: {w.topic || w.type}
-                                </p>
-                              ))}
-                              {(t.weeks ?? []).length > 4 && (
-                                <p className="text-[10px] text-primary font-bold">
-                                  +{(t.weeks ?? []).length - 4} more weeks...
-                                </p>
-                              )}
-                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                              v{item.version ?? 1}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleVisibility(item)}
+                              className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-sm ${
+                                isVisible
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${isVisible ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                              {isVisible ? 'Visible to School' : 'Hidden from School (Click to Unhide)'}
+                            </button>
                           </div>
-                        ))}
+
+                          <h3 className="text-lg font-black text-foreground tracking-tight truncate">
+                            {title}
+                          </h3>
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 font-bold">
+                              <BuildingOfficeIcon className="w-3.5 h-3.5 text-primary" />
+                              {schoolName}
+                            </span>
+                            <span>•</span>
+                            <span className="font-bold text-foreground">{terms.length} Academic Term(s)</span>
+                            <span>•</span>
+                            <span>
+                              Created {new Date(item.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+                        <button
+                          type="button"
+                          onClick={() => onSelectCurriculum(item)}
+                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                        >
+                          <BookOpenIcon className="w-3.5 h-3.5" /> Inspect Syllabus
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                          className="p-2.5 border border-border text-muted-foreground hover:text-foreground bg-muted/20 hover:bg-muted/50 rounded-xl transition-all"
+                        >
+                          {isExpanded ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
+                        </button>
+
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleUnpublish(item.id)}
+                              className="px-3 py-2 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                              title="Unpublish & Retire this official release"
+                            >
+                              <EyeSlashIcon className="w-3.5 h-3.5" /> Unpublish
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              disabled={deletingId === item.id}
+                              className="p-2.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+                              title="Delete this curriculum"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  )}
+
+                    {/* Expanded Term Breakdown */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-border/60 bg-muted/20 rounded-xl p-4 space-y-3 animate-in fade-in">
+                        <p className="text-xs font-black text-foreground uppercase tracking-wider">
+                          Academic Terms &amp; Weekly Content Map:
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {terms.map((t: any) => (
+                            <div key={t.term} className="bg-card border border-border p-3.5 rounded-xl space-y-1.5 shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">
+                                  Term {t.term} {t.title ? `· ${t.title}` : ''}
+                                </span>
+                                <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
+                              </div>
+                              <p className="text-xs font-bold text-foreground truncate">
+                                {(t.weeks ?? []).length} Weekly Sessions
+                              </p>
+                              <div className="text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border/40 max-h-24 overflow-y-auto custom-scrollbar">
+                                {(t.weeks ?? []).slice(0, 4).map((w: any) => (
+                                  <p key={w.week} className="truncate">
+                                    <span className="font-bold text-foreground">W{w.week}:</span> {w.topic || w.type}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -468,21 +495,23 @@ export function MasterCurriculumRoster({
 
       {/* Master Wipe Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-card border border-rose-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-rose-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
             <div className="flex items-center gap-3 text-rose-500">
-              <ExclamationTriangleIcon className="w-8 h-8 flex-shrink-0" />
+              <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                <ExclamationTriangleIcon className="w-8 h-8 flex-shrink-0 animate-pulse" />
+              </div>
               <div>
-                <h3 className="text-lg font-black uppercase tracking-tight">Wipe All Curriculum Data</h3>
-                <p className="text-xs text-muted-foreground font-semibold">Danger Zone — Administrative Reset</p>
+                <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Master Reset / Wipe All</h3>
+                <p className="text-xs text-rose-400 font-bold">Danger Zone — Administrative Clean Slate</p>
               </div>
             </div>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This action will permanently delete <strong className="text-foreground">{curricula.length} curriculum records</strong> and clean up all associated draft plans and tracking records so you can start completely fresh.
+              This action will permanently delete <strong className="text-foreground">{curricula.length} curriculum records</strong> and clean up all associated draft plans, QA runs, and tracking records so you can start completely fresh.
             </p>
 
-            <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl space-y-1">
+            <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl space-y-2">
               <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
                 Type RESET to confirm deletion:
               </p>
@@ -491,18 +520,18 @@ export function MasterCurriculumRoster({
                 placeholder="RESET"
                 value={resetConfirmInput}
                 onChange={(e) => setResetConfirmInput(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border text-foreground font-mono text-sm uppercase rounded-lg focus:outline-none focus:border-rose-500"
+                className="w-full px-3.5 py-2.5 bg-background border border-border text-foreground font-mono text-sm uppercase rounded-lg focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowResetModal(false);
                   setResetConfirmInput('');
                 }}
-                className="flex-1 py-2.5 border border-border text-xs font-bold rounded-xl hover:bg-muted transition"
+                className="flex-1 py-3 border border-border text-xs font-bold rounded-xl hover:bg-muted transition-all"
               >
                 Cancel
               </button>
@@ -510,7 +539,7 @@ export function MasterCurriculumRoster({
                 type="button"
                 onClick={handleMasterReset}
                 disabled={resetConfirmInput.trim() !== 'RESET' || isProcessingBulk}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl transition"
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md"
               >
                 {isProcessingBulk ? 'Wiping All...' : 'Confirm Wipe All'}
               </button>

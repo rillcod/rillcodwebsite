@@ -113,18 +113,23 @@ const nextConfig: NextConfig = {
       config.cache = false;
     }
     // Cloudflare Workers size limits: stub Node-only heavies so they never enter the Worker.
+    // Use `pkg$` exact aliases — a bare `pdfmake` alias breaks subpath imports like fonts/Roboto.
     if (isServer && isCloudflareBuild) {
-      const stubs = path.join(__dirname, "src/lib");
+      const stubs = path.join(__dirname, "src/lib/cloudflare-stubs");
       config.resolve = config.resolve ?? {};
       config.resolve.alias = {
         ...(config.resolve.alias as Record<string, string | false | string[]>),
-        "firebase-admin": path.join(stubs, "push/firebase-admin-stub.cjs"),
-        pdfmake: path.join(stubs, "cloudflare-stubs/pdfmake.cjs"),
-        "pdfmake/fonts/Roboto": path.join(stubs, "cloudflare-stubs/pdfmake.cjs"),
-        pdfkit: path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
-        "@foliojs-fork/pdfkit": path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
-        fontkit: path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
-        "@foliojs-fork/fontkit": path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
+        "firebase-admin$": path.join(__dirname, "src/lib/push/firebase-admin-stub.cjs"),
+        "pdfmake$": path.join(stubs, "pdfmake.cjs"),
+        "pdfmake/fonts/Roboto$": path.join(stubs, "pdfmake-fonts-Roboto.cjs"),
+        "pdfkit$": path.join(stubs, "pdfkit.cjs"),
+        "@foliojs-fork/pdfkit$": path.join(stubs, "pdfkit.cjs"),
+        "fontkit$": path.join(stubs, "pdfkit.cjs"),
+        "@foliojs-fork/fontkit$": path.join(stubs, "pdfkit.cjs"),
+        [path.join(__dirname, "src/lib/pdfmake-server.ts")]: path.join(
+          stubs,
+          "pdfmake-server.ts",
+        ),
       };
     }
     return config;
