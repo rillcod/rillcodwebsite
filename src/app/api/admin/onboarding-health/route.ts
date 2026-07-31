@@ -42,7 +42,10 @@ export async function GET(_req: NextRequest) {
 
     // ── Cheap exact counts ──
     const [awaitingVerification, unonboardedPaid, failedEmails, studentsNoClass] = await Promise.all([
-      countOf(admin.from('prospective_students').select('id', { count: 'exact', head: true }).eq('status', 'pending_verification').eq('is_deleted', false)),
+      // 'pending_verification' is never written — the intake writes 'unpaid' for the same
+      // state — so filtering on it alone made this tile read 0 forever. integrity-sweep and
+      // the summer-school route already treat the two as one bucket; match them.
+      countOf(admin.from('prospective_students').select('id', { count: 'exact', head: true }).in('status', ['unpaid', 'pending_verification']).eq('is_deleted', false)),
       countOf(admin.from('prospective_students').select('id', { count: 'exact', head: true }).in('status', ['paid', 'partially_paid']).eq('is_active', false)),
       countOf(admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('status', 'failed')),
       countOf(admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('enrollment_type', 'special').eq('is_active', true).eq('is_deleted', false).is('class_id', null)),
