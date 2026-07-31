@@ -1,8 +1,15 @@
 #:schema node_modules/wrangler/config-schema.json
+# OpenNext targets Cloudflare Workers (not Pages Functions).
+# Pages Functions cap at 25 MiB uncompressed — this app's worker is ~90 MiB there.
+# Workers keep static assets out of the script and apply a gzip size limit instead.
 name = "rillcodwebsite"
-pages_build_output_dir = ".open-next"
+main = ".open-next/worker.js"
 compatibility_date = "2025-03-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [vars]
 NEXT_PUBLIC_APP_URL = "https://rillcod.com"

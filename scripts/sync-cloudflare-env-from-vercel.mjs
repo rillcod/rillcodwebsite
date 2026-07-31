@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Sync .env.vercel.local → Cloudflare Pages:
+ * Sync .env.vercel.local → Cloudflare Workers:
  * - Public / build-time vars → wrangler.toml [vars]
- * - Secrets → wrangler pages secret put
+ * - Secrets → wrangler secret put
  *
  * Usage: node scripts/sync-cloudflare-env-from-vercel.mjs
  * Optional: --vars-only | --secrets-only | --dry-run
@@ -128,15 +128,7 @@ function putSecret(name, value) {
   }
   const r = spawnSync(
     "npx",
-    [
-      "wrangler",
-      "pages",
-      "secret",
-      "put",
-      name,
-      "--project-name",
-      PROJECT,
-    ],
+    ["wrangler", "secret", "put", name, "--name", PROJECT],
     {
       input: value,
       encoding: "utf8",
@@ -177,7 +169,7 @@ if (!fs.existsSync(ENV_FILE)) {
 
 const env = parseEnvFile(ENV_FILE);
 console.log(`Loaded ${Object.keys(env).length} keys from ${ENV_FILE}`);
-console.log(`Cloudflare Pages project: ${PROJECT}`);
+console.log(`Cloudflare Workers project: ${PROJECT}`);
 
 if (!secretsOnly) writeWranglerVars(env);
 if (!varsOnly) uploadSecrets(env);

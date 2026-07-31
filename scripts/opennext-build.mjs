@@ -1,6 +1,6 @@
 /**
  * Run OpenNext Cloudflare build with OPENNEXT_CLOUDFLARE=1 so next.config
- * stubs firebase-admin (avoids jwks-rsa → jose workerd resolve failure).
+ * stubs firebase-admin / PDF engines (Worker size + jose resolve).
  */
 import { spawnSync } from "node:child_process";
 

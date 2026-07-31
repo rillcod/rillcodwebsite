@@ -37,29 +37,31 @@ const nextConfig: NextConfig = {
   // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
   // output: 'export',
 
-  // Keep pdf engines out of the webpack bundle so AFM/TTF paths resolve from
-  // node_modules on Vercel (bundling rewrites __dirname → .next/server/chunks).
-  // `jose` must stay external for OpenNext/Cloudflare (workerd export condition).
-  // Do NOT externalize firebase-admin / jwks-rsa — copying them into .open-next
-  // pulls a nested jose that esbuild cannot resolve for workerd.
-  serverExternalPackages: [
-    'pdfmake',
-    'pdfkit',
-    '@foliojs-fork/pdfkit',
-    'fontkit',
-    '@foliojs-fork/fontkit',
-    'jose',
-  ],
+  // Keep pdf engines out of the webpack bundle on Vercel so AFM/TTF paths resolve
+  // from node_modules. On Cloudflare, omit them so stubs replace the heavy packages
+  // instead of copying fonts into the Worker. `jose` stays external for workerd.
+  serverExternalPackages: isCloudflareBuild
+    ? ["jose"]
+    : [
+        "pdfmake",
+        "pdfkit",
+        "@foliojs-fork/pdfkit",
+        "fontkit",
+        "@foliojs-fork/fontkit",
+        "jose",
+      ],
 
-  // Ensure font metric / TTF files are traced into serverless functions.
-  outputFileTracingIncludes: {
-    '/api/**/*': [
-      './node_modules/pdfkit/js/data/**/*',
-      './node_modules/@foliojs-fork/pdfkit/js/data/**/*',
-      './node_modules/pdfmake/fonts/**/*',
-      './node_modules/pdfmake/build/fonts/**/*',
-    ],
-  },
+  // Ensure font metric / TTF files are traced into Vercel serverless functions.
+  outputFileTracingIncludes: isCloudflareBuild
+    ? {}
+    : {
+        "/api/**/*": [
+          "./node_modules/pdfkit/js/data/**/*",
+          "./node_modules/@foliojs-fork/pdfkit/js/data/**/*",
+          "./node_modules/pdfmake/fonts/**/*",
+          "./node_modules/pdfmake/build/fonts/**/*",
+        ],
+      },
 
   // ── Turbopack Compatibility ──────────────────────────────────────────────
   // silences warning for custom webpack used by next-pwa
@@ -110,13 +112,19 @@ const nextConfig: NextConfig = {
     if (!dev && process.env.VERCEL) {
       config.cache = false;
     }
-    // Swap firebase-admin for a no-op on Cloudflare so OpenNext never copies
-    // jwks-rsa/jose into the worker bundle (build-time "Could not resolve jose").
+    // Cloudflare Workers size limits: stub Node-only heavies so they never enter the Worker.
     if (isServer && isCloudflareBuild) {
+      const stubs = path.join(__dirname, "src/lib");
       config.resolve = config.resolve ?? {};
       config.resolve.alias = {
         ...(config.resolve.alias as Record<string, string | false | string[]>),
-        "firebase-admin": path.join(__dirname, "src/lib/push/firebase-admin-stub.cjs"),
+        "firebase-admin": path.join(stubs, "push/firebase-admin-stub.cjs"),
+        pdfmake: path.join(stubs, "cloudflare-stubs/pdfmake.cjs"),
+        "pdfmake/fonts/Roboto": path.join(stubs, "cloudflare-stubs/pdfmake.cjs"),
+        pdfkit: path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
+        "@foliojs-fork/pdfkit": path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
+        fontkit: path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
+        "@foliojs-fork/fontkit": path.join(stubs, "cloudflare-stubs/pdfkit.cjs"),
       };
     }
     return config;
