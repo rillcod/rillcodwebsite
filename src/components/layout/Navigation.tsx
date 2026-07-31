@@ -105,7 +105,7 @@ const Navigation = () => {
           <div className="flex items-center justify-between gap-2 h-16">
 
             {/* ── Brand ── */}
-            <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl p-0.5">
               <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl overflow-hidden group-hover:scale-105 transition-all bg-white/80 dark:bg-white shrink-0">
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={36} height={36} className="w-[85%] h-[85%] object-contain" />
               </div>
@@ -128,7 +128,7 @@ const Navigation = () => {
                     suppressHydrationWarning
                     key={href}
                     href={href}
-                    className={`${navLinkCls(href)} ${
+                    className={`${navLinkCls(href)} focus-visible:ring-2 focus-visible:ring-primary ${
                       isSummer && !isActive(href)
                         ? 'border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10'
                         : ''
@@ -144,12 +144,12 @@ const Navigation = () => {
 
               {/* Secure Dropdown */}
               <div className="relative group ml-4">
-                 <button className="flex items-center gap-3 px-6 py-2.5 bg-card shadow-sm border border-border text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted transition-all rounded-xl">
+                 <button aria-label="More navigation options" className="flex items-center gap-3 px-6 py-2.5 bg-card shadow-sm border border-border text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary transition-all rounded-xl">
                     More <ChevronDownIcon className="w-3 h-3 group-hover:rotate-180 transition-transform" />
                  </button>
                  <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2">
                     {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
-                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-muted shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-brand-red-600">
+                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-muted shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-brand-red-600 focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
                          <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{label}</span>
                          <span className="text-[8px] text-muted-foreground font-bold uppercase mt-1">{sub}</span>
                       </Link>
@@ -166,7 +166,7 @@ const Navigation = () => {
               {mounted && !authLoading && user ? (
                 <Link
                   href="/dashboard"
-                  className="hidden sm:inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-md shadow-primary/20"
+                  className="hidden sm:inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary transition-all shadow-md shadow-primary/20"
                 >
                   <Squares2X2Icon className="w-4 h-4 shrink-0" />
                   <span>Dashboard</span>
@@ -175,7 +175,7 @@ const Navigation = () => {
                 <>
                   <Link
                     href="/student-registration"
-                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3.5 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-md shadow-primary/20 touch-manipulation"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3.5 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98] transition-all shadow-md shadow-primary/20 touch-manipulation"
                     aria-label="Enrol a learner"
                   >
                     <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
@@ -184,7 +184,7 @@ const Navigation = () => {
                   </Link>
                   <Link
                     href={LOGIN_HREF}
-                    className="hidden sm:inline-flex items-center min-h-11 px-4 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+                    className="hidden sm:inline-flex items-center min-h-11 px-4 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary rounded-xl transition-colors"
                   >
                     Login
                   </Link>
@@ -195,7 +195,7 @@ const Navigation = () => {
               <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden inline-flex items-center justify-center gap-2 min-h-11 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest rounded-xl hover:bg-primary/20 active:scale-95 transition-all touch-manipulation shadow-md shadow-primary/10"
+                className="lg:hidden inline-flex items-center justify-center gap-2 min-h-11 min-w-11 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest rounded-xl hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-primary active:scale-95 transition-all touch-manipulation shadow-md shadow-primary/10"
                 aria-label={isOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={isOpen}
               >

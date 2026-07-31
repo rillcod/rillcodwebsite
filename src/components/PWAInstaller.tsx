@@ -134,29 +134,57 @@ export default function PWAInstaller() {
 // ── Offline indicator ─────────────────────────────────────────────
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
+  const [showReconnected, setShowReconnected] = useState(false);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    let reconnectTimer: ReturnType<typeof setTimeout>;
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowReconnected(true);
+      reconnectTimer = setTimeout(() => {
+        setShowReconnected(false);
+      }, 3000);
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setShowReconnected(false);
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
     };
   }, []);
 
-  if (isOnline) return null;
+  if (isOnline && !showReconnected) return null;
 
   return (
-    <div className="fixed top-[calc(var(--safe-area-top)+1rem)] left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300">
-      <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-xl shadow-xl">
-        <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shrink-0" />
-        <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
-          You're offline — some features may be limited
-        </p>
-      </div>
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed top-[calc(var(--safe-area-top,0px)+1rem)] left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300 pt-[env(safe-area-inset-top)]"
+    >
+      {!isOnline ? (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-xl shadow-xl">
+          <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shrink-0" />
+          <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+            You're offline — some features may be limited
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl backdrop-blur-xl shadow-xl">
+          <span className="w-2 h-2 bg-emerald-400 rounded-full shrink-0" />
+          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+            Back online — Connection restored
+          </p>
+        </div>
+      )}
     </div>
   );
 }
