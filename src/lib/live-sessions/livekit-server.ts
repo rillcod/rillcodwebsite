@@ -18,9 +18,13 @@ export function livekitEnv() {
   return { apiKey, apiSecret, url };
 }
 
-/** HTTP(S) base for the server SDK (LiveKit REST). Accepts ws(s):// or https:// URLs. */
+/** HTTP(S) base for the server SDK (LiveKit REST). Accepts ws(s)://, http(s)://, or bare host. */
 function httpUrl(url: string) {
-  return url.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (/^wss:/i.test(trimmed)) return trimmed.replace(/^wss:/i, 'https:');
+  if (/^ws:/i.test(trimmed)) return trimmed.replace(/^ws:/i, 'http:');
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 // The SAME formula the token route uses — every participant, the moderator and Egress must

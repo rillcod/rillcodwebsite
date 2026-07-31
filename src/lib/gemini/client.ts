@@ -218,7 +218,7 @@ export async function geminiGenerateText(
     for (const spec of ladder) {
         // A model is only abandoned once every key has failed on it.
         for (const apiKey of keys) {
-            // `retryBudget` handles a transient blip on an otherwise healthy key.
+            // Two attempts per key: one retry absorbs a transient blip on a healthy key.
             for (let attempt = 0; attempt < 2; attempt++) {
                 if (opts.signal?.aborted) return null;
 
@@ -235,13 +235,15 @@ export async function geminiGenerateText(
                 if (result.kind === 'ok') return result.value;
 
                 if (result.kind === 'truncated') {
-                    // Ran out of budget — almost always thinking eating the output
-                    // allowance. Retry once with thinking off and the full cap before
-                    // giving up on a model that was otherwise working.
+                    // Ran out of budget — usually thinking eating the output allowance.
+                    // Retry with thinking off before giving up on a model that was
+                    // otherwise working. A caller-set cap is honoured: they asked for a
+                    // short answer, so spend the whole cap on the answer instead of
+                    // silently returning something ten times longer.
                     const retry = await callModel(apiKey, spec, systemPrompt, contents, {
                         ...opts,
                         thinkingBudget: spec.thinking === 'forced' ? 128 : 0,
-                        maxOutputTokens: spec.maxOutput,
+                        maxOutputTokens: maxOutput,
                         timeoutMs,
                     });
                     if (retry.kind === 'ok') return retry.value;

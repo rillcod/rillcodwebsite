@@ -6,12 +6,14 @@ import {
   BookOpenIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  SparklesIcon,
 } from "@/lib/icons";
 import type { StageStatus } from "@/lib/academic/status";
 import {
   buildAssignmentNewHref,
   buildClassAssessmentHref,
   buildCbtNewHref,
+  buildCurriculumHref,
   buildFlashcardsHref,
   buildGradesHref,
   buildLessonPlanHref,
@@ -19,6 +21,8 @@ import {
   buildProjectNewHref,
   buildResultsHref,
 } from "@/lib/curriculum/href";
+import PipelineStepper from "@/components/pipeline/PipelineStepper";
+import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
 
 type Props = {
   classId: string;
@@ -49,6 +53,13 @@ export function ClassTeachingWorkspace({
   // Weeks picked for a batch delivery update — catching up after a break took
   // one request per week before.
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiWeek, setAiWeek] = useState<{
+    week: number;
+    topic: string;
+    objectives?: string;
+    activities?: string;
+  } | null>(null);
   const load = useCallback(
     async (cid?: string) => {
       setBusy(true);
@@ -200,8 +211,33 @@ export function ClassTeachingWorkspace({
       setBusy(false);
     }
   }
+  async function generateLessonsWithAi() {
+    if (!plan) return;
+    setAiBusy(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/lesson-plans/${plan.id}/generate-lessons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || j.detail || "AI could not generate lessons");
+      await load(courseId);
+    } catch (e: any) {
+      setError(e.message || "AI generate failed");
+    } finally {
+      setAiBusy(false);
+    }
+  }
   const plan = data?.plan,
     progress = data?.progress;
+  const curriculumWeeks = weeks.length
+    ? weeks
+    : (data?.lessons || []).map((lesson: any, i: number) => ({
+        week: Number(lesson.curriculum_week_number) || i + 1,
+        topic: lesson.title,
+      }));
   // Resolved by the server from the class's pathway — never chosen here.
   const officialDirection = data?.academic_direction?.available
     ? data.academic_direction.title
@@ -223,7 +259,20 @@ export function ClassTeachingWorkspace({
   );
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-border bg-background p-4">
+      {courseId && (
+        <PipelineStepper
+          current="plans"
+          courseId={courseId}
+          programId={data?.class?.program_id}
+          classId={classId}
+          lessonPlanId={plan?.id}
+          courseTitle={
+            (data?.courses || []).find((c: any) => c.id === courseId)?.title
+          }
+        />
+      )}
+
+      <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <label className="flex-1 text-xs font-bold text-muted-foreground">
             Course
@@ -246,7 +295,7 @@ export function ClassTeachingWorkspace({
              dropdown, which implied a teacher could pick a draft — the choice
              was silently discarded, so it only ever misled. */}
           <div className="flex-1 text-xs font-bold text-muted-foreground">
-            Official direction
+            Official curriculum
             <div className="mt-1 rounded-xl border border-border bg-card px-3 py-2.5">
               {officialDirection ? (
                 <>
@@ -287,8 +336,7 @@ export function ClassTeachingWorkspace({
           )}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          One class and course owns one plan for its academic term or delivery
-          period. Lessons and delivered weeks update this same record.
+          Curriculum weeks, AI generate, and mark-as-taught all live in this Teaching tab.
         </p>
       </div>
       {data && !data.courses?.length && (
@@ -368,7 +416,7 @@ export function ClassTeachingWorkspace({
       )}
       {plan && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <Stat
               label="Planned lessons"
               value={progress?.lesson_count || data.lessons.length}
@@ -382,67 +430,93 @@ export function ClassTeachingWorkspace({
               value={progress?.latest_delivered_week || "—"}
             />
           </div>
-          {/* The full plan editor — week-by-week AI generation, progression
-             guidance and syllabus quality checks all live on the plan, which
-             belongs to this class. Without this link they were unreachable
-             from here. */}
-          <Link
-            href={buildLessonPlanHref(plan.id)}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-transparent p-4 transition-colors hover:border-primary/50"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-black text-foreground">
-                Open the full teaching plan
-              </span>
-              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                Week-by-week editing, AI lesson generation, progression guidance
-                and syllabus quality checks for this class.
-              </span>
-            </span>
-            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
-              Open &rarr;
-            </span>
-          </Link>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link
+              href={buildLessonPlanHref(plan.id)}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-transparent p-4 transition-colors hover:border-primary/50"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-foreground">
+                  Open full teaching plan
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  Edit weeks, syllabus quality, and deep AI tools.
+                </span>
+              </span>
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
+                Open →
+              </span>
+            </Link>
+            {canEdit && (
+              <button
+                type="button"
+                disabled={busy || aiBusy || curriculumWeeks.length === 0}
+                onClick={() => void generateLessonsWithAi()}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4 text-left transition-colors hover:border-violet-500/50 disabled:opacity-50"
+              >
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-sm font-black text-foreground">
+                    <SparklesIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    {aiBusy ? "Generating lessons…" : "AI generate lessons"}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                    Builds lessons from each curriculum week for this class.
+                  </span>
+                </span>
+                {aiBusy ? (
+                  <ArrowPathIcon className="h-4 w-4 shrink-0 animate-spin text-violet-600 dark:text-violet-400" />
+                ) : (
+                  <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-300">
+                    Run →
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={buildCurriculumHref({
+                courseId,
+                programId: data?.class?.program_id,
+              })}
+              className="rounded-xl border border-border bg-card px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+            >
+              View curriculum
+            </Link>
             <Link
               href={buildClassAssessmentHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+              className="rounded-xl border border-border bg-card px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
             >
               Assessment desk
             </Link>
             <Link
               href={buildGradesHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+              className="rounded-xl border border-border bg-card px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
             >
               Grades
             </Link>
             <Link
               href={buildResultsHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
+              className="rounded-xl border border-border bg-card px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
             >
               Results
             </Link>
-            <Link
-              href="/dashboard/parent-results"
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
-            >
-              Parent portal
-            </Link>
           </div>
 
-          <div className="rounded-2xl border border-border bg-background p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black">Plan · Teach · Track</h3>
+          <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="text-sm font-black">Curriculum weeks · delivery</h3>
                 <p className="text-xs text-muted-foreground">
-                  Delivery is the progression record. From each week open slides, flashcards, assignments, projects and CBT.
+                  Mark taught, open materials, or generate a week with AI.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setAdding((v) => !v)}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-bold"
+                className="w-fit rounded-lg border border-border px-3 py-2 text-xs font-bold"
               >
                 {adding ? "Cancel" : "Add lesson"}
               </button>
@@ -523,7 +597,7 @@ export function ClassTeachingWorkspace({
                 </button>
               </div>
             )}
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-3">
               {(data.lessons.length ? data.lessons : weeks).map(
                 (item: any, i: number) => {
                   const lesson = !!item.id && !!item.title;
@@ -537,50 +611,72 @@ export function ClassTeachingWorkspace({
                   const hasSlides = lesson && slideLessonIds.has(item.id);
                   const flashcardDeck = flashcardsByWeek.get(week);
                   const topic = item.title || item.topic || `Week ${week}`;
+                  const weekMeta = weeks.find(
+                    (w: any) => Number(w.week) === week
+                  ) || { week, topic };
                   return (
                     <div
                       key={key + i}
-                      className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center"
+                      className="rounded-xl border border-border bg-card p-3"
                     >
-                      {canEdit && (
-                        <label className="flex shrink-0 items-center self-start pt-1 sm:self-center sm:pt-0">
-                          <input
-                            type="checkbox"
-                            aria-label={`Select week ${week}`}
-                            checked={picked.has(week)}
-                            onChange={(e) =>
-                              setPicked((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(week);
-                                else next.delete(week);
-                                return next;
-                              })
-                            }
-                            className="h-4 w-4 accent-primary"
-                          />
-                        </label>
-                      )}
-                      <div className="flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                          Week {week}
-                        </p>
-                        <p className="text-sm font-bold">
-                          {topic}
-                        </p>
+                      <div className="flex items-start gap-2">
+                        {canEdit && (
+                          <label className="flex shrink-0 items-center pt-1">
+                            <input
+                              type="checkbox"
+                              aria-label={`Select week ${week}`}
+                              checked={picked.has(week)}
+                              onChange={(e) =>
+                                setPicked((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(week);
+                                  else next.delete(week);
+                                  return next;
+                                })
+                              }
+                              className="h-4 w-4 accent-primary"
+                            />
+                          </label>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                            Week {week}
+                            {done && (
+                              <span className="ml-2 text-emerald-600 dark:text-emerald-400">
+                                Taught
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm font-bold text-foreground">{topic}</p>
+                        </div>
                       </div>
+
                       {canEdit && (
-                        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-                          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/40 p-1.5">
-                            <span className="px-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              Teach and practise
-                            </span>
+                        <div className="mt-3 space-y-2">
+                          <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                setAiWeek({
+                                  week,
+                                  topic,
+                                  objectives: weekMeta.objectives,
+                                  activities: weekMeta.activities,
+                                })
+                              }
+                              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-2 text-[10px] font-black text-violet-700 dark:text-violet-300"
+                            >
+                              <SparklesIcon className="h-3.5 w-3.5" />
+                              AI generate
+                            </button>
                             {lesson && (
                               <Link
                                 href={buildLessonSlidesHref({
                                   lessonId: item.id,
                                   returnClassId: classId,
                                 })}
-                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
                               >
                                 {hasSlides ? "Open slides" : "Add slides"}
                               </Link>
@@ -595,24 +691,19 @@ export function ClassTeachingWorkspace({
                                   lessonPlanId: plan.id,
                                   topic,
                                 })}
-                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
                               >
-                                Open flashcards
+                                Flashcards
                               </Link>
                             ) : (
                               <button
                                 disabled={busy}
                                 onClick={() => void createFlashcardDeck(item, week)}
-                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
                               >
-                                Create flashcards
+                                Flashcards
                               </button>
                             )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/40 p-1.5">
-                            <span className="px-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              Assess
-                            </span>
                             <Link
                               href={buildAssignmentNewHref({
                                 classId,
@@ -621,41 +712,41 @@ export function ClassTeachingWorkspace({
                                 lessonId: lesson ? item.id : null,
                                 week,
                               })}
-                              className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
                             >
                               Assignment
                             </Link>
-                          <Link
-                            href={project
-                              ? `/dashboard/projects/${project.id}`
-                              : buildProjectNewHref({
-                                  classId,
-                                  courseId,
-                                  schoolId: data?.class?.school_id,
-                                  lessonPlanId: plan.id,
-                                  lessonId: lesson ? item.id : null,
-                                  week,
-                                })}
-                            className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
-                          >
-                            {project ? "Open project" : "Create project"}
-                          </Link>
-                          <Link
-                            href={buildCbtNewHref({
-                              classId,
-                              courseId,
-                              programId: data?.class?.program_id,
-                              schoolId: data?.class?.school_id,
-                              lessonPlanId: plan.id,
-                              lessonId: lesson ? item.id : null,
-                              curriculumId: plan.curriculum_version_id,
-                              week,
-                              topic,
-                            })}
-                            className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
-                          >
-                            Evaluation
-                          </Link>
+                            <Link
+                              href={project
+                                ? `/dashboard/projects/${project.id}`
+                                : buildProjectNewHref({
+                                    classId,
+                                    courseId,
+                                    schoolId: data?.class?.school_id,
+                                    lessonPlanId: plan.id,
+                                    lessonId: lesson ? item.id : null,
+                                    week,
+                                  })}
+                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
+                            >
+                              {project ? "Open project" : "Create project"}
+                            </Link>
+                            <Link
+                              href={buildCbtNewHref({
+                                classId,
+                                courseId,
+                                programId: data?.class?.program_id,
+                                schoolId: data?.class?.school_id,
+                                lessonPlanId: plan.id,
+                                lessonId: lesson ? item.id : null,
+                                curriculumId: plan.curriculum_version_id,
+                                week,
+                                topic,
+                              })}
+                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
+                            >
+                              Evaluation
+                            </Link>
                           </div>
                           <button
                             disabled={busy}
@@ -668,14 +759,14 @@ export function ClassTeachingWorkspace({
                                 status: done ? "planned" : "delivered",
                               })
                             }
-                            className={`inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-black ${
+                            className={`inline-flex w-full min-h-10 items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-black sm:w-auto ${
                               done
                                 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "border border-border"
+                                : "border border-border bg-background"
                             }`}
                           >
                             <CheckCircleIcon className="h-4 w-4" />
-                            {done ? "Taught" : "Mark as taught"}
+                            {done ? "Taught — tap to undo" : "Mark as taught"}
                           </button>
                         </div>
                       )}
@@ -685,20 +776,33 @@ export function ClassTeachingWorkspace({
               )}
               {!data.lessons.length && !weeks.length && (
                 <p className="py-5 text-center text-xs text-muted-foreground">
-                  The plan is linked. Add its first lesson to begin delivery.
+                  The plan is linked. Add a lesson or run AI generate lessons to begin delivery.
                 </p>
               )}
             </div>
           </div>
         </>
       )}
+
+      {aiWeek && plan && (
+        <WeekAIGenerator
+          week={aiWeek}
+          planId={plan.id}
+          courseId={courseId}
+          onClose={() => setAiWeek(null)}
+          onDone={() => {
+            setAiWeek(null);
+            void load(courseId);
+          }}
+        />
+      )}
     </div>
   );
 }
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-border bg-background p-4">
-      <p className="text-2xl font-black">{value}</p>
+    <div className="rounded-xl border border-border bg-background p-3 sm:rounded-2xl sm:p-4">
+      <p className="text-xl font-black sm:text-2xl">{value}</p>
       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
         {label}
       </p>

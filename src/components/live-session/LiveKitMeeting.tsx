@@ -70,8 +70,16 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<MeetingPhase>('loading');
   const [autoTry, setAutoTry] = useState(0);
+  /** LiveKit media path confirmed — separate from phase so the header badge can update. */
+  const [mediaReady, setMediaReady] = useState(false);
   /** Bump only when we need a brand-new Room after a terminal drop — never from the JWT. */
   const [roomEpoch, setRoomEpoch] = useState(0);
+  /**
+   * True while a token fetch is in flight. Without this, rejoin sets phase to
+   * `rejoining` while the OLD token is still set → room remounts mid-fetch and
+   * everyone spins on Connecting forever.
+   */
+  const [seatPending, setSeatPending] = useState(true);
 
   const exitedRef = useRef(false);
   const attendanceLeftRef = useRef(false);
@@ -116,10 +124,10 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
     connectWatchdog.current = setTimeout(() => {
       connectWatchdog.current = null;
       if (exitedRef.current || connectedRef.current) return;
-      // Unmount the stuck room, then let auto-rejoin fetch a fresh seat.
-      intentionalUnmountRef.current = true;
-      setPhase((p) => (p === 'ended' ? p : 'dropped'));
-      setError((prev) => prev || 'Could not finish connecting — retrying…');
+      // Surface a hint only — do NOT flip to dropped/unmount here. That regressed
+      // live class after cleanup: slow joins never reached onConnected before we
+      // tore the room down and entered a reconnect loop.
+      setError((prev) => prev || 'Still connecting — check camera/mic permission and your network.');
     }, CONNECT_DEADLINE_MS);
   }, [clearWatchdog]);
 
@@ -137,6 +145,11 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       setError(null);
       setPhase(rejoin ? 'rejoining' : 'loading');
       connectedRef.current = false;
+      setMediaReady(false);
+      // Hold the room unmounted until the new seat arrives — do NOT clear token
+      // (that remount storm is worse); seatPending gates LiveKitRoom instead.
+      intentionalUnmountRef.current = true;
+      setSeatPending(true);
 
       try {
         const res = await fetch('/api/live-sessions/livekit-token', {
@@ -148,22 +161,27 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         if (!res.ok) throw new Error(j.error ?? 'Token error');
         if (seq !== loadSeqRef.current || exitedRef.current) return;
 
-        // Remount only on rejoin (old room already unmounted via phase=dropped).
+        // Remount only on rejoin (old room already unmounted via seatPending).
         // First join just sets credentials once — no epoch churn.
         if (rejoin) {
-          intentionalUnmountRef.current = true;
           setRoomEpoch((n) => n + 1);
         }
         setToken(j.token);
         setServerUrl(j.url);
         setIsModerator(!!j.isModerator);
-        // Stay on loading/rejoining until onConnected — never fake "live".
+        setSeatPending(false);
+        // Pre-cleanup behaviour: show the room as soon as the seat is minted.
+        // Waiting for onConnected left everyone on "Connecting…" on slow networks
+        // and the watchdog below kept killing the attempt mid-flight.
+        setPhase('live');
+        setAutoTry(0);
         armConnectWatchdog();
         requestAnimationFrame(() => {
           intentionalUnmountRef.current = false;
         });
       } catch (e: unknown) {
         if (seq !== loadSeqRef.current || exitedRef.current) return;
+        setSeatPending(false);
         setError(e instanceof Error ? e.message : 'Failed to connect');
         setPhase('dropped');
       }
@@ -209,6 +227,7 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
   const handleConnected = useCallback(() => {
     intentionalUnmountRef.current = false;
     connectedRef.current = true;
+    setMediaReady(true);
     clearWatchdog();
     setError(null);
     setPhase('live');
@@ -217,6 +236,7 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
 
   const handleDisconnected = useCallback((reason?: DisconnectReason) => {
     connectedRef.current = false;
+    setMediaReady(false);
     if (exitedRef.current) return;
     if (intentionalUnmountRef.current) return;
     // Our Leave / phase-unmount — not a network death.
@@ -233,15 +253,18 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
   }, [clearWatchdog]);
 
   const handleError = useCallback((e: Error) => {
-    // Do NOT flip to dropped here — transient publish/media errors were causing
-    // a connect → error → remount storm that looked like "stuck connecting".
     const msg = e?.message ?? 'Connection error';
     if (/Permission|NotAllowed|NotFound|NotReadable/i.test(msg)) {
       setError(msg);
       return;
     }
+    if (/duplicate.?identity|already connected/i.test(msg)) {
+      setError('Reconnecting — clearing a stale seat…');
+      void loadToken({ rejoin: true });
+      return;
+    }
     console.warn('[livekit]', msg);
-  }, []);
+  }, [loadToken]);
 
   useEffect(() => {
     const onVis = () => {
@@ -310,12 +333,12 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
 
   const stalled = phase === 'dropped' && hasExhaustedRejoins(autoTry);
 
-  // Room must NOT stay mounted while dropped — that fights auto-rejoin and
-  // leaves everyone on "Connecting…". Same for ended / give-up screens.
+  // Room shows once we have a seat and phase is live (set on token success).
   const roomMounted =
     !!token
     && !!serverUrl
-    && (phase === 'loading' || phase === 'rejoining' || phase === 'live');
+    && !seatPending
+    && phase === 'live';
 
   if (stalled) {
     return (
@@ -382,7 +405,7 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
           <span className="text-[10px] font-black text-white uppercase tracking-widest truncate">
             {sessionTitle}
           </span>
-          {phase !== 'live' && (
+          {!mediaReady && (
             <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
               Connecting…
             </span>

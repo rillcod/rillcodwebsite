@@ -82,22 +82,26 @@ function loadTokenSource(): string {
 }
 
 describe('LiveKitMeeting reconnect invariants', () => {
-  it('only resets the retry budget from onConnected, never from a token fetch', () => {
-    // `setAutoTry(0)` on token success made a failing media connect retry forever.
+  it('resets the retry budget on token success and onConnected', () => {
     const resets = src.match(/setAutoTry\(0\)/g) ?? [];
-    expect(resets.length, 'expected exactly one in handleConnected + one in manualRejoin').toBe(2);
-
+    expect(resets.length).toBeGreaterThanOrEqual(2);
+    expect(loadTokenSource()).toMatch(/setAutoTry\(0\)/);
     const connected = src.slice(
       src.indexOf('const handleConnected'),
       src.indexOf('const handleDisconnected'),
     );
     expect(connected).toMatch(/setAutoTry\(0\)/);
-
-    expect(loadTokenSource()).not.toMatch(/setAutoTry/);
   });
 
-  it('never flips to the live phase optimistically on token success', () => {
-    expect(loadTokenSource()).not.toMatch(/setPhase\('live'\)/);
+  it('shows the room as soon as the token lands (pre-cleanup join behaviour)', () => {
+    const loadToken = loadTokenSource();
+    expect(loadToken).toMatch(/setPhase\('live'\)/);
+  });
+
+  it('does not tear the room down from the connect watchdog', () => {
+    const watchdog = src.slice(src.indexOf('const armConnectWatchdog'), src.indexOf('const loadToken'));
+    expect(watchdog).not.toMatch(/setPhase\('dropped'\)/);
+    expect(watchdog).not.toMatch(/setPhase\(\(p\)/);
   });
 
   it('is memoised so the parent page realtime feed cannot re-render it', () => {
@@ -137,12 +141,15 @@ describe('LiveKitMeeting reconnect invariants', () => {
     expect(disconnected).toMatch(/CLIENT_INITIATED/);
   });
 
-  it('clears credentials before a rejoin so the old Room fully unmounts', () => {
-    // Intentionally NOT clearing token up-front — that remount storm caused
-    // stuck "Connecting…" / CLIENT_INITIATED disconnects for everyone.
+  it('keeps the room unmounted while a seat is fetching (no mid-fetch remount)', () => {
+    // Clearing token up-front remount-stormed. Leaving the old token mounted
+    // while phase=rejoining did the same. seatPending gates LiveKitRoom instead.
     const loadToken = loadTokenSource();
     expect(loadToken).not.toMatch(/setToken\(null\)/);
     expect(loadToken).not.toMatch(/setServerUrl\(null\)/);
+    expect(loadToken).toMatch(/setSeatPending\(true\)/);
+    expect(loadToken).toMatch(/setSeatPending\(false\)/);
+    expect(src).toMatch(/!seatPending/);
   });
 
   it('does not treat onError as a terminal drop (avoids connect storms)', () => {

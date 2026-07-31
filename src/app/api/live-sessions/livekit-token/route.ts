@@ -8,11 +8,19 @@ import {
   requireLiveSessionAccess,
   requireLiveSessionUser,
 } from '@/lib/live-sessions/authz';
-import { ensureLiveKitRoom, roomNameForSession } from '@/lib/live-sessions/livekit-server';
+import {
+  clearStaleLiveKitParticipant,
+  ensureLiveKitRoom,
+  roomNameForSession,
+} from '@/lib/live-sessions/livekit-server';
 
-/** Browser client needs ws(s):// — tolerate https:// pasted into env. */
+/** Browser client needs ws(s):// — tolerate http(s):// or a bare host in env. */
 function clientLiveKitUrl(url: string) {
-  return url.trim().replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (/^wss?:\/\//i.test(trimmed)) return trimmed;
+  if (/^https:\/\//i.test(trimmed)) return trimmed.replace(/^https:\/\//i, 'wss://');
+  if (/^http:\/\//i.test(trimmed)) return trimmed.replace(/^http:\/\//i, 'ws://');
+  return `wss://${trimmed}`;
 }
 
 // POST /api/live-sessions/livekit-token
@@ -64,9 +72,17 @@ export async function POST(req: NextRequest) {
     const roomName = roomNameForSession(sessionId);
     const identity = profile.id;
 
-    // Best-effort room open — never block the token on LiveKit admin API latency.
-    // Blocking here made the UI sit on "Starting meeting…" forever.
-    void ensureLiveKitRoom(sessionId);
+    // Open the room + clear any ghost seat for this identity before minting.
+    // Ghosts from a reconnect loop reject the next join as DUPLICATE_IDENTITY
+    // and the UI sits on Connecting. Cap wait so a slow admin API never blocks
+    // the token forever.
+    await Promise.race([
+      Promise.all([
+        ensureLiveKitRoom(sessionId),
+        clearStaleLiveKitParticipant(sessionId, identity),
+      ]),
+      new Promise<void>((resolve) => setTimeout(resolve, 2500)),
+    ]);
 
     const at = new AccessToken(API_KEY, API_SECRET, {
       identity,

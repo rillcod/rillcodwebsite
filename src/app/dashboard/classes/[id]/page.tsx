@@ -65,7 +65,12 @@ export default function ClassDetailPage() {
 
   useEffect(() => {
     const requested = searchParams.get('operation');
-    if (requested === 'teaching' || requested === 'assessment') setActiveOperation(requested);
+    if (requested === 'teaching' || requested === 'assessment' || requested === 'communication' || requested === 'roster') {
+      setActiveOperation(requested);
+      return;
+    }
+    // Deep links with a course should open Teaching — not leave curriculum buried under Roster.
+    if (searchParams.get('course_id')) setActiveOperation('teaching');
   }, [searchParams]);
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
   /**
@@ -321,19 +326,48 @@ export default function ClassDetailPage() {
         });
         setProgramCourses(coursesRes.data ?? []);
 
-        const weekRes = await withTimeout(
-          supabase
-            .from('curriculum_week_tracking')
-            .select('status')
-            .eq('class_id', id),
-          { data: [] },
-          'class delivery coverage'
-        );
+        // Teaching workspace writes class_lesson_delivery; older flows use
+        // curriculum_week_tracking. Prefer delivery rows so coverage matches what
+        // teachers mark in the Teaching tab (otherwise the bar stays empty forever).
+        const [deliveryRes, weekRes] = await Promise.all([
+          withTimeout(
+            supabase
+              .from('class_lesson_delivery')
+              .select('week_number, status')
+              .eq('class_id', id),
+            { data: [] },
+            'class lesson delivery coverage',
+          ),
+          withTimeout(
+            supabase
+              .from('curriculum_week_tracking')
+              .select('status')
+              .eq('class_id', id),
+            { data: [] },
+            'class week tracking coverage',
+          ),
+        ]);
+        const deliveryRows = ((deliveryRes as { data: { week_number: number; status: string }[] | null })?.data ?? []);
         const weekRows = ((weekRes as { data: { status: string }[] | null })?.data ?? []);
-        setCoverage({
-          delivered: weekRows.filter((w) => w.status === 'delivered').length,
-          planned: weekRows.length,
-        });
+        if (deliveryRows.length > 0) {
+          const byWeek = new Map<number, string>();
+          for (const row of deliveryRows) {
+            const week = Number(row.week_number);
+            if (!Number.isFinite(week)) continue;
+            const prev = byWeek.get(week);
+            if (row.status === 'delivered' || !prev) byWeek.set(week, row.status);
+          }
+          const statuses = [...byWeek.values()];
+          setCoverage({
+            delivered: statuses.filter((s) => s === 'delivered').length,
+            planned: statuses.length,
+          });
+        } else {
+          setCoverage({
+            delivered: weekRows.filter((w) => w.status === 'delivered').length,
+            planned: weekRows.length,
+          });
+        }
       } else {
         // No program_id, set empty items
         setItems({
@@ -479,14 +513,36 @@ export default function ClassDetailPage() {
     const supabase = createClient();
 
     const refreshCoverage = async () => {
-      const { data } = await supabase
-        .from('curriculum_week_tracking')
-        .select('status')
-        .eq('class_id', id);
-      const rows = data ?? [];
+      const [deliveryRes, weekRes] = await Promise.all([
+        supabase
+          .from('class_lesson_delivery')
+          .select('week_number, status')
+          .eq('class_id', id),
+        supabase
+          .from('curriculum_week_tracking')
+          .select('status')
+          .eq('class_id', id),
+      ]);
+      const deliveryRows = deliveryRes.data ?? [];
+      const weekRows = weekRes.data ?? [];
+      if (deliveryRows.length > 0) {
+        const byWeek = new Map<number, string>();
+        for (const row of deliveryRows) {
+          const week = Number(row.week_number);
+          if (!Number.isFinite(week)) continue;
+          const prev = byWeek.get(week);
+          if (row.status === 'delivered' || !prev) byWeek.set(week, row.status);
+        }
+        const statuses = [...byWeek.values()];
+        setCoverage({
+          delivered: statuses.filter((s) => s === 'delivered').length,
+          planned: statuses.length,
+        });
+        return;
+      }
       setCoverage({
-        delivered: rows.filter((w: { status: string }) => w.status === 'delivered').length,
-        planned: rows.length,
+        delivered: weekRows.filter((w: { status: string }) => w.status === 'delivered').length,
+        planned: weekRows.length,
       });
     };
 
@@ -513,6 +569,11 @@ export default function ClassDetailPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'curriculum_week_tracking', filter: `class_id=eq.${id}` },
+        () => { void refreshCoverage(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'class_lesson_delivery', filter: `class_id=eq.${id}` },
         () => { void refreshCoverage(); },
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignment_submissions' }, refreshLearners)
@@ -1340,68 +1401,77 @@ export default function ClassDetailPage() {
               ))}
             </div>
 
-            {/* Curriculum coverage — how far this class has actually been taught.
-                Updates live as weeks are recorded, so the class reads as a monitor
-                rather than a roster. */}
-            {coverage && coverage.planned > 0 && (() => {
-              const pct = Math.round((coverage.delivered / coverage.planned) * 100);
+            {/* Curriculum coverage — always visible so teachers can find Teaching / plan work. */}
+            {(() => {
+              const planned = coverage?.planned ?? 0;
+              const delivered = coverage?.delivered ?? 0;
+              const pct = planned > 0 ? Math.round((delivered / planned) * 100) : 0;
               const tone = pct >= 80
                 ? 'bg-emerald-500'
                 : pct >= 40
                   ? 'bg-amber-500'
                   : 'bg-rose-500';
               return (
-                <div className="mt-3 rounded-xl border border-border bg-background/70 p-3 sm:mt-4 sm:rounded-2xl sm:p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Curriculum coverage
-                    </p>
-                    <p className="text-xs font-black text-foreground">
-                      {coverage.delivered} of {coverage.planned} weeks taught
-                      <span className="ml-2 text-muted-foreground">{pct}%</span>
+                <div className="mt-3 space-y-2 sm:mt-4">
+                  <div className="rounded-xl border border-border bg-background/70 p-3 sm:rounded-2xl sm:p-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Curriculum delivery
+                      </p>
+                      <p className="text-xs font-black text-foreground">
+                        {planned > 0
+                          ? <>{delivered} of {planned} weeks taught <span className="ml-1 text-muted-foreground">{pct}%</span></>
+                          : 'No weeks recorded yet'}
+                      </p>
+                    </div>
+                    <div
+                      className="mt-2"
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Curriculum weeks taught"
+                    >
+                      {planned > 0 && planned <= 16 ? (
+                        <div className="flex gap-1">
+                          {Array.from({ length: planned }, (_, index) => (
+                            <span
+                              key={index}
+                              title={`Week ${index + 1}${index < delivered ? ' — taught' : ' — not yet taught'}`}
+                              className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
+                                index < delivered ? tone : 'bg-muted'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
+                          <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${Math.max(pct, planned === 0 ? 0 : pct)}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                      {planned === 0
+                        ? 'Open Teaching to start the plan, generate lessons, and mark weeks taught.'
+                        : delivered === planned
+                          ? 'Every planned week has been taught.'
+                          : `${planned - delivered} week${planned - delivered === 1 ? '' : 's'} still to teach.`}
                     </p>
                   </div>
-                  {/* Up to a term's worth of weeks reads better as blocks — you can see
-                      which weeks are done. Beyond that they would be slivers on a phone,
-                      so fall back to a single bar. */}
-                  <div
-                    className="mt-2"
-                    role="progressbar"
-                    aria-valuenow={pct}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label="Curriculum weeks taught"
-                  >
-                    {coverage.planned <= 16 ? (
-                      <div className="flex gap-1">
-                        {Array.from({ length: coverage.planned }, (_, index) => (
-                          <span
-                            key={index}
-                            title={`Week ${index + 1}${index < coverage.delivered ? ' — taught' : ' — not yet taught'}`}
-                            className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
-                              index < coverage.delivered ? tone : 'bg-muted'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
-                        <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${pct}%` }} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <p className="text-[10px] text-muted-foreground">
-                      {coverage.delivered === coverage.planned
-                        ? 'Every planned week has been taught.'
-                        : `${coverage.planned - coverage.delivered} week${coverage.planned - coverage.delivered === 1 ? '' : 's'} still to teach.`}
-                    </p>
-                    {/* Depth lives in the workspace; the class stays a monitor. */}
+                  {/* Separate action row so it does not collide with work-mode chips on phones. */}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setActiveOperation('teaching')}
+                      className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary-foreground"
+                    >
+                      Open teaching & curriculum
+                    </button>
                     <Link
                       href="/dashboard/learner-progress?view=delivery"
-                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
                     >
-                      Learner progress →
+                      School delivery overview
                     </Link>
                   </div>
                 </div>
@@ -1415,9 +1485,10 @@ export default function ClassDetailPage() {
             </div>
           )}
 
-          {/* Mobile work-mode grid — full labels, no horizontal scroll truncation */}
+          {/* Mobile work modes — horizontal strip so coverage / learner links stay above, not overlapping. */}
           <div className="border-b border-border p-2 sm:p-3 lg:hidden">
-            <div className="grid grid-cols-2 gap-2">
+            <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class work</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {operationCards.map(card => {
                 const active = activeOperation === card.id;
                 return (
@@ -1425,7 +1496,7 @@ export default function ClassDetailPage() {
                     key={card.id}
                     type="button"
                     onClick={() => setActiveOperation(card.id)}
-                    className={`flex min-h-[3.25rem] min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2.5 text-left transition-all ${
+                    className={`flex min-h-11 min-w-[9.5rem] shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all ${
                       active
                         ? 'border-primary/40 bg-primary/10 text-foreground shadow-sm'
                         : 'border-border bg-background text-muted-foreground'
@@ -1434,7 +1505,7 @@ export default function ClassDetailPage() {
                     <card.icon className={`h-4 w-4 flex-shrink-0 ${active ? card.tone : ''}`} />
                     <span className="min-w-0">
                       <span className="block text-xs font-black leading-tight">{card.title}</span>
-                      <span className="mt-0.5 block break-words text-[10px] leading-tight text-muted-foreground">{card.stat}</span>
+                      <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">{card.stat}</span>
                     </span>
                   </button>
                 );

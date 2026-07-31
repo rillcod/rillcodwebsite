@@ -6,10 +6,6 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  RoomEvent,
-  Track,
-} from 'livekit-client';
 
 import ClassReplays from '@/components/live-session/ClassReplays';
 
