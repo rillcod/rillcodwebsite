@@ -228,11 +228,16 @@ export const CRON_REGISTRY = [
   // ── Chained after a specific upstream job succeeds ──────────────────────────────────────
   {
     name: 'auto-generate-content',
+    // Hourly, not daily. Each run is bounded by a ~50s budget (about 4-5 classes), so a daily
+    // sweep tops out near 30 classes a week — short of the 60 that need weekly content. Hourly
+    // rides onboarding-sweep's existing 15-minute entry behind an hourly guard, so this needed no
+    // new scheduler registration. academic-readiness still chains it too, as an immediate kick
+    // once new plans are prepared rather than waiting up to an hour.
     label: 'Generate lesson content',
-    intervalMinutes: DAILY,
-    trigger: 'chained',
-    triggeredBy: 'academic-readiness',
-    schedule: 'Daily, after academic-readiness succeeds',
+    intervalMinutes: 60,
+    trigger: 'fanout',
+    triggeredBy: 'onboarding-sweep',
+    schedule: 'Hourly (fan-out); also chained from academic-readiness',
     purpose: 'Approved academic plan generation',
   },
 

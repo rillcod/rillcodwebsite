@@ -970,7 +970,7 @@ registry also feeds each route's health interval and the Operations Health panel
 | `form-followup` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | Form and registration follow-up |
 | `lead-nurture` | Daily (fan-out) | 30 hours | Fan-out from `onboarding-sweep` | State-aware lead nurture |
 | `streak-reminder` | Every 15 minutes (also fanned out by at-risk-students) | 25 minutes | External scheduler | Engagement reminder |
-| `auto-generate-content` | Daily, after academic-readiness succeeds | 30 hours | Chained from `academic-readiness` | Approved academic plan generation |
+| `auto-generate-content` | Hourly (fan-out); also chained from academic-readiness | 75 minutes | Fan-out from `onboarding-sweep` | Approved academic plan generation |
 | `publish-newsletters` | Optional; the same work runs inside process-notifications | 15 minutes | Runs inside `process-notifications` | Scheduled newsletter publication |
 
 Only the `External scheduler` rows need an entry on cron-job.org. **`communication-followup` has
