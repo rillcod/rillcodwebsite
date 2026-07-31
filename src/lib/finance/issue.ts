@@ -117,7 +117,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   if (stream === 'school' && invoice?.billing_cycle_id) {
     const { data: cycle } = await supabase
       .from('billing_cycles')
-      .select('id, rillcod_retain_amount, school_settlement_amount, items, term_label, metadata')
+      .select('id, rillcod_retain_amount, school_settlement_amount, items, term_label')
       .eq('id', invoice.billing_cycle_id)
       .single();
 

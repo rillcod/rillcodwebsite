@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
     const rawLimit = Number.parseInt(new URL(request.url).searchParams.get('limit') || '50', 10);
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
     let query = admin.from('parent_teacher_threads').select(`
-      id, parent_id, teacher_id, student_id, created_at, updated_at,
+      id, parent_id, teacher_id, student_id, created_at,
       parent:portal_users!parent_teacher_threads_parent_id_fkey(id, full_name, email, phone, school_name, section_class),
       teacher:portal_users!parent_teacher_threads_teacher_id_fkey(id, full_name),
       messages:parent_teacher_messages(body, sent_at, is_read, sender_id)
-    `).order('updated_at', { ascending: false }).limit(limit);
+    `).order('created_at', { ascending: false }).limit(limit);
 
     if (caller.role === 'parent') query = query.eq('parent_id', caller.id);
     else if (caller.role === 'student') query = query.eq('student_id', caller.id);
@@ -78,13 +78,13 @@ export async function POST(request: NextRequest) {
     const linkedStudent = (students ?? []).find((row: any) => row.school_id === teacher.school_id);
     if (!linkedStudent) return NextResponse.json({ error: 'Parent is not linked to a student in the teacher school' }, { status: 403 });
 
-    const { data: existing } = await admin.from('parent_teacher_threads').select('id, parent_id, teacher_id, student_id, created_at, updated_at')
+    const { data: existing } = await admin.from('parent_teacher_threads').select('id, parent_id, teacher_id, student_id, created_at')
       .eq('parent_id', parentId).eq('teacher_id', teacherId).eq('student_id', linkedStudent.id).maybeSingle();
     if (existing) return NextResponse.json({ data: existing });
 
     const { data, error } = await admin.from('parent_teacher_threads').insert({
       parent_id: parentId, teacher_id: teacherId, student_id: linkedStudent.id,
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     }).select().single();
     if (error) throw error;
     return NextResponse.json({ data }, { status: 201 });

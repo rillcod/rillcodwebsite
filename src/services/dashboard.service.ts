@@ -366,8 +366,7 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
       program_id, school_id, school_name,
       is_locked, metadata,
       created_at,
-      programs ( id, name, difficulty_level ),
-      assignment_submissions ( id )
+      programs ( id, name, difficulty_level )
     `)
         .order('created_at', { ascending: false });
 
@@ -384,11 +383,25 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
 
     const { data, error } = await q;
     if (error) {
-        // Fallback if join fails
-        const { data: f, error: e2 } = await db()
+        // Fallback if join fails. This used to fire on EVERY call, because the select above
+        // embedded assignment_submissions in courses and those tables share no foreign key. That
+        // mattered: the fallback drops programs, school_name, is_locked and metadata, and — more
+        // seriously — it does not re-apply the school filter, so a school-scoped caller silently
+        // received every course on the platform. Keep the scoping when falling back.
+        console.error('[dashboard.service] course query failed, falling back:', error.message);
+        let fq = db()
             .from('courses')
-            .select('id, title, description, duration_hours, is_active, program_id, teacher_id, created_at')
+            .select('id, title, description, duration_hours, is_active, program_id, teacher_id, created_at, school_id, school_name')
             .order('created_at', { ascending: false });
+        if (teacherId) fq = (fq as any).eq('teacher_id', teacherId);
+        else fq = (fq as any).eq('is_active', true);
+        if (opts.schoolId || opts.schoolName) {
+            const filters = ['school_id.is.null'];
+            if (opts.schoolId) filters.push(`school_id.eq.${opts.schoolId}`);
+            if (opts.schoolName) filters.push(`school_name.eq.${JSON.stringify(opts.schoolName)}`);
+            fq = (fq as any).or(filters.join(','));
+        }
+        const { data: f, error: e2 } = await fq;
         if (e2) throw e2;
         return f ?? [];
     }

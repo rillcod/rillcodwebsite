@@ -48,14 +48,22 @@ export class GamificationService {
         const awarded = (count ?? 0) > 0;
 
         // 2. Recalculate total_points from SUM (Req 4.3)
-        const { data: sumData, error: sumError } = await supabase
-            .from('point_transactions')
-            .select('points.sum()')
-            .eq('portal_user_id', userId)
-            .single();
-
-        if (sumError) throw new AppError(sumError.message, 500);
-        const totalPoints: number = (sumData as any)?.sum ?? 0;
+        // PostgREST refuses aggregate functions ("Use of aggregate functions is not allowed"), so
+        // points.sum() threw on every call and awarding points failed outright. Summed in code
+        // instead, and paged: PostgREST caps a response at 1000 rows, and a silently truncated
+        // sum would hand the learner a wrong lifetime total that then gets written back.
+        let totalPoints = 0;
+        for (let page = 0; ; page++) {
+            const from = page * 1000;
+            const { data: rows, error: sumError } = await supabase
+                .from('point_transactions')
+                .select('points')
+                .eq('portal_user_id', userId)
+                .range(from, from + 999);
+            if (sumError) throw new AppError(sumError.message, 500);
+            for (const row of rows ?? []) totalPoints += Number((row as any).points ?? 0);
+            if (!rows || rows.length < 1000) break;
+        }
 
         // 3. Update user_points (streak + level)
         const { data: currentPoints } = await supabase
@@ -134,11 +142,30 @@ export class GamificationService {
             if (!courseData) throw new AppError('Course not found', 404);
             if (!courseData.program_id) throw new AppError('Course does not have an associated program', 400);
 
+            // enrollments and user_points share no foreign key, so PostgREST cannot embed one in
+            // the other — the old query threw and the course leaderboard never rendered. Resolve
+            // the enrolled users first, then read their points directly. Paged, because a
+            // truncated enrolment list would quietly drop learners off the board.
+            const enrolled: string[] = [];
+            for (let page = 0; ; page++) {
+                const from = page * 1000;
+                const { data: rows, error: enrErr } = await supabase
+                    .from('enrollments')
+                    .select('user_id')
+                    .eq('program_id', courseData.program_id)
+                    .range(from, from + 999);
+                if (enrErr) throw new AppError(enrErr.message, 500);
+                for (const row of rows ?? []) if ((row as any).user_id) enrolled.push((row as any).user_id);
+                if (!rows || rows.length < 1000) break;
+            }
+            if (enrolled.length === 0) return [];
+
+            // Same shape as the all-users branch below, so the mapping stays one code path.
             query = supabase
-                .from('enrollments')
-                .select('user_id, portal_users!enrollments_user_id_fkey(full_name, profile_image_url), user_points(total_points, achievement_level)')
-                .eq('program_id', courseData.program_id)
-                .order('user_points(total_points)', { ascending: false });
+                .from('user_points')
+                .select('portal_user_id, total_points, achievement_level, portal_users!user_points_portal_user_id_fkey(full_name, profile_image_url)')
+                .in('portal_user_id', enrolled)
+                .order('total_points', { ascending: false });
         } else {
             query = supabase
                 .from('user_points')

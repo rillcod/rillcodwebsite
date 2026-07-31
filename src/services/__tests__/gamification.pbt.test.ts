@@ -21,6 +21,9 @@ describe('GamificationService Property-Based Tests', () => {
                         insert: vi.fn(),
                         select: vi.fn().mockReturnThis(),
                         eq: vi.fn().mockReturnThis(),
+                        // The points total is now summed from the ledger a page at a time, because
+                        // PostgREST rejects points.sum() outright. A short page ends the loop.
+                        range: vi.fn(),
                         single: vi.fn(),
                         upsert: vi.fn(),
                     };
@@ -29,8 +32,8 @@ describe('GamificationService Property-Based Tests', () => {
 
                     // First call: Successful insert
                     mockSupabase.insert.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.range.mockResolvedValueOnce({ data: [{ points: 10 }], error: null }); // step 2: ledger
                     mockSupabase.single
-                        .mockResolvedValueOnce({ data: { sum: 10 }, error: null }) // step 2: sum
                         .mockResolvedValueOnce({ data: { achievement_level: 'Bronze' }, error: null }); // step 3: current points
                     mockSupabase.upsert.mockResolvedValueOnce({ error: null });
 
@@ -39,8 +42,8 @@ describe('GamificationService Property-Based Tests', () => {
 
                     // Second call: Duplicate, count should be 0
                     mockSupabase.insert.mockResolvedValueOnce({ count: 0, error: null });
+                    mockSupabase.range.mockResolvedValueOnce({ data: [{ points: 10 }], error: null }); // step 2: ledger
                     mockSupabase.single
-                        .mockResolvedValueOnce({ data: { sum: 10 }, error: null }) // step 2: sum
                         .mockResolvedValueOnce({ data: { achievement_level: 'Bronze' }, error: null }); // step 3: current points
                     mockSupabase.upsert.mockResolvedValueOnce({ error: null });
 

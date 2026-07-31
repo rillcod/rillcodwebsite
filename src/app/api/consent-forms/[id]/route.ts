@@ -53,7 +53,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, school_id, class_id, enrollment_type, academic_offering_id, schools(name)').eq('id', id).single(),
     supabase
       .from('consent_responses')
-      .select('id, signed_at, response_data, portal_users!consent_responses_parent_id_fkey(full_name, email, phone)')
+      // consent_responses is keyed by (form_id, parent_id) and has no id column. Selecting one
+      // failed the read, so this route returned no responses at all — an administrator opening a
+      // consent form saw an empty list however many parents had signed it.
+      .select('parent_id, signed_at, response_data, portal_users!consent_responses_parent_id_fkey(full_name, email, phone)')
       .eq('form_id', id)
       .order('signed_at', { ascending: false }),
     (admin as any)

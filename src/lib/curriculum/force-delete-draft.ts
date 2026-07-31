@@ -390,7 +390,7 @@ export async function inspectCurriculumDebris(admin: AdminClient): Promise<{
 }> {
   const { data: allReleases } = await admin
     .from("academic_curriculum_releases")
-    .select("id, title, status, course_id, version_tag, source_curriculum_id");
+    .select("id, title, status, course_id, source_curriculum_id");
 
   const releases = allReleases ?? [];
   const sourceIds = [
@@ -455,7 +455,7 @@ export async function inspectCurriculumDebris(admin: AdminClient): Promise<{
       title: r.title ?? null,
       status: r.status ?? null,
       course_id: r.course_id ?? null,
-      version_tag: r.version_tag ?? null,
+      version_tag: null,
     })),
     delivery_schedules,
     adoptions,

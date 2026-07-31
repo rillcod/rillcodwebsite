@@ -29,7 +29,7 @@ export async function GET() {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [casesResult, noticesResult, deliveriesResult, healthResult] = await Promise.all([
     db.from('communication_cases')
-      .select('id,requester_name,requester_email,subject,status,priority,assigned_to,assigned_at,next_action,next_action_due_at,first_response_due_at,sensitivity,restricted,created_at,updated_at')
+      .select('id,requester_name,requester_email,subject,status,priority,assigned_to,next_action,next_action_due_at,first_response_due_at,sensitivity,restricted,created_at,updated_at')
       .order('updated_at', { ascending: false }).limit(120),
     db.from('notifications')
       .select('id,user_id,title,message,type,action_url,delivery_status,notification_channel,created_at')

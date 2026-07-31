@@ -28,8 +28,8 @@ async function getCourses() {
   try {
     const { data } = await db()
       .from('courses')
-      .select('id, program_id, updated_at, is_published')
-      .eq('is_published', true)
+      .select('id, program_id, updated_at, is_active')
+      .eq('is_active', true)
       .order('created_at', { ascending: true })
     return data ?? []
   } catch {

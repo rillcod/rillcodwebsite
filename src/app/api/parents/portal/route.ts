@@ -250,7 +250,7 @@ export async function GET(req: Request) {
           .limit(80),
         admin
           .from('cbt_sessions')
-          .select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, course_id, program_id, metadata)')
+          .select('id, status, score, end_time, needs_grading, cbt_exams(title, course_id, program_id, metadata)')
           .eq('user_id', child.user_id)
           .not('score', 'is', null)
           .order('end_time', { ascending: false })
@@ -284,7 +284,10 @@ export async function GET(req: Request) {
           title: r.cbt_exams?.title ?? 'CBT Exam',
           exam_type: r.cbt_exams?.metadata?.exam_type ?? 'examination',
           grade: r.score,
-          max_score: r.cbt_exams?.total_marks ?? null,
+          // cbt_sessions.score is stored as a percentage — Math.round((earned/totalPoints)*100)
+          // in /api/cbt/sessions/[id]. The denominator is therefore always 100. cbt_exams has no
+          // total_marks column, and asking for it failed the whole read, so parents saw no exams.
+          max_score: 100,
           status: r.needs_grading ? 'pending_grading' : r.status,
           submitted_at: r.end_time,
           feedback: r.needs_grading ? 'Awaiting teacher review for subjective answers.' : null,
@@ -453,7 +456,7 @@ export async function GET(req: Request) {
         })(),
         admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points, term_id)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(40),
         admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
-        admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(20),
+        admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(20),
       ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent activity');
 
       const scopedSubs = filterByAssignmentSession((subRes.data ?? []) as any[], liveTermId).slice(0, 20);
@@ -485,7 +488,10 @@ export async function GET(req: Request) {
       });
 
       scopedCbt.forEach((r: any) => {
-        const pct = r.score != null && r.cbt_exams?.total_marks ? `${Math.round((r.score / r.cbt_exams.total_marks) * 100)}%` : `${r.score} pts`;
+        // cbt_sessions.score is already a percentage, so dividing it again was wrong twice over:
+        // cbt_exams has no total_marks column, so this always fell through to the "pts" branch and
+        // reported a score of 85% to a parent as "85 pts".
+        const pct = r.score != null ? `${r.score}%` : 'not scored';
         events.push({ id: r.id, type: 'exam', title: `Exam: ${r.cbt_exams?.title ?? 'CBT Exam'}`, detail: `Scored ${pct}`, date: r.end_time?.slice(0, 10) ?? '', icon: '🎯', color: 'sky' });
       });
 

@@ -3151,7 +3151,9 @@ export default function LessonDetailPage() {
         const [cLessons, cAsgns, cQuizzes, fDecks] = await Promise.all([
           db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonObj.course_id).order('order_index', { ascending: true }),
           db.from('assignments').select('id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id').eq('lesson_id', lessonObj.id),
-          db.from('cbt_exams').select('id, title, duration_minutes, total_points, term_id, metadata, start_date, end_date').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
+          // cbt_exams has no total_points column; asking for it failed this read, so the lesson
+          // page showed no exams at all. Nothing rendered the value.
+          db.from('cbt_exams').select('id, title, duration_minutes, term_id, metadata, start_date, end_date').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
           db.from('flashcard_decks').select('id, title, term_id, flashcard_cards(count)').eq('lesson_id', id)
         ]);
         setCourseLessons(cLessons.data ?? []);
