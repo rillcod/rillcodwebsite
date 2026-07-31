@@ -191,32 +191,32 @@ export async function collectHollowAccounts(
     parentLinksAsStudent,
     paidStudents,
     anyStudentsWithPayment,
-    grades,
   ] = await Promise.all([
     db.from('assignment_submissions').select('user_id').in('user_id', ids).limit(2000),
     db.from('student_progress_reports').select('student_id').in('student_id', ids).limit(2000),
     db.from('identity_cards').select('holder_id').in('holder_id', ids).limit(2000),
     db.from('attendance').select('student_id').in('student_id', ids).limit(2000),
-    db.from('cbt_sessions').select('student_id').in('student_id', ids).limit(2000),
+    // cbt_sessions keys the learner as user_id, not student_id. The wrong name failed the read,
+    // and because a failed read returns {data: null} rather than throwing, the mark() below
+    // silently marked nobody — a learner with exam sessions looked unused to this sweep.
+    db.from('cbt_sessions').select('user_id').in('user_id', ids).limit(2000),
     db.from('parent_student_links').select('parent_id').in('parent_id', ids).limit(2000),
     db.from('parent_student_links').select('student_id').in('student_id', ids).limit(2000),
     db.from('students').select('user_id').in('user_id', ids).not('registration_payment_at', 'is', null).limit(2000),
     db.from('students').select('user_id, id').in('user_id', ids).limit(2000),
-    db.from('grades').select('student_id').in('student_id', ids).limit(2000).then(
-      (r) => r,
-      () => ({ data: null as any[] | null }), // grades table may not exist / name differs
-    ),
+    // There is no `grades` table in this schema and never has been — the guarded call below it
+    // always fell back to null, so it contributed nothing but the impression of a check. Marks
+    // live in assignment_submissions and student_progress_reports, both already queried above.
   ]);
 
   mark(submissions.data, 'user_id');
   mark(reports.data, 'student_id');
   mark(cards.data, 'holder_id');
   mark(attendance.data, 'student_id');
-  mark(cbt.data, 'student_id');
+  mark(cbt.data, 'user_id');
   mark(parentLinksAsParent.data, 'parent_id');
   mark(parentLinksAsStudent.data, 'student_id');
   mark(paidStudents.data, 'user_id');
-  mark((grades as any)?.data, 'student_id');
 
   // Also mark students registry rows that have payment or approved status with school
   const studentRowIds = ((anyStudentsWithPayment.data ?? []) as any[]).map((s) => s.id).filter(Boolean);
@@ -231,10 +231,12 @@ export async function collectHollowAccounts(
     }
   }
 
-  // Invoices linked by student/customer id if table exists
+  // Invoices link the customer as portal_user_id; there is no student_id column. The old name
+  // failed the read, and a failed read resolves with {data: null} instead of throwing, so the
+  // try/catch never fired and a user holding invoices was counted as having no data at all.
   try {
-    const { data: inv } = await db.from('invoices').select('student_id').in('student_id', ids).limit(500);
-    mark(inv, 'student_id');
+    const { data: inv } = await db.from('invoices').select('portal_user_id').in('portal_user_id', ids).limit(500);
+    mark(inv, 'portal_user_id');
   } catch { /* optional */ }
 
   const hollow: HollowAccount[] = [];
