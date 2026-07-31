@@ -55,7 +55,7 @@ export async function GET(
     const { id } = await context.params;
     const { data, error } = await adminClient()
       .from('lessons')
-      .select('*, courses ( id, title, programs ( name ) ), lesson_plans (*)')
+      .select('*, courses ( id, title, programs ( name ) ), lesson_plans!lessons_lesson_plan_id_fkey (*)')
       .eq('id', id)
       .maybeSingle();
 

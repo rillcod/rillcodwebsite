@@ -162,7 +162,7 @@ export async function loadLinkedSchoolInvoice(schoolId: string, academicYear: st
   const { data, error } = await db
     .from('invoices')
     .select(
-      'id, invoice_number, amount, currency, status, due_date, payment_link, items, metadata, stream, portal_user_id, school_id, billing_cycles(term_label,term_start_date)',
+      'id, invoice_number, amount, currency, status, due_date, payment_link, items, metadata, stream, portal_user_id, school_id, billing_cycles!invoices_billing_cycle_id_fkey(term_label,term_start_date)',
     )
     .eq('school_id', schoolId)
     .not('status', 'eq', 'cancelled')

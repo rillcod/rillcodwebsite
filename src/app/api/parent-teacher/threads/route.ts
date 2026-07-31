@@ -25,7 +25,13 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('parent_teacher_threads')
-    .select('*, portal_users!parent_teacher_threads_parent_id_fkey(full_name, avatar_url), portal_users!parent_teacher_threads_teacher_id_fkey(full_name), portal_users!parent_teacher_threads_student_id_fkey(full_name)')
+    // Three embeds of the same table need three names, or PostgREST aliases them all to
+    // parent_teacher_threads_portal_users_1 and rejects the query with 42712 ("specified more
+    // than once") — which made this endpoint 500 every time.
+    // The alias names are not free: dashboard/messages already reads portal_users_parent,
+    // portal_users_teacher and portal_users_student, so they must match exactly or the page
+    // silently falls back to "Teacher"/"Parent"/"Student" for every row.
+    .select('*, portal_users_parent:portal_users!parent_teacher_threads_parent_id_fkey(full_name, avatar_url), portal_users_teacher:portal_users!parent_teacher_threads_teacher_id_fkey(full_name), portal_users_student:portal_users!parent_teacher_threads_student_id_fkey(full_name)')
     .order('created_at', { ascending: false });
 
   if (role === 'parent') query = query.eq('parent_id', user.id);
