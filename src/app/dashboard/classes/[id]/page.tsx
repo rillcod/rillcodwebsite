@@ -1101,6 +1101,31 @@ export default function ClassDetailPage() {
   const termLabel = cls.academic_offering_periods?.label
     || (cls.academic_terms ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}` : null)
     || (isTermBased ? 'No term assigned' : 'Delivery period not assigned');
+  /**
+   * Per-learner signal for the roster, built from the submissions and CBT sessions the
+   * page already loads — no extra queries. Deliberately shallow: enough to spot who is
+   * behind at a glance, with the Learner Progress workspace carrying the real analysis.
+   * `enr.id` is the portal_users id, which is what both tables key on.
+   */
+  const learnerSignal = (() => {
+    const totalWork = items.assignments.length + items.cbt.length;
+    const map = new Map<string, { done: number; total: number; average: number | null }>();
+    for (const enr of enrollments as any[]) {
+      const subs = items.submissions.filter((s: any) => (s.portal_user_id ?? s.user_id) === enr.id);
+      const sessions = items.cbtSessions.filter((s: any) => s.user_id === enr.id);
+      const scores = [
+        ...subs.map((s: any) => s.grade),
+        ...sessions.map((s: any) => s.score),
+      ].filter((v): v is number => typeof v === 'number');
+      map.set(enr.id, {
+        done: subs.length + sessions.length,
+        total: totalWork,
+        average: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
+      });
+    }
+    return map;
+  })();
+
   const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
   const inactiveTermStudents = [
     ...enrollments.filter((student: any) => student.is_current_term_active === false),
@@ -1309,11 +1334,20 @@ export default function ClassDetailPage() {
                       </div>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">
-                    {coverage.delivered === coverage.planned
-                      ? 'Every planned week has been taught.'
-                      : `${coverage.planned - coverage.delivered} week${coverage.planned - coverage.delivered === 1 ? '' : 's'} still to teach.`}
-                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <p className="text-[10px] text-muted-foreground">
+                      {coverage.delivered === coverage.planned
+                        ? 'Every planned week has been taught.'
+                        : `${coverage.planned - coverage.delivered} week${coverage.planned - coverage.delivered === 1 ? '' : 's'} still to teach.`}
+                    </p>
+                    {/* Depth lives in the workspace; the class stays a monitor. */}
+                    <Link
+                      href="/dashboard/learner-progress?view=delivery"
+                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                    >
+                      Learner progress →
+                    </Link>
+                  </div>
                 </div>
               );
             })()}
@@ -2520,7 +2554,33 @@ export default function ClassDetailPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
+                          {(() => {
+                            // Work done and average, or the email when there is no work yet —
+                            // one line either way, so the roster keeps its density.
+                            const signal = learnerSignal.get(enr.id);
+                            if (!signal || signal.total === 0) {
+                              return <p className="text-xs text-muted-foreground truncate">{enr.email}</p>;
+                            }
+                            const pct = Math.round((signal.done / signal.total) * 100);
+                            return (
+                              <div className="mt-0.5 flex items-center gap-2">
+                                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-24">
+                                  <span
+                                    className={`block h-full rounded-full transition-all duration-500 ${
+                                      pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-500'
+                                    }`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </span>
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                  {signal.done}/{signal.total} done
+                                  {signal.average !== null && (
+                                    <span className="ml-1.5 font-bold text-foreground">{signal.average}%</span>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         {canView && (
                           <button
