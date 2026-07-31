@@ -365,18 +365,12 @@ export default function DashboardNavigation() {
             href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
-          {
-            name: "Learner Progress",
-            href: "/dashboard/learner-progress",
-            icon: ChartBarIcon,
-          },
-          {
-            name: "Special Programmes",
-            href: "/dashboard/special-programs",
-            icon: SparklesIcon,
-          },
-          { name: "Courses", href: "/dashboard/courses", icon: BookOpenIcon },
+          // ── Lane B — delivery to a class, in the order of src/lib/academic/lanes.ts.
+          // Kept apart from the curriculum lane above: these follow a class through the
+          // term, whereas the numbered steps build the curriculum the class teaches.
+          { divider: true, label: "Delivery" },
           { name: "Classes", href: "/dashboard/classes", icon: UserGroupIcon },
+          { name: "Courses", href: "/dashboard/courses", icon: BookOpenIcon },
           {
             name: "Timetable",
             href: "/dashboard/timetable",
@@ -386,6 +380,17 @@ export default function DashboardNavigation() {
             name: "Live Sessions",
             href: "/dashboard/live-sessions",
             icon: VideoCameraIcon,
+          },
+          {
+            // Lane B step 3 — coverage of what has actually been taught.
+            name: "Learner Progress",
+            href: "/dashboard/learner-progress",
+            icon: ChartBarIcon,
+          },
+          {
+            name: "Special Programmes",
+            href: "/dashboard/special-programs",
+            icon: SparklesIcon,
           },
           { divider: true, label: "Assessment" },
           {
