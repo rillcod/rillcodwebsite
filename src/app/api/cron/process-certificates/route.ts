@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { certificateService } from '@/services/certificate.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 
 // GET or POST /api/cron/process-certificates
 export async function GET(req: NextRequest) {
-    return runMonitoredCron('process-certificates', 60, () => handleProcess(req));
+    return runMonitoredCron('process-certificates', cronInterval('process-certificates'), () => handleProcess(req));
 }
 
 export async function POST(req: NextRequest) {
-    return runMonitoredCron('process-certificates', 60, () => handleProcess(req));
+    return runMonitoredCron('process-certificates', cronInterval('process-certificates'), () => handleProcess(req));
 }
 
 async function handleProcess(req: NextRequest) {

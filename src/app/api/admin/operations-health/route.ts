@@ -2,26 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
+import { cronPathMap, monitoredCronJobs } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 
-const CRON_PATHS: Record<string, string> = {
-  'academic-readiness': '/api/cron/academic-readiness',
-  'auto-generate-content': '/api/cron/auto-generate-content',
-  'billing-reminders': '/api/cron/billing-reminders',
-  'invoice-reminders': '/api/cron/invoice-reminders',
-  'lead-nurture': '/api/cron/lead-nurture',
-  'live-session-reminders': '/api/cron/live-session-reminders',
-  'onboarding-sweep': '/api/cron/onboarding-sweep',
-  'payment-reminders': '/api/cron/payment-reminders',
-  'process-certificates': '/api/cron/process-certificates',
-  'process-notifications': '/api/cron/process-notifications',
-  'receipt-sweep': '/api/cron/receipt-sweep',
-  'school-report-readiness': '/api/cron/school-report-readiness',
-  'streak-reminder': '/api/cron/streak-reminder',
-  'term-scheduler': '/api/cron/term-scheduler',
-  'weekly-summary': '/api/cron/weekly-summary',
-};
+// Derived from the registry so this map can no longer drift from the jobs that actually exist.
+const CRON_PATHS: Record<string, string> = cronPathMap();
+
+/**
+ * `cron_job_health` only gains a row once a job has run at least once, so a job that lost its
+ * schedule — or never got one — was simply absent from the panel rather than alarming. Fill in a
+ * placeholder for every scheduled job with no row yet; `healthState` renders a null
+ * `last_finished_at` as "Waiting for first run".
+ */
+function withNeverRunJobs(rows: Array<Record<string, unknown>>) {
+  const seen = new Set(rows.map((row) => String(row.job_name)));
+  const placeholders = monitoredCronJobs()
+    .filter((job) => !seen.has(job.name))
+    .map((job) => ({
+      job_name: job.name,
+      expected_interval_minutes: job.intervalMinutes,
+      last_started_at: null,
+      last_finished_at: null,
+      last_success_at: null,
+      next_expected_at: null,
+      last_status_code: null,
+      last_duration_ms: null,
+      last_error: null,
+      last_result: {},
+      consecutive_failures: 0,
+      never_run: true,
+    }));
+  return [...rows, ...placeholders].sort((a, b) => String(a.job_name).localeCompare(String(b.job_name)));
+}
 
 async function requireAdmin() {
   const supabase = await createServerClient();
@@ -46,7 +59,7 @@ export async function GET() {
   const firstError = health.error || deadLetters.error || history.error || financeFailures.error;
   if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
   return NextResponse.json({
-    health: health.data ?? [],
+    health: withNeverRunJobs(health.data ?? []),
     deadLetters: deadLetters.data ?? [],
     history: history.data ?? [],
     financeFailures: financeFailures.data ?? [],

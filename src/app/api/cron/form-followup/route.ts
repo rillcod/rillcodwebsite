@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { enqueueWhatsApp } from '@/lib/whatsapp/send';
 import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
 import {
@@ -19,8 +21,9 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return handle(req); }
-export async function POST(req: NextRequest) { return handle(req); }
+// Monitored: reached only through onboarding-sweep's daily fan-out.
+export async function GET(req: NextRequest) { return runMonitoredCron('form-followup', cronInterval('form-followup'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('form-followup', cronInterval('form-followup'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {

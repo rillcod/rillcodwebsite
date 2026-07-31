@@ -14,6 +14,7 @@ import { processLeadNurture } from '@/lib/crm/lead-nurture';
 
 import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -24,8 +25,8 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('lead-nurture', 1440, () => handle(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('lead-nurture', 1440, () => handle(req)); }
+export async function GET(req: NextRequest) { return runMonitoredCron('lead-nurture', cronInterval('lead-nurture'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('lead-nurture', cronInterval('lead-nurture'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {

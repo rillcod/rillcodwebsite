@@ -18,6 +18,7 @@ import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 import { resolveApprovedTemplate } from '@/lib/communication/template-registry';
 import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,8 +51,8 @@ function lastRemindedAt(notes: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('payment-reminders', 1440, () => handle(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('payment-reminders', 1440, () => handle(req)); }
+export async function GET(req: NextRequest) { return runMonitoredCron('payment-reminders', cronInterval('payment-reminders'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('payment-reminders', cronInterval('payment-reminders'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {

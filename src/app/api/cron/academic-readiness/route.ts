@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runAcademicReadinessAutomation } from '@/lib/academic/readiness-automation';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
 import { recordFanoutResult } from '@/lib/server/cron-daily-guard';
@@ -41,10 +42,12 @@ async function handle(req: NextRequest) {
   });
 }
 
+// Driven by onboarding-sweep's existing daily-guarded fan-out rather than its own scheduler
+// entry, so the health interval is daily (verified against cron_run_history).
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('academic-readiness', 360, () => handle(req));
+  return runMonitoredCron('academic-readiness', cronInterval('academic-readiness'), () => handle(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('academic-readiness', 360, () => handle(req));
+  return runMonitoredCron('academic-readiness', cronInterval('academic-readiness'), () => handle(req));
 }

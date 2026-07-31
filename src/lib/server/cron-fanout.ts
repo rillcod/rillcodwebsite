@@ -6,6 +6,24 @@
  * Call this from a registered host cron via Next's `after()` so the host responds to the scheduler
  * immediately and the fan-out happens in the background. Never throws.
  */
+/**
+ * Origin to call children on. Normally the incoming request's own origin, but a gateway may hand
+ * the app an internal hostname it cannot reach itself — the Cloudflare Containers gateway proxies
+ * to `http://container.local`, which parses as a valid URL yet resolves from nowhere, so a
+ * self-call would fail DNS and silently drop every child job. Fall back to the configured public
+ * URL for those. Real hosts, including `localhost` in development, are used as-is.
+ */
+export function resolveFanoutOrigin(hostUrl: string): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '');
+  try {
+    const url = new URL(hostUrl);
+    if (!url.hostname.endsWith('.local')) return url.origin;
+  } catch {
+    // Unparseable — fall through to the configured origin.
+  }
+  return configured || 'https://www.rillcod.com';
+}
+
 export async function fanoutCrons(hostUrl: string, paths: string[]): Promise<Record<string, string>> {
   const secret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || '';
   const out: Record<string, string> = {};
@@ -13,9 +31,7 @@ export async function fanoutCrons(hostUrl: string, paths: string[]): Promise<Rec
     for (const p of paths) out[p] = 'no-secret';
     return out;
   }
-  let origin: string;
-  try { origin = new URL(hostUrl).origin; }
-  catch { origin = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'; }
+  const origin = resolveFanoutOrigin(hostUrl);
 
   await Promise.allSettled(paths.map(async (p) => {
     try {

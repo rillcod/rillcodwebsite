@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
 import { loadTermWindow } from '@/lib/notifications/term-window';
 import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
@@ -320,5 +322,8 @@ async function handleRequest(req: NextRequest) {
   });
 }
 
-export async function GET(req: NextRequest) { return handleRequest(req); }
-export async function POST(req: NextRequest) { return handleRequest(req); }
+// Monitored because this is the root of the daily recovery fan-out: it dispatches
+// onboarding-sweep and streak-reminder, and onboarding-sweep dispatches four more. Its children
+// were watched while it was not, so a failure here could stop seven jobs without an alert.
+export async function GET(req: NextRequest) { return runMonitoredCron('at-risk-students', cronInterval('at-risk-students'), () => handleRequest(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('at-risk-students', cronInterval('at-risk-students'), () => handleRequest(req)); }

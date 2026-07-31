@@ -27,19 +27,29 @@ class_name = "NextAppContainer"
 tag = "v1-next-container"
 new_sqlite_classes = ["NextAppContainer"]
 
-# Mirror Vercel crons → Worker scheduled → container /api/cron/*
-[triggers]
-crons = [
-  "0 7 * * *",
-  "0 8 * * *",
-  "0 9 * * *",
-  "5 5 * * *",
-  "30 6 * * *",
-  "0 10 * * *",
-  "30 4 * * *",
-  "0 9 1 * *",
-  "0 3 * * *",
-]
+# Crons are intentionally NOT registered while this Worker serves the staging host.
+#
+# `image_vars` above points the staging container at the production Supabase project, so a cron
+# firing here does real work against live data: invoice-reminders, billing-reminders and
+# payment-reminders would email parents a second time on top of the schedule already running
+# against www. Staging must not send production mail.
+#
+# At cutover (see `npm run cf:container:cutover`), restore the block below in the same change that
+# retires the cron-job.org entries — never with both live. The schedules and the paths they map to
+# are in src/cloudflare/container-gateway.ts.
+#
+# [triggers]
+# crons = [
+#   "0 7 * * *",   # invoice-reminders
+#   "0 8 * * *",   # billing-reminders
+#   "0 9 * * *",   # payment-reminders
+#   "5 5 * * *",   # term-scheduler
+#   "30 6 * * *",  # receipt-sweep
+#   "0 10 * * *",  # school-report-readiness
+#   "30 4 * * *",  # academic-readiness
+#   "0 9 1 * *",   # weekly-summary
+#   "0 3 * * *",   # integrity-sweep
+# ]
 
 [vars]
 NEXT_PUBLIC_APP_URL = "https://cf.rillcod.com"

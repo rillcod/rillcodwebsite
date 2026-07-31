@@ -33,6 +33,13 @@ Production cutover (only after staging is green)
   5. Keep Vercel as fallback until confident, then disable Vercel domain
 
 Cron
-  Worker [triggers].crons already proxies to /api/cron/* on the container.
-  Ensure CRON_SECRET is uploaded via npm run cf:secrets.
+  [triggers].crons is COMMENTED OUT in wrangler.toml on purpose: staging shares the production
+  Supabase project, so firing it here would send parents a second copy of every billing,
+  invoice and payment reminder already sent from www.
+  At cutover, in one change:
+    a. Ensure CRON_SECRET is uploaded via npm run cf:secrets.
+    b. Uncomment [triggers].crons in wrangler.toml and deploy.
+    c. Retire the matching cron-job.org entries — never run both.
+  Only 9 of the jobs are on this Worker; the rest are external or fanned out.
+  src/lib/operations/cron-registry.ts lists every job and how it is triggered.
 `);

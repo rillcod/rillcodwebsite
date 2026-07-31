@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -27,5 +29,7 @@ async function handleRequest(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) { return handleRequest(req); }
-export async function POST(req: NextRequest) { return handleRequest(req); }
+// Monitored: reached only through onboarding-sweep's daily fan-out, so without its own health
+// row a broken fan-out would look identical to a quiet day.
+export async function GET(req: NextRequest) { return runMonitoredCron('assignment-reminders', cronInterval('assignment-reminders'), () => handleRequest(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('assignment-reminders', cronInterval('assignment-reminders'), () => handleRequest(req)); }

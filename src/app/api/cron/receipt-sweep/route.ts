@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +27,10 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('receipt-sweep', 60, () => handle(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('receipt-sweep', 60, () => handle(req)); }
+// Really runs every 30 minutes (verified against cron_run_history: 341 runs in 7 days, max gap
+// 30 minutes), not the daily schedule vercel.json declares.
+export async function GET(req: NextRequest) { return runMonitoredCron('receipt-sweep', cronInterval('receipt-sweep'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('receipt-sweep', cronInterval('receipt-sweep'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {

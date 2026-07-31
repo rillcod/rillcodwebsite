@@ -10,6 +10,7 @@ import type { Json } from '@/types/supabase';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -216,11 +217,11 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
 }
 
 export async function GET(request: Request) {
-  return runMonitoredCron('billing-reminders', 1440, () => handleRequest(request));
+  return runMonitoredCron('billing-reminders', cronInterval('billing-reminders'), () => handleRequest(request));
 }
 
 export async function POST(request: Request) {
-  return runMonitoredCron('billing-reminders', 1440, () => handleRequest(request));
+  return runMonitoredCron('billing-reminders', cronInterval('billing-reminders'), () => handleRequest(request));
 }
 
 async function handleRequest(request: Request) {

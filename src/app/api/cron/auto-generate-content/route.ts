@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -29,12 +30,14 @@ function currentTermWeek(termStart: string | null): number {
 // GET or POST /api/cron/auto-generate-content
 // Finds all published plans with auto_generate_settings.enabled = true
 // and generates the next N weeks of content for each plan.
+// Chained once a day from academic-readiness, so the health interval is daily. A shorter one
+// marks this job Late for most of every day.
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('auto-generate-content', 360, () => handleRequest(req));
+  return runMonitoredCron('auto-generate-content', cronInterval('auto-generate-content'), () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('auto-generate-content', 360, () => handleRequest(req));
+  return runMonitoredCron('auto-generate-content', cronInterval('auto-generate-content'), () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

@@ -16,6 +16,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { cronInterval } from '@/lib/operations/cron-registry';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
 import { claimDailyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
@@ -48,8 +49,8 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
-export async function POST(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
+export async function GET(req: NextRequest) { return runMonitoredCron('onboarding-sweep', cronInterval('onboarding-sweep'), () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('onboarding-sweep', cronInterval('onboarding-sweep'), () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {
