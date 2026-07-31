@@ -255,15 +255,25 @@ export async function DELETE(
   );
   if (!ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Only a LIVE edition may block deletion. A retired one is already withdrawn — the roster even
+  // labels it "Deleted" — so counting it as a blocker left curricula that could never be removed
+  // and no obvious way forward. Retired editions are cleaned up below instead of standing in the way.
   const [
     { count: releaseCount },
+    { count: retiredReleaseCount },
     { data: holdingPlans },
     { count: trackingCount },
   ] = await Promise.all([
     admin
       .from("academic_curriculum_releases")
       .select("id", { count: "exact", head: true })
-      .eq("source_curriculum_id", id),
+      .eq("source_curriculum_id", id)
+      .eq("status", "published"),
+    admin
+      .from("academic_curriculum_releases")
+      .select("id", { count: "exact", head: true })
+      .eq("source_curriculum_id", id)
+      .neq("status", "published"),
     admin
       .from("lesson_plans")
       .select("id, status, classes!lesson_plans_class_id_fkey(name)")
@@ -324,14 +334,18 @@ export async function DELETE(
     );
   }
 
-  if (force) {
+  // Retired editions still hold foreign keys, so a plain row delete would fail on them. Route
+  // through the same cleanup the force path uses — it is idempotent, and it is what makes
+  // "delete a curriculum whose only edition is already withdrawn" simply work.
+  if (force || (retiredReleaseCount ?? 0) > 0) {
     const cleaned = await forceDeleteCurriculumDraft(admin, id);
     if (!cleaned.ok)
       return NextResponse.json({ error: cleaned.error }, { status: 500 });
     return NextResponse.json({
       success: true,
       deleted: { curriculum: id },
-      forced: true,
+      forced: Boolean(force),
+      retired_editions_removed: retiredReleaseCount ?? 0,
     });
   }
 
