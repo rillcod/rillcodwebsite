@@ -1471,6 +1471,9 @@ export default function LiveSessionsPage() {
   const [attendanceSession, setAttendanceSession] = useState<LiveSession | null>(null);
   const [qaSession, setQaSession] = useState<LiveSession | null>(null);
 
+  /** Stable so the memoised LiveKitMeeting survives realtime re-renders of this page. */
+  const closeMeeting = useCallback(() => setJitsiSession(null), []);
+
   const canCreateSession = !!profile?.role && !['student', 'parent'].includes(profile.role);
   const canManage = canCreateSession;
   const isAdmin   = profile?.role === 'admin';
@@ -1903,7 +1906,7 @@ export default function LiveSessionsPage() {
         <LiveKitMeeting
           sessionId={jitsiSession.id}
           sessionTitle={jitsiSession.title}
-          onClose={() => setJitsiSession(null)}
+          onClose={closeMeeting}
         />
       )}
 

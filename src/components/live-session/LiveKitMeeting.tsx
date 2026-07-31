@@ -1,23 +1,31 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   VideoConference,
   ConnectionStateToast,
 } from '@livekit/components-react';
 import { DefaultReconnectPolicy } from 'livekit-client';
+import type { RoomOptions, RoomConnectOptions } from 'livekit-client';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 import HostControls from './HostControls';
+import {
+  CONNECT_DEADLINE_MS,
+  MAX_AUTO_REJOIN,
+  attemptLabel,
+  hasExhaustedRejoins,
+  rejoinDelayMs,
+  shouldAutoRejoin,
+  type MeetingPhase,
+} from '@/lib/live-sessions/rejoin-policy';
 
 interface LiveKitMeetingProps {
   sessionId: string;
   sessionTitle: string;
   onClose: () => void;
 }
-
-type Phase = 'loading' | 'live' | 'rejoining' | 'dropped' | 'ended';
 
 /** Meeting chrome is always dark — keep labels white for contrast. */
 const BTN_PRIMARY =
@@ -30,7 +38,31 @@ const POOR_NET_RECONNECT = new DefaultReconnectPolicy([
   0, 400, 900, 1600, 2500, 4000, 6000, 8000, 10000, 12000, 15000, 15000, 20000,
 ]);
 
-const MAX_AUTO_REJOIN = 5;
+/**
+ * Module scope is load-bearing, not style. `useLiveKitRoom` re-creates its Room
+ * when `options` stringifies differently, and re-runs `room.connect()` whenever
+ * any prop identity changes (`onError` is in that effect's deps). A connect()
+ * issued while the Room is Reconnecting aborts LiveKit's in-flight backoff and
+ * recreates the engine — inline props here mean a reconnect on every render,
+ * which is exactly the loop this component keeps regressing into.
+ * Guarded by `livekit-props-stability.test.ts`.
+ */
+const ROOM_OPTIONS: RoomOptions = {
+  adaptiveStream: true,
+  dynacast: true,
+  disconnectOnPageLeave: false,
+  reconnectPolicy: POOR_NET_RECONNECT,
+};
+const CONNECT_OPTIONS: RoomConnectOptions = {
+  maxRetries: 5,
+  peerConnectionTimeout: 45_000,
+  websocketTimeout: 30_000,
+};
+/** Hoisted with the rest: no inline literals on <LiveKitRoom>, no exceptions. */
+const ROOM_STYLE: React.CSSProperties = { height: '100%' };
+
+/** Tab hidden this long counts as gone for attendance — not as leaving class. */
+const HIDDEN_LEAVE_MS = 3 * 60_000;
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -40,21 +72,49 @@ function Overlay({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProps) {
+function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProps) {
   const [token, setToken] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [isModerator, setIsModerator] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<MeetingPhase>('loading');
   const [autoTry, setAutoTry] = useState(0);
+  /**
+   * Remount key for LiveKitRoom. Bumped on every deliberate (re)join so we get a
+   * brand-new Room and no zombie engine from the previous attempt. Never derive
+   * this from the token — a LiveKit JWT's leading chars are a constant header.
+   */
+  const [roomEpoch, setRoomEpoch] = useState(0);
 
-  const leftRef = useRef(false);
-  const closedRef = useRef(false);
-  /** True while we intentionally tear down / remount the room (token refresh). */
-  const tearingDownRef = useRef(false);
+  /** The user really left: pressed Leave, or the meeting closed/ended. */
+  const exitedRef = useRef(false);
+  /** We already sent the attendance leave beacon (dedupe only — NOT an exit). */
+  const attendanceLeftRef = useRef(false);
+  /** True once LiveKit reports a real media connection on the current Room. */
+  const connectedRef = useRef(false);
+  /** Only the newest token request may apply its result. */
+  const loadSeqRef = useRef(0);
+
   const rejoinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectWatchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Keeps the LiveKitRoom callbacks referentially stable across parent renders. */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Read by effects below without widening their dep arrays.
+  const errorRef = useRef<string | null>(null);
+  errorRef.current = error;
+
+  const clearWatchdog = useCallback(() => {
+    if (connectWatchdog.current) {
+      clearTimeout(connectWatchdog.current);
+      connectWatchdog.current = null;
+    }
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (rejoinTimer.current) {
@@ -65,70 +125,70 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
       clearTimeout(hideLeaveTimer.current);
       hideLeaveTimer.current = null;
     }
-    if (connectWatchdog.current) {
-      clearTimeout(connectWatchdog.current);
-      connectWatchdog.current = null;
-    }
-  }, []);
+    clearWatchdog();
+  }, [clearWatchdog]);
 
   const armConnectWatchdog = useCallback(() => {
-    if (connectWatchdog.current) clearTimeout(connectWatchdog.current);
-    // If LiveKit never reaches Connected, treat as a drop so auto-rejoin can run.
+    clearWatchdog();
     connectWatchdog.current = setTimeout(() => {
-      if (leftRef.current || closedRef.current || tearingDownRef.current) return;
-      setPhase((p) => (p === 'live' || p === 'loading' || p === 'rejoining' ? 'dropped' : p));
+      connectWatchdog.current = null;
+      if (exitedRef.current || connectedRef.current) return;
+      setPhase((p) => (p === 'ended' ? p : 'dropped'));
       setError((prev) => prev || 'Could not finish connecting — retrying…');
-    }, 45_000);
-  }, []);
+    }, CONNECT_DEADLINE_MS);
+  }, [clearWatchdog]);
 
   /**
-   * Fetch a fresh token.
-   * Do NOT reset autoTry here — that caused an infinite reconnect loop when the
-   * token succeeded but the media connection kept failing.
+   * Fetch a fresh token and mount a fresh Room.
+   * `phase` stays 'loading'/'rejoining' until LiveKit reports Connected — never
+   * flip to 'live' optimistically, or the watchdog and the overlay both lie.
    */
-  const loadToken = useCallback(async (opts?: { soft?: boolean }) => {
-    setError(null);
-    if (opts?.soft) {
-      // Mark intentional tear-down BEFORE changing phase so onDisconnected is ignored.
-      tearingDownRef.current = true;
-      setPhase('rejoining');
-    } else {
-      setPhase('loading');
-    }
+  const loadToken = useCallback(
+    async (opts?: { rejoin?: boolean }) => {
+      if (exitedRef.current) return;
+      const seq = ++loadSeqRef.current;
 
-    try {
-      const res = await fetch('/api/live-sessions/livekit-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? 'Token error');
+      setError(null);
+      setPhase(opts?.rejoin ? 'rejoining' : 'loading');
+      connectedRef.current = false;
 
-      tearingDownRef.current = true;
-      setToken(j.token);
-      setServerUrl(j.url);
-      setIsModerator(!!j.isModerator);
-      setPhase('live');
-      armConnectWatchdog();
-    } catch (e: any) {
-      tearingDownRef.current = false;
-      setError(e.message ?? 'Failed to connect');
-      setPhase('dropped');
-    }
-  }, [sessionId, armConnectWatchdog]);
+      try {
+        const res = await fetch('/api/live-sessions/livekit-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error ?? 'Token error');
+        // A newer attempt overtook this one — drop the stale result.
+        if (seq !== loadSeqRef.current || exitedRef.current) return;
+
+        setToken(j.token);
+        setServerUrl(j.url);
+        setIsModerator(!!j.isModerator);
+        setRoomEpoch((n) => n + 1);
+        armConnectWatchdog();
+      } catch (e: unknown) {
+        if (seq !== loadSeqRef.current || exitedRef.current) return;
+        setError(e instanceof Error ? e.message : 'Failed to connect');
+        setPhase('dropped');
+      }
+    },
+    [sessionId, armConnectWatchdog],
+  );
 
   useEffect(() => {
+    // Reset the latches: StrictMode mounts, unmounts and mounts again in dev.
+    exitedRef.current = false;
+    attendanceLeftRef.current = false;
     void loadToken();
-    return () => {
-      tearingDownRef.current = true;
-      clearTimers();
-    };
+    return clearTimers;
   }, [loadToken, clearTimers]);
 
+  /** Attendance bookkeeping only — never treat this as "the user left class". */
   const recordLeave = useCallback(() => {
-    if (leftRef.current) return;
-    leftRef.current = true;
+    if (attendanceLeftRef.current) return;
+    attendanceLeftRef.current = true;
     try {
       if (navigator.sendBeacon) navigator.sendBeacon(`/api/live-sessions/${sessionId}/leave`);
       else fetch(`/api/live-sessions/${sessionId}/leave`, { method: 'POST', keepalive: true }).catch(() => {});
@@ -137,39 +197,78 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     }
   }, [sessionId]);
 
+  /** Undo a background-timeout leave once the student is demonstrably back. */
+  const recordRejoin = useCallback(() => {
+    if (!attendanceLeftRef.current) return;
+    attendanceLeftRef.current = false;
+    fetch(`/api/live-sessions/${sessionId}/join`, { method: 'POST' }).catch(() => {});
+  }, [sessionId]);
+
   const handleClose = useCallback(() => {
-    if (closedRef.current) return;
-    closedRef.current = true;
-    tearingDownRef.current = true;
+    if (exitedRef.current) return;
+    exitedRef.current = true;
+    loadSeqRef.current++; // invalidate any in-flight token fetch
     clearTimers();
     recordLeave();
-    onClose();
-  }, [recordLeave, onClose, clearTimers]);
+    onCloseRef.current();
+  }, [recordLeave, clearTimers]);
 
-  // Only mark leave after the tab stays hidden for a long stretch (real exit / sleep).
+  // ── Stable LiveKitRoom callbacks ───────────────────────────────────────────
+  // These MUST keep their identity between renders — see ROOM_OPTIONS above.
+  const handleConnected = useCallback(() => {
+    connectedRef.current = true;
+    clearWatchdog();
+    setError(null);
+    setPhase('live');
+    // Only reset the retry budget after a real media connection.
+    setAutoTry(0);
+  }, [clearWatchdog]);
+
+  const handleDisconnected = useCallback(() => {
+    connectedRef.current = false;
+    if (exitedRef.current) return;
+    // Terminal drop after LiveKit's own reconnect gave up. A remount does not
+    // land here: LiveKitRoom detaches its listeners before calling disconnect().
+    setPhase((p) => (p === 'ended' ? p : 'dropped'));
+  }, []);
+
+  const handleError = useCallback((e: Error) => {
+    const msg = e?.message ?? 'Connection error';
+    if (/Permission|NotAllowed|NotFound|NotReadable/i.test(msg)) {
+      setError(msg);
+      return;
+    }
+    console.warn('[livekit]', msg);
+  }, []);
+
+  // Only mark leave after the tab stays hidden for a long stretch (real exit /
+  // sleep). Backgrounding a phone mid-class must never eject the student.
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'hidden') {
         if (hideLeaveTimer.current) clearTimeout(hideLeaveTimer.current);
         hideLeaveTimer.current = setTimeout(() => {
-          if (document.visibilityState === 'hidden' && !leftRef.current) {
+          if (document.visibilityState === 'hidden' && !exitedRef.current) {
             recordLeave();
           }
-        }, 3 * 60_000);
-      } else {
-        if (hideLeaveTimer.current) {
-          clearTimeout(hideLeaveTimer.current);
-          hideLeaveTimer.current = null;
-        }
-        // Back from background while marked dropped → soft rejoin (one shot).
-        if (phase === 'dropped' && !leftRef.current && !closedRef.current && autoTry < MAX_AUTO_REJOIN) {
-          void loadToken({ soft: true });
-        }
+        }, HIDDEN_LEAVE_MS);
+        return;
+      }
+
+      if (hideLeaveTimer.current) {
+        clearTimeout(hideLeaveTimer.current);
+        hideLeaveTimer.current = null;
+      }
+      if (exitedRef.current) return;
+      recordRejoin();
+      // Back from background while dropped → soft rejoin (one shot).
+      if (shouldAutoRejoin({ phase, attempt: autoTry, error: errorRef.current, exited: false })) {
+        void loadToken({ rejoin: true });
       }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [phase, loadToken, recordLeave, autoTry]);
+  }, [phase, autoTry, loadToken, recordLeave, recordRejoin]);
 
   // Host-ended poll
   useEffect(() => {
@@ -180,7 +279,10 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
         if (!res.ok) return;
         const j = await res.json();
         if (['completed', 'cancelled'].includes(j.status)) {
-          tearingDownRef.current = true;
+          // Do NOT set exitedRef here — that guard also gates handleClose, and
+          // setting it would make the "Close" button on the ended overlay inert,
+          // trapping the user in a full-screen z-[60] panel. Phase 'ended' is
+          // enough: it blocks auto-rejoin and unmounts the room on its own.
           clearTimers();
           setPhase('ended');
         }
@@ -191,40 +293,39 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     return () => clearInterval(iv);
   }, [phase, sessionId, clearTimers]);
 
-  // Auto-rejoin after a terminal drop. autoTry only increments here — never reset on token success.
+  // Auto-rejoin after a terminal drop. autoTry only increments here — never reset
+  // on token success, or a failing media connect spins forever.
   useEffect(() => {
-    if (phase !== 'dropped' || leftRef.current || closedRef.current) return;
-    if (error && /not open|Unauthorized|Forbidden|no longer active/i.test(error)) return;
-    if (autoTry >= MAX_AUTO_REJOIN) return;
-
-    const delay = Math.min(2000 * Math.pow(1.6, autoTry), 12_000);
+    if (!shouldAutoRejoin({ phase, attempt: autoTry, error: errorRef.current, exited: exitedRef.current })) {
+      return;
+    }
     rejoinTimer.current = setTimeout(() => {
       setAutoTry((n) => n + 1);
-      void loadToken({ soft: true });
-    }, delay);
+      void loadToken({ rejoin: true });
+    }, rejoinDelayMs(autoTry));
 
     return () => {
       if (rejoinTimer.current) clearTimeout(rejoinTimer.current);
     };
-  }, [phase, autoTry, error, loadToken]);
+  }, [phase, autoTry, loadToken]);
 
-  if (error && phase === 'dropped' && autoTry >= MAX_AUTO_REJOIN) {
+  const manualRejoin = useCallback(() => {
+    setAutoTry(0);
+    setError(null);
+    void loadToken({ rejoin: true });
+  }, [loadToken]);
+
+  const stalled = phase === 'dropped' && hasExhaustedRejoins(autoTry);
+
+  if (stalled) {
     return (
       <Overlay>
-        <p className="text-rose-400 text-sm font-bold">{error}</p>
+        <p className="text-rose-400 text-sm font-bold">{error ?? 'Lost connection to the class.'}</p>
         <p className="text-white/50 text-[11px] max-w-sm">
           Weak network — check your connection, then retry. Keep this tab open during class.
         </p>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setAutoTry(0);
-              setError(null);
-              void loadToken();
-            }}
-            className={BTN_PRIMARY}
-          >
+          <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>
             Retry
           </button>
           <button type="button" onClick={handleClose} className={BTN_GHOST}>
@@ -246,46 +347,32 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     );
   }
 
-  // Reconnecting overlay — keep previous room unmounted only while we lack credentials,
-  // otherwise show spinner on top of a remounted room without looping forever.
-  if ((phase === 'dropped' || phase === 'rejoining' || phase === 'loading') && !token) {
-    return (
-      <Overlay>
-        <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent animate-spin" />
-        <p className="text-amber-400 text-sm font-bold">
-          {phase === 'loading' ? 'Starting meeting…' : phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
-        </p>
-        {phase !== 'loading' && (
-          <p className="text-white/50 text-[11px]">
-            Attempt {Math.min(autoTry + 1, MAX_AUTO_REJOIN)} of {MAX_AUTO_REJOIN} · stay on this page
-          </p>
-        )}
-        {phase !== 'loading' && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAutoTry(0);
-                void loadToken({ soft: true });
-              }}
-              className={BTN_PRIMARY}
-            >
-              Rejoin now
-            </button>
-            <button type="button" onClick={handleClose} className={BTN_GHOST}>
-              Leave
-            </button>
-          </div>
-        )}
-      </Overlay>
-    );
-  }
-
+  // No credentials yet — nothing to mount.
   if (!token || !serverUrl) {
+    const starting = phase === 'loading';
     return (
       <Overlay>
-        <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-        <p className="text-white/50 text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
+        <div
+          className={`w-10 h-10 border-4 ${starting ? 'border-emerald-600' : 'border-amber-500'} border-t-transparent animate-spin`}
+        />
+        <p className={`text-sm font-bold ${starting ? 'text-white/50' : 'text-amber-400'}`}>
+          {starting ? 'Starting meeting…' : 'Connection lost — reconnecting…'}
+        </p>
+        {!starting && (
+          <>
+            <p className="text-white/50 text-[11px]">
+              Attempt {attemptLabel(autoTry)} of {MAX_AUTO_REJOIN} · stay on this page
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>
+                Rejoin now
+              </button>
+              <button type="button" onClick={handleClose} className={BTN_GHOST}>
+                Leave
+              </button>
+            </div>
+          </>
+        )}
       </Overlay>
     );
   }
@@ -321,17 +408,10 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
               {phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
             </p>
             <p className="text-white/50 text-[11px]">
-              Attempt {Math.min(autoTry + 1, MAX_AUTO_REJOIN)} of {MAX_AUTO_REJOIN} · stay on this page
+              Attempt {attemptLabel(autoTry)} of {MAX_AUTO_REJOIN} · stay on this page
             </p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAutoTry(0);
-                  void loadToken({ soft: true });
-                }}
-                className={BTN_PRIMARY}
-              >
+              <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>
                 Rejoin now
               </button>
               <button type="button" onClick={handleClose} className={BTN_GHOST}>
@@ -342,52 +422,18 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
         )}
 
         <LiveKitRoom
-          key={`${sessionId}:${token.slice(0, 24)}`}
+          key={roomEpoch}
           token={token}
           serverUrl={serverUrl}
           connect={true}
           video={isModerator}
           audio={true}
-          onConnected={() => {
-            tearingDownRef.current = false;
-            if (connectWatchdog.current) {
-              clearTimeout(connectWatchdog.current);
-              connectWatchdog.current = null;
-            }
-            setError(null);
-            setPhase('live');
-            // Only reset the retry budget after a real media connection.
-            setAutoTry(0);
-          }}
-          onDisconnected={() => {
-            if (tearingDownRef.current) return;
-            if (leftRef.current || closedRef.current) {
-              handleClose();
-              return;
-            }
-            // Terminal drop after LiveKit's own reconnect gave up.
-            setPhase('dropped');
-          }}
-          onError={(e) => {
-            const msg = e?.message ?? 'Connection error';
-            if (/Permission|NotAllowed|NotFound|NotReadable/i.test(msg)) {
-              setError(msg);
-              return;
-            }
-            console.warn('[livekit]', msg);
-          }}
-          options={{
-            adaptiveStream: true,
-            dynacast: true,
-            disconnectOnPageLeave: false,
-            reconnectPolicy: POOR_NET_RECONNECT,
-          }}
-          connectOptions={{
-            maxRetries: 5,
-            peerConnectionTimeout: 45_000,
-            websocketTimeout: 30_000,
-          }}
-          style={{ height: '100%' }}
+          onConnected={handleConnected}
+          onDisconnected={handleDisconnected}
+          onError={handleError}
+          options={ROOM_OPTIONS}
+          connectOptions={CONNECT_OPTIONS}
+          style={ROOM_STYLE}
         >
           <VideoConference />
           <ConnectionStateToast />
@@ -397,3 +443,10 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     </div>
   );
 }
+
+/**
+ * Memoised: the live-sessions page re-renders on every `live_sessions` realtime
+ * UPDATE. Without this the meeting re-renders mid-class for reasons that have
+ * nothing to do with the meeting. Requires a stable `onClose` from the parent.
+ */
+export default memo(LiveKitMeeting);
