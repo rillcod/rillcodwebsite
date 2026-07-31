@@ -118,8 +118,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       // The edition keeps its own copy of the content; only the "made from" link goes.
       onCleanup: 'unlinked',
       safe: true,
-      // Editions are listed on the school-assignment step, filtered by course.
-      href: row.course_id ? `/dashboard/academic/distribute?course_id=${row.course_id}` : '/dashboard/academic/distribute',
+      // Send them to where the edition is AUTHORED, not where it is distributed:
+      // the curriculum step shows the live official edition (OfficialDirectionStatus)
+      // for the course, which is what you want in view before building the next one.
+      href: row.course_id ? `/dashboard/curriculum?course_id=${row.course_id}` : '/dashboard/curriculum',
     });
   }
 
