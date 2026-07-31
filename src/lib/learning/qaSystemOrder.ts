@@ -83,7 +83,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
       `${LEARNING_SYSTEM_MAP_API_PATH} (full map as JSON)`,
     ],
     appPaths: [
-      { label: "Curriculum (pick course)", path: "/dashboard/curriculum" },
+      { label: "Curriculum (pick course)", path: "/dashboard/academic/build" },
     ],
   },
   {
@@ -102,7 +102,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     appPaths: [
       {
         label: "Curriculum → Optional QA week spine (panel)",
-        path: "/dashboard/curriculum",
+        path: "/dashboard/academic/build",
       },
     ],
     codeRefs: [
@@ -146,7 +146,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
       "POST /api/curricula/apply-qa-spine",
       "GET/PATCH /api/curricula/[id]",
     ],
-    appPaths: [{ label: "Course Syllabus tab", path: "/dashboard/curriculum" }],
+    appPaths: [{ label: "Course Syllabus tab", path: "/dashboard/academic/build" }],
   },
   {
     order: 5,
@@ -251,7 +251,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     appPaths: [
       {
         label: "Curriculum builder",
-        path: "/dashboard/curriculum",
+        path: "/dashboard/academic/build",
       },
     ],
   },

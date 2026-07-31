@@ -11,18 +11,31 @@ function withQuery(
   return query ? `${path}?${query}` : path;
 }
 
-/** Canonical link into the curriculum builder. */
+/** Canonical link into the curriculum builder. Lives under /academic with the rest
+ *  of the Academic Office flow. */
+export const BUILDER_PATH = "/dashboard/academic/build";
+
 export function buildCurriculumHref(
   args: {
     courseId?: string | null;
     programId?: string | null;
   } = {}
 ): string {
-  return withQuery("/dashboard/curriculum", {
+  return withQuery(BUILDER_PATH, {
     course: args.courseId,
     program: args.programId,
   });
 }
+
+/**
+ * Certify, distribute and timing are one page.
+ *
+ * Publishing already performs the rollout — every eligible school receives the direction
+ * in the same action — so these were never three decisions, only three screens. The three
+ * builders are kept as distinct names because callers describe intent ("send them to
+ * certify"), and they all resolve to the same workspace.
+ */
+export const ROLLOUT_PATH = "/dashboard/academic/rollout";
 
 /** Academic review before publication. */
 export function buildCertifyHref(
@@ -31,7 +44,7 @@ export function buildCertifyHref(
     courseId?: string | null;
   } = {}
 ): string {
-  return withQuery("/dashboard/academic/certify", {
+  return withQuery(ROLLOUT_PATH, {
     curriculum_id: args.curriculumId,
     course_id: args.courseId,
   });
@@ -44,7 +57,7 @@ export function buildDistributeHref(
     courseId?: string | null;
   } = {}
 ): string {
-  return withQuery("/dashboard/academic/distribute", {
+  return withQuery(ROLLOUT_PATH, {
     curriculum_id: args.curriculumId,
     course_id: args.courseId,
   });
@@ -57,7 +70,7 @@ export function buildTimingHref(
     releaseId?: string | null;
   } = {}
 ): string {
-  return withQuery("/dashboard/academic/timing", {
+  return withQuery(ROLLOUT_PATH, {
     course_id: args.courseId,
     release_id: args.releaseId,
   });

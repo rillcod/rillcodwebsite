@@ -235,7 +235,7 @@ export default function AcademicSpinePage() {
     {
       title: "Direction assigned",
       href: isAdmin
-        ? "/dashboard/academic/distribute"
+        ? "/dashboard/academic/rollout#schools"
         : "/dashboard/classes",
       value: `${totals.assigned_directions ?? 0} active`,
       detail:
@@ -506,7 +506,7 @@ export default function AcademicSpinePage() {
                           ? [
                               {
                                 label: "Curriculum",
-                                href: "/dashboard/curriculum",
+                                href: "/dashboard/academic/build",
                                 purpose: "Read the official course direction.",
                               },
                               {

@@ -30,7 +30,7 @@ describe("overviewAssetStages", () => {
     const stages = overviewAssetStages(base);
     const next = nextAction(stages);
     expect(next?.id).toBe("author");
-    expect(next?.actionHref).toContain("/dashboard/curriculum");
+    expect(next?.actionHref).toContain("/dashboard/academic/build");
   });
 
   it("opens certify only after drafts exist", () => {

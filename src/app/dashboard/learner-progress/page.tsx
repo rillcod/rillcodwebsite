@@ -19,7 +19,7 @@ const LearnerOverview = dynamic<{ embedded?: boolean }>(
   { ssr: false }
 );
 const TeachingCoverage = dynamic<{ embedded?: boolean }>(
-  () => import("../curriculum/progress/panel"),
+  () => import("../academic/build/progress/panel"),
   { ssr: false }
 );
 const PromotionDecisions = dynamic<{ embedded?: boolean }>(

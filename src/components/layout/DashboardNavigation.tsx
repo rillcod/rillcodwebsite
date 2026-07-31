@@ -349,24 +349,16 @@ export default function DashboardNavigation() {
             icon: PresentationChartLineIcon,
           },
           {
-            name: "2 · Curriculum",
-            href: "/dashboard/curriculum",
+            name: "2 · Build",
+            href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
           {
-            name: "3 · Certify",
-            href: "/dashboard/academic/certify",
+            // Certify, distribute and timing were three pages, but publishing already
+            // performs the rollout — they were never three decisions, only three screens.
+            name: "3 · Rollout",
+            href: "/dashboard/academic/rollout",
             icon: ShieldCheckIcon,
-          },
-          {
-            name: "4 · Distribute",
-            href: "/dashboard/academic/distribute",
-            icon: BuildingOfficeIcon,
-          },
-          {
-            name: "5 · School Timing",
-            href: "/dashboard/academic/timing",
-            icon: CalendarDaysIcon,
           },
           {
             name: "How It Works",
@@ -586,7 +578,7 @@ export default function DashboardNavigation() {
           },
           {
             name: "Curriculum",
-            href: "/dashboard/curriculum",
+            href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
           {

@@ -40,7 +40,7 @@ const PAGES: Record<
   syllabus: {
     label: "Curriculum Direction",
     short: "Curriculum",
-    href: "/dashboard/curriculum",
+    href: "/dashboard/academic/build",
     icon: BookOpenIcon,
     color: "text-primary",
     bg: "bg-primary/10",

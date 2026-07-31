@@ -380,7 +380,7 @@ export default function ClassesPage() {
             {[
               { label: 'Students',          desc: 'Student records',        icon: UserGroupIcon,    color: 'text-primary',     bg: 'bg-primary/10',     href: '/dashboard/students'   },
               { label: 'Grading Center',    desc: 'Work needing action',    icon: DocumentTextIcon, color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/10',   href: '/dashboard/grading'    },
-              { label: 'Curriculum guide', desc: 'The approved direction for teaching', icon: AcademicCapIcon,  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/curriculum' },
+              { label: 'Curriculum guide', desc: 'The approved direction for teaching', icon: AcademicCapIcon,  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/academic/build' },
               { label: 'Gradebook',         desc: 'Results and outcomes',   icon: BookOpenIcon,     color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-500/10',  href: '/dashboard/grades'     },
             ].map(a => (
               <Link

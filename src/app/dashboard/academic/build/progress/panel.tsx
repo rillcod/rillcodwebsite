@@ -433,7 +433,7 @@ export default function CurriculumProgressPage({
           } items-center gap-1 bg-card border border-border rounded-xl p-1 flex-wrap`}
         >
           <Link
-            href="/dashboard/curriculum"
+            href="/dashboard/academic/build"
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap"
           >
             <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Course Syllabus
@@ -452,7 +452,7 @@ export default function CurriculumProgressPage({
             </Link>
           )}
           <Link
-            href="/dashboard/curriculum"
+            href="/dashboard/academic/build"
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap"
           >
             <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Open Curriculum

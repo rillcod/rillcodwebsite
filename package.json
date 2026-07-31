@@ -150,6 +150,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@eslint/eslintrc": "^3.3.5",
     "@netlify/plugin-nextjs": "^5.15.9",
     "@opennextjs/cloudflare": "^1.17.1",

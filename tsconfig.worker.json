@@ -1,0 +1,20 @@
+{
+  // The Cloudflare Worker gateway is a separate build target from the Next app.
+  //
+  // It needs @cloudflare/workers-types, whose globals redefine fetch and Response — pull
+  // those into the app's program and every route that does `await request.json()` starts
+  // seeing `unknown`. So the worker is excluded from tsconfig.json and type-checked here
+  // instead, against the Workers runtime it actually runs on.
+  //
+  //   npx tsc -p tsconfig.worker.json --noEmit
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The globals come from src/cloudflare/worker-env.d.ts rather than `types`, so the
+    // reference travels with the folder that is excluded from the app program.
+    "types": [],
+    "lib": ["ES2022", "WebWorker"],
+    "noEmit": true
+  },
+  "include": ["src/cloudflare/**/*.ts", "src/cloudflare/**/*.d.ts"],
+  "exclude": ["node_modules", ".next"]
+}

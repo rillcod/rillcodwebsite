@@ -15,8 +15,10 @@ const NAV = readFileSync(
  */
 describe("navigation covers the academic lanes", () => {
   it("links every stage an admin acts on", () => {
+    // Strip the query AND the anchor: certify/distribute/timing are sections of the
+    // single rollout page, so the nav links the page and the stage deep-links the section.
     const missing = stepsForRole("admin")
-      .map((stage) => stage.href.split("?")[0])
+      .map((stage) => stage.href.split("?")[0].split("#")[0])
       .filter((href, index, all) => all.indexOf(href) === index)
       .filter((href) => !NAV.includes(`"${href}"`));
     expect(missing).toEqual([]);
@@ -37,6 +39,7 @@ describe("navigation covers the academic lanes", () => {
       "/dashboard/academic-spine",
       "/dashboard/academic-direction",
       "/dashboard/curriculum/studio",
+      "/dashboard/curriculum",
     ]) {
       expect(NAV.includes(`"${legacy}"`)).toBe(false);
     }

@@ -2,6 +2,10 @@
  * Thin Cloudflare Worker gateway that proxies all traffic to a Next.js
  * Container (full Node runtime). This avoids OpenNext's single-Worker
  * 64 MiB script limit for the full LMS.
+ *
+ * Type-checked by tsconfig.worker.json, not the Next build: the Workers globals it needs
+ * (DurableObjectNamespace, ScheduledController, …) redefine fetch and Response, so pulling
+ * them into the app program breaks every route that reads a JSON body.
  */
 import { Container, getContainer } from "@cloudflare/containers";
 
@@ -47,7 +51,7 @@ const CONTAINER_ENV_KEYS = [
 ] as const;
 
 type GatewayEnv = {
-  NEXT_APP: DurableObjectNamespace;
+  NEXT_APP: DurableObjectNamespace<NextAppContainer>;
   CRON_SECRET?: string;
   BILLING_CRON_SECRET?: string;
 } & Record<string, string | undefined>;
@@ -76,7 +80,7 @@ export class NextAppContainer extends Container {
   sleepAfter = "15m";
   enableInternet = true;
 
-  constructor(ctx: DurableObjectState, env: GatewayEnv) {
+  constructor(ctx: DurableObjectState<GatewayEnv>, env: GatewayEnv) {
     super(ctx, env);
     this.envVars = containerEnvFromWorker(env);
   }

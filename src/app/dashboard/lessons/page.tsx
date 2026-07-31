@@ -628,7 +628,7 @@ export default function LessonsPage() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-foreground">Quick Lesson Plan Generator</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">One-off plan for a single topic — for the full pipeline use <a href="/dashboard/curriculum" className="text-primary hover:underline">Course Syllabus → Lesson Plans</a></p>
+                <p className="text-xs text-muted-foreground mt-0.5">One-off plan for a single topic — for the full pipeline use <a href="/dashboard/academic/build" className="text-primary hover:underline">Course Syllabus → Lesson Plans</a></p>
               </div>
             </div>
             {planOpen

@@ -52,7 +52,7 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
           state: "done",
           headline: "Every active course has a curriculum draft.",
           actionLabel: "Open builder",
-          actionHref: "/dashboard/curriculum",
+          actionHref: "/dashboard/academic/build",
         };
 
   const certify: StageStatus =
@@ -84,7 +84,7 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
               state: "done",
               headline: `All ${facts.certifiedCourses} courses have an official edition.`,
               actionLabel: "Open certify",
-              actionHref: "/dashboard/academic/certify",
+              actionHref: "/dashboard/academic/rollout",
             }
           : {
               id: "certify",
@@ -116,7 +116,7 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
               facts.assignedDirections === 1 ? "" : "s"
             } active.`,
             actionLabel: "Review assignments",
-            actionHref: "/dashboard/academic/distribute",
+            actionHref: "/dashboard/academic/rollout",
           };
 
   const time: StageStatus =
@@ -155,7 +155,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
             state: "blocked",
             headline: `${facts.stuckPlans} class plan(s) are not on an official edition.`,
             actionLabel: "Review assignments",
-            actionHref: "/dashboard/academic/distribute",
+            actionHref: "/dashboard/academic/rollout",
           }
         : facts.classesWithPlans < facts.classesTotal
           ? {
