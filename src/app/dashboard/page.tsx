@@ -284,48 +284,48 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
   const termInfo = now ? currentTermLabel(now) : null;
 
   return (
-    <div className="bg-background border border-border rounded-xl shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
-      <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-brand-red-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
+      <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-brand-red-accent/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-        <div className="flex-shrink-0 p-4 bg-muted backdrop-blur-md rounded-xl border border-border shadow-2xl">
-          <img src="/images/logo.png" alt="Rillcod Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
+        <div className="flex-shrink-0 p-3.5 bg-background/80 backdrop-blur-md rounded-2xl border border-border/70 shadow-lg">
+          <img src="/images/logo.png" alt="Rillcod Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
         </div>
         <div>
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-brand-red-600 text-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="px-3 py-1 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm">
               {role} Portal
             </span>
-            <div className="h-px w-8 bg-muted" />
-            <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest">Global Status: Online</span>
+            <div className="h-px w-6 bg-border" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Status: Online</span>
             {termInfo && (
               <>
-                <div className="h-px w-8 bg-muted hidden sm:block" />
+                <div className="h-px w-6 bg-border hidden sm:block" />
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
-                  <AcademicCapIcon className="w-3 h-3" />
+                  <AcademicCapIcon className="w-3.5 h-3.5" />
                   {termInfo.display} · {termInfo.months}
                 </span>
               </>
             )}
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight leading-tight">
-            Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-foreground tracking-tight leading-tight">
+            Welcome back, <span className="bg-gradient-to-r from-primary to-indigo-500 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">{profile.full_name?.split(' ')?.[0] || 'User'}</span>!
           </h1>
-          <p className="text-primary/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
-            <ClockIcon className="w-4 h-4" />
+          <p className="text-muted-foreground text-xs sm:text-sm mt-2 font-medium flex items-center gap-2">
+            <ClockIcon className="w-4 h-4 text-primary" />
             {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
           </p>
         </div>
       </div>
 
-      <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-card shadow-sm backdrop-blur-xl border border-border rounded-xl p-4 sm:p-6 shadow-2xl">
-        <div className="text-3xl sm:text-5xl font-black text-foreground tracking-tighter tabular-nums">
+      <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-background/60 backdrop-blur-xl border border-border/80 rounded-2xl p-4 sm:p-5 shadow-lg">
+        <div className="text-2xl sm:text-4xl font-black text-foreground tracking-tighter tabular-nums">
           {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
         </div>
-        <div className="h-8 w-px bg-muted hidden sm:block" />
+        <div className="h-8 w-px bg-border hidden sm:block" />
         <div className="flex flex-col items-start gap-1">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
             <span className="text-[8px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest">Active</span>
           </div>

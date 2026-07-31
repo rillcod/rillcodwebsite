@@ -13,6 +13,7 @@ import {
   ChatBubbleLeftRightIcon,
 } from '@/lib/icons';
 import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
+import AIMarkdown from './AIMarkdown';
 
 interface LessonAIToolsProps {
   lessonTitle: string;
@@ -349,12 +350,14 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
         <div className="max-h-56 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] px-3 py-2 rounded-xl text-[11px] leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[85%] px-3 py-2 rounded-xl text-[11px] leading-relaxed ${
                 m.role === 'user'
-                  ? 'bg-emerald-600/20 border border-emerald-500/30 text-foreground'
+                  ? 'bg-emerald-600/20 border border-emerald-500/30 text-foreground whitespace-pre-wrap'
                   : 'bg-white/5 border border-border text-muted-foreground'
               }`}>
-                {m.text}
+                {m.role === 'assistant'
+                  ? <AIMarkdown content={m.text} variant="chat" />
+                  : m.text}
                 {m.role === 'assistant' && (
                   <button
                     onClick={() => onInsert(m.text)}

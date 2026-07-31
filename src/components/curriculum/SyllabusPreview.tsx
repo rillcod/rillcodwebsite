@@ -20,6 +20,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import AIMarkdown from '@/components/ai/AIMarkdown';
 import {
   BookOpenIcon,
   ClipboardDocumentListIcon,
@@ -201,9 +202,7 @@ export function SyllabusPreview({
           </div>
 
           {content.overview && (
-            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-              {content.overview}
-            </p>
+            <AIMarkdown content={content.overview} variant="compact" className="text-sm text-muted-foreground" />
           )}
 
           {content.learning_outcomes && content.learning_outcomes.length > 0 && (
@@ -353,9 +352,7 @@ export function SyllabusPreview({
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 Assessment strategy
               </p>
-              <p className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap">
-                {content.assessment_strategy}
-              </p>
+              <AIMarkdown content={content.assessment_strategy} variant="compact" className="text-sm text-foreground/90 mt-1" />
             </div>
           )}
           {content.materials_required && content.materials_required.length > 0 && (

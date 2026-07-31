@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Send } from 'lucide-react';
+import AIMarkdown from './AIMarkdown';
 
 interface StudyAssistantProps {
   lessonTitle: string;
@@ -171,9 +172,11 @@ export default function StudyAssistant({
                   <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center text-white text-[10px] font-black shrink-0 mt-0.5">AI</div>
                 )}
                 <div className={`max-w-[80%] px-3 py-2 text-sm leading-relaxed rounded-2xl ${
-                  msg.role === 'user' ? 'bg-primary text-white rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'
+                  msg.role === 'user' ? 'bg-primary text-white rounded-br-sm whitespace-pre-wrap' : 'bg-muted text-foreground rounded-bl-sm'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'assistant'
+                    ? <AIMarkdown content={msg.content} variant="chat" />
+                    : msg.content}
                 </div>
               </div>
             ))}

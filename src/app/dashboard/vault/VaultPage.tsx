@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import AIMarkdown from '@/components/ai/AIMarkdown';
 import {
   ArchiveBoxIcon,
   SparklesIcon,
@@ -888,7 +889,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                               Explaining...
                             </div>
                           ) : (
-                            aiExplanations[item.id]
+                            <AIMarkdown content={aiExplanations[item.id] ?? ''} variant="compact" />
                           )}
                         </div>
                       </div>

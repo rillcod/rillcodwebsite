@@ -261,6 +261,7 @@ export default function CanvaEditor({ layout, onChange, lessonTitle }: CanvaEdit
                     message: prompts[block.type],
                     lessonTitle: lessonTitle || 'general topic',
                     conversationHistory: [],
+                    json: true,
                 }),
             });
             const data = await res.json();

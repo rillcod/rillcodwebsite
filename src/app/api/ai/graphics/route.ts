@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -53,7 +54,24 @@ export async function POST(req: NextRequest) {
     `;
 
     let lastError: any = null;
-    
+
+    // ── Free direct Gemini first ─────────────────────────────────────────────
+    if (hasGeminiKey()) {
+      const result = await geminiGenerateText(
+        systemPrompt,
+        `Generate a ${type || 'graphic'} for: ${prompt}`,
+        { json: true, reasoning: 'medium', maxOutputTokens: 8192, timeoutMs: 45_000 },
+      ).catch(() => null);
+
+      if (result?.text) {
+        try {
+          return NextResponse.json({ success: true, data: JSON.parse(result.text), model: result.model });
+        } catch {
+          // Malformed JSON — fall through to the OpenRouter queue.
+        }
+      }
+    }
+
     // Task-Specific Prioritization: Grok-2 for Scratch Visuals
     let modelQueue = [...MODELS];
     if (type === 'scratch-blocks') {

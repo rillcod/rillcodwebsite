@@ -1,6 +1,7 @@
 'use client';
 
 import { SubmissionAttachmentCard } from '@/components/submissions/SubmissionAttachmentCard';
+import AIMarkdown from '@/components/ai/AIMarkdown';
 
 type RubricCriterion = { criterion: string; description?: string; maxPoints: number };
 
@@ -105,7 +106,7 @@ export function GradingAssessmentView({
 
           {brief ? (
             <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-border bg-card p-4">
-              <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-foreground">{brief}</p>
+              <AIMarkdown content={brief} variant="compact" className="text-xs sm:text-sm text-foreground" />
             </div>
           ) : (
             <p className="mt-3 rounded-xl border border-dashed border-border bg-card/60 p-3 text-xs text-muted-foreground">
@@ -173,7 +174,7 @@ export function GradingAssessmentView({
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
                 AI Suggested Feedback {aiSuggestedGrade != null ? `(${aiSuggestedGrade}/${maxPoints})` : ''}
               </p>
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground font-medium">{aiSuggestedFeedback}</p>
+              <AIMarkdown content={aiSuggestedFeedback} variant="compact" className="text-xs text-foreground font-medium" />
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -11,12 +12,21 @@ const client = new OpenAI({
   },
 });
 
+/** Fallback queue only — the free direct Gemini path runs first. */
 const MODELS = [
-  'google/gemini-2.0-flash-001',
-  'deepseek/deepseek-chat-v3-5',
-  'meta-llama/llama-3.3-70b-instruct',
+  'qwen/qwen3-235b-a22b:free',
+  'deepseek/deepseek-r1:free',
   'qwen/qwen3-14b:free',
 ];
+
+/** Pull the first fenced code block out of a reply, if there is one. */
+function extractCode(reply: string, language: string) {
+  const codeMatch = reply.match(/```(\w+)?\n([\s\S]*?)```/);
+  return {
+    code: codeMatch ? codeMatch[2].trim() : null,
+    language: codeMatch ? (codeMatch[1] || language) : null,
+  };
+}
 
 interface ConversationMessage {
   role: 'user' | 'assistant';
@@ -77,6 +87,25 @@ YOUR RULES:
       content: m.content,
     }));
 
+    // ── Free direct Gemini first ─────────────────────────────────────────────
+    if (hasGeminiKey()) {
+      const transcript = historyMessages
+        .map(m => `${m.role === 'user' ? 'Student' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
+
+      const result = await geminiGenerateText(systemPrompt, message.trim(), {
+        reasoning: 'medium',
+        temperature: 0.65,
+        maxOutputTokens: 4096,
+        context: transcript ? [`CONVERSATION SO FAR:\n${transcript}`] : undefined,
+        timeoutMs: 55_000,
+      }).catch(() => null);
+
+      if (result?.text?.trim()) {
+        return NextResponse.json({ reply: result.text, ...extractCode(result.text, language), model: result.model });
+      }
+    }
+
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
       ...historyMessages,
@@ -88,19 +117,14 @@ YOUR RULES:
         const completion = await client.chat.completions.create({
           model,
           messages,
-          max_tokens: 1500,
+          max_tokens: 4096,
           temperature: 0.65,
         });
 
         const reply = completion.choices[0]?.message?.content;
         if (!reply) continue;
 
-        // Extract code block if present
-        const codeMatch = reply.match(/```(\w+)?\n([\s\S]*?)```/);
-        const extractedCode  = codeMatch ? codeMatch[2].trim() : null;
-        const extractedLang  = codeMatch ? (codeMatch[1] || language) : null;
-
-        return NextResponse.json({ reply, code: extractedCode, language: extractedLang });
+        return NextResponse.json({ reply, ...extractCode(reply, language), model });
       } catch {
         continue;
       }

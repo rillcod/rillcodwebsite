@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
+import AIMarkdown from '@/components/ai/AIMarkdown';
 import {
   CommandLineIcon,
   SparklesIcon,
@@ -418,7 +419,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                                             <SparklesIcon className="w-4 h-4 text-primary" />
                                             <span className="text-[10px] font-black text-primary uppercase tracking-widest">AI Explanation</span>
                                           </div>
-                                          <p className="text-sm text-foreground/80 leading-relaxed relative z-10 whitespace-pre-wrap">{aiExplanations[module.id]}</p>
+                                          <AIMarkdown content={aiExplanations[module.id]} variant="compact" className="text-sm text-foreground/80 relative z-10" />
                                         </motion.div>
                                       )}
                                     </AnimatePresence>

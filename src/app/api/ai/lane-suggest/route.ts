@@ -2,26 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { LANE_LABELS, MAX_LANE } from '@/lib/qa/resolveQaSpineLane';
 import OpenAI from 'openai';
+import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
 
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY ?? '',
 });
 
+/** Fallback queue only — free variants first so a Gemini outage stays free. */
 const MODELS = [
-  'google/gemini-2.0-flash-001',
-  'deepseek/deepseek-chat-v3-5',
-  'meta-llama/llama-3.3-70b-instruct',
+  'deepseek/deepseek-r1:free',
+  'qwen/qwen3-235b-a22b:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
 ];
 
 async function callAI(prompt: string): Promise<string> {
+  // Free direct Gemini first — never spend OpenRouter credit on a coaching note.
+  if (hasGeminiKey()) {
+    const result = await geminiGenerateText(
+      'You are an experienced Nigerian STEM teaching coach. Be specific and actionable.',
+      prompt,
+      { reasoning: 'medium', temperature: 0.55, maxOutputTokens: 700, timeoutMs: 30_000 },
+    ).catch(() => null);
+    const text = result?.text?.trim() ?? '';
+    if (text.length > 20) return text;
+  }
+
   for (const model of MODELS) {
     try {
       const res = await openai.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.55,
-        max_tokens: 200,
+        max_tokens: 700,
       });
       const text = res.choices?.[0]?.message?.content?.trim() ?? '';
       if (text.length > 20) return text;

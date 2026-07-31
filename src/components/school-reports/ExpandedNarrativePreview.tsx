@@ -1,5 +1,7 @@
 'use client';
 
+import AIMarkdown from '@/components/ai/AIMarkdown';
+
 type Props = {
   body: string;
   title?: string;
@@ -8,7 +10,14 @@ type Props = {
   variant?: 'standalone' | 'embedded';
 };
 
-/** Readable preview of AI-expanded or manually edited topics narrative. */
+/**
+ * Readable preview of AI-expanded or manually edited topics narrative.
+ *
+ * Renders through the shared Markdown pipeline rather than a hand-rolled line
+ * splitter. The old approach grouped every bullet after every paragraph, which
+ * reordered the narrative whenever the model interleaved prose and lists — and
+ * it showed `**bold**` and `##` as literal characters.
+ */
 export function ExpandedNarrativePreview({
   body,
   title = 'Report story',
@@ -19,37 +28,16 @@ export function ExpandedNarrativePreview({
   const trimmed = body.trim();
   if (!trimmed) return null;
 
-  const lines = trimmed.split('\n').map((line) => line.trim()).filter(Boolean);
-  const bulletLines = lines.filter((line) => /^[-•*]\s/.test(line) || line.startsWith('•'));
-  const proseLines = lines.filter((line) => !/^[-•*]\s/.test(line) && !line.startsWith('•'));
   const embedded = variant === 'embedded';
 
   const content = (
-    <div className="space-y-3">
-      {proseLines.map((paragraph, index) => (
-        <p
-          key={`p-${index}`}
-          className={`leading-relaxed text-foreground break-words whitespace-pre-wrap ${embedded ? 'text-sm' : 'text-sm'}`}
-        >
-          {paragraph}
-        </p>
-      ))}
-      {bulletLines.length ? (
-        <ul className={`space-y-1.5 ${proseLines.length ? 'border-t border-border/60 pt-2' : ''}`}>
-          {bulletLines.map((line, index) => (
-            <li key={`b-${index}`} className={`flex gap-2 leading-snug text-foreground ${embedded ? 'text-xs' : 'text-[12px]'}`}>
-              <span className="mt-0.5 shrink-0 font-black text-emerald-700 dark:text-emerald-300">•</span>
-              <span className="min-w-0 break-words">{line.replace(/^[-•*]\s*/, '')}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {!proseLines.length && !bulletLines.length ? (
-        <p className={`leading-relaxed text-foreground break-words whitespace-pre-wrap ${embedded ? 'text-xs' : 'text-sm'}`}>
-          {trimmed}
-        </p>
-      ) : null}
-    </div>
+    <AIMarkdown
+      content={trimmed}
+      variant={embedded ? 'compact' : 'default'}
+      className={`break-words text-foreground marker:text-emerald-700 dark:marker:text-emerald-300 ${
+        embedded ? 'text-xs sm:text-sm' : 'text-sm'
+      }`}
+    />
   );
 
   if (embedded) {

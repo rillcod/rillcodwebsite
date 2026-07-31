@@ -19,6 +19,7 @@ import {
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
 import Markdown from 'react-markdown';
+import AIMarkdown from '@/components/ai/AIMarkdown';
 import remarkGfm from 'remark-gfm';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import VideoPlayer from '@/components/media/VideoPlayer';
@@ -1351,7 +1352,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
                       <span className="text-xs">Thinking...</span>
                     </div>
                   ) : aiExplanation ? (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{aiExplanation}</p>
+                    <AIMarkdown content={aiExplanation} variant="compact" className="text-sm text-muted-foreground" />
                   ) : null}
                 </div>
               )}
@@ -1458,7 +1459,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
               <span className="text-xs">Generating your recap...</span>
             </div>
           ) : recap ? (
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{recap}</p>
+            <AIMarkdown content={recap} variant="compact" className="text-sm text-muted-foreground" />
           ) : (
             <p className="text-sm text-muted-foreground">You've successfully completed this lesson. Great work!</p>
           )}
