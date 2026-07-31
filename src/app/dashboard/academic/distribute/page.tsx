@@ -69,7 +69,7 @@ function SchoolDirectionPageInner() {
       courseTitle: string;
       retiredEdition: { id: string; title: string; release_number: number | null };
       liveEdition: { id: string; title: string; release_number: number | null } | null;
-      schools: Array<{ id: string; name: string }>;
+      schools: Array<{ id: string; name: string; adoptedBy: string | null; adoptedAt: string | null }>;
       resolvable: boolean;
     }>;
     totals: { groups: number; schools: number; resolvable: number };
@@ -252,8 +252,15 @@ function SchoolDirectionPageInner() {
                       {open && (
                         <ul className="mt-2 grid gap-1 sm:grid-cols-2">
                           {group.schools.map((school) => (
-                            <li key={school.id} className="truncate rounded-lg bg-muted px-2 py-1 text-[11px] text-foreground">
-                              {school.name}
+                            <li key={school.id} className="rounded-lg bg-muted px-2 py-1.5 text-[11px] text-foreground">
+                              <span className="block truncate font-bold">{school.name}</span>
+                              {/* Who put this school on the dead edition, and when. */}
+                              <span className="block truncate text-[10px] font-normal text-muted-foreground">
+                                {school.adoptedBy ? `Adopted by ${school.adoptedBy}` : 'Adopted automatically on publish'}
+                                {school.adoptedAt
+                                  ? ` · ${new Date(school.adoptedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                                  : ''}
+                              </span>
                             </li>
                           ))}
                         </ul>

@@ -35,7 +35,7 @@ async function requireAdminOrTeacher() {
 async function findStranded(admin: any) {
   const [{ data: releases }, { data: adoptions }] = await Promise.all([
     admin.from('academic_curriculum_releases').select('id, course_id, title, status, release_number, published_at'),
-    admin.from('academic_curriculum_adoptions').select('id, school_id, course_id, release_id, status'),
+    admin.from('academic_curriculum_adoptions').select('id, school_id, course_id, release_id, status, adopted_by, adopted_at'),
   ]);
 
   const releaseById = new Map<string, any>((releases ?? []).map((r: any) => [r.id, r]));
@@ -51,6 +51,8 @@ async function findStranded(admin: any) {
     courseId: string;
     retiredEdition: { id: string; title: string; release_number: number | null };
     schoolIds: string[];
+    /** Who adopted each school onto the dead edition, and when. */
+    adoptedBy: Map<string, { by: string | null; at: string | null }>;
     liveEdition: { id: string; title: string; release_number: number | null } | null;
   }>();
 
@@ -64,11 +66,14 @@ async function findStranded(admin: any) {
         courseId: a.course_id,
         retiredEdition: { id: rel.id, title: rel.title, release_number: rel.release_number ?? null },
         schoolIds: [],
+        adoptedBy: new Map(),
         liveEdition: live ? { id: live.id, title: live.title, release_number: live.release_number ?? null } : null,
       });
     }
-    if (a.school_id && !groups.get(key)!.schoolIds.includes(a.school_id)) {
-      groups.get(key)!.schoolIds.push(a.school_id);
+    const group = groups.get(key)!;
+    if (a.school_id && !group.schoolIds.includes(a.school_id)) {
+      group.schoolIds.push(a.school_id);
+      group.adoptedBy.set(a.school_id, { by: a.adopted_by ?? null, at: a.adopted_at ?? null });
     }
   }
   return [...groups.values()];
@@ -83,12 +88,19 @@ export async function GET() {
   const courseIds = [...new Set(groups.map((g) => g.courseId).filter(Boolean))];
   const schoolIds = [...new Set(groups.flatMap((g) => g.schoolIds))];
 
-  const [{ data: courses }, { data: schools }] = await Promise.all([
+  // Resolve whoever performed each adoption, so the panel can name them.
+  const actorIds = [...new Set(
+    groups.flatMap((g) => [...g.adoptedBy.values()].map((v) => v.by).filter((v): v is string => !!v)),
+  )];
+
+  const [{ data: courses }, { data: schools }, { data: actors }] = await Promise.all([
     courseIds.length ? admin.from('courses').select('id, title').in('id', courseIds) : { data: [] },
     schoolIds.length ? admin.from('schools').select('id, name').in('id', schoolIds) : { data: [] },
+    actorIds.length ? admin.from('portal_users').select('id, full_name, role').in('id', actorIds) : { data: [] },
   ]);
   const courseName = new Map((courses ?? []).map((c: any) => [c.id, c.title]));
   const schoolName = new Map((schools ?? []).map((s: any) => [s.id, s.name]));
+  const actorName = new Map((actors ?? []).map((a: any) => [a.id, `${a.full_name}${a.role ? ` (${a.role})` : ''}`]));
 
   return NextResponse.json({
     groups: groups.map((g) => ({
@@ -96,7 +108,15 @@ export async function GET() {
       courseTitle: courseName.get(g.courseId) ?? 'Unknown course',
       retiredEdition: g.retiredEdition,
       liveEdition: g.liveEdition,
-      schools: g.schoolIds.map((id) => ({ id, name: schoolName.get(id) ?? 'Unknown school' })),
+      schools: g.schoolIds.map((id) => {
+        const meta = g.adoptedBy.get(id);
+        return {
+          id,
+          name: schoolName.get(id) ?? 'Unknown school',
+          adoptedBy: meta?.by ? (actorName.get(meta.by) ?? 'Unknown user') : null,
+          adoptedAt: meta?.at ?? null,
+        };
+      }),
       // Without a live edition there is nothing to move onto; the course needs
       // certifying again before these schools can be recovered.
       resolvable: !!g.liveEdition,
