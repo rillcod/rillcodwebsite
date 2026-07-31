@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
-import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
+import {
+  currentTermWeek,
+  generatePlanWeek,
+  notifyWeekReady,
+} from '@/lib/academic/week-generation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -19,12 +23,6 @@ function adminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-}
-
-function currentTermWeek(termStart: string | null): number {
-  if (!termStart) return 1;
-  const elapsed = Date.now() - new Date(termStart).getTime();
-  return Math.max(1, Math.ceil(elapsed / (7 * 24 * 60 * 60 * 1000)));
 }
 
 // GET or POST /api/cron/auto-generate-content
@@ -51,7 +49,7 @@ async function handleRequest(req: NextRequest) {
 
   const { data: plans, error } = await db
     .from('lesson_plans')
-    .select('id, term_start, metadata')
+    .select('id, term_start, class_id, metadata')
     .eq('status', 'published')
     .not('metadata', 'is', null);
 
@@ -85,6 +83,7 @@ async function handleRequest(req: NextRequest) {
     currentWeek?: number;
     generated?: number;
     skipped?: number;
+    notified?: string;
     error?: string;
   }> = [];
 
@@ -94,39 +93,27 @@ async function handleRequest(req: NextRequest) {
     try {
       const meta = plan.metadata as Record<string, unknown>;
       const ags = meta.auto_generate_settings as AutoGenSettings;
-      const types = (ags.types ?? ['lessons', 'assignments']).filter((t) =>
-        ['lessons', 'assignments', 'projects'].includes(t),
-      );
-      const maxWeeksPerBatch = typeof ags.maxWeeksPerBatch === 'number' && ags.maxWeeksPerBatch > 0
-        ? ags.maxWeeksPerBatch
-        : 1;
       const currentWeek = currentTermWeek(plan.term_start ?? null);
 
-      let totalGenerated = 0;
-      let totalSkipped = 0;
+      // Target THIS week specifically rather than "the next N weeks". The teacher's button and
+      // this sweep now run the identical path, so whichever fires first the other finds the work
+      // already done and skips it.
+      const outcome = await generatePlanWeek({
+        planId: plan.id,
+        week: currentWeek,
+        types: ags.types,
+        baseUrl: appBaseUrl,
+        cronSecret,
+      });
 
-      for (const type of types) {
-        const res = await fetch(
-          `${appBaseUrl}/api/lesson-plans/${plan.id}/generate-${type}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-cron-secret': cronSecret,
-            },
-            body: JSON.stringify({ max_weeks: maxWeeksPerBatch }),
-          },
-        );
-
-        if (!res.ok) {
-          console.warn(`Auto-gen ${type} failed for plan ${plan.id}: HTTP ${res.status}`);
-          continue;
-        }
-
-        const { generated, skipped } = await consumeSSEUntilDone(res);
-        totalGenerated += generated;
-        totalSkipped += skipped;
-      }
+      // Tell the class teacher their week is waiting. Idempotent per plan+week, so a retry or a
+      // teacher pressing the button afterwards does not notify twice.
+      const notified = await notifyWeekReady(db, {
+        planId: plan.id,
+        classId: plan.class_id ?? null,
+        week: currentWeek,
+        outcome,
+      });
 
       // Stamp last_run_at so this plan sinks to the back of the rotation queue
       // and the next scheduled run picks up the other plans.
@@ -139,10 +126,12 @@ async function handleRequest(req: NextRequest) {
 
       results.push({
         planId: plan.id,
-        status: 'ok',
+        status: outcome.failedTypes.length && !outcome.generated && !outcome.skipped ? 'error' : 'ok',
         currentWeek,
-        generated: totalGenerated,
-        skipped: totalSkipped,
+        generated: outcome.generated,
+        skipped: outcome.skipped,
+        notified,
+        ...(outcome.failedTypes.length ? { error: `types failed: ${outcome.failedTypes.join(', ')}` } : {}),
       });
     } catch (err) {
       console.error(`Auto-gen error for plan ${plan.id}:`, err);

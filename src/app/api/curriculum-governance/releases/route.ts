@@ -121,11 +121,15 @@ export async function POST(req: NextRequest) {
     );
   }
   const contentHash = curriculumContentHash(content);
+  // Only a LIVE release can be a duplicate. Without the status filter a retired release blocked
+  // re-publishing the very curriculum it came from, so unpublishing was a one-way door: the
+  // Academic Office could switch a curriculum off and then never switch it back on.
   const { data: duplicate } = await db
     .from("academic_curriculum_releases")
     .select("id, release_number")
     .eq("course_id", curriculum.course_id)
     .eq("content_hash", contentHash)
+    .eq("status", "published")
     .maybeSingle();
   if (duplicate) {
     return NextResponse.json(
