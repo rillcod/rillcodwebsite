@@ -1889,7 +1889,7 @@ export default function ClassDetailPage() {
           <div className="lg:col-span-2 space-y-4">
 
             {/* Tab Bar */}
-            <div className="flex items-center overflow-x-auto gap-1.5 p-1.5 bg-white/[0.01] backdrop-blur-md border border-border rounded-2xl no-scrollbar">
+            <div className="flex items-center overflow-x-auto gap-1.5 p-1.5 bg-muted/40 backdrop-blur-md border border-border rounded-2xl no-scrollbar">
               {[
                 { id: 'overview', label: 'Overview', icon: UserGroupIcon },
                 { id: 'lessons', label: 'Lessons', icon: BookOpenIcon },
@@ -1902,8 +1902,8 @@ export default function ClassDetailPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
-                      ? 'bg-primary text-foreground shadow-lg shadow-primary/20 scale-[1.02]'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   <tab.icon className="w-4 h-4 flex-shrink-0" />
@@ -2501,8 +2501,8 @@ export default function ClassDetailPage() {
           <div className="space-y-4">
 
             {/* Students List */}
-            <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between gap-3 bg-white/[0.02]">
+            <div className="bg-card backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3 bg-muted/40">
                 <div className="flex items-center gap-3 min-w-0">
                   {canView && currentTermStudents.length > 0 && (
                     <input
@@ -2554,14 +2554,14 @@ export default function ClassDetailPage() {
                       <button
                         onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
                         title="Enrol existing student"
-                        className="w-8 h-8 bg-white/5 hover:bg-primary hover:text-white border border-white/5 text-muted-foreground transition-all flex items-center justify-center rounded-xl"
+                        className="w-8 h-8 bg-muted hover:bg-primary hover:text-primary-foreground border border-border text-muted-foreground transition-all flex items-center justify-center rounded-xl"
                       >
                         <PlusIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setShowRegisterModal(true)}
                         title="Register new student"
-                        className="w-8 h-8 bg-white/5 hover:bg-primary hover:text-white border border-white/5 text-muted-foreground transition-all flex items-center justify-center rounded-xl"
+                        className="w-8 h-8 bg-muted hover:bg-primary hover:text-primary-foreground border border-border text-muted-foreground transition-all flex items-center justify-center rounded-xl"
                       >
                         <UserPlusIcon className="w-4 h-4" />
                       </button>
@@ -2570,7 +2570,7 @@ export default function ClassDetailPage() {
                   <button
                     onClick={() => setShowStudentList(v => !v)}
                     title={showStudentList ? 'Hide student list' : 'Show student list'}
-                    className="px-2.5 h-8 bg-white/5 hover:bg-white/10 border border-white/5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center rounded-xl text-[11px] font-bold"
+                    className="px-2.5 h-8 bg-muted hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all flex items-center justify-center rounded-xl text-[11px] font-bold"
                   >
                     {showStudentList ? 'Hide ▲' : 'Show ▾'}
                   </button>
@@ -2589,7 +2589,7 @@ export default function ClassDetailPage() {
                     return (
                       <div
                         key={enr.id}
-                        className={`px-4 py-3 flex items-center gap-3 transition-all group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-white/5'}`}
+                        className={`px-4 py-3 flex items-center gap-3 transition-all group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-muted'}`}
                       >
                         {canView && (
                           <input
@@ -2665,7 +2665,7 @@ export default function ClassDetailPage() {
             </div>
 
             {inactiveTermStudents.length > 0 && (
-              <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-amber-500/20 rounded-2xl overflow-hidden">
+              <div className="bg-card backdrop-blur-md shadow-sm border border-amber-500/20 rounded-2xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-amber-500/10 bg-amber-500/5">
                   <h3 className="text-xs font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Paused / Historical</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -2755,7 +2755,7 @@ export default function ClassDetailPage() {
                 <button
                   type="button"
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   Pick from list
                 </button>
@@ -3627,7 +3627,7 @@ export default function ClassDetailPage() {
                 />
               </div>
               
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+              <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
                 <label className="flex items-center justify-between gap-3 text-xs font-bold text-foreground">
                   <span><span className="block">Use approved Meta template</span><span className="text-[10px] font-normal text-muted-foreground">Recommended when the parent has not messaged within 24 hours.</span></span>
                   <input type="checkbox" checked={broadcastForm.use_template} onChange={(e) => setBroadcastForm({ ...broadcastForm, use_template: e.target.checked })} className="h-4 w-4 accent-[#25D366]" />
@@ -3644,7 +3644,7 @@ export default function ClassDetailPage() {
               </div>
 
               {!loadingReachable && reachableStudents.length > 0 && (
-                <div className="border border-white/5 rounded-2xl p-4 bg-white/[0.01]">
+                <div className="border border-border rounded-2xl p-4 bg-card">
                   <p className="text-[10px] font-black text-[#25D366] uppercase tracking-widest mb-3 flex items-center justify-between">
                     <span>Reachable Students ({reachableStudents.length})</span>
                     <span className="text-[8px] bg-[#25D366]/10 text-[#25D366] px-2 py-0.5 rounded-full border border-[#25D366]/20">Active Channel</span>
@@ -3654,9 +3654,9 @@ export default function ClassDetailPage() {
                       const hasParentPhone = student.students?.parent_phone;
                       const hasStudentPhone = student.phone || student.students?.phone;
                       return (
-                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-b-0">
+                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border last:border-b-0">
                           <span className="font-semibold text-foreground">{student.full_name}</span>
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-muted-foreground flex items-center gap-1">
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-muted border border-border px-2 py-0.5 rounded-full text-muted-foreground flex items-center gap-1">
                             {hasParentPhone ? '📱 Parent Phone' : hasStudentPhone ? '📱 Student Phone' : ''}
                           </span>
                         </div>
@@ -3676,7 +3676,7 @@ export default function ClassDetailPage() {
                     {enrollments
                       .filter((enr: any) => !reachableStudents.some((r: any) => r.id === enr.id))
                       .map((student: any) => (
-                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-b-0 opacity-60">
+                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border last:border-b-0 opacity-60">
                           <span className="font-semibold text-foreground">{student.full_name}</span>
                           <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full text-rose-600 dark:text-rose-400">📵 No phone</span>
                         </div>
@@ -3687,7 +3687,7 @@ export default function ClassDetailPage() {
             </div>
 
             {/* Footer Buttons */}
-            <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] flex gap-3">
+            <div className="px-6 py-4 border-t border-border bg-card flex gap-3">
               <button 
                 onClick={() => {
                   setShowBroadcastModal(false);
@@ -3695,7 +3695,7 @@ export default function ClassDetailPage() {
                   setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
                 }} 
                 disabled={broadcasting}
-                className="flex-1 py-3 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-xl border border-white/5 transition-all">
+                className="flex-1 py-3 bg-card hover:bg-muted text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-xl border border-border transition-all">
                 Cancel
               </button>
               <button

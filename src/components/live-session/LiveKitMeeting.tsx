@@ -19,15 +19,18 @@ interface LiveKitMeetingProps {
 
 type Phase = 'loading' | 'live' | 'rejoining' | 'dropped' | 'ended';
 
+/** Meeting chrome is always dark — keep labels white for contrast. */
 const BTN_PRIMARY =
   'px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-colors';
 const BTN_GHOST =
-  'px-6 py-3 bg-white/10 hover:bg-white/20 text-foreground text-xs font-black uppercase tracking-widest transition-colors';
+  'px-6 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest transition-colors';
 
-/** Longer backoff than stock (~10 tries / ~50s) — Nigerian school networks blip hard. */
+/** Longer backoff than stock — school networks blip hard. */
 const POOR_NET_RECONNECT = new DefaultReconnectPolicy([
   0, 400, 900, 1600, 2500, 4000, 6000, 8000, 10000, 12000, 15000, 15000, 20000,
 ]);
+
+const MAX_AUTO_REJOIN = 5;
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -47,8 +50,11 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
 
   const leftRef = useRef(false);
   const closedRef = useRef(false);
+  /** True while we intentionally tear down / remount the room (token refresh). */
+  const tearingDownRef = useRef(false);
   const rejoinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectWatchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
     if (rejoinTimer.current) {
@@ -59,14 +65,37 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
       clearTimeout(hideLeaveTimer.current);
       hideLeaveTimer.current = null;
     }
+    if (connectWatchdog.current) {
+      clearTimeout(connectWatchdog.current);
+      connectWatchdog.current = null;
+    }
   }, []);
 
-  // Fetch a fresh token. Do NOT clear the old token up-front — that remounts LiveKitRoom
-  // and shows up as CLIENT_INITIATED disconnect mid-rejoin.
+  const armConnectWatchdog = useCallback(() => {
+    if (connectWatchdog.current) clearTimeout(connectWatchdog.current);
+    // If LiveKit never reaches Connected, treat as a drop so auto-rejoin can run.
+    connectWatchdog.current = setTimeout(() => {
+      if (leftRef.current || closedRef.current || tearingDownRef.current) return;
+      setPhase((p) => (p === 'live' || p === 'loading' || p === 'rejoining' ? 'dropped' : p));
+      setError((prev) => prev || 'Could not finish connecting — retrying…');
+    }, 45_000);
+  }, []);
+
+  /**
+   * Fetch a fresh token.
+   * Do NOT reset autoTry here — that caused an infinite reconnect loop when the
+   * token succeeded but the media connection kept failing.
+   */
   const loadToken = useCallback(async (opts?: { soft?: boolean }) => {
     setError(null);
-    if (!opts?.soft) setPhase('loading');
-    else setPhase('rejoining');
+    if (opts?.soft) {
+      // Mark intentional tear-down BEFORE changing phase so onDisconnected is ignored.
+      tearingDownRef.current = true;
+      setPhase('rejoining');
+    } else {
+      setPhase('loading');
+    }
+
     try {
       const res = await fetch('/api/live-sessions/livekit-token', {
         method: 'POST',
@@ -75,20 +104,26 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? 'Token error');
+
+      tearingDownRef.current = true;
       setToken(j.token);
       setServerUrl(j.url);
       setIsModerator(!!j.isModerator);
       setPhase('live');
-      setAutoTry(0);
+      armConnectWatchdog();
     } catch (e: any) {
+      tearingDownRef.current = false;
       setError(e.message ?? 'Failed to connect');
       setPhase('dropped');
     }
-  }, [sessionId]);
+  }, [sessionId, armConnectWatchdog]);
 
   useEffect(() => {
     void loadToken();
-    return () => clearTimers();
+    return () => {
+      tearingDownRef.current = true;
+      clearTimers();
+    };
   }, [loadToken, clearTimers]);
 
   const recordLeave = useCallback(() => {
@@ -105,19 +140,18 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
   const handleClose = useCallback(() => {
     if (closedRef.current) return;
     closedRef.current = true;
+    tearingDownRef.current = true;
     clearTimers();
     recordLeave();
     onClose();
   }, [recordLeave, onClose, clearTimers]);
 
   // Only mark leave after the tab stays hidden for a long stretch (real exit / sleep).
-  // Brief app switches were firing pagehide → leave + LiveKit CLIENT_INITIATED.
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'hidden') {
         if (hideLeaveTimer.current) clearTimeout(hideLeaveTimer.current);
         hideLeaveTimer.current = setTimeout(() => {
-          // Still hidden after 3 minutes → treat as gone for attendance.
           if (document.visibilityState === 'hidden' && !leftRef.current) {
             recordLeave();
           }
@@ -127,15 +161,15 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
           clearTimeout(hideLeaveTimer.current);
           hideLeaveTimer.current = null;
         }
-        // Back from background while marked dropped → soft rejoin.
-        if (phase === 'dropped' && !leftRef.current && !closedRef.current) {
+        // Back from background while marked dropped → soft rejoin (one shot).
+        if (phase === 'dropped' && !leftRef.current && !closedRef.current && autoTry < MAX_AUTO_REJOIN) {
           void loadToken({ soft: true });
         }
       }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [phase, loadToken, recordLeave]);
+  }, [phase, loadToken, recordLeave, autoTry]);
 
   // Host-ended poll
   useEffect(() => {
@@ -146,6 +180,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
         if (!res.ok) return;
         const j = await res.json();
         if (['completed', 'cancelled'].includes(j.status)) {
+          tearingDownRef.current = true;
           clearTimers();
           setPhase('ended');
         }
@@ -156,11 +191,11 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     return () => clearInterval(iv);
   }, [phase, sessionId, clearTimers]);
 
-  // Auto-rejoin after a terminal drop (poor network / radio handoff).
+  // Auto-rejoin after a terminal drop. autoTry only increments here — never reset on token success.
   useEffect(() => {
     if (phase !== 'dropped' || leftRef.current || closedRef.current) return;
     if (error && /not open|Unauthorized|Forbidden|no longer active/i.test(error)) return;
-    if (autoTry >= 5) return;
+    if (autoTry >= MAX_AUTO_REJOIN) return;
 
     const delay = Math.min(2000 * Math.pow(1.6, autoTry), 12_000);
     rejoinTimer.current = setTimeout(() => {
@@ -173,11 +208,11 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     };
   }, [phase, autoTry, error, loadToken]);
 
-  if (error && phase !== 'rejoining' && autoTry >= 5) {
+  if (error && phase === 'dropped' && autoTry >= MAX_AUTO_REJOIN) {
     return (
       <Overlay>
-        <p className="text-rose-600 dark:text-rose-400 text-sm font-bold">{error}</p>
-        <p className="text-muted-foreground text-[11px] max-w-sm">
+        <p className="text-rose-400 text-sm font-bold">{error}</p>
+        <p className="text-white/50 text-[11px] max-w-sm">
           Weak network — check your connection, then retry. Keep this tab open during class.
         </p>
         <div className="flex gap-2">
@@ -185,6 +220,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
             type="button"
             onClick={() => {
               setAutoTry(0);
+              setError(null);
               void loadToken();
             }}
             className={BTN_PRIMARY}
@@ -202,7 +238,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
   if (phase === 'ended') {
     return (
       <Overlay>
-        <p className="text-muted-foreground text-sm font-bold">This session has been ended by the host.</p>
+        <p className="text-white/70 text-sm font-bold">This session has been ended by the host.</p>
         <button type="button" onClick={handleClose} className={BTN_PRIMARY}>
           Close
         </button>
@@ -210,31 +246,37 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     );
   }
 
-  if (phase === 'dropped' || phase === 'rejoining') {
+  // Reconnecting overlay — keep previous room unmounted only while we lack credentials,
+  // otherwise show spinner on top of a remounted room without looping forever.
+  if ((phase === 'dropped' || phase === 'rejoining' || phase === 'loading') && !token) {
     return (
       <Overlay>
         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent animate-spin" />
-        <p className="text-amber-600 dark:text-amber-400 text-sm font-bold">
-          {phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
+        <p className="text-amber-400 text-sm font-bold">
+          {phase === 'loading' ? 'Starting meeting…' : phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
         </p>
-        <p className="text-muted-foreground text-[11px]">
-          Attempt {Math.min(autoTry + 1, 5)} of 5 · stay on this page
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setAutoTry(0);
-              void loadToken({ soft: true });
-            }}
-            className={BTN_PRIMARY}
-          >
-            Rejoin now
-          </button>
-          <button type="button" onClick={handleClose} className={BTN_GHOST}>
-            Leave
-          </button>
-        </div>
+        {phase !== 'loading' && (
+          <p className="text-white/50 text-[11px]">
+            Attempt {Math.min(autoTry + 1, MAX_AUTO_REJOIN)} of {MAX_AUTO_REJOIN} · stay on this page
+          </p>
+        )}
+        {phase !== 'loading' && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAutoTry(0);
+                void loadToken({ soft: true });
+              }}
+              className={BTN_PRIMARY}
+            >
+              Rejoin now
+            </button>
+            <button type="button" onClick={handleClose} className={BTN_GHOST}>
+              Leave
+            </button>
+          </div>
+        )}
       </Overlay>
     );
   }
@@ -243,14 +285,13 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
     return (
       <Overlay>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
+        <p className="text-white/50 text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
       </Overlay>
     );
   }
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0a]" data-lk-theme="default">
-      {/* Hide LiveKit's leave control — accidental taps showed as CLIENT_INITIATED. */}
       <style>{`.lk-disconnect-button{display:none !important}`}</style>
 
       <div className="flex items-center justify-between px-4 py-2 bg-black/80 border-b border-white/10 shrink-0">
@@ -259,37 +300,75 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
             <span className="absolute inset-0 rounded-full bg-emerald-500 opacity-75 animate-ping" />
             <span className="relative rounded-full w-2 h-2 bg-emerald-500" />
           </span>
-          <span className="text-[10px] font-black text-foreground uppercase tracking-widest truncate">
+          <span className="text-[10px] font-black text-white uppercase tracking-widest truncate">
             {sessionTitle}
           </span>
         </div>
         <button
           type="button"
           onClick={handleClose}
-          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
+          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
         >
           Leave
         </button>
       </div>
 
       <div className="flex-1 min-h-0 relative">
+        {(phase === 'dropped' || phase === 'rejoining') && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 gap-3 px-6 text-center">
+            <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent animate-spin" />
+            <p className="text-amber-400 text-sm font-bold">
+              {phase === 'rejoining' ? 'Reconnecting…' : 'Connection lost — reconnecting…'}
+            </p>
+            <p className="text-white/50 text-[11px]">
+              Attempt {Math.min(autoTry + 1, MAX_AUTO_REJOIN)} of {MAX_AUTO_REJOIN} · stay on this page
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoTry(0);
+                  void loadToken({ soft: true });
+                }}
+                className={BTN_PRIMARY}
+              >
+                Rejoin now
+              </button>
+              <button type="button" onClick={handleClose} className={BTN_GHOST}>
+                Leave
+              </button>
+            </div>
+          </div>
+        )}
+
         <LiveKitRoom
+          key={`${sessionId}:${token.slice(0, 24)}`}
           token={token}
           serverUrl={serverUrl}
           connect={true}
-          // Students start audio-only — camera burn kills weak links. Host keeps video on.
           video={isModerator}
           audio={true}
+          onConnected={() => {
+            tearingDownRef.current = false;
+            if (connectWatchdog.current) {
+              clearTimeout(connectWatchdog.current);
+              connectWatchdog.current = null;
+            }
+            setError(null);
+            setPhase('live');
+            // Only reset the retry budget after a real media connection.
+            setAutoTry(0);
+          }}
           onDisconnected={() => {
+            if (tearingDownRef.current) return;
             if (leftRef.current || closedRef.current) {
               handleClose();
               return;
             }
-            // Terminal drop after LiveKit's own reconnect gave up → auto-rejoin path.
+            // Terminal drop after LiveKit's own reconnect gave up.
             setPhase('dropped');
           }}
           onError={(e) => {
-            // Don't blank the room for transient publish/media errors.
             const msg = e?.message ?? 'Connection error';
             if (/Permission|NotAllowed|NotFound|NotReadable/i.test(msg)) {
               setError(msg);
@@ -300,7 +379,6 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
           options={{
             adaptiveStream: true,
             dynacast: true,
-            // Critical: stop CLIENT_INITIATED on tab/app switch / mobile multitasking.
             disconnectOnPageLeave: false,
             reconnectPolicy: POOR_NET_RECONNECT,
           }}

@@ -36,11 +36,11 @@ export function CurriculumBuildingBlockInspector({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Sleek Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600/10 via-primary/10 to-purple-600/10 border border-primary/20 p-6 backdrop-blur-xl shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-muted border border-border p-6 backdrop-blur-xl shadow-lg">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
                 <SparklesIcon className="w-3.5 h-3.5" />
                 Building Block Inspector
               </span>

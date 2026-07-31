@@ -3857,7 +3857,7 @@ export default function CurriculumPage() {
                   onClick={() => setCurriculumViewMode("roster")}
                   className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "roster"
-                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
@@ -3868,7 +3868,7 @@ export default function CurriculumPage() {
                   onClick={() => setCurriculumViewMode("inspector")}
                   className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "inspector"
-                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
@@ -3879,7 +3879,7 @@ export default function CurriculumPage() {
                   onClick={() => setCurriculumViewMode("builder")}
                   className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
                     curriculumViewMode === "builder"
-                      ? "bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground shadow-md scale-[1.02]"
+                      ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
@@ -3905,14 +3905,14 @@ export default function CurriculumPage() {
 
         {/* How it works guide */}
         {showHelp && (
-          <div className="shrink-0 border-b border-primary/20 bg-primary/5 px-4 py-4">
+          <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-4">
             <div className="max-w-[1800px] mx-auto space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">
                 How to use this page
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="bg-card border border-border p-3 space-y-1">
-                  <p className="font-black text-primary">
+                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
+                  <p className="font-black text-foreground">
                     Step 1 — Build the curriculum source
                   </p>
                   <p className="text-muted-foreground">
@@ -3921,8 +3921,8 @@ export default function CurriculumPage() {
                     record.
                   </p>
                 </div>
-                <div className="bg-card border border-border p-3 space-y-1">
-                  <p className="font-black text-primary">
+                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
+                  <p className="font-black text-foreground">
                     Step 2 — Make it official
                   </p>
                   <p className="text-muted-foreground">
@@ -3931,8 +3931,8 @@ export default function CurriculumPage() {
                     pathways.
                   </p>
                 </div>
-                <div className="bg-card border border-border p-3 space-y-1">
-                  <p className="font-black text-primary">
+                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
+                  <p className="font-black text-foreground">
                     Step 3 — Teach from the class
                   </p>
                   <p className="text-muted-foreground">
@@ -4198,7 +4198,7 @@ export default function CurriculumPage() {
                                   className={`w-full flex items-center gap-3 pl-10 pr-4 py-3.5 text-left transition-all relative group ${
                                     isSelected
                                       ? "text-primary bg-primary/10"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                   }`}
                                 >
                                   {isSelected && (
@@ -4264,7 +4264,7 @@ export default function CurriculumPage() {
                               Continue Session
                             </span>
                           </div>
-                          <div className="group relative overflow-hidden bg-card border border-white/10 p-8 flex flex-col sm:flex-row sm:items-center gap-8 shadow-2xl transition-all hover:border-primary/40 duration-500 rounded-2xl">
+                          <div className="group relative overflow-hidden bg-card border border-border p-8 flex flex-col sm:flex-row sm:items-center gap-8 shadow-2xl transition-all hover:border-primary/40 duration-500 rounded-2xl">
                             <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-all" />
                             <div className="flex-1 min-w-0 relative z-10">
                               <div className="flex items-center gap-3 mb-4">
@@ -4303,7 +4303,7 @@ export default function CurriculumPage() {
                                 });
                                 loadCurriculum(lastVisited.courseId);
                               }}
-                              className="relative z-10 shrink-0 flex items-center justify-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 rounded-xl"
+                              className="relative z-10 shrink-0 flex items-center justify-center gap-3 px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 rounded-xl"
                             >
                               <ArrowRightIcon className="w-4 h-4" /> Open
                               Blueprint
@@ -4332,47 +4332,35 @@ export default function CurriculumPage() {
                                   title: "Pick a course",
                                   desc: "Select any course from the left panel.",
                                   icon: BookOpenIcon,
-                                  color: "text-primary",
-                                  bg: "bg-primary/10 border-primary/20",
                                 },
                                 {
                                   step: "2",
                                   title: "Build the curriculum",
                                   desc: "Generate or write the week-by-week direction for this course.",
                                   icon: SparklesIcon,
-                                  color: "text-primary",
-                                  bg: "bg-primary/10 border-primary/20",
                                 },
                                 {
                                   step: "3",
                                   title: "Make it official",
                                   desc: "Academic Office certifies the edition for school, online, or programme pathways.",
                                   icon: ShieldCheckIcon,
-                                  color: "text-primary",
-                                  bg: "bg-primary/10 border-primary/20",
                                 },
                                 {
                                   step: "4",
                                   title: "Teach and track",
                                   desc: "Open the class workspace, teach from the official flow, then mark delivered weeks.",
                                   icon: PresentationChartLineIcon,
-                                  color: "text-emerald-600 dark:text-emerald-400",
-                                  bg: "bg-emerald-500/10 border-emerald-500/20",
                                 },
                               ].map((s, i) => (
                                 <div
                                   key={i}
-                                  className={`bg-card border ${s.bg} p-4 space-y-3`}
+                                  className="bg-card border border-border p-4 space-y-3 rounded-xl"
                                 >
-                                  <div
-                                    className={`w-9 h-9 rounded-lg border ${s.bg} flex items-center justify-center`}
-                                  >
-                                    <s.icon className={`w-4 h-4 ${s.color}`} />
+                                  <div className="w-9 h-9 rounded-lg border border-border bg-muted flex items-center justify-center">
+                                    <s.icon className="w-4 h-4 text-foreground" />
                                   </div>
                                   <div>
-                                    <p
-                                      className={`text-[10px] font-black uppercase tracking-widest ${s.color} mb-1`}
-                                    >
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
                                       Step {s.step}
                                     </p>
                                     <h3 className="text-sm font-black text-foreground">
@@ -4419,7 +4407,7 @@ export default function CurriculumPage() {
                                         })
                                       : "/dashboard/classes"
                                   }
-                                  className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
+                                  className="group bg-card border border-border hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
                                 >
                                   <div>
                                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -4446,15 +4434,15 @@ export default function CurriculumPage() {
                                           {completedWeeks} / {totalWeeks} Weeks
                                         </span>
                                       </div>
-                                      <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden border border-border">
                                         <div
-                                          className="h-full bg-gradient-to-r from-primary to-fuchsia-500 rounded-full transition-all duration-500"
+                                          className="h-full bg-primary rounded-full transition-all duration-500"
                                           style={{ width: `${progressPct}%` }}
                                         />
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                  <div className="pt-3 border-t border-border flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 group-hover:opacity-100 transition-opacity">
                                       Open Lesson Plan →
                                     </span>
@@ -4491,7 +4479,7 @@ export default function CurriculumPage() {
                               key={course.id}
                               type="button"
                               onClick={() => selectCourse(prog, course)}
-                              className="group text-left bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
+                              className="group text-left bg-card border border-border hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
                             >
                               <div className="space-y-1">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
@@ -4501,11 +4489,11 @@ export default function CurriculumPage() {
                                   {course.title}
                                 </h3>
                               </div>
-                              <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                              <div className="pt-2 flex items-center justify-between border-t border-border">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                                   Select Course →
                                 </span>
-                                <div className="p-1 rounded bg-white/5">
+                                <div className="p-1 rounded bg-muted">
                                   <ChevronRightIcon className="w-3 h-3 text-muted-foreground" />
                                 </div>
                               </div>
@@ -4525,23 +4513,23 @@ export default function CurriculumPage() {
                 ) : loadingCurr || !programs.length ? (
                   <div className="flex-1 px-4 md:px-6 py-8 space-y-12 animate-pulse">
                     {/* Skeleton Header mirroring the real one */}
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-border relative">
                       <div className="space-y-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-24 h-6 bg-white/5 rounded-lg" />
-                          <div className="w-16 h-6 bg-white/5 rounded-lg opacity-50" />
+                          <div className="w-24 h-6 bg-muted rounded-lg" />
+                          <div className="w-16 h-6 bg-muted rounded-lg opacity-50" />
                         </div>
                         <div className="space-y-2">
-                          <div className="h-10 w-64 bg-white/5 rounded-xl" />
-                          <div className="h-4 w-96 bg-white/5 rounded-lg opacity-60" />
+                          <div className="h-10 w-64 bg-muted rounded-xl" />
+                          <div className="h-4 w-96 bg-muted rounded-lg opacity-60" />
                         </div>
                       </div>
-                      <div className="w-32 h-12 bg-white/5 rounded-xl" />
+                      <div className="w-32 h-12 bg-muted rounded-xl" />
                     </div>
                     {/* Skeleton Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="h-48 bg-white/5 rounded-2xl" />
-                      <div className="h-48 bg-white/5 rounded-2xl" />
+                      <div className="h-48 bg-muted rounded-2xl" />
+                      <div className="h-48 bg-muted rounded-2xl" />
                     </div>
                   </div>
                 ) : loadError ? (
@@ -4562,11 +4550,11 @@ export default function CurriculumPage() {
                 ) : !curriculum ? (
                   /* No curriculum yet — staff empty state unified with premium aesthetics */
                   <div className="px-4 md:px-6 py-8 space-y-12 max-w-5xl">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-border relative">
                       <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                       <div className="space-y-4 relative z-10">
                         <div className="flex flex-wrap items-center gap-2 text-primary">
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-muted border border-border rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
                             <InformationCircleIcon className="w-3 h-3" /> System
                             Status
                           </div>
@@ -4684,7 +4672,7 @@ export default function CurriculumPage() {
                             return (
                               <div
                                 key={c.id}
-                                className="group relative bg-card border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5"
+                                className="group relative bg-card border border-border hover:border-primary/40 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5"
                               >
                                 <button
                                   onClick={() => {
@@ -4759,7 +4747,7 @@ export default function CurriculumPage() {
                                             School-Scoped
                                           </span>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <span className="inline-flex items-center gap-1 bg-muted border border-border text-foreground text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                                             <ShieldCheckIcon className="w-2.5 h-2.5 shrink-0" />
                                             Platform Template
                                           </span>
@@ -5016,7 +5004,7 @@ export default function CurriculumPage() {
                       </p>
                     </div>
 
-                    <div className="pb-4 sm:pb-5 border-b border-white/5 space-y-3 sm:space-y-4 relative">
+                    <div className="pb-4 sm:pb-5 border-b border-border space-y-3 sm:space-y-4 relative">
                       <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
                       {/* Row 1: unified Year → Curriculum → Term control bar */}
@@ -5319,7 +5307,7 @@ export default function CurriculumPage() {
                                       );
                                       setShowEditVersionModal(true);
                                     }}
-                                    className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                    className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-border hover:border-primary/40 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
                                     title="Edit version details"
                                   >
                                     <PencilIcon className="w-3.5 h-3.5" />
@@ -5329,7 +5317,7 @@ export default function CurriculumPage() {
                           </h1>
                           {curriculum.content.description && (
                             <span
-                              className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-white/5 px-2.5 py-0.5 border border-white/5 rounded-lg max-w-[200px] sm:max-w-none truncate h-6 inline-flex items-center select-none"
+                              className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-0.5 border border-border rounded-lg max-w-[200px] sm:max-w-none truncate h-6 inline-flex items-center select-none"
                               title={curriculum.content.description}
                             >
                               {curriculum.content.description}
@@ -5446,7 +5434,7 @@ export default function CurriculumPage() {
                                         )
                                       }
                                       disabled={savingProgramStartTerm}
-                                      className="px-2 py-0.5 text-[9px] font-black bg-primary text-white rounded-full disabled:opacity-40 transition-colors"
+                                      className="px-2 py-0.5 text-[9px] font-black bg-primary text-primary-foreground rounded-full disabled:opacity-40 transition-colors"
                                     >
                                       {savingProgramStartTerm ? "…" : "Save"}
                                     </button>
@@ -5661,7 +5649,7 @@ export default function CurriculumPage() {
                                   disabled={
                                     savingTermTitle || !editTermTitleVal.trim()
                                   }
-                                  className="px-2 py-1 text-[10px] font-black bg-primary text-white rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+                                  className="px-2 py-1 text-[10px] font-black bg-primary text-primary-foreground rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                                 >
                                   {savingTermTitle ? "…" : "Save"}
                                 </button>
@@ -5689,7 +5677,7 @@ export default function CurriculumPage() {
                                       );
                                       setEditingTermTitle(true);
                                     }}
-                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border hover:border-primary/40 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
                                     title="Edit term title"
                                   >
                                     <PencilIcon className="w-3 h-3" />
@@ -5889,7 +5877,7 @@ export default function CurriculumPage() {
                                 className={`group relative border transition-all duration-500 ${
                                   isActive
                                     ? "border-primary/50 bg-primary/5 shadow-[0_0_30px_rgba(255,107,0,0.1)]"
-                                    : "border-white/5 bg-card/40 hover:border-white/10 hover:bg-card/60 hover:shadow-xl"
+                                    : "border-border bg-card/40 hover:border-border hover:bg-card/60 hover:shadow-xl"
                                 }`}
                               >
                                 <div
@@ -5929,7 +5917,7 @@ export default function CurriculumPage() {
                                       <button
                                         onClick={saveWeekEdit}
                                         disabled={savingWeek}
-                                        className="flex-1 py-1.5 text-xs font-black bg-primary hover:bg-primary text-white rounded transition-colors disabled:opacity-50"
+                                        className="flex-1 py-1.5 text-xs font-black bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors disabled:opacity-50"
                                       >
                                         {savingWeek ? "…" : "Save"}
                                       </button>
@@ -5967,7 +5955,7 @@ export default function CurriculumPage() {
 
                                     <div className="flex items-start gap-3">
                                       <div
-                                        className={`p-2 rounded-lg bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors`}
+                                        className={`p-2 rounded-lg bg-muted border border-border group-hover:border-border transition-colors`}
                                       >
                                         <WeekIcon
                                           className={`w-4 h-4 ${
@@ -7191,7 +7179,7 @@ export default function CurriculumPage() {
                         </div>
                         <Link
                           href="/dashboard/classes"
-                          className="inline-flex shrink-0 items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                          className="inline-flex shrink-0 items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-widest transition-all"
                         >
                           <RocketLaunchIcon className="w-4 h-4 shrink-0" />
                           Open Classes
@@ -7393,7 +7381,7 @@ export default function CurriculumPage() {
                 <button
                   onClick={() => setShowGenerate(false)}
                   disabled={generating}
-                  className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  className="p-1.5 hover:bg-muted rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -7719,7 +7707,7 @@ export default function CurriculumPage() {
                                   className={`absolute -top-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full ${
                                     isSelected
                                       ? "bg-white text-primary"
-                                      : "bg-primary text-white"
+                                      : "bg-primary text-primary-foreground"
                                   }`}
                                 >
                                   Now
@@ -8360,7 +8348,7 @@ export default function CurriculumPage() {
         {showEditVersionModal && curriculum && canModifyCurriculum && (
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
             <div className="bg-card border border-border w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden relative">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-fuchsia-500" />
+              <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
               <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-white/[0.01]">
                 <h2 className="font-black text-sm flex items-center gap-2 tracking-wide uppercase text-foreground">
                   <PencilIcon className="w-4 h-4 text-primary" /> Edit
@@ -8368,7 +8356,7 @@ export default function CurriculumPage() {
                 </h2>
                 <button
                   onClick={() => setShowEditVersionModal(false)}
-                  className="p-1.5 hover:bg-white/5 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors"
                 >
                   <XMarkIcon className="w-4 h-4" />
                 </button>
@@ -8425,7 +8413,7 @@ export default function CurriculumPage() {
               <div className="px-6 py-5 border-t border-border bg-white/[0.01] flex gap-3">
                 <button
                   onClick={() => setShowEditVersionModal(false)}
-                  className="flex-1 py-2.5 border border-border text-xs font-black uppercase tracking-wider rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                  className="flex-1 py-2.5 border border-border text-xs font-black uppercase tracking-wider rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                 >
                   Cancel
                 </button>
@@ -8852,7 +8840,7 @@ function EditableLessonPlan({
           <button
             onClick={onSave}
             disabled={saving}
-            className="px-3 py-1.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 text-xs font-black bg-primary text-primary-foreground disabled:opacity-50 transition-colors"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -9081,7 +9069,7 @@ function EditableLessonPlan({
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex-1 py-2.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors"
+          className="flex-1 py-2.5 text-xs font-black bg-primary text-primary-foreground disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving…" : "Save Week Content"}
         </button>
@@ -9127,7 +9115,7 @@ function EditableAssessmentPlan({
           <button
             onClick={onSave}
             disabled={saving}
-            className="px-3 py-1.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 text-xs font-black bg-primary text-primary-foreground disabled:opacity-50 transition-colors"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -9217,7 +9205,7 @@ function EditableAssessmentPlan({
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex-1 py-2.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors"
+          className="flex-1 py-2.5 text-xs font-black bg-primary text-primary-foreground disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving…" : "Save Assessment Content"}
         </button>
