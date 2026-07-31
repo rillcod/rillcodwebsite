@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -73,6 +73,11 @@ export default function ClassDetailPage() {
    * `planned` is every week tracked for the class, `delivered` the ones marked taught.
    */
   const [coverage, setCoverage] = useState<{ delivered: number; planned: number } | null>(null);
+  /** This class's assignment and exam ids, so the realtime handler can ignore other classes. */
+  const classWorkIds = useRef<{ assignments: Set<string>; exams: Set<string> }>({
+    assignments: new Set(),
+    exams: new Set(),
+  });
   const [manualEntry, setManualEntry] = useState(false);
   const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
 
@@ -465,10 +470,20 @@ export default function ClassDetailPage() {
       });
     };
 
-    // Marking a whole class's work fires a burst of row events; coalesce them so the
-    // roster refetches once rather than per submission.
+    // assignment_submissions and cbt_sessions carry no class_id, so the subscription
+    // cannot be filtered server-side and every submission in the school arrives here.
+    // Match the row against this class's own assignments and exams before refetching,
+    // or one busy class would refetch every other open class page.
+    //
+    // A burst still coalesces: marking a whole class's work should cost one refetch.
     let pending: ReturnType<typeof setTimeout> | undefined;
-    const refreshLearners = () => {
+    const refreshLearners = (payload: { new?: Record<string, any>; old?: Record<string, any> }) => {
+      const row = payload.new ?? payload.old ?? {};
+      const work = classWorkIds.current;
+      const mine =
+        (row.assignment_id && work.assignments.has(row.assignment_id)) ||
+        (row.exam_id && work.exams.has(row.exam_id));
+      if (!mine) return;
       clearTimeout(pending);
       pending = setTimeout(() => { void fetchData(); }, 1200);
     };
@@ -1146,6 +1161,14 @@ export default function ClassDetailPage() {
     }
     return map;
   })();
+
+  // Keep the realtime matcher in step with whatever work this class currently has.
+  useEffect(() => {
+    classWorkIds.current = {
+      assignments: new Set(items.assignments.map((a: any) => a.id)),
+      exams: new Set(items.cbt.map((e: any) => e.id)),
+    };
+  }, [items.assignments, items.cbt]);
 
   const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
   const inactiveTermStudents = [
