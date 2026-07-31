@@ -1360,7 +1360,7 @@ export default function DashboardNavigation() {
       <div
         role="navigation"
         aria-label="Primary app navigation"
-        className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        className="app-mobile-bottom-nav md:hidden fixed bottom-2 left-2 right-2 z-50 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl flex items-center justify-around px-2 py-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.25)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = isNavActive(pathname, href);
@@ -1406,28 +1406,29 @@ export default function DashboardNavigation() {
               href={href}
               aria-current={active ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
-              className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 transition-all duration-200"
+              className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-90 duration-150"
             >
               <div
-                className={`relative flex items-center justify-center w-10 h-7 rounded-lg transition-all duration-200 ${
-                  active ? "bg-primary/10" : ""
+                className={`relative flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
+                  active
+                    ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
+                    : "bg-transparent text-muted-foreground hover:bg-muted"
                 }`}
               >
-                <Icon
-                  className={`w-5 h-5 transition-colors ${
-                    active ? "text-primary" : "text-sidebar-foreground/35"
-                  }`}
-                />
+                <Icon className="w-4 h-4 transition-colors" />
+                {active && (
+                  <span className="absolute -top-1 w-1.5 h-1.5 bg-accent rounded-full animate-ping" />
+                )}
                 {(name === "WhatsApp Inbox" || name === "Office Center") &&
                   unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-foreground text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-accent text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-card">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
               </div>
               <span
                 className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
-                  active ? "text-primary" : "text-sidebar-foreground/25"
+                  active ? "text-primary" : "text-muted-foreground/70"
                 }`}
               >
                 {shortName}
@@ -1441,22 +1442,22 @@ export default function DashboardNavigation() {
           aria-label={
             mobileOpen ? "Close navigation menu" : "Open navigation menu"
           }
-          className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 transition-all group"
+          className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-90 duration-150 group"
         >
           <div
-            className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${
-              mobileOpen ? "bg-primary/15" : ""
+            className={`flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
+              mobileOpen ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" : "bg-transparent text-muted-foreground hover:bg-muted"
             }`}
           >
             {mobileOpen ? (
-              <XMarkIcon className="w-5 h-5 text-primary" />
+              <XMarkIcon className="w-4 h-4" />
             ) : (
-              <Bars3Icon className="w-5 h-5 text-sidebar-foreground/35" />
+              <Bars3Icon className="w-4 h-4" />
             )}
           </div>
           <span
             className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${
-              mobileOpen ? "text-primary" : "text-sidebar-foreground/25"
+              mobileOpen ? "text-primary" : "text-muted-foreground/70"
             }`}
           >
             Menu

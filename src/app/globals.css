@@ -60,6 +60,15 @@
     input, select, textarea { font-size: 16px; }
   }
 
+  /* Native mobile card glass depth */
+  .mobile-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(12px);
+  }
+
   /* Capacitor native shell — notch / status bar / home indicator */
   html.capacitor {
     height: 100%;

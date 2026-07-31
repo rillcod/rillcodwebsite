@@ -209,8 +209,10 @@ const Navigation = () => {
 
         {/* ── Mobile Menu ── */}
         {mounted && isOpen && (
-          <div className="lg:hidden border-t border-border bg-background/98 backdrop-blur-xl overflow-y-auto max-h-[calc(100vh-72px)] shadow-2xl">
+          <div className="lg:hidden border-t border-border/80 bg-background/95 backdrop-blur-2xl overflow-y-auto max-h-[calc(100vh-72px)] rounded-b-3xl shadow-2xl">
              <div className="p-5 sm:p-8 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                {/* Native drag handle */}
+                <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto -mt-1 mb-2" />
                 <div className="flex items-center justify-between pb-2 border-b border-border/60">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Navigation Menu</p>
                    <ThemeToggle />
