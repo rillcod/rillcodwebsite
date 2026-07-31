@@ -386,6 +386,11 @@ export default function CurriculumPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [programs, setPrograms] = useState<Program[]>([]);
+  // Which courses already have a curriculum / official edition, so the catalogue can
+  // show where the gaps are instead of making you open each course to find out.
+  const [coverage, setCoverage] = useState<Record<string, { drafts: number; official: boolean; retiredOnly: boolean }>>({});
+  // Narrow the catalogue to what is actually being worked on right now.
+  const [coverageFilter, setCoverageFilter] = useState<"all" | "written" | "missing">("all");
   const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(
     new Set()
   );
@@ -816,8 +821,24 @@ export default function CurriculumPage() {
   const currentScopeKey =
     generateScope === "platform" ? "platform" : generateScope;
 
+  // Coverage narrowing runs before the text search: with 70+ courses the useful view is
+  // "the handful I am building right now", not the whole catalogue.
+  const coverageScoped = useMemo(() => {
+    if (coverageFilter === "all") return programs;
+    return programs
+      .map((p) => {
+        const courses = (p.courses ?? []).filter((c) => {
+          const has = (coverage[c.id]?.drafts ?? 0) > 0;
+          return coverageFilter === "written" ? has : !has;
+        });
+        return courses.length ? { ...p, courses } : null;
+      })
+      .filter(Boolean) as Program[];
+  }, [programs, coverage, coverageFilter]);
+
   const filteredPrograms = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
+    const programs = coverageScoped;
     if (!q) return programs;
     return programs
       .map((p) => {
@@ -835,7 +856,7 @@ export default function CurriculumPage() {
         return null;
       })
       .filter(Boolean) as Program[];
-  }, [programs, catalogQuery]);
+  }, [coverageScoped, catalogQuery]);
 
   const quickChooserCourses = useMemo(() => {
     const hasSchoolScopeFilter = schoolScopedProgramIds.length > 0;
@@ -3491,6 +3512,34 @@ export default function CurriculumPage() {
       : item.school_id === generateScope
   );
 
+  // One request annotates the whole catalogue; the per-course loader stays as-is.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/curricula/coverage");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled || !json?.coverage) return;
+        setCoverage(json.coverage);
+        // The sidebar dot used to fill in only as each course was opened, so on load it
+        // said "no syllabus" for everything. Seed it from the same response.
+        setCoursesWithCurricula((prev) => {
+          const next = new Set(prev);
+          for (const [courseId, c] of Object.entries(json.coverage as Record<string, { drafts: number }>)) {
+            if (c.drafts > 0) next.add(courseId);
+          }
+          return next;
+        });
+      } catch {
+        /* coverage is an annotation — the builder still works without it */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [curriculumList.length]);
+
   const expandAllPrograms = useCallback(() => {
     setExpandedPrograms(new Set(programs.map((p) => p.id)));
   }, [programs]);
@@ -3995,6 +4044,45 @@ export default function CurriculumPage() {
                   aria-label="Filter programmes and courses"
                 />
               </div>
+              {/* Narrow the catalogue to the courses actually being built right now,
+                  rather than scrolling the whole programme list every time. */}
+              <div className="mt-2 flex gap-1" role="group" aria-label="Filter by curriculum coverage">
+                {([
+                  { key: "all", label: "All" },
+                  { key: "written", label: "Written" },
+                  { key: "missing", label: "Not written" },
+                ] as const).map((opt) => {
+                  const active = coverageFilter === opt.key;
+                  const n =
+                    opt.key === "all"
+                      ? null
+                      : programs.reduce(
+                          (sum, p) =>
+                            sum +
+                            (p.courses ?? []).filter((c) => {
+                              const has = (coverage[c.id]?.drafts ?? 0) > 0;
+                              return opt.key === "written" ? has : !has;
+                            }).length,
+                          0
+                        );
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setCoverageFilter(opt.key)}
+                      aria-pressed={active}
+                      className={`flex-1 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {opt.label}
+                      {n !== null && <span className="ml-1 opacity-70">{n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto py-2">
@@ -4063,9 +4151,28 @@ export default function CurriculumPage() {
                         <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">
                           {prog.name || (prog as any).title}
                         </span>
-                        <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">
-                          {activeCourses.length}
-                        </span>
+                        {(() => {
+                          // Written-vs-total per programme, so the gap is visible without
+                          // opening anything.
+                          const written = activeCourses.filter(
+                            (c) => (coverage[c.id]?.drafts ?? 0) > 0
+                          ).length;
+                          const complete = written === activeCourses.length && activeCourses.length > 0;
+                          return (
+                            <span
+                              title={`${written} of ${activeCourses.length} course(s) have a curriculum`}
+                              className={`ml-auto px-1.5 py-0.5 text-[9px] font-black shrink-0 ${
+                                complete
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : written > 0
+                                    ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                                    : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {written}/{activeCourses.length}
+                            </span>
+                          );
+                        })()}
                       </button>
 
                       <AnimatePresence>
