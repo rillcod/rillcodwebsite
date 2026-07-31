@@ -143,7 +143,10 @@ export async function GET(req: NextRequest) {
   const { data: enrollmentsRaw, error: enrErr } = await admin
     .from("student_level_enrollments")
     .select(
-      "id, student_id, course_id, school_id, term_label, start_week, status, promoted_to, updated_at, courses(title, level_order, programs(name))"
+      // course_id and promoted_to both point at courses, so the embed must name which one it
+      // means. Unqualified, PostgREST refused the whole query and the progression path came back
+      // empty. This is the enrolled course, not the one a learner was promoted into.
+      "id, student_id, course_id, school_id, term_label, start_week, status, promoted_to, updated_at, courses!student_level_enrollments_course_id_fkey(title, level_order, programs(name))"
     )
     .in("student_id", targetStudentIds)
     .order("updated_at", { ascending: false });
@@ -215,7 +218,10 @@ export async function GET(req: NextRequest) {
     let planQuery = admin
       .from("lesson_plans")
       .select(
-        "id,title,plan_data,status,updated_at,class_id,term_id,curriculum_release_id,curriculum_version_id,official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(id,release_number,title,content,source_curriculum_id),curriculum:course_curricula!fk_lesson_plans_curriculum(id,version,content)"
+        // lesson_plans has no `title` column — asking for it failed the read with 42703 and the
+        // plan never loaded. Nothing here consumed it; the displayed course title comes from the
+        // enrolment's course, not the plan.
+        "id,plan_data,status,updated_at,class_id,term_id,curriculum_release_id,curriculum_version_id,official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(id,release_number,title,content,source_curriculum_id),curriculum:course_curricula!fk_lesson_plans_curriculum(id,version,content)"
       )
       .eq("course_id", enr.course_id)
       .neq("status", "archived")

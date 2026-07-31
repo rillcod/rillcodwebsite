@@ -103,7 +103,7 @@ export async function GET(
     // Children enrichment — school-scoped for non-admins
     let childrenQuery = parentEmail
       ? db.from('students')
-          .select('id, full_name, school_name, school_id, grade_level, section_class, current_class, user_id, parent_relationship')
+          .select('id, full_name, school_name, school_id, grade_level, section_class:section, current_class, user_id, parent_relationship')
           .ilike('parent_email', parentEmail)
           .order('full_name')
       : null;

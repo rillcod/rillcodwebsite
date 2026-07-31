@@ -83,7 +83,9 @@ export async function readStudentIdentitySnapshot(
 ): Promise<{ gender: string | null; age: number | null; date_of_birth: string | null; full_name: string | null; section_class: string | null } | null> {
   const { data: student } = await admin
     .from('students')
-    .select('gender, age, date_of_birth, full_name, current_class, section_class, grade_level')
+    // `students` stores the cohort in `section`; only portal_users has `section_class`. Selecting
+    // the wrong name failed the whole read with 42703, so identity sync silently saw no student.
+    .select('gender, age, date_of_birth, full_name, current_class, section_class:section, grade_level')
     .eq('user_id', studentUserId)
     .maybeSingle();
   if (!student) return null;
@@ -115,7 +117,7 @@ export async function syncStudentIdentityAcrossStores(
   if (!childRowId) return false;
 
   const [{ data: studentRow }, { data: portalRow }] = await Promise.all([
-    admin.from('students').select('gender, age, date_of_birth, full_name, current_class, section_class, grade_level, grade').eq('id', childRowId).maybeSingle(),
+    admin.from('students').select('gender, age, date_of_birth, full_name, current_class, section_class:section, grade_level, grade').eq('id', childRowId).maybeSingle(),
     admin.from('portal_users').select('gender, date_of_birth, full_name, section_class, grade').eq('id', studentUserId).maybeSingle(),
   ]);
 

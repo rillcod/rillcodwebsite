@@ -128,7 +128,7 @@ export async function listUnlinkedStudents(
   const limit = Math.min(500, opts.limit ?? 200);
   let query = admin
     .from('students')
-    .select('id, user_id, full_name, school_name, school_id, current_class, section_class, grade_level, parent_email, parent_phone')
+    .select('id, user_id, full_name, school_name, school_id, current_class, section_class:section, grade_level, parent_email, parent_phone')
     .not('user_id', 'is', null)
     .order('full_name')
     .limit(limit * 3);
