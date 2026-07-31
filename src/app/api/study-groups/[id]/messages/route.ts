@@ -4,9 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 async function requireGroupMembership(supabase: Awaited<ReturnType<typeof createClient>>, groupId: string, userId: string) {
+  // study_group_members is keyed by (group_id, user_id) and has no `id` column. Selecting one
+  // failed with 42703, so `data` was always undefined and this returned false for every member —
+  // it failed closed, which hid the bug as "nobody can open group messages".
   const { data } = await supabase
     .from('study_group_members')
-    .select('id')
+    .select('user_id')
     .eq('group_id', groupId)
     .eq('user_id', userId)
     .maybeSingle();

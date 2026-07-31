@@ -104,7 +104,7 @@ export async function GET() {
     fetchAll(leadsQuery),
     fetchAll(prospectsQuery),
     fetchAll(sb.from('registration_results').select('email, status').in('status', ['created', 'updated', 'success', 'registered'])),
-    fetchAll(sb.from('form_lead_child_links').select('lead_id, student_portal_user_id, source, link_status')),
+    fetchAll(sb.from('form_lead_child_links').select('lead_id, student_portal_user_id, source, link_status:status')),
     fetchAll(sb.from('consent_forms').select('id, form_type, title, school_id')),
     fetchAll(sb.from('students').select('user_id, course_interest, school_id, school_name').not('user_id', 'is', null)),
     fetchAll(sb.from('enrollments').select('user_id, program_id, status').eq('status', 'active')),

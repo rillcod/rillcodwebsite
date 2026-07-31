@@ -13,12 +13,12 @@ export async function GET() {
   const db: any = createAdminClient();
   const [{ data: assignments }, { data: classes }, { data: schedules }] = await Promise.all([
     db.from('academic_curriculum_adoptions')
-      .select('id, school_id, course_id, release_id, academic_session, schools(name), courses(title, program_id), release:academic_curriculum_releases(title, audience_label)')
+      .select('id, school_id, course_id, release_id, academic_session, schools(name), courses(title, program_id), release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(title, audience_label)')
       .eq('status', 'active')
       .order('adopted_at', { ascending: false }),
     db.from('classes').select('id, name, school_id, program_id, status').eq('status', 'active').order('name'),
     db.from('academic_curriculum_delivery_schedules')
-      .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases(title, audience_label)')
+      .select('*, schools(name), classes!class_id(name), courses(title), release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(title, audience_label)')
       .eq('status', 'active')
       .order('updated_at', { ascending: false }),
   ]);

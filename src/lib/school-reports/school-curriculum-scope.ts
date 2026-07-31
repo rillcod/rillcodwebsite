@@ -277,7 +277,7 @@ export async function loadSchoolProgrammeScope(
   if (studentIds.length) {
     const { data: levelEnrollments } = await admin
       .from('student_level_enrollments')
-      .select('student_id, course_id, program_id, courses(id, title, program_id, is_active, programs(name))')
+      .select('student_id, course_id, program_id, courses!student_level_enrollments_course_id_fkey(id, title, program_id, is_active, programs(name))')
       .eq('school_id', schoolId)
       .in('student_id', studentIds)
       .eq('status', 'active');

@@ -204,17 +204,12 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const sb = adminClient();
   const { data: form, error } = await sb
     .from('consent_forms')
-    .select('id, title, body, form_type, due_date, view_count, schools(name)')
+    // consent_forms has no view_count column. Asking for it failed the SELECT with 42703, which
+    // set `error` — so this route answered "Form not found or not public" for EVERY public
+    // consent form. The view counter was never stored anywhere; dropping it restores the page.
+    .select('id, title, body, form_type, due_date, schools(name)')
     .eq('id', id).eq('is_public', true).single();
   if (error || !form) return NextResponse.json({ error: 'Form not found or not public' }, { status: 404 });
-
-  // Fire-and-forget view increment (non-blocking)
-  (sb as any)
-    .from('consent_forms')
-    .update({ view_count: (form as any).view_count ? (form as any).view_count + 1 : 1 })
-    .eq('id', id)
-    .then(() => {})
-    .catch(() => {});
 
   // Public DTO only — no school_id / internal counters beyond what's needed to render.
   return NextResponse.json({

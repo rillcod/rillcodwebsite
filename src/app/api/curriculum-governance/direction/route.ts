@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   }
   const { data: adoption } = await db
     .from('academic_curriculum_adoptions')
-    .select('release_id, academic_session, release:academic_curriculum_releases(id, title, content, source_metadata, academic_session, effective_term_number, grade_key, audience_label)')
+    .select('release_id, academic_session, release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(id, title, content, source_metadata, academic_session, effective_term_number, grade_key, audience_label)')
     .eq('school_id', klass.school_id)
     .eq('course_id', courseId)
     .eq('status', 'active')

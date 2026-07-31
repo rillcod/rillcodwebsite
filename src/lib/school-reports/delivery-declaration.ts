@@ -419,7 +419,7 @@ export async function loadSchoolDeliveryCurricula(
   let adoptionQuery = admin
     .from("academic_curriculum_adoptions")
     .select(
-      "course_id,effective_term_number,release:academic_curriculum_releases(id,source_curriculum_id,course_id,content,courses(title,is_active,programs(name)))"
+      "course_id,effective_term_number,release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(id,source_curriculum_id,course_id,content,courses(title,is_active,programs(name)))"
     )
     .eq("school_id", schoolId)
     .eq("status", "active");

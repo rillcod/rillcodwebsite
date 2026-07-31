@@ -304,7 +304,7 @@ export async function loadReportCurriculumRangeSuggestion(
     admin
       .from("academic_curriculum_adoptions")
       .select(
-        "course_id,effective_term_number,release:academic_curriculum_releases(id,course_id,content,courses(is_active))"
+        "course_id,effective_term_number,release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(id,course_id,content,courses(is_active))"
       )
       .eq("school_id", schoolId)
       .eq("academic_session", academicTerm?.academic_year)
