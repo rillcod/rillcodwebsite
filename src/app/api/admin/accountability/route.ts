@@ -2,26 +2,23 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 /**
  * Full accountability census: every account, where they are placed, what they
  * hold, and what is missing.
  *
- * Both RPCs read from materialised views (accountability_people_mv and
- * accountability_coverage_mv) so every GET is near-instant regardless of
- * account count. The views are refreshed either:
- *   - automatically via pg_cron every 30 minutes (if enabled), or
- *   - on demand when the admin clicks Refresh → POST /api/admin/accountability
+ * People are read from accountability_people_mv. PostgREST caps a single select
+ * at 1000 rows by default — `.range(0, 99999)` does NOT bypass that. Without
+ * pagination the People census always showed exactly 1000 accounts (roles
+ * summing to 1000) while the database held more.
  *
- * Both RPCs are granted to service_role ONLY — anon and authenticated hold no
- * EXECUTE privilege, so this route is the only way to reach them. The caller
- * is authenticated with the session client first and must be an admin.
+ * Refresh: POST /api/admin/accountability → refresh_accountability_cache().
  */
 
 export const dynamic = 'force-dynamic';
 
-/** Timeout (ms) applied to RPC calls. */
-const RPC_TIMEOUT_MS = 25_000;
+const RPC_TIMEOUT_MS = 60_000;
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,14 +31,12 @@ function adminClient() {
   return createClient<Database>(url, key);
 }
 
-/** Rejects after `ms` milliseconds with a descriptive error. */
 function timeout(ms: number): Promise<never> {
   return new Promise((_, reject) =>
     setTimeout(() => reject(new Error(`Database query timed out after ${ms / 1000}s`)), ms),
   );
 }
 
-/** Authenticate caller and assert admin role. Returns error response or null. */
 async function assertAdmin(): Promise<NextResponse | null> {
   const supabase = await createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -61,7 +56,14 @@ async function assertAdmin(): Promise<NextResponse | null> {
 
 const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
 
-// ── GET — read from the materialised view cache ──────────────────────────────
+function countByRole(rows: Array<{ role?: string | null }>) {
+  const m: Record<string, number> = {};
+  for (const row of rows) {
+    const r = String(row.role || 'unknown').toLowerCase();
+    m[r] = (m[r] || 0) + 1;
+  }
+  return m;
+}
 
 export async function GET() {
   const authErr = await assertAdmin();
@@ -78,18 +80,26 @@ export async function GET() {
   }
 
   let coverageRes: Awaited<ReturnType<typeof db.rpc>>;
-  let peopleRes: Awaited<ReturnType<typeof db.rpc>>;
-  // get_academic_coverage is scoped to the CURRENT term, which hides older
-  // unpublished reports. get_report_backlog reports every term so that debt
-  // stays visible. See 20260927000019.
+  let peopleRes: { data: any[]; error: { message: string } | null };
   let backlogRes: Awaited<ReturnType<typeof db.rpc>>;
+  let liveRoleRes: { data: Array<{ role: string }> | null; error: { message: string } | null };
 
   try {
-    [coverageRes, peopleRes, backlogRes] = await Promise.race([
+    [coverageRes, peopleRes, backlogRes, liveRoleRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
-        db.from('accountability_people_mv' as never).select('*').range(0, 99999),
+        // Page past the 1000-row PostgREST cap so the census matches the DB.
+        fetchAllSupabaseRows<any>((from, to) =>
+          db.from('accountability_people_mv' as never).select('*').range(from, to),
+        ),
         db.rpc('get_report_backlog' as never),
+        fetchAllSupabaseRows<{ role: string }>((from, to) =>
+          db
+            .from('portal_users')
+            .select('role')
+            .eq('is_deleted', false)
+            .range(from, to),
+        ),
       ]),
       timeout(RPC_TIMEOUT_MS),
     ]);
@@ -107,21 +117,29 @@ export async function GET() {
     return NextResponse.json({ error: peopleRes.error.message }, { status: 500 });
   }
 
-  // A backlog failure must not take the whole dashboard down -- it is
-  // supplementary to the term-scoped view.
+  const people = peopleRes.data ?? [];
+  const mvRoleCounts = countByRole(people);
+  const liveRoleCounts = liveRoleRes.error ? null : countByRole(liveRoleRes.data ?? []);
+  const liveTotal = liveRoleCounts
+    ? Object.values(liveRoleCounts).reduce((a, b) => a + b, 0)
+    : null;
+
   return NextResponse.json(
     {
       coverage: coverageRes.data ?? null,
-      people: peopleRes.data ?? [],
+      people,
       backlog: backlogRes.error ? null : (backlogRes.data ?? null),
+      census: {
+        total: people.length,
+        by_role: mvRoleCounts,
+        live_total: liveTotal,
+        live_by_role: liveRoleCounts,
+        source: 'accountability_people_mv',
+      },
     },
     NO_STORE,
   );
 }
-
-// ── POST — trigger a materialised view refresh ───────────────────────────────
-// Called when the admin clicks the Refresh button on the dashboard.
-// The refresh runs CONCURRENTLY so existing readers are never blocked.
 
 export async function POST() {
   const authErr = await assertAdmin();

@@ -102,7 +102,7 @@ const STATUS_META: Record<TeacherWorkloadCard['status'], {
   },
   no_students: {
     label: 'No true students',
-    hint: 'Has classes but no active roster students this term',
+    hint: 'Has classes but no students listed for this term',
     tone: 'text-orange-600 dark:text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/25',
@@ -276,7 +276,7 @@ function TeacherCard({
                     <div className="border-t border-border overflow-x-auto">
                       {klass.students.length === 0 ? (
                         <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                          No true (active) students on this class roster for the current term.
+                          No students in this class for the current term.
                         </p>
                       ) : (
                         <table className="w-full text-sm min-w-[560px]">
@@ -455,12 +455,12 @@ export default function TeacherAccountabilityPanel() {
               What each teacher delivered
             </h2>
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              Per class: true active roster students, whether results exist, and whether those reports are published.
+              Per class: students currently enrolled, whether reports exist, and whether those reports have been sent.
               Expand any teacher to audit every student line.
             </p>
             {data?.term_context && (
               <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-3">
-                Active term · {data.term_context.academic_year} · {data.term_context.term_label}
+                This term · {data.term_context.academic_year} · {data.term_context.term_label}
               </p>
             )}
           </div>
@@ -528,7 +528,7 @@ export default function TeacherAccountabilityPanel() {
             <p className="text-sm text-muted-foreground py-8 text-center">No teachers with true students yet.</p>
           )}
           <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-muted-foreground border-t border-border pt-3">
-            <span className="flex items-center gap-1.5"><UserGroupIcon className="w-3.5 h-3.5" /> True students = active, non-withdrawn roster learners</span>
+            <span className="flex items-center gap-1.5"><UserGroupIcon className="w-3.5 h-3.5" /> Students = currently enrolled in the class (not left / ended)</span>
             <span className="flex items-center gap-1.5"><CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Fully published = every true student has a published report</span>
           </div>
         </div>

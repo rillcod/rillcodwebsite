@@ -114,7 +114,7 @@ export function buildStudentExceptionQueues(
       && !(p.class_from_roster || p.class_on_profile);
     if (placeholderBits.length >= 2 && noRealData && !withdrawn) {
       kinds.push('placeholder_noise');
-      reasons.push(...placeholderBits, 'No roster, parent, or reports');
+      reasons.push(...placeholderBits, 'No class, parent details, or reports');
       if (!purgeEligible) {
         recommended = 'purge';
         purgeEligible = true;
@@ -123,25 +123,27 @@ export function buildStudentExceptionQueues(
 
     if (displaced) {
       kinds.push('displaced');
-      reasons.push('Active student not on any class roster for the current term');
+      reasons.push('Still enrolled, but not put in a class for this term');
       if (recommended === 'review') recommended = 'assign_roster';
     }
 
     if (mismatch) {
       kinds.push('class_mismatch');
-      reasons.push(`Profile class "${p.class_on_profile}" disagrees with roster "${p.class_from_roster}"`);
+      reasons.push(
+        `Their account says "${p.class_on_profile}" but this term’s class list has them in "${p.class_from_roster}"`,
+      );
       if (recommended === 'review') recommended = 'sync_class';
     }
 
     if (missingParent && !kinds.includes('placeholder_noise')) {
       kinds.push('missing_parent_contact');
-      reasons.push('No parent email or phone on file');
+      reasons.push('No parent email or phone we can use to reach them');
       if (recommended === 'review') recommended = 'link_parent';
     }
 
     if (withdrawn && p.is_active) {
       kinds.push('withdrawn_active');
-      reasons.push('Marked withdrawn/ended but account still active');
+      reasons.push('Marked as left / ended, but their login is still on');
       if (recommended === 'review') recommended = 'deactivate';
     }
 

@@ -79,16 +79,17 @@ export type AccountabilityTab =
   | 'comms'
   | 'report';
 
+/** Plain-language labels for gap flags shown in the UI. */
 export const FLAG_LABEL: Record<string, string> = {
-  no_class: 'Not on any class roster',
-  no_report: 'No report for active term',
-  draft_pending: 'Holding an unpublished report',
-  no_parent_phone: 'No parent phone on file',
-  no_parent_email: 'No parent email on file',
-  class_mismatch: 'Roster and profile class disagree',
-  inactive: 'Account inactive',
-  no_enrolment_type: 'No enrolment type set',
-  withdrawn: 'Withdrawn / Ended student',
+  no_class: 'Not put in a class yet',
+  no_report: 'No progress report this term',
+  draft_pending: 'Report started but not sent',
+  no_parent_phone: 'No parent phone number',
+  no_parent_email: 'No parent email',
+  class_mismatch: 'Wrong class on their account',
+  inactive: 'Account turned off',
+  no_enrolment_type: 'Enrolment type not set',
+  withdrawn: 'Left the school / ended',
 };
 
 export const ROLE_META: Record<string, {
@@ -102,7 +103,7 @@ export const ROLE_META: Record<string, {
   student: {
     label: 'Student',
     short: 'Student',
-    description: 'Learner on the platform — roster, reports, and parent contact apply.',
+    description: 'A learner. Needs a class, progress reports, and parent contact details.',
     tone: 'text-sky-600 dark:text-sky-400',
     bg: 'bg-sky-500/10',
     border: 'border-sky-500/25',
@@ -110,7 +111,7 @@ export const ROLE_META: Record<string, {
   teacher: {
     label: 'Teacher',
     short: 'Teacher',
-    description: 'Teaching staff — owns courses, writes and publishes progress reports.',
+    description: 'Teaching staff who write and send progress reports.',
     tone: 'text-violet-600 dark:text-violet-400',
     bg: 'bg-violet-500/10',
     border: 'border-violet-500/25',
@@ -118,7 +119,7 @@ export const ROLE_META: Record<string, {
   parent: {
     label: 'Parent / Guardian',
     short: 'Parent',
-    description: 'Linked guardian — receives results and school communications.',
+    description: 'A parent or guardian who gets results and school messages.',
     tone: 'text-emerald-600 dark:text-emerald-400',
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/25',
@@ -126,15 +127,15 @@ export const ROLE_META: Record<string, {
   admin: {
     label: 'Administrator',
     short: 'Admin',
-    description: 'Platform administrator — full cross-school census access.',
+    description: 'Someone who can see every school and fix account problems.',
     tone: 'text-amber-600 dark:text-amber-400',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/25',
   },
   school: {
-    label: 'School Account',
+    label: 'School login',
     short: 'School',
-    description: 'School organisation login — manages that school’s learners and staff.',
+    description: 'The school’s own login for managing its students and staff.',
     tone: 'text-orange-600 dark:text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/25',
@@ -150,7 +151,7 @@ export function roleMeta(role: string | null | undefined) {
   return ROLE_META[key] ?? {
     label: key === '(none)' ? 'Unknown role' : key.charAt(0).toUpperCase() + key.slice(1),
     short: key === '(none)' ? 'Unknown' : key,
-    description: 'Account role is not recognised in the standard census map.',
+    description: 'This account type is not one of the usual roles.',
     tone: 'text-muted-foreground',
     bg: 'bg-muted',
     border: 'border-border',

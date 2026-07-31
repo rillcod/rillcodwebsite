@@ -26,12 +26,12 @@ const CARD = 'bg-card shadow-sm border border-border rounded-xl';
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground';
 
 const TABS: { id: AccountabilityTab; label: string; hint: string }[] = [
-  { id: 'overview', label: 'Overview', hint: 'Health, roles & gaps' },
-  { id: 'people', label: 'People census', hint: 'Every account by role' },
-  { id: 'teachers', label: 'Teachers', hint: 'Per-class results & publish' },
-  { id: 'reports', label: 'Reports & classes', hint: 'Coverage by class' },
-  { id: 'comms', label: 'Communications', hint: 'Email reach & providers' },
-  { id: 'report', label: 'Full report', hint: 'Generate PDF / CSV' },
+  { id: 'overview', label: 'Overview', hint: 'Health & what needs fixing' },
+  { id: 'people', label: 'Everyone', hint: 'All accounts by type' },
+  { id: 'teachers', label: 'Teachers', hint: 'Classes & report progress' },
+  { id: 'reports', label: 'Reports & classes', hint: 'How each class is doing' },
+  { id: 'comms', label: 'Messages', hint: 'Emails sent to parents' },
+  { id: 'report', label: 'Download', hint: 'PDF or spreadsheet' },
 ];
 
 function Tile({
@@ -81,6 +81,13 @@ type Props = {
   coverage: Coverage | null;
   people: Person[];
   backlog: Backlog | null;
+  census?: {
+    total: number;
+    by_role: Record<string, number>;
+    live_total: number | null;
+    live_by_role: Record<string, number> | null;
+    source: string;
+  } | null;
   exceptionTotals?: Partial<Record<'displaced' | 'hollow_shell' | 'placeholder_noise' | 'withdrawn_active' | 'class_mismatch' | 'missing_parent_contact', number>>;
   loading: boolean;
   refreshing: boolean;
@@ -100,6 +107,7 @@ export default function AccountabilityDashboard({
   coverage: c,
   people,
   backlog,
+  census,
   exceptionTotals,
   loading,
   refreshing,
@@ -250,10 +258,10 @@ export default function AccountabilityDashboard({
     const displaced = analytics.displacedCount;
     const otherInactive = Math.max(0, analytics.inactiveStudents - Math.min(analytics.inactiveStudents, withdrawn));
     return [
-      { label: 'Current (active)', value: current, color: CHART_COLORS.emerald },
-      { label: 'Withdrawn / ended', value: withdrawn, color: CHART_COLORS.rose },
-      { label: 'Other inactive', value: otherInactive, color: '#71717a' },
-      { label: 'Displaced (no roster)', value: displaced, color: CHART_COLORS.amber },
+      { label: 'In school now', value: current, color: CHART_COLORS.emerald },
+      { label: 'Left / ended', value: withdrawn, color: CHART_COLORS.rose },
+      { label: 'Account off', value: otherInactive, color: '#71717a' },
+      { label: 'Not in a class', value: displaced, color: CHART_COLORS.amber },
     ].filter((s) => s.value > 0);
   }, [analytics]);
 
@@ -361,22 +369,22 @@ export default function AccountabilityDashboard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground">
-              Accountability Census
+              Who’s on the platform
             </h1>
             {pollInterval > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-600 dark:text-rose-400 border border-rose-500/20">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
-                LIVE {pollInterval / 1000}s
+                Updating every {pollInterval / 1000}s
               </span>
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Structured census of every account by true role — students, teachers, parents, and staff —
-            with report coverage, parent reachability, and a downloadable concrete report.
+            A clear count of every student, teacher, parent, and staff account — plus what’s missing
+            (class, reports, or parent contact) so you can fix it.
           </p>
           {c?.term_context && (
             <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-              Active term: {c.term_context.academic_year} · {c.term_context.term_label}
+              This term: {c.term_context.academic_year} · {c.term_context.term_label}
             </div>
           )}
         </div>
@@ -387,18 +395,18 @@ export default function AccountabilityDashboard({
             onClick={() => openReachOut()}
             className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 text-white px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700"
           >
-            <PaperAirplaneIcon className="w-4 h-4" /> Template Machine
+            <PaperAirplaneIcon className="w-4 h-4" /> Message parents
           </button>
           <select
             value={pollInterval}
             onChange={(e) => setPollInterval(Number(e.target.value))}
             className="min-h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
-            aria-label="Live monitor interval"
+            aria-label="Auto-refresh interval"
           >
-            <option value={0}>Monitor: Off</option>
-            <option value={15000}>Monitor: 15s</option>
-            <option value={30000}>Monitor: 30s</option>
-            <option value={60000}>Monitor: 60s</option>
+            <option value={0}>Auto-refresh: Off</option>
+            <option value={15000}>Auto-refresh: 15s</option>
+            <option value={30000}>Auto-refresh: 30s</option>
+            <option value={60000}>Auto-refresh: 60s</option>
           </select>
           <button
             type="button"
@@ -418,6 +426,19 @@ export default function AccountabilityDashboard({
       {syncFeedback && (
         <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
           <CheckCircleIcon className="w-4 h-4" /> {syncFeedback}
+        </p>
+      )}
+      {census?.live_total != null && (
+        <p
+          className={`rounded-xl border px-4 py-3 text-xs font-bold ${
+            census.live_total === people.length
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+          }`}
+        >
+          {census.live_total === people.length
+            ? `Numbers look right — ${people.length.toLocaleString()} accounts on the platform.`
+            : `This page shows ${people.length.toLocaleString()} accounts, but the live list has ${census.live_total.toLocaleString()}. Hit Refresh to catch up.`}
         </p>
       )}
 
@@ -440,7 +461,7 @@ export default function AccountabilityDashboard({
 
       {loading && people.length === 0 ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-12 justify-center">
-          <ArrowPathIcon className="w-5 h-5 animate-spin" /> Loading census snapshot…
+          <ArrowPathIcon className="w-5 h-5 animate-spin" /> Loading everyone…
         </div>
       ) : (
         <div className={`space-y-6 transition-opacity ${refreshing ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -451,14 +472,14 @@ export default function AccountabilityDashboard({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className={`${CARD} p-5 sm:p-6 lg:col-span-4 flex flex-col justify-between`}>
                   <div>
-                    <span className={LABEL}>Platform operational health</span>
+                    <span className={LABEL}>Overall health</span>
                     <div className="flex items-baseline gap-2 mt-2">
                       <span className={`text-5xl font-black tracking-tighter tabular-nums ${analytics.healthScore >= 85 ? 'text-emerald-600 dark:text-emerald-400' : analytics.healthScore >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {analytics.healthScore}%
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Weighted from roster placement, report publication, and parent email/phone reach.
+                      Based on: students in a class, reports sent out, and whether we can email or call parents.
                     </p>
                   </div>
                   <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden mt-5">
@@ -474,39 +495,42 @@ export default function AccountabilityDashboard({
                     <div>
                       <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
                         <ShieldCheckIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        Quick actions & focus
+                        Fix things fast
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Jump to gaps, sync class mismatches, or open parent outreach.
+                        Open a problem list, fix wrong classes, or message parents.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedIds.size > 0 ? (
                         <button type="button" onClick={() => setReachOutModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
-                          <UserGroupIcon className="w-4 h-4" /> Reach {selectedIds.size} selected
+                          <UserGroupIcon className="w-4 h-4" /> Message {selectedIds.size} selected
                         </button>
                       ) : (
                         <button type="button" onClick={() => openReachOut()} className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-2 text-xs font-black uppercase tracking-wider">
-                          <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach parents
+                          <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message parents
                         </button>
                       )}
                       {analytics.mismatchCount > 0 && (
                         <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white px-3 py-2 text-xs font-black uppercase tracking-wider disabled:opacity-50">
                           <CogIcon className={`w-3.5 h-3.5 ${syncingClasses ? 'animate-spin' : ''}`} />
-                          Fix {analytics.mismatchCount} class mismatches
+                          {syncingClasses ? 'Fixing classes…' : `Fix ${analytics.mismatchCount} wrong classes`}
                         </button>
                       )}
                       <button type="button" onClick={() => setTab('report')} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent">
-                        <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Full report
+                        <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download report
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                     {[
-                      { f: 'no_class', label: `Unplaced (${analytics.unplaced})`, tone: 'rose' },
+                      { f: 'no_class', label: `Not in a class (${analytics.unplaced})`, tone: 'rose' },
                       { f: 'no_parent_email', label: `No parent email (${analytics.noParentEmailCount})`, tone: 'amber' },
                       { f: 'no_parent_phone', label: `No parent phone (${analytics.noParentPhoneCount})`, tone: 'amber' },
-                      { f: 'draft_pending', label: `Draft reports (${analytics.draftReports})`, tone: 'amber' },
+                      { f: 'draft_pending', label: `Reports not sent yet (${analytics.draftReports})`, tone: 'amber' },
+                      ...(analytics.mismatchCount > 0
+                        ? [{ f: 'class_mismatch', label: `Wrong class (${analytics.mismatchCount})`, tone: 'amber' }]
+                        : []),
                     ].map((x) => (
                       <button
                         key={x.f}
@@ -521,7 +545,7 @@ export default function AccountabilityDashboard({
                 </div>
               </div>
 
-              <Section title="Who they are — every role counted" icon={<UserIcon className="w-3.5 h-3.5" />}>
+              <Section title="Who’s here" icon={<UserIcon className="w-3.5 h-3.5" />}>
                 <RoleLegend />
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-2">
                   <div className={`${CARD} p-4 sm:p-5 lg:col-span-4`}>
@@ -552,19 +576,19 @@ export default function AccountabilityDashboard({
                     </div>
                   </div>
                   <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <Tile value={people.length} label="All accounts" active={!role && !flag} onClick={clearFilters} sub="Full census" />
-                    <Tile value={students.length} label="Students" tone="default" active={role === 'student'} onClick={() => focusRole(role === 'student' ? null : 'student')} sub="Learners only" />
-                    <Tile value={teachers.length} label="Teachers" tone="default" active={role === 'teacher'} onClick={() => focusRole(role === 'teacher' ? null : 'teacher')} sub="Teaching staff — never mixed as students" />
-                    <Tile value={parents.length} label="Parents" active={role === 'parent'} onClick={() => focusRole(role === 'parent' ? null : 'parent')} sub="Guardian accounts" />
+                    <Tile value={people.length} label="Everyone" active={!role && !flag} onClick={clearFilters} sub="All accounts" />
+                    <Tile value={students.length} label="Students" tone="default" active={role === 'student'} onClick={() => focusRole(role === 'student' ? null : 'student')} sub="Learners" />
+                    <Tile value={teachers.length} label="Teachers" tone="default" active={role === 'teacher'} onClick={() => focusRole(role === 'teacher' ? null : 'teacher')} sub="Teaching staff" />
+                    <Tile value={parents.length} label="Parents" active={role === 'parent'} onClick={() => focusRole(role === 'parent' ? null : 'parent')} sub="Guardians" />
                     <Tile value={roleCounts.admin || 0} label="Admins" active={role === 'admin'} onClick={() => focusRole(role === 'admin' ? null : 'admin')} />
-                    <Tile value={roleCounts.school || 0} label="School accounts" active={role === 'school'} onClick={() => focusRole(role === 'school' ? null : 'school')} />
+                    <Tile value={roleCounts.school || 0} label="School logins" active={role === 'school'} onClick={() => focusRole(role === 'school' ? null : 'school')} />
                   </div>
                 </div>
               </Section>
 
-              <Section title="Student status & placement" icon={<UserGroupIcon className="w-3.5 h-3.5" />}>
+              <Section title="Students — are they in the right place?" icon={<UserGroupIcon className="w-3.5 h-3.5" />}>
                 <p className="text-xs text-muted-foreground -mt-1">
-                  Current active learners vs withdrawn, displaced (no roster), and class-mismatch — click any tile to open the matching people list.
+                  Click a tile to see the people behind the number. “Wrong class” means their account and this term’s class list don’t match.
                 </p>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <div className={`${CARD} p-4 sm:p-5 lg:col-span-4`}>
@@ -576,63 +600,63 @@ export default function AccountabilityDashboard({
                         centerLabel="Students"
                       />
                     ) : (
-                      <p className="text-sm text-muted-foreground py-10 text-center">No student status data.</p>
+                      <p className="text-sm text-muted-foreground py-10 text-center">No student data yet.</p>
                     )}
                   </div>
                   <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <Tile
                       value={analytics.currentActive}
-                      label="Current (active)"
+                      label="In school now"
                       tone="good"
-                      sub="Active, not withdrawn"
+                      sub="Active, still enrolled"
                       onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
                     />
                     <Tile
                       value={analytics.withdrawnCount}
-                      label="Withdrawn / ended"
+                      label="Left / ended"
                       tone="bad"
                       active={flag === 'withdrawn'}
                       onClick={() => focusFlag(flag === 'withdrawn' ? null : 'withdrawn')}
-                      sub="Left or ended enrolment"
+                      sub="No longer enrolled"
                     />
                     <Tile
                       value={exceptionTotals?.displaced ?? analytics.displacedCount}
-                      label="Displaced (no roster)"
+                      label="Not in a class"
                       tone="warn"
                       onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Resolve in Academic Office →"
+                      sub="Open Academic Office to place them →"
                     />
                     <Tile
                       value={exceptionTotals?.placeholder_noise ?? 0}
-                      label="Placeholder noise"
+                      label="Test / junk accounts"
                       tone="bad"
                       onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Dry-run & hard purge in Academic Office"
+                      sub="Safe to clean up in Academic Office"
                     />
                     <Tile
                       value={exceptionTotals?.hollow_shell ?? 0}
-                      label="Hollow shells"
+                      label="Empty old accounts"
                       tone="bad"
                       onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Old empty accounts — purge queue"
+                      sub="Unused shells — clean-up queue"
                     />
                     <Tile
                       value={analytics.mismatchCount}
-                      label="Class mismatch"
+                      label="Wrong class"
                       tone="warn"
                       active={flag === 'class_mismatch'}
                       onClick={() => focusFlag(flag === 'class_mismatch' ? null : 'class_mismatch')}
-                      sub="Profile class ≠ roster class"
+                      sub="Account class ≠ this term’s class list"
                     />
                     <Tile
                       value={analytics.classCount}
                       label="Classes tracked"
-                      sub={`${analytics.classesWithMissing} with missing results`}
+                      sub={`${analytics.classesWithMissing} still missing reports`}
                       onClick={() => setTab('reports')}
                     />
                     <Tile
                       value={analytics.placedOnRoster}
-                      label="On roster"
+                      label="In a class"
                       tone="good"
                       sub={`${analytics.placedPct}% of students`}
                       onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
@@ -641,11 +665,11 @@ export default function AccountabilityDashboard({
                 </div>
               </Section>
 
-              <Section title="Integrity charts (active term)" icon={<ChartBarIcon className="w-3.5 h-3.5" />}>
+              <Section title="How this term is going" icon={<ChartBarIcon className="w-3.5 h-3.5" />}>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">Report publication</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Reports sent</span>
                       <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.publishedPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
@@ -653,13 +677,13 @@ export default function AccountabilityDashboard({
                       <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full" />
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{analytics.publishedReports} published</span>
-                      <span className="text-amber-600 dark:text-amber-400 font-bold">{analytics.draftReports} drafts</span>
+                      <span>{analytics.publishedReports} sent</span>
+                      <span className="text-amber-600 dark:text-amber-400 font-bold">{analytics.draftReports} not sent yet</span>
                     </div>
                   </div>
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">Roster placement</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">In a class</span>
                       <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{analytics.placedPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
@@ -667,13 +691,13 @@ export default function AccountabilityDashboard({
                       <div style={{ width: `${100 - analytics.placedPct}%` }} className="bg-rose-500/80 h-full" />
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{analytics.placedOnRoster} on roster</span>
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{analytics.unplaced} unplaced</span>
+                      <span>{analytics.placedOnRoster} placed</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">{analytics.unplaced} not placed</span>
                     </div>
                   </div>
                   <div className={`${CARD} p-5 space-y-3`}>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">Parent email reach</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Parent email on file</span>
                       <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentEmailReachPct}%</span>
                     </div>
                     <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
@@ -690,7 +714,7 @@ export default function AccountabilityDashboard({
                 </div>
               </Section>
 
-              <Section title="What is missing (active term)" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
+              <Section title="What’s still missing this term" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Object.entries(flagCounts).sort((a, b) => b[1] - a[1]).map(([f, n]) => (
                     <Tile
@@ -703,7 +727,7 @@ export default function AccountabilityDashboard({
                     />
                   ))}
                   {Object.keys(flagCounts).length === 0 && (
-                    <div className={`${CARD} p-5 text-sm text-emerald-600 dark:text-emerald-400 font-bold col-span-full`}>No census flags — clean snapshot.</div>
+                    <div className={`${CARD} p-5 text-sm text-emerald-600 dark:text-emerald-400 font-bold col-span-full`}>Nothing missing — looking good.</div>
                   )}
                 </div>
               </Section>
@@ -711,11 +735,11 @@ export default function AccountabilityDashboard({
               <div className={`${CARD} p-4 sm:p-5 bg-indigo-500/5 border-indigo-500/20 flex items-start gap-3`}>
                 <InformationCircleIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <h3 className="font-bold text-foreground">How to read this census</h3>
+                  <h3 className="font-bold text-foreground">How to read this page</h3>
                   <p className="text-muted-foreground leading-relaxed">
-                    Every row is labelled by its real portal role. Teachers never appear as students.
-                    Student-only gaps (roster, parent contact, reports) only apply to student accounts.
-                    Report metrics are scoped to the <strong>active academic term</strong>; older unpublished work is under Reports &amp; the Full Report PDF.
+                    Each person is shown as student, teacher, parent, or staff — teachers never get mixed into the student list.
+                    Class, parent contact, and report problems only apply to students.
+                    Report numbers are for <strong>this term</strong>; older unfinished work is under Reports or the Download tab.
                   </p>
                 </div>
               </div>
@@ -774,7 +798,7 @@ export default function AccountabilityDashboard({
                       <th className="px-3 py-3 w-10 text-center">
                         <input type="checkbox" checked={allPaginatedSelected} onChange={toggleSelectAll} className="rounded border-border text-indigo-600 dark:text-indigo-400" />
                       </th>
-                      {['Person', 'Role', 'School / placement', 'Reports', 'Flags', 'Actions'].map((h) => (
+                      {['Person', 'Role', 'School / class', 'Reports', 'What’s wrong', 'Actions'].map((h) => (
                         <th key={h} className={`${LABEL} px-3 py-3 whitespace-nowrap`}>{h}</th>
                       ))}
                     </tr>
@@ -803,9 +827,9 @@ export default function AccountabilityDashboard({
                             <div>{p.school_name || '—'}</div>
                             {student ? (
                               <div className="text-xs mt-0.5">
-                                {p.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">not on roster</span>}
+                                {p.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">not in a class</span>}
                                 {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
-                                  <div className="text-amber-600 dark:text-amber-400">Profile: {p.class_on_profile}</div>
+                                  <div className="text-amber-600 dark:text-amber-400">Account still says: {p.class_on_profile}</div>
                                 )}
                               </div>
                             ) : teacher ? (
@@ -815,17 +839,17 @@ export default function AccountabilityDashboard({
                           <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                             {p.reports_total === 0 ? '—' : (
                               <>
-                                {p.reports_published} pub
-                                {p.reports_draft > 0 && <span className="text-amber-600 dark:text-amber-400"> · {p.reports_draft} draft</span>}
+                                {p.reports_published} sent
+                                {p.reports_draft > 0 && <span className="text-amber-600 dark:text-amber-400"> · {p.reports_draft} not sent</span>}
                               </>
                             )}
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1 max-w-[16rem]">
-                              {(p.flags ?? []).length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                              {(p.flags ?? []).length === 0 && <span className="text-xs text-muted-foreground">All good</span>}
                               {(p.flags ?? []).map((f) => (
-                                <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-muted text-muted-foreground'}`}>
-                                  {f.replace(/_/g, ' ')}
+                                <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-muted text-muted-foreground'}`}>
+                                  {FLAG_LABEL[f] ?? f.replace(/_/g, ' ')}
                                 </span>
                               ))}
                             </div>
@@ -834,18 +858,23 @@ export default function AccountabilityDashboard({
                             <div className="flex flex-wrap gap-2">
                               {student && (
                                 <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                                  <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach parent
+                                  <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message parent
                                 </button>
                               )}
                               {student && ((p.flags ?? []).includes('no_parent_email') || (p.flags ?? []).includes('no_parent_phone')) && (
                                 <Link href="/dashboard/parents" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                                  <LinkIcon className="w-3 h-3" /> Link parent
+                                  <LinkIcon className="w-3 h-3" /> Add parent details
                                 </Link>
                               )}
                               {student && (p.flags ?? []).includes('no_class') && (
                                 <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                                  <LinkIcon className="w-3 h-3" /> Assign roster
+                                  <LinkIcon className="w-3 h-3" /> Put in a class
                                 </Link>
+                              )}
+                              {student && (p.flags ?? []).includes('class_mismatch') && (
+                                <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-50">
+                                  <CogIcon className="w-3 h-3" /> Fix wrong class
+                                </button>
                               )}
                               {teacher && (
                                 <button type="button" onClick={() => setTab('teachers')} className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
@@ -899,7 +928,7 @@ export default function AccountabilityDashboard({
                   <Tile value={c?.totals.draft ?? 0} label="Unpublished draft" tone="warn" onClick={() => focusFlag('draft_pending')} />
                   <Tile value={c?.gaps.reports_missing_course ?? 0} label="Missing course link" tone="warn" />
                   <Tile value={c?.totals.students_with_report ?? 0} label="Students with a report" />
-                  <Tile value={c?.totals.students_on_roster ?? 0} label="Students on roster" />
+                  <Tile value={c?.totals.students_on_roster ?? 0} label="Students in a class" />
                 </div>
               </Section>
 
@@ -1133,7 +1162,7 @@ export default function AccountabilityDashboard({
             <Section title="Concrete accountability report" icon={<ArrowDownTrayIcon className="w-3.5 h-3.5" />}>
               <div className={`${CARD} p-5 sm:p-6 space-y-5`}>
                 <div>
-                  <h3 className="text-lg font-black text-foreground">Download a full written census</h3>
+                  <h3 className="text-lg font-black text-foreground">Download a full written summary</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                     Generates a multi-section PDF: role breakdown, headline metrics, gaps, teacher performance,
                     class coverage, cross-term backlog, complete teacher directory, and students with critical gaps.
@@ -1174,7 +1203,7 @@ export default function AccountabilityDashboard({
                     disabled={people.length === 0}
                     className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
                   >
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export full census CSV
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Export everyone (CSV)
                   </button>
                   <button
                     type="button"
@@ -1204,7 +1233,7 @@ export default function AccountabilityDashboard({
                 <h3 className="font-black text-foreground">On-screen executive summary</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">
-                    <p className={LABEL}>Role census</p>
+                    <p className={LABEL}>Who’s here</p>
                     {Object.entries(roleCounts).sort((a, b) => b[1] - a[1]).map(([r, n]) => (
                       <div key={r} className="flex items-center justify-between gap-2 border-b border-border/60 py-1.5">
                         <RoleBadge role={r} size="sm" />
@@ -1213,10 +1242,10 @@ export default function AccountabilityDashboard({
                     ))}
                   </div>
                   <div className="space-y-2">
-                    <p className={LABEL}>Active term snapshot</p>
+                    <p className={LABEL}>This term at a glance</p>
                     {[
                       ['Health score', `${analytics.healthScore}%`],
-                      ['Students on roster', `${analytics.placedOnRoster} (${analytics.placedPct}%)`],
+                      ['Students in a class', `${analytics.placedOnRoster} (${analytics.placedPct}%)`],
                       ['Reports published', `${analytics.publishedReports} (${analytics.publishedPct}%)`],
                       ['Parent email linked', `${analytics.parentEmailMatched} (${analytics.parentEmailReachPct}%)`],
                       ['Parent phone linked', `${analytics.parentPhoneMatched} (${analytics.parentPhoneReachPct}%)`],

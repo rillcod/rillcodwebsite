@@ -13,44 +13,44 @@ const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-for
 
 const QUEUE_META: Record<StudentExceptionKind, { label: string; hint: string; tone: string }> = {
   displaced: {
-    label: 'Displaced',
-    hint: 'Active but not on any class roster this term',
+    label: 'Not in a class',
+    hint: 'Still enrolled, but not on this term’s class list',
     tone: 'text-amber-600 dark:text-amber-400',
   },
   hollow_shell: {
-    label: 'Hollow shells',
-    hint: 'Old accounts with zero real records — safe to hard purge',
+    label: 'Empty old accounts',
+    hint: 'Old unused accounts with no real school records — safe to remove',
     tone: 'text-rose-600 dark:text-rose-400',
   },
   placeholder_noise: {
-    label: 'Placeholder noise',
-    hint: 'Test/empty profiles with no parent, class, or reports',
+    label: 'Test / junk accounts',
+    hint: 'Fake or empty profiles with no parent, class, or reports',
     tone: 'text-orange-600 dark:text-orange-400',
   },
   withdrawn_active: {
-    label: 'Withdrawn but active',
-    hint: 'Ended enrolment but login still active — review before purge',
+    label: 'Left but still logged in',
+    hint: 'Marked as left / ended, but their login is still on',
     tone: 'text-violet-600 dark:text-violet-400',
   },
   class_mismatch: {
-    label: 'Class mismatch',
-    hint: 'Profile class disagrees with roster',
+    label: 'Wrong class',
+    hint: 'Their account class doesn’t match this term’s class list',
     tone: 'text-sky-600 dark:text-sky-400',
   },
   missing_parent_contact: {
-    label: 'Missing parent',
-    hint: 'No parent email or phone — link before outreach',
+    label: 'No parent contact',
+    hint: 'No parent email or phone — add details before messaging',
     tone: 'text-indigo-600 dark:text-indigo-400',
   },
 };
 
 const ACTION_LABEL: Record<StudentExceptionRow['recommended_action'], string> = {
-  purge: 'Hard purge candidate',
-  assign_roster: 'Assign to a class roster',
-  link_parent: 'Link parent contact',
-  sync_class: 'Sync profile class to roster',
-  deactivate: 'Deactivate withdrawn login',
-  review: 'Needs human review',
+  purge: 'Safe to delete',
+  assign_roster: 'Put them in a class',
+  link_parent: 'Add parent details',
+  sync_class: 'Fix to match class list',
+  deactivate: 'Turn off their login',
+  review: 'Needs a person to check',
 };
 
 type DryRunResult = {
