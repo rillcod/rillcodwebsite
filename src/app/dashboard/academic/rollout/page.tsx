@@ -137,6 +137,8 @@ function RolloutWorkspace() {
   const [report, setReport] = useState<QualityReport | null>(null);
   const [checking, setChecking] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [repairNote, setRepairNote] = useState('');
   const [session, setSession] = useState('2026/2027');
   const [audience, setAudience] = useState('All assigned learner levels');
   const [termNumber, setTermNumber] = useState(1);
@@ -246,6 +248,47 @@ function RolloutWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not review this curriculum.');
     } finally { setChecking(false); }
+  }
+
+  /**
+   * Ask the AI to close the gaps the review found, rather than sending the Academic Office back
+   * to the builder to write them by hand. The server refuses any repair that loses a term or a
+   * week, or that does not actually reduce the faults, so the worst case is "nothing changed".
+   * Re-runs the review afterwards so the decision to publish is made on a fresh report.
+   */
+  async function repairWithAi() {
+    if (!curriculumId) return;
+    setRepairing(true); setError(''); setMessage(''); setRepairNote('');
+    try {
+      const response = await fetch('/api/curriculum-governance/quality-repair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ curriculum_id: curriculumId, include_warnings: true, save: true }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Could not repair this curriculum.');
+
+      if (payload.status === 'repaired') {
+        const fixed = Number(payload.faults_before ?? 0) - Number(payload.faults_after ?? 0);
+        setRepairNote(
+          `Fixed ${fixed} ${fixed === 1 ? 'fault' : 'faults'}. ${
+            payload.publishable
+              ? 'This curriculum is now ready to publish.'
+              : `${payload.faults_after} still need a person — the review below shows which.`
+          }`,
+        );
+      } else if (payload.status === 'not_needed') {
+        setRepairNote('Nothing to repair — this curriculum already passes the checks.');
+      } else if (payload.status === 'unavailable') {
+        setRepairNote('The AI service did not respond. Your curriculum is unchanged; try again shortly.');
+      } else {
+        // Rejected: the guard refused the model's version and kept the original.
+        setRepairNote(`Left unchanged — ${payload.reason ?? 'the suggested repair was not safe to apply.'}`);
+      }
+      await runReview();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not repair this curriculum.');
+    } finally { setRepairing(false); }
   }
 
   /** Publishing certifies AND assigns to every eligible school in one action. */
@@ -530,13 +573,39 @@ function RolloutWorkspace() {
                   <p className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-foreground">{report.note}</p>
                 )}
 
+                {repairNote && (
+                  <p className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm leading-5 text-foreground">
+                    {repairNote}
+                  </p>
+                )}
+
                 {report.readiness === 'not_ready' && selected && (
-                  <Link
-                    href={buildCurriculumHref({ courseId: selected.course_id })}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground hover:bg-primary/90"
-                  >
-                    Fix in curriculum builder
-                  </Link>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {/* The AI closes the mechanical gaps — missing topics, focus points, week
+                        numbering. Anything it cannot safely fix is left for a person, and the
+                        builder link stays for exactly that. */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={repairWithAi}
+                        disabled={repairing || checking}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <SparklesIcon className="h-5 w-5" />
+                        {repairing ? 'Repairing…' : 'Fix what can be fixed automatically'}
+                      </button>
+                    )}
+                    <Link
+                      href={buildCurriculumHref({ courseId: selected.course_id })}
+                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
+                        isAdmin
+                          ? 'border border-border bg-card text-foreground hover:bg-muted'
+                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
+                    >
+                      Fix in curriculum builder
+                    </Link>
+                  </div>
                 )}
               </div>
             )}
