@@ -179,7 +179,18 @@ export default function ClassDetailPage() {
     let classLoaded = false;
     try {
       const [clsJson, sessRes] = await Promise.all([
-        fetchJsonWithTimeout(`/api/classes/${id}`, { data: null, error: 'Class not found' }, 'class detail record'),
+        (async () => {
+          try {
+            const res = await fetch(`/api/classes/${id}`, { cache: 'no-store' });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              return { data: null, error: json.error || `Class request failed (${res.status})` };
+            }
+            return json;
+          } catch (err: any) {
+            return { data: null, error: err?.message || 'Class not found' };
+          }
+        })(),
         withTimeout(
           supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
           { data: [], error: null },
@@ -447,6 +458,15 @@ export default function ClassDetailPage() {
     if (profile && id) { fetchData(); void loadTransferRequests(); }
     else setLoading(false);
   }, [id, profile?.id, authLoading]);
+
+  // Keep the realtime matcher in step with this class's loaded work.
+  // Must stay above early returns — conditional hooks crash the page after load.
+  useEffect(() => {
+    classWorkIds.current = {
+      assignments: new Set(items.assignments.map((a: any) => a.id)),
+      exams: new Set(items.cbt.map((e: any) => e.id)),
+    };
+  }, [items.assignments, items.cbt]);
 
   // Live monitor. A week marked taught, a script submitted, an exam finished — wherever it
   // happens, the class reflects it without a refresh.
@@ -1161,14 +1181,6 @@ export default function ClassDetailPage() {
     }
     return map;
   })();
-
-  // Keep the realtime matcher in step with whatever work this class currently has.
-  useEffect(() => {
-    classWorkIds.current = {
-      assignments: new Set(items.assignments.map((a: any) => a.id)),
-      exams: new Set(items.cbt.map((e: any) => e.id)),
-    };
-  }, [items.assignments, items.cbt]);
 
   const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
   const inactiveTermStudents = [
