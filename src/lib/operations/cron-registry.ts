@@ -17,6 +17,14 @@
  * The external scheduler itself (cron-job.org) lives outside this repo. This registry is the
  * contract it is expected to honour; `trigger: 'external'` entries are the ones that need an
  * entry there.
+ *
+ * NOTHING is scheduled by the host. `vercel.json` deliberately has no `crons` key and
+ * `wrangler.toml` deliberately has no `[triggers]`, and neither should be given one. Both used to
+ * list nine jobs that were never firing — verified against cron_run_history on 2026-07-31, where
+ * academic-readiness ran twice in seven days rather than the seven its 04:30 daily entry implied,
+ * and term-scheduler twice rather than seven. Re-adding them would not fix a schedule; it would
+ * double-fire jobs that already run, including the invoice, billing and payment reminders that
+ * email parents.
  */
 
 export type CronTrigger =

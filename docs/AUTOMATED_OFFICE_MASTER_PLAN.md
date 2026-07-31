@@ -949,6 +949,13 @@ with `npm run cron:table` after adding, retiming, or retiring a job — do not h
 registry also feeds each route's health interval and the Operations Health panel, and
 `cron-registry.test.ts` fails the build if a route and its entry ever disagree.
 
+**Every job is scheduled externally. Nothing is scheduled by the host.** `vercel.json` has no
+`crons` key and `wrangler.toml` has no `[triggers]`, both deliberately. They previously listed nine
+jobs that were never actually firing — confirmed against `cron_run_history` on 2026-07-31, where
+`academic-readiness` ran twice in seven days instead of the seven implied by its daily 04:30 entry.
+Do not re-add them: it would not restore a schedule, it would double-fire jobs that already run,
+including the invoice, billing and payment reminders that email parents.
+
 | Job | Schedule (WAT) | Maximum healthy age | Triggered by | Purpose |
 |---|---:|---:|---|---|
 | `process-notifications` | Every 2-5 minutes | 11 minutes | External scheduler | Email queue, WhatsApp outbox, scheduled newsletters |
