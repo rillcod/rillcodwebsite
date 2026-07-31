@@ -145,12 +145,13 @@
   --secondary: #F1F5F9;
   --secondary-foreground: #0D1B2A;
   --muted: #F1F5F9;
-  --muted-foreground: #64748B;
+  --muted-foreground: #475569;
   --accent: #C41E3A;
   --accent-foreground: #FFFFFF;
   --destructive: #C41E3A;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
+  --destructive-foreground: #FFFFFF;
+  --border: #CBD5E1;
+  --input: #CBD5E1;
   --ring: #1A3A8F;
   --chart-1: #1A3A8F;
   --chart-2: #C41E3A;
@@ -158,7 +159,7 @@
   --chart-4: #EF4444;
   --chart-5: #1E40AF;
   --scrollbar-track: #F1F5F9;
-  --scrollbar-thumb: rgba(26, 58, 143, 0.1);
+  --scrollbar-thumb: rgba(26, 58, 143, 0.2);
   --scrollbar-thumb-hover: #C41E3A;
   
   /* Brand colors - consistent across themes */
@@ -174,34 +175,39 @@
 }
 
 .dark {
-  --sidebar: #0A1628;
-  --sidebar-foreground: #EEF2FF;
-  --background: #0D1B2A;
-  --foreground: #EEF2FF;
-  --card: #112240;
-  --card-foreground: #EEF2FF;
-  --popover: #112240;
-  --popover-foreground: #EEF2FF;
+  --sidebar: #09111E;
+  --sidebar-foreground: #F8FAFC;
+  --background: #09111E;
+  --foreground: #F8FAFC;
+  --card: #0F1D33;
+  --card-foreground: #F8FAFC;
+  --popover: #0F1D33;
+  --popover-foreground: #F8FAFC;
   --primary: #3B6FE8;
   --primary-foreground: #FFFFFF;
-  --secondary: #1A2E4A;
-  --secondary-foreground: #EEF2FF;
-  --muted: #1A2E4A;
-  --muted-foreground: #7A90B0;
+  --secondary: #172A46;
+  --secondary-foreground: #F8FAFC;
+  --muted: #172A46;
+  --muted-foreground: #94A3B8;
   --accent: #E8334A;
   --accent-foreground: #FFFFFF;
-  --destructive: #991B1B;
-  --border: #1E3050;
-  --input: #1E3050;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #1E3456;
+  --input: #1E3456;
   --ring: #3B6FE8;
   --chart-1: #3B6FE8;
   --chart-2: #E8334A;
   --chart-3: #60A5FA;
   --chart-4: #F87171;
   --chart-5: #818CF8;
-  --scrollbar-track: #0D1B2A;
-  --scrollbar-thumb: rgba(59, 111, 232, 0.25);
+  --scrollbar-track: #09111E;
+  --scrollbar-thumb: rgba(59, 111, 232, 0.35);
   --scrollbar-thumb-hover: #E8334A;
+  
+  /* Dark mode brand colors */
+  --brand-blue: #3B6FE8;
+  --brand-red: #E8334A;
 }
 
 /* ── Signature blend mode — removes white bg on light backgrounds ── */

@@ -150,15 +150,23 @@ export default async function RootLayout({
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
 
         <style dangerouslySetInnerHTML={{ __html: `
-          :root {
+          :root:not(.dark) {
             --primary: ${brandColor} !important;
             --primary-foreground: #ffffff !important;
           }
+          .dark {
+            --primary: #3B6FE8 !important;
+            --primary-foreground: #ffffff !important;
+          }
           ${brandColor ? `
-          .text-primary { color: ${brandColor} !important; }
-          .bg-primary { background-color: ${brandColor} !important; }
-          .border-primary { border-color: ${brandColor} !important; }
-          .ring-primary { --tw-ring-color: ${brandColor} !important; }
+          :root:not(.dark) .text-primary { color: ${brandColor} !important; }
+          :root:not(.dark) .bg-primary { background-color: ${brandColor} !important; }
+          :root:not(.dark) .border-primary { border-color: ${brandColor} !important; }
+          :root:not(.dark) .ring-primary { --tw-ring-color: ${brandColor} !important; }
+          .dark .text-primary { color: #3B6FE8 !important; }
+          .dark .bg-primary { background-color: #3B6FE8 !important; }
+          .dark .border-primary { border-color: #3B6FE8 !important; }
+          .dark .ring-primary { --tw-ring-color: #3B6FE8 !important; }
           ` : ''}
         ` }} />
         
