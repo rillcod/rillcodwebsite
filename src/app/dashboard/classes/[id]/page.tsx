@@ -68,6 +68,11 @@ export default function ClassDetailPage() {
     if (requested === 'teaching' || requested === 'assessment') setActiveOperation(requested);
   }, [searchParams]);
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
+  /**
+   * Curriculum delivery for this class — the difference between a roster and a monitor.
+   * `planned` is every week tracked for the class, `delivered` the ones marked taught.
+   */
+  const [coverage, setCoverage] = useState<{ delivered: number; planned: number } | null>(null);
   const [manualEntry, setManualEntry] = useState(false);
   const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
 
@@ -299,6 +304,20 @@ export default function ClassDetailPage() {
           cbtSessions
         });
         setProgramCourses(coursesRes.data ?? []);
+
+        const weekRes = await withTimeout(
+          supabase
+            .from('curriculum_week_tracking')
+            .select('status')
+            .eq('class_id', id),
+          { data: [] },
+          'class delivery coverage'
+        );
+        const weekRows = ((weekRes as { data: { status: string }[] | null })?.data ?? []);
+        setCoverage({
+          delivered: weekRows.filter((w) => w.status === 'delivered').length,
+          planned: weekRows.length,
+        });
       } else {
         // No program_id, set empty items
         setItems({
@@ -423,6 +442,32 @@ export default function ClassDetailPage() {
     if (profile && id) { fetchData(); void loadTransferRequests(); }
     else setLoading(false);
   }, [id, profile?.id, authLoading]);
+
+  // Live coverage: a week marked taught anywhere — this page, the teaching workspace, a
+  // phone in a classroom — moves the bar without a refresh.
+  useEffect(() => {
+    if (!id || !profile) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`class_coverage_${id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'curriculum_week_tracking', filter: `class_id=eq.${id}` },
+        async () => {
+          const { data } = await supabase
+            .from('curriculum_week_tracking')
+            .select('status')
+            .eq('class_id', id);
+          const rows = data ?? [];
+          setCoverage({
+            delivered: rows.filter((w: { status: string }) => w.status === 'delivered').length,
+            planned: rows.length,
+          });
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, profile?.id]);
 
   const loadAvailableStudents = async () => {
     if (!cls) return;
@@ -1111,9 +1156,16 @@ export default function ClassDetailPage() {
     {
       id: 'teaching' as const,
       title: 'Teaching',
-      desc: 'Lessons, course focus, class sessions',
+      desc: 'Curriculum weeks, lessons, class sessions',
       icon: BookOpenIcon,
-      stat: `${items.lessons.length} lessons`,
+      // Weeks taught says how far the class has actually got; the lesson count only
+      // says how much material exists. Fall back until the coverage read lands.
+      stat: coverage && coverage.planned > 0
+        ? `${coverage.delivered}/${coverage.planned} weeks taught`
+        : `${items.lessons.length} lessons`,
+      progress: coverage && coverage.planned > 0
+        ? Math.round((coverage.delivered / coverage.planned) * 100)
+        : null,
       tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
@@ -1206,6 +1258,65 @@ export default function ClassDetailPage() {
                 </div>
               ))}
             </div>
+
+            {/* Curriculum coverage — how far this class has actually been taught.
+                Updates live as weeks are recorded, so the class reads as a monitor
+                rather than a roster. */}
+            {coverage && coverage.planned > 0 && (() => {
+              const pct = Math.round((coverage.delivered / coverage.planned) * 100);
+              const tone = pct >= 80
+                ? 'bg-emerald-500'
+                : pct >= 40
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500';
+              return (
+                <div className="mt-3 rounded-xl border border-border bg-background/70 p-3 sm:mt-4 sm:rounded-2xl sm:p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Curriculum coverage
+                    </p>
+                    <p className="text-xs font-black text-foreground">
+                      {coverage.delivered} of {coverage.planned} weeks taught
+                      <span className="ml-2 text-muted-foreground">{pct}%</span>
+                    </p>
+                  </div>
+                  {/* Up to a term's worth of weeks reads better as blocks — you can see
+                      which weeks are done. Beyond that they would be slivers on a phone,
+                      so fall back to a single bar. */}
+                  <div
+                    className="mt-2"
+                    role="progressbar"
+                    aria-valuenow={pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Curriculum weeks taught"
+                  >
+                    {coverage.planned <= 16 ? (
+                      <div className="flex gap-1">
+                        {Array.from({ length: coverage.planned }, (_, index) => (
+                          <span
+                            key={index}
+                            title={`Week ${index + 1}${index < coverage.delivered ? ' — taught' : ' — not yet taught'}`}
+                            className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
+                              index < coverage.delivered ? tone : 'bg-muted'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
+                        <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    {coverage.delivered === coverage.planned
+                      ? 'Every planned week has been taught.'
+                      : `${coverage.planned - coverage.delivered} week${coverage.planned - coverage.delivered === 1 ? '' : 's'} still to teach.`}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
