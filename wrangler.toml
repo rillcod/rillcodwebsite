@@ -1,18 +1,48 @@
 #:schema node_modules/wrangler/config-schema.json
-# OpenNext targets Cloudflare Workers (not Pages Functions).
-# Pages Functions cap at 25 MiB uncompressed — this app's worker is ~90 MiB there.
-# Workers keep static assets out of the script and apply a gzip size limit instead.
+# Full LMS on Cloudflare Containers (Node Next.js) behind a thin Worker gateway.
+# OpenNext Workers cannot fit this app (~96 MiB script vs 64 MiB limit).
 name = "rillcodwebsite"
-main = ".open-next/worker.js"
-compatibility_date = "2025-03-01"
-compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+main = "src/cloudflare/container-gateway.ts"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = ".open-next/assets"
-binding = "ASSETS"
+# Staging host first — switch apex/www after smoke tests.
+# Requires a DNS record for cf.rillcod.com in the rillcod.com zone.
+[[routes]]
+pattern = "cf.rillcod.com/*"
+zone_name = "rillcod.com"
+
+[[containers]]
+class_name = "NextAppContainer"
+image = "./Dockerfile"
+max_instances = 5
+instance_type = "standard-2"
+image_vars = { NEXT_PUBLIC_APP_URL = "https://cf.rillcod.com", NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-", NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = "pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d", NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs", NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz" }
+
+[[durable_objects.bindings]]
+name = "NEXT_APP"
+class_name = "NextAppContainer"
+
+[[migrations]]
+tag = "v1-next-container"
+new_sqlite_classes = ["NextAppContainer"]
+
+# Mirror Vercel crons → Worker scheduled → container /api/cron/*
+[triggers]
+crons = [
+  "0 7 * * *",
+  "0 8 * * *",
+  "0 9 * * *",
+  "5 5 * * *",
+  "30 6 * * *",
+  "0 10 * * *",
+  "30 4 * * *",
+  "0 9 1 * *",
+  "0 3 * * *",
+]
 
 [vars]
-NEXT_PUBLIC_APP_URL = "https://rillcod.com"
+NEXT_PUBLIC_APP_URL = "https://cf.rillcod.com"
 NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-"

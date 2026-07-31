@@ -14,7 +14,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const PROJECT = process.env.CF_PAGES_PROJECT || "rillcodwebsite";
+const PROJECT = process.env.CF_WORKER_NAME || process.env.CF_PAGES_PROJECT || "rillcodwebsite";
 const ENV_FILE = path.resolve(ROOT, process.env.CF_ENV_FILE || ".env.vercel.local");
 const WRANGLER = path.join(ROOT, "wrangler.toml");
 

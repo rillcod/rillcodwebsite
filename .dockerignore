@@ -1,0 +1,26 @@
+# Cloudflare Containers / local Docker build context
+Dockerfile
+.dockerignore
+.git
+.github
+.next
+.open-next
+.vercel
+.turbo
+node_modules
+android
+ios
+coverage
+*.md
+.env
+.env.*
+!.env.example
+bun.lock
+bun.lock.opennext-hidden
+public/sw.js
+public/workbox-*.js
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+agent-transcripts
+.cursor
