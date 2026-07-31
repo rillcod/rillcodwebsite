@@ -310,7 +310,7 @@ export async function DELETE(
 
     return NextResponse.json(
       {
-        error: `Cannot delete yet: ${reasons.join("; ")}. Use force cleanup to unlink editions, remove draft plans and clear week records, then delete this copy.`,
+        error: `Cannot delete yet: ${reasons.join("; ")}. Use force cleanup to remove linked editions, schedules, draft plans and week records, then delete this copy.`,
         can_force: true,
         official_release_count: releaseCount ?? 0,
         linked_plan_count: planCount,

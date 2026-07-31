@@ -48,7 +48,13 @@ async function callerCanManageCurriculumSchool(
 
 /** One thing standing between this curriculum and deletion. */
 export interface CurriculumDependent {
-  kind: 'official_edition' | 'teaching_plan' | 'delivery_record';
+  kind:
+    | 'official_edition'
+    | 'teaching_plan'
+    | 'delivery_record'
+    | 'delivery_schedule'
+    | 'school_adoption'
+    | 'offering_direction';
   id: string;
   label: string;
   detail: string;
@@ -96,9 +102,35 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       .order('week_number', { ascending: true }),
   ]);
 
+  const releases = releasesRes.data ?? [];
+  const releaseIds = releases.map((r: any) => r.id);
+
+  let schedules: any[] = [];
+  let adoptions: any[] = [];
+  let directions: any[] = [];
+  if (releaseIds.length > 0) {
+    const [schedRes, adoptRes, dirRes] = await Promise.all([
+      admin
+        .from('academic_curriculum_delivery_schedules')
+        .select('id, school_id, class_id, course_id, release_id, schools(name), classes(name)')
+        .in('release_id', releaseIds),
+      admin
+        .from('academic_curriculum_adoptions')
+        .select('id, school_id, course_id, release_id, status, schools(name)')
+        .in('release_id', releaseIds),
+      admin
+        .from('academic_offering_curriculum_directions')
+        .select('id, academic_offering_id, course_id, release_id, status')
+        .in('release_id', releaseIds),
+    ]);
+    schedules = schedRes.data ?? [];
+    adoptions = adoptRes.data ?? [];
+    directions = dirRes.data ?? [];
+  }
+
   const dependents: CurriculumDependent[] = [];
 
-  for (const r of releasesRes.data ?? []) {
+  for (const r of releases) {
     const rel = r as any;
     const published = rel.published_at
       ? new Date(rel.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -107,21 +139,59 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       kind: 'official_edition',
       id: rel.id,
       label: rel.title || `Edition ${rel.release_number ?? '—'}`,
-      // There is no single-edition page, so everything identifying it is shown inline.
       detail: [
+        `Release ID ${String(rel.id).slice(0, 8)}…`,
         rel.release_number != null ? `Edition #${rel.release_number}` : null,
         rel.academic_session,
         rel.audience_label,
         rel.status,
         published ? `published ${published}` : null,
       ].filter(Boolean).join(' · ') || 'Published edition',
-      // The edition keeps its own copy of the content; only the "made from" link goes.
-      onCleanup: 'unlinked',
-      safe: true,
-      // Send them to where the edition is AUTHORED, not where it is distributed:
-      // the curriculum step shows the live official edition (OfficialDirectionStatus)
-      // for the course, which is what you want in view before building the next one.
+      // Force cleanup now deletes the edition after clearing RESTRICT children.
+      onCleanup: 'deleted',
+      safe: false,
       href: row.course_id ? `/dashboard/academic/build?course_id=${row.course_id}` : '/dashboard/academic/build',
+    });
+  }
+
+  for (const s of schedules) {
+    const school = Array.isArray(s.schools) ? s.schools[0] : s.schools;
+    const klass = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+    dependents.push({
+      kind: 'delivery_schedule',
+      id: s.id,
+      label: `${school?.name ?? 'School'} delivery schedule`,
+      detail: [
+        klass?.name ? `Class ${klass.name}` : 'School-wide',
+        `Release ${String(s.release_id).slice(0, 8)}…`,
+      ].filter(Boolean).join(' · '),
+      onCleanup: 'deleted',
+      safe: false,
+      href: s.class_id ? `/dashboard/classes/${s.class_id}` : undefined,
+    });
+  }
+
+  for (const a of adoptions) {
+    const school = Array.isArray(a.schools) ? a.schools[0] : a.schools;
+    dependents.push({
+      kind: 'school_adoption',
+      id: a.id,
+      label: `${school?.name ?? 'School'} adoption`,
+      detail: [a.status, `Release ${String(a.release_id).slice(0, 8)}…`].filter(Boolean).join(' · '),
+      onCleanup: 'deleted',
+      safe: false,
+      href: '/dashboard/academic/rollout',
+    });
+  }
+
+  for (const d of directions) {
+    dependents.push({
+      kind: 'offering_direction',
+      id: d.id,
+      label: 'Offering curriculum direction',
+      detail: [d.status, `Offering ${String(d.academic_offering_id).slice(0, 8)}…`].filter(Boolean).join(' · '),
+      onCleanup: 'deleted',
+      safe: false,
     });
   }
 
@@ -133,9 +203,9 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       kind: 'teaching_plan',
       id: plan.id,
       label: klass?.name ? `${klass.name} teaching plan` : 'Teaching plan (no class)',
-      detail: [plan.status, plan.term ? `Term ${plan.term}` : null].filter(Boolean).join(' · '),
-      // Drafts are throwaway; anything live keeps its content and simply stops
-      // pointing at this copy, so no teaching history is lost.
+      detail: [plan.status, plan.term ? `Term ${plan.term}` : null, `Plan ${String(plan.id).slice(0, 8)}…`]
+        .filter(Boolean)
+        .join(' · '),
       onCleanup: isDraft ? 'deleted' : 'detached',
       safe: isDraft,
       href: `/dashboard/lesson-plans/${plan.id}`,
@@ -160,7 +230,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       label: `${group.name} — ${group.weeks.length} delivered week${group.weeks.length === 1 ? '' : 's'}`,
       detail: group.weeks.slice(0, 12).join(', ') + (group.weeks.length > 12 ? ` +${group.weeks.length - 12} more` : ''),
       onCleanup: 'deleted',
-      safe: false, // this is real delivery history — worth a second look
+      safe: false,
       href: group.classId ? `/dashboard/classes/${group.classId}` : undefined,
     });
   }
@@ -168,16 +238,29 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const livePlans = (plansRes.data ?? []).filter((p: any) => p.status !== 'draft' && p.status !== 'archived');
 
   return NextResponse.json({
-    curriculum: { id: row.id, version: row.version, course_id: row.course_id },
+    curriculum: {
+      id: row.id,
+      version: row.version,
+      course_id: row.course_id,
+      school_id: row.school_id,
+    },
     dependents,
     summary: {
       total: dependents.length,
-      official_editions: (releasesRes.data ?? []).length,
+      official_editions: releases.length,
+      delivery_schedules: schedules.length,
+      school_adoptions: adoptions.length,
+      offering_directions: directions.length,
       teaching_plans: (plansRes.data ?? []).length,
       live_plans: livePlans.length,
       delivery_weeks: weeks.length,
-      /** Nothing irreversible: no live plans and no delivery history. */
-      fully_safe: livePlans.length === 0 && weeks.length === 0,
+      /** Nothing irreversible: no live plans, no delivery history, no schedules/adoptions. */
+      fully_safe:
+        livePlans.length === 0 &&
+        weeks.length === 0 &&
+        schedules.length === 0 &&
+        adoptions.length === 0 &&
+        releases.length === 0,
     },
   });
 }

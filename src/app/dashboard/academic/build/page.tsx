@@ -503,7 +503,13 @@ export default function CurriculumPage() {
   // opened rather than described as a count in an error string.
   const [blockers, setBlockers] = useState<{
     dependents: Array<{
-      kind: "official_edition" | "teaching_plan" | "delivery_record";
+      kind:
+        | "official_edition"
+        | "teaching_plan"
+        | "delivery_record"
+        | "delivery_schedule"
+        | "school_adoption"
+        | "offering_direction";
       id: string;
       label: string;
       detail: string;
@@ -518,6 +524,9 @@ export default function CurriculumPage() {
       live_plans: number;
       delivery_weeks: number;
       fully_safe: boolean;
+      delivery_schedules?: number;
+      school_adoptions?: number;
+      offering_directions?: number;
     };
   } | null>(null);
   const [blockersLoading, setBlockersLoading] = useState(false);
@@ -3264,7 +3273,7 @@ export default function CurriculumPage() {
     if (!opts?.force) {
       if (
         !window.confirm(
-          `Delete this curriculum copy (${label})?\n\nIf something still uses it, you will be offered a safe cleanup that keeps official editions intact.`
+          `Delete this curriculum copy (${label})?\n\nIf something still uses it, you will see the blockers listed and can force-clean them (including linked editions, schedules, and tracking).`
         )
       )
         return;
@@ -4606,7 +4615,7 @@ export default function CurriculumPage() {
                               onClick={async () => {
                                 if (
                                   !confirm(
-                                    `Delete ALL ${curriculumList.length} visible copies for "${selectedCourse?.title}"?\n\nEach copy will use safe cleanup (unlink editions, remove draft plans, clear week records). Official published editions are kept.`
+                                    `Delete ALL ${curriculumList.length} visible copies for "${selectedCourse?.title}"?\n\nEach copy is force-cleaned: linked editions, delivery schedules, adoptions, draft plans, and week tracking are removed. Failures are listed if anything remains.`
                                   )
                                 )
                                   return;
@@ -4896,15 +4905,17 @@ export default function CurriculumPage() {
                                       ? "Open in the builder →"
                                       : d.kind === "teaching_plan"
                                         ? "Open this plan →"
-                                        : "Open this class →"}
+                                        : d.kind === "school_adoption"
+                                          ? "Open rollout →"
+                                          : "Open this class →"}
                                   </Link>
                                 )}
                               </div>
                             ))}
                             <p className="text-[11px] leading-5 opacity-90">
                               {blockers.summary.fully_safe
-                                ? "Nothing here is teaching history — official editions stay published and only draft records go."
-                                : "Some of these are real delivery history. Review them before cleaning up."}
+                                ? "Nothing irreversible here — force cleanup can remove these blockers and delete this copy."
+                                : "Some of these are real delivery history or live editions. Review them before cleaning up — force delete removes editions and schedules tied to this copy."}
                             </p>
                           </div>
                         )}
