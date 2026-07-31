@@ -1238,44 +1238,44 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo */}
-        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-sidebar-foreground/[0.08] relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] to-transparent pointer-events-none" />
-          <div className="w-11 h-11 bg-primary/10 border border-primary/25 flex items-center justify-center shadow-[0_0_24px_rgba(26,58,143,0.15)] mb-3 relative z-10">
+        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-border/70 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] to-transparent pointer-events-none" />
+          <div className="w-12 h-12 bg-white dark:bg-card border border-primary/30 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/10 mb-3 relative z-10 p-2 transition-transform hover:scale-105">
             <Image
               src="/images/logo.png"
               alt="Rillcod Technologies"
-              width={28}
-              height={28}
+              width={32}
+              height={32}
               className="object-contain"
               priority
             />
           </div>
           <div className="text-center leading-none relative z-10">
-            <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">
-              RILLCOD<span className="text-brand-red-500">.</span>
+            <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-foreground italic">
+              RILLCOD<span className="text-brand-red-500 not-italic">.</span>
             </h1>
-            <p className="text-[12px] font-black uppercase tracking-[0.2em] text-brand-red-500/80 italic mt-0.5">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground italic mt-0.5">
               TECHNOLOGIES
             </p>
           </div>
         </div>
 
         {/* User badge */}
-        <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-foreground/[0.08] bg-sidebar-foreground/[0.03]">
-          <div className="w-9 h-9 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(26,58,143,0.12)]">
-            <span className="text-primary text-sm font-black uppercase">
-              {profile.full_name?.charAt(0) ?? "U"}
-            </span>
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-border/70 bg-card/50 backdrop-blur-sm">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/25 font-black text-sm">
+            {profile.full_name?.charAt(0) ?? "U"}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[14px] font-black truncate text-sidebar-foreground/90 tracking-wide">
+            <span className="text-[14px] font-black truncate text-foreground tracking-wide">
               {profile.full_name}
             </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/70 mt-0.5">
-              {profile.role === "school" && profile.school_name
-                ? profile.school_name
-                : profile.role}
-            </span>
+            <div className="mt-0.5">
+              <span className="bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">
+                {profile.role === "school" && profile.school_name
+                  ? profile.school_name
+                  : profile.role}
+              </span>
+            </div>
           </div>
           <div className="ml-auto flex-shrink-0">
             <NotificationDropdown />
@@ -1485,33 +1485,28 @@ function NavLink({
       href={href}
       aria-current={active ? "page" : undefined}
       onClick={() => setMobileOpen(false)}
-      className={`relative flex items-center gap-3 px-3 py-2 text-[12px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${
+      className={`relative flex items-center gap-3 px-3.5 py-2.5 text-[12px] font-black tracking-[0.08em] uppercase transition-all duration-200 group rounded-xl ${
         active
-          ? "bg-primary/[0.08] text-sidebar-foreground"
-          : "text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]"
-      } ${sub ? "ml-4 py-1.5" : "py-2.5"}`}
+          ? "bg-primary/10 text-primary border-l-4 border-l-brand-red-500 shadow-sm"
+          : "text-muted-foreground/75 hover:text-foreground hover:bg-muted/70"
+      } ${sub ? "ml-3 py-2" : "py-2.5"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
     >
-      {active && (
-        <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-brand-red-600 shadow-[0_0_12px_rgba(196,30,58,0.6)]" />
-      )}
       <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
           active
-            ? "bg-primary/10 shadow-lg scale-110"
-            : "bg-transparent group-hover:bg-sidebar-foreground/5"
+            ? "bg-primary text-white shadow-md shadow-primary/30 scale-105"
+            : "bg-muted/40 group-hover:bg-muted group-hover:text-foreground"
         }`}
       >
         <Icon
-          className={`w-3.5 h-3.5 flex-shrink-0 transition-all ${
-            active
-              ? "text-primary drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]"
-              : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60"
+          className={`w-4 h-4 flex-shrink-0 transition-colors ${
+            active ? "text-white" : "text-muted-foreground group-hover:text-foreground"
           }`}
         />
       </div>
-      <span className="truncate">{name}</span>
+      <span className="truncate font-bold">{name}</span>
       {active && (
-        <div className="ml-auto w-1 h-1 rounded-full bg-brand-red-600/80 flex-shrink-0" />
+        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-red-500 flex-shrink-0 animate-pulse" />
       )}
     </Link>
   );
