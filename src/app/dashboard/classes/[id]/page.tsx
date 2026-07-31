@@ -443,30 +443,51 @@ export default function ClassDetailPage() {
     else setLoading(false);
   }, [id, profile?.id, authLoading]);
 
-  // Live coverage: a week marked taught anywhere — this page, the teaching workspace, a
-  // phone in a classroom — moves the bar without a refresh.
+  // Live monitor. A week marked taught, a script submitted, an exam finished — wherever it
+  // happens, the class reflects it without a refresh.
+  //
+  // Coverage recomputes in place because it is two numbers. Learner work re-runs fetchData
+  // instead: submissions and CBT sessions are keyed on assignment and exam ids the page
+  // already resolved, so recomputing them here would mean duplicating that whole chain.
   useEffect(() => {
     if (!id || !profile) return;
     const supabase = createClient();
+
+    const refreshCoverage = async () => {
+      const { data } = await supabase
+        .from('curriculum_week_tracking')
+        .select('status')
+        .eq('class_id', id);
+      const rows = data ?? [];
+      setCoverage({
+        delivered: rows.filter((w: { status: string }) => w.status === 'delivered').length,
+        planned: rows.length,
+      });
+    };
+
+    // Marking a whole class's work fires a burst of row events; coalesce them so the
+    // roster refetches once rather than per submission.
+    let pending: ReturnType<typeof setTimeout> | undefined;
+    const refreshLearners = () => {
+      clearTimeout(pending);
+      pending = setTimeout(() => { void fetchData(); }, 1200);
+    };
+
     const channel = supabase
-      .channel(`class_coverage_${id}`)
+      .channel(`class_monitor_${id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'curriculum_week_tracking', filter: `class_id=eq.${id}` },
-        async () => {
-          const { data } = await supabase
-            .from('curriculum_week_tracking')
-            .select('status')
-            .eq('class_id', id);
-          const rows = data ?? [];
-          setCoverage({
-            delivered: rows.filter((w: { status: string }) => w.status === 'delivered').length,
-            planned: rows.length,
-          });
-        },
+        () => { void refreshCoverage(); },
       )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignment_submissions' }, refreshLearners)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cbt_sessions' }, refreshLearners)
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+
+    return () => {
+      clearTimeout(pending);
+      void supabase.removeChannel(channel);
+    };
   }, [id, profile?.id]);
 
   const loadAvailableStudents = async () => {

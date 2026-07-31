@@ -9,6 +9,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { wipePortalUserCascade, prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails } from '@/lib/students/permanent-wipe';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export type HollowAccount = {
   id: string;
@@ -90,11 +91,18 @@ async function collectOrphans(db: SupabaseClient) {
 }
 
 async function collectDisconnectedLinks(db: SupabaseClient) {
-  const { data: parentLinks } = await db.from('parent_student_links').select('id, parent_id, student_id');
-  const { data: validUsers } = await db.from('portal_users').select('id');
+  // Every read here MUST be paginated. These sets decide which parent_student_links rows
+  // runPurge deletes, so a row missing from them is a valid link destroyed. PostgREST caps
+  // an unpaginated select at 1000, and portal_users is already past that — an unpaginated
+  // read silently marked the users beyond the cap as nonexistent.
+  const { data: parentLinks } = await fetchAllSupabaseRows<any>((from, to) =>
+    db.from('parent_student_links').select('id, parent_id, student_id').range(from, to));
+  const { data: validUsers } = await fetchAllSupabaseRows<any>((from, to) =>
+    db.from('portal_users').select('id').range(from, to));
   const validUserIds = new Set((validUsers ?? []).map((v: any) => v.id));
 
-  const { data: studentRows } = await db.from('students').select('id, user_id');
+  const { data: studentRows } = await fetchAllSupabaseRows<any>((from, to) =>
+    db.from('students').select('id, user_id').range(from, to));
   const validStudentKeys = new Set<string>();
   for (const s of studentRows ?? []) {
     if (s.id) validStudentKeys.add(s.id);
