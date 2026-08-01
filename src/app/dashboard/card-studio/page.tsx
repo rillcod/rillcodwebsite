@@ -2847,28 +2847,30 @@ export default function CardStudioPage() {
   return (
     <div className="flex h-full max-h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
       {/* Top bar */}
-      <div className="flex-shrink-0 min-h-[48px] border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:px-4 sm:py-0 bg-card">
+      <div className="flex-shrink-0 min-h-[52px] border-b border-border/80 flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:px-5 sm:py-2 bg-card/90 backdrop-blur-2xl shadow-md">
         <div className="flex flex-wrap items-center gap-3 w-full">
           <div className="flex items-center gap-2">
-            <CreditCardIcon className="w-4 h-4 text-primary flex-shrink-0"/>
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <CreditCardIcon className="w-4 h-4 text-primary flex-shrink-0"/>
+            </div>
             <span className="text-[11px] font-black uppercase tracking-widest text-foreground hidden xs:block">Card Studio</span>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex gap-px bg-muted border border-border p-0.5 rounded-lg">
+          <div className="flex gap-1 bg-muted/80 border border-border/60 p-1 rounded-xl shadow-inner">
             {([{id:'design' as TabId,label:'Design'},{id:'manage' as TabId,label:'Manage'}]).map(t=>(
               <button key={t.id} onClick={()=>switchTab(t.id)}
-                className={`px-3.5 py-1 text-[10px] font-black uppercase tracking-wide rounded-md transition-all ${activeTab===t.id?'bg-primary text-primary-foreground shadow-sm':'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${activeTab===t.id?'bg-primary text-primary-foreground shadow-md':'text-muted-foreground hover:text-foreground'}`}>
                 {t.label}
               </button>
             ))}
           </div>
 
           {/* Card type selector */}
-          <div className="flex gap-px bg-muted border border-border p-0.5 rounded-lg">
+          <div className="flex gap-1 bg-muted/80 border border-border/60 p-1 rounded-xl shadow-inner">
             {CARD_TYPES.map(t=>(
               <button key={t} onClick={()=>applyCardType(t)}
-                className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wide rounded-md transition-all ${cardType===t?'bg-background text-foreground shadow-sm':'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${cardType===t?'bg-background text-foreground shadow-sm font-black':'text-muted-foreground hover:text-foreground'}`}>
                 {t}
               </button>
             ))}

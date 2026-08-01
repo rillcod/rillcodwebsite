@@ -192,18 +192,22 @@ export default function CertificateVault() {
     return (
         <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             {/* Header */}
-            <div className="bg-card border border-border p-5 sm:p-8 lg:p-10 shadow-sm">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-3 min-w-0">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-primary/10 border border-primary/20 shrink-0">
-                                <TrophyIcon className="w-6 h-6 text-primary" />
+                        <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 border border-primary/30 text-white shadow-xl shadow-primary/30 flex items-center justify-center shrink-0">
+                                <TrophyIcon className="w-6 h-6 text-white" />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground uppercase italic tracking-tighter">
+                                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                                  Official Records
+                                </span>
+                                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tight">
                                     {isStaff ? 'Certificates' : 'My Certificates'}
                                 </h1>
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <p className="text-xs text-muted-foreground font-medium mt-0.5">
                                     {isStaff ? `${certificates.length} certificate${certificates.length !== 1 ? 's' : ''} issued` : 'Certificates you have earned'}
                                 </p>
                             </div>
