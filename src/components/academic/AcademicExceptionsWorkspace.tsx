@@ -295,7 +295,7 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
               Observable dry-run → hard purge
             </span>
             <span className="rounded-full border border-border bg-background px-2.5 py-1 font-bold text-muted-foreground">
-              {data?.all.length ?? 0} flagged accounts
+              {data?.all?.length ?? 0} flagged accounts
             </span>
             {data?.generated_at && (
               <span className="rounded-full border border-border bg-background px-2.5 py-1 font-bold text-muted-foreground">

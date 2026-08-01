@@ -190,7 +190,7 @@ export default function SignUpPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white/5 border border-border rounded-3xl p-7 shadow-2xl backdrop-blur-md">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-5 sm:p-8 shadow-xl">
 
           {/* Role selection */}
           <div className="mb-6">

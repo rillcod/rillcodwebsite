@@ -152,7 +152,7 @@ function LiveAlertToast({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 120, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-      className="pointer-events-auto w-80 bg-[#0a0a0a] border border-emerald-500/40 shadow-2xl shadow-emerald-900/30 overflow-hidden"
+      className="pointer-events-auto w-80 bg-[#0a0a0a]/95 backdrop-blur-2xl border border-emerald-500/40 shadow-2xl shadow-emerald-900/30 overflow-hidden rounded-3xl"
     >
       {/* Progress bar */}
       <div className="h-[2px] bg-white/5">
@@ -166,7 +166,7 @@ function LiveAlertToast({
 
       <div className="p-4 flex items-start gap-3">
         {/* Live pulse */}
-        <div className="flex-shrink-0 mt-0.5 w-9 h-9 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+        <div className="flex-shrink-0 mt-0.5 w-9 h-9 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center rounded-xl">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
@@ -185,16 +185,16 @@ function LiveAlertToast({
           <div className="flex items-center gap-2 mt-3">
             <button
               onClick={onJoin}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+              className="flex min-h-11 items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-xl active:scale-95"
             >
               {isInApp
-                ? <VideoCameraIcon className="w-3 h-3" />
-                : <SignalIcon className="w-3 h-3" />}
+                ? <VideoCameraIcon className="w-3.5 h-3.5" />
+                : <SignalIcon className="w-3.5 h-3.5" />}
               Join Now
             </button>
             <button
               onClick={onDismiss}
-              className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+              className="flex min-h-11 items-center px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-xl active:scale-95"
             >
               Dismiss
             </button>
@@ -203,9 +203,10 @@ function LiveAlertToast({
 
         <button
           onClick={onDismiss}
-          className="flex-shrink-0 p-1 text-muted-foreground hover:text-white transition-colors"
+          aria-label="Dismiss live alert"
+          className="flex-shrink-0 min-h-11 min-w-11 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
         >
-          <XMarkIcon className="w-3.5 h-3.5" />
+          <XMarkIcon className="w-4 h-4" />
         </button>
       </div>
     </motion.div>

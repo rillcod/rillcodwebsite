@@ -54,7 +54,7 @@ export default function RecommendedForYou() {
   if (loading || recs.length === 0) return null;
 
   return (
-    <section className="bg-card border border-border p-5 sm:p-6">
+    <section className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl">
       <div className="flex items-center gap-2 mb-4">
         <SparklesIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
         <h2 className="text-base font-black text-foreground">Recommended for you</h2>

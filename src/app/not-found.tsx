@@ -53,7 +53,7 @@ export default function NotFound() {
             </Link>
           </div>
 
-          <div className="bg-card border border-border p-10 shadow-2xl relative overflow-hidden">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
             <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">
               Alternative Access Points:
             </h3>

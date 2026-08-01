@@ -465,11 +465,11 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
       {/* ── More for this child (cockpit behind disclosure) ── */}
       {children.length > 0 && selectedChildId && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl overflow-hidden shadow-xl">
           <button
             type="button"
             onClick={() => setShowMoreForChild(v => !v)}
-            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/30"
           >
             <div className="flex min-w-0 items-center gap-2">
               <BookOpenIcon className="h-4 w-4 flex-shrink-0 text-primary" />
@@ -484,15 +484,15 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
           </button>
 
           {showMoreForChild && (
-            <div className="space-y-4 border-t border-border p-4">
+            <div className="space-y-4 border-t border-border p-4 sm:p-6">
               {selectedCockpit ? (
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                    <div className="rounded-2xl border border-border bg-muted/20 p-4 text-center">
                       <p className="text-2xl font-black tabular-nums text-foreground">{selectedCockpit.avgScore}%</p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Avg score</p>
                     </div>
-                    <div className="rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="rounded-2xl border border-border bg-muted/20 p-4">
                       <p className="text-2xl font-black tabular-nums text-foreground">
                         {selectedCockpit.lessonsDone}/{selectedCockpit.totalLessons}
                       </p>
@@ -509,7 +509,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                         </p>
                       )}
                     </div>
-                    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-4">
                       <div>
                         <p className="text-lg font-black tabular-nums text-foreground">{selectedCockpit.streak} wk</p>
                         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Streak</p>
@@ -521,7 +521,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <div className="rounded-2xl border border-border bg-muted/20 p-4">
                     <p className="mb-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Learning badges</p>
                     {selectedCockpit.badges.length === 0 ? (
                       <p className="py-4 text-center text-xs text-muted-foreground">
@@ -530,7 +530,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     ) : (
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {selectedCockpit.badges.map((badge: any) => (
-                          <div key={badge.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                          <div key={badge.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
                             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border text-xl">
                               {badge.badge_icon || '🏅'}
                             </div>
@@ -555,7 +555,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                       <Link
                         key={label}
                         href={href}
-                        className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-muted/30 py-2.5 text-center transition-colors hover:bg-primary/10"
+                        className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-muted/30 py-2.5 text-center transition-colors hover:bg-primary/10"
                       >
                         <Icon className="h-4 w-4 text-muted-foreground" />
                         <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">{label}</span>
@@ -586,11 +586,11 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
       {/* ── More quick access (secondary links) ── */}
       {children.length > 0 && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl overflow-hidden shadow-xl">
           <button
             type="button"
             onClick={() => setShowAllQuickAccess(v => !v)}
-            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/30"
           >
             <div>
               <p className="text-sm font-black text-foreground">More links</p>
@@ -606,9 +606,9 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                   <Link
                     key={name}
                     href={href}
-                    className={`flex min-h-11 flex-col gap-2 border p-3 transition-all group ${ring}`}
+                    className={`flex min-h-11 flex-col gap-2 border rounded-2xl p-3 transition-all group ${ring}`}
                   >
-                    <div className={`flex h-9 w-9 items-center justify-center bg-gradient-to-br ${bg} shadow-sm transition-transform group-hover:scale-110`}>
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${bg} shadow-sm transition-transform group-hover:scale-110`}>
                       <Icon className="h-4 w-4 text-white" />
                     </div>
                     <div>
@@ -624,7 +624,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
       {/* Empty-state helper when no kids and not loading */}
       {!dataLoading && children.length === 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-3 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-4 sm:p-6 shadow-xl">
           <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Once a child is linked, you’ll see balances, report cards, and school messages here.

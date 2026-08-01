@@ -4,7 +4,7 @@ import { ShieldCheckIcon, EnvelopeIcon } from '@/lib/icons';
 
 export function NativeBillingNotice({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 via-primary/5 to-transparent ${compact ? 'p-4' : 'p-5 sm:p-6'}`}>
+    <div className={`relative overflow-hidden rounded-3xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 via-primary/5 to-transparent backdrop-blur-2xl shadow-xl ${compact ? 'p-4 sm:p-5' : 'p-5 sm:p-8'}`}>
       <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-cyan-400/10 blur-2xl" />
       <div className="relative flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
