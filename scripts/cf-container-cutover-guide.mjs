@@ -12,8 +12,13 @@ Cloudflare Containers cutover guide
 
 Prerequisites
   1. Workers Paid plan: https://dash.cloudflare.com/?to=/:account/workers/plans
-  2. Docker Desktop installed and running
+  2. Docker Desktop installed and running (local deploys)
   3. npm run cf:container:check   → must exit 0
+  4. GitHub Actions auto-deploy (push to main):
+       Repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
+       Workflow: .github/workflows/deploy-cloudflare.yml
+       Account ID: 718b36de1443954931b052a9594d329d
+       Token: Edit Cloudflare Workers + Containers + Account DNS (zone)
 
 Deploy staging
   1. Add rillcod.com to Cloudflare (required — DNS is currently on Vercel nameservers):

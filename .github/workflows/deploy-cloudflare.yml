@@ -1,0 +1,68 @@
+# Push to main → build Next.js standalone → deploy Cloudflare Containers.
+# Requires repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+name: Deploy Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+
+    env:
+      CI: "true"
+      DOCKER_BUILD: "1"
+      OPENNEXT_CLOUDFLARE: "0"
+      NEXT_PUBLIC_APP_URL: https://www.rillcod.com
+      NEXT_PUBLIC_SUPABASE_URL: https://akaorqukdoawacvxsdij.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs
+      NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify Cloudflare + Docker
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID repo secrets."
+            echo "Create a token: https://dash.cloudflare.com/profile/api-tokens"
+            echo "Account ID: 718b36de1443954931b052a9594d329d"
+            exit 1
+          fi
+          npx wrangler whoami
+          docker info >/dev/null
+
+      - name: Deploy Containers
+        run: npm run cf:container:deploy:ci
+
+      - name: Smoke test
+        run: npm run cf:container:smoke
+        env:
+          CF_SMOKE_BASE: https://www.rillcod.com
