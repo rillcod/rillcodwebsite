@@ -139,6 +139,14 @@ function RolloutWorkspace() {
   const [publishing, setPublishing] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairNote, setRepairNote] = useState('');
+  const [assigningCourse, setAssigningCourse] = useState(false);
+  const [courseNote, setCourseNote] = useState('');
+  const [coursePlan, setCoursePlan] = useState<{
+    to_assign: number;
+    already_set: number;
+    assign: Array<{ id: string; name: string | null }>;
+    refused: Array<{ id: string; name: string | null; reason: string }>;
+  } | null>(null);
   const [session, setSession] = useState('2026/2027');
   const [audience, setAudience] = useState('All assigned learner levels');
   const [termNumber, setTermNumber] = useState(1);
@@ -289,6 +297,50 @@ function RolloutWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not repair this curriculum.');
     } finally { setRepairing(false); }
+  }
+
+  /**
+   * Set this edition's course on every class in the same programme that has none.
+   *
+   * `preview` first, so the exceptions are visible before anything is written. The server only
+   * ever targets classes with no course set, and refuses any class from another programme — a
+   * class cannot be quietly switched to material it does not teach.
+   */
+  async function assignCourseToClasses(preview: boolean) {
+    const targetCourseId = selected?.course_id;
+    const targetProgramId = course?.program_id;
+    if (!targetCourseId || !targetProgramId) {
+      setCourseNote('This edition has no course and programme attached, so classes cannot be matched to it.');
+      return;
+    }
+    setAssigningCourse(true); setError(''); setCourseNote('');
+    try {
+      const response = await fetch('/api/classes/bulk-course', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ course_id: targetCourseId, program_id: targetProgramId, preview }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Could not set the course on these classes.');
+
+      setCoursePlan({
+        to_assign: Number(payload.to_assign ?? 0),
+        already_set: Number(payload.already_set ?? 0),
+        assign: payload.assign ?? [],
+        refused: payload.refusals ?? [],
+      });
+
+      if (!preview) {
+        const n = Number(payload.updated ?? 0);
+        setCourseNote(
+          n > 0
+            ? `${n} class${n === 1 ? '' : 'es'} now teach this course. They pick up the edition on the next readiness run.`
+            : 'No class needed changing.',
+        );
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not set the course on these classes.');
+    } finally { setAssigningCourse(false); }
   }
 
   /** Publishing certifies AND assigns to every eligible school in one action. */
@@ -626,6 +678,69 @@ function RolloutWorkspace() {
                 ? `This course has ${publishedForCourse.length} live edition${publishedForCourse.length === 1 ? '' : 's'} in circulation.`
                 : 'This course has no live edition assigned yet — publish above.'}
             </p>
+
+            {/* Publishing reaches the schools, but a class only picks the edition up once this
+                course is set on it. Where a programme offers several courses nothing can infer
+                which one a class teaches, so without this they sit unassigned indefinitely. */}
+            {isAdmin && selected && (
+              <div className="mt-4 rounded-2xl border border-border bg-muted/20 p-4">
+                <p className="text-sm font-black text-foreground">Classes teaching this course</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A class only follows this edition once it is set to teach{' '}
+                  <span className="font-bold text-foreground">{course?.title ?? 'this course'}</span>.
+                  Classes in this programme that have no course yet can all be set at once.
+                </p>
+
+                {coursePlan && (
+                  <div className="mt-3 rounded-xl border border-border bg-card p-3 text-sm">
+                    {coursePlan.to_assign > 0 ? (
+                      <p className="font-bold text-foreground">
+                        {coursePlan.to_assign} class{coursePlan.to_assign === 1 ? '' : 'es'} would be set to this course.
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">No class is waiting for a course in this programme.</p>
+                    )}
+                    {coursePlan.refused?.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs text-amber-700 dark:text-amber-300">
+                        {coursePlan.refused.slice(0, 5).map((r) => (
+                          <li key={r.id}>{r.name}: {r.reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {coursePlan.assign?.length > 0 && (
+                      <ul className="mt-2 max-h-32 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+                        {coursePlan.assign.map((c) => <li key={c.id}>{c.name}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {courseNote && (
+                  <p className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{courseNote}</p>
+                )}
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => void assignCourseToClasses(true)}
+                    disabled={assigningCourse}
+                    className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-black text-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    {assigningCourse ? 'Checking…' : 'Show which classes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void assignCourseToClasses(false)}
+                    disabled={assigningCourse || !coursePlan || coursePlan.to_assign === 0}
+                    className="rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {coursePlan?.to_assign
+                      ? `Set this course on ${coursePlan.to_assign} class${coursePlan.to_assign === 1 ? '' : 'es'}`
+                      : 'Set this course on the waiting classes'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {publishedForCourse.length > 0 && (
               <button
