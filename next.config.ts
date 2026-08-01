@@ -109,7 +109,7 @@ const nextConfig: NextConfig = {
 
   // next-pwa already injects webpack; disable persistent cache on Vercel to cut peak RAM.
   webpack: (config, { dev, isServer }) => {
-    if (!dev && process.env.VERCEL) {
+    if (!dev && (process.env.VERCEL || process.env.DOCKER_BUILD)) {
       config.cache = false;
     }
     // Cloudflare Workers size limits: stub Node-only heavies so they never enter the Worker.

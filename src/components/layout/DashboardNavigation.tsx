@@ -1251,9 +1251,16 @@ export default function DashboardNavigation() {
             <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-foreground italic">
               RILLCOD<span className="text-brand-red-500 not-italic">.</span>
             </h1>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground italic mt-0.5">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic mt-0.5">
               TECHNOLOGIES
             </p>
+            <div className="flex items-center justify-center gap-1.5 mt-2 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full w-fit mx-auto">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              </span>
+              Live Sync Active
+            </div>
           </div>
         </div>
 

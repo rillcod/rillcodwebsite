@@ -8,6 +8,7 @@ import NewsletterPopup from '@/components/dashboard/NewsletterPopup';
 import StaffQRScanner from '@/components/qr/StaffQRScanner';
 import PartnerSchoolScopeBanner from '@/components/layout/PartnerSchoolScopeBanner';
 import PullToRefreshContainer from '@/components/mobile/PullToRefreshContainer';
+import DesktopTopNavbar from '@/components/layout/DesktopTopNavbar';
 
 // Pages where the QR scanner should NOT appear (overlaps fixed action bars).
 const QR_HIDDEN_PATHS = [
@@ -87,10 +88,11 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell-scroll flex-1 flex flex-col w-full h-full min-h-0 min-w-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto overflow-x-clip md:overflow-y-auto scroll-smooth print:overflow-visible print:pt-0 print:pb-0 print:block">
+      <DesktopTopNavbar />
       <PullToRefreshContainer>
         {profile && <NewsletterPopup userId={profile.id} />}
         {!hideQr && <StaffQRScanner />}
-        <main className="app-page-main flex-1 max-w-[1700px] w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base leading-relaxed">
+        <main className="app-page-main flex-1 max-w-[1750px] w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base leading-relaxed">
           <PartnerSchoolScopeBanner />
           {children}
         </main>

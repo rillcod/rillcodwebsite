@@ -1,13 +1,9 @@
-# Cloudflare Containers / local Docker build context
-Dockerfile
-.dockerignore
+# Cloudflare Containers (Dockerfile.cf) needs .next + node_modules in build context.
 .git
 .github
-.next
 .open-next
 .vercel
 .turbo
-node_modules
 android
 ios
 coverage
