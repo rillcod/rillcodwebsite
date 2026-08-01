@@ -5,11 +5,13 @@ name = "rillcodwebsite"
 main = "src/cloudflare/container-gateway.ts"
 compatibility_date = "2025-05-05"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+preview_urls = false
 
-# Staging host first — switch apex/www after smoke tests.
-# Requires a DNS record for cf.rillcod.com in the rillcod.com zone.
+# Staging host — custom domain route on rillcod.com zone.
 [[routes]]
-pattern = "cf.rillcod.com/*"
+pattern = "cf.rillcod.com"
+custom_domain = true
 zone_name = "rillcod.com"
 
 [[containers]]

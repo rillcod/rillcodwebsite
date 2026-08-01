@@ -16,13 +16,14 @@ Prerequisites
   3. npm run cf:container:check   → must exit 0
 
 Deploy staging
-  1. Ensure wrangler.toml route is ${staging}/*
-  2. In Cloudflare DNS for rillcod.com, add:
-       Type: CNAME   Name: cf   Target: rillcodwebsite.<your-subdomain>.workers.dev
-       (or use Workers custom domain UI: Workers → rillcodwebsite → Domains)
+  1. Add rillcod.com to Cloudflare (required — DNS is currently on Vercel nameservers):
+       https://dash.cloudflare.com/?to=/:account/domains/add
+     Import/copy Vercel DNS records before switching nameservers at your registrar.
+  2. npm run cf:set-route          → attaches ${staging} custom domain to Worker
+     (or full deploy: npm run cf:container:deploy)
   3. npm run cf:secrets
-  4. npm run cf:container:deploy
-  5. CF_SMOKE_BASE=https://${staging} npm run cf:container:smoke
+  4. CF_SMOKE_BASE=https://${staging} npm run cf:container:smoke
+  5. Fallback URL until DNS cutover: https://rillcodwebsite.rillcod.workers.dev
   6. Manually verify: login, dashboard, one API, one PDF, one upload
 
 Production cutover (only after staging is green)

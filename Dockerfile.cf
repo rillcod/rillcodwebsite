@@ -1,4 +1,4 @@
-# Cloudflare Containers — packages a host-built .next (run `npm run build` first).
+# Cloudflare Containers — packages a host-built .next/standalone (run `npm run build` first).
 # Avoids Next.js compile inside Docker on Windows (disk/ROFS issues).
 
 FROM node:22-bookworm-slim AS runner
@@ -13,12 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
-COPY --chown=nextjs:nodejs package.json package-lock.json ./
-COPY --chown=nextjs:nodejs node_modules ./node_modules
-COPY --chown=nextjs:nodejs .next ./.next
+COPY --chown=nextjs:nodejs .next/standalone ./
+COPY --chown=nextjs:nodejs .next/static ./.next/static
 COPY --chown=nextjs:nodejs public ./public
-COPY --chown=nextjs:nodejs next.config.ts ./next.config.ts
 USER nextjs
 EXPOSE 3000
 ENTRYPOINT ["tini", "--"]
-CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["node", "server.js"]

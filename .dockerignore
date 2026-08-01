@@ -1,4 +1,5 @@
-# Cloudflare Containers (Dockerfile.cf) needs .next + node_modules in build context.
+# Cloudflare Containers (Dockerfile.cf) needs .next/standalone in build context.
+node_modules
 .git
 .github
 .open-next

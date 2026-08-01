@@ -24,12 +24,17 @@ function run(cmd, args, extraEnv = {}) {
 
 function ensureNextBuild() {
   const nextDir = path.join(root, ".next");
-  if (!fs.existsSync(path.join(nextDir, "BUILD_ID"))) {
-    console.log("\nBuilding Next.js on host (npm run build)…\n");
+  const standaloneServer = path.join(nextDir, "standalone", "server.js");
+  if (!fs.existsSync(path.join(nextDir, "BUILD_ID")) || !fs.existsSync(standaloneServer)) {
+    console.log("\nBuilding Next.js standalone on host (npm run build)…\n");
     const code = run("npm", ["run", "build"], { DOCKER_BUILD: "1" });
     if (code !== 0) process.exit(code);
+    if (!fs.existsSync(standaloneServer)) {
+      console.error("Expected .next/standalone/server.js — is output: standalone enabled?");
+      process.exit(1);
+    }
   } else {
-    console.log("Using existing .next build (delete .next to force rebuild).");
+    console.log("Using existing .next/standalone build (delete .next to force rebuild).");
   }
 }
 

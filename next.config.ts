@@ -9,6 +9,9 @@ import runtimeCaching from "next-pwa/cache";
 const isCloudflareBuild =
   process.env.CF_PAGES === "1" || process.env.OPENNEXT_CLOUDFLARE === "1";
 
+/** Cloudflare Containers (Dockerfile.cf) — slim standalone bundle for registry push. */
+const isContainerBuild = process.env.DOCKER_BUILD === "1";
+
 const withPWA = withPWAInit({
   dest: "public",
   register: true,
@@ -36,6 +39,9 @@ const nextConfig: NextConfig = {
 
   // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
   // output: 'export',
+
+  // Slim Docker image for Cloudflare Containers (~500 MB vs ~2.8 GB full node_modules).
+  ...(isContainerBuild ? { output: "standalone" as const } : {}),
 
   // Keep pdf engines out of the webpack bundle on Vercel so AFM/TTF paths resolve
   // from node_modules. On Cloudflare, omit them so stubs replace the heavy packages
