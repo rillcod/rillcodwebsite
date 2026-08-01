@@ -457,28 +457,28 @@ export default function ApprovalsPage() {
 
                 {/* Summary */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                         <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
                             <UserGroupIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         </div>
                         <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{students.length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Pending Students</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                         <p className="text-2xl font-extrabold text-primary">{students.filter(s => s.enrollment_type === 'school' || !s.enrollment_type).length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                         <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{students.filter(s => s.enrollment_type === 'special').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Special Programme</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                         <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Online School</p>
                     </div>
                 </div>
                 {profile?.role === 'admin' && schools.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-xl p-5 flex items-center gap-4">
+                    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex items-center gap-4">
                         <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                             <BuildingOfficeIcon className="w-5 h-5 text-primary" />
                         </div>

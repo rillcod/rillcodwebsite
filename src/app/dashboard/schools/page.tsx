@@ -517,7 +517,7 @@ export default function SchoolsPage() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="space-y-6 sm:space-y-8">
 
         {/* Tab bar — People */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
@@ -591,7 +591,7 @@ export default function SchoolsPage() {
             { label: 'Pending', value: counts.pending, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
             { label: 'Rejected', value: counts.rejected, icon: XCircleIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+            <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
@@ -1413,7 +1413,7 @@ function SchoolSelfView() {
               </div>
             </div>
 
-            <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
               <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
               <div className="space-y-1">
                 {[

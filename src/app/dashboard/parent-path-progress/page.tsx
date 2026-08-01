@@ -73,7 +73,7 @@ export default function ParentPathProgressPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 mobile-page-root">
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
         <h1 className="text-xl font-black">Child Learning Path</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Same path visibility as student view, updated as teachers progress lessons week by week.
@@ -99,7 +99,7 @@ export default function ParentPathProgressPage() {
       ))}
 
       {paths.length === 0 && (
-        <div className="bg-card border border-border rounded-2xl p-5 text-sm text-muted-foreground">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-sm text-muted-foreground">
           No active path found for this child yet.
         </div>
       )}

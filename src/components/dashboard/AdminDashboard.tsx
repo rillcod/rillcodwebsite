@@ -46,7 +46,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
           {dataLoading
             ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-5 sm:p-6 animate-pulse">
+              <div key={i} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl animate-pulse">
                 <div className="h-10 w-10 bg-muted rounded-xl mb-4" />
                 <div className="h-8 bg-muted rounded w-1/2 mb-2" />
                 <div className="h-4 bg-card shadow-sm rounded w-2/3" />
@@ -341,7 +341,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
             </div>
           </div>
 
-          <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
             <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
             <div className="space-y-1">
               {[

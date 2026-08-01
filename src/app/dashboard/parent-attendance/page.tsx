@@ -150,7 +150,7 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
   const maxTotal = Math.max(...weeks.map(w => w.present + w.absent + w.late), 1);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
+    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
         Weekly Breakdown — Last {weeks.length} Week{weeks.length !== 1 ? 's' : ''}
       </p>
@@ -431,7 +431,7 @@ function ParentAttendanceContent() {
           {loadingRecords && (
             <div className="space-y-2 mobile-page-root">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse flex justify-between">
+                <div key={i} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl animate-pulse flex justify-between">
                   <div className="h-4 bg-muted rounded w-1/4" />
                   <div className="h-4 bg-muted rounded w-1/4" />
                   <div className="h-4 bg-muted rounded w-16" />

@@ -370,7 +370,7 @@ function ParentGradesContent() {
                 return (
                   <div
                     key={item.id}
-                    className="bg-card border border-border rounded-xl p-5 hover:bg-white/5 transition-all"
+                    className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:bg-white/5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Left: badges + title + date */}

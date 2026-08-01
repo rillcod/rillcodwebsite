@@ -437,7 +437,7 @@ export default function ResendCredentialsPage() {
 
       {/* Onboarding Health worklist (admin) */}
       {isAdmin && health && (
-        <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Onboarding Health</h2>
@@ -470,7 +470,7 @@ export default function ResendCredentialsPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-4 text-center">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-center">
           <div className="text-2xl font-black text-foreground">{students.length}</div>
           <div className="text-xs text-muted-foreground mt-1">Total Approved</div>
         </div>
@@ -485,7 +485,7 @@ export default function ResendCredentialsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input

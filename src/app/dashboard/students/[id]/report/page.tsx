@@ -307,7 +307,7 @@ export default function StudentProgressReportPage() {
         {/* ── Performance summary ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {/* Overall ring */}
-          <div className="col-span-2 sm:col-span-1 bg-card shadow-sm border border-border rounded-xl p-5 flex flex-col items-center justify-center print:border-border">
+          <div className="col-span-2 sm:col-span-1 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col items-center justify-center print:border-border">
             <div className="relative">
               <RingProgress pct={avgPct} color={avgPct >= 70 ? '#10b981' : avgPct >= 50 ? '#f59e0b' : '#f43f5e'} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -322,7 +322,7 @@ export default function StudentProgressReportPage() {
             { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 print:border-border">
+            <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl print:border-border">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>

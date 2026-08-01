@@ -150,7 +150,7 @@ export default function Contact() {
         {/* Contact Channels Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           {contactMethods.map((method, index) => (
-            <div key={index} className="bg-card border border-border rounded-2xl p-6 sm:p-8 hover:border-primary/50 transition-all duration-300 shadow-md hover:shadow-xl flex flex-col justify-between group">
+            <div key={index} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl sm:p-8 hover:border-primary/50 transition-all duration-300 shadow-md hover:shadow-xl flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                   {method.icon}

@@ -196,7 +196,7 @@ export default function FlashcardsPage() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-primary/30 transition-all"
+              className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
@@ -213,7 +213,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-primary/30 transition-all"
+              className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
@@ -232,7 +232,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-emerald-500/30 transition-all"
+              className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:border-emerald-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 flex items-center justify-center">
@@ -253,7 +253,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-purple-500/30 transition-all"
+              className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:border-purple-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/10 flex items-center justify-center">

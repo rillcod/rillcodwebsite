@@ -254,7 +254,7 @@ export default function PayBalancePage() {
         {isNativeApp && <NativeBillingNotice />}
 
         {verifyingReturn && (
-          <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-3 shadow-md">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex items-center gap-3 shadow-md">
             <Loader2 className="w-5 h-5 animate-spin text-amber-500 shrink-0" />
             <p className="text-sm font-medium text-foreground">Confirming your payment with Paystack…</p>
           </div>
@@ -280,7 +280,7 @@ export default function PayBalancePage() {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-xl transition-colors">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl space-y-5 shadow-xl transition-colors">
           <div>
             <label className={labelCls()}>Parent Email *</label>
             <input

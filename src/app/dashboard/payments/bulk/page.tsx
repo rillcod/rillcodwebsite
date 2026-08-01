@@ -624,7 +624,7 @@ export default function BulkPaymentsPage() {
                 </div>
               </div>
 
-              <div className="bg-card border border-border rounded-xl p-5">
+              <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                 <LineItemEditor
                   items={docType === 'invoice' ? invItems : rcptItems}
                   onChange={docType === 'invoice' ? setInvItems : setRcptItems}
@@ -635,7 +635,7 @@ export default function BulkPaymentsPage() {
               </div>
 
               {docType === 'invoice' ? (
-                <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Due Date</label>
                     <input type="date" value={invDueDate} onChange={e => setInvDueDate(e.target.value)}
@@ -648,7 +648,7 @@ export default function BulkPaymentsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Method</label>
                     <select value={rcptPaymentMethod} onChange={e => setRcptPaymentMethod(e.target.value)}

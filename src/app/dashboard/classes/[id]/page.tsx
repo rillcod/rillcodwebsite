@@ -2224,7 +2224,7 @@ export default function ClassDetailPage() {
             {activeTab === 'overview' && (
               <div className="space-y-4">
                 {/* Class Info */}
-                <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="flex items-center gap-3">
@@ -2275,7 +2275,7 @@ export default function ClassDetailPage() {
                 </div>
 
                 {isStaff && (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+                  <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
                     <div>
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Path Visibility Control</h3>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -2365,7 +2365,7 @@ export default function ClassDetailPage() {
                 )}
 
                 {isStaff && (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+                  <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
                     <div>
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Focus Settings</h3>
                       <p className="text-xs text-muted-foreground mt-1">

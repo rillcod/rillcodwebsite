@@ -236,7 +236,7 @@ export default function FlashcardDeckPage() {
   if (!deck) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6 mobile-page-root">
-        <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="w-full max-w-md bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl space-y-4">
           <h2 className="text-lg font-black">Unable to open flashcard deck</h2>
           <p className="text-sm text-muted-foreground">
             {loadError ?? 'This deck may have been removed or you may not have access to it.'}

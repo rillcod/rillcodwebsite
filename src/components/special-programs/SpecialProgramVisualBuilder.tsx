@@ -647,7 +647,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
             </SectionHit>
 
             <SectionHit selected={selection === 'register'} onSelect={() => setSelection('register')} label="Register">
-              <section className="bg-card border border-border rounded-2xl p-6 space-y-3 opacity-90">
+              <section className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl space-y-3 opacity-90">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
                   <h3 className="text-lg font-black uppercase">

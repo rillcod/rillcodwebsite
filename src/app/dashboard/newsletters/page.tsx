@@ -540,7 +540,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                 <div
                   key={nl.id}
                   onClick={() => { setActiveNewsletter(nl); setView('editor'); setEditorTab('write'); }}
-                  className="group bg-card border border-border rounded-2xl p-6 hover:border-primary/40 transition-all cursor-pointer relative overflow-hidden"
+                  className="group bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl hover:border-primary/40 transition-all cursor-pointer relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-4 flex items-center gap-2">
                     {isManager && (
@@ -586,7 +586,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
         ) : !isManager ? (
           /* â”€â”€ Read-only reader (students / parents) â”€â”€ */
           <div className="max-w-3xl mx-auto">
-            <article className="bg-card border border-border rounded-2xl p-6 sm:p-10 shadow-sm">
+            <article className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl sm:p-10 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Official Newsletter</span>
                 {activeNewsletter?.published_at && (
@@ -729,7 +729,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
               </div>
 
               {/* Markdown guide */}
-              <div className="bg-card border border-border rounded-xl p-4 space-y-2 text-[10px] font-mono text-muted-foreground">
+              <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-2 text-[10px] font-mono text-muted-foreground">
                 <p className="font-black uppercase tracking-widest text-foreground text-[9px] mb-2">Markdown guide</p>
                 <p># Heading 1 &nbsp;&nbsp; ## Heading 2</p>
                 <p>**bold** &nbsp; *italic* &nbsp; `code`</p>

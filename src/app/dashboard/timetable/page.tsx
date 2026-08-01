@@ -867,7 +867,7 @@ export default function TimetablePage() {
         </div>
 
         {!isTeacher && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Timetable Scope</p>

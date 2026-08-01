@@ -725,7 +725,7 @@ export default function CourseDetailPage() {
           <div className="space-y-5">
 
             {/* Status + instructor */}
-            <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</p>
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>

@@ -453,7 +453,7 @@ function TeacherPersonalDashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-12 md:p-16 relative overflow-hidden shadow-xl group">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/20 transition-all duration-1000" />
@@ -572,7 +572,7 @@ function TeacherPersonalDashboard() {
                 upcomingClasses.map((cls, i) => (
                   <div
                     key={cls.id}
-                    className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-card shadow-sm border border-border rounded-xl p-5 sm:p-6 hover:bg-muted hover:border-primary/30 transition-all"
+                    className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:bg-muted hover:border-primary/30 transition-all"
                   >
                     <div
                       className={`w-14 h-14 rounded-xl ${

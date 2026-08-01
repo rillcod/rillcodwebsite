@@ -249,7 +249,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className={`bg-card border border-border rounded-2xl p-5 space-y-1 relative overflow-hidden`}>
+    <div className={`bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-1 relative overflow-hidden`}>
       <div className={`absolute top-0 left-0 w-1 h-full ${color}`} />
       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-3">{label}</p>
       <p className="text-2xl font-black text-foreground pl-3">{value}</p>
@@ -862,7 +862,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
           {filtered.map(sub => {
             const s = SUB_STATUS[sub.status] ?? SUB_STATUS.expired;
             return (
-              <div key={sub.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <div key={sub.id} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-black text-foreground text-sm truncate">{sub.plan_name}</p>
@@ -1186,7 +1186,7 @@ function SettlementsTab({ profile }: { profile: any }) {
           {settlements.map(s => {
             const sc = SETTLE_STATUS[s.status] ?? SETTLE_STATUS.pending;
             return (
-              <div key={s.id} className="bg-card border border-border rounded-xl p-4">
+              <div key={s.id} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -1460,7 +1460,7 @@ function AutomationTab() {
 
 
       {/* Master toggle + run */}
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-black text-foreground mb-1">Invoice automation</h3>
@@ -1504,7 +1504,7 @@ function AutomationTab() {
       </div>
 
       {/* Reminder thresholds */}
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
         <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reminder schedule</h3>
         {[
           { label: 'Reminder 1 — Days after issue', key: 'reminder_1_days_after_issue' as keyof AutoConfig, color: 'bg-primary' },
@@ -1529,7 +1529,7 @@ function AutomationTab() {
       </div>
 
       {/* Channel toggles */}
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
         <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Channels &amp; overdue</h3>
         {[
           { label: 'WhatsApp Notifications', key: 'notify_whatsapp' as keyof AutoConfig, icon: BellIcon, desc: 'Allow billing-cycle reminders through the company WhatsApp channel' },
@@ -1583,7 +1583,7 @@ function AutomationTab() {
       )}
 
       {/* Run History */}
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
         <h3 className="font-black text-foreground text-sm uppercase tracking-widest mb-4">Cron run history</h3>
         {logs.length === 0 ? (
           <p className="text-sm text-muted-foreground">

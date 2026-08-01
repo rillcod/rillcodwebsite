@@ -316,7 +316,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
             )}
 
             {/* Post Composer */}
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
               <div className="flex items-center gap-2">
                 <ChatBubbleLeftRightIcon className="w-4 h-4 text-primary" />
                 <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Share with the community</span>
@@ -440,7 +440,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
             {loadingPosts ? (
               <div className="flex flex-col gap-3">
                 {[1,2,3].map(i => (
-                  <div key={i} className="bg-card border border-border rounded-2xl p-5 animate-pulse">
+                  <div key={i} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl animate-pulse">
                     <div className="flex gap-3 mb-3">
                       <div className="w-9 h-9 bg-muted rounded-full" />
                       <div className="flex-1 space-y-2">
@@ -584,7 +584,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
             </div>
 
             {/* Topics */}
-            <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
               <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Browse by Topic</p>
               <div className="flex flex-wrap gap-1.5">
                 {TOPICS.map(t => (
@@ -829,7 +829,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
             </div>
 
             {/* Community Guidelines */}
-            <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
               <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Community Guidelines</p>
               <div className="space-y-2.5">
                 {[

@@ -170,7 +170,7 @@ export default function AnnouncementsPage() {
             const isExpired = expiryDate && expiryDate < nowUTC;
             const displayStatus = isExpired ? 'archived' : a.status;
             return (
-              <div key={a.id} className="bg-card border border-border rounded-xl p-4">
+              <div key={a.id} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">

@@ -564,7 +564,7 @@ function DistBar({ items }: { items: any[] }) {
     ].filter(b => b.count > 0);
 
     return (
-        <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Grade Distribution · {total} graded</p>
             <div className="flex h-8 rounded-xl overflow-hidden gap-0.5">
                 {bars.map(b => (
@@ -656,7 +656,7 @@ function CourseBreakdown({ items }: { items: any[] }) {
 
     if (!list.length) return null;
     return (
-        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Breakdown</p>
             {list.map(c => (
                 <div key={c.name}>

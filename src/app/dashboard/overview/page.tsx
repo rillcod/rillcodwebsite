@@ -368,7 +368,7 @@ export default function OverviewPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map(s => (
             <Link key={s.label} href={s.href}
-              className="bg-card shadow-sm border border-border rounded-xl p-5 hover:bg-white/8 hover:border-border transition-all group">
+              className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl hover:bg-white/8 hover:border-border transition-all group">
               <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>

@@ -114,7 +114,7 @@ export default function About() {
         {/* Key Performance Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-16">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-card border border-border rounded-2xl p-6 text-center hover:border-primary/50 transition-all duration-300 shadow-md">
+            <div key={index} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl text-center hover:border-primary/50 transition-all duration-300 shadow-md">
               <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                 {stat.icon}
               </div>
@@ -167,7 +167,7 @@ export default function About() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((val, index) => (
-              <div key={index} className="bg-card border border-border rounded-2xl p-6 sm:p-8 hover:border-primary/50 transition-all duration-300 shadow-md">
+              <div key={index} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl sm:p-8 hover:border-primary/50 transition-all duration-300 shadow-md">
                 <div className="p-3 rounded-xl bg-muted w-fit mb-6">
                   {val.icon}
                 </div>
@@ -186,7 +186,7 @@ export default function About() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {leadership.map((member, idx) => (
-              <div key={idx} className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-md hover:border-primary/50 transition-all flex flex-col justify-between">
+              <div key={idx} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl sm:p-8 shadow-md hover:border-primary/50 transition-all flex flex-col justify-between">
                 <div>
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg mb-6">
                     0{idx + 1}

@@ -409,7 +409,7 @@ export default function ExamDetailPage() {
           return (
             <div className="space-y-4">
               {/* Summary stats bar */}
-              <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-4 items-center">
+              <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-wrap gap-4 items-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-auto">Answer Review</p>
                 <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                   <CheckIcon className="w-3.5 h-3.5" />

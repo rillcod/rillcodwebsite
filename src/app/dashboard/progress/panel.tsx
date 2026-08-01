@@ -1023,7 +1023,7 @@ export default function ProgressPage({
             ].map((s) => (
               <div
                 key={s.label}
-                className="bg-card shadow-sm border border-border rounded-xl p-5"
+                className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl"
               >
                 <div
                   className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}

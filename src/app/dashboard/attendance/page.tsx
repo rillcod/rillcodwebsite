@@ -576,7 +576,7 @@ function AttendanceContent() {
               { label: 'Present', value: present, color: 'text-emerald-600 dark:text-emerald-400' },
               { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' },
             ].map(s => (
-              <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 text-center">
+              <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-center">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
               </div>
@@ -668,7 +668,7 @@ function AttendanceContent() {
         )}
 
         {(!selectedClass || !isCanMark) && (
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Choose Attendance Scope</p>
               <p className="text-sm text-muted-foreground">
@@ -701,7 +701,7 @@ function AttendanceContent() {
         )}
 
         {selectedClass && currentClass && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Attendance Scope</p>
@@ -753,7 +753,7 @@ function AttendanceContent() {
         {activeTab === 'mark' && (
           <>
             {/* Selectors */}
-            <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Select Class</label>

@@ -1636,7 +1636,7 @@ export default function ResponsesPage() {
                 ))}
               </div>
               {/* Conversion funnel — desktop only */}
-              <div className="hidden sm:block bg-card border border-border rounded-xl p-4">
+              <div className="hidden sm:block bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                 <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Conversion funnel</p>
                 <div className="flex items-end gap-1 h-10">
                   {[

@@ -224,7 +224,7 @@ export default function ProjectRegistryPage({
       <div
         className={
           embedded
-            ? "relative overflow-hidden bg-card border border-border rounded-xl p-4"
+            ? "relative overflow-hidden bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl"
             : "relative overflow-hidden bg-card border border-border rounded-[3.5rem] p-10 sm:p-16 shadow-2xl"
         }
       >

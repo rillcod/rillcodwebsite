@@ -241,7 +241,7 @@ export default function StudentDashboard() {
   if (loading) return (
     <div className="space-y-4 p-4 sm:p-6">
       {[1, 2, 3].map(i => (
-        <div key={i} className="h-24 bg-card border border-border animate-pulse rounded-xl" />
+        <div key={i} className="h-24 bg-card/90 border border-border/80 animate-pulse rounded-2xl" />
       ))}
     </div>
   );

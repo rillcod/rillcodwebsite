@@ -458,7 +458,7 @@ export default function CoursesPage() {
           return (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {statItems.map((s) => (
-                <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+                <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
                   <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                     <s.icon className={`w-5 h-5 ${s.color}`} />
                   </div>

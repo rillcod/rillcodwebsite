@@ -374,7 +374,7 @@ if (isNativeApp) {
               { title: 'Teens', path: 'Teen Developers → Web / AI / Design / Robotics' },
               { title: 'Adults & individuals', path: 'Foundations or specialist track by goal' },
             ].map((row) => (
-              <div key={row.title} className="bg-card border border-border rounded-xl p-4 text-center">
+              <div key={row.title} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">{row.title}</p>
                 <p className="text-xs font-bold text-foreground mt-2">{row.path}</p>
               </div>

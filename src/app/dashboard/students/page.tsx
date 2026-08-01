@@ -1590,7 +1590,7 @@ export default function StudentsPage() {
       )}
 
       <div className="min-h-screen bg-background text-foreground mobile-page-root">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-10">
+        <div className="space-y-6 sm:space-y-8">
 
           {/* Tab bar — People (admin only; school/teacher stay on Students) */}
           {profile?.role === 'admin' && (
@@ -2699,7 +2699,7 @@ function StudentSelfView() {
               </div>
             </div>
 
-            <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
               <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
               <div className="space-y-1">
                 {[

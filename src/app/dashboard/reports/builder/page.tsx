@@ -3135,7 +3135,7 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Session fields */}
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+                        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Instructor</h3>
                             </div>
@@ -3199,7 +3199,7 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+                        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>🧭</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Module Progress</h3>
@@ -3209,7 +3209,7 @@ function ReportBuilderInner() {
                             </div>
                         </div>
                         {/* Learning Milestones */}
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-3">
+                        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>🎯</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Learning Milestones</h3>

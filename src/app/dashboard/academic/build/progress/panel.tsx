@@ -633,7 +633,7 @@ export default function CurriculumProgressPage({
                 {[1, 2, 3].map((s) => (
                   <div
                     key={s}
-                    className="h-40 bg-card border border-border animate-pulse rounded-xl"
+                    className="h-40 bg-card/90 border border-border/80 animate-pulse rounded-2xl"
                   />
                 ))}
               </div>
@@ -682,7 +682,7 @@ export default function CurriculumProgressPage({
                     {Array.from(bySchool.values()).map((school) => (
                       <div
                         key={school.schoolId}
-                        className="bg-card border border-border rounded-xl p-4 space-y-4"
+                        className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4"
                       >
                         {/* School name */}
                         <div className="flex items-center gap-2">
@@ -829,7 +829,7 @@ export default function CurriculumProgressPage({
                     return (
                       <div
                         key={curr.curriculum_id}
-                        className="bg-card border border-border rounded-xl p-4 space-y-3"
+                        className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
