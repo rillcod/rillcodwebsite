@@ -83,7 +83,7 @@ const achievements = [
 
 export default function About() {
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden public-page-root transition-colors duration-300">
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none translate-y-1/2 -translate-x-1/3" />

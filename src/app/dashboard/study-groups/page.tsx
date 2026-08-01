@@ -124,7 +124,7 @@ export default function StudyGroupsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card border border-border p-6 rounded-3xl shadow-sm">

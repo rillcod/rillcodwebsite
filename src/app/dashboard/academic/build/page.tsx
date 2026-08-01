@@ -3565,7 +3565,7 @@ export default function CurriculumPage() {
   // ── Learner / School read-only layout ───────────────────────────────────
   if (learnerMode || isSchool) {
     return (
-      <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <div className="flex flex-col min-h-screen bg-background text-foreground mobile-page-root">
         <div className="shrink-0 border-b border-border bg-card px-4 py-3 space-y-2">
           <PlanningBreadcrumb current="syllabus" />
           <p className="text-xs text-muted-foreground">
@@ -3842,7 +3842,7 @@ export default function CurriculumPage() {
         </div>
       )}
 
-      <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
+      <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden mobile-page-root">
         {/* Header — wraps gracefully on mobile */}
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">

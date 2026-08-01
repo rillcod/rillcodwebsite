@@ -30,7 +30,7 @@ function LearnerSafetyContent() {
   if (!profile || !["admin", "teacher"].includes(profile.role)) return null;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="mx-auto max-w-[96rem] space-y-5 px-3 py-5 sm:px-6">
         <header className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <p className="text-xs font-black uppercase tracking-widest text-primary">

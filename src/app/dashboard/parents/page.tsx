@@ -1009,7 +1009,7 @@ export default function ParentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-page-root">
       {/* Tab bar — People */}
       <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
         {isAdmin && (

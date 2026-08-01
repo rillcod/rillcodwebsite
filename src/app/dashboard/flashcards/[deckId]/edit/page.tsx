@@ -63,7 +63,7 @@ export default function EditFlashcardDeckPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-4">
           <Link href={`/dashboard/flashcards/${deckId}`} className="p-2 hover:bg-muted rounded-xl transition-colors">

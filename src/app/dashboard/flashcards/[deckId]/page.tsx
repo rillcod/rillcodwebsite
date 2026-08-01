@@ -457,7 +457,7 @@ export default function FlashcardDeckPage() {
   // GRID MODE — card list with inline edit
   // ══════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
 
         {/* Header */}

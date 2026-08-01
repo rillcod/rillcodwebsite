@@ -124,7 +124,7 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col mobile-page-root">
       {/* Header */}
       <div className="border-b border-border px-4 py-3 flex items-center gap-3">
         <Link href="/dashboard/study-groups" className="text-muted-foreground hover:text-foreground transition-colors">

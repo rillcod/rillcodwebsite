@@ -9,7 +9,7 @@ const roadmap = [
 
 export default function Implementation() {
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto public-page-root overflow-x-clip min-h-screen">
       <div className="text-center py-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl mb-16">
         <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Implementation Roadmap</h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">See how RILLCOD Academy launches and sustains your AI-integrated technology program, step by step.</p>

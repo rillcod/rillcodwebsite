@@ -1,8 +1,9 @@
 import { StudentRegistration } from "@/features/registration";
+import { PUBLIC_PAGE_ROOT } from "@/components/mobile/public-styles";
 
 export default function StudentRegistrationPage() {
   return (
-    <div className="min-h-dvh bg-background relative overflow-hidden transition-colors duration-300">
+    <div className={`${PUBLIC_PAGE_ROOT} relative transition-colors duration-300`}>
       {/* Atmosphere — brand dark plane + soft primary wash */}
       <div
         className="pointer-events-none absolute inset-0"

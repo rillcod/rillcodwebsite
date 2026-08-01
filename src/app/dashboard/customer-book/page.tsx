@@ -252,7 +252,7 @@ export default function CustomerBookPage() {
   const backHref = profile?.role === 'admin' ? '/dashboard/office?workspace=crm' : '/dashboard/crm';
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
         <div className="flex items-start justify-between gap-4 flex-wrap">

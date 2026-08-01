@@ -1433,7 +1433,7 @@ tbody tr:hover{background:#f3f4f6}
     return (
         <>
         <style>{`@media print { @page { margin: 14mm 12mm; } body { background: white !important; } .print\\:hidden { display: none !important; } }`}</style>
-        <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black print:min-h-0">
+        <div className="min-h-screen bg-background text-foreground mobile-page-root print:bg-card print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
             <div className={cn(

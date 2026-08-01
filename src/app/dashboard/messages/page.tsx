@@ -227,7 +227,7 @@ export default function MessagesPage() {
 
   if (isParentOrStudent) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground mobile-page-root">
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="bg-card border border-border rounded-xl p-6 space-y-3">
             <h1 className="text-xl font-black">Opening Guarded Inbox...</h1>

@@ -551,7 +551,7 @@ function AttendanceContent() {
     const present = myAttendance.filter(a => a.status === 'present').length;
     const rate = myAttendance.length ? Math.round((present / myAttendance.length) * 100) : 0;
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground mobile-page-root">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           {/* ── Schedule Tab Bar (student) ── */}
           <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">

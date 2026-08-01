@@ -459,7 +459,7 @@ export default function StudentLearningPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
 
       {/* ── Top bar: quick links ── */}
       <div className="bg-card border-b border-border">

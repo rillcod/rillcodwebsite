@@ -1409,7 +1409,7 @@ export default function AssignmentDetailPage() {
     const isCodingAssignment = assignment.assignment_type === 'coding';
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="min-h-screen bg-background text-foreground mobile-page-root">
             <ShareToParentModal
                 open={shareOpen}
                 onClose={() => setShareOpen(false)}
