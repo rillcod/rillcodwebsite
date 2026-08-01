@@ -276,13 +276,13 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
     <div className="space-y-5">
 
       {/* ── First viewport: calm, action-first home ── */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5 sm:p-6">
-        <div className="absolute -right-16 -top-16 h-56 w-56 pointer-events-none bg-gradient-to-br from-primary to-primary opacity-[0.04] blur-3xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-6 sm:p-8 shadow-xl">
+        <div className="absolute -right-16 -top-16 h-56 w-56 pointer-events-none bg-gradient-to-br from-primary to-indigo-600 opacity-10 blur-3xl" />
         <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="mb-1 text-xs font-black uppercase tracking-widest text-brand-red-600">Parent Portal</p>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">Hi, {firstName}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">Parent Portal</span>
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">Hi, <span className="bg-gradient-to-r from-primary to-indigo-500 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">{firstName}</span></h1>
+            <p className="mt-1 text-sm text-muted-foreground font-medium">
               {children.length > 0
                 ? "Here's what needs your attention."
                 : 'No children linked yet. Claim your child with a report QR code, or ask your school to link them.'}

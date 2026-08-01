@@ -71,12 +71,12 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
 
 
       {/* Partner Schools Track Overview */}
-      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Subsidized Tracks</p>
+              <p className="text-[9px] font-black text-brand-red-accent uppercase tracking-[0.4em]">Subsidized Tracks</p>
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Partner Schools Track Overview</h2>
             </div>
             <div className="text-xs text-muted-foreground font-medium">
@@ -102,7 +102,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
               }).map((school: any) => {
                 const hasActivity = (school.termEnrolments + school.holidayEnrolments + school.termRevenue + school.holidayRevenue) > 0;
                 return (
-                  <div key={school.schoolId} className={`border rounded-xl p-5 space-y-4 transition-all ${hasActivity ? 'bg-card/80 border-border/80 shadow-sm' : 'bg-card/20 border-border/40 opacity-70'}`}>
+                  <div key={school.schoolId} className={`border rounded-2xl p-5 space-y-4 transition-all ${hasActivity ? 'bg-card/90 border-border/80 shadow-sm hover:shadow-md' : 'bg-card/30 border-border/40 opacity-70'}`}>
                     <div className="flex justify-between items-start pb-3 border-b border-border/60">
                       <div className="min-w-0 flex-1 pr-3">
                         <h3 className="font-black text-foreground text-sm uppercase tracking-tight truncate">{school.schoolName}</h3>
@@ -111,13 +111,13 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                         </p>
                       </div>
                       {hasActivity && (
-                        <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/20">Active</span>
+                        <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">Active</span>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Term Program stats */}
-                      <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-1">
+                      <div className="p-3.5 bg-indigo-500/5 border border-indigo-500/15 rounded-2xl space-y-1">
                         <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block font-bold">Regular Term Program</span>
                         <div className="pt-1 flex justify-between text-xs">
                           <span className="text-muted-foreground">Enrolments:</span>
@@ -140,7 +140,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                       </div>
 
                       {/* Holiday Program stats */}
-                      <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex flex-col justify-between">
+                      <div className="p-3.5 bg-amber-500/5 border border-amber-500/15 rounded-2xl flex flex-col justify-between">
                         <div className="space-y-1">
                           <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider block font-bold">Holiday Program</span>
                           <div className="pt-1 flex justify-between text-xs">
@@ -152,7 +152,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
                             <span className="font-black text-foreground tabular-nums">₦{school.holidayRevenue.toLocaleString()}</span>
                           </div>
                         </div>
-                        <div className="text-[9px] text-muted-foreground/60 italic pt-2 border-t border-amber-500/10 mt-2 block">
+                        <div className="text-[9px] text-muted-foreground/70 italic pt-2 border-t border-amber-500/10 mt-2 block">
                           Subsidized rate · No settlements
                         </div>
                       </div>
@@ -167,12 +167,12 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
 
 
       {/* School Billing Records */}
-      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Finance</p>
+              <p className="text-[9px] font-black text-brand-red-accent uppercase tracking-[0.4em]">Finance</p>
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
             </div>
             <Link href="/dashboard/finance?workspace=invoices&ops=invoices"

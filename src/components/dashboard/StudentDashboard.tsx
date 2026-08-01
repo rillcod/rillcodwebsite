@@ -324,35 +324,35 @@ export default function StudentDashboard() {
 
           {data.nextLesson ? (
             <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
-              className="group flex flex-col gap-5 p-8 bg-gradient-to-br from-primary/10 via-card to-background border border-primary/30 hover:border-primary/50 transition-all relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
+              className="group flex flex-col gap-5 p-6 sm:p-8 bg-card/90 backdrop-blur-2xl border border-primary/30 hover:border-primary/60 rounded-3xl transition-all relative overflow-hidden shadow-xl hover:shadow-2xl">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <div className="px-3 py-1 bg-primary text-primary-foreground text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
-                <div className="flex items-center gap-1 text-primary text-[10px] font-black uppercase tracking-widest">
+                <div className="px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">CONTINUE</div>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
                   <SparklesIcon className="w-4 h-4 animate-pulse" /> +15 XP
                 </div>
               </div>
               <div className="relative z-10">
-                <p className="text-[10px] font-black text-primary/70 uppercase tracking-[0.2em] mb-1.5">Up Next</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight leading-none group-hover:text-primary transition-colors">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1.5">Up Next</p>
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">
                   {data.nextLesson.title}
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
-                <div className="px-10 py-3 bg-primary group-hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
+                <div className="px-8 py-3 bg-primary group-hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]">
                   Resume Now
                 </div>
               </div>
             </Link>
           ) : (
             <Link href="/dashboard/learning"
-              className="group flex flex-col gap-6 p-10 bg-card border border-dashed border-border hover:border-primary/30 transition-all text-center items-center justify-center min-h-[200px]">
-              <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center text-3xl">📚</div>
+              className="group flex flex-col gap-6 p-10 bg-card/90 backdrop-blur-xl border border-dashed border-border hover:border-primary/40 rounded-3xl transition-all text-center items-center justify-center min-h-[220px] shadow-sm">
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-3xl">📚</div>
               <div>
                 <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Open Learning Center</h3>
                 <p className="text-xs text-muted-foreground mt-1">No active lesson yet. Ask your teacher if you need to be enrolled.</p>
               </div>
-              <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em]">Continue</div>
+              <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-md">Continue</div>
             </Link>
           )}
         </div>
@@ -363,10 +363,10 @@ export default function StudentDashboard() {
             <ArchiveBoxIcon className="w-4 h-4 text-primary" />
             My Programme
           </h2>
-          <div className="bg-card border border-border p-6 flex flex-col gap-6 h-[calc(100%-2rem)]">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 flex flex-col gap-6 h-[calc(100%-2rem)] shadow-xl">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
-                <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest">Enrolled</span>
+                <span className="px-2.5 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-full">Enrolled</span>
                 <span className="text-[10px] font-black text-muted-foreground">{data.lessonsDone} lessons done</span>
               </div>
               <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
@@ -377,12 +377,12 @@ export default function StudentDashboard() {
               </p>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-border">
-              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-primary/30 transition-all">
+            <div className="space-y-3 pt-4 border-t border-border/60">
+              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3.5 bg-background/60 border border-border/70 hover:border-primary/40 rounded-2xl transition-all shadow-sm">
                 <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
                 <ArrowRightIcon className="w-3.5 h-3.5 text-primary" />
               </Link>
-              <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
+              <Link href="/dashboard/assignments" className="flex items-center justify-between p-3.5 bg-background/60 border border-border/70 hover:border-rose-500/40 rounded-2xl transition-all shadow-sm">
                 <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
                 <div className="flex items-center gap-2">
                   {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
@@ -401,7 +401,7 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
         {/* Profile/Level Card */}
-        <div className="lg:col-span-3 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
+        <div className="lg:col-span-3 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
 
           <div className="flex flex-col sm:flex-row items-center gap-8">
