@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
 import ViewAsSwitcher from "./ViewAsSwitcher";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
+import MobileNavSheet from "@/components/mobile/MobileNavSheet";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type NavItem = { name: string; href: string; icon: any };
@@ -1208,33 +1209,17 @@ export default function DashboardNavigation() {
         </div>
       </div>
 
-      {/* ── Backdrop (mobile only) ── */}
-      {mobileOpen && (
-        <div
-          onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-foreground/35 dark:bg-black/70 z-40 md:hidden backdrop-blur-sm"
-          aria-hidden="true"
-        />
-      )}
+      {/* ── Native Mobile Spring Bottom Sheet Menu ── */}
+      <MobileNavSheet
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        navEntries={navEntries}
+      />
 
-      {/* ── Sidebar ── */}
+      {/* ── Desktop Sidebar (Hidden on mobile) ── */}
       <nav
         id="dashboard-navigation-drawer"
-        className={`
-          fixed top-[var(--app-header-height)] left-0 bottom-[var(--app-bottom-nav-height)] z-40 md:bottom-0
-          md:static md:top-auto md:bottom-auto md:z-auto
-          flex flex-col w-[240px] md:w-64 xl:w-72
-          bg-sidebar
-          border-r border-sidebar-foreground/[0.08]
-          shadow-[4px_0_40px_rgba(0,0,0,0.3)]
-          transform transition-transform duration-300 ease-in-out
-          md:translate-x-0 md:h-screen md:flex-shrink-0
-          ${
-            mobileOpen
-              ? "visible translate-x-0"
-              : "invisible -translate-x-full md:visible md:translate-x-0"
-          }
-        `}
+        className="hidden md:flex flex-col w-64 xl:w-72 bg-sidebar border-r border-border/70 md:h-screen md:flex-shrink-0 sticky top-0"
         aria-label="Dashboard navigation"
       >
         {/* Logo */}
