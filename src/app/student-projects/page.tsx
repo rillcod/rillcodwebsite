@@ -148,7 +148,7 @@ const categories = [
 
 export default function StudentProjectsPage() {
   return (
-    <div className="min-h-screen pt-16">
+    <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -165,41 +165,41 @@ export default function StudentProjectsPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white">
+      <section className="py-12 sm:py-16 bg-background">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:gap-8 text-center">
-            <div className="bg-blue-50 p-6 rounded-xl">
+            <div className="bg-blue-500/10 border border-blue-500/15 p-5 sm:p-6 rounded-2xl">
               <div className="text-3xl font-bold text-blue-600 mb-2">{projects.length}+</div>
-              <div className="text-gray-600">Projects Created</div>
+              <div className="text-muted-foreground">Projects Created</div>
             </div>
-            <div className="bg-green-50 p-6 rounded-xl">
+            <div className="bg-green-500/10 border border-green-500/15 p-5 sm:p-6 rounded-2xl">
               <div className="text-3xl font-bold text-green-600 mb-2">500+</div>
-              <div className="text-gray-600">Students</div>
+              <div className="text-muted-foreground">Students</div>
             </div>
-            <div className="bg-purple-50 p-6 rounded-xl">
+            <div className="bg-purple-500/10 border border-purple-500/15 p-5 sm:p-6 rounded-2xl">
               <div className="text-3xl font-bold text-purple-600 mb-2">50+</div>
-              <div className="text-gray-600">Partner Schools</div>
+              <div className="text-muted-foreground">Partner Schools</div>
             </div>
-            <div className="bg-orange-50 p-6 rounded-xl">
+            <div className="bg-orange-500/10 border border-orange-500/15 p-5 sm:p-6 rounded-2xl">
               <div className="text-3xl font-bold text-primary mb-2">25+</div>
-              <div className="text-gray-600">Awards Won</div>
+              <div className="text-muted-foreground">Awards Won</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Filter Categories */}
-      <section className="py-8 bg-gray-50">
+      <section className="py-8 bg-muted/40 border-y border-border">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-wrap justify-center gap-4">
             {categories.map((category, index) => (
               <button
                 key={index}
-                className="flex items-center space-x-2 bg-white px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-shadow"
+                className="flex min-h-11 items-center space-x-2 bg-card border border-border px-5 py-2.5 rounded-full shadow-sm hover:bg-muted/60 transition-colors"
               >
                 <category.icon className="w-5 h-5 text-primary" />
-                <span className="font-medium text-gray-700">{category.name}</span>
-                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">
+                <span className="font-medium text-foreground">{category.name}</span>
+                <span className="bg-muted text-muted-foreground px-2 py-1 rounded-full text-sm">
                   {category.count}
                 </span>
               </button>
@@ -209,11 +209,11 @@ export default function StudentProjectsPage() {
       </section>
 
       {/* Projects Grid */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-16 md:py-24 bg-background">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             {projects.map((project) => (
-              <div key={project.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+              <div key={project.id} className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="relative h-48 w-full">
                   <Image
                     src={project.image}
@@ -226,33 +226,33 @@ export default function StudentProjectsPage() {
                   <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
                     {project.type}
                   </div>
-                  <div className="absolute top-4 right-4 bg-white text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
+                  <div className="absolute top-4 right-4 bg-background/90 text-foreground px-3 py-1 rounded-full text-sm font-medium backdrop-blur-sm">
                     {project.category}
                   </div>
                 </div>
                 
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">{project.title}</h3>
-                  <p className="text-gray-600 mb-4">{project.description}</p>
+                  <h3 className="text-xl font-bold text-foreground mb-2">{project.title}</h3>
+                  <p className="text-muted-foreground mb-4">{project.description}</p>
                   
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                      <UserGroupIcon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{project.student}</span>
+                      <UserGroupIcon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{project.student}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <CalendarIcon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{project.age} years</span>
+                      <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{project.age} years</span>
                     </div>
                   </div>
                   
                   <div className="mb-4">
-                    <h4 className="font-semibold text-gray-800 mb-2">Features:</h4>
+                    <h4 className="font-semibold text-foreground mb-2">Features:</h4>
                     <div className="flex flex-wrap gap-2">
                       {project.features.slice(0, 3).map((feature, index) => (
                         <span 
                           key={index}
-                          className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs"
+                          className="bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs"
                         >
                           {feature}
                         </span>
@@ -261,12 +261,12 @@ export default function StudentProjectsPage() {
                   </div>
                   
                   <div className="mb-4">
-                    <h4 className="font-semibold text-gray-800 mb-2">Technologies:</h4>
+                    <h4 className="font-semibold text-foreground mb-2">Technologies:</h4>
                     <div className="flex flex-wrap gap-2">
                       {project.technologies.map((tech, index) => (
                         <span 
                           key={index}
-                          className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
+                          className="bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs"
                         >
                           {tech}
                         </span>
@@ -278,16 +278,16 @@ export default function StudentProjectsPage() {
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
                         <HeartIcon className="w-4 h-4 text-red-500" />
-                        <span className="text-sm text-gray-600">{project.likes}</span>
+                        <span className="text-sm text-muted-foreground">{project.likes}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <EyeIcon className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm text-gray-600">{project.views}</span>
+                        <span className="text-sm text-muted-foreground">{project.views}</span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-1">
                       <TrophyIcon className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm text-gray-600">{project.awards.length} awards</span>
+                      <span className="text-sm text-muted-foreground">{project.awards.length} awards</span>
                     </div>
                   </div>
                   
@@ -313,35 +313,35 @@ export default function StudentProjectsPage() {
       </section>
 
       {/* Awards Section */}
-      <section className="py-16 md:py-24 bg-gray-50">
+      <section className="py-16 md:py-24 bg-muted/40 border-y border-border">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Student Achievements</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Student Achievements</h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Celebrating the outstanding achievements and awards won by our students
             </p>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-            <div className="bg-white p-6 rounded-xl text-center shadow-lg">
+            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
               <TrophyIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">National Coding Competition</h3>
-              <p className="text-gray-600">1st Place Winners</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">National Coding Competition</h3>
+              <p className="text-muted-foreground">1st Place Winners</p>
             </div>
-            <div className="bg-white p-6 rounded-xl text-center shadow-lg">
+            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
               <StarIcon className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Innovation Awards</h3>
-              <p className="text-gray-600">15+ Awards Won</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Innovation Awards</h3>
+              <p className="text-muted-foreground">15+ Awards Won</p>
             </div>
-            <div className="bg-white p-6 rounded-xl text-center shadow-lg">
+            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
               <GlobeAltIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">International Recognition</h3>
-              <p className="text-gray-600">Featured in Tech Blogs</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">International Recognition</h3>
+              <p className="text-muted-foreground">Featured in Tech Blogs</p>
             </div>
-            <div className="bg-white p-6 rounded-xl text-center shadow-lg">
+            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
               <HeartIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Community Impact</h3>
-              <p className="text-gray-600">Projects Helping Others</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Community Impact</h3>
+              <p className="text-muted-foreground">Projects Helping Others</p>
             </div>
           </div>
         </div>
@@ -365,7 +365,7 @@ export default function StudentProjectsPage() {
             </Link>
             <a
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white/60 text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"
             >
               Get Started
             </a>

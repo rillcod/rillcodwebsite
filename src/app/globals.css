@@ -75,6 +75,10 @@
     --duration-fast: 150ms;
     --duration-normal: 250ms;
     --duration-slow: 400ms;
+
+    /* Shared product geometry and elevation */
+    --public-nav-height: calc(4.5rem + var(--safe-area-top));
+    --surface-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.05);
   }
 
   @media (max-width: 767px) {
@@ -285,7 +289,7 @@
   }
 
   /* Public / marketing pages (outside dashboard shell) */
-  .public-page-root {
+  :is(.public-page-root, .app-visual-standard) {
     @apply min-w-0 overflow-x-clip antialiased;
   }
 
@@ -386,7 +390,118 @@
   --brand-red: #E8334A;
 }
 
-/* ── Signature blend mode — removes white bg on light backgrounds ── */
+/* Shared visual language -------------------------------------------------- */
+/* These rules normalize legacy inline Tailwind combinations across the
+   product while route components are progressively moved onto primitives. */
+:is(.public-page-root, .app-visual-standard),
+.app-page-main {
+  color: var(--foreground);
+  text-rendering: optimizeLegibility;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(h1, h2, h3),
+.app-page-main :where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(p, li),
+.app-page-main :where(p, li) {
+  text-wrap: pretty;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.font-black),
+.app-page-main :where(.font-black),
+#dashboard-navigation-drawer :where(.font-black) {
+  font-weight: 700 !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.uppercase),
+.app-page-main :where(.uppercase),
+#dashboard-navigation-drawer :where(.uppercase:not(h1)) {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where([class~="text-[8px]"], [class~="text-[9px]"], [class~="text-[10px]"]),
+.app-page-main :where([class~="text-[8px]"], [class~="text-[9px]"], [class~="text-[10px]"]) {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+}
+:is(.public-page-root, .app-visual-standard) :where(.italic),
+.app-page-main :where(.italic) {
+  font-style: normal !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.shadow-lg, .shadow-xl, .shadow-2xl),
+.app-page-main :where(.shadow-lg, .shadow-xl, .shadow-2xl) {
+  box-shadow: var(--surface-shadow) !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.rounded-3xl, .rounded-none),
+.app-page-main :where(.rounded-3xl, .rounded-none) {
+  border-radius: 1.25rem !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.border-black),
+.app-page-main :where(.border-black) {
+  border-color: var(--border) !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(.border-2.border-black),
+.app-page-main :where(.border-2.border-black) {
+  border-width: 1px !important;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(input, select, textarea),
+.app-page-main :where(input, select, textarea) {
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(button, [role="button"]),
+.app-page-main :where(button, [role="button"]) {
+  min-height: 2.75rem;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(a.inline-flex, a[class*=" px-"], a[class^="px-"]),
+.app-page-main :where(a.inline-flex, a[class*=" px-"], a[class^="px-"]) {
+  min-height: 2.75rem;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(table),
+.app-page-main :where(table) {
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.public-page-root, .app-visual-standard) :where(th),
+.app-page-main :where(th) {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+@media (max-width: 767px) {
+  :is(.public-page-root, .app-visual-standard) :where(.py-16, .py-20, .py-24),
+  .app-page-main :where(.py-16, .py-20, .py-24) {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  :is(.public-page-root, .app-visual-standard) :where(.mb-16, .mb-20, .mb-24),
+  .app-page-main :where(.mb-16, .mb-20, .mb-24) {
+    margin-bottom: 2.5rem !important;
+  }
+  :is(.public-page-root, .app-visual-standard) :where(.p-10, .p-12, .p-14, .p-16),
+  .app-page-main :where(.p-10, .p-12, .p-14, .p-16) {
+    padding: 1rem !important;
+  }
+
+  :is(.public-page-root, .app-visual-standard) :where(.gap-10, .gap-12, .gap-14, .gap-16),
+  .app-page-main :where(.gap-10, .gap-12, .gap-14, .gap-16) {
+    gap: 1.25rem !important;
+  }
+}
+/* Signature images are supplied on white backgrounds. */
 img[alt="Official Signature"] {
   mix-blend-mode: multiply;
 }

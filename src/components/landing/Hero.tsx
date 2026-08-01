@@ -23,7 +23,7 @@ const Hero: React.FC = () => {
   return (
     <section
       id="home"
-      className="relative min-h-[90svh] flex items-center bg-background overflow-x-clip public-page-root pt-24 pb-12 sm:pt-32 sm:pb-20"
+      className="relative flex min-h-[calc(100svh-var(--public-nav-height))] items-center overflow-x-clip bg-background px-0 pb-12 pt-8 sm:pb-16 sm:pt-12"
     >
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-primary/5 blur-[100px] rounded-xl" />
@@ -56,11 +56,11 @@ const Hero: React.FC = () => {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href={cta.registerHref}
+                href={cta.href}
                 prefetch={false}
                 className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border-2 border-brand-red-600/50 hover:border-brand-red-600 hover:bg-brand-red-600/10 transition-all shadow-lg"
               >
-                Enroll Child Now
+                View special programme
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-brand-red-600 dark:text-brand-red-500" />
               </Link>
             </div>
@@ -127,7 +127,7 @@ const Hero: React.FC = () => {
                         ☀️ {cta.title}
                       </p>
                       <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">
-                        Enroll Child Now
+                        View programme details
                       </p>
                       <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
                         {cta.batchLabel} · In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}

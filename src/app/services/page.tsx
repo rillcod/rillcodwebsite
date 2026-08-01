@@ -73,13 +73,13 @@ const stats = [
 
 export default function Services() {
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
       {/* Hero Section */}
-      <div className="text-center py-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+      <div className="text-center border border-border bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-2xl px-5 py-12 sm:px-8 sm:py-16 mb-12">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
           Professional IT Services
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+        <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
           We build technology solutions that help your business grow and move forward.
         </p>
         <div className="w-20 h-2 bg-blue-600 mx-auto rounded-full"></div>
@@ -92,8 +92,8 @@ export default function Services() {
             <div className="flex justify-center mb-4 text-blue-600">
               {stat.icon}
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-2">{stat.number}</div>
-            <div className="text-gray-600">{stat.label}</div>
+            <div className="text-3xl font-bold text-foreground mb-2">{stat.number}</div>
+            <div className="text-muted-foreground">{stat.label}</div>
           </div>
         ))}
       </div>
@@ -101,7 +101,7 @@ export default function Services() {
       {/* Services Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
         {services.map((service, index) => (
-          <div key={index} className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow">
+          <div key={index} className="bg-card rounded-2xl shadow-sm overflow-hidden border border-border hover:shadow-md transition-shadow">
             <div className={`bg-gradient-to-r ${service.color} p-8`}>
               <div className="flex items-center justify-between">
                 <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
@@ -114,14 +114,14 @@ export default function Services() {
             </div>
             
             <div className="p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">{service.title}</h3>
-              <p className="text-gray-600 mb-6">{service.description}</p>
+              <h3 className="text-2xl font-bold text-foreground mb-4">{service.title}</h3>
+              <p className="text-muted-foreground mb-6">{service.description}</p>
               
               <div className="mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">What's Included:</h4>
+                <h4 className="font-semibold text-foreground mb-3">What's Included:</h4>
                 <ul className="space-y-2">
                   {service.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center text-gray-600">
+                    <li key={featureIndex} className="flex items-center text-muted-foreground">
                       <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
                       {feature}
                     </li>
@@ -142,37 +142,37 @@ export default function Services() {
       </div>
 
       {/* Why Choose Us */}
-      <div className="bg-gray-50 rounded-2xl p-8 mb-16">
+      <div className="bg-muted/50 border border-border rounded-2xl p-6 sm:p-8 mb-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose RILLCOD TECH?</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold text-foreground mb-4">Why Choose RILLCOD TECH?</h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We combine technical skill with business understanding to deliver results that matter.
           </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Zap className="w-8 h-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast Delivery</h3>
-            <p className="text-gray-600">We deliver projects on time with a clear process and efficient teamwork.</p>
+            <h3 className="text-xl font-semibold text-foreground mb-2">Fast Delivery</h3>
+            <p className="text-muted-foreground">We deliver projects on time with a clear process and efficient teamwork.</p>
           </div>
           
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Award className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Assurance</h3>
-            <p className="text-gray-600">Rigorous testing and quality control ensure your solutions are robust and reliable.</p>
+            <h3 className="text-xl font-semibold text-foreground mb-2">Quality Assurance</h3>
+            <p className="text-muted-foreground">Rigorous testing and quality control ensure your solutions are robust and reliable.</p>
           </div>
           
           <div className="text-center">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-purple-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Expert Team</h3>
-            <p className="text-gray-600">Our experienced developers and consultants bring years of industry expertise.</p>
+            <h3 className="text-xl font-semibold text-foreground mb-2">Expert Team</h3>
+            <p className="text-muted-foreground">Our experienced developers and consultants bring years of industry expertise.</p>
           </div>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function Services() {
           </Link>
           <Link
             href="/portfolio"
-            className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
+            className="inline-flex items-center justify-center px-8 py-4 border-2 border-white/60 text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
           >
             View Our Work
           </Link>

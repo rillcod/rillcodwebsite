@@ -199,7 +199,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} bg-background text-foreground`}>
+      <body className={`${inter.className} app-visual-standard bg-background text-foreground`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

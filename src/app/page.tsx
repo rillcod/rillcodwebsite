@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Hero, About, NigerianSTEMShowcase, Contact, Footer, ProgramExplorer } from '@/components/landing';
+import { Hero, About, NigerianSTEMShowcase, Contact, ProgramExplorer } from '@/components/landing';
 import SummerSchoolPopup from '@/components/SummerSchoolPopup';
 
 export default function Home() {
@@ -84,7 +84,6 @@ export default function Home() {
       <ProgramExplorer />
       <NigerianSTEMShowcase />
       <Contact />
-      <Footer />
 
       {/* Summer School registration popup modal */}
       <SummerSchoolPopup

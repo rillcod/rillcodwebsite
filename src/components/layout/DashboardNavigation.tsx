@@ -1223,9 +1223,9 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo */}
-        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-border/70 relative overflow-hidden">
+        <div className="relative hidden items-center gap-3 overflow-hidden border-b border-border/70 px-4 py-4 md:flex">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] to-transparent pointer-events-none" />
-          <div className="w-12 h-12 bg-white dark:bg-card border border-primary/30 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/10 mb-3 relative z-10 p-2 transition-transform hover:scale-105">
+          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white p-2 shadow-sm dark:bg-card">
             <Image
               src="/images/logo.png"
               alt="Rillcod Technologies"
@@ -1235,20 +1235,13 @@ export default function DashboardNavigation() {
               priority
             />
           </div>
-          <div className="text-center leading-none relative z-10">
+          <div className="relative z-10 min-w-0 text-left leading-none">
             <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-foreground italic">
               RILLCOD<span className="text-brand-red-500 not-italic">.</span>
             </h1>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic mt-0.5">
               TECHNOLOGIES
             </p>
-            <div className="flex items-center justify-center gap-1.5 mt-2 text-[8px] font-black uppercase tracking-widest text-brand-red-600 dark:text-brand-red-500 bg-brand-red-600/10 border border-brand-red-600/20 px-2 py-0.5 rounded-full w-fit mx-auto">
-              <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red-600" />
-              </span>
-              Official Portal
-            </div>
           </div>
         </div>
 
@@ -1268,9 +1261,6 @@ export default function DashboardNavigation() {
                   : profile.role}
               </span>
             </div>
-          </div>
-          <div className="ml-auto flex-shrink-0">
-            <NotificationDropdown />
           </div>
         </div>
 

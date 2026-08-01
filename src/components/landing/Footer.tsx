@@ -29,7 +29,7 @@ const legalLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans no-print">
+    <footer className="public-page-root relative mt-auto overflow-hidden border-t border-border bg-card font-sans text-foreground no-print">
       {/* Sharp Accent Line */}
       <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-red-600 via-primary to-transparent" />
 
@@ -37,7 +37,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-16 lg:gap-24 mb-20">
           
           {/* Brand Col */}
-          <div className="lg:col-span-5 space-y-8">
+          <div className="space-y-8 lg:col-span-5 xl:col-span-4">
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-10 h-10 flex items-center justify-center rounded-xl overflow-hidden group-hover:scale-105 transition-transform dark:bg-white shrink-0 border border-border dark:border-transparent">
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="w-[85%] h-[85%] object-contain" />
@@ -58,7 +58,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-3">
                {footerSocialLinks.map((s) => (
-                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-xl hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
+                 <Link key={s.name} href={s.href} aria-label={s.name} target="_blank" rel="noreferrer" className="w-10 h-10 border border-border flex items-center justify-center rounded-xl hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
                     <s.icon className="w-4 h-4" />
                  </Link>
                ))}
@@ -66,7 +66,7 @@ export default function Footer() {
           </div>
 
           {/* Links Grid */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="space-y-6 lg:col-span-3 xl:col-span-2">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Main Hub</h4>
               <ul className="space-y-4">
                 {quickLinks.map((l) => (
@@ -78,7 +78,7 @@ export default function Footer() {
           </div>
 
           {/* Legal */}
-          <div className="lg:col-span-4 space-y-6 lg:hidden xl:block">
+          <div className="hidden space-y-6 xl:col-span-2 xl:block">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Legal</h4>
               <ul className="space-y-4">
                 {legalLinks.map((l) => (
@@ -90,7 +90,7 @@ export default function Footer() {
           </div>
 
           {/* Contact Detail */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="space-y-6 lg:col-span-4 xl:col-span-4">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Communications</h4>
               <div className="space-y-5">
                  <div className="flex items-start gap-4 group">

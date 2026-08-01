@@ -25,15 +25,15 @@ const projects = [
 
 export default function ShowcasePage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-16 px-4">
+    <div className="min-h-screen bg-background px-4 py-12 sm:px-6 sm:py-16">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-8">Student Projects Showcase</h1>
-        <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-4">Student Projects Showcase</h1>
+        <p className="text-center text-muted-foreground mb-10 max-w-2xl mx-auto">
           Discover outstanding projects created by RILLCOD Academy students.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {projects.map((project, idx) => (
-            <div key={idx} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+            <div key={idx} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
               <div className="relative h-40 w-full">
                 <Image
                   src={project.image}
@@ -45,9 +45,9 @@ export default function ShowcasePage() {
                 />
               </div>
               <div className="p-6 flex flex-col flex-grow">
-                <h2 className="text-lg font-bold text-gray-800 mb-1">{project.title}</h2>
+                <h2 className="text-lg font-bold text-foreground mb-1">{project.title}</h2>
                 <div className="text-sm text-primary font-semibold mb-2">By {project.student}</div>
-                <p className="text-gray-600 mb-4 flex-grow">{project.description}</p>
+                <p className="text-muted-foreground mb-4 flex-grow">{project.description}</p>
               </div>
             </div>
           ))}

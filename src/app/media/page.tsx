@@ -8,24 +8,24 @@ const news = [
 
 export default function Media() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center py-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Media & News</h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">See our latest press releases, event highlights, and student success stories.</p>
+    <div className="max-w-4xl mx-auto px-4 py-10 sm:px-6 sm:py-14">
+      <div className="text-center border border-border bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-2xl px-5 py-12 sm:px-8 sm:py-16 mb-12">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Media & News</h1>
+        <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">See our latest press releases, event highlights, and student success stories.</p>
         <div className="w-20 h-2 bg-blue-600 mx-auto rounded-full"></div>
       </div>
       <div className="space-y-8 mb-16">
         {news.map((item, idx) => (
-          <div key={idx} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <div key={idx} className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 border border-border">
             <div className="flex items-center gap-4 mb-2">
               {item.type === 'Press Release' && <Newspaper className="w-6 h-6 text-blue-600" />}
               {item.type === 'Success Story' && <Award className="w-6 h-6 text-green-600" />}
               {item.type === 'Event' && <Camera className="w-6 h-6 text-purple-600" />}
-              <span className="text-sm text-gray-500">{new Date(item.date).toLocaleDateString()}</span>
+              <span className="text-sm text-muted-foreground">{new Date(item.date).toLocaleDateString()}</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h2>
-            <p className="text-gray-700 mb-2">{item.summary}</p>
-            <span className="inline-block bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">{item.type}</span>
+            <h2 className="text-xl font-bold text-foreground mb-2">{item.title}</h2>
+            <p className="text-muted-foreground mb-3">{item.summary}</p>
+            <span className="inline-block bg-muted text-muted-foreground px-3 py-1 rounded-full text-xs font-medium">{item.type}</span>
           </div>
         ))}
       </div>

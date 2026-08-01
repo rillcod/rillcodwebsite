@@ -68,7 +68,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     return (
       <>
         {profile && <NewsletterPopup userId={profile.id} />}
-        <main className="fixed top-[var(--app-header-height)] bottom-[var(--app-bottom-nav-height)] left-0 right-0 min-w-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
+        <main className="app-page-main fixed top-[var(--app-header-height)] bottom-[var(--app-bottom-nav-height)] left-0 right-0 min-w-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
           {children}
         </main>
       </>

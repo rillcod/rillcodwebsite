@@ -5,22 +5,22 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from '@radix-ui/react-slot';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:border-black disabled:pointer-events-none disabled:opacity-50 border-2 border-black active:translate-x-[1px] active:translate-y-[1px] active:shadow-none',
+  'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] sm:min-h-10',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px]',
-        destructive: 'bg-destructive text-destructive-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px]',
-        outline: 'border-2 border-black bg-background hover:bg-accent hover:text-accent-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px]',
-        secondary: 'bg-secondary text-secondary-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px]',
-        ghost: 'border-transparent hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline border-none shadow-none active:translate-x-0 active:translate-y-0'
+        default: 'border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md',
+        destructive: 'border-destructive bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+        outline: 'border-border bg-card text-foreground shadow-sm hover:border-primary/40 hover:bg-muted',
+        secondary: 'border-border bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        ghost: 'border-transparent bg-transparent text-foreground hover:bg-muted',
+        link: 'min-h-0 border-transparent bg-transparent p-0 text-primary underline-offset-4 hover:underline active:scale-100'
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 px-3',
-        lg: 'h-11 px-8',
-        icon: 'h-10 w-10'
+        default: 'h-11 px-4 py-2 sm:h-10',
+        sm: 'h-10 px-3 text-xs sm:h-9',
+        lg: 'h-12 px-6 text-base',
+        icon: 'h-11 w-11 p-0 sm:h-10 sm:w-10'
       }
     },
     defaultVariants: {

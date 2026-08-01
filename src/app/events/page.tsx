@@ -148,13 +148,13 @@ export default function Events() {
   const pastEvents = filteredEvents.filter(event => new Date(event.date) < new Date());
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
       {/* Hero Section */}
-      <div className="text-center py-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+      <div className="text-center border border-border bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-2xl px-5 py-12 sm:px-8 sm:py-16 mb-12">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
           Events & Activities
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+        <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
           Join our exciting events, workshops, competitions, and showcases to enhance your technology skills and network with industry professionals.
         </p>
         <div className="w-20 h-2 bg-blue-600 mx-auto rounded-full"></div>
@@ -163,8 +163,8 @@ export default function Events() {
       {/* Featured Event */}
       {events.filter(e => e.featured).map((event) => (
         <div key={event.id} className="mb-16">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8">Featured Event</h2>
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+          <h2 className="text-2xl font-bold text-foreground mb-8">Featured Event</h2>
+          <div className="bg-card rounded-2xl shadow-sm overflow-hidden border border-border">
             <div className="grid grid-cols-1 lg:grid-cols-2">
               <div className="h-64 lg:h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                 <div className="text-center">
@@ -183,33 +183,33 @@ export default function Events() {
                     {event.category}
                   </span>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">{event.title}</h3>
-                <p className="text-gray-600 mb-6">{event.description}</p>
+                <h3 className="text-2xl font-bold text-foreground mb-4">{event.title}</h3>
+                <p className="text-muted-foreground mb-6">{event.description}</p>
                 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 text-sm">{new Date(event.date).toLocaleDateString()}</span>
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground text-sm">{new Date(event.date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 text-sm">{event.time}</span>
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground text-sm">{event.time}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 text-sm">{event.location}</span>
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground text-sm">{event.location}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 text-sm">{event.registered}/{event.capacity} registered</span>
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground text-sm">{event.registered}/{event.capacity} registered</span>
                   </div>
                 </div>
 
                 <div className="mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-3">Highlights:</h4>
+                  <h4 className="font-semibold text-foreground mb-3">Highlights:</h4>
                   <ul className="space-y-1">
                     {event.highlights.map((highlight, index) => (
-                      <li key={index} className="text-gray-600 text-sm">• {highlight}</li>
+                      <li key={index} className="text-muted-foreground text-sm">• {highlight}</li>
                     ))}
                   </ul>
                 </div>
@@ -231,11 +231,11 @@ export default function Events() {
       <div className="mb-12">
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Event Type:</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Event Type:</label>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="min-h-11 rounded-lg border border-input bg-background px-4 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
             >
               {eventTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -243,11 +243,11 @@ export default function Events() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category:</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Category:</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="min-h-11 rounded-lg border border-input bg-background px-4 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
             >
               {categories.map((category) => (
                 <option key={category} value={category}>{category}</option>
@@ -259,10 +259,10 @@ export default function Events() {
 
       {/* Upcoming Events */}
       <div className="mb-16">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Upcoming Events</h2>
+        <h2 className="text-3xl font-bold text-foreground mb-8">Upcoming Events</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {upcomingEvents.map((event) => (
-            <div key={event.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow">
+            <div key={event.id} className="bg-card rounded-2xl shadow-sm overflow-hidden border border-border hover:shadow-md transition-shadow">
               <div className="h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -273,28 +273,28 @@ export default function Events() {
               </div>
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <Tag className="w-4 h-4 text-gray-500" />
-                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                  <Tag className="w-4 h-4 text-muted-foreground" />
+                  <span className="bg-muted text-muted-foreground px-2 py-1 rounded text-xs">
                     {event.category}
                   </span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">{event.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">{event.description}</p>
+                <h3 className="text-xl font-bold text-foreground mb-3 line-clamp-2">{event.title}</h3>
+                <p className="text-muted-foreground text-sm mb-4 line-clamp-3">{event.description}</p>
                 
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
                     {new Date(event.date).toLocaleDateString()}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Clock className="w-4 h-4" />
                     {event.time}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="w-4 h-4" />
                     {event.location}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="w-4 h-4" />
                     {event.registered}/{event.capacity} registered
                   </div>
@@ -316,40 +316,40 @@ export default function Events() {
       {/* Past Events */}
       {pastEvents.length > 0 && (
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Past Events</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-8">Past Events</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {pastEvents.map((event) => (
-              <div key={event.id} className="bg-gray-50 rounded-xl shadow-lg overflow-hidden border border-gray-200">
+              <div key={event.id} className="bg-muted/40 rounded-2xl shadow-sm overflow-hidden border border-border">
                 <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
                       <Calendar className="w-6 h-6 text-white" />
                     </div>
-                    <p className="text-gray-600 font-semibold text-sm">Past Event</p>
+                    <p className="text-muted-foreground font-semibold text-sm">Past Event</p>
                   </div>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center gap-2 mb-3">
-                    <Tag className="w-4 h-4 text-gray-500" />
-                    <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">
+                    <Tag className="w-4 h-4 text-muted-foreground" />
+                    <span className="bg-muted text-muted-foreground px-2 py-1 rounded text-xs">
                       {event.category}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{event.title}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{event.description}</p>
+                  <h3 className="text-xl font-bold text-foreground mb-3">{event.title}</h3>
+                  <p className="text-muted-foreground text-sm mb-4">{event.description}</p>
                   
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
                       {new Date(event.date).toLocaleDateString()}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
                       {event.registered} participants
                     </div>
                   </div>
                   
-                  <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                  <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors">
                     View Photos
                     <ExternalLink className="w-3 h-3 ml-1" />
                   </button>
@@ -367,11 +367,11 @@ export default function Events() {
           Subscribe to our newsletter to get notified about upcoming events, workshops, and competitions.
         </p>
         <div className="max-w-md mx-auto">
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
+              className="w-full flex-1 bg-white px-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
             />
             <button className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors">
               Subscribe
