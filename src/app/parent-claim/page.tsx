@@ -51,7 +51,7 @@ function ParentClaimContent() {
         </div>
 
         {!activeCode ? (
-          <form onSubmit={handleStartClaim} className="rc-panel rounded-[1.75rem] p-5 sm:p-7 space-y-4">
+          <form onSubmit={handleStartClaim} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-5 sm:p-8 shadow-xl space-y-4">
             <label htmlFor="student-code" className="block text-left text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
               Enter your child&apos;s RC student number
             </label>
