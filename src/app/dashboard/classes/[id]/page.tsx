@@ -1725,18 +1725,22 @@ export default function ClassDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {isStaff && visibleCurrent.length > 0 && (
+                      {visibleCurrent.length > 0 && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
-                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-primary"
-                              checked={checkedEnrollIds.size > 0 && visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id))}
-                              ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && !visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id)); }}
-                              onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(visibleCurrent.map((s: any) => s.id)) : new Set())}
-                            />
-                            {checkedEnrollIds.size > 0 ? `${checkedEnrollIds.size} selected` : 'Select all'}
-                          </label>
+                          {/* Selection is `canView`, not `isStaff` — partner schools could bulk-unenrol
+                              from the old Active learners panel and keep that here. */}
+                          {canView ? (
+                            <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-primary"
+                                checked={checkedEnrollIds.size > 0 && visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id))}
+                                ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && !visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id)); }}
+                                onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(visibleCurrent.map((s: any) => s.id)) : new Set())}
+                              />
+                              {checkedEnrollIds.size > 0 ? `${checkedEnrollIds.size} selected` : 'Select all'}
+                            </label>
+                          ) : <span />}
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
@@ -1747,7 +1751,7 @@ export default function ClassDetailPage() {
                             >
                               {expandedStudentIds.size >= visibleCurrent.length ? 'Collapse all' : 'Expand all'}
                             </button>
-                            {checkedEnrollIds.size > 0 && (
+                            {canView && checkedEnrollIds.size > 0 && (
                               <button
                                 type="button"
                                 disabled={bulkRemoving}
@@ -1817,7 +1821,7 @@ export default function ClassDetailPage() {
                               onClick={() => toggleStudentExpanded(student.id)}
                               className="flex min-w-0 cursor-pointer items-start gap-2.5 p-3"
                             >
-                              {isStaff && (
+                              {canView && (
                                 <input
                                   type="checkbox"
                                   checked={checked}
