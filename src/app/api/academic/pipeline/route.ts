@@ -48,9 +48,16 @@ export async function GET() {
 
   const classes = classRows.data ?? [];
   const programIds = Array.from(new Set(classes.map((c: any) => c.program_id).filter(Boolean)));
-  const { data: courseRows } = programIds.length
-    ? await db.from('courses').select('id, title, program_id').in('program_id', programIds)
-    : { data: [] };
+  const [{ data: courseRows }, { data: programRows }] = await Promise.all([
+    programIds.length
+      ? db.from('courses').select('id, title, program_id').in('program_id', programIds)
+      : Promise.resolve({ data: [] as any[] }),
+    programIds.length
+      ? db.from('programs').select('id, name').in('id', programIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const programName = new Map<string, string>();
+  for (const row of programRows ?? []) programName.set(row.id, row.name);
 
   const coursesByProgram = new Map<string, string[]>();
   const courseTitle = new Map<string, string>();
@@ -71,7 +78,7 @@ export async function GET() {
 
   // Replay exactly what readiness will decide, so this view and the job cannot disagree.
   const resolved: Array<{ id: string; name: string; via: string }> = [];
-  const stuck: Array<{ id: string; name: string; reason: string }> = [];
+  const stuck: Array<{ id: string; name: string; reason: string; programId: string | null }> = [];
   let alreadySet = 0;
 
   for (const klass of classes) {
@@ -87,9 +94,38 @@ export async function GET() {
       resolved.push({ id: klass.id, name: klass.name, via: inference.reason });
     } else {
       const adoptedInProgramme = programmeCourses.filter((id) => adopted.includes(id)).length;
-      stuck.push({ id: klass.id, name: klass.name, reason: describeInference(inference, adoptedInProgramme) });
+      stuck.push({
+        id: klass.id,
+        name: klass.name,
+        reason: describeInference(inference, adoptedInProgramme),
+        programId: klass.program_id ?? null,
+      });
     }
   }
+
+  // Grouped by programme, because the fix is usually one act per programme rather than one per
+  // class: publish a single course and every class in that programme resolves, since one live
+  // edition leaves nothing to choose between. Reading the flat list, that is invisible.
+  const publishedCourseIds = new Set(
+    (releases.data ?? []).filter((r: any) => r.status === 'published').map((r: any) => r.course_id),
+  );
+  const blockedByProgramme = Object.values(
+    stuck.reduce((acc: Record<string, any>, klass) => {
+      const key = klass.programId ?? 'none';
+      const courses = klass.programId ? coursesByProgram.get(klass.programId) ?? [] : [];
+      acc[key] ??= {
+        programId: klass.programId,
+        programme: klass.programId ? programName.get(klass.programId) ?? 'Unknown programme' : 'No programme',
+        classCount: 0,
+        courseCount: courses.length,
+        publishedCount: courses.filter((id) => publishedCourseIds.has(id)).length,
+        classes: [] as string[],
+      };
+      acc[key].classCount += 1;
+      acc[key].classes.push(klass.name);
+      return acc;
+    }, {}),
+  ).sort((a: any, b: any) => b.classCount - a.classCount);
 
   const central = (curricula.data ?? []).filter((c: any) => !c.school_id);
   const published = (releases.data ?? []).filter((r: any) => r.status === 'published');
@@ -137,6 +173,21 @@ export async function GET() {
       },
     ],
     blocked: stuck,
+    blockedByProgramme,
+    // What has actually been published, per programme. "1 published edition" says nothing about
+    // which programme it serves, and a programme with none is the reason its classes are stuck.
+    coverage: Array.from(coursesByProgram.entries())
+      .map(([programId, courseIds]) => {
+        const live = courseIds.filter((id) => publishedCourseIds.has(id));
+        return {
+          programId,
+          programme: programName.get(programId) ?? 'Unknown programme',
+          courseCount: courseIds.length,
+          publishedCount: live.length,
+          publishedCourses: live.map((id) => courseTitle.get(id) ?? 'Untitled course'),
+        };
+      })
+      .sort((a, b) => b.publishedCount - a.publishedCount || a.programme.localeCompare(b.programme)),
     resolving: resolved,
     jobs,
     generatedAt: new Date().toISOString(),

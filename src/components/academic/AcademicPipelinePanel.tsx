@@ -24,9 +24,28 @@ type Job = {
   last_error: string | null;
 };
 
+type BlockedProgramme = {
+  programId: string | null;
+  programme: string;
+  classCount: number;
+  courseCount: number;
+  publishedCount: number;
+  classes: string[];
+};
+
+type Coverage = {
+  programId: string;
+  programme: string;
+  courseCount: number;
+  publishedCount: number;
+  publishedCourses: string[];
+};
+
 type Pipeline = {
   steps: Step[];
   blocked: Blocked[];
+  blockedByProgramme: BlockedProgramme[];
+  coverage: Coverage[];
   resolving: Array<{ id: string; name: string; via: string }>;
   jobs: Record<string, Job>;
   generatedAt: string;
@@ -124,6 +143,33 @@ export function AcademicPipelinePanel() {
             </p>
           )}
 
+          {/* Which programme each published edition actually serves. "1 published edition" does
+              not say whether it reaches the classes that are waiting. */}
+          {(data.coverage ?? []).length > 0 && (
+            <div className="mt-4 rounded-xl border border-border bg-background p-3">
+              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Published, by programme
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {data.coverage.map((row) => (
+                  <li key={row.programId} className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+                    <span className="font-bold text-foreground">{row.programme}</span>
+                    <span
+                      className={
+                        row.publishedCount > 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }
+                    >
+                      {row.publishedCount} of {row.courseCount} course{row.courseCount === 1 ? '' : 's'}
+                      {row.publishedCourses.length ? ` · ${row.publishedCourses.join(', ')}` : ' · nothing published'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {data.resolving.length > 0 && (
             <details className="mt-4 rounded-xl border border-border bg-background p-3">
               <summary className="cursor-pointer text-sm font-bold text-foreground">
@@ -141,11 +187,32 @@ export function AcademicPipelinePanel() {
                 <ExclamationTriangleIcon className="h-5 w-5" />
                 {data.blocked.length} class{data.blocked.length === 1 ? '' : 'es'} need a decision
               </p>
-              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
-                {data.blocked.map((c) => (
-                  <li key={c.id} className="rounded-xl border border-border bg-card px-3 py-2 text-xs">
-                    <p className="font-bold text-foreground">{c.name}</p>
-                    <p className="mt-0.5 text-muted-foreground">{c.reason}</p>
+
+              {/* Grouped first, because the fix is one act per programme rather than one per class:
+                  publish a single course and every class in that programme resolves, since one
+                  live edition leaves nothing to choose between. */}
+              <ul className="mt-3 space-y-2">
+                {(data.blockedByProgramme ?? []).map((group) => (
+                  <li
+                    key={group.programId ?? 'none'}
+                    className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs"
+                  >
+                    <p className="font-black text-foreground">
+                      {group.programme} — {group.classCount} class{group.classCount === 1 ? '' : 'es'} waiting
+                    </p>
+                    <p className="mt-0.5 text-muted-foreground">
+                      {group.courseCount === 0
+                        ? 'This programme has no courses, so nothing can be published for it yet.'
+                        : group.publishedCount === 0
+                          ? `${group.courseCount} course${group.courseCount === 1 ? '' : 's'}, none published. Publishing any one of them clears all ${group.classCount}.`
+                          : `${group.publishedCount} of ${group.courseCount} courses published — more than one live edition, so someone must choose.`}
+                    </p>
+                    <details className="mt-1.5">
+                      <summary className="cursor-pointer text-[11px] text-muted-foreground">Which classes</summary>
+                      <ul className="mt-1 max-h-32 space-y-0.5 overflow-y-auto text-[11px] text-muted-foreground">
+                        {group.classes.map((name) => <li key={name}>{name}</li>)}
+                      </ul>
+                    </details>
                   </li>
                 ))}
               </ul>
