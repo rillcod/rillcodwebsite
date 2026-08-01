@@ -51,7 +51,7 @@ export default function ReportCoverageWidget() {
   for (const p of cov.pending) (byClass[p.className ?? 'Unassigned'] ??= []).push(p);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">

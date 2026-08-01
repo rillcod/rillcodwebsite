@@ -186,7 +186,7 @@ export default function InboxPreviewWidget() {
   if (!hasAccess) return null;
 
   return (
-    <div className="bg-[#111b21] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
+    <div className="bg-[#111b21]/90 backdrop-blur-2xl border border-white/[0.12] rounded-3xl shadow-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 bg-[#1f2c34] border-b border-white/[0.05]">
         <div className="flex items-center gap-3">
