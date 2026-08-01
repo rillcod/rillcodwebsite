@@ -1194,12 +1194,12 @@ export default function DashboardNavigation() {
             <span className="font-black uppercase tracking-widest text-[12px] text-foreground italic leading-none">
               Rillcod<span className="text-brand-red-accent not-italic">.</span>
             </span>
-            <span className="flex items-center gap-1 mt-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 mt-0.5 text-[8px] font-black uppercase tracking-widest text-brand-red-600 dark:text-brand-red-500">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red-600" />
               </span>
-              Live Sync
+              Rillcod Technologies
             </span>
           </div>
         </Link>
@@ -1255,12 +1255,12 @@ export default function DashboardNavigation() {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic mt-0.5">
               TECHNOLOGIES
             </p>
-            <div className="flex items-center justify-center gap-1.5 mt-2 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full w-fit mx-auto">
+            <div className="flex items-center justify-center gap-1.5 mt-2 text-[8px] font-black uppercase tracking-widest text-brand-red-600 dark:text-brand-red-500 bg-brand-red-600/10 border border-brand-red-600/20 px-2 py-0.5 rounded-full w-fit mx-auto">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red-600" />
               </span>
-              Live Sync Active
+              Official Portal
             </div>
           </div>
         </div>

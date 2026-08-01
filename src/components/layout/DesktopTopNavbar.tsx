@@ -143,12 +143,12 @@ export default function DesktopTopNavbar() {
         {/* Center/Right Desktop Quick Controls */}
         <div className="flex items-center gap-3.5 flex-shrink-0">
           {/* Real-time Connected Indicator */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-red-600/10 border border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 text-[10px] font-black uppercase tracking-widest">
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-red-600" />
             </span>
-            <span>Live Sync Active</span>
+            <span>Rillcod Technologies</span>
           </div>
 
           {/* Quick Search Shortcut Tile (Triggers Command Palette) */}
