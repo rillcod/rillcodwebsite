@@ -498,15 +498,15 @@ export default function StudentLearningPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Greeting */}
-          <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-red-600/5 blur-3xl pointer-events-none" />
+          <div className="lg:col-span-2 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-red-accent/15 rounded-full blur-3xl pointer-events-none" />
             <div className="relative z-10">
-              <span className="inline-block text-[10px] font-black text-brand-red-600 uppercase tracking-widest mb-3">
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-3">
                 {profile.grade_level || (isKids ? 'Primary School' : isAdult ? 'Professional' : 'Secondary School')}
               </span>
               <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight mb-2">
-                {greeting}, <span className="text-primary">{profile?.full_name?.split(' ')[0]}!</span>
+                {greeting}, <span className="bg-gradient-to-r from-primary to-indigo-500 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">{profile?.full_name?.split(' ')[0]}</span>!
                 {isKids && ' 🚀'}
               </h1>
               <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">

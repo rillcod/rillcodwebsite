@@ -118,24 +118,24 @@ export default function CBTPage() {
         </div>
 
         {/* ── HERO HEADER ── */}
-        <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
+        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
           {/* Ambient glow */}
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
           <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
             {/* Left: icon + title */}
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 border border-primary/30 flex-shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-xl shadow-primary/30 border border-primary/30 flex-shrink-0">
                 <AcademicCapIcon className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
+                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+                  Examinations &amp; Evaluations
+                </span>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-foreground leading-none">
                   CBT Section
                 </h1>
-                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mt-1">
-                  Examinations &amp; Evaluations
-                </p>
-                <p className="text-sm text-muted-foreground mt-1.5">
+                <p className="text-sm text-muted-foreground mt-1.5 font-medium">
                   {isStaff ? 'Create and manage exams and quizzes' : 'View and take your scheduled exams'}
                 </p>
               </div>

@@ -511,16 +511,21 @@ function OverviewTab({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Reports</p>
-        <h2 className="text-xl font-black text-foreground mt-0.5">
-          {isSchoolView ? 'School billing summary' : 'Finance summary & documents'}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isSchoolView
-            ? 'KPIs, PDF downloads, proof uploads, and statements Rillcod sent you. Day-to-day work stays on Today / Invoices / Collections.'
-            : 'Period KPIs, CSV export, invoice history, and Billing Docs. Use Today for the live action queue — not a second copy of this summary.'}
-        </p>
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+          <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+            Finance &amp; Operations
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mt-0.5">
+            {isSchoolView ? 'School billing summary' : 'Finance summary & documents'}
+          </h2>
+          <p className="text-sm text-muted-foreground font-medium mt-1">
+            {isSchoolView
+              ? 'KPIs, PDF downloads, proof uploads, and statements Rillcod sent you. Day-to-day work stays on Today / Invoices / Collections.'
+              : 'Period KPIs, CSV export, invoice history, and Billing Docs. Use Today for the live action queue — not a second copy of this summary.'}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

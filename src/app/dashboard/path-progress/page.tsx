@@ -63,11 +63,17 @@ export default function StudentPathProgressPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <h1 className="text-xl font-black">My Learning Path</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Your school path and week-by-week position based on teacher progression updates.
-        </p>
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+          <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+            Academic Pathway
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">My Learning Path</h1>
+          <p className="text-sm text-muted-foreground font-medium mt-1">
+            Your school path and week-by-week position based on teacher progression updates.
+          </p>
+        </div>
       </div>
 
       {paths.map((p) => (
