@@ -274,11 +274,11 @@ export default function StudentDashboard() {
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/support', icon: ChatBubbleLeftRightIcon, label: 'Support', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
-            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
           ] : []),
           { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
@@ -291,14 +291,14 @@ export default function StudentDashboard() {
       </div>
 
       <Link href="/dashboard/activity-hub"
-        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
-        <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">🚀</div>
+        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-transparent border border-brand-red-600/20 hover:border-brand-red-600/40 transition-all rounded-3xl">
+        <div className="w-12 h-12 bg-brand-red-600/20 border border-brand-red-600/30 flex items-center justify-center shrink-0 text-2xl rounded-2xl">🚀</div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <h3 className="text-sm font-black text-foreground group-hover:text-brand-red-600 dark:group-hover:text-brand-red-500 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
-        <div className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
+        <div className="text-brand-red-600 dark:text-brand-red-500 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
       </Link>
     </div>
   );
@@ -522,10 +522,10 @@ export default function StudentDashboard() {
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-600 dark:text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
           { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
@@ -538,16 +538,16 @@ export default function StudentDashboard() {
 
       {/* Activity Hub Feature Banner */}
       <Link href="/dashboard/activity-hub"
-        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
-        <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">
+        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-transparent border border-brand-red-600/20 hover:border-brand-red-600/40 transition-all rounded-3xl">
+        <div className="w-12 h-12 bg-brand-red-600/20 border border-brand-red-600/30 flex items-center justify-center shrink-0 text-2xl rounded-2xl">
           🚀
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <h3 className="text-sm font-black text-foreground group-hover:text-brand-red-600 dark:group-hover:text-brand-red-500 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
-        <div className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
+        <div className="text-brand-red-600 dark:text-brand-red-500 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
           Open →
         </div>
       </Link>
