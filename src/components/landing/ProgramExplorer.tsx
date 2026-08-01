@@ -91,7 +91,7 @@ const ProgramExplorer: React.FC = () => {
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-primary blur-[100px] rounded-full" />
       </div>
 
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 relative z-10">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="max-w-xl">

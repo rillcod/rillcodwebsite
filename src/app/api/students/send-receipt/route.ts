@@ -1,16 +1,11 @@
-import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { Database } from '@/types/supabase';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
-
-const supabaseAdmin = createAdminClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const bodySchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
@@ -32,6 +27,7 @@ interface SummerGatewayResponse {
 type PaymentTransactionRow = Database['public']['Tables']['payment_transactions']['Row'];
 
 export async function POST(req: NextRequest) {
+  const supabaseAdmin = createAdminClient();
   try {
     // 1. Verify caller is admin or teacher
     const supabase = await createServerClient();

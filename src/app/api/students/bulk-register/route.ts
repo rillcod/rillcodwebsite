@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { cleanGrade } from '@/lib/classes/naming';
@@ -22,11 +22,6 @@ import {
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 import { canAccessSchoolSync as canAccessSchool } from '@/lib/auth/school-scope';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 interface StudentEntry {
   full_name: string;
@@ -59,6 +54,7 @@ class HttpError extends Error {
 const normalizeEmail = (email?: string | null) => (email || '').trim().toLowerCase();
 
 async function getAssignedSchoolIds(caller: CallerProfile, userId: string) {
+  const supabaseAdmin = createEngagementAdminClient();
   const assignedIds = new Set<string>();
   if (caller.school_id) assignedIds.add(caller.school_id);
 
@@ -77,6 +73,7 @@ async function getAssignedSchoolIds(caller: CallerProfile, userId: string) {
 }
 
 async function requireBatchAccess(batchId: string, caller: CallerProfile, assignedSchoolIds: Set<string>) {
+  const supabaseAdmin = createEngagementAdminClient();
   const { data: batch, error } = await supabaseAdmin
     .from('registration_batches')
     .select('id, school_id, school_name, class_id, class_name')
@@ -94,6 +91,7 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
 
 export async function POST(request: Request) {
   try {
+    const supabaseAdmin = createEngagementAdminClient();
     // Verify caller is admin or teacher
     const supabase = await createServerClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -902,6 +900,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const supabaseAdmin = createEngagementAdminClient();
     const supabase = await createServerClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

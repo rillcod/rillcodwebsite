@@ -1,6 +1,6 @@
-import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
@@ -44,14 +44,10 @@ type Database = GenDatabase & {
   };
 };
 
-const supabaseAdmin = createAdminClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
 type StaffCaller = { role: string; id: string; school_id: string | null };
 
 async function callerCanAccessSchool(caller: StaffCaller, schoolId: string | null): Promise<boolean> {
+  const supabaseAdmin = createAdminClient();
   if (caller.role === 'admin') return true;
   if (!schoolId) return false;
   if (caller.school_id === schoolId) return true;
@@ -168,6 +164,7 @@ const bodySchema = z.object({
 // Admin/Teacher only — creates a portal_users account for an approved student
 // Returns: { success, email, tempPassword, portalUserId }
 export async function POST(req: NextRequest) {
+  const supabaseAdmin = createAdminClient();
   try {
     // Verify caller is admin or teacher
     const supabase = await createServerClient();

@@ -33,7 +33,7 @@ const About: React.FC = () => {
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
       
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
           
           {/* CONTENT */}
@@ -52,9 +52,9 @@ const About: React.FC = () => {
               At Rillcod Technologies, we don&apos;t just teach technology — we cultivate the world&apos;s next generation of engineers, creators, and innovators. Our 12-year progressive STEM framework empowers African learners and global students with world-class computational thinking, artificial intelligence, and hands-on robotics.
             </p>
 
-            <div className="grid sm:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-3 gap-3 sm:gap-6 w-full">
               {pillars.map((p) => (
-                <div key={p.title} className="group p-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl hover:bg-card transition-all border-t-2 border-t-brand-red-600 shadow-xl">
+                <div key={p.title} className="w-full group p-4 sm:p-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl hover:bg-card transition-all border-t-2 border-t-brand-red-600 shadow-xl">
                   <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-inner`}>
                     <p.icon className="w-6 h-6" />
                   </div>

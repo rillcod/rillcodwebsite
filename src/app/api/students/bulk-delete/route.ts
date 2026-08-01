@@ -1,18 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { permanentWipePortalUsers } from '@/lib/students/permanent-wipe';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 // Tables with portal_user references that do NOT cascade on portal_users delete.
 // We must remove these manually before deleting portal_users rows.
 export async function POST(request: Request) {
   try {
+    const supabaseAdmin = createEngagementAdminClient();
     // Only admins can bulk-delete
     const supabase = await createServerClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();

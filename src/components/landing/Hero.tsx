@@ -30,7 +30,7 @@ const Hero: React.FC = () => {
         <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-primary/5 blur-[80px] rounded-xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-6 lg:px-20">
+      <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-foreground leading-[1.1] tracking-tight mb-6 uppercase">
@@ -65,7 +65,8 @@ const Hero: React.FC = () => {
               </Link>
             </div>
 
-            <p className="text-[11px] sm:text-xs text-muted-foreground mb-10 max-w-md">
+            {/* Program details banner */}
+            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
               <span className="font-bold text-amber-600 dark:text-amber-400">{cta.batchLabel}</span>
               {' · '}
               <span className="font-bold text-emerald-600 dark:text-emerald-400">In-person {cta.onsiteFeeLabel}</span>
@@ -87,9 +88,9 @@ const Hero: React.FC = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 border-t-2 border-t-brand-red-600 shadow-xl hover:scale-[1.03] transition-all">
+                <div key={s.label} className="w-full bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-3.5 sm:p-6 border-t-2 border-t-brand-red-600 shadow-xl hover:scale-[1.03] transition-all">
                   <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter tabular-nums">{s.value}</p>
                   <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>

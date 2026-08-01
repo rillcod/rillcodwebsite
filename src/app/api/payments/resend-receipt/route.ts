@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { logAudit } from '@/lib/audit/log';
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 // POST /api/payments/resend-receipt
 // Body: { portalUserId: string } | { studentId: string }
 // Admin/teacher — resends the branded receipt email for the most recent completed payment
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createEngagementAdminClient();
     const supabase = await createServerClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

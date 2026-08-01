@@ -51,7 +51,7 @@ const Contact: React.FC = () => {
       <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-xl" />
       <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-xl" />
 
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 relative z-10">
 
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">

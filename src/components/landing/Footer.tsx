@@ -33,7 +33,7 @@ export default function Footer() {
       {/* Sharp Accent Line */}
       <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-red-600 via-primary to-transparent" />
 
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 pt-20 pb-12 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 pt-20 pb-12 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-16 lg:gap-24 mb-20">
           
           {/* Brand Col */}

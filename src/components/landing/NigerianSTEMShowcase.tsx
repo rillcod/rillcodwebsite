@@ -39,7 +39,7 @@ export default function NigerianSTEMShowcase() {
            style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-primary/5 blur-[150px] rounded-xl" />
 
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 relative z-10">
 
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
