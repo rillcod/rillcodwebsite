@@ -49,8 +49,15 @@ next-env.d.ts
 /rillcod_flutter_mobile
 scripts/setup-admins.mjs
 
-# Audit/Report summaries
+# Audit/Report summaries (root only — keep README / AGENTS)
 /*.md
+!README.md
+!AGENTS.md
+
+# Cloudflare / OpenNext local deploy artifacts
+.wrangler/
+open-next.config.ts.container-hidden
+bun.lock.opennext-hidden
 
 # PWA fallback files
 /public/fallback-*.js

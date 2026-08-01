@@ -1,0 +1,21 @@
+---
+description: Cloudflare Containers is the primary production host — never treat Vercel/OpenNext Workers as production.
+alwaysApply: true
+---
+
+# Cloudflare production deploy
+
+Production is **Cloudflare Containers**, not Vercel and not OpenNext Workers.
+
+- Live: `https://www.rillcod.com`, `https://rillcod.com`, `https://cf.rillcod.com`
+- Auto-deploy: push to `main` → `.github/workflows/deploy-cloudflare.yml`
+- Local deploy: `npm run deploy` (Docker required)
+- Source of truth: `docs/CLOUDFLARE_DEPLOY.md`
+
+When changing deploy, DNS, crons, or hosting:
+
+1. Read `docs/CLOUDFLARE_DEPLOY.md` and `wrangler.toml` first.
+2. Keep Containers + `Dockerfile.cf` + `scripts/cf-container-deploy.mjs`.
+3. Do not switch production back to Vercel/Netlify/OpenNext Workers without an explicit user request.
+4. Do not remove GitHub Actions deploy secrets docs or the workflow without replacing them.
+5. Crons in `wrangler.toml` must not double-fire with cron-job.org.

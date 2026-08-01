@@ -16,11 +16,29 @@ A modern Next.js website for Rillcod Academy, featuring technology education pro
 - **Styling**: Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
 - **Icons**: Lucide React
-- **Deployment**: Netlify
+- **Deployment**: Cloudflare Containers (primary). See `docs/CLOUDFLARE_DEPLOY.md`.
+
+## 🚀 Deploy (production)
+
+Push to **`main`** → GitHub Action deploys to Cloudflare automatically.
+
+```bash
+git add .
+git commit -m "your message"
+git push origin main
+```
+
+Watch: https://github.com/rillcod/rillcodwebsite/actions
+
+**One-time GitHub secrets:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (`718b36de1443954931b052a9594d329d`).
+
+Local alternative (Docker required): `npm run deploy`
+
+Full handbook: [`docs/CLOUDFLARE_DEPLOY.md`](docs/CLOUDFLARE_DEPLOY.md)
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account
 
