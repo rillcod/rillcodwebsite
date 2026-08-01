@@ -22,6 +22,7 @@ import {
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import LessonPreviewModal from '@/features/lessons/components/LessonPreviewModal';
+import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
 import { AnimatePresence } from 'framer-motion';
 
 function parseLessonPlanFromQuery(raw: string | null): CurriculumWeekPlanSlice | null {
@@ -470,7 +471,7 @@ function AddLessonPageContent() {
   const courseSelectDisabled = !!selectedProgramId && courses.filter((c: any) => c.program_id === selectedProgramId).length === 0;
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={`space-y-6 ${MOBILE_STICKY_ACTIONS_BOTTOM}`}>
       {/* Pipeline stepper — hidden in minimal embed mode */}
       {!isMinimal && (
         <PipelineStepper

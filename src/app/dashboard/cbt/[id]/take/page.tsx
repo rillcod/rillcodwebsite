@@ -330,7 +330,7 @@ export default function TakeExamPage() {
   const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
+    <div className={`min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-[calc(var(--app-bottom-nav-height)+9.5rem)] md:pb-0`}>
       {/* Cinematic Header */}
       <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border px-3 sm:px-6 py-3 sm:py-4">
         <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between gap-3 sm:gap-8">
@@ -439,8 +439,8 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          {/* Navigation Controls */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-6 sm:pt-12 border-t border-border">
+          {/* Navigation Controls — desktop inline; mobile uses fixed bar below */}
+          <div className="hidden sm:flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-6 sm:pt-12 border-t border-border">
             <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
               className="group flex items-center justify-center sm:justify-start gap-3 px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-all disabled:opacity-40 disabled:pointer-events-none order-2 sm:order-1">
               <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -472,8 +472,71 @@ export default function TakeExamPage() {
         </div>
       </div>
 
-      {/* Persistent Question Grid Footer */}
-      <div className="bg-background/90 backdrop-blur-xl border-t border-border px-3 sm:px-6 py-3 sm:py-6">
+      {/* Mobile exam controls + jump grid — fixed above app dock */}
+      <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+          <button
+            type="button"
+            onClick={() => setCurrent(c => Math.max(0, c - 1))}
+            disabled={current === 0}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border bg-card disabled:opacity-30"
+            aria-label="Previous question"
+          >
+            <ChevronLeftIcon className="w-5 h-5" />
+          </button>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Question {current + 1} / {questions.length}
+            </p>
+            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              {answered} answered · {questions.length - answered} left
+            </p>
+          </div>
+          {current < questions.length - 1 ? (
+            <button
+              type="button"
+              onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border bg-card"
+              aria-label="Next question"
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSubmit(false)}
+              disabled={submitting}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
+            >
+              {submitting ? '…' : 'Submit'}
+            </button>
+          )}
+        </div>
+        <div className="px-3 py-2.5">
+          <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Jump to</p>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {questions.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setCurrent(i)}
+                className={`h-9 w-9 shrink-0 rounded-lg text-xs font-black transition-all ${
+                  i === current
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : answers[questions[i]?.id]
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-muted/30 text-muted-foreground border border-border'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop question grid footer */}
+      <div className="hidden md:block bg-background/90 backdrop-blur-xl border-t border-border px-3 sm:px-6 py-3 sm:py-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">Jump To</span>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">

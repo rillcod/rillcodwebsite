@@ -13,6 +13,8 @@ import {
     Layout, FileText, Settings2, ChevronDown, Eye
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { MOBILE_STICKY_ACTIONS_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 import { SparklesIcon } from '@/lib/icons';
 import { normalizeLessonType } from '@/lib/lessons/lesson-type';
 import LessonPreviewModal from '@/features/lessons/components/LessonPreviewModal';
@@ -341,7 +343,7 @@ export default function EditLessonPage() {
     );
 
     return (
-        <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+        <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : `p-4 sm:p-8 ${MOBILE_STICKY_ACTIONS_BOTTOM}`}`}>
             <div className={`${isMinimal ? 'w-full' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'} space-y-8`}>
 
                 {/* Header */}
@@ -362,7 +364,7 @@ export default function EditLessonPage() {
                             <h1 className="text-2xl font-black">{form.title || 'Lesson Title'}</h1>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-3">
                         {saveSuccess && (
                             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
                                 <Check className="w-3.5 h-3.5" /> Saved
@@ -380,7 +382,7 @@ export default function EditLessonPage() {
                                 View Live
                             </Link>
                         )}
-                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
+                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50 min-h-[44px]">
                             {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'SAVING...' : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
                         </button>
@@ -393,8 +395,20 @@ export default function EditLessonPage() {
                     </div>
                 )}
 
-                {/* Unified Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit">
+                {/* Unified Tabs — mobile strip + desktop bar */}
+                {!isMinimal && (
+                    <MobileScrollStrip
+                        label="Builder"
+                        ariaLabel="Lesson builder sections"
+                        items={[
+                            { id: 'settings', label: 'Settings', icon: Settings2, selected: activeTab === 'settings', onClick: () => setActiveTab('settings') },
+                            { id: 'content', label: 'Visual Builder', icon: Layout, selected: activeTab === 'content', onClick: () => setActiveTab('content') },
+                            { id: 'plan', label: 'Lesson Plan', icon: GraduationCap, selected: activeTab === 'plan', onClick: () => setActiveTab('plan') },
+                            { id: 'materials', label: 'Materials', icon: Paperclip, selected: activeTab === 'materials', onClick: () => setActiveTab('materials'), hint: materials.length ? String(materials.length) : undefined },
+                        ]}
+                    />
+                )}
+                <div className={`${isMinimal ? 'flex' : 'hidden md:flex'} items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit`}>
                     <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
                     <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Builder" />
                     <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
@@ -459,10 +473,12 @@ export default function EditLessonPage() {
                             
                             {/* AI Lesson Engine Panel */}
                             <div className="border border-primary/20 bg-primary/5 rounded-xl overflow-hidden">
-                                <div className="px-5 py-4 flex items-center gap-3 border-b border-primary/10">
-                                    <SparklesIcon className="w-5 h-5 text-primary" />
-                                    <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
-                                    <span className="text-[10px] text-muted-foreground ml-1">— regenerate content from current title</span>
+                                <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 border-b border-primary/10">
+                                    <div className="flex items-center gap-3">
+                                        <SparklesIcon className="w-5 h-5 text-primary shrink-0" />
+                                        <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground sm:ml-1">Regenerate content from current title</span>
                                 </div>
                                 <div className="p-5 space-y-4">
                                     {lastModel && (
@@ -499,13 +515,13 @@ export default function EditLessonPage() {
                                             </select>
                                         </div>
                                     </div>
-                                    <div className="flex gap-3">
+                                    <div className="flex flex-col sm:flex-row gap-3">
                                         <button onClick={handleAiGenerate} disabled={aiGenerating}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                                            className={`${MOBILE_TOUCH_BTN} flex-1 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all`}>
                                             {aiGenerating ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Building...</> : <><SparklesIcon className="w-3.5 h-3.5" /> Full Rebuild</>}
                                         </button>
                                         <button onClick={handleGenerateNotesOnly} disabled={aiGenerating}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border hover:border-primary/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+                                            className={`${MOBILE_TOUCH_BTN} flex-1 bg-card border border-border hover:border-primary/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all`}>
                                             {aiGenerating ? 'Writing...' : '✦ Notes Only'}
                                         </button>
                                     </div>
@@ -527,7 +543,7 @@ export default function EditLessonPage() {
                     )}
 
                     {activeTab === 'content' && (
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-4 sm:p-8 animate-in fade-in duration-500">
                             <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} lessonTitle={form.title} />
                         </div>
                     )}
@@ -635,6 +651,40 @@ export default function EditLessonPage() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* Mobile save bar — above app dock */}
+            {!isMinimal && (
+                <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.1)]">
+                    <div className="flex items-center gap-2 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+                        {saveSuccess && (
+                            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest shrink-0">
+                                Saved
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setShowPreview(true)}
+                            className={`${MOBILE_TOUCH_BTN} flex-1 border border-border bg-card text-foreground`}
+                        >
+                            <Eye className="h-4 w-4" />
+                            Preview
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className={`${MOBILE_TOUCH_BTN} flex-[1.4] bg-cyan-600 text-white shadow-lg disabled:opacity-60`}
+                        >
+                            {saving ? (
+                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            {saving ? 'Saving…' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -648,7 +698,7 @@ interface TabBtnProps {
 
 function TabBtn({ active, onClick, icon: Icon, label }: TabBtnProps) {
     return (
-        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+        <button type="button" onClick={onClick} className={`flex min-h-11 items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all touch-active-scale active:scale-[0.98] ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
             <Icon className="w-4 h-4" />
             {label}
         </button>

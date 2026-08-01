@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, AcademicCapIcon,
@@ -12,6 +13,7 @@ import {
   ClipboardDocumentCheckIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 
 const STATUS_BADGE: Record<string, string> = {
   active:    'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -20,6 +22,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function ClassesPage() {
+  const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +95,17 @@ export default function ClassesPage() {
   return (
     <div className={`min-w-0 space-y-8 overflow-x-hidden ${MOBILE_PAGE_BOTTOM}`}>
 
-      {/* ── My Classes Tab Bar ── */}
-      <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">
+      {/* ── My Classes hub — mobile strip + desktop tabs ── */}
+      <MobileScrollStrip
+        label="Class hub"
+        ariaLabel="Classes section navigation"
+        items={[
+          { id: 'classes', label: 'Classes', icon: UserGroupIcon, selected: true },
+          { id: 'timetable', label: 'Timetable', icon: CalendarDaysIcon, onClick: () => router.push('/dashboard/timetable') },
+          { id: 'attendance', label: 'Attendance', icon: ClipboardDocumentCheckIcon, onClick: () => router.push('/dashboard/attendance') },
+        ]}
+      />
+      <div className="hidden md:flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">
         <span className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-black text-white">
           <UserGroupIcon className="h-4 w-4" /> Classes
         </span>

@@ -34,6 +34,7 @@ import {
   type SyllabusContent,
 } from "@/components/curriculum/SyllabusPreview";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import {
   buildAddLessonQueryFromCurriculum,
   type CurriculumWeekPlanSlice,
@@ -1792,7 +1793,7 @@ export default function LessonPlanDetailPage() {
   ] as const;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto print:p-0 print:space-y-4">
+    <div className={`p-4 sm:p-6 space-y-6 max-w-7xl mx-auto print:p-0 print:space-y-4 ${MOBILE_PAGE_BOTTOM}`}>
       {/* Print letterhead */}
       <div className="hidden print:block border-b border-black pb-3 mb-2">
         <div className="flex items-start gap-3">

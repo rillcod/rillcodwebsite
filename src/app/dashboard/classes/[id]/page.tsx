@@ -26,6 +26,8 @@ import {
   buildGradesHref,
   buildResultsHref,
 } from '@/lib/curriculum/href';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
@@ -1373,7 +1375,7 @@ export default function ClassDetailPage() {
 
   return (
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
-      <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+0.75rem)] sm:space-y-6 md:pb-20">
+      <div className={`space-y-4 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
         <div className="min-w-0 w-full max-w-full rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl md:rounded-3xl">
@@ -1524,32 +1526,20 @@ export default function ClassDetailPage() {
             </div>
           )}
 
-          {/* Mobile work modes — horizontal strip so coverage / learner links stay above, not overlapping. */}
+          {/* Mobile work modes */}
           <div className="border-b border-border p-2 sm:p-3 lg:hidden">
-            <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class work</p>
-            <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {operationCards.map(card => {
-                const active = activeOperation === card.id;
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => setActiveOperation(card.id)}
-                    className={`flex min-h-11 min-w-[9.5rem] shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all ${
-                      active
-                        ? 'border-primary/40 bg-primary/10 text-foreground shadow-sm'
-                        : 'border-border bg-background text-muted-foreground'
-                    }`}
-                  >
-                    <card.icon className={`h-4 w-4 flex-shrink-0 ${active ? card.tone : ''}`} />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-black leading-tight">{card.title}</span>
-                      <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">{card.stat}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <MobileScrollStrip
+              label="Class work"
+              ariaLabel="Class work modes"
+              items={operationCards.map((card) => ({
+                id: card.id,
+                label: card.title,
+                hint: card.stat,
+                icon: card.icon,
+                selected: activeOperation === card.id,
+                onClick: () => setActiveOperation(card.id),
+              }))}
+            />
           </div>
 
           <div className="grid min-w-0 gap-0 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">

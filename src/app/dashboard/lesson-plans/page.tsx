@@ -32,6 +32,7 @@ import {
   RocketLaunchIcon,
 } from "@/lib/icons";
 import { toast } from "sonner";
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 import {
   getCurrentAcademicYear,
   getCurrentTermLabel,
@@ -936,7 +937,7 @@ function LessonPlansPageInner() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Planning trio breadcrumb */}
         <PlanningBreadcrumb current="lesson-plans" />
@@ -1001,7 +1002,7 @@ function LessonPlansPageInner() {
             </button>
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]"
+              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shadow-lg shadow-primary/25 w-full sm:w-auto`}
             >
               <PlusIcon className="w-4 h-4" /> New Plan
             </button>

@@ -11,6 +11,7 @@ import {
   BookOpenIcon, CommandLineIcon
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 
 export default function CBTPage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
@@ -172,7 +173,22 @@ export default function CBTPage() {
         </div>
 
         {/* ── TYPE FILTER TABS ── */}
-        <div className="flex gap-px border border-border bg-card w-full sm:w-fit overflow-x-auto">
+        <MobileScrollStrip
+          label="Exam type"
+          ariaLabel="Filter exams by type"
+          items={([
+            { key: 'all', label: 'All', count: exams.length },
+            { key: 'examination', label: 'Examination', count: exams.filter(e => getExamType(e) === 'examination').length },
+            { key: 'evaluation', label: 'Evaluation', count: exams.filter(e => getExamType(e) === 'evaluation').length },
+          ] as const).map((tab) => ({
+            id: tab.key,
+            label: tab.label,
+            hint: String(tab.count),
+            selected: typeFilter === tab.key,
+            onClick: () => setTypeFilter(tab.key),
+          }))}
+        />
+        <div className="hidden md:flex gap-px border border-border bg-card w-fit overflow-x-auto">
           {([
             { key: 'all', label: 'All', count: exams.length },
             { key: 'examination', label: 'Examination', count: exams.filter(e => getExamType(e) === 'examination').length },

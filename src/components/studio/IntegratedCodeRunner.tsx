@@ -58,6 +58,19 @@ export default function IntegratedCodeRunner({
   const [copied, setCopied] = useState(false);
   const [view, setView] = useState<'editor' | 'output' | 'visualizer'>('editor');
   const [visualStep, setVisualStep] = useState(0);
+  const [resolvedHeight, setResolvedHeight] = useState<number>(
+    typeof height === 'number' ? height : 400
+  );
+
+  useEffect(() => {
+    const base = typeof height === 'number' ? height : 400;
+    const apply = () => {
+      setResolvedHeight(window.innerWidth < 640 ? Math.min(300, base) : base);
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    return () => window.removeEventListener('resize', apply);
+  }, [height]);
 
   const generateAI = async () => {
     const prompt = window.prompt("What code should I generate?");
@@ -258,22 +271,22 @@ export default function IntegratedCodeRunner({
                 {title}
               </h3>
             </div>
-            <div className="flex bg-white/5 border border-white/5">
+            <div className="flex max-w-[60%] overflow-x-auto bg-white/5 border border-white/5 shrink-0 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 onClick={() => setView('editor')}
-                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${view === 'editor' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}
+                className={`min-h-9 shrink-0 px-3 py-1.5 text-[9px] font-black uppercase transition-all ${view === 'editor' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}
               >
                 Editor
               </button>
               <button
                 onClick={() => setView('output')}
-                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${view === 'output' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}
+                className={`min-h-9 shrink-0 px-3 py-1.5 text-[9px] font-black uppercase transition-all ${view === 'output' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}
               >
                 Output
               </button>
               <button
                 onClick={() => setView('visualizer')}
-                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${view === 'visualizer' ? 'bg-cyan-500 text-white shadow-[0_0_10px_rgba(6,182,212,0.4)]' : 'text-muted-foreground hover:text-white border-l border-white/5'}`}
+                className={`min-h-9 shrink-0 px-3 py-1.5 text-[9px] font-black uppercase transition-all ${view === 'visualizer' ? 'bg-cyan-500 text-white shadow-[0_0_10px_rgba(6,182,212,0.4)]' : 'text-muted-foreground hover:text-white border-l border-white/5'}`}
               >
                 Visualizer
               </button>
@@ -318,7 +331,7 @@ export default function IntegratedCodeRunner({
                 <button
                   onClick={runCode}
                   disabled={running}
-                  className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 active:scale-95"
+                  className="flex min-h-9 items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 active:scale-95 shrink-0"
                 >
                   {running ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PlayIcon className="w-3.5 h-3.5" />}
                   {lang === 'html' ? 'Preview' : 'Run'}
@@ -330,7 +343,7 @@ export default function IntegratedCodeRunner({
       )}
 
       {/* ─── Main Content Area ─── */}
-      <div className="relative min-h-[240px] sm:min-h-[320px]" style={{ height: typeof height === 'number' ? Math.min(height, window?.innerWidth < 640 ? 260 : height) : height }}>
+      <div className="relative min-h-[220px] sm:min-h-[320px]" style={{ height: resolvedHeight }}>
         <AnimatePresence mode="wait">
           {view === 'editor' ? (
             <motion.div

@@ -10,6 +10,7 @@ import {
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
   CheckIcon, XMarkIcon,
 } from '@/lib/icons';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import {
   isObjectiveQuestion,
   isTheoryQuestion,
@@ -160,7 +161,7 @@ export default function ExamDetailPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={`space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/cbt`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to CBT'}

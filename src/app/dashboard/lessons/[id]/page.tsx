@@ -22,6 +22,8 @@ import Markdown from 'react-markdown';
 import AIMarkdown from '@/components/ai/AIMarkdown';
 import remarkGfm from 'remark-gfm';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 import VideoPlayer from '@/components/media/VideoPlayer';
 import SlideViewer from '@/components/learning/SlideViewer';
 import SlideDeckManager from '@/components/learning/SlideDeckManager';
@@ -847,7 +849,7 @@ function MonacoEditorBlock({ code, language }: { code: string; language?: string
       initialCode={code}
       language={language?.toLowerCase() as any || 'javascript'}
       title={`${language || 'Code'} Workspace`}
-      height={450}
+      height={320}
     />
   );
 }
@@ -1690,7 +1692,7 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
           <p className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-[0.4em]">{title}</p>
         </div>
       )}
-      <div className="border border-yellow-500/20 bg-card overflow-hidden" style={{ minHeight: 360 }}>
+      <div className="border border-yellow-500/20 bg-card overflow-hidden min-h-[240px] sm:min-h-[360px]">
         <BlocklyEditor
           xml={xml}
           language={language || 'python'}
@@ -3403,9 +3405,9 @@ export default function LessonDetailPage() {
         </div>
       </aside>
 
-      <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-background' : 'bg-background'} custom-scrollbar scroll-smooth`}>
-        {/* Dynamic Progress Indicator */}
-        <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
+      <main className={`flex-1 overflow-y-auto relative custom-scrollbar scroll-smooth ${isCinemaMode ? '' : 'pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-0'} ${isCinemaMode ? 'bg-background' : 'bg-background'}`}>
+        {/* Dynamic Progress Indicator — sits below mobile lesson header */}
+        <div className="fixed top-[52px] md:top-0 left-0 right-0 h-1.5 z-[100]">
           <motion.div
             className="h-full bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary shadow-[0_0_15px_rgba(6,182,212,0.5)]"
             style={{ width: `${scrollProgress}%` }}
@@ -3423,7 +3425,7 @@ export default function LessonDetailPage() {
         )}
 
         {!isCinemaMode && (
-          <div className={`max-w-6xl mx-auto px-6 sm:px-16 py-12 sm:py-24 space-y-12 sm:space-y-20 ${isReading ? 'max-w-4xl' : ''}`}>
+          <div className={`max-w-6xl mx-auto px-4 sm:px-16 py-8 sm:py-24 space-y-10 sm:space-y-20 ${isReading ? 'max-w-4xl' : ''}`}>
             {/* Header */}
             <header className="space-y-12 sm:space-y-20 animate-in fade-in slide-in-from-top-12 duration-1000 relative">
               <div className="absolute -left-20 -top-20 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
@@ -3468,8 +3470,17 @@ export default function LessonDetailPage() {
                 </div>
               </div>
             </header>
-            {/* Nav Tabs - Modern Glass Style */}
-            <div className="sticky top-0 z-30 pt-4 pb-12 -mx-4 px-4 sm:-mx-12 sm:px-12 md:relative md:p-0 md:m-0 flex justify-center sm:justify-start">
+            {/* Nav Tabs — mobile strip + desktop glass tabs */}
+            <MobileScrollStrip
+              label="Sections"
+              ariaLabel="Lesson sections"
+              items={[
+                { id: 'content', label: 'Lesson', icon: BookOpenIcon, selected: activeTab === 'content', onClick: () => setActiveTab('content') },
+                { id: 'materials', label: 'Resources', icon: PaperClipIcon, selected: activeTab === 'materials', onClick: () => setActiveTab('materials'), hint: materials.length ? String(materials.length) : undefined },
+                { id: 'tasks', label: 'Assignments', icon: ClipboardDocumentListIcon, selected: activeTab === 'tasks', onClick: () => setActiveTab('tasks'), hint: (courseAssignments.length + programQuizzes.length) ? String(courseAssignments.length + programQuizzes.length) : undefined },
+              ]}
+            />
+            <div className="hidden md:flex relative pt-4 pb-12 justify-center sm:justify-start">
               <div className="flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-3xl p-2 rounded-xl border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
                 <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={BookOpenIcon} label="Lesson" />
                 <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
@@ -3703,7 +3714,7 @@ export default function LessonDetailPage() {
                     )}
 
                     {/* Lesson Complete & Navigation */}
-                    <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
+                    <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-8 sm:pb-56">
                       {!completed && profile?.role === 'student' ? (
                         <div className="relative group">
                           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary rounded-xl sm:rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
@@ -3927,7 +3938,7 @@ export default function LessonDetailPage() {
               )}
 
               {activeTab === 'tasks' && (
-                <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
+                <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8 md:pb-32">
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-amber-500/5 border border-amber-500/10 w-fit">
@@ -4126,6 +4137,52 @@ export default function LessonDetailPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {/* Mobile lesson actions — fixed above app dock */}
+        {!isCinemaMode && (
+          <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.1)]">
+            <div className="flex items-center gap-2 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className={`${MOBILE_TOUCH_BTN} shrink-0 border border-border bg-card text-muted-foreground px-3`}
+                aria-label="Open syllabus"
+              >
+                <RectangleGroupIcon className="h-4 w-4" />
+              </button>
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                {isStaff && (
+                  <Link
+                    href={`/dashboard/lessons/${id}/edit`}
+                    className={`${MOBILE_TOUCH_BTN} shrink-0 border border-border bg-card text-foreground px-3`}
+                    aria-label="Edit lesson"
+                  >
+                    <PencilSquareIcon className="h-4 w-4" />
+                  </Link>
+                )}
+                {!completed && profile?.role === 'student' && (
+                  <button
+                    type="button"
+                    onClick={handleMarkComplete}
+                    disabled={marking}
+                    className={`${MOBILE_TOUCH_BTN} min-w-0 flex-1 bg-primary text-primary-foreground shadow-lg disabled:opacity-60`}
+                  >
+                    <CheckBadgeIcon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{marking ? 'Saving…' : 'Mark complete'}</span>
+                  </button>
+                )}
+                {completed && nextLesson && (
+                  <Link
+                    href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
+                    className={`${MOBILE_TOUCH_BTN} min-w-0 flex-1 bg-cyan-600 text-white shadow-lg`}
+                  >
+                    <span className="truncate">Next lesson</span>
+                    <ChevronRightIcon className="h-4 w-4 shrink-0" />
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         )}
