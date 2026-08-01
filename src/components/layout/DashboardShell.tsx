@@ -65,16 +65,16 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <PullToRefreshContainer>
-      <div className="flex-1 flex flex-col w-full relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 md:overflow-y-auto print:overflow-visible print:pt-0 print:pb-0 print:block">
+    <div className="flex-1 flex flex-col w-full h-full min-h-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto md:overflow-y-auto print:overflow-visible print:pt-0 print:pb-0 print:block">
+      <PullToRefreshContainer>
         {profile && <NewsletterPopup userId={profile.id} />}
         {!QR_HIDDEN_PATHS.some(p => pathname?.startsWith(p)) && <StaffQRScanner />}
         <main className="flex-1 max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base">
           <PartnerSchoolScopeBanner />
           {children}
         </main>
-      </div>
-    </PullToRefreshContainer>
+      </PullToRefreshContainer>
+    </div>
   );
 }
 

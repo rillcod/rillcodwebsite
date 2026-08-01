@@ -17,6 +17,11 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   const maxPull = 80;
 
   useEffect(() => {
+    // Strictly target mobile touch devices (under 768px width)
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      return;
+    }
+
     const handleTouchStart = (e: TouchEvent) => {
       if (window.scrollY === 0) {
         startY.current = e.touches[0].pageY;
@@ -25,10 +30,10 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isPulling.current || window.scrollY > 0) return;
+      if (!isPulling.current) return;
       const currentY = e.touches[0].pageY;
       const distance = currentY - startY.current;
-      if (distance > 0) {
+      if (distance > 0 && window.scrollY === 0) {
         setPullDistance(Math.min(distance * 0.4, maxPull));
       }
     };
@@ -46,7 +51,6 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
             console.error('Pull to refresh failed:', err);
           }
         } else {
-          // Default: soft reload window
           window.location.reload();
         }
         setTimeout(() => {
@@ -70,8 +74,8 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   }, [pullDistance, refreshing, onRefresh]);
 
   return (
-    <div className="relative min-h-full">
-      {/* Pull Indicator Spinner */}
+    <div className="relative w-full flex-1 flex flex-col min-h-0">
+      {/* Pull Indicator Spinner — Touch Mobile Only */}
       {(pullDistance > 0 || refreshing) && (
         <div
           style={{ height: `${pullDistance}px` }}

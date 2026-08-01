@@ -1617,25 +1617,24 @@ export default function StudentsPage() {
           )}
 
           {/* ── Header ─────────────────────────────────────── */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 print:hidden">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                  <UserGroupIcon className="w-5 h-5 text-primary" />
-                </div>
-                <span className="text-[10px] font-black text-primary/80 uppercase tracking-[0.2em]">
-                  Registry · {profile?.role}
-                </span>
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 print:hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+                <UserGroupIcon className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground leading-none">Students</h1>
-              <p className="text-muted-foreground text-sm mt-2 font-medium max-w-2xl">
-                Manage registrations, parent info, approvals and student records
-              </p>
+              <div>
+                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                  People & Registry · {profile?.role}
+                </span>
+                <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Students Registry</h1>
+                <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium max-w-2xl">
+                  Manage registrations, parent info, approvals and student records
+                </p>
+              </div>
             </div>
-            {/* Action buttons — primary row-level actions only.
-                Bulk / advanced flows live in the Management Hub below so
-                each label only appears once in the interface. */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Action buttons */}
+            <div className="relative z-10 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => { setEditingStudent(null); setShowAdd(true); }}
                 className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">

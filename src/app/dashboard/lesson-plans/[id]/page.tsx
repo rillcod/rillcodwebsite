@@ -1881,8 +1881,9 @@ export default function LessonPlanDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="bg-card border border-white/[0.08] rounded-lg p-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span

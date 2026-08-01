@@ -188,9 +188,21 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0"><CreditCardIcon className="w-5 h-5 text-primary"/></div>
-        <div><h1 className="text-2xl font-black text-card-foreground">My Access Card</h1><p className="text-card-foreground/50 text-sm mt-0.5">Your official Rillcod identity card</p></div>
+      {/* Header */}
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex items-center justify-between gap-4">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+            <CreditCardIcon className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+              Official Identity
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">My Access Card</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">Your official Rillcod digital & printable access credentials</p>
+          </div>
+        </div>
       </div>
       <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4 text-sm">
         <InformationCircleIcon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5"/>

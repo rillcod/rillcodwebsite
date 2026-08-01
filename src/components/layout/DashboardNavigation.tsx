@@ -1174,38 +1174,38 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_20px_rgba(0,0,0,0.05)]">
+      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/90 backdrop-blur-2xl px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] border-b border-border/80 shadow-md">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-white dark:bg-card border border-primary/30 flex items-center justify-center shadow-sm shadow-primary/10">
             <Image
               src="/images/logo.png"
               alt="Rillcod"
-              width={16}
-              height={16}
+              width={18}
+              height={18}
               className="object-contain"
               priority
             />
           </div>
-          <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
-            Rillcod<span className="text-brand-red-600 not-italic">.</span>
+          <span className="font-black uppercase tracking-widest text-[13px] text-foreground italic">
+            Rillcod<span className="text-brand-red-accent not-italic">.</span>
           </span>
         </Link>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* User Profile Avatar Pill (Mobile) */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="flex items-center gap-1.5 p-1 pr-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all"
+            aria-label="Open profile & menu"
+          >
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+              {profile.full_name?.charAt(0) ?? 'U'}
+            </div>
+            <span className="text-[10px] font-black text-primary uppercase tracking-wider hidden xs:inline">
+              {profile.role}
+            </span>
+          </button>
           <NotificationDropdown />
           <ThemeToggle />
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileOpen}
-            aria-controls="dashboard-navigation-drawer"
-            className="flex h-11 w-11 items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all"
-          >
-            {mobileOpen ? (
-              <XMarkIcon className="w-6 h-6" />
-            ) : (
-              <Bars3Icon className="w-6 h-6" />
-            )}
-          </button>
         </div>
       </div>
 
@@ -1341,14 +1341,15 @@ export default function DashboardNavigation() {
         </div>
       </nav>
 
-      {/* ── Mobile Bottom Navigation ── */}
+      {/* ── Mobile Bottom Navigation (Floating Island Dock) ── */}
       <div
         role="navigation"
         aria-label="Primary app navigation"
-        className="app-mobile-bottom-nav md:hidden fixed bottom-2 left-2 right-2 z-50 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl flex items-center justify-around px-2 py-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.25)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="app-mobile-bottom-nav md:hidden fixed bottom-3 left-3 right-3 z-50 bg-card/95 backdrop-blur-2xl border border-border/80 rounded-[2.2rem] flex items-center justify-around px-2 py-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.3)] ring-1 ring-white/10 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
-        {bottomNavItems.map(({ name, href, icon: Icon }) => {
+        {bottomNavItems.map(({ name, href, icon: Icon }, idx) => {
           const active = isNavActive(pathname, href);
+          const isCenterHero = idx === Math.floor(bottomNavItems.length / 2);
           const shortName =
             name === "My Courses"
               ? "Courses"
@@ -1385,6 +1386,38 @@ export default function DashboardNavigation() {
               : name === "Report Cards"
               ? "Reports"
               : name;
+
+          if (isCenterHero) {
+            return (
+              <Link
+                key={`mobile-${name}`}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setMobileOpen(false)}
+                className="flex flex-col items-center justify-center min-w-0 -mt-4 active:scale-90 transition-transform duration-150"
+              >
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-200 border border-white/20 ${
+                    active
+                      ? "bg-gradient-to-br from-brand-red-accent via-primary to-indigo-600 text-white shadow-primary/50 scale-110 ring-2 ring-primary/40"
+                      : "bg-gradient-to-br from-primary to-indigo-600 text-white shadow-primary/35 hover:scale-105"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                  {(name === "WhatsApp Inbox" || name === "Office Center") &&
+                    unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red-accent text-white text-[8px] font-black flex items-center justify-center rounded-full ring-2 ring-card shadow-md">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-primary mt-1 leading-none truncate max-w-full">
+                  {shortName}
+                </span>
+              </Link>
+            );
+          }
+
           return (
             <Link
               key={`mobile-${name}`}
@@ -1397,23 +1430,23 @@ export default function DashboardNavigation() {
                 className={`relative flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
                   active
                     ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
-                    : "bg-transparent text-muted-foreground hover:bg-muted"
+                    : "bg-transparent text-muted-foreground hover:bg-muted/50"
                 }`}
               >
                 <Icon className="w-4 h-4 transition-colors" />
                 {active && (
-                  <span className="absolute -top-1 w-1.5 h-1.5 bg-accent rounded-full animate-ping" />
+                  <span className="absolute -top-1 w-1.5 h-1.5 bg-brand-red-accent rounded-full animate-ping" />
                 )}
                 {(name === "WhatsApp Inbox" || name === "Office Center") &&
                   unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-accent text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-card">
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-accent text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-card">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
               </div>
               <span
                 className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
-                  active ? "text-primary" : "text-muted-foreground/70"
+                  active ? "text-primary font-black" : "text-muted-foreground/70 font-bold"
                 }`}
               >
                 {shortName}
@@ -1431,7 +1464,7 @@ export default function DashboardNavigation() {
         >
           <div
             className={`flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
-              mobileOpen ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" : "bg-transparent text-muted-foreground hover:bg-muted"
+              mobileOpen ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" : "bg-transparent text-muted-foreground hover:bg-muted/50"
             }`}
           >
             {mobileOpen ? (
@@ -1441,7 +1474,7 @@ export default function DashboardNavigation() {
             )}
           </div>
           <span
-            className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${
+            className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 ${
               mobileOpen ? "text-primary" : "text-muted-foreground/70"
             }`}
           >

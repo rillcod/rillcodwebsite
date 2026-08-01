@@ -1344,9 +1344,8 @@ export default function ClassDetailPage() {
                   <button type="button" onClick={() => router.back()} className="rounded-xl p-2 transition-colors hover:bg-muted" aria-label="Go back">
                     <ArrowLeftIcon className="h-4 w-4 text-muted-foreground" />
                   </button>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                    <AcademicCapIcon className="h-3.5 w-3.5" />
-                    Workspace
+                  <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
+                    Class Workspace
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                     cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :

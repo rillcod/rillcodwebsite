@@ -86,14 +86,29 @@ export default function AnnouncementsPage() {
   });
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Announcements</h1>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      {/* Header */}
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+            <span className="text-xl">📢</span>
+          </div>
+          <div>
+            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+              Communication & Broadcasts
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Announcements</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">Broadcast updates and notices to students, parents, and staff</p>
+          </div>
+        </div>
         {isStaff && (
-          <button onClick={() => setShowForm(v => !v)}
-            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0">
-            {showForm ? 'Cancel' : '+ New Announcement'}
-          </button>
+          <div className="relative z-10 w-full sm:w-auto">
+            <button onClick={() => setShowForm(v => !v)}
+              className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]">
+              {showForm ? 'Cancel' : '+ New Announcement'}
+            </button>
+          </div>
         )}
       </div>
 

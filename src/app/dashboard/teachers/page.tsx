@@ -462,7 +462,7 @@ function TeacherPersonalDashboard() {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.3em] rounded-xl shadow-xl">
+                <div className="px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
                   Teacher Nucleus
                 </div>
                 <div className="flex items-center gap-2">

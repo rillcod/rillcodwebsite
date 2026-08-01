@@ -107,16 +107,21 @@ export default function ClassesPage() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-2">
-            <AcademicCapIcon className="h-5 w-5 flex-shrink-0 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-widest text-primary">Class Management</span>
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+            <UserGroupIcon className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-foreground">My Classes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create and manage classes, track enrolment, and assign lessons and assessments.
-          </p>
+          <div className="min-w-0">
+            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+              Class Management
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">My Classes</h1>
+            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground font-medium">
+              Create and manage classes, track enrolment, and assign lessons and assessments.
+            </p>
+          </div>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link

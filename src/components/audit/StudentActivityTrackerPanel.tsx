@@ -289,26 +289,31 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
   return (
     <div className={embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 py-6 space-y-6'}>
       {!embedded && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <BoltIcon className="w-4 h-4 text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Audit family</span>
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+              <BoltIcon className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-foreground">Student activity</h1>
-            <p className="text-xs text-muted-foreground mt-1">Who is active, who needs a push — by submission %, streak, and XP</p>
+            <div>
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                Engagement & Audit Family
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Student Activity</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Who is active, who needs a push — by submission %, streak, and XP</p>
+            </div>
           </div>
-          <div className="flex gap-2">
+          <div className="relative z-10 flex gap-2">
             <button
               type="button"
               onClick={loadData}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowPathIcon className="w-3.5 h-3.5" /> Refresh
             </button>
             <Link
               href="/dashboard/showcase"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
               <TrophyIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Showcase
             </Link>

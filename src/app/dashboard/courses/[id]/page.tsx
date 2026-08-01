@@ -307,23 +307,31 @@ export default function CourseDetailPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Back + Header */}
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()}
-            className="p-2 rounded-xl bg-card shadow-sm hover:bg-muted border border-border transition-colors">
-            <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-widest">Course</span>
+        {/* Header */}
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5">
+            <button onClick={() => router.back()}
+              className="p-3 rounded-2xl bg-card border border-border/80 hover:bg-muted text-muted-foreground transition-all active:scale-95 flex-shrink-0">
+              <ArrowLeftIcon className="w-5 h-5" />
+            </button>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+              <BookOpenIcon className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold">{course.title}</h1>
+            <div>
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                Course Detail
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{course.title}</h1>
+            </div>
           </div>
           {canEdit && (
-            <Link href={`/dashboard/courses/${id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 border border-border rounded-xl text-sm font-bold transition-colors">
-              <PencilIcon className="w-4 h-4" /> Edit
-            </Link>
+            <div className="relative z-10">
+              <Link href={`/dashboard/courses/${id}/edit`}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]">
+                <PencilIcon className="w-4 h-4" /> Edit Course
+              </Link>
+            </div>
           )}
         </div>
 

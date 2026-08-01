@@ -334,22 +334,27 @@ export default function CoursesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-5 h-5 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-widest">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+              <BookOpenIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
                 {isStaff ? 'Course Library' : 'My Learning'}
               </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{isStaff ? 'Course Management' : 'My Courses'}</h1>
+              <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">{isStaff ? 'Manage all active courses' : 'Continue your learning journey'}</p>
             </div>
-            <h1 className="text-3xl font-extrabold">{isStaff ? 'Course Management' : 'My Courses'}</h1>
-            <p className="text-muted-foreground text-sm mt-1">{isStaff ? 'Manage all active courses' : 'Continue your learning journey'}</p>
           </div>
           {canEdit && (
-            <Link href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/30">
-              <PlusIcon className="w-4 h-4" /> Add Course
-            </Link>
+            <div className="relative z-10">
+              <Link href="/dashboard/courses/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]">
+                <PlusIcon className="w-4 h-4" /> Add Course
+              </Link>
+            </div>
           )}
         </div>
 

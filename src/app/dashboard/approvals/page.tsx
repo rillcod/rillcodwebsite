@@ -423,13 +423,20 @@ export default function ApprovalsPage() {
                 </div>
 
                 {/* Header */}
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary" />
-                        <span className="text-xs font-bold text-primary uppercase tracking-widest">Registration Queue · {profile?.role}</span>
+                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="relative z-10 flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+                            <ClipboardDocumentCheckIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                                Registration Queue · {profile?.role}
+                            </span>
+                            <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Pending Approvals</h1>
+                            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">Review and action pending registrations</p>
+                        </div>
                     </div>
-                    <h1 className="text-3xl font-extrabold">Approvals</h1>
-                    <p className="text-muted-foreground text-sm mt-1">Review and action pending registrations</p>
                 </div>
 
                 {error && (
