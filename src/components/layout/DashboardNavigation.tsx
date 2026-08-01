@@ -25,7 +25,6 @@ import {
   EnvelopeIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon,
   SignalIcon,
   TrophyIcon,
   ShieldCheckIcon,
@@ -35,8 +34,6 @@ import {
   BanknotesIcon,
   VideoCameraIcon,
   UserPlusIcon,
-  SunIcon,
-  MoonIcon,
   FireIcon,
   ArchiveBoxIcon,
   CommandLineIcon,
@@ -48,7 +45,6 @@ import {
   QuestionMarkCircleIcon,
   ChevronDownIcon,
   ExclamationTriangleIcon,
-  MagnifyingGlassIcon,
 } from "@/lib/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -366,7 +362,7 @@ export default function DashboardNavigation() {
             icon: PresentationChartLineIcon,
           },
           {
-            name: "How It Works",
+            name: "Guide",
             href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
@@ -577,24 +573,24 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Teaching" },
           {
-            name: "Academic Overview",
-            href: "/dashboard/academic",
-            icon: ShieldCheckIcon,
-          },
-          {
-            name: "How It Works",
-            href: "/dashboard/academic/guide",
-            icon: DocumentTextIcon,
-          },
-          {
-            name: "Learner Progress",
-            href: "/dashboard/learner-progress",
-            icon: ChartBarIcon,
+            name: "My Classes",
+            href: "/dashboard/classes",
+            icon: UserGroupIcon,
           },
           {
             name: "Teaching Plans",
             href: "/dashboard/lesson-plans",
             icon: ClipboardDocumentListIcon,
+          },
+          {
+            name: "Academic Overview",
+            href: "/dashboard/academic",
+            icon: ShieldCheckIcon,
+          },
+          {
+            name: "Learner Progress",
+            href: "/dashboard/learner-progress",
+            icon: ChartBarIcon,
           },
           {
             name: "Curriculum",
@@ -606,12 +602,12 @@ export default function DashboardNavigation() {
             href: "/dashboard/academic#teaching-resources",
             icon: ArchiveBoxIcon,
           },
-          { divider: true, label: "My Classes" },
           {
-            name: "My Classes",
-            href: "/dashboard/classes",
-            icon: UserGroupIcon,
+            name: "Guide",
+            href: "/dashboard/academic/guide",
+            icon: DocumentTextIcon,
           },
+          { divider: true, label: "Schedule" },
           {
             name: "Timetable",
             href: "/dashboard/timetable",
@@ -1159,17 +1155,22 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
 
   const bottomNavByRole: Record<string, string[]> = {
-    student: ["Learning Center", "Assignments", "Path Progress", "Certificates"],
-    school: ["Classes", "WhatsApp Inbox", "Finance Center", "Contact Directory"],
-    admin: ["Office Center", "Classes", "Results Workspace", "Records"],
-    teacher: ["My Classes", "Grading Queue", "Academic Overview", "WhatsApp Inbox"],
-    parent: ["My Children", "WhatsApp Inbox", "Finance Center", "Report Cards"],
+    student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
+    school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
+    admin: ["Dashboard", "Office Center", "Records", "Results Workspace"],
+    teacher: ["Dashboard", "My Classes", "Grading Queue", "Academic Overview"],
+    parent: ["Dashboard", "My Children", "Report Cards", "Finance Center"],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ""] ?? ["Dashboard"];
   const bottomNavItems = bottomNavNames
     .map((name) => navItems.find((item) => item.name === name))
     .filter((item): item is NavItem => !!item)
-    .slice(0, 5);
+    .slice(0, 4);
+  const activeMobileItem = [...navItems]
+    .filter((item) => isNavActive(pathname, item.href))
+    .sort((a, b) => b.href.split('?')[0].length - a.href.split('?')[0].length)[0];
+  const mobileTitle = activeMobileItem?.name ?? 'Dashboard';
+  const menuActive = !bottomNavItems.some((item) => isNavActive(pathname, item.href));
 
   const handleLogout = () => {
     void signOut();
@@ -1178,47 +1179,37 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/90 backdrop-blur-2xl px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] border-b border-border/80 shadow-md">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-white dark:bg-card border border-primary/30 flex items-center justify-center shadow-sm shadow-primary/10">
+      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/95 backdrop-blur-xl px-4 border-b border-border shadow-sm">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-3" aria-label="Go to dashboard">
+          <div className="w-9 h-9 rounded-xl bg-white dark:bg-card border border-border flex items-center justify-center shadow-sm shrink-0">
             <Image
               src="/images/logo.png"
               alt="Rillcod"
-              width={18}
-              height={18}
+              width={21}
+              height={21}
               className="object-contain"
               priority
             />
           </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-black uppercase tracking-widest text-[13px] text-foreground italic leading-none">
-              RILLCOD<span className="text-brand-red-accent not-italic">.</span>
-            </span>
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-red-600 dark:text-brand-red-500 mt-0.5">
-              TECHNOLOGIES
-            </span>
+          <div className="min-w-0 leading-tight">
+            <p className="text-[11px] font-semibold text-muted-foreground">Rillcod Academy</p>
+            <p className="text-[15px] font-bold text-foreground truncate">{mobileTitle}</p>
           </div>
         </Link>
-        <div className="flex items-center gap-2">
-          {/* User Profile Avatar Pill (Mobile) */}
+        <div className="flex items-center gap-1">
+          <NotificationDropdown />
           <button
+            type="button"
             onClick={() => setMobileOpen(true)}
-            className="flex items-center gap-1.5 p-1 pr-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all"
-            aria-label="Open profile & menu"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full active:bg-muted transition-colors"
+            aria-label="Open account and app menu"
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+            <span className="flex w-9 h-9 items-center justify-center rounded-full bg-primary text-white font-bold text-sm shadow-sm">
               {profile.full_name?.charAt(0) ?? 'U'}
-            </div>
-            <span className="text-[10px] font-black text-primary uppercase tracking-wider hidden xs:inline">
-              {profile.role}
             </span>
           </button>
-          <NotificationDropdown />
-          <ThemeToggle />
         </div>
       </div>
-
-      {/* ── Native Mobile Spring Bottom Sheet Menu ── */}
       <MobileNavSheet
         isOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -1361,78 +1352,20 @@ export default function DashboardNavigation() {
       <div
         role="navigation"
         aria-label="Primary app navigation"
-        className="app-mobile-bottom-nav md:hidden fixed bottom-3 left-3 right-3 z-50 bg-card/95 backdrop-blur-2xl border border-border/80 rounded-[2.2rem] flex items-center justify-around px-2 py-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.3)] ring-1 ring-white/10 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-start justify-around border-t border-border bg-card/95 px-1 pt-1.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
       >
-        {bottomNavItems.map(({ name, href, icon: Icon }, idx) => {
+        {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = isNavActive(pathname, href);
-          const isCenterHero = idx === Math.floor(bottomNavItems.length / 2);
           const shortName =
-            name === "My Courses"
-              ? "Courses"
-              : name === "My Classes"
+            name === "My Classes"
               ? "Classes"
-              : name === "My Report Card"
-              ? "Report"
-              : name === "My Access Card"
-              ? "My Card"
-              : name === "My Payments"
-              ? "Payments"
-              : name === "Code Playground"
-              ? "Code"
-              : name === "Progress Reports"
-              ? "Reports"
-              : name === "Results Workspace"
-              ? "Results"
-              : name === "Publish & Share"
-              ? "Publish"
-              : name === "Student Reports"
-              ? "Reports"
-              : name === "My Students"
-              ? "Students"
-              : name === "School Overview"
-              ? "Overview"
-              : name === "Learning Center"
-              ? "Learn"
-              : name === "WhatsApp Inbox"
-              ? "WhatsApp"
-              : name === "Office Center"
-              ? "Office"
-              : name === "My Children"
-              ? "Children"
-              : name === "Report Cards"
-              ? "Reports"
-              : name;
-
-          if (isCenterHero) {
-            return (
-              <Link
-                key={`mobile-${name}`}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setMobileOpen(false)}
-                className="flex flex-col items-center justify-center min-w-0 -mt-4 active:scale-90 transition-transform duration-150"
-              >
-                <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-200 border border-white/20 ${
-                    active
-                      ? "bg-gradient-to-br from-brand-red-accent via-primary to-indigo-600 text-white shadow-primary/50 scale-110 ring-2 ring-primary/40"
-                      : "bg-gradient-to-br from-primary to-indigo-600 text-white shadow-primary/35 hover:scale-105"
-                  }`}
-                >
-                  <Icon className="w-5 h-5 text-white" />
-                  {(name === "WhatsApp Inbox" || name === "Office Center") &&
-                    unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red-accent text-white text-[8px] font-black flex items-center justify-center rounded-full ring-2 ring-card shadow-md">
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                      </span>
-                    )}
-                </div>
-                <span className="text-[9px] font-black uppercase tracking-wider text-primary mt-1 leading-none truncate max-w-full">
-                  {shortName}
-                </span>
-              </Link>
-            );
-          }
+              : name === "Report Cards" || name === "Results Workspace"
+                ? "Reports"
+                : name === "Learning Center"
+                  ? "Learn"
+                  : name === "Finance Center"
+                    ? "Finance"
+                    : name;
 
           return (
             <Link
@@ -1440,31 +1373,17 @@ export default function DashboardNavigation() {
               href={href}
               aria-current={active ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
-              className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-90 duration-150"
+              className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 transition-transform active:scale-95"
             >
-              <div
-                className={`relative flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
-                  active
-                    ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
-                    : "bg-transparent text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                <Icon className="w-4 h-4 transition-colors" />
-                {active && (
-                  <span className="absolute -top-1 w-1.5 h-1.5 bg-brand-red-accent rounded-full animate-ping" />
+              <span className={`relative flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${active ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+                <Icon className="w-5 h-5" />
+                {(name === "WhatsApp Inbox" || name === "Office Center") && unreadCount > 0 && (
+                  <span className="absolute -top-0.5 right-1 h-4 min-w-4 rounded-full bg-brand-red-accent px-1 text-[9px] font-bold leading-4 text-white ring-2 ring-card">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
                 )}
-                {(name === "WhatsApp Inbox" || name === "Office Center") &&
-                  unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-accent text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-card">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-              </div>
-              <span
-                className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
-                  active ? "text-primary font-black" : "text-muted-foreground/70 font-bold"
-                }`}
-              >
+              </span>
+              <span className={`max-w-full truncate text-[10px] leading-4 ${active ? "font-bold text-primary" : "font-medium text-muted-foreground"}`}>
                 {shortName}
               </span>
             </Link>
@@ -1472,29 +1391,16 @@ export default function DashboardNavigation() {
         })}
 
         <button
-          onClick={() => setMobileOpen((v) => !v)}
+          type="button"
+          onClick={() => setMobileOpen(true)}
           aria-expanded={mobileOpen}
-          aria-label={
-            mobileOpen ? "Close navigation menu" : "Open navigation menu"
-          }
-          className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-90 duration-150 group"
+          aria-label="Open app menu"
+          className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 transition-transform active:scale-95"
         >
-          <div
-            className={`flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
-              mobileOpen ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" : "bg-transparent text-muted-foreground hover:bg-muted/50"
-            }`}
-          >
-            {mobileOpen ? (
-              <XMarkIcon className="w-4 h-4" />
-            ) : (
-              <Bars3Icon className="w-4 h-4" />
-            )}
-          </div>
-          <span
-            className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 ${
-              mobileOpen ? "text-primary" : "text-muted-foreground/70"
-            }`}
-          >
+          <span className={`flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${menuActive || mobileOpen ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+            <Bars3Icon className="w-5 h-5" />
+          </span>
+          <span className={`text-[10px] leading-4 ${menuActive || mobileOpen ? "font-bold text-primary" : "font-medium text-muted-foreground"}`}>
             Menu
           </span>
         </button>

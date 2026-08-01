@@ -3953,6 +3953,15 @@ export default function CurriculumPage() {
               curricula={allCurricula}
               isAdmin={profile?.role === "admin"}
               onRefresh={loadAllCurricula}
+              onCreateCurriculum={() => {
+                setCurriculumViewMode("builder");
+                requestAnimationFrame(() => {
+                  document.getElementById("curriculum-course-picker")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                });
+              }}
               onSelectCurriculum={(item) => {
                 const prog = programs.find((p) =>
                   (p.courses ?? []).some((c) => c.id === item.course_id)
@@ -4028,11 +4037,13 @@ export default function CurriculumPage() {
 
           {/* ── Left Sidebar — Programs & Courses ── */}
           <aside
+            id="curriculum-course-picker"
+            tabIndex={-1}
             className={`
         ${mobileSidebarOpen ? "flex" : "hidden"} md:flex
         flex-col w-full md:w-64 lg:w-72 shrink-0
         border-b md:border-b-0 md:border-r border-border
-        bg-card overflow-y-auto md:h-screen
+        bg-card overflow-y-auto md:h-screen outline-none
       `}
           >
             <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
@@ -4312,70 +4323,32 @@ export default function CurriculumPage() {
                         </div>
                       )}
                       {!lastVisited && (
-                        <div className="py-12 px-6">
-                          <div className="max-w-3xl mx-auto text-center space-y-8">
-                            <div className="space-y-3">
+                        <div className="py-10 px-6">
+                          <div className="max-w-xl mx-auto text-center space-y-6">
+                            <div className="space-y-2">
                               <h2 className="text-2xl font-black text-foreground tracking-tight">
-                                Course Curriculum Builder
+                                Start with a course
                               </h2>
-                              <p className="text-muted-foreground text-sm max-w-lg mx-auto leading-relaxed">
-                                Pick a course from the left panel to get
-                                started. Here is the order of how it works:
+                              <p className="text-muted-foreground text-sm leading-relaxed">
+                                Choose a course on the left, then build week 1. Keep it simple — one course at a time.
                               </p>
                             </div>
-
-                            {/* Steps — correct execution order */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
-                              {[
-                                {
-                                  step: "1",
-                                  title: "Pick a course",
-                                  desc: "Select any course from the left panel.",
-                                  icon: BookOpenIcon,
-                                },
-                                {
-                                  step: "2",
-                                  title: "Build the curriculum",
-                                  desc: "Generate or write the week-by-week direction for this course.",
-                                  icon: SparklesIcon,
-                                },
-                                {
-                                  step: "3",
-                                  title: "Make it official",
-                                  desc: "Academic Office certifies the edition for school, online, or programme pathways.",
-                                  icon: ShieldCheckIcon,
-                                },
-                                {
-                                  step: "4",
-                                  title: "Teach and track",
-                                  desc: "Open the class workspace, teach from the official flow, then mark delivered weeks.",
-                                  icon: PresentationChartLineIcon,
-                                },
-                              ].map((s, i) => (
-                                <div
-                                  key={i}
-                                  className="bg-card border border-border p-4 space-y-3 rounded-xl"
-                                >
-                                  <div className="w-9 h-9 rounded-lg border border-border bg-muted flex items-center justify-center">
-                                    <s.icon className="w-4 h-4 text-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                                      Step {s.step}
-                                    </p>
-                                    <h3 className="text-sm font-black text-foreground">
-                                      {s.title}
-                                    </h3>
-                                    <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                                      {s.desc}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                              ← Select a course on the left to begin
+                            <button
+                              type="button"
+                              onClick={() => {
+                                document.getElementById("curriculum-course-picker")?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                                document.getElementById("curriculum-course-picker")?.focus?.();
+                              }}
+                              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/20"
+                            >
+                              <BookOpenIcon className="w-4 h-4" />
+                              Pick a course
+                            </button>
+                            <p className="text-[11px] text-muted-foreground">
+                              After that: build → make official on Rollout → teach from Classes.
                             </p>
                           </div>
                         </div>

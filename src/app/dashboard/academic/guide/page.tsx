@@ -77,8 +77,34 @@ export default function AcademicOfficeGuidePage() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Simple user guide</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">How the Academic Office works</h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            The Academic Office is the central control room for curriculum, teaching, attendance, assessment, grading, reports, learner progression and certificates. It keeps everything connected while showing each person only the work they need.
+            Build the official curriculum once. Teachers deliver it class by class. Start with an action below — read the detail only if you need it.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/classes"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground"
+            >
+              Open My Classes <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/dashboard/lesson-plans"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
+            >
+              New teaching plan
+            </Link>
+            <Link
+              href="/dashboard/academic/build"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
+            >
+              Build curriculum
+            </Link>
+            <Link
+              href="/dashboard/academic/rollout"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
+            >
+              Roll out / make official
+            </Link>
+          </div>
         </div>
       </header>
 

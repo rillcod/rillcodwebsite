@@ -2732,106 +2732,70 @@ export default function LessonPlanDetailPage() {
       {/* Content Dashboard Tab */}
       {activeTab === "content" && (
         <div className="space-y-4">
-          <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
-            <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
-              <div className="max-w-3xl">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-700/90 dark:text-amber-300/90">
-                  How this plan works
-                </p>
-                <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">
-                  From setup to delivery — the 8 steps of this lesson plan
-                </h3>
-                <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
-                  Each step below shows what has been set up, what still needs
-                  attention, and what runs automatically. Green = ready, amber =
-                  needs attention, red = blocked.
-                </p>
-              </div>
-            </div>
-            <div className="p-5 sm:p-6">
-              <div className="grid grid-cols-1 gap-6">
-                {/* Phases Mapping */}
-                {[
-                  {
-                    name: "Plan Setup",
-                    steps: ["01", "02"],
-                    dotClass: "bg-blue-400/60",
-                    textClass: "text-blue-700/80 dark:text-blue-300/80",
-                  },
-                  {
-                    name: "Content Checks",
-                    steps: ["03", "04"],
-                    dotClass: "bg-indigo-400/60",
-                    textClass: "text-indigo-700/80 dark:text-indigo-300/80",
-                  },
-                  {
-                    name: "Classroom Delivery",
-                    steps: ["05", "06"],
-                    dotClass: "bg-violet-400/60",
-                    textClass: "text-violet-700/80 dark:text-violet-300/80",
-                  },
-                  {
-                    name: "Tracking & Review",
-                    steps: ["07", "08"],
-                    dotClass: "bg-fuchsia-400/60",
-                    textClass: "text-fuchsia-700/80 dark:text-fuchsia-300/80",
-                  },
-                ].map((phase, pIdx) => (
-                  <div key={phase.name} className="space-y-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className={`w-1.5 h-1.5 rounded-full ${phase.dotClass}`}
-                      />
-                      <span
-                        className={`text-[10px] font-black uppercase tracking-[0.2em] ${phase.textClass}`}
-                      >
-                        Phase {pIdx + 1}: {phase.name}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {linearOpsFlow
-                        .filter((item) => phase.steps.includes(item.step))
-                        .map((item) => (
-                          <div
-                            key={item.step}
-                            className={`rounded-2xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
-                              item.state === "risk"
-                                ? "border-rose-400/25 bg-rose-500/[0.08]"
-                                : item.state === "watch"
-                                ? "border-amber-400/25 bg-amber-500/[0.08]"
-                                : "border-emerald-400/20 bg-emerald-500/[0.06]"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[10px] font-black uppercase tracking-[0.24em] text-card-foreground/45">
-                                Step {item.step}
-                              </span>
-                              <span
-                                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                                  item.state === "risk"
-                                    ? "text-rose-800 dark:text-rose-200"
-                                    : item.state === "watch"
-                                    ? "text-amber-800 dark:text-amber-200"
-                                    : "text-emerald-800 dark:text-emerald-200"
-                                }`}
-                              >
-                                {item.state}
-                              </span>
-                            </div>
-                            <h4 className="text-base font-black text-card-foreground mt-2">
-                              {item.title}
-                            </h4>
-                            <p className="text-xs text-card-foreground/65 mt-2 leading-relaxed">
-                              {item.detail}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
+          {(() => {
+            const nextOps = linearOpsFlow.find((item) => item.state !== "live") ?? linearOpsFlow[0];
+            const blockedCount = linearOpsFlow.filter((item) => item.state === "risk").length;
+            const watchCount = linearOpsFlow.filter((item) => item.state === "watch").length;
+            return (
+              <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Do this next</p>
+                    <h3 className="text-lg sm:text-xl font-black text-foreground mt-1">
+                      {nextOps?.title ?? "Open the Weeks tab"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed max-w-2xl">
+                      {nextOps?.detail ?? "Build or teach week by week from the Weeks tab."}
+                    </p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("weeks")}
+                    className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
+                  >
+                    Go to Weeks
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {blockedCount > 0
+                    ? `${blockedCount} item${blockedCount === 1 ? "" : "s"} blocked`
+                    : watchCount > 0
+                    ? `${watchCount} item${watchCount === 1 ? "" : "s"} need attention`
+                    : "Everything looks ready — teach from Weeks."}
+                </p>
+                <details className="rounded-xl border border-border bg-muted/30">
+                  <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-foreground flex items-center justify-between gap-2">
+                    <span>Advanced status (8 checks)</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Optional</span>
+                  </summary>
+                  <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {linearOpsFlow.map((item) => (
+                      <div
+                        key={item.step}
+                        className={`rounded-xl border p-3 ${
+                          item.state === "risk"
+                            ? "border-rose-400/25 bg-rose-500/[0.06]"
+                            : item.state === "watch"
+                            ? "border-amber-400/25 bg-amber-500/[0.06]"
+                            : "border-border bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {item.step}
+                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {item.state}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-foreground mt-1">{item.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {status === "published" && (
             <>
@@ -5682,7 +5646,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Practical Score Modal */}
       {practicalModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden">
             <div className="p-8 text-center space-y-6">
               <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto">
@@ -5729,7 +5693,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Override Reason Modal */}
       {overrideModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">

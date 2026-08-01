@@ -1009,14 +1009,17 @@ function LessonPlansPageInner() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-foreground">
-          <p className="font-black">How teachers use the academic direction</p>
-          <p className="mt-1 text-muted-foreground">
-            Choose the assigned class and course, then create a draft teaching
-            plan. The database attaches the official curriculum edition
-            automatically. Teachers can adapt activities and delivery notes, but
-            publishing a new direction never overwrites an active plan.
+        <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Pick a class and course, then tap <span className="font-bold text-foreground">New Plan</span>. Teach from your class page after it is published.
           </p>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shrink-0 w-full sm:w-auto`}
+          >
+            <PlusIcon className="w-4 h-4" /> New Plan
+          </button>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1024,7 +1027,7 @@ function LessonPlansPageInner() {
             ["Plans", planSummary.total],
             ["Published", planSummary.published],
             ["Draft", planSummary.draft],
-            ["Official direction", planSummary.directed],
+            ["Linked to curriculum", planSummary.directed],
           ].map(([label, value]) => (
             <div
               key={label}
@@ -1044,7 +1047,7 @@ function LessonPlansPageInner() {
         <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-lg">
           <div className="relative flex-1 min-w-[220px]">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
+            <input aria-label="Search lesson plans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by course, class, or term…"
@@ -1329,7 +1332,7 @@ function LessonPlansPageInner() {
 
       {/* Create Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1452,7 +1455,7 @@ function LessonPlansPageInner() {
 
       {/* Delete Confirmation Modal */}
       {planToDelete && (
-        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1530,7 +1533,7 @@ function LessonPlansPageInner() {
 
       {/* Edit Form Modal */}
       {editingPlan && (
-        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}

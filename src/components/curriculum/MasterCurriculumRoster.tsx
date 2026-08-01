@@ -55,6 +55,7 @@ interface MasterCurriculumRosterProps {
   isAdmin: boolean;
   onRefresh: () => void;
   onSelectCurriculum: (item: any) => void;
+  onCreateCurriculum?: () => void;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -71,6 +72,7 @@ export function MasterCurriculumRoster({
   isAdmin,
   onRefresh,
   onSelectCurriculum,
+  onCreateCurriculum,
 }: MasterCurriculumRosterProps) {
   const [search, setSearch] = useState('');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
@@ -635,8 +637,8 @@ export function MasterCurriculumRoster({
       )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl space-y-4 shadow-sm">
-          <BookOpenIcon className="w-14 h-14 text-muted-foreground/30 mx-auto animate-bounce" />
+        <div className="text-center py-16 bg-card border border-dashed border-border rounded-2xl space-y-4 shadow-sm px-4">
+          <BookOpenIcon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
           <div className="space-y-1">
             <p className="text-base font-black text-foreground">
               {search ? 'Nothing matches that search' : 'No curricula yet'}
@@ -644,9 +646,19 @@ export function MasterCurriculumRoster({
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
               {search
                 ? 'Try a different course or school name.'
-                : 'Use the Syllabus Builder to create your first one.'}
+                : 'Start with one course. Build the week-by-week plan, then make it official.'}
             </p>
           </div>
+          {!search && onCreateCurriculum ? (
+            <button
+              type="button"
+              onClick={onCreateCurriculum}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
+            >
+              <SparklesIcon className="w-4 h-4" />
+              Create first curriculum
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-4">
