@@ -21,6 +21,9 @@ import {
   fmtDate, isStudent, isTeacher, normalizeRole, roleMeta,
 } from '@/lib/accountability/types';
 import { downloadPeopleCsv, generateAccountabilityPdf } from '@/lib/accountability/report';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 const CARD = 'bg-card shadow-sm border border-border rounded-xl';
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground';
@@ -363,62 +366,56 @@ export default function AccountabilityDashboard({
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground">
-              Who’s on the platform
-            </h1>
-            {pollInterval > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
-                Updating every {pollInterval / 1000}s
-              </span>
-            )}
+    <div className={`mx-auto max-w-[1400px] space-y-4 p-4 sm:space-y-6 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
+      <MobilePageHero
+        badge="Admin · Platform census"
+        title="Who's on the platform"
+        description="Every student, teacher, parent, and staff account — plus what's missing so you can fix it."
+        icon={ShieldCheckIcon}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => openReachOut()}
+              className={`${MOBILE_TOUCH_BTN} bg-indigo-600 text-white hover:bg-indigo-700`}
+            >
+              <PaperAirplaneIcon className="h-4 w-4" /> Message parents
+            </button>
+            <select
+              value={pollInterval}
+              onChange={(e) => setPollInterval(Number(e.target.value))}
+              className="min-h-11 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
+              aria-label="Auto-refresh interval"
+            >
+              <option value={0}>Auto-refresh: Off</option>
+              <option value={15000}>Auto-refresh: 15s</option>
+              <option value={30000}>Auto-refresh: 30s</option>
+              <option value={60000}>Auto-refresh: 60s</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => onRefresh(true)}
+              disabled={loading || refreshing}
+              className={`${MOBILE_TOUCH_BTN} border border-border bg-card hover:bg-accent disabled:opacity-60`}
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${loading || refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </>
+        }
+      >
+        {pollInterval > 0 && (
+          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-600 dark:text-rose-400">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-rose-500" />
+            Updating every {pollInterval / 1000}s
+          </span>
+        )}
+        {c?.term_context && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+            This term: {c.term_context.academic_year} · {c.term_context.term_label}
           </div>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            A clear count of every student, teacher, parent, and staff account — plus what’s missing
-            (class, reports, or parent contact) so you can fix it.
-          </p>
-          {c?.term_context && (
-            <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-              This term: {c.term_context.academic_year} · {c.term_context.term_label}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => openReachOut()}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 text-white px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700"
-          >
-            <PaperAirplaneIcon className="w-4 h-4" /> Message parents
-          </button>
-          <select
-            value={pollInterval}
-            onChange={(e) => setPollInterval(Number(e.target.value))}
-            className="min-h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
-            aria-label="Auto-refresh interval"
-          >
-            <option value={0}>Auto-refresh: Off</option>
-            <option value={15000}>Auto-refresh: 15s</option>
-            <option value={30000}>Auto-refresh: 30s</option>
-            <option value={60000}>Auto-refresh: 60s</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => onRefresh(true)}
-            disabled={loading || refreshing}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-60"
-          >
-            <ArrowPathIcon className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
+        )}
+      </MobilePageHero>
 
       {error && (
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
@@ -442,8 +439,19 @@ export default function AccountabilityDashboard({
         </p>
       )}
 
-      {/* Tabs */}
-      <div className="overflow-x-auto -mx-1 px-1">
+      {/* Tabs — mobile strip + desktop bar */}
+      <MobileScrollStrip
+        label="Sections"
+        ariaLabel="Accountability sections"
+        items={TABS.map((t) => ({
+          id: t.id,
+          label: t.label,
+          hint: t.hint,
+          selected: tab === t.id,
+          onClick: () => setTab(t.id),
+        }))}
+      />
+      <div className="hidden overflow-x-auto px-1 md:block">
         <div className="flex min-w-max gap-1 rounded-2xl border border-border bg-muted/30 p-1">
           {TABS.map((t) => (
             <button
@@ -453,7 +461,7 @@ export default function AccountabilityDashboard({
               className={`rounded-xl px-3.5 py-2 text-left transition-all ${tab === t.id ? 'bg-card shadow-sm border border-border' : 'hover:bg-card/60'}`}
             >
               <div className={`text-xs font-black ${tab === t.id ? 'text-foreground' : 'text-muted-foreground'}`}>{t.label}</div>
-              <div className="text-[10px] text-muted-foreground hidden sm:block">{t.hint}</div>
+              <div className="text-[10px] text-muted-foreground">{t.hint}</div>
             </button>
           ))}
         </div>

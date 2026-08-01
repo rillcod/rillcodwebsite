@@ -10,6 +10,7 @@ import {
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
   BookOpenIcon, CommandLineIcon
 } from '@/lib/icons';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 export default function CBTPage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
@@ -103,7 +104,7 @@ export default function CBTPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── EXAM HUB TAB BAR ── */}

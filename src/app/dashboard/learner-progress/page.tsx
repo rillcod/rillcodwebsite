@@ -4,6 +4,9 @@ import dynamic from "next/dynamic";
 import { Suspense, type ComponentType } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import MobilePageHero from "@/components/mobile/MobilePageHero";
+import MobileScrollStrip from "@/components/mobile/MobileScrollStrip";
+import { MOBILE_PAGE_BOTTOM } from "@/components/mobile/mobile-styles";
 import {
   ArrowTrendingUpIcon,
   BookOpenIcon,
@@ -154,22 +157,16 @@ function LearnerProgressOfficePageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-[96rem] space-y-5 px-3 py-5 sm:px-6">
-        <header className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-          <p className="text-xs font-black uppercase tracking-widest text-primary">
-            Academic Office
-          </p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">
-            Learner Progress
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            One working flow from teaching evidence to learner outcomes and term
-            decisions. Nothing here creates a second gradebook or changes manual
-            scores.
-          </p>
+    <main className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
+      <div className="mx-auto max-w-[96rem] space-y-4 px-3 py-4 sm:space-y-5 sm:px-6 sm:py-5">
+        <MobilePageHero
+          badge="Academic Office"
+          title="Learner Progress"
+          description="One flow from teaching evidence to learner outcomes and term decisions."
+          icon={ChartBarIcon}
+        >
           <ol
-            className="mt-5 grid gap-2 text-xs sm:grid-cols-5"
+            className="mt-4 hidden gap-2 text-xs sm:grid sm:grid-cols-5"
             aria-label="Academic progress flow"
           >
             {[
@@ -190,24 +187,25 @@ function LearnerProgressOfficePageContent() {
               </li>
             ))}
           </ol>
-          <div className="mt-4 grid gap-2 text-[11px] sm:grid-cols-3">
-            <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-emerald-700 dark:text-emerald-300">
-              <strong>Collected automatically:</strong> tracked lessons,
-              assignments, CBT, attendance and published report evidence.
-            </p>
-            <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
-              <strong>Human decision:</strong> teachers and admins approve
-              promotion or completion; suggestions never save themselves.
-            </p>
-            <p className="rounded-xl bg-primary/10 px-3 py-2 text-primary">
-              <strong>One source:</strong> manual scores remain valid and every
-              panel reads the existing academic records.
-            </p>
-          </div>
-        </header>
+        </MobilePageHero>
 
+        {/* Mobile: thumb-friendly horizontal strip */}
+        <MobileScrollStrip
+          label="Choose view"
+          ariaLabel="Learner Progress views"
+          items={available.map((view) => ({
+            id: view.id,
+            label: view.label,
+            hint: view.purpose,
+            icon: view.icon,
+            selected: view.id === active,
+            onClick: () => choose(view.id),
+          }))}
+        />
+
+        {/* Desktop: grid picker */}
         <section
-          className="rounded-2xl border border-border bg-card p-3 sm:p-4"
+          className="hidden rounded-2xl border border-border bg-card p-3 sm:p-4 md:block"
           aria-label="Learner Progress tools"
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

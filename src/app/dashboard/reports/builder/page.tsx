@@ -32,6 +32,8 @@ import {
     CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon, TrashIcon,
 } from '@/lib/icons';
 import { permanentWipePortalUserClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -2918,11 +2920,56 @@ function ReportBuilderInner() {
     );
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
 
-                {/* ── Page header ── */}
-                <div className="flex items-center justify-between gap-2">
+                {/* Mobile hero */}
+                <div className="md:hidden">
+                    <MobilePageHero
+                        badge="Academic · Manual entry"
+                        title={
+                            sessionDone && selectedStudent
+                                ? 'Manual entry'
+                                : sessionDone
+                                    ? 'Pick a student'
+                                    : 'Report builder'
+                        }
+                        description={
+                            !sessionDone
+                                ? 'Choose school and class, then enter scores.'
+                                : selectedStudent
+                                    ? 'Type scores and narrative for this learner.'
+                                    : 'Tap a student to start grading.'
+                        }
+                        icon={DocumentTextIcon}
+                        actions={
+                            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                                <Link
+                                    href="/dashboard/academic/results"
+                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-foreground`}
+                                >
+                                    <DocumentTextIcon className="h-3.5 w-3.5 text-primary" /> Workspace
+                                </Link>
+                                <Link
+                                    href="/dashboard/results"
+                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-foreground`}
+                                >
+                                    <EyeIcon className="h-3.5 w-3.5 text-primary" /> Publish
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSettings(true)}
+                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-muted-foreground`}
+                                >
+                                    <Cog6ToothIcon className="h-3.5 w-3.5" /> Branding
+                                </button>
+                            </div>
+                        }
+                    />
+                </div>
+
+                {/* ── Page header (desktop) ── */}
+                <div className="hidden md:flex items-center justify-between gap-2">
                     <div className="min-w-0">
                         <h1 className="truncate text-base font-extrabold sm:text-lg">
                             {sessionDone && selectedStudent

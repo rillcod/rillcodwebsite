@@ -13,6 +13,11 @@ import {
   overviewAssetStages,
   overviewDeliveryStages,
 } from "@/lib/academic/overview-flow";
+import {
+  AcademicCapIcon,
+} from "@/lib/icons";
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 type SpineData = {
   classes: { id: string; name: string }[];
@@ -272,49 +277,42 @@ export default function AcademicSpinePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-primary">Academic Office · Overview</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">
-              Start here — then follow the curriculum to class
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              This is step zero of the academic flow. Write the curriculum,
-              certify it, assign schools, set timing, then teach from the class
-              with lessons, slides, flashcards, grades, CBT and results. Later
-              steps stay closed until earlier ones are ready.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="text-sm font-bold text-foreground">
-              Filter by class
-              <select
-                value={classId}
-                onChange={(event) => setClassId(event.target.value)}
-                className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
-              >
-                <option value="">All classes (reports + exceptions)</option>
-                {(data?.classes ?? []).map((klass) => (
-                  <option key={klass.id} value={klass.id}>
-                    {klass.name}
-                  </option>
-                ))}
-              </select>
-              <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                Narrows report attention and exception queues for that class.
-              </span>
-            </label>
-            <Link
-              href="/dashboard/academic/guide"
-              className="self-end rounded-xl border border-border px-5 py-3 text-center text-sm font-bold text-foreground"
-            >
-              Read simple guide
-            </Link>
-          </div>
-        </div>
-      </section>
+    <div className={`mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
+      <MobilePageHero
+        badge="Academic Office · Overview"
+        title="Start here — then follow the curriculum to class"
+        description="Write the curriculum, certify it, assign schools, then teach from class with lessons, slides, grades, and results."
+        icon={AcademicCapIcon}
+        stats={[
+          { label: 'Classes', value: totals.classes ?? 0 },
+          { label: 'Certified', value: `${certifiedPct}%`, tone: certifiedPct >= 50 ? 'emerald' : 'default' },
+          { label: 'Plans', value: totals.classes_with_teaching_plans ?? 0, tone: 'primary' },
+        ]}
+        actions={
+          <Link href="/dashboard/academic/guide" className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground w-full sm:w-auto`}>
+            Read simple guide
+          </Link>
+        }
+      >
+        <label className="mt-4 block text-sm font-bold text-foreground">
+          Filter by class
+          <select
+            value={classId}
+            onChange={(event) => setClassId(event.target.value)}
+            className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
+          >
+            <option value="">All classes (reports + exceptions)</option>
+            {(data?.classes ?? []).map((klass) => (
+              <option key={klass.id} value={klass.id}>
+                {klass.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs font-normal text-muted-foreground">
+            Narrows report attention and exception queues for that class.
+          </span>
+        </label>
+      </MobilePageHero>
 
       {/* The one honest next action, before any list of options. */}
       {isAdmin && overview && (

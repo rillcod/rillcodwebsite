@@ -3,8 +3,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { ChartBarIcon } from '@/lib/icons';
 import { ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { buildClassTeachingHref } from '@/lib/curriculum/href';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 type Klass = {
   id: string;
@@ -175,53 +178,49 @@ function CentralResultsPageInner() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-        <Link href="/dashboard/academic" className="text-sm font-bold text-primary">
-          Back to Academic Office
-        </Link>
-        {classId ? (
-          <Link
-            href={buildClassTeachingHref({ classId, courseId })}
-            className="ml-4 text-sm font-bold text-muted-foreground hover:text-foreground"
-          >
-            Back to class teaching
-          </Link>
-        ) : null}
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground">Results workspace</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Academic prepare desk. Lead with <strong className="text-foreground">automatic from evidence</strong>,
-          or open a protected manual result for Report Builder. Same progress-report rows throughout —
-          publish from the Publish &amp; Share desk.
-        </p>
-        <ol className="mt-5 grid gap-3 sm:grid-cols-3">
+    <div className={`mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
+      <MobilePageHero
+        badge="Academic Office · Results"
+        title="Results workspace"
+        description="Prepare learner results from evidence or open protected manual entry in Report Builder."
+        icon={ChartBarIcon}
+        stats={[
+          { label: 'Classes', value: data.classes.length },
+          { label: 'Reports', value: data.reports.length, tone: 'primary' },
+        ]}
+        actions={
+          <>
+            <Link href="/dashboard/academic" className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground`}>
+              Academic Office
+            </Link>
+            {classId ? (
+              <Link
+                href={buildClassTeachingHref({ classId, courseId })}
+                className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-muted-foreground hover:text-foreground`}
+              >
+                Class teaching
+              </Link>
+            ) : null}
+            <Link href="/dashboard/reports/builder" className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground`}>
+              Report Builder
+            </Link>
+          </>
+        }
+      >
+        <ol className="mt-4 grid gap-2 sm:grid-cols-3">
           {[
-            { step: '1', title: 'Prepare (here)', detail: 'Auto-calculate from evidence, or create a protected manual shell.' },
-            { step: '2', title: 'Report Builder', detail: 'Manual entry desk — type scores and narrative.' },
-            { step: '3', title: 'Publish & share', detail: 'View, print, email and release to families.' },
+            { step: '1', title: 'Prepare (here)', detail: 'Auto from evidence or manual shell.' },
+            { step: '2', title: 'Report Builder', detail: 'Enter scores and narrative.' },
+            { step: '3', title: 'Publish & share', detail: 'Release to families.' },
           ].map((item) => (
-            <li key={item.step} className="rounded-2xl border border-border bg-muted/30 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Step {item.step}</p>
-              <p className="mt-1 font-black text-foreground">{item.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+            <li key={item.step} className="rounded-xl border border-border/80 bg-background/60 px-3 py-2.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-primary">Step {item.step}</p>
+              <p className="text-xs font-black text-foreground">{item.title}</p>
+              <p className="text-[10px] text-muted-foreground">{item.detail}</p>
             </li>
           ))}
         </ol>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/reports/builder"
-            className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold"
-          >
-            Manual entry (Report Builder)
-          </Link>
-          <Link
-            href="/dashboard/results"
-            className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold"
-          >
-            Publish & share
-          </Link>
-        </div>
-      </section>
+      </MobilePageHero>
 
       {error ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>

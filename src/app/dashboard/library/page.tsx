@@ -23,6 +23,8 @@ import {
 import VideoPlayer from '@/components/media/VideoPlayer';
 import { motion, AnimatePresence } from 'framer-motion';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 type ContentItem = {
   id: string;
@@ -1043,7 +1045,7 @@ export default function ContentLibraryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+    <div className={`min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground ${MOBILE_PAGE_BOTTOM}`}>
       {/* Pipeline Stepper */}
       {isStaff && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
@@ -1051,8 +1053,34 @@ export default function ContentLibraryPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-card border-b border-border relative overflow-hidden py-12 lg:py-20">
+      {/* Mobile hero */}
+      <div className="md:hidden max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+        <MobilePageHero
+          badge={selectedCourse ? `Course · ${selectedCourse.title}` : 'Resources · Library'}
+          title={selectedCourse ? 'Course library' : 'Content library'}
+          description={
+            selectedCourse
+              ? `Resources for ${selectedCourse.title}.`
+              : 'Browse, preview, and share teaching resources.'
+          }
+          icon={BookOpenIcon}
+          stats={[{ label: 'Items', value: items.length, tone: 'primary' }]}
+          actions={
+            canUpload ? (
+              <button
+                type="button"
+                onClick={() => setShowUpload(true)}
+                className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full`}
+              >
+                <PlusIcon className="w-4 h-4" /> Add resource
+              </button>
+            ) : undefined
+          }
+        />
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden md:block bg-card border-b border-border relative overflow-hidden py-12 lg:py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(26,58,143,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(59,111,232,0.15),transparent_50%)]" />
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-10" style={{ backgroundImage: 'radial-gradient(var(--foreground) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 

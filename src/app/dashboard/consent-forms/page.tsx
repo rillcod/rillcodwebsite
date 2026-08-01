@@ -20,6 +20,8 @@ import {
   ArrowTopRightOnSquareIcon, LinkIcon, QrCodeIcon, TableCellsIcon,
   DocumentDuplicateIcon,
 } from '@/lib/icons';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1365,58 +1367,72 @@ export default function ConsentFormsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 pb-24 sm:pb-8">
+      <div className={`max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
 
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-xs font-black text-primary uppercase tracking-widest">Digital Consent</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Consent Forms</h1>
-              <p className="text-muted-foreground text-sm mt-1 leading-snug">
-                {isStaff ? 'Create, share, and manage consent forms for parents' : 'Sign consent forms from your school'}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button onClick={loadForms} className="p-2.5 min-h-11 min-w-11 rounded-xl hover:bg-muted transition-colors" title="Refresh">
-                <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+        <MobilePageHero
+          badge="Digital consent"
+          title="Consent forms"
+          description={
+            isStaff ? 'Create, share, and manage consent forms for parents.' : 'Sign consent forms from your school.'
+          }
+          icon={ClipboardDocumentCheckIcon}
+          stats={
+            !loading && forms.length > 0
+              ? [
+                  { label: 'Forms', value: forms.length },
+                  { label: 'Responses', value: totalResponses, tone: 'primary' },
+                  ...(isStaff
+                    ? [{ label: 'Pending', value: forms.length - signedCount }]
+                    : [{ label: 'Signed', value: signedCount, tone: 'emerald' as const }]),
+                ]
+              : undefined
+          }
+          actions={
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+              <button
+                type="button"
+                onClick={loadForms}
+                className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-muted-foreground`}
+                title="Refresh"
+              >
+                <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
               {isAdmin && (
                 <button
+                  type="button"
                   onClick={stripCopySuffix}
                   disabled={strippingCopy}
                   title='Remove "(Copy)" suffix from all form titles'
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+                  className={`${MOBILE_TOUCH_BTN} hidden sm:inline-flex border border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 disabled:opacity-50`}
                 >
                   {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
-                  <span>{strippingCopy ? 'Cleaning…' : 'Clean Titles'}</span>
+                  <span>{strippingCopy ? 'Cleaning…' : 'Clean titles'}</span>
                 </button>
               )}
               {isStaff && (
                 <button
+                  type="button"
                   onClick={() => setShowCreate(true)}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 min-h-11 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity"
+                  className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground`}
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  <span className="hidden xs:inline sm:inline">New</span>
-                  <span className="sm:hidden">New</span>
+                  <PlusIcon className="w-4 h-4" /> New form
                 </button>
               )}
             </div>
-          </div>
-          {stripResult && (
-            <p className="w-full text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
-              {stripResult} <button onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">×</button>
-            </p>
-          )}
-        </div>
+          }
+        />
+        {stripResult && (
+          <p className="w-full text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+            {stripResult}{' '}
+            <button type="button" onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">
+              ×
+            </button>
+          </p>
+        )}
 
-        {/* Stats */}
+        {/* Stats — desktop detail row; hero shows summary on all sizes */}
         {!loading && forms.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="hidden sm:grid grid-cols-3 gap-3">
             {(isStaff ? [
               { label: 'Forms', value: forms.length },
               { label: 'Responses', value: totalResponses },

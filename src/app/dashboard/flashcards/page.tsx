@@ -12,6 +12,8 @@ import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 interface Deck {
   id: string;
@@ -143,41 +145,54 @@ export default function FlashcardsPage() {
     });
   };
 
+  const totalCards = decks.reduce((sum, deck) => sum + (deck.flashcard_cards?.[0]?.count ?? 0), 0);
+
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-        {/* Enhanced Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <AcademicCapIcon className="w-5 h-5 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-widest">Spaced Repetition Learning</span>
-            </div>
-            <h1 className="text-3xl lg:text-4xl font-black text-foreground">Flashcards</h1>
-            <p className="text-muted-foreground mt-2">Create lesson-linked practice, then return to the class to continue teaching.</p>
-          </div>
-          
-          {isTeacher && (
-            <div className="flex flex-col sm:flex-row gap-3">
-              {returnClassId ? (
-                <Link href={`/dashboard/classes/${returnClassId}?operation=teaching${courseIdParam ? `&course_id=${courseIdParam}` : ''}`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>
-              ) : (
-                <Link href="/dashboard/classes" className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Classes</Link>
-              )}
-              <button 
-                onClick={() => setShowCreate(true)} 
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors shadow-lg"
-              >
-                <PlusIcon className="w-4 h-4" /> Create Deck
-              </button>
-            </div>
-          )}
-        </div>
+        <MobilePageHero
+          badge="Practice · Flashcards"
+          title="Flashcards"
+          description="Create lesson-linked practice decks and review what learners need to revisit."
+          icon={AcademicCapIcon}
+          stats={[
+            { label: 'Decks', value: decks.length },
+            { label: 'Cards', value: totalCards, tone: 'primary' },
+            ...(profile?.role === 'student' && dueCount > 0
+              ? [{ label: 'Due today', value: dueCount, tone: 'emerald' as const }]
+              : []),
+          ]}
+          actions={
+            isTeacher ? (
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                {returnClassId ? (
+                  <Link
+                    href={`/dashboard/classes/${returnClassId}?operation=teaching${courseIdParam ? `&course_id=${courseIdParam}` : ''}`}
+                    className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground w-full sm:w-auto`}
+                  >
+                    Back to class
+                  </Link>
+                ) : (
+                  <Link href="/dashboard/classes" className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground w-full sm:w-auto`}>
+                    Back to classes
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
+                >
+                  <PlusIcon className="w-4 h-4" /> Create deck
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
 
-        {/* Enhanced Stats Cards */}
+        {/* Enhanced Stats Cards — desktop; hero covers mobile summary */}
         {!loading && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

@@ -11,6 +11,7 @@ import {
   ArrowPathIcon, ExclamationTriangleIcon, CalendarDaysIcon,
   ClipboardDocumentCheckIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 const STATUS_BADGE: Record<string, string> = {
   active:    'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -89,7 +90,7 @@ export default function ClassesPage() {
   );
 
   return (
-    <div className="min-w-0 space-y-8 overflow-x-hidden pb-20">
+    <div className={`min-w-0 space-y-8 overflow-x-hidden ${MOBILE_PAGE_BOTTOM}`}>
 
       {/* ── My Classes Tab Bar ── */}
       <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">

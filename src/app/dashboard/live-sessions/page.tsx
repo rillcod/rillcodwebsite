@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import ClassReplays from '@/components/live-session/ClassReplays';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 // Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
 const LiveKitMeeting = dynamic(
@@ -1704,69 +1706,35 @@ export default function LiveSessionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className={`min-h-screen bg-background text-foreground selection:bg-primary/30 ${MOBILE_PAGE_BOTTOM}`}>
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 lg:px-8 lg:py-8">
 
-        {/* ── Header ── */}
-        <div className="relative bg-card border border-border p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/15 transition-all duration-1000" />
-          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
-
-          <div className="relative z-10 space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
-                <SignalIcon className="w-3 h-3" /> Sector: Broadcast Uplink
-              </div>
-              {liveSessions.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                  </span>
-                  <span className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
-                    {liveSessions.length} Channel{liveSessions.length !== 1 ? 's' : ''} Open
-                  </span>
-                </div>
-              )}
-            </div>
-            <div>
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase text-foreground">
-                Virtual<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary to-amber-500">Hall.</span>
-                <span className="text-muted-foreground/20 ml-4 not-italic font-black hidden md:inline">01</span>
-              </h1>
-              <p className="text-sm text-muted-foreground font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-primary/30 pl-6">
-                {canManage
-                  ? 'Manage broadcasts, track attendance, and engage students with live polls and breakout rooms.'
-                  : 'Welcome to the broadcast lobby. Join your scheduled classes and engage in interactive sessions.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="relative z-10 flex flex-col gap-6 sm:items-end">
-            <div className="flex items-center gap-3">
-              {[
-                { label: 'Active', value: liveSessions.length, color: 'emerald' },
-                { label: 'Total',  value: sessions.length,     color: 'white' },
-              ].map(stat => (
-                <div key={stat.label} className="bg-muted/50 dark:bg-white/[0.03] border border-border p-5 min-w-[100px] text-center backdrop-blur-md rounded-xl">
-                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{stat.value}</p>
-                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-            {canCreateSession && (
+        <MobilePageHero
+          badge={liveSessions.length > 0 ? `Live now · ${liveSessions.length}` : "Live classes"}
+          title="Live Sessions"
+          description={
+            canManage
+              ? "Schedule classes, track attendance, and run polls or breakout rooms."
+              : "Join scheduled classes and interact with your teacher in real time."
+          }
+          icon={VideoCameraIcon}
+          stats={[
+            { label: "Active", value: liveSessions.length, tone: "emerald" },
+            { label: "Total", value: sessions.length },
+          ]}
+          actions={
+            canCreateSession ? (
               <button
+                type="button"
                 onClick={openCreate}
-                className="group/btn flex items-center gap-4 px-10 py-5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-primary/30 relative overflow-hidden"
+                className={`${MOBILE_TOUCH_BTN} bg-primary px-5 text-primary-foreground shadow-lg shadow-primary/20`}
               >
-                <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
-                <PlusIcon className="w-4 h-4 relative z-10" />
-                <span className="relative z-10">Broadcast New Session</span>
+                <PlusIcon className="h-4 w-4" />
+                Schedule session
               </button>
-            )}
-          </div>
-        </div>
+            ) : undefined
+          }
+        />
 
         {/* ── Error ── */}
         {error && (

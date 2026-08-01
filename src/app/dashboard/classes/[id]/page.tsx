@@ -1373,7 +1373,7 @@ export default function ClassDetailPage() {
 
   return (
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
-      <div className="space-y-4 pb-24 sm:space-y-6 sm:pb-20">
+      <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+0.75rem)] sm:space-y-6 md:pb-20">
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
         <div className="min-w-0 w-full max-w-full rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl md:rounded-3xl">

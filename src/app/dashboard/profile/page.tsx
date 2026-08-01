@@ -16,6 +16,7 @@ import {
   CheckIcon, ArrowPathIcon, ChevronRightIcon, RocketLaunchIcon,
   CameraIcon,
 } from '@/lib/icons';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth();
@@ -211,7 +212,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="bg-background text-foreground selection:bg-indigo-500 selection:text-foreground pb-20">
+    <div className={`bg-background text-foreground selection:bg-indigo-500 selection:text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-5xl mx-auto px-6 sm:px-12 py-12 md:py-16 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {needsContact && profile.role === 'parent' && (

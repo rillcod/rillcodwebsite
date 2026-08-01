@@ -38,6 +38,8 @@ import {
   ChevronRightIcon,
   MagnifyingGlassIcon,
 } from "@/lib/icons";
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { LANE_LABELS } from "@/lib/qa/resolveQaSpineLane";
 import { liveAcademicSession } from "@/lib/reports/academic-period";
 
@@ -1113,25 +1115,20 @@ function SettingsPageContent({
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className={`min-h-screen bg-background text-foreground ${embedded ? '' : MOBILE_PAGE_BOTTOM}`}>
       <div
         className={`${
           embedded ? "max-w-5xl" : "max-w-4xl"
         } mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8`}
       >
-        {/* Header */}
-        <div className={embedded ? "hidden" : ""}>
-          <div className="flex items-center gap-2 mb-1">
-            <CogIcon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">
-              Settings
-            </span>
-          </div>
-          <h1 className="text-3xl font-extrabold">Settings</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your account, academic rules, and platform configuration
-          </p>
-        </div>
+        {!embedded ? (
+          <MobilePageHero
+            badge="Account · Settings"
+            title="Settings"
+            description="Manage your account, academic rules, and platform configuration."
+            icon={CogIcon}
+          />
+        ) : null}
 
         {/* Toast */}
         {toast && (

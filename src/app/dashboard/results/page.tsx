@@ -29,6 +29,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
@@ -1486,11 +1487,30 @@ tbody tr:hover{background:#f3f4f6}
                 )}
 
                 {/* ── Page header (hidden on mobile while a report is open) ── */}
+                <div className={cn(mobileReportFocus && 'hidden lg:block')}>
+                    <div className="md:hidden">
+                        <MobilePageHero
+                            badge={isStaff ? 'Publish & share' : 'My progress report'}
+                            title={isStaff ? 'Publish & share' : 'Student progress reports'}
+                            description="View, print, email and release progress reports to families."
+                            icon={DocumentTextIcon}
+                            stats={
+                                isStaff && staffPeriodReady
+                                    ? [
+                                          { label: 'Students', value: stats.total },
+                                          { label: 'Published', value: stats.published, tone: 'emerald' },
+                                          { label: 'Drafts', value: stats.draft },
+                                      ]
+                                    : undefined
+                            }
+                        />
+                    </div>
+                </div>
                 <div className={cn(
                     'flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between',
                     mobileReportFocus && 'hidden lg:flex',
                 )}>
-                    <div className="min-w-0">
+                    <div className="min-w-0 hidden md:block">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400">
                             {isStaff ? 'Publish & share' : 'My Progress Report'}
                         </p>

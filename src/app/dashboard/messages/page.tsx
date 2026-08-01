@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 interface Thread {
   id: string;
@@ -245,14 +247,17 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <ChatBubbleLeftRightIcon className="w-5 h-5 text-primary" />
-          <h1 className="text-3xl font-black">Parent-Teacher Messages</h1>
-        </div>
+    <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+        <MobilePageHero
+          badge="Communication · Parent-teacher"
+          title="Parent-teacher messages"
+          description="Secure conversations between parents and teachers about learners."
+          icon={ChatBubbleLeftRightIcon}
+          stats={[{ label: 'Threads', value: threads.length, tone: threads.length > 0 ? 'primary' : 'default' }]}
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[480px] lg:h-[600px]">
           {/* Thread list */}
           <div className="lg:col-span-1 bg-card border border-border rounded-xl overflow-y-auto">
             {loading ? (

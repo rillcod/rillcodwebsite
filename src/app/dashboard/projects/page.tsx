@@ -16,6 +16,9 @@ import {
     UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon, ShareIcon,
     ArrowDownTrayIcon, CommandLineIcon,
 } from '@/lib/icons';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -365,24 +368,41 @@ export default function ProjectsPage() {
         ];
 
     function TabBar() {
+        const stripItems = TABS.map((t) => ({
+            id: t.id,
+            label: t.label,
+            icon: t.icon,
+            selected: tab === t.id,
+            onClick: () => setTab(t.id),
+            hint:
+                t.id === 'activities' && isStaff && activities.length > 0 && !actLoading
+                    ? String(activities.length)
+                    : undefined,
+        }));
+
         return (
-            <div className="bg-background border-b border-border px-6 md:px-10">
-                <div className="flex gap-0">
-                    {TABS.map(t => {
-                        const Icon = t.icon;
-                        const active = tab === t.id;
-                        const badge = (t.id === 'activities' && isStaff && activities.length > 0 && !actLoading) ? activities.length : null;
-                        return (
-                            <button key={t.id} onClick={() => setTab(t.id)}
-                                className={`flex items-center gap-2 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-                                <Icon className="w-3.5 h-3.5" />
-                                {t.label}
-                                {badge && <span className="ml-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-black">{badge}</span>}
-                            </button>
-                        );
-                    })}
+            <>
+                <div className="px-4 sm:px-6 md:px-10 py-2 md:hidden">
+                    <MobileScrollStrip label="Projects" items={stripItems} ariaLabel="Project sections" />
                 </div>
-            </div>
+                <div className="hidden md:block bg-background border-b border-border px-6 md:px-10">
+                    <div className="flex gap-0">
+                        {TABS.map(t => {
+                            const Icon = t.icon;
+                            const active = tab === t.id;
+                            const badge = (t.id === 'activities' && isStaff && activities.length > 0 && !actLoading) ? activities.length : null;
+                            return (
+                                <button key={t.id} onClick={() => setTab(t.id)}
+                                    className={`flex items-center gap-2 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {t.label}
+                                    {badge && <span className="ml-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-black">{badge}</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </>
         );
     }
 
@@ -411,7 +431,7 @@ export default function ProjectsPage() {
         });
 
         return (
-            <div className="min-h-screen bg-background">
+            <div className={`min-h-screen bg-background ${MOBILE_PAGE_BOTTOM}`}>
                 {/* ── Assignments & Exams Tab Bar ── */}
                 <div className="px-4 sm:px-6 md:px-10 pt-6">
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
@@ -428,44 +448,22 @@ export default function ProjectsPage() {
                         </Link>
                     </div>
                 </div>
-                {/* Hero */}
-                <div className="relative overflow-hidden bg-card border-b border-border">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/70/20 via-transparent to-amber-900/10 pointer-events-none" />
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-                    <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
-                            <div className="flex items-center gap-3 sm:gap-5">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
-                                    <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Academic Score · 20% of Final Grade</p>
-                                    <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
-                                    <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1">Lab work & portfolio · teacher activities</p>
-                                </div>
-                            </div>
-
-                            {/* Score card */}
-                            <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-white/[0.03] border border-white/[0.07] px-4 sm:px-6 py-4 w-full md:w-auto">
-                                <div className="text-center">
-                                    <p className="text-[9px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Your Score</p>
-                                    <p className="text-4xl sm:text-5xl font-black text-foreground">{pct}<span className="text-xl sm:text-2xl text-muted-foreground">%</span></p>
-                                    <ScoreBadge pct={pct} />
-                                </div>
-                                <div className="hidden sm:block w-px h-14 bg-white/10" />
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[11px] text-muted-foreground">{myLab.length} Lab Project{myLab.length !== 1 ? 's' : ''}</span></div>
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[11px] text-muted-foreground">{myPortfolio.length} Portfolio Project{myPortfolio.length !== 1 ? 's' : ''}</span></div>
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[11px] text-muted-foreground">{total} / 3 target</span></div>
-                                </div>
-                            </div>
+                <div className="px-4 sm:px-6 md:px-10 py-4">
+                    <MobilePageHero
+                        badge="Academic score · 20% of grade"
+                        title="Project engagement"
+                        description="Lab work, portfolio pieces, and teacher activities."
+                        icon={RocketLaunchIcon}
+                        stats={[
+                            { label: 'Score', value: `${pct}%`, tone: pct >= 50 ? 'emerald' : 'default' },
+                            { label: 'Projects', value: total, tone: 'primary' },
+                        ]}
+                    >
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                            <span className="font-black uppercase tracking-widest">How it works:</span>
+                            <span>Every 3 projects = 100% engagement</span>
                         </div>
-                        <div className="mt-4 flex items-center gap-2 flex-wrap">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">How it's calculated:</span>
-                            <span className="text-[10px] font-bold text-muted-foreground">Every 3 projects (lab + portfolio) = 100% engagement score</span>
-                            <span className="text-[10px] text-primary font-black">· counts 20pts toward your final report</span>
-                        </div>
-                    </div>
+                    </MobilePageHero>
                 </div>
 
                 <TabBar />
@@ -936,7 +934,7 @@ export default function ProjectsPage() {
     }, {});
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className={`min-h-screen bg-background ${MOBILE_PAGE_BOTTOM}`}>
             {/* ── Assignments & Exams Tab Bar ── */}
             <div className="px-4 sm:px-6 md:px-10 pt-6">
                 <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
@@ -953,43 +951,23 @@ export default function ProjectsPage() {
                     </Link>
                 </div>
             </div>
-            {/* Hero */}
-            <div className="relative overflow-hidden bg-card border-b border-border">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/70/20 via-transparent to-amber-900/10 pointer-events-none" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-                <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
-                        <div className="flex items-center gap-3 sm:gap-5">
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
-                                <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Score Category · 20% of Final Grade</p>
-
-                                <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
-                                <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1">Lab + portfolio projects and teacher-assigned activities</p>
-                            </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                            <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full sm:w-auto">
-                                {[
-                                    { label: 'Students', value: students.length, color: 'text-white' },
-                                    { label: 'Active', value: totalWithProjects, color: 'text-primary' },
-                                    { label: 'Avg Score', value: `${avgScore}%`, color: 'text-emerald-600 dark:text-emerald-400' },
-                                ].map(s => (
-                                    <div key={s.label} className="bg-white/[0.03] border border-white/[0.07] px-3 sm:px-4 py-2 sm:py-3 text-center">
-                                        <p className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</p>
-                                        <p className="text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{s.label}</p>
-                                    </div>
-                                ))}
-                            </div>
-                            <Link href="/dashboard/projects/new"
-                                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primarytransition-colors text-white text-xs font-black uppercase tracking-widest flex-shrink-0 w-full sm:w-auto justify-center">
-                                <PlusIcon className="w-4 h-4" /> New Activity
-                            </Link>
-                        </div>
-                    </div>
-                </div>
+            <div className="px-4 sm:px-6 md:px-10 py-4">
+                <MobilePageHero
+                    badge="Score category · 20% of grade"
+                    title="Project engagement"
+                    description="Lab, portfolio projects, and teacher-assigned activities."
+                    icon={RocketLaunchIcon}
+                    stats={[
+                        { label: 'Students', value: students.length },
+                        { label: 'Active', value: totalWithProjects, tone: 'primary' },
+                        { label: 'Avg', value: `${avgScore}%`, tone: 'emerald' },
+                    ]}
+                    actions={
+                        <Link href="/dashboard/projects/new" className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}>
+                            <PlusIcon className="w-4 h-4" /> New activity
+                        </Link>
+                    }
+                />
             </div>
 
             <TabBar />

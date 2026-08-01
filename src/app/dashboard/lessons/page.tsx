@@ -15,6 +15,8 @@ import {
   AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon,
 } from '@/lib/icons';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -301,33 +303,35 @@ export default function LessonsPage() {
   );
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className={`space-y-8 ${MOBILE_PAGE_BOTTOM}`}>
 
       {/* Pipeline steps */}
       {isStaff && (
         <PipelineStepper current="lessons" lessonPlanId={lessonPlanId} />
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpenIcon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Lessons</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-foreground">Course Lessons</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage and track all lesson content across courses.</p>
-        </div>
-        {isStaff && (
-          <Link
-            href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30 flex-shrink-0"
-          >
-            <PlusIcon className="w-4 h-4" /> Add Lesson
-            {lessonPlanId && <span className="text-[10px] opacity-70 uppercase tracking-widest">· for Plan</span>}
-          </Link>
-        )}
-      </div>
+      <MobilePageHero
+        badge="Teaching · Lessons"
+        title="Course lessons"
+        description="Manage and track lesson content across courses."
+        icon={BookOpenIcon}
+        stats={[
+          { label: 'Total', value: lessons.length },
+          { label: 'Active', value: active, tone: 'primary' },
+          { label: 'Done', value: completed, tone: 'emerald' },
+        ]}
+        actions={
+          isStaff ? (
+            <Link
+              href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
+              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
+            >
+              <PlusIcon className="w-4 h-4" /> Add lesson
+              {lessonPlanId && <span className="text-[10px] opacity-70 uppercase tracking-widest">· for plan</span>}
+            </Link>
+          ) : undefined
+        }
+      />
 
       {/* Error */}
       {error && (

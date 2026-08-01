@@ -152,6 +152,15 @@
   .touch-active-scale:active {
     transform: scale(0.96);
   }
+
+  /* Mobile page rhythm — use on dashboard page roots (mobile only). */
+  .mobile-page-root {
+    @apply space-y-4 pb-[calc(var(--app-bottom-nav-height)+0.75rem)] md:space-y-6 md:pb-0;
+  }
+
+  .mobile-glass-hero {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl relative overflow-hidden;
+  }
 }
 
 :root {

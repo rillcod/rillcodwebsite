@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { ArrowPathIcon, ShieldCheckIcon } from '@/lib/icons';
 import AccountabilityDashboard from '@/components/accountability/AccountabilityDashboard';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
 import type { Backlog, Coverage, Person } from '@/lib/accountability/types';
 import type { StudentExceptionKind } from '@/lib/accountability/student-exceptions';
 

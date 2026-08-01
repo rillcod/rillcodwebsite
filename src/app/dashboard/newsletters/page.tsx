@@ -27,6 +27,8 @@ import { renderMarkdown } from '@/lib/newsletter-markdown';
 import { brandContact } from '@/config/brand';
 import { useOfficeOptional } from '@/components/office/OfficeContext';
 import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 /** Strip markdown to plain text â€” used for list-card previews only. */
 function stripMarkdown(text: string): string {
@@ -456,42 +458,42 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
-    <div className={`${office ? 'bg-transparent' : 'min-h-screen bg-background'} text-foreground ${office ? 'p-0' : 'p-4 sm:p-8'}`}>
+    <div className={`${office ? 'bg-transparent' : 'min-h-screen bg-background'} text-foreground ${office ? 'p-0' : `p-4 sm:p-8 ${MOBILE_PAGE_BOTTOM}`}`}>
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* Header â€” hide duplicate chrome when embedded in Office Center */}
+        {/* Header — hide duplicate chrome when embedded in Office Center */}
         {!office ? (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <SpeakerWaveIcon className="w-5 h-5 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-widest">Official Channel</span>
-            </div>
-            <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletters' : 'Official Newsletters'}</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isManager
-                ? 'Design, AI-draft, and push professional newsletters. Supports Markdown formatting.'
-                : 'Stay updated with the latest news and school announcements.'}
-            </p>
-          </div>
-          {view === 'list' ? (
-            isManager && (
+        <MobilePageHero
+          badge="Official channel · Newsletters"
+          title={isManager ? 'Newsletters' : 'Official newsletters'}
+          description={
+            isManager
+              ? 'Design, draft, and push professional newsletters.'
+              : 'Stay updated with the latest news and school announcements.'
+          }
+          icon={SpeakerWaveIcon}
+          actions={
+            view === 'list' ? (
+              isManager ? (
+                <button
+                  type="button"
+                  onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); setEditorTab('write'); }}
+                  className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
+                >
+                  <PlusIcon className="w-5 h-5" /> Create newsletter
+                </button>
+              ) : undefined
+            ) : (
               <button
-                onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); setEditorTab('write'); }}
-                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/90 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/40 text-primary-foreground"
+                type="button"
+                onClick={() => setView('list')}
+                className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-foreground w-full sm:w-auto`}
               >
-                <PlusIcon className="w-5 h-5" /> Create Newsletter
+                <ArrowLeftIcon className="w-4 h-4" /> Back to newsletters
               </button>
             )
-          ) : (
-            <button
-              onClick={() => setView('list')}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-bold transition-all"
-            >
-              <ArrowLeftIcon className="w-4 h-4" /> Back to Newsletters
-            </button>
-          )}
-        </div>
+          }
+        />
         ) : (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {view === 'list' ? (
