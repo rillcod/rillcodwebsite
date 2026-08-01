@@ -27,6 +27,7 @@
     "cf:container:build": "node scripts/check-cf-containers-prereqs.mjs && docker build -t rillcodwebsite:local .",
     "cf:container:deploy": "node scripts/check-cf-containers-prereqs.mjs && node scripts/cf-container-deploy.mjs",
     "cf:set-route": "node scripts/cf-set-route.mjs",
+    "cf:clear-dns": "node scripts/cf-clear-dns-for-cutover.mjs",
     "cf:container:smoke": "node scripts/smoke-cf-container.mjs",
     "cf:container:cutover": "node scripts/cf-container-cutover-guide.mjs",
     "cf:secrets": "node scripts/sync-cloudflare-env-from-vercel.mjs --secrets-only",

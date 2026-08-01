@@ -25,16 +25,26 @@ function run(cmd, args, extraEnv = {}) {
 function ensureNextBuild() {
   const nextDir = path.join(root, ".next");
   const standaloneServer = path.join(nextDir, "standalone", "server.js");
-  if (!fs.existsSync(path.join(nextDir, "BUILD_ID")) || !fs.existsSync(standaloneServer)) {
-    console.log("\nBuilding Next.js standalone on host (npm run build)…\n");
-    const code = run("npm", ["run", "build"], { DOCKER_BUILD: "1" });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.rillcod.com";
+  const stampPath = path.join(nextDir, "cf-app-url.txt");
+  const stampedUrl = fs.existsSync(stampPath) ? fs.readFileSync(stampPath, "utf8").trim() : "";
+  const needsBuild =
+    !fs.existsSync(path.join(nextDir, "BUILD_ID")) ||
+    !fs.existsSync(standaloneServer) ||
+    stampedUrl !== appUrl;
+
+  if (needsBuild) {
+    console.log(`\nBuilding Next.js standalone (NEXT_PUBLIC_APP_URL=${appUrl})…\n`);
+    const code = run("npm", ["run", "build"], { DOCKER_BUILD: "1", NEXT_PUBLIC_APP_URL: appUrl });
     if (code !== 0) process.exit(code);
     if (!fs.existsSync(standaloneServer)) {
       console.error("Expected .next/standalone/server.js — is output: standalone enabled?");
       process.exit(1);
     }
+    fs.mkdirSync(nextDir, { recursive: true });
+    fs.writeFileSync(stampPath, appUrl);
   } else {
-    console.log("Using existing .next/standalone build (delete .next to force rebuild).");
+    console.log(`Using existing .next/standalone build for ${appUrl}.`);
   }
 }
 

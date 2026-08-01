@@ -45,6 +45,17 @@ try {
     console.log(`\nRoute live. Test: https://${stagingHost}`);
     console.log(`       (workers.dev fallback: https://rillcodwebsite.rillcod.workers.dev)`);
     exitCode = 0;
+  } else if (/already has externally managed DNS records/i.test(out)) {
+    console.error(`
+Could not attach Worker custom domain — old DNS records still point to Vercel.
+
+In Cloudflare Dashboard → rillcod.com → DNS → Records, DELETE:
+  • www   (CNAME or A — usually cname.vercel-dns.com)
+  • @     (A or CNAME for apex — if present)
+
+Keep cf.rillcod.com as-is. Then re-run: npm run cf:set-route
+`);
+    exitCode = 1;
   } else if (/zone .* does not exist on your account/i.test(out)) {
     console.error(`
 Could not set route — rillcod.com is not on this Cloudflare account yet.

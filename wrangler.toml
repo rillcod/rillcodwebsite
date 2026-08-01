@@ -8,7 +8,17 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 preview_urls = false
 
-# Staging host — custom domain route on rillcod.com zone.
+# Production + staging custom domains on rillcod.com zone.
+[[routes]]
+pattern = "www.rillcod.com"
+custom_domain = true
+zone_name = "rillcod.com"
+
+[[routes]]
+pattern = "rillcod.com"
+custom_domain = true
+zone_name = "rillcod.com"
+
 [[routes]]
 pattern = "cf.rillcod.com"
 custom_domain = true
@@ -19,7 +29,7 @@ class_name = "NextAppContainer"
 image = "./Dockerfile.cf"
 max_instances = 5
 instance_type = "standard-2"
-image_vars = { NEXT_PUBLIC_APP_URL = "https://cf.rillcod.com", NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-", NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = "pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d", NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs", NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz" }
+image_vars = { NEXT_PUBLIC_APP_URL = "https://www.rillcod.com", NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-", NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = "pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d", NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs", NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz" }
 
 [[durable_objects.bindings]]
 name = "NEXT_APP"
@@ -29,32 +39,22 @@ class_name = "NextAppContainer"
 tag = "v1-next-container"
 new_sqlite_classes = ["NextAppContainer"]
 
-# Crons are intentionally NOT registered while this Worker serves the staging host.
-#
-# `image_vars` above points the staging container at the production Supabase project, so a cron
-# firing here does real work against live data: invoice-reminders, billing-reminders and
-# payment-reminders would email parents a second time on top of the schedule already running
-# against www. Staging must not send production mail.
-#
-# At cutover (see `npm run cf:container:cutover`), restore the block below in the same change that
-# retires the cron-job.org entries — never with both live. The schedules and the paths they map to
-# are in src/cloudflare/container-gateway.ts.
-#
-# [triggers]
-# crons = [
-#   "0 7 * * *",   # invoice-reminders
-#   "0 8 * * *",   # billing-reminders
-#   "0 9 * * *",   # payment-reminders
-#   "5 5 * * *",   # term-scheduler
-#   "30 6 * * *",  # receipt-sweep
-#   "0 10 * * *",  # school-report-readiness
-#   "30 4 * * *",  # academic-readiness
-#   "0 9 1 * *",   # weekly-summary
-#   "0 3 * * *",   # integrity-sweep
-# ]
+# Crons — disable matching cron-job.org entries when this Worker is live.
+[triggers]
+crons = [
+  "0 7 * * *",   # invoice-reminders
+  "0 8 * * *",   # billing-reminders
+  "0 9 * * *",   # payment-reminders
+  "5 5 * * *",   # term-scheduler
+  "30 6 * * *",  # receipt-sweep
+  "0 10 * * *",  # school-report-readiness
+  "30 4 * * *",  # academic-readiness
+  "0 9 1 * *",   # weekly-summary
+  "0 3 * * *",   # integrity-sweep
+]
 
 [vars]
-NEXT_PUBLIC_APP_URL = "https://cf.rillcod.com"
+NEXT_PUBLIC_APP_URL = "https://www.rillcod.com"
 NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-"
