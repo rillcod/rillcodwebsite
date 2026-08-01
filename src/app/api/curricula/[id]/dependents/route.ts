@@ -112,7 +112,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     const [schedRes, adoptRes, dirRes] = await Promise.all([
       admin
         .from('academic_curriculum_delivery_schedules')
-        .select('id, school_id, class_id, course_id, release_id, schools(name), classes(name)')
+        .select('id, school_id, class_id, course_id, release_id, schools(name), classes!academic_curriculum_delivery_schedules_class_id_fkey(name)')
         .in('release_id', releaseIds),
       admin
         .from('academic_curriculum_adoptions')

@@ -166,72 +166,75 @@ if (isNativeApp) {
 
       <div className="max-w-6xl mx-auto px-6 relative z-10 space-y-16">
         {/* Hero Section */}
-        <section className="text-center space-y-6 py-8 no-print">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-500 dark:text-yellow-400 rounded-full text-[10px] font-black uppercase tracking-widest">
-            ☀️ {content.season_badge || page.title} · Batch B · 2nd cohort
-          </div>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tighter leading-none">
-            {content.title_line1 || 'Rillcod'} <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500">
-              {content.title_line2 || page.title}
+        <section className="text-center space-y-6 p-8 sm:p-14 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl relative overflow-hidden no-print">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10 space-y-6">
+            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm">
+              ☀️ {content.season_badge || page.title} · Batch B · 2nd cohort
             </span>
-          </h1>
-          <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            {content.hero_blurb || page.title}
-          </p>
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tighter leading-none">
+              {content.title_line1 || 'Rillcod'} <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500">
+                {content.title_line2 || page.title}
+              </span>
+            </h1>
+            <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed italic">
+              {content.hero_blurb || page.title}
+            </p>
 
-          {/* Conversion strip — Batch B · physical cheaper · class days */}
-          <div className="flex flex-col items-center justify-center gap-2 max-w-2xl mx-auto pt-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-              Batch B · 2nd cohort
-            </p>
-            <p className="text-xs sm:text-sm font-bold text-foreground text-center">
-              <span className="text-emerald-600 dark:text-emerald-400">In-person {onsiteLabels.total}</span>
-              <span className="text-muted-foreground"> · </span>
-              Online {onlineLabels.total}
-            </p>
-            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
-              Physical seats (₦40k) · Online (₦50k) · Classes tentatively Tue · Thu · Sat
-              {page.registration_deadline ? (
-                <> · Closes <span className="text-rose-600 dark:text-rose-400 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
-              ) : null}
-            </p>
-          </div>
-
-          {registrationOpen && (
-            <div className="pt-2">
-              <a
-                href="#register"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-500/20 hover:opacity-95 transition-all"
-              >
-                Secure a seat
-                <ArrowRight className="w-4 h-4" />
-              </a>
-              <p className="text-[10px] text-muted-foreground mt-3 font-medium">
-                Receipt sent instantly · Seat reserved on payment · WhatsApp group after confirmation
+            {/* Conversion strip — Batch B · physical cheaper · class days */}
+            <div className="flex flex-col items-center justify-center gap-2 max-w-2xl mx-auto pt-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                Batch B · 2nd cohort
+              </p>
+              <p className="text-xs sm:text-sm font-bold text-foreground text-center">
+                <span className="text-emerald-600 dark:text-emerald-400">In-person {onsiteLabels.total}</span>
+                <span className="text-muted-foreground"> · </span>
+                Online {onlineLabels.total}
+              </p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
+                Physical seats (₦40k) · Online (₦50k) · Classes tentatively Tue · Thu · Sat
+                {page.registration_deadline ? (
+                  <> · Closes <span className="text-rose-600 dark:text-rose-400 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
+                ) : null}
               </p>
             </div>
-          )}
 
-          {!registrationOpen && (
-            <div className="max-w-xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-              Registration is closed for this programme.
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
-            {[
-              { label: "Start Date", val: formatSpecialDate(page.starts_on) },
-              { label: "Deadline", val: formatSpecialDate(page.registration_deadline), highlight: true },
-              { label: "Ending Date", val: formatSpecialDate(page.ends_on) },
-              { label: "Duration", val: content.duration_label || "Cohort" },
-              { label: "Audience", val: content.ages_label || `Ages ${ageMin} – ${ageMax}` }
-            ].map(m => (
-              <div key={m.label} className={`border p-4 rounded-xl transition-all ${m.highlight ? 'bg-rose-500/15 border-rose-500/30 text-rose-500 dark:text-rose-400' : 'bg-card border-border text-foreground'}`}>
-                <p className={`text-[9px] uppercase font-black tracking-widest ${m.highlight ? 'text-rose-500 dark:text-rose-400' : 'text-muted-foreground'}`}>{m.label}</p>
-                <p className={`text-xs sm:text-sm font-black mt-1 ${m.highlight ? 'animate-pulse' : ''}`}>{m.val}</p>
+            {registrationOpen && (
+              <div className="pt-2">
+                <a
+                  href="#register"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-500/20 hover:opacity-95 transition-all"
+                >
+                  Secure a seat
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+                <p className="text-[10px] text-muted-foreground mt-3 font-medium">
+                  Receipt sent instantly · Seat reserved on payment · WhatsApp group after confirmation
+                </p>
               </div>
-            ))}
+            )}
+
+            {!registrationOpen && (
+              <div className="max-w-xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
+                Registration is closed for this programme.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
+              {[
+                { label: "Start Date", val: formatSpecialDate(page.starts_on) },
+                { label: "Deadline", val: formatSpecialDate(page.registration_deadline), highlight: true },
+                { label: "Ending Date", val: formatSpecialDate(page.ends_on) },
+                { label: "Duration", val: content.duration_label || "Cohort" },
+                { label: "Audience", val: content.ages_label || `Ages ${ageMin} – ${ageMax}` }
+              ].map(m => (
+                <div key={m.label} className={`border p-4 rounded-xl transition-all ${m.highlight ? 'bg-rose-500/15 border-rose-500/30 text-rose-500 dark:text-rose-400' : 'bg-card border-border text-foreground'}`}>
+                  <p className={`text-[9px] uppercase font-black tracking-widest ${m.highlight ? 'text-rose-500 dark:text-rose-400' : 'text-muted-foreground'}`}>{m.label}</p>
+                  <p className={`text-xs sm:text-sm font-black mt-1 ${m.highlight ? 'animate-pulse' : ''}`}>{m.val}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

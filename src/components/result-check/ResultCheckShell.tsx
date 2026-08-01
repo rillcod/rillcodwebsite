@@ -34,9 +34,12 @@ export default function ResultCheckShell({
               <p className="truncate text-lg font-black tracking-tight text-foreground sm:text-xl">
                 RILLCOD ACADEMY
               </p>
-              <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                Official Result Verification Portal
-              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-red-accent animate-ping" />
+                <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-foreground">
+                  Official Result Portal
+                </p>
+              </div>
             </div>
           </Link>
 
