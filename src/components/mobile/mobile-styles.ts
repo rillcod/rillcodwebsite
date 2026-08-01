@@ -21,7 +21,11 @@ export const MOBILE_TOUCH_BTN =
 
 /** Bottom padding so content clears the floating dock — mobile only. */
 export const MOBILE_PAGE_BOTTOM =
-  "pb-[calc(var(--app-bottom-nav-height)+0.75rem)] md:pb-0";
+  "pb-[calc(var(--app-bottom-nav-height)+0.5rem)] md:pb-0";
+
+/** Clearance for pages with a fixed action strip above the dock (e.g. Report Builder). */
+export const MOBILE_STICKY_ACTIONS_BOTTOM =
+  "pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-0";
 
 /** Horizontal chip strip — work modes, tabs, filters. */
 export const MOBILE_SCROLL_STRIP =

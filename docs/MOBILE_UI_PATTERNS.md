@@ -6,7 +6,7 @@ Mobile-only UX lives under `src/components/mobile/`. Desktop layouts are unchang
 
 | Piece | Location |
 |-------|----------|
-| Safe areas + dock height | `globals.css` → `--app-header-height`, `--app-bottom-nav-height` |
+| Safe areas + dock height | `globals.css` → `--app-header-height`, `--app-bottom-nav-height` (includes float gap + center hero lift) |
 | Top header + bottom dock | `DashboardNavigation.tsx` |
 | Spring menu sheet | `MobileNavSheet.tsx` |
 | Pull to refresh | `PullToRefreshContainer.tsx` in `DashboardShell` |

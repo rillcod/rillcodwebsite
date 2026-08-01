@@ -320,7 +320,7 @@ export function PublishControls({
   const structured = primary != null || secondary != null || overflow != null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-40 border-t border-border bg-background/95 backdrop-blur md:sticky md:bottom-0 md:inset-x-auto md:rounded-lg md:border md:shadow-md">
+    <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)] md:sticky md:bottom-0 md:inset-x-auto md:z-auto md:rounded-lg md:border md:shadow-md">
       {children}
       {structured ? (
         <div className="mx-auto max-w-5xl space-y-1.5 p-2 sm:p-2.5">

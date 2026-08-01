@@ -3016,7 +3016,7 @@ function ReportBuilderInner() {
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
-                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+3.5rem)] md:pb-0">
+                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-0">
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
                             <p className="text-primary font-bold text-sm">Start with school &amp; class</p>
                             <p className="text-primary/60 text-xs mt-0.5">
@@ -3322,7 +3322,7 @@ function ReportBuilderInner() {
                     STEP 1: Pick a student
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && !selectedStudent && (
-                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+3.5rem)] md:pb-0">
+                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-0">
                         <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2">
                             <p className="text-xs font-bold text-primary">Choose a student</p>
                             <p className="mt-0.5 text-[11px] text-primary/70">Published · Draft · New — tap to grade</p>
@@ -3572,7 +3572,7 @@ function ReportBuilderInner() {
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && selectedStudent && (
-                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+2.75rem)] md:pb-0">
+                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.25rem)] md:pb-0">
                         {/* Event banners — only mount when that condition is active */}
                         {resumedSession && (
                             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
