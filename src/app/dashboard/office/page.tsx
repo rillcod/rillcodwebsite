@@ -196,46 +196,53 @@ function OfficeCenterInner() {
   return (
     <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]">
       <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-8 mobile-page-root">
-        <div className="mb-4">
-          <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">Office Center</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            One calm place for daily work — start on <span className="font-bold text-foreground">Today</span>, then
-            handle conversations, relationships, and operations when you need them.
-          </p>
-          {(duty || summary) && (
-            <p className="mt-2 break-words text-xs text-muted-foreground">
-              {duty ? (
-                <>
-                  On duty: <span className="font-bold text-foreground">{duty.primaryName || 'Admin review'}</span>
-                  {' · '}
-                  {duty.available}/{duty.totalEligible} available
-                </>
-              ) : null}
-              {duty && summary ? ' · ' : null}
-              {summary ? (
-                <>
-                  Needs attention {summary.needsAttention}
-                  {summary.unassigned > 0 ? ` · Unassigned ${summary.unassigned}` : ''}
-                  {summary.automationProblems > 0 ? ` · Check systems ${summary.automationProblems}` : ''}
-                </>
-              ) : null}
-              {snapshotMeta?.stale ? (
-                <>
-                  {' · '}
-                  <span className="font-bold text-amber-700 dark:text-amber-300">Counts may be stale</span>
-                </>
-              ) : snapshotMeta?.lastUpdatedAt ? (
-                <>
-                  {' · '}
-                  Updated {new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </>
-              ) : null}
-              {' · '}
-              <Link href="/dashboard/finance" className="font-bold text-primary underline-offset-2 hover:underline">
-                Finance Center
-              </Link>
+        {/* Header */}
+        <div className="mb-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+              Platform Headquarters & Operations
+            </span>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-foreground leading-none">Office Center</h1>
+            <p className="mt-2 max-w-3xl text-xs sm:text-sm text-muted-foreground font-medium">
+              One calm place for daily work — start on <span className="font-bold text-foreground">Today</span>, then
+              handle conversations, relationships, and operations when you need them.
             </p>
-          )}
+            {(duty || summary) && (
+              <p className="mt-3 break-words text-xs text-muted-foreground font-medium">
+                {duty ? (
+                  <>
+                    On duty: <span className="font-bold text-foreground">{duty.primaryName || 'Admin review'}</span>
+                    {' · '}
+                    {duty.available}/{duty.totalEligible} available
+                  </>
+                ) : null}
+                {duty && summary ? ' · ' : null}
+                {summary ? (
+                  <>
+                    Needs attention {summary.needsAttention}
+                    {summary.unassigned > 0 ? ` · Unassigned ${summary.unassigned}` : ''}
+                    {summary.automationProblems > 0 ? ` · Check systems ${summary.automationProblems}` : ''}
+                  </>
+                ) : null}
+                {snapshotMeta?.stale ? (
+                  <>
+                    {' · '}
+                    <span className="font-bold text-amber-700 dark:text-amber-300">Counts may be stale</span>
+                  </>
+                ) : snapshotMeta?.lastUpdatedAt ? (
+                  <>
+                    {' · '}
+                    Updated {new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </>
+                ) : null}
+                {' · '}
+                <Link href="/dashboard/finance" className="font-bold text-primary underline-offset-2 hover:underline">
+                  Finance Center
+                </Link>
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">

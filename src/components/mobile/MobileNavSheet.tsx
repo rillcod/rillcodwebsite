@@ -180,9 +180,18 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-black text-foreground truncate">{profile.full_name}</p>
-                  <span className="bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block mt-0.5">
-                    {profile.role}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">
+                      {profile.role}
+                    </span>
+                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      <span className="relative flex h-1.5 w-1.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                      </span>
+                      Connected
+                    </span>
+                  </div>
                 </div>
               </div>
               <ThemeToggle />
