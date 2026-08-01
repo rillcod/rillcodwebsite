@@ -1190,16 +1190,12 @@ export default function DashboardNavigation() {
               priority
             />
           </div>
-          <div className="flex flex-col">
-            <span className="font-black uppercase tracking-widest text-[12px] text-foreground italic leading-none">
-              Rillcod<span className="text-brand-red-accent not-italic">.</span>
+          <div className="flex flex-col leading-none">
+            <span className="font-black uppercase tracking-widest text-[13px] text-foreground italic leading-none">
+              RILLCOD<span className="text-brand-red-accent not-italic">.</span>
             </span>
-            <span className="flex items-center gap-1 mt-0.5 text-[8px] font-black uppercase tracking-widest text-brand-red-600 dark:text-brand-red-500">
-              <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red-600" />
-              </span>
-              Rillcod Technologies
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-red-600 dark:text-brand-red-500 mt-0.5">
+              TECHNOLOGIES
             </span>
           </div>
         </Link>

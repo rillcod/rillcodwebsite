@@ -43,13 +43,11 @@ export default function Footer() {
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="w-[85%] h-[85%] object-contain" />
               </div>
               <div className="leading-none">
-                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">RILLCOD<span className="text-brand-red-600 not-italic">.</span></span>
-                <span className="flex items-center gap-1.5 mt-1 text-[9px] font-black uppercase tracking-widest text-brand-red-600 dark:text-brand-red-500">
-                  <span className="relative flex h-1.5 w-1.5 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red-500 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red-600" />
-                  </span>
-                  RILLCOD TECHNOLOGIES
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">
+                  RILLCOD<span className="text-brand-red-600 not-italic">.</span>
+                </span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.25em] text-brand-red-600 dark:text-brand-red-500 mt-0.5">
+                  TECHNOLOGIES
                 </span>
               </div>
             </Link>
