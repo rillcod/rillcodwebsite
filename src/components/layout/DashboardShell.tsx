@@ -9,8 +9,7 @@ import StaffQRScanner from '@/components/qr/StaffQRScanner';
 import PartnerSchoolScopeBanner from '@/components/layout/PartnerSchoolScopeBanner';
 import PullToRefreshContainer from '@/components/mobile/PullToRefreshContainer';
 
-// Pages where the QR scanner should NOT appear (its floating button overlaps their own
-// action bars / buttons — e.g. the report builder's sticky Save/Publish controls).
+// Pages where the QR scanner should NOT appear (overlaps fixed action bars).
 const QR_HIDDEN_PATHS = [
   '/dashboard/inbox',
   '/dashboard/office',
@@ -19,9 +18,12 @@ const QR_HIDDEN_PATHS = [
   '/dashboard/whatsapp-groups',
   '/dashboard/crm',
   '/dashboard/reports/builder',
+  '/dashboard/results',
+  '/dashboard/lessons',
+  '/dashboard/cbt',
 ];
 
-// Pages that need full-bleed, zero-padding, native-app layout
+// Full-bleed messaging / desk layouts — zero shell padding.
 const FULLSCREEN_PATHS = [
   '/dashboard/inbox',
   '/dashboard/office',
@@ -33,31 +35,48 @@ const FULLSCREEN_PATHS = [
   '/dashboard/card-studio',
 ];
 
+/** Learning flows that manage their own scroll + fixed footers (lesson player, CBT exam). */
+function isImmersiveLearning(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (/^\/dashboard\/lessons\/[^/]+$/.test(pathname)) return true;
+  if (/^\/dashboard\/cbt\/[^/]+\/take$/.test(pathname)) return true;
+  if (/^\/dashboard\/flashcards\/[^/]+\/review$/.test(pathname)) return true;
+  return false;
+}
+
 function ShellInner({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const isMinimal = searchParams.get('minimal') === 'true';
-  const isFullscreen = FULLSCREEN_PATHS.some(p => pathname?.startsWith(p));
+  const isFullscreen = FULLSCREEN_PATHS.some((p) => pathname?.startsWith(p));
+  const isImmersive = isImmersiveLearning(pathname);
+  const hideQr = QR_HIDDEN_PATHS.some((p) => pathname?.startsWith(p)) || isImmersive;
 
   if (isMinimal) {
     return (
-      <div className="flex-1 flex flex-col w-full relative h-screen overflow-y-auto">
-        <main className="flex-1 w-full mx-auto p-0">
-          {children}
-        </main>
+      <div className="flex-1 flex flex-col w-full min-w-0 relative h-screen overflow-y-auto overflow-x-clip">
+        <main className="flex-1 w-full min-w-0 mx-auto p-0">{children}</main>
       </div>
     );
   }
 
-  // Full-bleed mode for messaging pages — no padding, fills available height exactly
   if (isFullscreen) {
     return (
       <>
         {profile && <NewsletterPopup userId={profile.id} />}
-        {/* Mobile: fixed between the safe-area-aware app header and bottom tabs so h-full resolves correctly.
-            Desktop: static flex-1 in the sidebar-flex row. */}
-        <main className="fixed top-[var(--app-header-height)] bottom-[var(--app-bottom-nav-height)] left-0 right-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
+        <main className="fixed top-[var(--app-header-height)] bottom-[var(--app-bottom-nav-height)] left-0 right-0 min-w-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
+          {children}
+        </main>
+      </>
+    );
+  }
+
+  if (isImmersive) {
+    return (
+      <>
+        {profile && <NewsletterPopup userId={profile.id} />}
+        <main className="fixed top-[var(--app-header-height)] bottom-0 left-0 right-0 min-w-0 overflow-hidden flex flex-col md:static md:flex-1 md:overflow-hidden md:bottom-auto">
           {children}
         </main>
       </>
@@ -65,11 +84,11 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full min-h-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto md:overflow-y-auto scroll-smooth print:overflow-visible print:pt-0 print:pb-0 print:block">
+    <div className="app-shell-scroll flex-1 flex flex-col w-full h-full min-h-0 min-w-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto overflow-x-clip md:overflow-y-auto scroll-smooth print:overflow-visible print:pt-0 print:pb-0 print:block">
       <PullToRefreshContainer>
         {profile && <NewsletterPopup userId={profile.id} />}
-        {!QR_HIDDEN_PATHS.some(p => pathname?.startsWith(p)) && <StaffQRScanner />}
-        <main className="flex-1 max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base">
+        {!hideQr && <StaffQRScanner />}
+        <main className="app-page-main flex-1 max-w-[1700px] w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base leading-relaxed">
           <PartnerSchoolScopeBanner />
           {children}
         </main>

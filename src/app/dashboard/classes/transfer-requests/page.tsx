@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { ArrowLeftIcon, ArrowPathIcon, ArrowsRightLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, UserGroupIcon } from '@/lib/icons';
+import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
 type ClassRow = { id: string; name: string; teacher_id?: string | null; current_students?: number; portal_users?: { full_name?: string } | null; schools?: { name?: string } | null };
 type Candidate = { id: string; full_name: string; email?: string; current_class_name?: string; current_teacher_name?: string; requires_transfer_request?: boolean; pending_transfer_request_id?: string | null };
@@ -117,7 +118,7 @@ export default function TransferRequestCenterPage() {
 
   if (authLoading || loading) return <div className="flex min-h-[60vh] items-center justify-center"><ArrowPathIcon className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  return <div className="mx-auto max-w-6xl space-y-6 pb-24">
+  return <div className={`mx-auto max-w-6xl space-y-6 ${MOBILE_PAGE_ROOT}`}>
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div><div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary"><ArrowsRightLeftIcon className="h-4 w-4" /> Class management</div><h1 className="text-3xl font-black text-foreground">Student Transfer Center</h1><p className="mt-1 text-sm text-muted-foreground">Request students from another teacher or quickly review requests sent to you.</p></div>
       <Link href="/dashboard/classes" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground"><ArrowLeftIcon className="h-4 w-4" /> Back to Classes</Link>

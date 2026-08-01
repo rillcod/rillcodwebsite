@@ -585,7 +585,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
           </div>
         ) : !isManager ? (
           /* â”€â”€ Read-only reader (students / parents) â”€â”€ */
-          <div className="max-w-3xl mx-auto pb-20">
+          <div className="max-w-3xl mx-auto">
             <article className="bg-card border border-border rounded-2xl p-6 sm:p-10 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Official Newsletter</span>
@@ -607,7 +607,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
           </div>
         ) : (
           /* â”€â”€ Editor (managers) â”€â”€ */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
 
             {/* â”€ Sidebar â”€ */}
             <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24 order-2 lg:order-1">

@@ -1439,8 +1439,8 @@ tbody tr:hover{background:#f3f4f6}
             <div className={cn(
                 'print:hidden mx-auto max-w-[1400px] space-y-3 px-3 py-3 sm:px-6 lg:px-8',
                 mobileReportFocus
-                    ? 'pb-[calc(var(--app-bottom-nav-height)+0.5rem)]'
-                    : 'pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-6',
+                    ? ''
+                    : 'pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-6',
             )}>
 
                 <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">

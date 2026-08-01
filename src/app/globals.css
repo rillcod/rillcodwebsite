@@ -42,6 +42,7 @@
     @apply bg-background text-foreground;
     scroll-behavior: smooth;
     min-height: 100dvh;
+    overflow-x: clip;
     -webkit-overflow-scrolling: touch;
     -webkit-tap-highlight-color: transparent;
   }
@@ -64,6 +65,22 @@
     );
     /* Height of fixed page action strips (PublishControls, etc.) */
     --app-sticky-actions-height: 3.25rem;
+
+    /* Z-index scale — prevents stacking leaks */
+    --z-base: 0;
+    --z-sticky: 30;
+    --z-dock: 50;
+    --z-sticky-actions: 55;
+    --z-sheet: 60;
+    --z-modal: 70;
+    --z-toast: 80;
+
+    /* Motion — international org polish (smooth, restrained) */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
   }
 
   @media (max-width: 767px) {
@@ -164,9 +181,38 @@
     transform: scale(0.96);
   }
 
-  /* Mobile page rhythm — use on dashboard page roots (mobile only). */
+  /* Mobile page rhythm — shell handles dock; this is bleed-safe root only. */
   .mobile-page-root {
-    @apply space-y-4 pb-[calc(var(--app-bottom-nav-height)+0.5rem)] md:space-y-6 md:pb-0;
+    @apply min-w-0 overflow-x-clip md:overflow-visible;
+  }
+
+  /* Dashboard scroll shell — single source of dock clearance on mobile. */
+  .app-shell-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-page-main {
+    animation: app-page-enter var(--duration-slow) var(--ease-out-expo) both;
+  }
+
+  @keyframes app-page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Professional card surface — use instead of ad-hoc glass divs */
+  .app-surface {
+    @apply bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-lg;
+  }
+
+  .app-surface-elevated {
+    @apply bg-card border border-border rounded-2xl shadow-xl;
   }
 
   .mobile-glass-hero {
@@ -271,10 +317,14 @@ img[alt="Official Signature"] {
 }
 @media (prefers-reduced-motion: reduce) {
   html:focus-within { scroll-behavior: auto; }
+  .app-page-main {
+    animation: none !important;
+  }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -576,18 +626,7 @@ img[alt="Official Signature"] {
   }
 }
 
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
+/* Reduced motion support — consolidated above @media (prefers-reduced-motion) block near line 272 */
 
 /* Loading states */
 .skeleton {

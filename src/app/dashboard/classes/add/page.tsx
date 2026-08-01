@@ -15,6 +15,7 @@ import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
 import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
 import { liveAcademicSession } from '@/lib/reports/academic-period';
+import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
@@ -295,7 +296,7 @@ export default function AddClassPage() {
   );
 
   return (
-    <div className="space-y-6 pb-20 max-w-2xl">
+    <div className={`space-y-6 max-w-2xl ${MOBILE_PAGE_ROOT}`}>
 
       {/* Back link + header */}
       <div>

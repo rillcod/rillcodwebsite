@@ -1,9 +1,13 @@
 /**
- * Shared mobile-only class bundles. Desktop keeps existing layouts;
- * these tighten touch targets, safe areas, and glass surfaces on phones.
+ * Shared mobile-only class bundles. Desktop keeps existing layouts.
+ *
+ * IMPORTANT: DashboardShell already applies `--app-bottom-nav-height` clearance
+ * on mobile. Do NOT duplicate full dock padding on page roots — use
+ * MOBILE_PAGE_ROOT for bleed prevention only, and MOBILE_STICKY_ACTIONS_BOTTOM
+ * when a page has its own fixed action strip above the dock.
  */
 
-/** Glass hero shell — matches Students Registry / mobile overhaul commits. */
+/** Glass hero shell — professional international org surface. */
 export const MOBILE_GLASS_HERO =
   "bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-5 sm:p-8 shadow-xl relative overflow-hidden";
 
@@ -19,13 +23,22 @@ export const MOBILE_HERO_BADGE =
 export const MOBILE_TOUCH_BTN =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black touch-active-scale active:scale-[0.98]";
 
-/** Bottom padding so content clears the floating dock — mobile only. */
-export const MOBILE_PAGE_BOTTOM =
-  "pb-[calc(var(--app-bottom-nav-height)+0.5rem)] md:pb-0";
+/**
+ * Standard page root — prevents horizontal bleed. Shell handles dock clearance.
+ * @deprecated Prefer MOBILE_PAGE_ROOT; kept for backward compatibility.
+ */
+export const MOBILE_PAGE_BOTTOM = MOBILE_PAGE_ROOT;
 
-/** Clearance for pages with a fixed action strip above the dock (e.g. Report Builder). */
+/** Page root: contain overflow, allow flex shrink. Shell clears the dock globally. */
+export const MOBILE_PAGE_ROOT =
+  "min-w-0 overflow-x-clip md:overflow-visible";
+
+/**
+ * Extra scroll padding when the page renders a fixed strip above the dock
+ * (PublishControls, lesson save bar, exam nav). Shell already clears the dock.
+ */
 export const MOBILE_STICKY_ACTIONS_BOTTOM =
-  "pb-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.5rem)] md:pb-0";
+  "pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-0 min-w-0 overflow-x-clip";
 
 /** Horizontal chip strip — work modes, tabs, filters. */
 export const MOBILE_SCROLL_STRIP =
@@ -38,3 +51,7 @@ export const MOBILE_SCROLL_CHIP =
 /** Native-feel card on small screens. */
 export const MOBILE_GLASS_CARD =
   "rounded-2xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-lg md:rounded-3xl";
+
+/** Smooth enter for dashboard sections (respects prefers-reduced-motion via globals). */
+export const MOBILE_SECTION_ENTER =
+  "animate-in fade-in slide-in-from-bottom-2 duration-300 md:duration-500";

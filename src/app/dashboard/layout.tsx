@@ -20,7 +20,7 @@ export default function DashboardLayout({
 }) {
   return (
     <AcademicYearProvider>
-    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-foreground font-sans print:h-auto print:min-h-0 print:bg-card print:text-foreground">
+    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-foreground font-sans print:h-auto print:min-h-0 print:bg-card print:text-foreground overflow-x-clip">
       {/* Role-simulation banner — only renders when a staff user is previewing
           the app as a different role. Server RBAC is unaffected. */}
       <RoleSimBanner />

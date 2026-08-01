@@ -2,35 +2,52 @@
 
 Mobile-only UX lives under `src/components/mobile/`. Desktop layouts are unchanged unless a page opts in via shared primitives.
 
-## Infrastructure (already global)
+## Architecture (single source of truth)
 
-| Piece | Location |
+| Layer | Responsibility |
+|-------|----------------|
+| `globals.css` | Safe areas, dock height, z-index scale, motion tokens, `.app-surface` |
+| `DashboardShell.tsx` | **Global dock clearance** on mobile (`--app-bottom-nav-height`); immersive routes for lesson/CBT |
+| `DashboardNavigation.tsx` | Header + floating bottom dock |
+| `mobile-styles.ts` | Reusable class bundles — **no duplicate dock padding** |
+
+### Dock padding rule
+
+**Do not** add full `--app-bottom-nav-height` padding on page roots inside the dashboard. The shell already clears the floating dock.
+
+| Token | Use when |
 |-------|----------|
-| Safe areas + dock height | `globals.css` → `--app-header-height`, `--app-bottom-nav-height` (includes float gap + center hero lift) |
-| Top header + bottom dock | `DashboardNavigation.tsx` |
-| Spring menu sheet | `MobileNavSheet.tsx` — search, collapsible sections, auto-expands active route |
-| Pull to refresh | `PullToRefreshContainer.tsx` in `DashboardShell` |
-| Touch scale + 16px inputs | `globals.css` `@media (max-width: 767px)` |
+| `MOBILE_PAGE_ROOT` | Every page root — prevents horizontal bleed (`min-w-0 overflow-x-clip`) |
+| `MOBILE_STICKY_ACTIONS_BOTTOM` | Page has a **fixed strip above the dock** (Save, Publish, Mark complete) |
+| Immersive shell | Lesson player, CBT take — page owns scroll + fixed footers |
 
-## Reusable primitives (spread these)
+```tsx
+import { MOBILE_PAGE_ROOT, MOBILE_STICKY_ACTIONS_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+
+// Standard page
+<div className={`space-y-6 ${MOBILE_PAGE_ROOT}`}>
+
+// Page with fixed action bar
+<div className={`space-y-6 ${MOBILE_PAGE_ROOT} ${MOBILE_STICKY_ACTIONS_BOTTOM}`}>
+```
+
+Fixed bars must use:
+- `bottom-[var(--app-bottom-nav-height)]`
+- `z-[55]` or higher (above dock `z-50`)
+
+## Reusable primitives
 
 ```tsx
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
-import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 ```
 
-### Page root
-```tsx
-<div className={`min-h-screen ... ${MOBILE_PAGE_BOTTOM}`}>
-```
-
-### Hero (glass header)
+### Hero (international org glass header)
 ```tsx
 <MobilePageHero
   badge="Section · role"
   title="Page title"
-  description="One line."
+  description="One clear line."
   icon={SomeIcon}
   stats={[{ label: 'Active', value: 3, tone: 'emerald' }]}
   actions={<button className={MOBILE_TOUCH_BTN}>Action</button>}
@@ -40,41 +57,45 @@ import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile
 ### Horizontal work modes (mobile only)
 ```tsx
 <MobileScrollStrip
-  label="Class work"
-  items={modes.map(m => ({ id: m.id, label: m.title, hint: m.stat, icon: m.icon, selected, onClick }))}
+  label="Sections"
+  items={[{ id, label, icon, selected, onClick }]}
 />
-{/* Desktop: keep grid/sidebar with `hidden md:grid` */}
+<div className="hidden md:flex">{/* desktop tabs */}</div>
 ```
 
-## Pages already on the glass hero pattern (~20)
+## Global surfaces (globals.css)
 
-Students, Classes, Courses, Programs, Schools, Parents, Users, Announcements, Approvals, Timetable, Lesson plans, Grading, Finance, Learning, Path progress, Certificates, Dashboard home, Assignments, CBT, etc.
+| Class | Purpose |
+|-------|---------|
+| `.app-surface` | Standard card — glass, border, shadow |
+| `.app-surface-elevated` | Emphasis card |
+| `.app-page-main` | Subtle page enter animation (respects reduced motion) |
+| `.section-label` | Red uppercase org label above headings |
+| `.touch-active-scale` | Native press feedback |
 
-## Pages updated in this pass
+## Z-index scale (CSS vars)
 
-- Learner Progress — hero + mobile scroll strip for views
-- Live Sessions — plain-language hero (removed “Broadcast Uplink” jargon)
-- Accountability — hero + mobile tab strip
-- Attendance (staff) — hero + bottom safe padding
-- Class detail — bottom padding uses dock CSS var
-- Academic Results — glass hero + dock-safe padding
-- Projects — glass hero, mobile tab strip, touch-friendly CTAs
-- Content Library — mobile-only glass hero (desktop keeps animated header)
-- Lessons — hero + dock-safe padding
-- Consent Forms — hero + touch CTAs
-- Flashcards — hero; stat cards desktop-only
-- Messages — hero + flexible chat grid height
-- Academic Office — hero with class filter
-- Newsletters — hero (standalone view)
-- Results (Publish & Share) — mobile glass hero when roster visible
-- Report Builder — mobile hero + dock padding
-- Profile — dock-safe padding
-- Settings — glass hero (standalone page)
+| Token | Value | Use |
+|-------|-------|-----|
+| `--z-dock` | 50 | Bottom nav, mobile header |
+| `--z-sticky-actions` | 55 | Fixed Save/Publish/lesson bars |
+| `--z-sheet` | 60 | Nav sheet, drawers |
+| `--z-modal` | 70 | Modals |
+| `--z-toast` | 80 | Toasts |
 
 ## When adding a new dashboard page
 
-1. Wrap root with `MOBILE_PAGE_BOTTOM`
-2. Use `MobilePageHero` instead of ad-hoc headers
-3. If the page has 3+ modes/tabs, add `MobileScrollStrip` for `md:hidden` and keep desktop grid
-4. Buttons on mobile: `min-h-11` / `MOBILE_TOUCH_BTN`
-5. Do **not** change desktop sidebar or `lg:` layouts
+1. Root: `MOBILE_PAGE_ROOT` (not `pb-20`)
+2. Hero: `MobilePageHero` instead of ad-hoc headers
+3. 3+ tabs: `MobileScrollStrip` on mobile, desktop grid unchanged
+4. Buttons: `MOBILE_TOUCH_BTN` / `min-h-11`
+5. Fixed footer: `MOBILE_STICKY_ACTIONS_BOTTOM` + `bottom-[var(--app-bottom-nav-height)] z-[55]`
+6. Do **not** change desktop sidebar or `lg:` layouts
+
+## Immersive routes (shell-managed)
+
+These bypass standard shell padding; the page controls scroll:
+
+- `/dashboard/lessons/[id]` — lesson player
+- `/dashboard/cbt/[id]/take` — exam
+- `/dashboard/flashcards/[deckId]/review` — flashcard review

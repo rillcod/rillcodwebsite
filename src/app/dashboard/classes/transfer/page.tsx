@@ -8,6 +8,7 @@ import {
   ArrowsRightLeftIcon, MagnifyingGlassIcon, UserGroupIcon, AcademicCapIcon,
   ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon,
 } from '@/lib/icons';
+import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
 type ClassRow = {
   id: string;
@@ -225,7 +226,7 @@ export default function ClassTransferPage() {
   );
 
   return (
-    <div className="space-y-6 pb-40 sm:pb-20">
+    <div className={`space-y-6 ${MOBILE_PAGE_ROOT}`}>
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">

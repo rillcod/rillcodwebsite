@@ -32,6 +32,7 @@ import {
   getCurrentTermLabel,
   periodFromStartYear,
 } from '@/lib/reports/academic-period';
+import { MOBILE_PAGE_ROOT, MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
@@ -2240,7 +2241,7 @@ export default function FinancePage() {
   const showSticky = profile.role === 'admin' || profile.role === 'school' || profile.role === 'teacher';
 
   return (
-    <div className={`min-h-screen bg-background ${showSticky ? 'pb-20 sm:pb-0' : ''}`}>
+    <div className={`min-h-screen bg-background ${MOBILE_PAGE_ROOT} ${showSticky ? MOBILE_STICKY_ACTIONS_BOTTOM : ''}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
