@@ -50,7 +50,7 @@ const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto mb-4">
               <Link
                 href={STUDENT_REGISTRATION_PATH}
-                className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-orange-500/20 border-b-2 border-b-orange-700/60 hover:scale-[1.02]"
+                className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-gradient-to-r from-brand-red-600 via-primary to-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-brand-red-600/20 border-b-2 border-b-brand-red-700/60 hover:scale-[1.02]"
               >
                 Enrol a Learner
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -58,22 +58,22 @@ const Hero: React.FC = () => {
               <Link
                 href={cta.registerHref}
                 prefetch={false}
-                className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border-2 border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/10 transition-all shadow-lg"
+                className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border-2 border-brand-red-600/50 hover:border-brand-red-600 hover:bg-brand-red-600/10 transition-all shadow-lg"
               >
-                ☀️ Enroll Child Now
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-amber-600 dark:text-amber-400" />
+                Enroll Child Now
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-brand-red-600 dark:text-brand-red-500" />
               </Link>
             </div>
 
             {/* Program details banner */}
             <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
-              <span className="font-bold text-amber-600 dark:text-amber-400">{cta.batchLabel}</span>
+              <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.batchLabel}</span>
               {' · '}
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">In-person {cta.onsiteFeeLabel}</span>
+              <span className="font-bold text-primary dark:text-foreground">In-person {cta.onsiteFeeLabel}</span>
               {' · '}Online {cta.onlineFeeLabel}
               {' · '}{cta.classDays}
               {cta.deadlineLabel ? (
-                <> · Closes <span className="font-bold text-rose-600 dark:text-rose-400">{cta.deadlineLabel}</span></>
+                <> · Closes <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.deadlineLabel}</span></>
               ) : null}
             </p>
 
