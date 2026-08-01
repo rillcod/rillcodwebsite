@@ -1,4 +1,5 @@
 import { selectAutomaticClassTeacher } from '@/lib/classes/teacher-allocation';
+import { describeInference, inferClassCourse } from '@/lib/academic/infer-class-course';
 import {
   mapOfficialCurriculumToCalendarWeeks,
   resolveOfficialCurriculumDirection,
@@ -104,6 +105,27 @@ export async function runAcademicReadinessAutomation(
     coursesByProgram.set(row.program_id, list);
   }
 
+  // Which courses each school actually holds a live edition for. This is what lets a class in a
+  // multi-course programme be resolved without asking anyone: if only one of the programme's
+  // courses has been published and adopted by the school, that is the course the class teaches.
+  const schoolIds = Array.from(new Set(classes.map((klass) => klass.school_id).filter(Boolean))) as string[];
+  const { data: adoptionRows, error: adoptionError } = schoolIds.length
+    ? await db
+      .from('academic_curriculum_adoptions')
+      .select('school_id,course_id')
+      .in('school_id', schoolIds)
+      .eq('status', 'active')
+    : { data: [], error: null };
+  if (adoptionError) {
+    throw new Error(`Academic readiness could not read school curriculum adoptions: ${adoptionError.message}`);
+  }
+  const adoptedCoursesBySchool = new Map<string, string[]>();
+  for (const row of adoptionRows ?? []) {
+    const list = adoptedCoursesBySchool.get(row.school_id) ?? [];
+    list.push(row.course_id);
+    adoptedCoursesBySchool.set(row.school_id, list);
+  }
+
   for (const klass of classes) {
     try {
       let teacherId = klass.teacher_id;
@@ -121,10 +143,16 @@ export async function runAcademicReadinessAutomation(
         report.teachersAssigned += 1;
       }
 
-      let courseId = klass.current_course_id;
       const programmeCourses = klass.program_id ? coursesByProgram.get(klass.program_id) ?? [] : [];
-      if (!courseId && programmeCourses.length === 1) {
-        courseId = programmeCourses[0];
+      const adoptedCourses = klass.school_id ? adoptedCoursesBySchool.get(klass.school_id) ?? [] : [];
+      const inference = inferClassCourse({
+        currentCourseId: klass.current_course_id,
+        programmeCourses,
+        adoptedCourseIds: adoptedCourses,
+      });
+      let courseId = inference.courseId;
+
+      if (courseId && inference.reason !== 'already_set') {
         const { error: courseUpdateError } = await db.from('classes')
           .update({ current_course_id: courseId, updated_at: new Date().toISOString() })
           .eq('id', klass.id);
@@ -132,14 +160,8 @@ export async function runAcademicReadinessAutomation(
         report.coursesInferred += 1;
       }
       if (!courseId) {
-        issue(
-          report,
-          klass,
-          'no_course',
-          programmeCourses.length > 1
-            ? 'This programme has several courses. Choose the course this class is teaching.'
-            : 'This class has no course to build a teaching plan from.',
-        );
+        const adoptedInProgramme = programmeCourses.filter((id) => adoptedCourses.includes(id)).length;
+        issue(report, klass, 'no_course', describeInference(inference, adoptedInProgramme));
         continue;
       }
       if (!klass.term_id && !klass.offering_period_id) {
