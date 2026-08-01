@@ -63,23 +63,16 @@ export const LANES: Record<LaneId, { id: LaneId; label: string; scope: string; s
   },
 };
 
+// Programmes and courses (/dashboard/programs) are deliberately NOT a stage here. They are setup:
+// created once and then left alone, so numbering them ahead of Author implied a task to repeat for
+// every curriculum, and made the build flow read as five steps when it is four. The page keeps its
+// full function and its place in the sidebar — it simply is not a step in this lane.
 export const STAGES: Stage[] = [
   // ── Lane A — the curriculum asset (course-scoped) ────────────────────────
   {
-    id: "catalogue",
-    lane: "asset",
-    step: 1,
-    label: "Catalogue",
-    purpose: "Keep programmes and their courses organised.",
-    href: "/dashboard/programs",
-    actors: ["admin"],
-    observers: ["teacher", "school"],
-    doneWhen: "The course exists inside a programme.",
-  },
-  {
     id: "author",
     lane: "asset",
-    step: 2,
+    step: 1,
     label: "Author",
     purpose: "Write the central curriculum: terms, weeks and topics.",
     href: "/dashboard/academic/build",
@@ -90,7 +83,7 @@ export const STAGES: Stage[] = [
   {
     id: "certify",
     lane: "asset",
-    step: 3,
+    step: 2,
     label: "Certify",
     purpose: "Check quality, then protect the draft as an official edition.",
     href: "/dashboard/academic/rollout#review",
@@ -101,7 +94,7 @@ export const STAGES: Stage[] = [
   {
     id: "distribute",
     lane: "asset",
-    step: 4,
+    step: 3,
     label: "Distribute",
     purpose:
       "Give the official edition to schools, and to online or special pathways that need their own.",
@@ -113,7 +106,7 @@ export const STAGES: Stage[] = [
   {
     id: "time",
     lane: "asset",
-    step: 5,
+    step: 4,
     label: "Timing",
     purpose: "Set where each school or class really starts in the curriculum.",
     href: "/dashboard/academic/rollout#timing",

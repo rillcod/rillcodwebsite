@@ -17,6 +17,7 @@ import {
   AcademicCapIcon,
 } from "@/lib/icons";
 import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { AcademicPipelinePanel } from '@/components/academic/AcademicPipelinePanel';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
 type SpineData = {
@@ -321,6 +322,10 @@ export default function AcademicSpinePage() {
           fallback="Every course is certified and every class plan is on its official edition."
         />
       )}
+
+      {/* Before any single measure: which link in the chain is actually holding everything up.
+          A stalled pipeline used to look identical to an empty one from here. */}
+      {isAdmin && <AcademicPipelinePanel />}
 
       {/* How much of the curriculum asset actually exists. */}
       {isAdmin && overview && (

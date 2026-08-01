@@ -345,21 +345,24 @@ export default function DashboardNavigation() {
           },
           // Curriculum lane, in the order of src/lib/academic/lanes.ts.
           {
-            name: "1 · Programmes",
-            href: "/dashboard/programs",
-            icon: PresentationChartLineIcon,
-          },
-          {
-            name: "2 · Build",
+            name: "1 · Build",
             href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
           {
             // Certify, distribute and timing were three pages, but publishing already
             // performs the rollout — they were never three decisions, only three screens.
-            name: "3 · Rollout",
+            name: "2 · Rollout",
             href: "/dashboard/academic/rollout",
             icon: ShieldCheckIcon,
+          },
+          {
+            // Setup, not a step. Programmes and courses are created once and then left alone,
+            // so numbering this ahead of Build implied a task to repeat for every curriculum.
+            // The page keeps its full create/edit/delete function — only its place changed.
+            name: "Programmes & Courses",
+            href: "/dashboard/programs",
+            icon: PresentationChartLineIcon,
           },
           {
             name: "How It Works",
@@ -1186,9 +1189,18 @@ export default function DashboardNavigation() {
               priority
             />
           </div>
-          <span className="font-black uppercase tracking-widest text-[13px] text-foreground italic">
-            Rillcod<span className="text-brand-red-accent not-italic">.</span>
-          </span>
+          <div className="flex flex-col">
+            <span className="font-black uppercase tracking-widest text-[12px] text-foreground italic leading-none">
+              Rillcod<span className="text-brand-red-accent not-italic">.</span>
+            </span>
+            <span className="flex items-center gap-1 mt-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              </span>
+              Live Sync
+            </span>
+          </div>
         </Link>
         <div className="flex items-center gap-2">
           {/* User Profile Avatar Pill (Mobile) */}
