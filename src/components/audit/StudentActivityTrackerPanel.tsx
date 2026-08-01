@@ -279,7 +279,7 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
 
   if (!isStaff) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4 mobile-page-root">
         <ExclamationTriangleIcon className="w-10 h-10 text-muted-foreground mb-3" />
         <p className="text-muted-foreground text-sm">Staff access only.</p>
       </div>
@@ -287,7 +287,7 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
   }
 
   return (
-    <div className={embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 py-6 space-y-6'}>
+    <div className={embedded ? 'space-y-6 mobile-page-root' : 'max-w-6xl mx-auto px-4 py-6 space-y-6 mobile-page-root'}>
       {!embedded && (
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />

@@ -41,7 +41,7 @@ export default function FlashcardReviewPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center mobile-page-root">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-muted-foreground">Loading flashcards...</p>

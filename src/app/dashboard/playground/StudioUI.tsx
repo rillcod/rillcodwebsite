@@ -78,7 +78,7 @@ export default function StudioUI(p: StudioUIProps) {
   } = p;
 
   return (
-    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden mobile-page-root">
       {/* XP bar */}
       <div className="h-1 w-full bg-muted/20 shrink-0">
         <motion.div className={`h-full ${levelInfo.bar}`} initial={{ width: 0 }} animate={{ width: `${levelInfo.pct}%` }} transition={{ duration: 1.2, ease: 'easeOut' }} />

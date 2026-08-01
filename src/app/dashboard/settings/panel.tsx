@@ -1108,7 +1108,7 @@ function SettingsPageContent({
 
   if (authLoading)
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin" />
       </div>
     );
@@ -4033,7 +4033,7 @@ export default function SettingsPage({
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
           <div className="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin" />
         </div>
       }

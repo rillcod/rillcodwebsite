@@ -3938,7 +3938,7 @@ export default function LessonDetailPage() {
               )}
 
               {activeTab === 'tasks' && (
-                <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8 md:pb-32">
+                <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-8">
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-amber-500/5 border border-amber-500/10 w-fit">

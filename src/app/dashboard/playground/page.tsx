@@ -483,7 +483,7 @@ import json; robot=Robot()`);
   const activeLang = useMemo(() => LANGUAGES.find(l => l.id === lang) || LANGUAGES[0], [lang]);
 
   if (authLoading) return (
-    <div className="h-screen flex items-center justify-center bg-background">
+    <div className="h-screen flex items-center justify-center bg-background mobile-page-root">
       <div className="flex flex-col items-center gap-3">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">Loading Studio…</p>

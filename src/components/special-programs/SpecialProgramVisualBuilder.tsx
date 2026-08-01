@@ -470,7 +470,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* Canvas */}
         <div className="flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6" onClick={() => setSelection('basics')}>
-          <div className="max-w-5xl mx-auto space-y-10 pb-24" onClick={(e) => e.stopPropagation()}>
+          <div className="max-w-5xl mx-auto space-y-10 pb-8" onClick={(e) => e.stopPropagation()}>
             <p className="text-center text-[11px] font-semibold text-muted-foreground">
               Click any section on the page to edit it in the panel →
             </p>

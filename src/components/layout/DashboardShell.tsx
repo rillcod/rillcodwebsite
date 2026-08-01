@@ -21,6 +21,7 @@ const QR_HIDDEN_PATHS = [
   '/dashboard/results',
   '/dashboard/lessons',
   '/dashboard/cbt',
+  '/dashboard/playground',
 ];
 
 // Full-bleed messaging / desk layouts — zero shell padding.
@@ -41,6 +42,7 @@ function isImmersiveLearning(pathname: string | null): boolean {
   if (/^\/dashboard\/lessons\/[^/]+$/.test(pathname)) return true;
   if (/^\/dashboard\/cbt\/[^/]+\/take$/.test(pathname)) return true;
   if (/^\/dashboard\/flashcards\/[^/]+\/review$/.test(pathname)) return true;
+  if (pathname === '/dashboard/playground') return true;
   return false;
 }
 

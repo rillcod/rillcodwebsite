@@ -117,3 +117,4 @@ These bypass standard shell padding; the page controls scroll:
 - `/dashboard/lessons/[id]` — lesson player
 - `/dashboard/cbt/[id]/take` — exam
 - `/dashboard/flashcards/[deckId]/review` — flashcard review
+- `/dashboard/playground` — coding studio (full viewport)
