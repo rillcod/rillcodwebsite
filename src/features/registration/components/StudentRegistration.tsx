@@ -751,26 +751,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
         {/* Header */}
         {!et && (
-        <header className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700">
-          <p className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground mb-3">
-            RILLCOD<span className="text-brand-red-600">.</span>
-          </p>
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase mb-4">
-            Enrol a <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-brand-red-600">learner</span>
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
-            {isNativeApp ? 'Choose a learning path and submit the learner details. Enrolment updates will be sent to your email.' : 'Select your enrollment path to complete your registration in one straightforward form.'}
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-            {(isNativeApp ? ['Simple enrolment', 'Kids → adults', 'Term-on-term portal'] : ['Secure payment', 'Kids → adults', 'Term-on-term portal']).map((chip) => (
-              <span
-                key={chip}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-card/70 text-[10px] font-black uppercase tracking-widest text-muted-foreground"
-              >
-                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                {chip}
-              </span>
-            ))}
+        <header className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10">
+            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+              Official STEM Admission
+            </span>
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase mb-4">
+              Enrol a <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-brand-red-600">learner</span>
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed italic">
+              {isNativeApp ? 'Choose a learning path and submit the learner details. Enrolment updates will be sent to your email.' : 'Select your enrollment path to complete your registration in one straightforward form.'}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+              {(isNativeApp ? ['Simple enrolment', 'Kids → adults', 'Term-on-term portal'] : ['Secure payment', 'Kids → adults', 'Term-on-term portal']).map((chip) => (
+                <span
+                  key={chip}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-background/80 text-[10px] font-black uppercase tracking-widest text-muted-foreground shadow-sm"
+                >
+                  <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
         </header>
         )}

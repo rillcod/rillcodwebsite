@@ -178,25 +178,29 @@ export function SchoolRegistration() {
             <PartnershipTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
 
             {/* Header */}
-            <div className="text-center mb-16">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-6">
-                    <Building2 className="w-4 h-4" /> School Partnership
+            <div className="text-center mb-12 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 sm:p-14 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+                <div className="relative z-10">
+                    <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+                        School Partnership Program
+                    </span>
+                    <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
+                        REGISTER <br />
+                        <span className="text-foreground/40 italic">SCHOOL.</span>
+                    </h1>
+                    <p className="text-base sm:text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-brand-red-600 pl-6 mt-6">
+                        Join our network of partner schools delivering world-class STEM education to students across West Africa.
+                    </p>
                 </div>
-                <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
-                    REGISTER <br />
-                    <span className="text-foreground/40 italic">SCHOOL.</span>
-                </h1>
-                <p className="text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-primary pl-6 mt-8 hidden sm:block">
-                    Join our network of partner schools delivering world-class STEM education to students across West Africa.
-                </p>
             </div>
 
             {/* Application Status Check */}
-            <div className="bg-card border border-border border-l-4 border-l-blue-500 p-6 mb-8">
-                <div className="flex flex-col sm:flex-row items-center gap-6">
-                    <div className="flex-1 text-center sm:text-left">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-1">Already Applied?</p>
-                        <h4 className="text-base font-black text-foreground uppercase tracking-tight">Check Application Status</h4>
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl border-l-4 border-l-brand-red-600 p-6 sm:p-8 mb-8 shadow-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-primary" /> Application Status Tracker
+                        </h4>
                         <p className="text-xs text-muted-foreground font-medium mt-1">Enter your school email to check your application.</p>
                     </div>
                     <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
@@ -205,7 +209,7 @@ export function SchoolRegistration() {
                             <input
                                 type="email" value={statusEmail} onChange={(e) => setStatusEmail(e.target.value)}
                                 placeholder="admin@yourschool.edu.ng"
-                                className="bg-background border border-border pl-12 pr-5 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-blue-500 transition-all w-full sm:w-64"
+                                className="bg-background border border-border rounded-xl pl-12 pr-5 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-all w-full sm:w-64"
                             />
                         </div>
                         <button
@@ -221,19 +225,19 @@ export function SchoolRegistration() {
                                 } catch (e: any) { setStatusError(e.message ?? 'No application found.'); }
                                 finally { setStatusLoading(false); }
                             }}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                            className="px-6 py-3 bg-primary hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-md shadow-primary/30"
                         >
                             {statusLoading ? 'Checking...' : 'Check Status'}
                         </button>
                     </div>
                 </div>
                 {statusError && (
-                    <p className="mt-4 text-rose-400 text-xs font-bold bg-rose-500/5 border border-rose-500/10 p-3 text-center">{statusError}</p>
+                    <p className="mt-4 text-rose-400 text-xs font-bold bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl text-center">{statusError}</p>
                 )}
                 {statusResult && (
-                    <div className="mt-5 p-4 bg-muted/30 border border-border flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
+                    <div className="mt-5 p-4 bg-muted/30 border border-border rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
                         <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : statusResult.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                            <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : statusResult.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                 {statusResult.status === 'approved' ? 'Approved' : statusResult.status === 'rejected' ? 'Rejected' : 'Pending Review'}
                             </span>
                             <p className="text-sm font-bold text-foreground">{statusResult.name}</p>
@@ -246,7 +250,7 @@ export function SchoolRegistration() {
             </div>
 
             {/* Registration Form */}
-            <div className="bg-card border border-border p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 md:p-12 shadow-2xl border-t-4 border-t-brand-red-600">
                 <form onSubmit={handleSubmit} className="space-y-12">
 
                     <section className="space-y-8">
