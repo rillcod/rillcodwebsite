@@ -1155,11 +1155,11 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
 
   const bottomNavByRole: Record<string, string[]> = {
-    student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
-    school: ["Dashboard", "Classes", "WhatsApp Inbox", "Finance Center"],
-    admin: ["Dashboard", "Office Center", "Classes", "Results Workspace"],
-    teacher: ["Dashboard", "My Classes", "Grading Queue", "WhatsApp Inbox"],
-    parent: ["Dashboard", "My Children", "WhatsApp Inbox", "Finance Center"],
+    student: ["Learning Center", "Assignments", "Path Progress", "Certificates"],
+    school: ["Classes", "WhatsApp Inbox", "Finance Center", "Contact Directory"],
+    admin: ["Office Center", "Classes", "Results Workspace", "Records"],
+    teacher: ["My Classes", "Grading Queue", "Academic Overview", "WhatsApp Inbox"],
+    parent: ["My Children", "WhatsApp Inbox", "Finance Center", "Report Cards"],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ""] ?? ["Dashboard"];
   const bottomNavItems = bottomNavNames
