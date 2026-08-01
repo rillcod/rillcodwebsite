@@ -360,16 +360,23 @@ export default function GradingQueuePage() {
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-5">
 
         {/* ── Page header ─────────────────────────────────────────────────── */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentCheckIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Grading Center</span>
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 border border-amber-500/30 text-white shadow-xl shadow-amber-500/25 flex items-center justify-center shrink-0">
+              <ClipboardDocumentCheckIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                Teacher Workspace
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Grading Queue</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5 max-w-2xl">
+                All submissions awaiting evaluation. Each card shows exactly where the work comes from —
+                school, class, term — so you always know the context before marking.
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl font-black text-foreground">Grading Queue</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            All submissions awaiting evaluation. Each card shows exactly where the work comes from —
-            school, class, term — so you always know the context before marking.
-          </p>
         </div>
 
         {/* ── Tab bar ─────────────────────────────────────────────────────── */}

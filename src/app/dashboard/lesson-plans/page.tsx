@@ -953,16 +953,20 @@ function LessonPlansPageInner() {
         </div>
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <DocumentTextIcon className="w-5 h-5 text-primary" />
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
+              <DocumentTextIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-foreground">
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
+                Academic Office
+              </span>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tight">
                 Lesson Plans
               </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">
                 {filterCourseId
                   ? `Showing plans for ${
                       courses.find((c) => c.id === filterCourseId)?.title
@@ -971,7 +975,7 @@ function LessonPlansPageInner() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative z-10 flex items-center gap-2">
             {filterCourseId && (
               <button
                 onClick={() => {
@@ -979,14 +983,14 @@ function LessonPlansPageInner() {
                   setFilterProgramId("");
                   setSearch("");
                 }}
-                className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-lg transition-all hover:bg-muted"
+                className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-xl transition-all hover:bg-muted"
               >
                 Clear filter
               </button>
             )}
             <button
               onClick={load}
-              className="p-2 bg-card border border-border rounded-lg transition-all hover:bg-muted"
+              className="p-2.5 bg-card border border-border rounded-xl transition-all hover:bg-muted"
               title="Refresh plans"
             >
               <ArrowPathIcon
@@ -997,7 +1001,7 @@ function LessonPlansPageInner() {
             </button>
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-lg transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]"
             >
               <PlusIcon className="w-4 h-4" /> New Plan
             </button>
