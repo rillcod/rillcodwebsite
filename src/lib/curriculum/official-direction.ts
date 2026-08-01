@@ -77,7 +77,11 @@ export async function resolveOfficialCurriculumDirection(
 
   let adoptionQuery = db
     .from("academic_curriculum_adoptions")
-    .select(`release:academic_curriculum_releases(${RELEASE_SELECT})`)
+    // Adoptions reach releases through BOTH release_id and previous_release_id, so an unhinted
+    // embed is refused outright (PGRST201) and this resolver returned null for every class. That
+    // is what made a freshly published curriculum land in 29 schools and still report
+    // "no official edition assigned" on every one of them.
+    .select(`release:academic_curriculum_releases!academic_curriculum_adoptions_release_id_fkey(${RELEASE_SELECT})`)
     .eq("school_id", scope.schoolId)
     .eq("course_id", scope.courseId)
     .eq("status", "active");

@@ -55,6 +55,25 @@ type Query = { table: string; cols: string; file: string; line: number };
 /** `.from('table')` followed by `.select('...')` with only chained calls between. */
 const PAIR = /\.from\(\s*['"]([a-z0-9_]+)['"]\s*\)\s*\.select\(\s*(['"`])([\s\S]*?)\2/g;
 
+/**
+ * Resolve `${CONST}` in a select when CONST is a plain string constant in the same file.
+ *
+ * Skipping every interpolated select is what let the worst bug of this sweep through: the official
+ * curriculum direction resolver built its embed as `academic_curriculum_releases(${RELEASE_SELECT})`,
+ * the embed was ambiguous, and the check never looked. Publishing then reached 29 schools while
+ * every class still reported "no official edition assigned".
+ */
+function resolveInterpolations(cols: string, src: string): string | null {
+  let out = cols;
+  for (const ref of cols.matchAll(/\$\{([A-Za-z_$][\w$]*)\}/g)) {
+    const name = ref[1];
+    const decl = new RegExp(`(?:const|let|var)\\s+${name}\\s*(?::[^=]+)?=\\s*(['"\`])([\\s\\S]*?)\\1`).exec(src);
+    if (!decl) return null; // not a simple local string constant — cannot resolve safely
+    out = out.replace(ref[0], decl[2].replace(/\s+/g, ' ').trim());
+  }
+  return out.includes('${') ? null : out;
+}
+
 function collect(): Query[] {
   const seen = new Set<string>();
   const queries: Query[] = [];
@@ -62,9 +81,14 @@ function collect(): Query[] {
     const src = fs.readFileSync(file, 'utf8');
     for (const m of src.matchAll(PAIR)) {
       const table = m[1];
-      const cols = m[3].replace(/\s+/g, ' ').trim();
-      // Interpolated selects cannot be checked statically — the column list is only known at runtime.
-      if (!cols || cols.includes('${')) continue;
+      let cols = m[3].replace(/\s+/g, ' ').trim();
+      if (cols.includes('${')) {
+        const resolved = resolveInterpolations(cols, src);
+        // Still dynamic (built from a variable or another module) — genuinely uncheckable here.
+        if (!resolved) continue;
+        cols = resolved;
+      }
+      if (!cols) continue;
       const key = `${table}|${cols}`;
       if (seen.has(key)) continue;
       seen.add(key);

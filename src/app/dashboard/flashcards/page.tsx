@@ -175,7 +175,7 @@ export default function FlashcardsPage() {
                   </Link>
                 ) : (
                   <Link href="/dashboard/classes" className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground w-full sm:w-auto`}>
-                    Back to classes
+                    Back to Classes
                   </Link>
                 )}
                 <button
