@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { ArrowPathIcon } from '@/lib/icons';
+import { useRouter } from 'next/navigation';
 
 interface PullToRefreshContainerProps {
   children: ReactNode;
@@ -15,15 +16,17 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   const startY = useRef(0);
   const isPulling = useRef(false);
   const maxPull = 80;
+  const router = useRouter();
 
   useEffect(() => {
-    // Strictly target mobile touch devices (under 768px width)
+    // Target mobile touch devices only
     if (typeof window !== 'undefined' && window.innerWidth >= 768) {
       return;
     }
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY === 0) {
+      // Only initiate pull-to-refresh if scroll is at absolute top
+      if (window.scrollY <= 0) {
         startY.current = e.touches[0].pageY;
         isPulling.current = true;
       }
@@ -33,30 +36,32 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
       if (!isPulling.current) return;
       const currentY = e.touches[0].pageY;
       const distance = currentY - startY.current;
-      if (distance > 0 && window.scrollY === 0) {
-        setPullDistance(Math.min(distance * 0.4, maxPull));
+      // Require downward pull starting from absolute top
+      if (distance > 10 && window.scrollY <= 0) {
+        setPullDistance(Math.min(distance * 0.35, maxPull));
       }
     };
 
     const handleTouchEnd = async () => {
       if (!isPulling.current) return;
       isPulling.current = false;
-      if (pullDistance >= 50 && !refreshing) {
+      if (pullDistance >= 60 && !refreshing) {
         setRefreshing(true);
         setPullDistance(50);
         if (onRefresh) {
           try {
             await onRefresh();
           } catch (err) {
-            console.error('Pull to refresh failed:', err);
+            console.error('Pull to refresh error:', err);
           }
         } else {
-          window.location.reload();
+          // Soft router refresh without hard browser reload to prevent violent page jumps
+          router.refresh();
         }
         setTimeout(() => {
           setRefreshing(false);
           setPullDistance(0);
-        }, 800);
+        }, 500);
       } else {
         setPullDistance(0);
       }
@@ -71,7 +76,7 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [pullDistance, refreshing, onRefresh]);
+  }, [pullDistance, refreshing, onRefresh, router]);
 
   return (
     <div className="relative w-full flex-1 flex flex-col min-h-0">
@@ -81,7 +86,7 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
           style={{ height: `${pullDistance}px` }}
           className="fixed top-[var(--app-header-height,0px)] left-0 right-0 z-[60] flex items-center justify-center transition-all duration-150 pointer-events-none md:hidden"
         >
-          <div className="w-9 h-9 rounded-full bg-card border border-border shadow-xl flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-card/95 backdrop-blur-xl border border-border shadow-2xl flex items-center justify-center">
             <ArrowPathIcon
               className={`w-5 h-5 text-primary ${refreshing ? 'animate-spin' : ''}`}
               style={{ transform: `rotate(${pullDistance * 4}deg)` }}

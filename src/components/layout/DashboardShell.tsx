@@ -65,7 +65,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full min-h-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto md:overflow-y-auto print:overflow-visible print:pt-0 print:pb-0 print:block">
+    <div className="flex-1 flex flex-col w-full h-full min-h-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 overflow-y-auto md:overflow-y-auto scroll-smooth print:overflow-visible print:pt-0 print:pb-0 print:block">
       <PullToRefreshContainer>
         {profile && <NewsletterPopup userId={profile.id} />}
         {!QR_HIDDEN_PATHS.some(p => pathname?.startsWith(p)) && <StaffQRScanner />}

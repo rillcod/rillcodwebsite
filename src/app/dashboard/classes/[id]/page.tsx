@@ -117,6 +117,19 @@ export default function ClassDetailPage() {
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
 
+  // Roster collapse: the list is dense by default (name + work signal) and each learner
+  // opens on demand, so a 40-student class still fits one phone screen.
+  const [rosterOpen, setRosterOpen] = useState(true);
+  const [showWithdrawnList, setShowWithdrawnList] = useState(false);
+  const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
+  const toggleStudentExpanded = (studentId: string) => {
+    setExpandedStudentIds(prev => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
+      return next;
+    });
+  };
+
   // Tick-and-wipe: hard-delete withdrawn students entirely from the system.
   const [checkedWithdrawnIds, setCheckedWithdrawnIds] = useState<Set<string>>(new Set());
   const [hardDeleting, setHardDeleting] = useState(false);
@@ -141,7 +154,6 @@ export default function ClassDetailPage() {
   const [pathStudentModes, setPathStudentModes] = useState<Record<string, 'inherit' | 'full' | 'milestone'>>({});
   const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
   const [showPathOverrides, setShowPathOverrides] = useState(false);
-  const [showStudentList, setShowStudentList] = useState(false);
 
   const [programCourses, setProgramCourses] = useState<any[]>([]);
   const [updatingCourseFocus, setUpdatingCourseFocus] = useState(false);
@@ -846,6 +858,33 @@ export default function ClassDetailPage() {
     }
   };
 
+  // Withdraw every ticked learner in one call — the roster's bulk arm of removeStudent.
+  const bulkUnenrol = async () => {
+    if (checkedEnrollIds.size === 0) return;
+    const names = enrollments
+      .filter((e: any) => checkedEnrollIds.has(e.id))
+      .map((e: any) => e.full_name)
+      .join(', ');
+    if (!confirm(`Withdraw ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}`)) return;
+    setBulkRemoving(true);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: [...checkedEnrollIds] }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || 'Unenrol failed');
+        return;
+      }
+      await fetchData();
+      setCheckedEnrollIds(new Set());
+    } finally {
+      setBulkRemoving(false);
+    }
+  };
+
   const toggleWithdrawn = (studentId: string) => {
     setCheckedWithdrawnIds(prev => {
       const next = new Set(prev);
@@ -1224,8 +1263,9 @@ export default function ClassDetailPage() {
    * behind at a glance, with the Learner Progress workspace carrying the real analysis.
    * `enr.id` is the portal_users id, which is what both tables key on.
    */
+  const classWorkTotal = items.assignments.length + items.cbt.length;
   const learnerSignal = (() => {
-    const totalWork = items.assignments.length + items.cbt.length;
+    const totalWork = classWorkTotal;
     const map = new Map<string, { done: number; total: number; average: number | null }>();
     for (const enr of enrollments as any[]) {
       const subs = items.submissions.filter((s: any) => (s.portal_user_id ?? s.user_id) === enr.id);
@@ -1588,31 +1628,59 @@ export default function ClassDetailPage() {
 
                   <div className="space-y-3">
                     <div className="flex flex-col gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-black text-foreground">Class Roster</h3>
-                        <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                          {currentTermStudents.length} active
-                          {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
-                          {offBandCount ? <span className="text-amber-600 dark:text-amber-400"> · {offBandCount} off-band</span> : ''}
-                          {reportIndicatorEnabled && currentTermStudents.length > 0 && (
-                            <span className={needsReportCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
-                              {' · '}{reportedCount}/{currentTermStudents.length} reports{' '}
-                              {needsReportCount ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowNeedsReportOnly(v => !v)}
-                                  className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-700 dark:text-amber-300' : ''}`}
-                                  title="Show only students who still need a report"
-                                >
-                                  · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered)' : ''}
-                                </button>
-                              ) : ' ✓'}
-                            </span>
-                          )}
+                      <button
+                        type="button"
+                        onClick={() => setRosterOpen(open => !open)}
+                        aria-expanded={rosterOpen}
+                        className="flex w-full min-w-0 items-start gap-2 text-left"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-black text-foreground">Class Roster</h3>
+                          <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                            {currentTermStudents.length} active
+                            {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
+                            {offBandCount ? <span className="text-amber-600 dark:text-amber-400"> · {offBandCount} off-band</span> : ''}
+                            {classWorkTotal > 0 && (
+                              <span> · {classWorkTotal} task{classWorkTotal === 1 ? '' : 's'} set</span>
+                            )}
+                          </p>
+                        </div>
+                        <ChevronDownIcon className={`mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${rosterOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {reportIndicatorEnabled && currentTermStudents.length > 0 && (
+                        <p className={`-mt-1 break-words text-xs ${needsReportCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {reportedCount}/{currentTermStudents.length} reports{' '}
+                          {needsReportCount ? (
+                            <button
+                              type="button"
+                              onClick={() => { setShowNeedsReportOnly(v => !v); setRosterOpen(true); }}
+                              className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-700 dark:text-amber-300' : ''}`}
+                              title="Show only students who still need a report"
+                            >
+                              · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered)' : ''}
+                            </button>
+                          ) : ' ✓'}
                         </p>
-                      </div>
+                      )}
                       {isStaff && (
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5" />
+                            Add Students
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowRegisterModal(true)}
+                            title="Register a brand-new student straight into this class"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                          >
+                            <UserPlusIcon className="h-3.5 w-3.5 text-primary" />
+                            Register New
+                          </button>
                           <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" />
                             Transfer / Move
@@ -1623,15 +1691,17 @@ export default function ClassDetailPage() {
                           </Link>
                           <button
                             type="button"
-                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
-                            className="min-h-11 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground sm:col-span-2 lg:col-span-1"
+                            onClick={handleExportLogins}
+                            title="Print the class login / acknowledgement register"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-600 hover:text-white sm:col-span-2 lg:col-span-1"
                           >
-                            Add Students
+                            <CloudArrowDownIcon className="h-3.5 w-3.5" />
+                            Export Logins
                           </button>
                         </div>
                       )}
                     </div>
-                    {(rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
+                    {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="relative">
                         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <input
@@ -1644,7 +1714,7 @@ export default function ClassDetailPage() {
                     )}
                   </div>
 
-                  {currentTermStudents.length === 0 && inactiveTermStudents.length === 0 ? (
+                  {!rosterOpen ? null : currentTermStudents.length === 0 && inactiveTermStudents.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border p-8 text-center">
                       <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
@@ -1654,6 +1724,43 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
                     </div>
                   ) : (
+                    <div className="space-y-2">
+                      {isStaff && visibleCurrent.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-primary"
+                              checked={checkedEnrollIds.size > 0 && visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id))}
+                              ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && !visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id)); }}
+                              onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(visibleCurrent.map((s: any) => s.id)) : new Set())}
+                            />
+                            {checkedEnrollIds.size > 0 ? `${checkedEnrollIds.size} selected` : 'Select all'}
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedStudentIds(prev =>
+                                prev.size >= visibleCurrent.length ? new Set() : new Set(visibleCurrent.map((s: any) => s.id))
+                              )}
+                              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              {expandedStudentIds.size >= visibleCurrent.length ? 'Collapse all' : 'Expand all'}
+                            </button>
+                            {checkedEnrollIds.size > 0 && (
+                              <button
+                                type="button"
+                                disabled={bulkRemoving}
+                                onClick={bulkUnenrol}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-600 hover:text-white disabled:opacity-50 dark:text-rose-400"
+                              >
+                                {bulkRemoving ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
+                                Withdraw {checkedEnrollIds.size}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     <div className="grid gap-2 md:max-h-[min(70vh,40rem)] md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
@@ -1697,9 +1804,35 @@ export default function ClassDetailPage() {
                             </div>
                           );
                         }
+                        const signal = learnerSignal.get(student.id);
+                        const workDone = signal?.done ?? 0;
+                        const workTotal = signal?.total ?? 0;
+                        const workPct = workTotal > 0 ? Math.round((workDone / workTotal) * 100) : null;
+                        const average = signal?.average ?? null;
+                        const expanded = expandedStudentIds.has(student.id);
+                        const checked = checkedEnrollIds.has(student.id);
                         return (
-                          <div key={student.id} className="min-w-0 rounded-xl border border-border bg-card p-3">
-                            <div className="flex min-w-0 items-start gap-3">
+                          <div key={student.id} className={`min-w-0 rounded-xl border transition-colors ${checked ? 'border-rose-500/40 bg-rose-500/5' : 'border-border bg-card'}`}>
+                            <div
+                              onClick={() => toggleStudentExpanded(student.id)}
+                              className="flex min-w-0 cursor-pointer items-start gap-2.5 p-3"
+                            >
+                              {isStaff && (
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={e => {
+                                    setCheckedEnrollIds(prev => {
+                                      const next = new Set(prev);
+                                      if (e.target.checked) next.add(student.id); else next.delete(student.id);
+                                      return next;
+                                    });
+                                  }}
+                                  title="Select for bulk withdraw"
+                                  className="mt-3 h-4 w-4 flex-shrink-0 cursor-pointer accent-primary"
+                                />
+                              )}
                               <div className="relative flex-shrink-0">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
                                   {(student.full_name ?? '?')[0].toUpperCase()}
@@ -1739,11 +1872,96 @@ export default function ClassDetailPage() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
+                                {/* Work signal stays on the collapsed row — the whole point of the roster
+                                    is seeing who is behind without opening anything. */}
+                                {workTotal > 0 ? (
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <span
+                                      className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-24"
+                                      role="progressbar"
+                                      aria-valuenow={workPct ?? 0}
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-label={`Work completed by ${student.full_name}`}
+                                    >
+                                      <span
+                                        className={`block h-full rounded-full transition-all duration-500 ${
+                                          (workPct ?? 0) >= 80 ? 'bg-emerald-500' : (workPct ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500'
+                                        }`}
+                                        style={{ width: `${workPct ?? 0}%` }}
+                                      />
+                                    </span>
+                                    <span className="truncate text-[11px] text-muted-foreground">
+                                      {workDone}/{workTotal} done
+                                      {average !== null && <span className="ml-1.5 font-bold text-foreground">{average}% avg</span>}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
+                                )}
                               </div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
+                                aria-expanded={expanded}
+                                aria-label={expanded ? `Hide details for ${student.full_name}` : `Show details for ${student.full_name}`}
+                                className="mt-1.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              >
+                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                              </button>
                             </div>
-                            {isStaff && (
-                              <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border/60 pt-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+                            {expanded && (
+                              <div className="border-t border-border/60 px-3 pb-3 pt-3">
+                                <p className="break-all text-xs text-muted-foreground">{student.email || 'No email on file'}</p>
+                                <div className="mt-2 grid grid-cols-3 gap-2">
+                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                    <p className="text-sm font-black text-foreground">{workDone}<span className="text-[10px] text-muted-foreground">/{workTotal}</span></p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Work done</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                    <p className="text-sm font-black text-foreground">{average !== null ? `${average}%` : '—'}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Average</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                    <p className="text-sm font-black text-foreground">{Math.max(0, workTotal - workDone)}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Outstanding</p>
+                                  </div>
+                                </div>
+                                {/* Task-by-task: which piece of class work is done, scored or missing.
+                                    Built from the submissions/sessions already in state — no extra reads. */}
+                                {workTotal > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class work</p>
+                                    {items.assignments.map((a: any) => {
+                                      const sub = items.submissions.find((s: any) => s.assignment_id === a.id && (s.portal_user_id === student.id || s.user_id === student.id));
+                                      const score = sub?.grade ?? null;
+                                      return (
+                                        <div key={`a-${a.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
+                                          <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{a.title}</span>
+                                          <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sub ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                            {!sub ? 'Missing' : score === null ? 'Ungraded' : `${score}/${a.max_points ?? 100}`}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                    {items.cbt.map((c: any) => {
+                                      const sess = items.cbtSessions.find((s: any) => s.exam_id === c.id && s.user_id === student.id);
+                                      const score = sess?.score ?? null;
+                                      return (
+                                        <div key={`c-${c.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
+                                          <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{c.title}</span>
+                                          <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sess ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-cyan-600 dark:text-cyan-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                            {!sess ? 'Not taken' : score === null ? 'Running' : `${score}/${c.total_questions ?? '?'}`}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {isStaff && expanded && (
+                              <div className="grid grid-cols-1 gap-2 border-t border-border/60 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
                                 <button
                                   type="button"
                                   onClick={() => beginEditIdentity(student)}
@@ -1784,71 +2002,102 @@ export default function ClassDetailPage() {
                           </div>
                         );
                       })}
-                      {isStaff && visibleInactive.length > 0 && (
-                        <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 backdrop-blur supports-[backdrop-filter]:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-700/90 dark:text-amber-300/90">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-red-600"
-                              checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
-                              ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
-                              onChange={e => {
-                                if (e.target.checked) setCheckedWithdrawnIds(new Set(visibleInactive.map((s: any) => s.id)));
-                                else setCheckedWithdrawnIds(new Set());
-                              }}
-                            />
-                            {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : 'Select withdrawn to delete'}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => bulkHardDelete(false)}
-                            disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                            {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
-                          </button>
-                        </div>
-                      )}
-                      {visibleInactive.map((student: any) => (
-                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`min-w-0 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
-                          <div className="flex min-w-0 items-center gap-3">
-                            {isStaff && (
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 flex-shrink-0 accent-red-600"
-                                checked={checkedWithdrawnIds.has(student.id)}
-                                onChange={() => toggleWithdrawn(student.id)}
-                                title="Select for permanent deletion"
-                              />
-                            )}
-                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-600 dark:text-amber-400">
-                              {(student.full_name ?? '?')[0].toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="break-words text-sm font-bold text-foreground">{student.full_name}</p>
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600/80 dark:text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
-                            </div>
+                    </div>
+
+                    {/* Withdrawn / historical — folded away by default so it never competes
+                        with the active list, but keeps reinstate + hard-delete. */}
+                    {visibleInactive.length > 0 && (
+                      <div className="overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5">
+                        <button
+                          type="button"
+                          onClick={() => setShowWithdrawnList(open => !open)}
+                          aria-expanded={showWithdrawnList}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                              Paused / historical · {visibleInactive.length}
+                            </p>
+                            <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
+                              Keep old results and can be reinstated into this term.
+                            </p>
                           </div>
-                          {isStaff && (
-                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-500/20 pt-3 sm:grid-cols-2">
-                              <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="min-h-11 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
-                                {processingStudent === student.id ? '…' : 'Reinstate'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => bulkHardDelete(false, [student.id])}
-                                disabled={hardDeleting}
-                                title="Permanently delete this student from the whole system"
-                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
-                              >
-                                <TrashIcon className="h-3.5 w-3.5" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                          <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${showWithdrawnList ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showWithdrawnList && (
+                          <div className="space-y-2 border-t border-amber-500/20 p-2.5 md:max-h-[min(50vh,26rem)] md:overflow-y-auto md:overscroll-contain">
+                            {isStaff && (
+                              <div className="flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-background/60 p-2.5 sm:flex-row sm:items-center sm:justify-between">
+                                <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-700/90 dark:text-amber-300/90">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-red-600"
+                                    checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
+                                    ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
+                                    onChange={e => {
+                                      if (e.target.checked) setCheckedWithdrawnIds(new Set(visibleInactive.map((s: any) => s.id)));
+                                      else setCheckedWithdrawnIds(new Set());
+                                    }}
+                                  />
+                                  {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : 'Select withdrawn to delete'}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => bulkHardDelete(false)}
+                                  disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                  {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
+                                </button>
+                              </div>
+                            )}
+                            {visibleInactive.map((student: any) => (
+                              <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`min-w-0 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-background/60'}`}>
+                                <div className="flex min-w-0 items-center gap-3">
+                                  {isStaff && (
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 flex-shrink-0 accent-red-600"
+                                      checked={checkedWithdrawnIds.has(student.id)}
+                                      onChange={() => toggleWithdrawn(student.id)}
+                                      title="Select for permanent deletion"
+                                    />
+                                  )}
+                                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-600 dark:text-amber-400">
+                                    {(student.full_name ?? '?')[0].toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="break-words text-sm font-bold text-foreground">{student.full_name}</p>
+                                    <p className="break-words text-[11px] font-bold uppercase tracking-wide text-amber-600/80 dark:text-amber-400/80">
+                                      {(student.roster_status ?? 'withdrawn').toString().replace('_', ' ')}
+                                      {student.roster_ended_at ? ` · left ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                {isStaff && (
+                                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-500/20 pt-3 sm:grid-cols-2">
+                                    <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="min-h-11 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                                      {processingStudent === student.id ? '…' : 'Reinstate'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => bulkHardDelete(false, [student.id])}
+                                      disabled={hardDeleting}
+                                      title="Permanently delete this student from the whole system"
+                                      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
+                                    >
+                                      <TrashIcon className="h-3.5 w-3.5" />
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     </div>
                   )}
                 </div>
@@ -1952,11 +2201,8 @@ export default function ClassDetailPage() {
             </p>
           </summary>
 
-        {/* Tabs + Content | Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Main — tabs + content */}
-          <div className="lg:col-span-2 space-y-4">
+        {/* Tabs + Content — the roster now lives in the Operations Canvas, so this is full-width. */}
+        <div className="min-w-0 space-y-4">
 
             {/* Tab Bar */}
             <div className="flex items-center overflow-x-auto gap-1.5 p-1.5 bg-muted/40 backdrop-blur-md border border-border rounded-2xl no-scrollbar">
@@ -2566,223 +2812,6 @@ export default function ClassDetailPage() {
             )}
 
           </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-
-            {/* Students List */}
-            <div className="bg-card backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3 bg-muted/40">
-                <div className="flex items-center gap-3 min-w-0">
-                  {canView && currentTermStudents.length > 0 && (
-                    <input
-                      type="checkbox"
-                      title="Select all"
-                      checked={checkedEnrollIds.size === currentTermStudents.length}
-                      ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < currentTermStudents.length; }}
-                      onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(currentTermStudents.map((enr: any) => enr.id)) : new Set())}
-                      className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
-                    />
-                  )}
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Active learners</h3>
-                    <p className="text-xs text-primary font-bold mt-0.5">{currentTermStudents.length} / {cls.max_students ?? '∞'} active</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {canView && checkedEnrollIds.size > 0 && (
-                    <button
-                      disabled={bulkRemoving}
-                      onClick={async () => {
-                        const names = currentTermStudents
-                          .filter((e: any) => checkedEnrollIds.has(e.id))
-                          .map((e: any) => e.full_name)
-                          .join(', ');
-                        if (!confirm(`Unenrol ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}`)) return;
-                        setBulkRemoving(true);
-                        try {
-                          const res = await fetch(`/api/classes/${id}/enroll`, {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ studentIds: [...checkedEnrollIds] }),
-                          });
-                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Unenrol failed'); return; }
-                          await fetchData();
-                          setCheckedEnrollIds(new Set());
-                        } finally {
-                          setBulkRemoving(false);
-                        }
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all rounded-xl disabled:opacity-50"
-                    >
-                      {bulkRemoving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
-                      Unenrol {checkedEnrollIds.size}
-                    </button>
-                  )}
-                  {isStaff && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
-                        title="Enrol existing student"
-                        className="w-8 h-8 bg-muted hover:bg-primary hover:text-primary-foreground border border-border text-muted-foreground transition-all flex items-center justify-center rounded-xl"
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setShowRegisterModal(true)}
-                        title="Register new student"
-                        className="w-8 h-8 bg-muted hover:bg-primary hover:text-primary-foreground border border-border text-muted-foreground transition-all flex items-center justify-center rounded-xl"
-                      >
-                        <UserPlusIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setShowStudentList(v => !v)}
-                    title={showStudentList ? 'Hide student list' : 'Show student list'}
-                    className="px-2.5 h-8 bg-muted hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all flex items-center justify-center rounded-xl text-[11px] font-bold"
-                  >
-                    {showStudentList ? 'Hide ▲' : 'Show ▾'}
-                  </button>
-                </div>
-              </div>
-              {!showStudentList ? null : currentTermStudents.length === 0 ? (
-                <div className="p-10 text-center flex flex-col items-center justify-center">
-                  <UserGroupIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">No active students for this term yet.</p>
-                  {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-primary hover:text-primary transition-colors">Edit class to add students →</Link>}
-                </div>
-              ) : (
-                <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {currentTermStudents.map((enr: any) => {
-                    const isChecked = checkedEnrollIds.has(enr.id);
-                    return (
-                      <div
-                        key={enr.id}
-                        className={`px-4 py-3 flex items-center gap-3 transition-all group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-muted'}`}
-                      >
-                        {canView && (
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={e => {
-                              setCheckedEnrollIds(prev => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(enr.id); else next.delete(enr.id);
-                                return next;
-                              });
-                            }}
-                            className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
-                          />
-                        )}
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-primary/10 text-primary'}`}>
-                          {(enr.full_name ?? '?')[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
-                          {(() => {
-                            // Work done and average, or the email when there is no work yet —
-                            // one line either way, so the roster keeps its density.
-                            const signal = learnerSignal.get(enr.id);
-                            if (!signal || signal.total === 0) {
-                              return <p className="text-xs text-muted-foreground truncate">{enr.email}</p>;
-                            }
-                            const pct = Math.round((signal.done / signal.total) * 100);
-                            return (
-                              <div className="mt-0.5 flex items-center gap-2">
-                                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-24">
-                                  <span
-                                    className={`block h-full rounded-full transition-all duration-500 ${
-                                      pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-500'
-                                    }`}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </span>
-                                <span className="truncate text-[11px] text-muted-foreground">
-                                  {signal.done}/{signal.total} done
-                                  {signal.average !== null && (
-                                    <span className="ml-1.5 font-bold text-foreground">{signal.average}%</span>
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        {canView && (
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Unenrol ${enr.full_name} from this class?`)) return;
-                              const res = await fetch(`/api/classes/${id}/enroll`, {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ studentId: enr.id }),
-                              });
-                              if (!res.ok) { const j = await res.json(); alert(j.error); return; }
-                              await fetchData();
-                              setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
-                            }}
-                            title="Unenrol from class"
-                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors sm:opacity-0 sm:group-hover:opacity-100 rounded-xl"
-                          >
-                            <TrashIcon className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {inactiveTermStudents.length > 0 && (
-              <div className="bg-card backdrop-blur-md shadow-sm border border-amber-500/20 rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-amber-500/10 bg-amber-500/5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">Paused / Historical</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    These students keep old results and can be reinstated into this term.
-                  </p>
-                </div>
-                <div className="divide-y divide-white/5 max-h-[260px] overflow-y-auto custom-scrollbar">
-                  {inactiveTermStudents.map((student: any) => (
-                    <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="px-4 py-3 flex items-center gap-3">
-                      <div className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 bg-amber-500/10 text-amber-700 dark:text-amber-300">
-                        {(student.full_name ?? '?')[0].toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {(student.roster_status ?? 'former').toString().replace('_', ' ')}
-                          {student.roster_ended_at ? ` · left ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
-                        </p>
-                      </div>
-                      {isStaff && (
-                        <button
-                          onClick={() => assignStudent(student.id)}
-                          disabled={processingStudent === student.id}
-                          className="px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/20 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors disabled:opacity-50"
-                        >
-                          {processingStudent === student.id ? '...' : 'Reinstate'}
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {isStaff && (
-              <button
-                onClick={handleExportLogins}
-                className="w-full py-3 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-sm text-emerald-600 dark:text-emerald-400"
-              >
-                <CloudArrowDownIcon className="w-4 h-4" />
-                Export Login Credentials
-              </button>
-            )}
-
-          </div>
-
-        </div>
         </details>
       </div>
 
