@@ -1,4 +1,4 @@
-﻿import {
+import {
   buildCertifyHref,
   buildCurriculumHref,
   buildDistributeHref,
@@ -24,14 +24,6 @@ export type OverviewFacts = {
  * Order is enforced: write before certify, certify before distribute.
  */
 export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
-  const catalogue: StageStatus = {
-    id: "catalogue",
-    state: "done",
-    headline: "Programmes and courses are in the catalogue.",
-    actionLabel: "Open programmes",
-    actionHref: "/dashboard/programs",
-  };
-
   const author: StageStatus =
     facts.awaitingCurriculumCount > 0
       ? {
@@ -135,7 +127,7 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
           actionHref: buildTimingHref(),
         };
 
-  return [catalogue, author, certify, distribute, time];
+  return [author, certify, distribute, time];
 }
 
 export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {

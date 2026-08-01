@@ -7,7 +7,7 @@ import {
   ArrowRightIcon,
   ClockIcon,
 } from "@/lib/icons";
-import { stage, type LaneId } from "@/lib/academic/lanes";
+import { findStage, type LaneId } from "@/lib/academic/lanes";
 import type { StageStatus, StageState } from "@/lib/academic/status";
 
 const STATE_STYLE: Record<
@@ -59,8 +59,10 @@ export function StageList({
 }) {
   return (
     <ol className="space-y-2" role="list">
-      {statuses.map((status) => {
-        const meta = stage(status.id);
+      {statuses.map((status, index) => {
+        const meta = findStage(status.id);
+        const stepNumber = meta?.step ?? index + 1;
+        const stageLabel = meta?.label ?? status.id.replaceAll("_", " ");
         const style = STATE_STYLE[status.state];
         return (
           <li
@@ -74,10 +76,10 @@ export function StageList({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Step {meta.step}
+                    Step {stepNumber}
                   </span>
                   <h3 className="text-sm font-black text-foreground">
-                    {meta.label}
+                    {stageLabel}
                   </h3>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${style.chip}`}

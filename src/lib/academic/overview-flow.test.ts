@@ -4,6 +4,7 @@ import {
   overviewDeliveryStages,
 } from "./overview-flow";
 import { nextAction } from "./status";
+import { stagesInLane } from "./lanes";
 
 const base = {
   centralCourses: 10,
@@ -19,6 +20,12 @@ const base = {
 };
 
 describe("overviewAssetStages", () => {
+  it("only emits stages registered in the curriculum lane", () => {
+    expect(overviewAssetStages(base).map((stage) => stage.id)).toEqual(
+      stagesInLane("asset").map((stage) => stage.id)
+    );
+  });
+
   it("keeps certify waiting until a curriculum is written", () => {
     const stages = overviewAssetStages(base);
     const certify = stages.find((s) => s.id === "certify");

@@ -18,7 +18,6 @@ export type LaneId = "asset" | "delivery";
 export type AcademicRole = "admin" | "teacher" | "school" | "student" | "parent";
 
 export type StageId =
-  | "catalogue"
   | "author"
   | "certify"
   | "distribute"
@@ -175,8 +174,12 @@ export const STAGES: Stage[] = [
 
 const BY_ID = new Map(STAGES.map((stage) => [stage.id, stage]));
 
+export function findStage(id: string): Stage | null {
+  return BY_ID.get(id as StageId) ?? null;
+}
+
 export function stage(id: StageId): Stage {
-  const found = BY_ID.get(id);
+  const found = findStage(id);
   if (!found) throw new Error(`Unknown academic stage: ${id}`);
   return found;
 }

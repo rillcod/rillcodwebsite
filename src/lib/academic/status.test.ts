@@ -7,7 +7,7 @@ import {
   type AssetFacts,
   type DirectionFacts,
 } from "./status";
-import { stepsForRole, stagesInLane, STAGES } from "./lanes";
+import { findStage, stepsForRole, stagesInLane, STAGES } from "./lanes";
 
 const RELEASE = {
   id: "release-1",
@@ -139,6 +139,12 @@ function assetFacts(overrides: Partial<AssetFacts> = {}): AssetFacts {
 }
 
 describe("assetStatus", () => {
+  it("only emits stages registered in the curriculum lane", () => {
+    expect(assetStatus(assetFacts()).map((stage) => stage.id)).toEqual(
+      stagesInLane("asset").map((stage) => stage.id)
+    );
+  });
+
   it("reports a fully distributed course as done end to end", () => {
     const statuses = assetStatus(assetFacts());
     expect(statuses.every((s) => s.state === "done")).toBe(true);
@@ -221,6 +227,10 @@ describe("deliveryStatus", () => {
 });
 
 describe("lanes", () => {
+  it("treats stale runtime stage ids as unknown without throwing", () => {
+    expect(findStage("catalogue")).toBeNull();
+  });
+
   it("never offers a teacher a curriculum-governance stage", () => {
     const ids = stepsForRole("teacher").map((s) => s.id);
     expect(ids).not.toContain("certify");

@@ -66,17 +66,6 @@ export type AssetFacts = {
 };
 
 export function assetStatus(facts: AssetFacts): StageStatus[] {
-  const catalogue: StageStatus = facts.programmeLinked
-    ? { id: "catalogue", state: "done", headline: "Course is in a programme." }
-    : {
-        id: "catalogue",
-        state: "ready",
-        headline: "Course is not linked to a programme.",
-        detail: "Attach the course to a programme so it can be taught.",
-        actionLabel: "Open programmes",
-        actionHref: "/dashboard/programs",
-      };
-
   const author: StageStatus =
     facts.centralDraftCount > 0
       ? {
@@ -197,7 +186,7 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
           }),
         };
 
-  return [catalogue, author, certify, distribute, time];
+  return [author, certify, distribute, time];
 }
 
 // ── The junction — why can this class not resolve an official edition? ─────
