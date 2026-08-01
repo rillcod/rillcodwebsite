@@ -7,7 +7,7 @@ export default function GenerateContentPage() {
   const router = useRouter();
   useEffect(() => { router.replace('/dashboard/academic/build'); }, []);
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen mobile-page-root">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );

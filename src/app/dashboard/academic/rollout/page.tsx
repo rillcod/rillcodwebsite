@@ -399,14 +399,14 @@ function RolloutWorkspace() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+      <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8 mobile-page-root">
         <div className="h-40 animate-pulse rounded-3xl border border-border bg-card" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+    <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8 mobile-page-root">
       <header className="mb-6">
         <p className="text-xs font-black uppercase tracking-widest text-primary">Academic Office</p>
         <h1 className="mt-2 text-3xl font-black">Rollout</h1>

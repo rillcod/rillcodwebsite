@@ -118,7 +118,7 @@ export default function SchoolReportsLibraryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
+    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8 mobile-page-root">
       <header className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-emerald-500/5 p-5 shadow-sm sm:p-7">
         <Link
           href="/dashboard/academic"

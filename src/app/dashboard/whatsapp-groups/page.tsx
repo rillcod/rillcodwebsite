@@ -720,7 +720,7 @@ export default function WhatsAppGroupsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   if (redirecting) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Opening Groups in Office Center...
       </div>
     );
@@ -1043,7 +1043,7 @@ export default function WhatsAppGroupsPage() {
                       <>
                         <div>
                           <p className="font-bold text-foreground text-[15px] mb-1">Connect Your WhatsApp Groups</p>
-                          <p className="text-[12px] leading-relaxed max-w-xs mx-auto" style={{ color: '#8696a0' }}>
+                          <p className="text-[12px] leading-relaxed max-w-xs mx-auto mobile-page-root" style={{ color: '#8696a0' }}>
                             Add your school's WhatsApp group links here to send announcements, fee reminders, and assignment alerts to parents and teachers — all from one place.
                           </p>
                         </div>
@@ -1997,7 +1997,7 @@ export default function WhatsAppGroupsPage() {
                   </div>
                   <div>
                     <h3 className="font-black text-foreground text-[15px]">Zero Gaps Found!</h3>
-                    <p className="text-[12px] leading-relaxed max-w-sm mx-auto mt-1" style={{ color: '#8696a0' }}>
+                    <p className="text-[12px] leading-relaxed max-w-sm mx-auto mt-1 mobile-page-root" style={{ color: '#8696a0' }}>
                       All live academic classes have active WhatsApp channels, invite links are properly configured, and communication flows are solid!
                     </p>
                   </div>

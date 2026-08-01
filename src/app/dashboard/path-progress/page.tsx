@@ -62,7 +62,7 @@ export default function StudentPathProgressPage() {
   if (!canView) return <div className="p-6 text-sm text-muted-foreground">Student access required.</div>;
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 mobile-page-root">
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">

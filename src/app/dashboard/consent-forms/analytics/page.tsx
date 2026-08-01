@@ -74,7 +74,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
       <Skeleton className="h-10 w-56" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -156,7 +156,7 @@ export default function ConsentFormAnalyticsPage() {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-8 mobile-page-root">
         <div className="bg-card border border-border/50 rounded-2xl p-6 text-center text-muted-foreground">
           <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
           <button
@@ -172,7 +172,7 @@ export default function ConsentFormAnalyticsPage() {
 
   if (!data || data.summary.total_leads === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
         <Header />
         <div className="bg-card border border-border/50 rounded-2xl p-12 text-center">
           <ChartBarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -199,7 +199,7 @@ export default function ConsentFormAnalyticsPage() {
   const funnelOpacities = ['opacity-100', 'opacity-85', 'opacity-70', 'opacity-55', 'opacity-40'];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
       <Header />
 
       {/* ── Summary cards ──────────────────────────────────────────────────── */}

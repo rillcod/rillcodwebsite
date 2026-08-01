@@ -86,7 +86,7 @@ export default function AnnouncementsPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 mobile-page-root">
       {/* Header */}
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -114,12 +114,12 @@ export default function AnnouncementsPage() {
 
       {/* Composer form (NF-15.1, 15.2) */}
       {showForm && isStaff && (
-        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4">
+        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4 mobile-page-root">
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Title</label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Announcement title…"
-              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0" />
+              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0 mobile-page-root" />
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Body</label>
@@ -131,14 +131,14 @@ export default function AnnouncementsPage() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">Audience</label>
               <select value={form.target_audience} onChange={e => setForm(f => ({ ...f, target_audience: e.target.value }))}
-                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary capitalize min-h-[44px] sm:min-h-0">
+                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary capitalize min-h-[44px] sm:min-h-0 mobile-page-root">
                 {AUDIENCES.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">Status</label>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0">
+                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0 mobile-page-root">
                 <option value="published">Publish now</option>
                 <option value="draft">Save as draft</option>
               </select>
@@ -147,11 +147,11 @@ export default function AnnouncementsPage() {
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Expires at (optional)</label>
             <input type="datetime-local" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
-              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0" />
+              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0 mobile-page-root" />
           </div>
           {error && <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>}
           <button type="submit" disabled={!form.title.trim() || !form.content.trim() || submitting}
-            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0">
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0 mobile-page-root">
             {submitting ? 'Saving…' : form.status === 'draft' ? 'Save Draft' : 'Publish'}
           </button>
         </form>

@@ -1574,15 +1574,15 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
 
   if (authLoading || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className={`text-foreground selection:bg-primary/30 ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
-      <div className={`max-w-5xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8 sm:py-12'}`}>
+    <div className={`mobile-page-root text-foreground selection:bg-primary/30 ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+      <div className={`mobile-page-root max-w-5xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8 sm:py-12'}`}>
         {/* Back Button */}
         {!isEmbedded && (
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">

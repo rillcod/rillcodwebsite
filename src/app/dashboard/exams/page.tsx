@@ -94,13 +94,13 @@ export default function ExamsPage() {
   }
 
   if (authLoading || profileLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh] mobile-page-root"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const filtered = exams.filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.courses?.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto mobile-page-root">
       {/* Exam Hub Tab Bar */}
       <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
         <Link href="/dashboard/cbt"

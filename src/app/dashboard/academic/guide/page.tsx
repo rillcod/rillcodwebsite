@@ -68,7 +68,7 @@ const HUMAN = [
 
 export default function AcademicOfficeGuidePage() {
   return (
-    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8 mobile-page-root">
       <header className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-violet-500/5 p-6 sm:p-8">
         <Link href="/dashboard/academic" className="inline-flex items-center gap-2 text-sm font-bold text-primary">
           <ArrowLeftIcon className="h-4 w-4" /> Back to Academic Office

@@ -163,7 +163,7 @@ function OfficeCenterInner() {
 
   if (authLoading || profileLoading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-background">
+      <div className="flex min-h-[50vh] items-center justify-center bg-background mobile-page-root">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -171,7 +171,7 @@ function OfficeCenterInner() {
 
   if (!profile || profile.role !== 'admin') {
     return (
-      <div className="mx-auto max-w-lg px-4 py-12">
+      <div className="mx-auto max-w-lg px-4 py-12 mobile-page-root">
         <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
           <p className="font-bold text-foreground">Office Center is for administrators</p>
           <p className="mt-2">
@@ -195,7 +195,7 @@ function OfficeCenterInner() {
 
   return (
     <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]">
-      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-8 mobile-page-root">
         <div className="mb-4">
           <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">Office Center</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
@@ -272,7 +272,7 @@ export default function OfficeCenterPage() {
     <div className="flex h-full min-h-0 flex-col">
       <Suspense
         fallback={
-          <div className="flex h-full min-h-[50vh] items-center justify-center">
+          <div className="flex h-full min-h-[50vh] items-center justify-center mobile-page-root">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         }

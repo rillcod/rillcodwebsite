@@ -9,7 +9,7 @@ export default function NewSchoolReportPage() {
 
   if (!setup.loading && !setup.canManage) {
     return (
-      <div className="mx-auto max-w-3xl p-8">
+      <div className="mx-auto max-w-3xl p-8 mobile-page-root">
         <p className="rounded-xl border border-border p-6 text-sm text-muted-foreground">
           Only authorised staff can create school report books.{' '}
           <Link href="/dashboard/school-reports" className="font-black text-primary underline">
@@ -21,7 +21,7 @@ export default function NewSchoolReportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
+    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8 mobile-page-root">
       <header>
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">New report book</p>
         <h1 className="mt-2 text-3xl font-black text-foreground">Generate school performance report</h1>

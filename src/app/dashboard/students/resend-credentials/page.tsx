@@ -351,7 +351,7 @@ export default function ResendCredentialsPage() {
 
   if (authLoading || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] mobile-page-root">
         <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -359,7 +359,7 @@ export default function ResendCredentialsPage() {
 
   if (!isStaff) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 mobile-page-root">
         <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400" />
         <p className="text-foreground font-semibold text-lg">Admin or teacher access required</p>
         <Link href="/dashboard" className="text-violet-600 dark:text-violet-400 hover:underline text-sm">Back to dashboard</Link>
@@ -368,7 +368,7 @@ export default function ResendCredentialsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -777,7 +777,7 @@ export default function ResendCredentialsPage() {
       {/* Copyable Credentials Modal */}
       {lastCreatedCredentials && (
         <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto mobile-page-root">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground">Login Details — {lastCreatedCredentials.studentName}</h3>
               <button
@@ -793,7 +793,7 @@ export default function ResendCredentialsPage() {
             </p>
 
             <div className="space-y-3">
-              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
+              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2 mobile-page-root">
                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">🎓 Student Account Details</p>
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
@@ -808,7 +808,7 @@ export default function ResendCredentialsPage() {
               </div>
 
               {lastCreatedCredentials.parentEmail && (
-                <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
+                <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2 mobile-page-root">
                   <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
                   <div className="text-xs space-y-1">
                     <p className="text-muted-foreground"><strong>Username / Email:</strong></p>

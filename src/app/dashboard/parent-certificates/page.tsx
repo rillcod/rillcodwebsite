@@ -80,7 +80,7 @@ function ParentCertificatesContent() {
   const selectedChild = children.find(c => c.id === selectedId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-page-root">
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Certificates</h1>
         <p className="text-sm text-muted-foreground mt-1">Certificates earned by your children.</p>
@@ -111,7 +111,7 @@ function ParentCertificatesContent() {
       )}
 
       {selectedChild && (
-        <div className="space-y-4">
+        <div className="space-y-4 mobile-page-root">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Certificates for {selectedChild.full_name}
           </p>

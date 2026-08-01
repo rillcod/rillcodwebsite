@@ -103,7 +103,7 @@ export default function SupportPage() {
 
   if (selected) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 mobile-page-root">
         <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground text-sm">
           ← Back to tickets
         </button>
@@ -147,7 +147,7 @@ export default function SupportPage() {
             <button
               type="submit"
               disabled={!reply.trim() || submitting}
-              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0"
+              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0 mobile-page-root"
             >
               {submitting ? 'Sending…' : 'Send Reply'}
             </button>
@@ -158,26 +158,26 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6 mobile-page-root">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Support Tickets</h1>
         <button
           onClick={() => setShowForm(v => !v)}
-          className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0"
+          className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0 mobile-page-root"
         >
           {showForm ? 'Cancel' : '+ New Ticket'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={createTicket} className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-4">
+        <form onSubmit={createTicket} className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-4 mobile-page-root">
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subject</label>
             <input
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="Brief description of your issue"
-              className="mt-1 w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0"
+              className="mt-1 w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0 mobile-page-root"
             />
           </div>
           <div>
@@ -194,7 +194,7 @@ export default function SupportPage() {
           <button
             type="submit"
             disabled={!subject.trim() || !message.trim() || submitting}
-            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0"
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0 mobile-page-root"
           >
             {submitting ? 'Submitting…' : 'Submit Ticket'}
           </button>

@@ -1509,7 +1509,7 @@ export default function ResponsesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 pb-28 sm:pb-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 sm:pb-8">
 
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

@@ -53,7 +53,7 @@ export default function AcademicPathwaysPage() {
     finally { setSaving(false); }
   }
 
-  return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+  return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8 mobile-page-root">
     <section className="rounded-3xl border border-border bg-card p-6">
       <Link href="/dashboard/academic" className="text-sm font-bold text-primary">Back to Academic Office</Link>
       <h1 className="mt-3 text-3xl font-black text-foreground">Academic pathways</h1>

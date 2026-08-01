@@ -22,6 +22,7 @@ import {
 } from '@/components/submissions/SubmissionAttachmentCard';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
 
 function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     const [copied, setCopied] = useState(false);
@@ -1828,7 +1829,7 @@ export default function AssignmentDetailPage() {
                                 </div>
                             </div>
                         ) : (
-                            <form onSubmit={handleSubmit} className="space-y-6 pb-28 sm:pb-0">
+                            <form onSubmit={handleSubmit} className={`space-y-6 ${MOBILE_STICKY_ACTIONS_BOTTOM} sm:pb-0`}>
 
                                 {/* ── Sticky submit bar (top of form) ── */}
                                 {(() => {

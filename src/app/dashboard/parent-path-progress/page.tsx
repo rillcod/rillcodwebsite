@@ -72,7 +72,7 @@ export default function ParentPathProgressPage() {
   if (!canView) return <div className="p-6 text-sm text-muted-foreground">Parent access required.</div>;
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 mobile-page-root">
       <div className="bg-card border border-border rounded-2xl p-5">
         <h1 className="text-xl font-black">Child Learning Path</h1>
         <p className="text-sm text-muted-foreground mt-1">

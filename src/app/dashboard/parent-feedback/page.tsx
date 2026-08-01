@@ -140,7 +140,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
       <div className="bg-card border border-emerald-500/30 p-10 text-center max-w-xl">
         <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
         <h2 className="text-base font-black text-foreground uppercase tracking-widest mb-2">Thank You!</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto mobile-page-root">
           Your feedback has been received. We value your perspective and will review it carefully.
         </p>
         <button

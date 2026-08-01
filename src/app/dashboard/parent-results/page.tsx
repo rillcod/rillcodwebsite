@@ -157,7 +157,7 @@ function ParentResultsContent() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-page-root">
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Report Cards</h1>
         <p className="text-sm text-muted-foreground mt-1">Published progress reports for your children.</p>
@@ -189,7 +189,7 @@ function ParentResultsContent() {
       )}
 
       {selectedChild && (
-        <div className="space-y-4">
+        <div className="space-y-4 mobile-page-root">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Reports for {selectedChild.full_name}
@@ -203,7 +203,7 @@ function ParentResultsContent() {
           </div>
 
           {loadingReports && (
-            <div className="space-y-4">
+            <div className="space-y-4 mobile-page-root">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="bg-card border border-border p-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
@@ -231,7 +231,7 @@ function ParentResultsContent() {
           )}
 
           {!loadingReports && reports.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 mobile-page-root">
               {reports.map(report => {
                 const isOpen = expandedId === report.id;
                 return (
@@ -292,7 +292,7 @@ function ParentResultsContent() {
                       <div className="border-t border-border px-6 py-5 space-y-5 bg-background/50">
                         {/* Score bars */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-3">
+                          <div className="space-y-3 mobile-page-root">
                             <ScoreBar label="Theory" value={report.theory_score} />
                             <ScoreBar label="Practical" value={report.practical_score} />
                             <ScoreBar label="Assignments" value={report.attendance_score} />
@@ -302,7 +302,7 @@ function ParentResultsContent() {
                           </div>
 
                           {/* Milestones + strengths */}
-                          <div className="space-y-3">
+                          <div className="space-y-3 mobile-page-root">
                             {(report.key_strengths) && (
                               <div className="p-3 bg-emerald-500/5 border border-emerald-500/20">
                                 <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">Key Strengths</p>
@@ -322,7 +322,7 @@ function ParentResultsContent() {
                         {report.learning_milestones && report.learning_milestones.length > 0 && (
                           <div className="p-3 bg-muted border border-border">
                             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">Learning Milestones</p>
-                            <ul className="space-y-1">
+                            <ul className="space-y-1 mobile-page-root">
                               {report.learning_milestones.map((m, i) => (
                                 <li key={i} className="flex items-start gap-2">
                                   <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />

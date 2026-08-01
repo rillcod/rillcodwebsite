@@ -422,7 +422,7 @@ export default function BulkPaymentsPage() {
   }
 
   if (authLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex items-center justify-center min-h-[60vh] mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -435,7 +435,7 @@ export default function BulkPaymentsPage() {
   const errorCount = results.filter(r => r.status === 'error').length;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/finance?workspace=invoices&ops=invoices"

@@ -816,7 +816,7 @@ export default function CRMPage() {
 
   if (redirecting) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Opening Retention in Office Center...
       </div>
     );
@@ -824,7 +824,7 @@ export default function CRMPage() {
 
   if (!isStaff) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-muted-foreground">
+      <div className="flex items-center justify-center min-h-screen text-muted-foreground mobile-page-root">
         <div className="text-center">
           <AlertCircle className="mx-auto mb-3 text-rose-600 dark:text-rose-400" size={32} />
           <p className="font-semibold text-foreground">CRM access is for staff only</p>
@@ -880,7 +880,7 @@ export default function CRMPage() {
         )}
 
         {showDataTools && isAdmin && (
-          <div className="mx-3 sm:mx-4 mb-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3 sm:p-4">
+          <div className="mx-3 sm:mx-4 mb-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3 sm:p-4 mobile-page-root">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-black text-foreground">Contact directory tools</p>
@@ -1146,9 +1146,9 @@ export default function CRMPage() {
 
                 {/* ── Overview tab ───────────────────────────────────────────── */}
                 {tab === 'overview' && (
-                  <div className="p-4 space-y-4 max-w-2xl">
+                  <div className="p-4 space-y-4 max-w-2xl mobile-page-root">
                     {editMode ? (
-                      <div className="space-y-3 p-4 bg-card rounded-xl border border-border">
+                      <div className="space-y-3 p-4 bg-card rounded-xl border border-border mobile-page-root">
                         <h3 className="text-xs font-black uppercase tracking-widest text-primary">Edit Contact</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {[
@@ -1207,7 +1207,7 @@ export default function CRMPage() {
 
                     {/* Children section — shown for parent contacts */}
                     {selected.role === 'parent' && (
-                      <div className="p-4 bg-card rounded-xl border border-border space-y-2">
+                      <div className="p-4 bg-card rounded-xl border border-border space-y-2 mobile-page-root">
                         <div className="flex items-center justify-between">
                           <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                             Children / Students
@@ -1258,7 +1258,7 @@ export default function CRMPage() {
                     )}
 
                     {/* Pipeline section */}
-                    <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+                    <div className="p-4 bg-card rounded-xl border border-border space-y-3 mobile-page-root">
                       <h3 className="text-xs font-black uppercase tracking-widest text-primary">Pipeline Stage</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         {PIPELINE_STAGES.map(s => (
@@ -1281,9 +1281,9 @@ export default function CRMPage() {
 
                 {/* ── Timeline tab ────────────────────────────────────────────── */}
                 {tab === 'timeline' && (
-                  <div className="p-4 space-y-4 max-w-2xl">
+                  <div className="p-4 space-y-4 max-w-2xl mobile-page-root">
                     {/* Log interaction form */}
-                    <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+                    <div className="p-4 bg-card rounded-xl border border-border space-y-3 mobile-page-root">
                       <h3 className="text-xs font-black uppercase tracking-widest text-primary">Log Interaction</h3>
                       <div className="flex gap-2 flex-wrap">
                         {INTERACTION_TYPES.map(t => (
@@ -1335,7 +1335,7 @@ export default function CRMPage() {
 
                 {/* ── Tasks tab ──────────────────────────────────────────────── */}
                 {tab === 'tasks' && (
-                  <div className="p-4 space-y-3 max-w-2xl">
+                  <div className="p-4 space-y-3 max-w-2xl mobile-page-root">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-widest text-primary">Tasks</h3>
                       <button onClick={() => setShowTaskForm(!showTaskForm)}
@@ -1345,7 +1345,7 @@ export default function CRMPage() {
                     </div>
 
                     {showTaskForm && (
-                      <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+                      <div className="p-4 bg-card rounded-xl border border-border space-y-3 mobile-page-root">
                         <input value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
                           placeholder="Task title *" maxLength={200}
                           className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
@@ -1406,7 +1406,7 @@ export default function CRMPage() {
 
                 {/* ── Opportunities tab ──────────────────────────────────────── */}
                 {tab === 'opportunities' && (
-                  <div className="p-4 space-y-3 max-w-2xl">
+                  <div className="p-4 space-y-3 max-w-2xl mobile-page-root">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-xs font-black uppercase tracking-widest text-primary">Opportunities</h3>
@@ -1423,7 +1423,7 @@ export default function CRMPage() {
                     </div>
 
                     {showOppForm && (
-                      <div className="p-4 bg-card rounded-xl border border-border space-y-3">
+                      <div className="p-4 bg-card rounded-xl border border-border space-y-3 mobile-page-root">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[10px] text-muted-foreground mb-1">Stage</label>
@@ -1519,7 +1519,7 @@ export default function CRMPage() {
 
                 {/* ── Files tab ──────────────────────────────────────────────── */}
                 {tab === 'files' && (
-                  <div className="p-4 space-y-3 max-w-2xl">
+                  <div className="p-4 space-y-3 max-w-2xl mobile-page-root">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-widest text-primary">Files & Documents</h3>
                       <button onClick={() => fileRef.current?.click()}

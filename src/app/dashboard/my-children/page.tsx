@@ -188,7 +188,7 @@ export default function MyChildrenPage() {
       </div>
 
       {pendingConsent.length > 0 && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3 mobile-page-root">
           <div className="flex items-start gap-3">
             <ExclamationTriangleIcon className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="space-y-2 flex-1">
@@ -237,7 +237,7 @@ export default function MyChildrenPage() {
         <div className="bg-card border border-border p-8 sm:p-12 text-center">
           <AcademicCapIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto mobile-page-root">
             Claim your child with a report QR code, or ask your school to link their enrolment to this parent account.
           </p>
           <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
@@ -312,7 +312,7 @@ export default function MyChildrenPage() {
 
                 {/* Stats strip — visual ring charts */}
                 {s && (
-                  <div className="border-t border-border p-4 space-y-4">
+                  <div className="border-t border-border p-4 space-y-4 mobile-page-root">
                     {/* Radial rings row */}
                     <div className="flex items-center justify-around">
                       <RadialRing

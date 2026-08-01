@@ -241,7 +241,7 @@ function AuditInspectorModal({
         initial={{ scale: 0.98, opacity: 0, y: 24 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.98, opacity: 0, y: 24 }}
-        className="bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 flex flex-col max-h-[92vh] sm:max-h-[85vh]"
+        className="bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 flex flex-col max-h-[92vh] sm:max-h-[85vh] mobile-page-root"
       >
         <div className="flex items-start justify-between border-b border-border pb-4 shrink-0 gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -443,7 +443,7 @@ export default function ActivityLogsPage({
 
   if (authLoading || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -451,7 +451,7 @@ export default function ActivityLogsPage({
 
   if (!isStaff) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 mobile-page-root">
         <ShieldCheckIcon className="w-16 h-16 text-destructive/40" />
         <p className="text-muted-foreground text-lg font-semibold">
           Staff or Admin access required
@@ -490,7 +490,7 @@ export default function ActivityLogsPage({
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto text-foreground">
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto text-foreground mobile-page-root">
       <div className="hidden print:block mb-6">
         <div
           style={{
@@ -604,7 +604,7 @@ export default function ActivityLogsPage({
         </label>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden">
+      <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden mobile-page-root">
         {/* Decisions first. Result look-ups and parent links dwarf everything
            else by volume, so without this the answerable actions are
            unfindable. */}

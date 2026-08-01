@@ -60,13 +60,13 @@ export default function SlidesCatalogPage() {
   const shownDecks = filteredPrograms.reduce((n, p) => n + p.courses.reduce((m, c) => m + c.decks.length, 0), 0);
 
   if (loading) return (
-    <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="min-h-[60vh] flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-4 pb-28 sm:p-6 sm:pb-28 space-y-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8 mobile-page-root">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-700 dark:text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
@@ -89,7 +89,7 @@ export default function SlidesCatalogPage() {
         <div className="py-20 text-center bg-card border border-dashed border-border rounded-2xl">
           <PaperClipIcon className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
           <p className="text-sm font-bold text-foreground">No learning slides yet</p>
-          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground mobile-page-root">
             {['teacher', 'admin', 'school'].includes(profile?.role ?? '')
               ? 'Open a class, choose its teaching plan and add slides to a lesson. They will appear here automatically.'
               : 'Slides shared through your lessons will appear here automatically.'}

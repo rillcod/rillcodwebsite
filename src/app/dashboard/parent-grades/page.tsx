@@ -193,7 +193,7 @@ function ParentGradesContent() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-page-root">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Grades</h1>
@@ -232,7 +232,7 @@ function ParentGradesContent() {
       )}
 
       {selectedChild && (
-        <div className="space-y-5">
+        <div className="space-y-5 mobile-page-root">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Grades for {selectedChild.full_name}
           </p>
@@ -317,7 +317,7 @@ function ParentGradesContent() {
 
           {/* ── Loading Skeleton ──────────────────────────────────────────── */}
           {loadingGrades && (
-            <div className="space-y-4">
+            <div className="space-y-4 mobile-page-root">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="bg-card border border-border p-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
@@ -360,7 +360,7 @@ function ParentGradesContent() {
 
           {/* ── Grade List ────────────────────────────────────────────────── */}
           {!loadingGrades && filteredGrades.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 mobile-page-root">
               {filteredGrades.map(item => {
                 const pct = getPct(item.grade, item.max_score);
                 const colorClass = gradeColor(pct);

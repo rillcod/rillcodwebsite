@@ -12,7 +12,7 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
 
   if (editor.loading) {
     return (
-      <div className="mx-auto max-w-7xl p-8">
+      <div className="mx-auto max-w-7xl p-8 mobile-page-root">
         <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Loading analytics…</p>
       </div>
     );
@@ -20,7 +20,7 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
 
   if (!editor.report) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-8">
+      <div className="mx-auto max-w-3xl space-y-4 p-8 mobile-page-root">
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {editor.error || 'Report not found.'}
         </p>
@@ -32,7 +32,7 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
+    <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8 mobile-page-root">
       <header>
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report insights</p>
         <h1 className="mt-2 text-2xl font-black">{editor.report.title}</h1>

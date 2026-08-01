@@ -82,7 +82,7 @@ function VisualCard({ cfg, name, roleLabel, email, schoolName, idLabel, code, qr
 }) {
   const acc = cfg.accentColor;
   return (
-    <div className="w-full max-w-md mx-auto overflow-hidden shadow-2xl" style={{border:`1px solid #d1d5db`,borderLeft:cfg.headerStyle==='border'?`4px solid ${acc}`:`1px solid #d1d5db`,background:'#fff',color:'#111'}}>
+    <div className="w-full max-w-md mx-auto overflow-hidden shadow-2xl mobile-page-root" style={{border:`1px solid #d1d5db`,borderLeft:cfg.headerStyle==='border'?`4px solid ${acc}`:`1px solid #d1d5db`,background:'#fff',color:'#111'}}>
       <CardHeader cfg={cfg} acc={acc}/>
       <div style={{display:'flex',minHeight:140}}>
         <div style={{flex:1,padding:'14px 16px',display:'flex',flexDirection:'column',gap:6,borderRight:'1px solid #f3f4f6',overflow:'hidden'}}>
@@ -187,7 +187,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6 mobile-page-root">
       {/* Header */}
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex items-center justify-between gap-4">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -304,10 +304,10 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
     setPrintingId(child.id); setTimeout(()=>setPrintingId(null),3000);
   };
 
-  if(loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"/></div>;
+  if(loading) return <div className="flex items-center justify-center min-h-[60vh] mobile-page-root"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"/></div>;
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 mobile-page-root">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0"><UserGroupIcon className="w-5 h-5 text-primary"/></div>
@@ -423,7 +423,7 @@ export default function MyCardPage() {
   }, [profile?.id]); // eslint-disable-line
 
   if (authLoading || loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex items-center justify-center min-h-[60vh] mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"/>
     </div>
   );
@@ -432,7 +432,7 @@ export default function MyCardPage() {
 
   const canView = ['student','teacher','admin','school','parent'].includes(profile.role);
   if (!canView) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 mobile-page-root">
       <CreditCardIcon className="w-16 h-16 text-card-foreground/10"/>
       <p className="text-card-foreground/40 font-semibold">Not available</p>
     </div>

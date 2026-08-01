@@ -80,7 +80,7 @@ export default function WAECGradingPage() {
   const motivation = getMotivationMessage(result.capped, assignmentPct, 0);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 mobile-page-root">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -201,13 +201,13 @@ export default function WAECGradingPage() {
             </div>
 
             {/* Motivation */}
-            <div className="bg-card border border-border p-4 space-y-2">
+            <div className="bg-card border border-border p-4 space-y-2 mobile-page-root">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Motivation Message</p>
               <p className="text-sm text-foreground leading-relaxed">{motivation}</p>
             </div>
 
             {/* Weighted breakdown */}
-            <div className="bg-card border border-border p-4 space-y-2">
+            <div className="bg-card border border-border p-4 space-y-2 mobile-page-root">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Score Breakdown</p>
               {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => {
                 const contribution = Math.round(scores[key] * SCORE_WEIGHTS[key]);
@@ -328,7 +328,7 @@ export default function WAECGradingPage() {
             </div>
           </div>
 
-          <div className="bg-amber-500/5 border border-amber-500/20 p-4 space-y-2">
+          <div className="bg-amber-500/5 border border-amber-500/20 p-4 space-y-2 mobile-page-root">
             <p className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Why This Matters for Nigerian Schools</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Parents pay school fees expecting <strong className="text-foreground">visible results</strong>. Students who skip assignments
@@ -383,7 +383,7 @@ export default function WAECGradingPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-border p-4 space-y-2">
+          <div className="bg-card border border-border p-4 space-y-2 mobile-page-root">
             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Implementation Note</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               XP and badges are recorded in student profiles and displayed on student dashboards.

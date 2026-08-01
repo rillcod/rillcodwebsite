@@ -158,7 +158,7 @@ if (isNativeApp) {
   }
 
   return (
-    <div className={`min-h-screen bg-background text-foreground pt-24 relative overflow-hidden ${showStickyCta ? 'pb-28 sm:pb-24' : 'pb-16'}`}>
+    <div className={`min-h-screen bg-background text-foreground pt-24 relative overflow-hidden public-page-root overflow-x-clip ${showStickyCta ? 'pb-[calc(var(--app-sticky-actions-height)+1rem)] sm:pb-24' : 'pb-16'}`}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden no-print">
         <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
         <div className="absolute top-[800px] left-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />

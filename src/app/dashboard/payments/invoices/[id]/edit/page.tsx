@@ -168,7 +168,7 @@ export default function EditInvoicePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 mobile-page-root">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading invoice…</p>
       </div>
@@ -180,7 +180,7 @@ export default function EditInvoicePage() {
 
   if (invoice?.status === 'paid') {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center space-y-4">
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-4 mobile-page-root">
         <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto" />
         <p className="text-lg font-black text-foreground">Invoice is already paid</p>
         <p className="text-sm text-muted-foreground">Paid invoices cannot be edited.</p>

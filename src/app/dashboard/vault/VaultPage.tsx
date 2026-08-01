@@ -529,15 +529,15 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
 
   if (authLoading || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className={`text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
-      <div className={`max-w-4xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8'}`}>
+    <div className={`mobile-page-root text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+      <div className={`mobile-page-root max-w-4xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8'}`}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           {!isEmbedded && (
@@ -713,7 +713,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="space-y-10 py-10">
-            <div className="text-center bg-card border border-border rounded-2xl p-8 max-w-xl mx-auto">
+            <div className="text-center bg-card border border-border rounded-2xl p-8 max-w-xl mx-auto mobile-page-root">
               <ArchiveBoxIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-foreground font-black text-lg mb-1">
                 {search ? 'No matching snippets' : 'Your Vault is Empty'}
@@ -726,7 +726,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
             </div>
 
             {!search && (
-              <div className="space-y-6">
+              <div className="space-y-6 mobile-page-root">
                 <div className="border-b border-border pb-3">
                   <div className="flex items-center gap-2 text-foreground font-black uppercase tracking-wider text-xs">
                     <SparklesIcon className="w-4 h-4 text-primary animate-pulse" />
@@ -738,7 +738,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {STARTER_TEMPLATES.map((tpl, i) => (
                     <div key={i} className="bg-card border border-border hover:border-primary/30 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:shadow-lg transition-all group">
-                      <div className="space-y-2">
+                      <div className="space-y-2 mobile-page-root">
                         <div className="flex items-center justify-between gap-2">
                           <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{tpl.title}</h4>
                           <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded-full">
@@ -780,7 +780,7 @@ export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 mobile-page-root">
             {filteredItems.map((item) => (
               <div key={item.id} className="bg-card border border-border border-l-4 border-l-brand-red-600 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 {/* Card header */}

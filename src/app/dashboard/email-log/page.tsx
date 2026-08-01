@@ -273,7 +273,7 @@ export default function EmailLogPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 mobile-page-root">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground">Email &amp; Messaging</h1>

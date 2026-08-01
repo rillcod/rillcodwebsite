@@ -8,7 +8,7 @@ function CasesPageInner() {
   const redirecting = useOfficeAdminRedirect({ workspace: 'cases', preserveCaseId: true });
   if (redirecting) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Opening Help Requests in Office Center...
       </div>
     );
@@ -20,7 +20,7 @@ export default function CommunicationCasesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading...</div>
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">Loading...</div>
       }
     >
       <CasesPageInner />

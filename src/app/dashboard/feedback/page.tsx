@@ -14,7 +14,7 @@ function AdminFeedbackRedirect() {
   const redirecting = useOfficeAdminRedirect({ workspace: 'feedback' });
   if (redirecting) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Opening Feedback in Office Center...
       </div>
     );
@@ -65,7 +65,7 @@ export default function FeedbackPage() {
 
   if (loading || profileLoading || !profile) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Loading feedback...
       </div>
     );
@@ -89,8 +89,8 @@ export default function FeedbackPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50 p-4 md:p-8 mobile-page-root">
+      <div className="max-w-2xl mx-auto mobile-page-root">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">

@@ -56,7 +56,7 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
   }, [id]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-7 p-4 md:p-8">
+    <div className="mx-auto max-w-5xl space-y-7 p-4 md:p-8 mobile-page-root">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report activity</p>

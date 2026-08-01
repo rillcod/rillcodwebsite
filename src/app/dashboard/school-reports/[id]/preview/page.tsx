@@ -49,7 +49,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl p-8">
+      <div className="mx-auto max-w-5xl p-8 mobile-page-root">
         <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Loading preview…</p>
       </div>
     );
@@ -57,7 +57,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
 
   if (!report) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-8">
+      <div className="mx-auto max-w-3xl space-y-4 p-8 mobile-page-root">
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error || 'Report not found.'}
         </p>
@@ -73,7 +73,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   const failedSources = (snapshot.dataSources ?? []).filter((row) => row.status === 'failed');
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8 mobile-page-root">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report output</p>

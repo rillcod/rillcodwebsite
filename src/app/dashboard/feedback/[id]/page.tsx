@@ -15,7 +15,7 @@ function FeedbackDetailGate() {
 
   if (redirecting) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground mobile-page-root">
         Opening feedback in Office Center...
       </div>
     );

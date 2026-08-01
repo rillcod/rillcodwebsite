@@ -226,7 +226,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
 
   if (authLoading || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -241,12 +241,12 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
   const charsLeft = MAX_CHARS - message.length;
 
   return (
-    <div className={`text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+    <div className={`mobile-page-root text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       {!isEmbedded && (
         <div className="bg-card border-b border-border">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8 mobile-page-root">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-primary to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -273,7 +273,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
         </div>
       )}
 
-      <div className={`max-w-6xl mx-auto ${isEmbedded ? 'px-0 py-4 sm:py-6' : 'px-4 sm:px-6 md:px-10 py-8'}`}>
+      <div className={`mobile-page-root max-w-6xl mx-auto ${isEmbedded ? 'px-0 py-4 sm:py-6' : 'px-4 sm:px-6 md:px-10 py-8'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* ── Main column ─────────────────────────────────────────────────── */}
@@ -400,7 +400,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
             </div>
 
             {/* Search + Filter */}
-            <div className="space-y-3">
+            <div className="space-y-3 mobile-page-root">
               <div className="relative">
                 <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -464,7 +464,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 mobile-page-root">
                 {filteredPosts.map((post, idx) => {
                   const isOwn = post.user_id === profile.id;
                   const canDelete = isOwn || isStaff;
@@ -549,7 +549,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
           </div>
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-          <div className="space-y-5">
+          <div className="space-y-5 mobile-page-root">
 
             {/* Discussion Starters — tabbed */}
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -802,7 +802,7 @@ export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) 
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 mobile-page-root">
                 {[
                   { title: 'MDN Web Docs', url: 'https://developer.mozilla.org', desc: 'HTML, CSS & JS official reference.', emoji: '🌐' },
                   { title: 'Python Tutorial', url: 'https://docs.python.org/3/tutorial/', desc: 'Official Python standard guide.', emoji: '🐍' },

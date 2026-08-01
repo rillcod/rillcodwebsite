@@ -309,7 +309,7 @@ export default function RecordsPage() {
   const totalCount = tab === 'people' ? rows.length : regs.length;
 
   return (
-    <div className="space-y-5 p-1 pb-10">
+    <div className="space-y-5 p-1 pb-10 mobile-page-root">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>

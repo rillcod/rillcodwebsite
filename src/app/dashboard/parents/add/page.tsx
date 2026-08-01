@@ -57,7 +57,7 @@ function AddParentPageContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 mobile-page-root">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading Form Data…</p>
       </div>
@@ -74,7 +74,7 @@ function AddParentPageContent() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12 mobile-page-root">
       <div className="flex items-center gap-4">
         <button
           onClick={() => router.back()}
@@ -119,7 +119,7 @@ function AddParentPageContent() {
 export default function AddParentPage() {
   return (
     <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 mobile-page-root">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading…</p>
       </div>

@@ -154,14 +154,14 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
 
   if (authLoading || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className={`text-foreground overflow-hidden selection:bg-primary/30 ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+    <div className={`mobile-page-root text-foreground overflow-hidden selection:bg-primary/30 ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
       
       {/* Background Orbs */}
       {!isEmbedded && (
@@ -171,7 +171,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
         </div>
       )}
 
-      <div className={`relative max-w-5xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 sm:px-6 md:px-8 py-8 sm:py-16'}`}>
+      <div className={`mobile-page-root relative max-w-5xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 sm:px-6 md:px-8 py-8 sm:py-16'}`}>
         
         {/* Back Button */}
         {!isEmbedded && (
@@ -271,7 +271,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
         </motion.div>
 
         {/* Phases */}
-        <div className="space-y-6">
+        <div className="space-y-6 mobile-page-root">
           {PROTOCOL_PHASES.map((phase) => {
             const phaseModules = phase.modules.filter(
               (m) => langFilter === 'all' || m.language === langFilter,
@@ -444,7 +444,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 to-transparent scale-150" />
             <CheckBadgeIcon className="w-20 h-20 text-primary mx-auto mb-6" />
             <h2 className="text-4xl font-black text-foreground uppercase tracking-tight mb-4">Syllabus Mastered!</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto font-medium text-lg leading-relaxed">
+            <p className="text-muted-foreground max-w-xl mx-auto font-medium text-lg leading-relaxed mobile-page-root">
               You have successfully completed all the custom modules. You are now a certified Rillcod Creator!
             </p>
           </motion.div>

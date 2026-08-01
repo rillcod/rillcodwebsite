@@ -285,7 +285,7 @@ function ParentAttendanceContent() {
     : 'text-muted-foreground';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-page-root">
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Attendance</h1>
         <p className="text-sm text-muted-foreground mt-1">Attendance records for your children.</p>
@@ -316,7 +316,7 @@ function ParentAttendanceContent() {
       )}
 
       {selectedChild && (
-        <div className="space-y-5">
+        <div className="space-y-5 mobile-page-root">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Attendance for {selectedChild.full_name}
           </p>
@@ -429,7 +429,7 @@ function ParentAttendanceContent() {
 
           {/* ── RECORDS TABLE ── */}
           {loadingRecords && (
-            <div className="space-y-2">
+            <div className="space-y-2 mobile-page-root">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse flex justify-between">
                   <div className="h-4 bg-muted rounded w-1/4" />

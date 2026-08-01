@@ -134,14 +134,14 @@ export default function GamificationPage() {
   }
 
   if (authLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh] mobile-page-root"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const filteredBadges = badges.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()));
   const filteredLeader = leaderboard.filter(u => !search || u.portal_users?.full_name?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto mobile-page-root">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

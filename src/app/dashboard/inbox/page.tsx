@@ -2307,7 +2307,7 @@ export default function UnifiedInbox() {
 
                     {/* ── Scrollable body ── */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                      <div className="p-4 space-y-3">
+                      <div className="p-4 space-y-3 mobile-page-root">
 
                         {/* Action buttons */}
                         <div className="grid grid-cols-2 gap-2">
@@ -2567,7 +2567,7 @@ export default function UnifiedInbox() {
           /* Empty state — full-bleed, native */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none border-b-[6px] border-b-[#00a884] overflow-y-auto"
             style={{ backgroundColor: '#202c33' }}>
-            <div className="max-w-[560px] mx-auto text-center mt-8">
+            <div className="max-w-[560px] mx-auto text-center mt-8 mobile-page-root">
               {/* Fake laptop illustration to match WA web */}
               <div className="mx-auto mb-10 w-[280px]">
                 <svg viewBox="0 0 100 100" className="w-full h-auto text-white/[0.04] drop-shadow-md">
@@ -2576,7 +2576,7 @@ export default function UnifiedInbox() {
                 </svg>
               </div>
               <h1 className="text-[32px] font-light text-[#e9edef] mb-4 tracking-tight">Rillcod Web Hub</h1>
-              <p className="text-[#8696a0] text-[14px] leading-relaxed mb-8 max-w-sm mx-auto">
+              <p className="text-[#8696a0] text-[14px] leading-relaxed mb-8 max-w-sm mx-auto mobile-page-root">
                 Send and receive messages seamlessly.<br />
                 Company WhatsApp, teacher, parent, and student communication in one workspace.
               </p>
