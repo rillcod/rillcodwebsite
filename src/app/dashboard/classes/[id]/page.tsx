@@ -8,10 +8,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, BookOpenIcon, UserGroupIcon, CalendarIcon,
-  ClockIcon, PencilIcon, CheckCircleIcon, AcademicCapIcon,
+  PencilIcon, CheckCircleIcon, AcademicCapIcon,
   ClipboardDocumentCheckIcon, PlusIcon, ExclamationTriangleIcon,
-  ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon, BoltIcon,
-  ClipboardDocumentListIcon, ChevronRightIcon, UserIcon,
+  ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon,
+  ClipboardDocumentListIcon, ChevronRightIcon,
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon
@@ -62,7 +62,7 @@ export default function ClassDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
   const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
 
   useEffect(() => {
@@ -74,6 +74,17 @@ export default function ClassDetailPage() {
     // Deep links with a course should open Teaching — not leave curriculum buried under Roster.
     if (searchParams.get('course_id')) setActiveOperation('teaching');
   }, [searchParams]);
+
+  // The record strip belongs to the work mode, so switching mode lands on that mode's
+  // first record rather than leaving a tab selected that the strip no longer offers.
+  useEffect(() => {
+    setActiveTab(
+      activeOperation === 'teaching' ? 'lessons'
+        : activeOperation === 'assessment' ? 'assignments'
+          : activeOperation === 'communication' ? 'sessions'
+            : 'overview',
+    );
+  }, [activeOperation]);
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
   /**
    * Curriculum delivery for this class — the difference between a roster and a monitor.
@@ -157,11 +168,10 @@ export default function ClassDetailPage() {
   const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
   const [showPathOverrides, setShowPathOverrides] = useState(false);
 
-  const [programCourses, setProgramCourses] = useState<any[]>([]);
-  const [updatingCourseFocus, setUpdatingCourseFocus] = useState(false);
-
+  // Persist the course the class teaches. The only caller is the Teaching workspace's
+  // picker — the duplicate "Course Focus Settings" dropdown that also wrote this column
+  // is gone, so there is one control for one field.
   const handleSaveCourseFocus = async (courseId: string | null) => {
-    setUpdatingCourseFocus(true);
     try {
       const res = await fetch(`/api/classes/${id}`, {
         method: 'PATCH',
@@ -173,8 +183,6 @@ export default function ClassDetailPage() {
       setCls((prev: any) => prev ? { ...prev, current_course_id: courseId } : null);
     } catch (e: any) {
       alert(e.message || 'Failed to update course focus');
-    } finally {
-      setUpdatingCourseFocus(false);
     }
   };
 
@@ -280,12 +288,13 @@ export default function ClassDetailPage() {
           cbtQuery = cbtQuery.is('school_id', null);
         }
 
-        const [lessonRes, asgnRes, cbtRes, coursesRes] = await withTimeout(Promise.all([
+        // The programme's course list is no longer fetched here — the course picker asks
+        // /api/courses/recommend, which also knows which of them are actually adopted.
+        const [lessonRes, asgnRes, cbtRes] = await withTimeout(Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
           supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, class_id, term_id, metadata, courses!inner(program_id)').eq('courses.program_id', program_id),
           cbtQuery,
-          supabase.from('courses').select('id, title').eq('program_id', program_id).eq('is_active', true).order('level_order', { ascending: true })
-        ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'class learning artifacts');
+        ]), [{ data: [] }, { data: [] }, { data: [] }], 'class learning artifacts');
 
         const { matchesAssignmentSession } = await import('@/lib/assignments/session');
         const { matchesCbtSession, loadAcademicTermBounds } = await import('@/lib/cbt/session');
@@ -338,7 +347,6 @@ export default function ClassDetailPage() {
           submissions,
           cbtSessions
         });
-        setProgramCourses(coursesRes.data ?? []);
 
         // Teaching workspace writes class_lesson_delivery; older flows use
         // curriculum_week_tracking. Prefer delivery rows so coverage matches what
@@ -391,7 +399,6 @@ export default function ClassDetailPage() {
           submissions: [],
           cbtSessions: []
         });
-        setProgramCourses([]);
       }
     } catch (e: any) {
       if (!classLoaded) setError(e.message);
@@ -1328,13 +1335,18 @@ export default function ClassDetailPage() {
   }).length;
   const activeExamCount = items.cbt.filter((exam: any) => exam.is_active).length;
   const gradedSubmissionCount = items.submissions.filter((submission: any) => submission.grade !== null && submission.grade !== undefined).length + items.cbtSessions.filter((session: any) => session.score !== null && session.score !== undefined).length;
+  // Each mode carries its own numbers, so the page header does not have to repeat them.
+  // `attention` is work waiting on a person — it is the only thing that gets a red badge.
   const operationCards = [
     {
       id: 'roster' as const,
       title: 'Roster',
       desc: 'Students, reinstatement, term movement',
       icon: UserGroupIcon,
-      stat: `${currentTermStudents.length} active`,
+      stat: `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`,
+      progress: null as number | null,
+      attention: transferRequests.filter((request: any) => request.status === 'pending').length,
+      attentionLabel: 'Transfer requests awaiting a decision',
       tone: 'text-primary',
     },
     {
@@ -1350,6 +1362,8 @@ export default function ClassDetailPage() {
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
         : null,
+      attention: 0,
+      attentionLabel: '',
       tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
@@ -1357,7 +1371,10 @@ export default function ClassDetailPage() {
       title: 'Assessment',
       desc: 'Assignments, CBT, grades and reports',
       icon: ChartBarIcon,
-      stat: `${openAssignments + activeExamCount} open`,
+      stat: `${openAssignments + activeExamCount} open · ${gradedSubmissionCount} marked`,
+      progress: null as number | null,
+      attention: Math.max(0, items.submissions.length - gradedSubmissionCount),
+      attentionLabel: 'Submissions still to mark',
       tone: 'text-amber-600 dark:text-amber-400',
     },
     {
@@ -1366,10 +1383,25 @@ export default function ClassDetailPage() {
       desc: 'Attendance, broadcast, parent updates',
       icon: ClipboardDocumentCheckIcon,
       stat: `${sessions.length} sessions`,
+      progress: null as number | null,
+      attention: 0,
+      attentionLabel: '',
       tone: 'text-emerald-600 dark:text-emerald-400',
     },
   ];
   const selectedOperation = operationCards.find(card => card.id === activeOperation) ?? operationCards[0];
+
+  // Records follow the work mode instead of forming a second, competing navigation.
+  // "Class record" (details + session history) is reachable from every mode; the rest
+  // only appear where they are the work in hand.
+  const recordTabs = [
+    { id: 'lessons', label: 'Lessons', icon: BookOpenIcon, count: items.lessons.length, modes: ['teaching'] },
+    { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon, count: items.assignments.length, modes: ['assessment'] },
+    { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon, count: items.cbt.length, modes: ['assessment'] },
+    { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, count: undefined, modes: ['assessment'], staffOnly: true },
+    { id: 'sessions', label: 'Sessions', icon: CalendarIcon, count: sessions.length, modes: ['communication'] },
+    { id: 'overview', label: 'Class record', icon: UserGroupIcon, count: undefined, modes: ['roster', 'teaching', 'assessment', 'communication'] },
+  ].filter(tab => (!tab.staffOnly || isStaff) && tab.modes.includes(activeOperation));
   const pendingIncomingTransfers = transferRequests.filter((request: any) => request.status === 'pending' && (profile?.role === 'admin' || request.from_teacher_id === profile?.id));
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
 
@@ -1377,153 +1409,61 @@ export default function ClassDetailPage() {
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
       <div className={`space-y-4 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
 
-        {/* ── Class Operations Canvas ────────────────────────────────────────── */}
-        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl mb-6">
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="relative z-10 space-y-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeftIcon className="w-3.5 h-3.5" /> Classes
-                  </button>
-                  <span className="text-muted-foreground">/</span>
-                  <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
-                    {pathwayLabel}
-                  </span>
-                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                    cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                    cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' :
-                    'border-border bg-background text-muted-foreground'
-                  }`}>
-                    {cls.status}
-                  </span>
-                </div>
-                <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground leading-none">{cls.name}</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
-                </p>
+        {/* ── Identity bar ───────────────────────────────────────────────────────
+            Who this class is, in one compact strip. It used to carry four metric
+            tiles and a curriculum panel that repeated what the work modes already
+            say, which pushed the actual work below the fold. Counts now live on the
+            mode that owns them; curriculum delivery lives inside Teaching. */}
+        <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground">
+                  <ArrowLeftIcon className="h-3.5 w-3.5" /> Classes
+                </button>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="rounded-full bg-brand-red-accent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">
+                  {pathwayLabel}
+                </span>
+                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                  cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                  cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                  'border-border bg-background text-muted-foreground'
+                }`}>
+                  {cls.status}
+                </span>
               </div>
-
-              {isStaff && (
-                <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  <Link href={`/dashboard/classes/${id}/edit`}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border/80 bg-background/80 px-4 py-2.5 text-xs font-black text-foreground hover:bg-muted transition-colors">
-                    <PencilIcon className="h-4 w-4 text-primary" /> Setup
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors">
-                    Broadcast
-                  </button>
-                  <Link href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-primary/30 hover:scale-[1.02] transition-transform">
-                    <ClipboardDocumentCheckIcon className="h-4 w-4" />
-                    Attendance
-                  </Link>
-                </div>
-              )}
+              <h1 className="break-words text-xl font-black uppercase leading-tight tracking-tight text-foreground sm:text-2xl">{cls.name}</h1>
+              <p className="break-words text-[11px] font-medium text-muted-foreground sm:text-xs">
+                {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
+              </p>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 lg:grid-cols-4">
-              {[
-                { label: 'Active', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
-                { label: 'Withdrawn', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-600 dark:text-amber-400' },
-                { label: 'Open work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'Marked', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-600 dark:text-cyan-400' },
-              ].map(metric => (
-                <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-background/70 p-2.5 sm:rounded-2xl sm:p-4">
-                  <p className={`text-xl font-black sm:text-2xl ${metric.tone}`}>{metric.value}</p>
-                  <p className="mt-1 break-words text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
-                  <p className="mt-0.5 break-words text-[10px] text-muted-foreground sm:text-[11px]">{metric.hint}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Curriculum coverage — always visible so teachers can find Teaching / plan work. */}
-            {(() => {
-              const planned = coverage?.planned ?? 0;
-              const delivered = coverage?.delivered ?? 0;
-              const pct = planned > 0 ? Math.round((delivered / planned) * 100) : 0;
-              const tone = pct >= 80
-                ? 'bg-emerald-500'
-                : pct >= 40
-                  ? 'bg-amber-500'
-                  : 'bg-rose-500';
-              return (
-                <div className="mt-3 space-y-2 sm:mt-4">
-                  <div className="rounded-xl border border-border bg-background/70 p-3 sm:rounded-2xl sm:p-4">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Curriculum delivery
-                      </p>
-                      <p className="text-xs font-black text-foreground">
-                        {planned > 0
-                          ? <>{delivered} of {planned} weeks taught <span className="ml-1 text-muted-foreground">{pct}%</span></>
-                          : 'No weeks recorded yet'}
-                      </p>
-                    </div>
-                    <div
-                      className="mt-2"
-                      role="progressbar"
-                      aria-valuenow={pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Curriculum weeks taught"
-                    >
-                      {planned > 0 && planned <= 16 ? (
-                        <div className="flex gap-1">
-                          {Array.from({ length: planned }, (_, index) => (
-                            <span
-                              key={index}
-                              title={`Week ${index + 1}${index < delivered ? ' — taught' : ' — not yet taught'}`}
-                              className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
-                                index < delivered ? tone : 'bg-muted'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
-                          <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${Math.max(pct, planned === 0 ? 0 : pct)}%` }} />
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-1.5 text-[10px] text-muted-foreground">
-                      {planned === 0
-                        ? 'Open Teaching to start the plan, generate lessons, and mark weeks taught.'
-                        : delivered === planned
-                          ? 'Every planned week has been taught.'
-                          : `${planned - delivered} week${planned - delivered === 1 ? '' : 's'} still to teach.`}
-                    </p>
-                  </div>
-                  {/* Separate action row so it does not collide with work-mode chips on phones. */}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setActiveOperation('teaching')}
-                      className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary-foreground"
-                    >
-                      Open teaching & curriculum
-                    </button>
-                    <Link
-                      href="/dashboard/learner-progress?view=delivery"
-                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40"
-                    >
-                      School delivery overview
-                    </Link>
-                  </div>
-                </div>
-              );
-            })()}
+            {isStaff && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <Link href={`/dashboard/classes/${id}/edit`}
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
+                  <PencilIcon className="h-3.5 w-3.5" /> Setup
+                </Link>
+                <Link href={`/dashboard/attendance?class_id=${id}`}
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm shadow-primary/25 transition-transform hover:scale-[1.02]">
+                  <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                  Attendance
+                </Link>
+              </div>
+            )}
           </div>
+        </div>
 
-          {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
-            <div className="border-b border-rose-500/20 bg-rose-500/10 px-3 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400 sm:px-5">
-              Class capacity has been reached. Move students to another class or increase capacity before adding more.
-            </div>
-          )}
+        {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400">
+            Class capacity has been reached. Move students to another class or increase capacity before adding more.
+          </div>
+        )}
+
+        {/* ── The work ──────────────────────────────────────────────────────────
+            Directly under the identity bar, because this is what the page is for. */}
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
 
           {/* Mobile work modes */}
           <div className="border-b border-border p-2 sm:p-3 lg:hidden">
@@ -1561,12 +1501,26 @@ export default function ClassDetailPage() {
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card">
                         <card.icon className={`h-4 w-4 ${card.tone}`} />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-foreground">{card.title}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-black text-foreground">{card.title}</p>
+                          {card.attention > 0 && (
+                            <span
+                              title={card.attentionLabel}
+                              className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-black leading-none text-white"
+                            >
+                              {card.attention}
+                            </span>
+                          )}
+                        </div>
                         <p className="break-words text-[10px] text-muted-foreground">{card.stat}</p>
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{card.desc}</p>
+                    {typeof card.progress === 'number' && (
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${card.progress}%` }} />
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1575,9 +1529,8 @@ export default function ClassDetailPage() {
             <div className="min-h-0 min-w-0 p-2 sm:min-h-[320px] sm:p-5 md:p-6">
               <div className="mb-3 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Operations Canvas</p>
-                  <h2 className="mt-1 break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
-                  <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground sm:text-sm">{selectedOperation.desc}</p>
+                  <h2 className="break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
+                  <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground">{selectedOperation.desc}</p>
                 </div>
                 <span className="w-fit max-w-full flex-shrink-0 break-words rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   {termLabel}
@@ -1693,7 +1646,7 @@ export default function ClassDetailPage() {
                     {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="relative">
                         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
+                        <input aria-label="Search this class roster"
                           value={rosterSearch}
                           onChange={(e) => setRosterSearch(e.target.value)}
                           placeholder="Search this class…"
@@ -2097,6 +2050,68 @@ export default function ClassDetailPage() {
               )}
               {activeOperation === 'teaching' && (
                 <div className="space-y-4">
+                  {/* Curriculum delivery sits with the plan it measures, not in the page header. */}
+                  {(() => {
+                    const planned = coverage?.planned ?? 0;
+                    const delivered = coverage?.delivered ?? 0;
+                    const pct = planned > 0 ? Math.round((delivered / planned) * 100) : 0;
+                    const tone = pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+                    return (
+                      <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Curriculum delivery
+                          </p>
+                          <p className="text-xs font-black text-foreground">
+                            {planned > 0
+                              ? <>{delivered} of {planned} weeks taught <span className="ml-1 text-muted-foreground">{pct}%</span></>
+                              : 'No weeks recorded yet'}
+                          </p>
+                        </div>
+                        <div
+                          className="mt-2"
+                          role="progressbar"
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label="Curriculum weeks taught"
+                        >
+                          {planned > 0 && planned <= 16 ? (
+                            <div className="flex gap-1">
+                              {Array.from({ length: planned }, (_, index) => (
+                                <span
+                                  key={index}
+                                  title={`Week ${index + 1}${index < delivered ? ' — taught' : ' — not yet taught'}`}
+                                  className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
+                                    index < delivered ? tone : 'bg-muted'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
+                              <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[10px] text-muted-foreground">
+                            {planned === 0
+                              ? 'Start the plan below, generate lessons, then mark weeks taught.'
+                              : delivered === planned
+                                ? 'Every planned week has been taught.'
+                                : `${planned - delivered} week${planned - delivered === 1 ? '' : 's'} still to teach.`}
+                          </p>
+                          <Link
+                            href="/dashboard/learner-progress?view=delivery"
+                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                          >
+                            School delivery overview →
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit={isStaff} />
                   <ClassTeachingWorkspace
                     classId={id}
@@ -2107,22 +2122,23 @@ export default function ClassDetailPage() {
                 </div>
               )}
 
+              {/* The assignment, exam and grade lists live in the record strip below, so this
+                  is just the things you cannot do from a list: create work, and open the
+                  full-screen tools. Four stat cards here only repeated what is already there. */}
               {activeOperation === 'assessment' && (
-                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="flex min-w-0 flex-wrap gap-2">
                   {[
                     {
-                      label: 'Assignments',
-                      value: items.assignments.length,
-                      action: 'New Assignment',
+                      label: 'New assignment',
+                      primary: true,
                       href: buildAssignmentNewHref({
                         classId: id,
                         courseId: searchParams.get('course_id') || cls?.current_course_id,
                       }),
                     },
                     {
-                      label: 'CBT Exams',
-                      value: items.cbt.length,
-                      action: 'New Exam',
+                      label: 'New CBT exam',
+                      primary: true,
                       href: buildCbtNewHref({
                         classId: id,
                         courseId: searchParams.get('course_id') || cls?.current_course_id,
@@ -2131,50 +2147,53 @@ export default function ClassDetailPage() {
                       }),
                     },
                     {
-                      label: 'Gradebook',
-                      value: gradedSubmissionCount,
-                      action: 'Open Gradebook',
+                      label: 'Full gradebook',
+                      primary: false,
                       href: buildGradesHref({
                         classId: id,
                         courseId: searchParams.get('course_id') || cls?.current_course_id,
                       }),
                     },
                     {
-                      label: 'Results',
-                      value: items.submissions.length + items.cbtSessions.length,
-                      action: 'Open Results',
+                      label: `Results (${items.submissions.length + items.cbtSessions.length})`,
+                      primary: false,
                       href: buildResultsHref({
                         classId: id,
                         courseId: searchParams.get('course_id') || cls?.current_course_id,
                       }),
                     },
-                  ].map(card => (
-                    <div key={card.label} className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
-                      <p className="text-2xl font-black text-foreground sm:text-3xl">{card.value}</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
-                      <Link href={card.href} className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
-                        {card.action}
-                      </Link>
-                    </div>
+                  ].map(action => (
+                    <Link
+                      key={action.label}
+                      href={action.href}
+                      className={`inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-xs font-black transition-colors ${
+                        action.primary
+                          ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90'
+                          : 'border border-border bg-background text-foreground hover:border-primary/40'
+                      }`}
+                    >
+                      {action.label}
+                    </Link>
                   ))}
                 </div>
               )}
 
+              {/* Session history is the record strip below; these are the two actions that
+                  are not a list. They were full-height tiles repeating the header's Attendance. */}
               {activeOperation === 'communication' && (
-                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
-                  <Link href={`/dashboard/attendance?class_id=${id}`} className="min-w-0 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-primary/40 sm:p-5">
-                    <ClipboardDocumentCheckIcon className="mb-3 h-7 w-7 text-primary sm:mb-4 sm:h-8 sm:w-8" />
-                    <h3 className="text-sm font-black text-foreground">Attendance Desk</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">Mark roll call and review term attendance history.</p>
+                <div className="flex min-w-0 flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/attendance?class_id=${id}`}
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90"
+                  >
+                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" /> Mark attendance
                   </Link>
                   <button
                     type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="min-w-0 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-left transition-colors hover:border-emerald-500/40 sm:p-5"
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white dark:text-emerald-400"
                   >
-                    <CloudArrowUpIcon className="mb-3 h-7 w-7 text-emerald-600 dark:text-emerald-400 sm:mb-4 sm:h-8 sm:w-8" />
-                    <h3 className="text-sm font-black text-foreground">Broadcast Desk</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">Send class update to reachable students and parents.</p>
+                    <CloudArrowUpIcon className="h-3.5 w-3.5" /> Broadcast to class
                   </button>
                 </div>
               )}
@@ -2182,95 +2201,68 @@ export default function ClassDetailPage() {
           </div>
         </div>
 
-        {/* Detailed Records */}
-        <details className="group rounded-2xl border border-border bg-card p-3 sm:p-4">
-          <summary className="flex cursor-pointer list-none flex-col gap-2 rounded-xl px-2 py-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">More class records</p>
-              <h2 className="text-xl font-black text-foreground">Open lists, grade matrices and history</h2>
-            </div>
-            <p className="max-w-xl text-xs text-muted-foreground">
-              Keep this closed for daily teaching. Open it only when you need the full record view.
-            </p>
-          </summary>
-
-        {/* Tabs + Content — the roster now lives in the Operations Canvas, so this is full-width. */}
+        {/* ── Records for the current work mode ──────────────────────────────────
+            These lists used to sit behind a collapsed "More class records" panel with
+            its own five tabs, competing with the work modes above and telling teachers
+            to keep the real work closed. They now follow the mode: Teaching shows
+            lessons, Assessment shows assignments / exams / gradebook, and the class
+            record is available from anywhere. */}
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="min-w-0 space-y-4">
 
-            {/* Tab Bar */}
-            <div className="flex items-center overflow-x-auto gap-1.5 p-1.5 bg-muted/40 backdrop-blur-md border border-border rounded-2xl no-scrollbar">
-              {[
-                { id: 'overview', label: 'Overview', icon: UserGroupIcon },
-                { id: 'lessons', label: 'Lessons', icon: BookOpenIcon },
-                { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon },
-                { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon },
-                { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, staffOnly: true },
-              ].filter(tab => !tab.staffOnly || isStaff).map(tab => (
+            {/* Record strip — only the records that belong to the current mode. */}
+            <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border bg-muted/40 p-1.5 no-scrollbar">
+              {recordTabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                  className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
                     activeTab === tab.id
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
-                  <tab.icon className="w-4 h-4 flex-shrink-0" />
+                  <tab.icon className="h-4 w-4 flex-shrink-0" />
                   {tab.label}
+                  {typeof tab.count === 'number' && (
+                    <span className={activeTab === tab.id ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
 
             {activeTab === 'overview' && (
               <div className="space-y-4">
-                {/* Class Info */}
-                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <UserIcon className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Teacher</p>
-                        <p className="text-sm font-semibold text-foreground">{cls.portal_users?.full_name ?? 'Not assigned'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <ClockIcon className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Schedule</p>
-                        <p className="text-sm font-semibold text-foreground">{cls.schedule ?? 'Flexible'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Class Dates</p>
-                        <p className="text-sm font-semibold text-foreground">
-                          {cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}
-                          {cls.end_date && ` — ${new Date(cls.end_date).toLocaleDateString()}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                        <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Programme</p>
-                        <p className="text-sm font-semibold text-foreground">{cls.programs?.name ?? 'N/A'}</p>
-                      </div>
-                    </div>
+                {/* Only the facts the identity bar does not already carry. Teacher and
+                    programme were repeated here on every view; they now appear once. */}
+                <div className="rounded-2xl border border-border bg-background p-4 sm:p-5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class details</h3>
+                    {isStaff && (
+                      <Link href={`/dashboard/classes/${id}/edit`} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">
+                        Edit setup →
+                      </Link>
+                    )}
                   </div>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                    {[
+                      { term: 'Schedule', value: cls.schedule ?? 'Flexible' },
+                      {
+                        term: 'Class dates',
+                        value: `${cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}${cls.end_date ? ` — ${new Date(cls.end_date).toLocaleDateString()}` : ''}`,
+                      },
+                      { term: 'Capacity', value: `${currentTermStudents.length} of ${cls.max_students ?? '∞'}` },
+                    ].map(row => (
+                      <div key={row.term} className="min-w-0">
+                        <dt className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{row.term}</dt>
+                        <dd className="mt-0.5 break-words text-sm font-semibold text-foreground">{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                   {cls.description && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <p className="text-sm text-muted-foreground leading-relaxed">{cls.description}</p>
-                    </div>
+                    <p className="mt-4 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">{cls.description}</p>
                   )}
                 </div>
 
@@ -2364,40 +2356,14 @@ export default function ClassDetailPage() {
                   </div>
                 )}
 
-                {isStaff && (
-                  <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
-                    <div>
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Focus Settings</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Select a specific course to display to students in this class. All other courses, assignments, and materials will be hidden from their view until unlocked.
-                      </p>
-                    </div>
+                {/* "Course Focus Settings" used to sit here with its own dropdown writing the
+                    same classes.current_course_id that Teaching writes — two controls, two
+                    framings, one column. Teaching owns the course now. */}
+              </div>
+            )}
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Active Course Focus</label>
-                      <select
-                        value={cls?.current_course_id || ''}
-                        onChange={(e) => handleSaveCourseFocus(e.target.value || null)}
-                        disabled={updatingCourseFocus || programCourses.length === 0}
-                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
-                      >
-                        <option value="">Show All Courses (Default)</option>
-                        {programCourses.map((c: any) => (
-                          <option key={c.id} value={c.id}>
-                            {c.title}
-                          </option>
-                        ))}
-                      </select>
-                      {programCourses.length === 0 && (
-                        <p className="text-[10px] text-rose-600 dark:text-rose-400 italic">
-                          No active courses found for this program. Assign courses to this program to enable focus locks.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Sessions */}
+            {activeTab === 'sessions' && (
+              <div className="space-y-4">
                 <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -2805,7 +2771,7 @@ export default function ClassDetailPage() {
             )}
 
           </div>
-        </details>
+        </div>
       </div>
 
       {/* Student Enrol Modal */}
@@ -2819,7 +2785,7 @@ export default function ClassDetailPage() {
         const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
         const isFull = seatsLeft <= 0;
         return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+          <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
             <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh] ${enrolMode === 'paste' ? 'max-w-3xl' : 'max-w-lg'}`}>
 
@@ -2875,7 +2841,7 @@ export default function ClassDetailPage() {
                   {/* Search box */}
                   {availableStudents.length > 0 && (
                     <div className="px-6 pt-3 pb-1 flex-shrink-0">
-                      <input
+                      <input aria-label="Search students"
                         type="text"
                         placeholder="Search by name, email or school..."
                         value={studentSearch}
@@ -3481,7 +3447,7 @@ export default function ClassDetailPage() {
 
 
       {declineCandidate && (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-[140] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => !transferBusy && setDeclineCandidate(null)} />
           <div className="relative w-full max-w-md rounded-2xl border border-rose-500/25 bg-card p-6 shadow-2xl">
             <h3 className="font-black text-foreground">Decline transfer request?</h3>
@@ -3496,7 +3462,7 @@ export default function ClassDetailPage() {
         </div>
       )}
       {transferCandidate && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-[130] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => !transferBusy && setTransferCandidate(null)} />
           <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
             <div className="flex items-start gap-3">
@@ -3519,7 +3485,7 @@ export default function ClassDetailPage() {
         </div>
       )}
       {showBulkTransferModal && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-[130] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => transferBusy !== 'bulk' && setShowBulkTransferModal(false)} />
           <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
             <div className="flex items-start gap-3">
@@ -3575,7 +3541,7 @@ export default function ClassDetailPage() {
 
       {/* Session Edit/Create Modal */}
       {editingSession && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+        <div className="mobile-native-dialog fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm" onClick={() => !savingSession && setEditingSession(null)} />
           <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-xl shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-border">
@@ -3666,7 +3632,7 @@ export default function ClassDetailPage() {
 
       {/* WhatsApp Broadcast Modal */}
       {showBroadcastModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="mobile-native-dialog fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => {
             if (!broadcasting) {
               setShowBroadcastModal(false);

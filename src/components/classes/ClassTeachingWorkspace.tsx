@@ -21,6 +21,7 @@ import {
   buildProjectNewHref,
   buildResultsHref,
 } from "@/lib/curriculum/href";
+import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
 
@@ -274,22 +275,18 @@ export function ClassTeachingWorkspace({
 
       <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <label className="flex-1 text-xs font-bold text-muted-foreground">
-            Course
-            <select
+          {/* The same evidence-backed picker used at class creation, so the course a class
+              teaches is proposed identically wherever it is asked for. */}
+          <div className="flex-1">
+            <SmartCourseSelect
+              label="Course"
+              labelClass="text-xs font-bold text-muted-foreground"
+              classId={classId}
               value={courseId}
-              disabled={busy || (data && !data.courses?.length)}
-              onChange={(e) => void chooseCourse(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground"
-            >
-              <option value="">{data && !data.courses?.length ? "No courses available" : "Select a course"}</option>
-              {(data?.courses || []).map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
+              disabled={busy}
+              onChange={(id) => void chooseCourse(id)}
+            />
+          </div>
           {/* The curriculum source is decided by the Academic Office and
              resolved automatically when the plan is created. This used to be a
              dropdown, which implied a teacher could pick a draft — the choice

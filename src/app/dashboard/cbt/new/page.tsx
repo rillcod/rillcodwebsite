@@ -19,6 +19,7 @@ import {
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 
 interface Question {
   question_text: string;
@@ -617,19 +618,21 @@ export default function NewExamPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Course {form.program_id ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(select programme first)</span>}
-                </label>
-                <select value={form.course_id}
-                  onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                  disabled={!form.program_id}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
-                  <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
-                  {courses
-                    .filter(c => c.program_id === form.program_id)
-                    .filter(c => !form.school_id || !c.school_id || c.school_id === form.school_id)
-                    .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
+                {/* Scoped by the school's adopted editions, and by the class when the exam
+                    is being made for one — not the whole catalogue. */}
+                <SmartCourseSelect
+                  label="Course"
+                  labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+                  classId={preClassId}
+                  programId={form.program_id}
+                  schoolId={form.school_id}
+                  value={form.course_id}
+                  onChange={(courseId, course) => setForm(f => ({
+                    ...f,
+                    course_id: courseId,
+                    program_id: course?.programId || f.program_id,
+                  }))}
+                />
               </div>
             </div>
 

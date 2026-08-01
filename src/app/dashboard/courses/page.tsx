@@ -399,7 +399,7 @@ export default function CoursesPage() {
 
         {/* Bulk fix modal */}
         {bulkFixOpen && (
-          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="mobile-native-dialog fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
             <div className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-4">
               <h2 className="text-base font-black text-foreground uppercase tracking-widest">Assign Program to All Uncategorised Courses</h2>
               <p className="text-sm text-muted-foreground">
@@ -474,7 +474,7 @@ export default function CoursesPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Search courses…" value={search}
+            <input aria-label="Search courses" type="text" placeholder="Search courses…" value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>

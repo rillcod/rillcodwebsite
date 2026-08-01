@@ -3515,7 +3515,7 @@ Yusuf Ibrahim SS1A`}
 
                     {/* Live Search */}
                     <div className="w-full md:w-[220px]">
-                      <input
+                      <input aria-label="Search students"
                         type="text"
                         placeholder="SEARCH BY NAME OR EMAIL..."
                         value={unifiedSearchQuery}

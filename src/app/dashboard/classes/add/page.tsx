@@ -14,6 +14,7 @@ import {
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
 import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
+import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import { liveAcademicSession } from '@/lib/reports/academic-period';
 import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
@@ -34,7 +35,6 @@ export default function AddClassPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
@@ -88,9 +88,10 @@ export default function AddClassPage() {
     if (authLoading || !profile) return;
     const p = profile;
     async function loadData() {
-      const [programsRes, coursesRes, teachersRes, schRes, termsRes, pathwaysRes] = await Promise.all([
+      // The course catalogue is not loaded here — SmartCourseSelect asks the server for the
+      // courses that actually apply to this school, programme and grade band.
+      const [programsRes, teachersRes, schRes, termsRes, pathwaysRes] = await Promise.all([
         fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()),
-        fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
         p.role === 'admin'
           ? fetch('/api/portal-users?role=teacher', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }))
           : Promise.resolve({ data: [] }),
@@ -107,7 +108,6 @@ export default function AddClassPage() {
         ?? terms.find(t => t.is_current)
         ?? terms[0];
       setPrograms(programsRes.data ?? []);
-      setCourses(coursesRes.data ?? []);
       setTeachers(teachersRes.data ?? []);
       setSchools(loadedSchools);
       setAcademicTerms(terms);
@@ -354,27 +354,22 @@ export default function AddClassPage() {
             </div>
           </div>
 
+          {/* The course is worked out from the school's adopted editions, this grade band, and
+              what the rest of the school already teaches — not typed, and not guessed. */}
           <div>
-            <label className={LABEL}>Course Focus <span className="text-xs font-normal text-muted-foreground">(recommended)</span></label>
-            <select
+            <SmartCourseSelect
+              label="Course"
+              labelClass={LABEL}
+              programId={form.program_id}
+              schoolId={form.school_id}
+              grade={grade}
+              classLabel={composed.name}
               value={form.current_course_id}
-              onChange={e => set('current_course_id', e.target.value)}
-              disabled={!form.program_id || courses.filter(c => c.program_id === form.program_id).length === 0}
-              className={`${INPUT} disabled:cursor-not-allowed disabled:opacity-60`}
-            >
-              <option value="">
-                {!form.program_id
-                  ? 'Select a programme first'
-                  : courses.some(c => c.program_id === form.program_id)
-                    ? 'Select the course used for result entry'
-                    : 'No published courses in this programme'}
-              </option>
-              {courses.filter(c => c.program_id === form.program_id).map(c => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
-            </select>
+              onChange={courseId => set('current_course_id', courseId)}
+            />
             <p className="mt-1.5 text-[10px] text-muted-foreground">
-              This becomes the default in Report Builder. You can still choose another course from the same programme during result entry.
+              This becomes the default in Report Builder and the source the teaching plan builds from.
+              You can still choose another course from the same programme during result entry.
             </p>
           </div>
 

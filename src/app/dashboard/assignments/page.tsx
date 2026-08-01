@@ -485,7 +485,7 @@ function AssignmentsPageInner() {
           {/* Search */}
           <div className="relative flex-1">
             <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
+            <input aria-label="Search assignments"
               type="text"
               placeholder="Search assignments…"
               value={search}

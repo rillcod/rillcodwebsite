@@ -591,7 +591,7 @@ function ClassHealPageInner() {
           <div className="p-5 space-y-4">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
+              <input aria-label="Search students"
                 type="text"
                 value={searchQ}
                 onChange={e => handleSearchInput(e.target.value)}

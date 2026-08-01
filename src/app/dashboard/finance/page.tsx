@@ -825,7 +825,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 min-w-0">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search subscriptions"
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search subscriptions…"
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"

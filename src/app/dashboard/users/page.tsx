@@ -521,7 +521,7 @@ export default function UsersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2 relative">
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
+                        <input aria-label="Search users"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search by name or email..."
@@ -636,7 +636,7 @@ export default function UsersPage() {
 
             {/* ── Sync Result Modal ── */}
             {syncResult && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
@@ -710,7 +710,7 @@ export default function UsersPage() {
 
             {/* ── Create User Modal ── */}
             {showCreate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <h2 className="text-lg font-extrabold text-foreground">Create User</h2>
@@ -799,7 +799,7 @@ export default function UsersPage() {
 
             {/* ── Edit Modal ── */}
             {editing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between p-6 border-b border-border">
@@ -887,7 +887,7 @@ export default function UsersPage() {
             )}
             {/* ── Reset Password Modal ── */}
             {resetTarget && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
                     <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">

@@ -12,6 +12,7 @@ import {
   ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
   CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
 } from '@/lib/icons';
+import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
 import { extractPdfText } from '@/lib/pdf/extract-text';
 
@@ -500,40 +501,51 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
           </div>
 
-          {/* Programme + Course */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Programme <span className="text-rose-600 dark:text-rose-400">*</span>
-              </label>
-              <select value={selectedProgramId}
-                onChange={e => {
-                  const pid = e.target.value;
-                  setSelectedProgramId(pid);
-                  const currentCourse = courses.find((c: any) => c.id === form.course_id);
-                  if (currentCourse?.program_id !== pid) {
-                    setForm(f => ({ ...f, course_id: '' }));
-                  }
-                }}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
-                <option value="">Select a programme…</option>
-                {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+          {/* Coming from a class, the programme and course are already decided — the class
+              knows both. Asking for them again was two clicks to re-state a known fact. */}
+          {preClassId ? (
+            <SmartCourseSelect
+              label="Course"
+              labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+              classId={preClassId}
+              value={form.course_id}
+              onChange={(courseId, course) => {
+                setForm(f => ({ ...f, course_id: courseId }));
+                if (course?.programId) setSelectedProgramId(course.programId);
+              }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                  Programme <span className="text-rose-600 dark:text-rose-400">*</span>
+                </label>
+                <select value={selectedProgramId}
+                  onChange={e => {
+                    const pid = e.target.value;
+                    setSelectedProgramId(pid);
+                    const currentCourse = courses.find((c: any) => c.id === form.course_id);
+                    if (currentCourse?.program_id !== pid) {
+                      setForm(f => ({ ...f, course_id: '' }));
+                    }
+                  }}
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                  <option value="">Select a programme…</option>
+                  {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <SmartCourseSelect
+                  label="Course"
+                  labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+                  programId={selectedProgramId}
+                  schoolId={profile?.school_id}
+                  value={form.course_id}
+                  onChange={courseId => setForm(f => ({ ...f, course_id: courseId }))}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Course <span className="text-rose-600 dark:text-rose-400">*</span>
-              </label>
-              <select required value={form.course_id}
-                onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                disabled={!selectedProgramId}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40">
-                <option value="">{selectedProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
-                {courses.filter((c: any) => c.program_id === selectedProgramId)
-                  .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
-              </select>
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Type */}

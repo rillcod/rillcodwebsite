@@ -409,7 +409,7 @@ export default function EmailLogPage() {
               </button>
             )}
 
-            <input
+            <input aria-label="Search email log"
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search recipient, subject, template, provider…"
               className="w-full sm:w-auto sm:min-w-[16rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"

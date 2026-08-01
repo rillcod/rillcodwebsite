@@ -9,11 +9,24 @@ const flashcards = read('src/app/dashboard/flashcards/page.tsx');
 const teachingTools = read('src/components/pipeline/PipelineStepper.tsx');
 
 describe('central teacher workspace UX', () => {
-  it('keeps daily teaching visible and advanced records collapsed', () => {
+  // Records used to hide behind a collapsed panel that told teachers to "keep this closed
+  // for daily teaching" — a second, competing navigation with its own five tabs. They now
+  // follow the work mode: the mode is chosen first, and the strip shows only that mode's
+  // records. Teaching still comes before them on the page.
+  it('scopes class records to the chosen work mode instead of a second tab bar', () => {
     expect(classPage.indexOf('<ClassTeachingWorkspace')).toBeGreaterThan(-1);
-    expect(classPage).toContain('<details className="group rounded-2xl');
-    expect(classPage).toContain('Keep this closed for daily teaching.');
-    expect(classPage.indexOf('<ClassTeachingWorkspace')).toBeLessThan(classPage.indexOf('<details className="group'));
+    expect(classPage).not.toContain('Keep this closed for daily teaching.');
+    expect(classPage).toContain('const recordTabs = [');
+    expect(classPage).toContain("modes: ['assessment']");
+    expect(classPage.indexOf('<ClassTeachingWorkspace'))
+      .toBeLessThan(classPage.indexOf('Records for the current work mode'));
+  });
+
+  // The identity strip must stay light: the counts belong to the work mode that owns them,
+  // otherwise the header pushes the actual work below the fold again.
+  it('keeps class metrics on the work modes rather than in the page header', () => {
+    expect(classPage).not.toContain("hint: `${cls.max_students ?? '∞'} capacity`");
+    expect(classPage).toContain('attentionLabel');
   });
 
   it('treats flashcards as a teaching tool instead of a separate numbered pipeline', () => {

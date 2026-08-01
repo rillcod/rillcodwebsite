@@ -212,7 +212,7 @@ export default function ProgramsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative max-w-md flex-1">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Search programs…" value={search}
+            <input aria-label="Search programs" type="text" placeholder="Search programs…" value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
@@ -309,7 +309,7 @@ export default function ProgramsPage() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-background border border-border rounded-xl p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-extrabold text-foreground">{editing ? 'Edit Program' : 'New Program'}</h2>

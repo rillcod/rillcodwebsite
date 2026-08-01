@@ -1164,7 +1164,7 @@ export default function ContentLibraryPage() {
         <div className="flex flex-col lg:flex-row gap-4 items-center bg-card border border-border p-3 rounded-3xl shadow-lg relative z-20">
           <div className="flex-1 w-full relative">
             <MagnifyingGlassIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <input
+            <input aria-label="Search library"
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by title, subject, tags, or topic..."
               className="w-full pl-14 pr-5 py-4 bg-background text-foreground border border-input rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-bold placeholder:text-muted-foreground/50"

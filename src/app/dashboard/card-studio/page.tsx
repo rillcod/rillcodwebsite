@@ -2014,7 +2014,7 @@ export default function CardStudioPage() {
             <div className="flex-shrink-0 px-4 py-2.5 border-b border-border space-y-2">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/60"/>
-                <input value={designSearch} onChange={e=>setDesignSearch(e.target.value)} placeholder="Search name, class…"
+                <input aria-label="Search card designs" value={designSearch} onChange={e=>setDesignSearch(e.target.value)} placeholder="Search name, class…"
                   className="w-full pl-7 pr-3 py-1.5 bg-background border border-border text-foreground text-[10px] placeholder-muted-foreground/50 focus:outline-none focus:border-primary rounded"/>
               </div>
               {designFiltersActive && (
@@ -2289,7 +2289,7 @@ export default function CardStudioPage() {
           </div>
           <div className="relative w-full md:w-56 min-w-0 flex-1 md:flex-none">
             <MagnifyingGlassIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
-            <input value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
+            <input aria-label="Search saved designs" value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
               className="w-full pl-8 pr-3 py-2 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
           </div>
           <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-1 md:pt-0">

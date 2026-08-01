@@ -1,17 +1,8 @@
 import {
   Home,
-  Users,
   BookOpen,
-  BarChart3,
   BuildingIcon,
   GraduationCap,
-  Users as UsersIcon,
-  ClipboardList,
-  Plus,
-  X,
-  Shield,
-  UserCheck,
-  School,
   Handshake,
   Phone,
   Info,
@@ -87,28 +78,3 @@ export const supportItems = [
   { href: "/contact", label: "Contact", icon: Phone },
   { href: "/faq", label: "FAQ", icon: MessageSquare },
 ];
-
-// Role-based dashboard navigation items for MobileNavigation
-export const dashboardNavItemsByRole = {
-  admin: [
-    { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Schools", href: "/dashboard/schools", icon: BuildingIcon },
-    { name: "Students", href: "/dashboard/students", icon: UsersIcon },
-    { name: "Courses", href: "/dashboard/courses", icon: BookOpen },
-  ],
-  teacher: [
-    { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Classes", href: "/dashboard/classes", icon: BookOpen },
-    { name: "Students", href: "/dashboard/students", icon: UsersIcon },
-    { name: "Lessons", href: "/dashboard/lessons", icon: ClipboardList },
-    { name: "Progress", href: "/dashboard/learner-progress", icon: BarChart3 },
-  ],
-  student: [
-    { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Courses", href: "/dashboard/courses", icon: BookOpen },
-    { name: "Lessons", href: "/dashboard/lessons", icon: ClipboardList },
-    { name: "Progress", href: "/dashboard/progress", icon: BarChart3 },
-    { name: "Assignments", href: "/dashboard/assignments", icon: Plus },
-  ],
-  default: [{ name: "Dashboard", href: "/dashboard", icon: Home }],
-};

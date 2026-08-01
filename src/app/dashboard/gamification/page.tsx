@@ -190,7 +190,7 @@ export default function GamificationPage() {
       {/* Search */}
       <div className="relative w-full sm:w-80">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tab === 'badges' ? 'Search badges…' : 'Search students…'}
+        <input aria-label="Search badges or students" value={search} onChange={e => setSearch(e.target.value)} placeholder={tab === 'badges' ? 'Search badges…' : 'Search students…'}
           className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-yellow-500/50" />
       </div>
 
@@ -297,7 +297,7 @@ export default function GamificationPage() {
 
       {/* Badge Form Modal */}
       {showForm && isAdmin && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground text-lg">{editBadge ? 'Edit Badge' : 'Create Badge'}</h3>
@@ -341,7 +341,7 @@ export default function GamificationPage() {
 
       {/* Award Modal */}
       {showAward && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground">Award Badge</h3>

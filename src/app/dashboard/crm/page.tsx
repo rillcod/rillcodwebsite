@@ -1678,7 +1678,7 @@ export default function CRMPage() {
               
               <div className="space-y-1">
                 <label className="block text-[10px] text-muted-foreground uppercase tracking-wider">Search Student</label>
-                <input
+                <input aria-label="Search students"
                   type="search"
                   value={studentSearch}
                   onChange={e => handleLinkStudentSearch(e.target.value)}

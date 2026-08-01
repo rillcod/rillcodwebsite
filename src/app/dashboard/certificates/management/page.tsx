@@ -408,7 +408,7 @@ export default function CertificateManagement() {
                         <div className="space-y-4 sm:space-y-6">
                             <div className="relative group">
                                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                <input
+                                <input aria-label="Search certificates"
                                     type="text"
                                     placeholder="Search by student, course or certificate no..."
                                     value={searchQuery}

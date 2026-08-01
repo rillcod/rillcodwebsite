@@ -755,7 +755,7 @@ function StaffPortfolioView() {
       {/* Search Header */}
       <div className="relative max-w-xl mx-auto">
         <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/50" />
-        <input
+        <input aria-label="Search student missions"
           type="text"
           placeholder="Search for student missions..."
           value={search}

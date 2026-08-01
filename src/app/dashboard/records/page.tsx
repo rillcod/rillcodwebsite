@@ -91,7 +91,7 @@ export default function RecordsPage() {
   const [fBatch, setFBatch] = useState('all');
   const [showPw, setShowPw] = useState(false);
   const [copied, setCopied] = useState('');
-  const [view, setView] = useState<'table' | 'cards'>('table');
+  const [view, setView] = useState<'table' | 'cards'>('cards');
   const [sortKey, setSortKey] = useState<SortKey>('registered');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -370,7 +370,7 @@ export default function RecordsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
           <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or email…" className={INPUT + ' w-full pl-9'} />
+          <input aria-label="Search records" value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or email…" className={INPUT + ' w-full pl-9'} />
         </div>
         <Select value={fSchool} onChange={setFSchool}><option value="all">All schools</option>{uniq(tab === 'people' ? rows : regs, 'school').map(s => <option key={s} value={s}>{s}</option>)}</Select>
         <Select value={fClass} onChange={setFClass}><option value="all">All grades</option>{uniq(tab === 'people' ? rows : regs, 'klass').map(c => <option key={c} value={c}>{c}</option>)}</Select>
@@ -395,7 +395,7 @@ export default function RecordsPage() {
         </label>
         {selectedVisibleRows.length > 0 && <span className="text-xs text-primary font-black">{selectedVisibleRows.length} selected</span>}
         {selectedVisibleRows.length > 0 && <button onClick={() => setSelectedRows(new Set())} className="text-xs font-bold text-muted-foreground hover:text-foreground">Clear selection</button>}
-        <span className="ml-auto text-[10px] text-muted-foreground">Ctrl/Cmd + P prints selected rows, or all filtered rows when none are selected.</span>
+        <span className="ml-auto hidden text-[10px] text-muted-foreground sm:inline">Ctrl/Cmd + P prints selected rows, or all filtered rows when none are selected.</span>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">

@@ -39,7 +39,7 @@ export default function MobileScrollStrip({
       {(label || trailing) && (
         <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
           {label && (
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               {label}
             </p>
           )}
@@ -69,7 +69,7 @@ export default function MobileScrollStrip({
                 />
               )}
               <span className="min-w-0">
-                <span className="block truncate text-xs font-black leading-tight">
+                <span className="block truncate text-xs font-semibold leading-tight">
                   {item.label}
                 </span>
                 {item.hint && (

@@ -395,7 +395,7 @@ export default function SchoolOverviewPage() {
         <div className="flex items-center justify-between p-5 border-b border-border flex-wrap gap-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Students</h2>
           <div className="flex gap-2 flex-wrap">
-            <input
+            <input aria-label="Search students"
               type="text"
               placeholder="Search student..."
               value={search}

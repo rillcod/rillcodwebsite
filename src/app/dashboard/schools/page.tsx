@@ -453,7 +453,7 @@ export default function SchoolsPage() {
 
       {/* ── Sync Result Modal ── */}
       {syncResult && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -620,7 +620,7 @@ export default function SchoolsPage() {
         <div className="flex gap-3">
           <div className="relative flex-1">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Search by name, email, state…" value={search}
+            <input aria-label="Search schools" type="text" placeholder="Search by name, email, state…" value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
@@ -787,7 +787,7 @@ export default function SchoolsPage() {
 
         {/* Detail modal */}
         {detail && (
-          <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-4">
@@ -990,7 +990,7 @@ export default function SchoolsPage() {
         )}
 
         {showCreate && (
-          <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-background border border-border rounded-xl w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between p-6 border-b border-border">
                 <div>

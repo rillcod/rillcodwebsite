@@ -1325,7 +1325,7 @@ export default function GradesPage() {
                         </div>
                         <div className="relative flex-1">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input type="text"
+                            <input aria-label="Search assignments or students" type="text"
                                 placeholder={isStaff ? 'Search by assignment or student…' : 'Search assignments…'}
                                 value={search} onChange={e => setSearch(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"

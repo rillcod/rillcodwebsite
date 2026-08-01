@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import {
   Mail, Lock, Eye, EyeOff, User, GraduationCap,
   Shield, Building2, Heart, ArrowRight, Loader2,
-  ArrowLeft, Sparkles, AlertCircle
+  Sparkles, AlertCircle
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from 'next/link';
@@ -14,7 +14,7 @@ import Image from 'next/image';
 
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
-import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET, PUBLIC_SURFACE, PUBLIC_AMBIENT_BG } from "@/components/mobile/public-styles";
+import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET, PUBLIC_AMBIENT_BG } from "@/components/mobile/public-styles";
 
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500"   },
@@ -305,14 +305,14 @@ function LoginContent() {
   }
 
   return (
-    <div className={`${PUBLIC_PAGE_ROOT} flex flex-col items-center justify-center ${PUBLIC_SAFE_INSET} sm:p-6 lg:p-10 relative font-sans transition-colors duration-500`}>
+    <div className={`${PUBLIC_PAGE_ROOT} flex flex-col items-center justify-start sm:justify-center ${PUBLIC_SAFE_INSET} px-4 py-5 sm:p-6 lg:p-10 relative font-sans transition-colors duration-500`}>
       {/* ── Background Effects ── */}
       <div className={PUBLIC_AMBIENT_BG} aria-hidden>
         <div className="public-ambient-orb top-1/4 -left-20 w-[600px] h-[600px] bg-primary/10 dark:bg-primary/5" />
         <div className="public-ambient-orb bottom-1/4 -right-20 w-[500px] h-[500px] bg-brand-red-600/5 [animation-delay:-6s]" />
       </div>
 
-      <div className="w-full max-w-7xl mx-auto relative z-10">
+      <div className="w-full max-w-5xl mx-auto relative z-10">
         {signedOutNotice && (
           <div
             role="status"
@@ -323,31 +323,30 @@ function LoginContent() {
             </p>
           </div>
         )}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-20 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-16 items-center">
           
           {/* ── Left Section: Brand ── */}
-          <div className="lg:col-span-5 flex flex-col justify-center py-2 sm:py-4 lg:py-12 text-center lg:text-left">
-            <Link href={isNativeApp ? '/login' : '/'} aria-label={isNativeApp ? 'Rillcod portal login' : 'Rillcod home'} className="flex items-center gap-3 sm:gap-5 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
+          <div className="lg:col-span-5 flex flex-col justify-center text-center lg:py-12 lg:text-left">
+            <Link href={isNativeApp ? '/login' : '/'} aria-label={isNativeApp ? 'Rillcod portal login' : 'Rillcod home'} className="flex items-center gap-3 group w-fit mx-auto mb-3 sm:mb-6 lg:mx-0 lg:mb-12 transition-opacity hover:opacity-90">
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
                 <Image src="/images/logo.png" alt="Rillcod" width={80} height={80} className="object-contain w-[85%] h-[85%]" />
               </div>
               <div className="leading-tight">
-                <span className="text-3xl sm:text-4xl font-black uppercase tracking-tighter block italic text-foreground">
+                <span className="text-2xl sm:text-3xl font-bold tracking-tight block text-foreground">
                   RILLCOD<span className="not-italic text-brand-red-600">.</span>
                 </span>
-                <span className="text-sm sm:text-base font-black uppercase tracking-[0.2em] text-muted-foreground block mt-0.5">Technologies</span>
+                <span className="text-xs sm:text-sm font-medium text-muted-foreground block mt-0.5">Technologies</span>
               </div>
             </Link>
 
-            <div className="space-y-3 sm:space-y-6 lg:space-y-10">
-              <div className="inline-flex items-center gap-2 sm:gap-3 px-3 py-1 sm:py-2 bg-brand-red-600/10 border border-brand-red-600/20 rounded-full">
+            <div className="space-y-2 sm:space-y-4 lg:space-y-8">
+              <div className="hidden lg:inline-flex items-center gap-2 px-3 py-1.5 bg-brand-red-600/10 border border-brand-red-600/20 rounded-full">
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-brand-red-600" />
-                <span className="text-[8px] sm:text-[10px] font-black text-brand-red-600 uppercase tracking-widest leading-none">Student Portal</span>
+                <span className="text-[8px] sm:text-[10px] font-black text-brand-red-600 uppercase tracking-widest leading-none">Secure portal</span>
               </div>
 
-              <h1 className="text-4xl sm:text-7xl lg:text-8xl font-black leading-[0.85] tracking-tighter uppercase italic text-foreground">
-                SIGN IN<br />
-                <span className="text-brand-red-600">TO LEARN.</span>
+              <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold leading-tight tracking-tight text-foreground">
+                Welcome back
               </h1>
 
               <div className="hidden lg:block space-y-4 max-w-md">
@@ -364,15 +363,15 @@ function LoginContent() {
 
           {/* ── Right Section: Login Form ── */}
           <div className="lg:col-span-7 w-full">
-            <div className="bg-card/40 backdrop-blur-3xl border border-border rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_100px_rgba(0,0,0,0.3)]">
+            <div className="bg-card border border-border rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-2">
                 
                 {/* Role Selection */}
                 <div className="p-4 sm:p-6 lg:p-10 border-b md:border-b-0 md:border-r border-border bg-muted/5">
                   <div className="mb-4 sm:mb-8 flex items-center justify-between md:block">
                     <div>
-                      <h3 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-muted-foreground mb-1">Who are you?</h3>
-                      <p className="text-[9px] sm:text-[11px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] whitespace-nowrap">Select your role</p>
+                      <h3 className="text-sm font-semibold text-foreground mb-1">Choose your role</h3>
+                      <p className="text-xs text-muted-foreground">Open the right workspace.</p>
                     </div>
                   </div>
                   
@@ -393,8 +392,8 @@ function LoginContent() {
                           }`}
                         >
                           <Icon className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'}`} />
-                          <span className="text-[9px] sm:text-[11px] font-black uppercase tracking-widest truncate">{role.title}</span>
-                          {isActive && <div className="ml-auto w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-white animate-pulse" />}
+                          <span className="text-xs font-semibold truncate">{role.title}</span>
+                          {isActive && <div className="ml-auto w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-white" />}
                         </button>
                       );
                     })}
@@ -406,13 +405,13 @@ function LoginContent() {
                   {error && (
                     <div role="alert" aria-live="polite" className="mb-4 sm:mb-6 bg-destructive/10 border border-destructive/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
                       <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-destructive shrink-0 mt-0.5" />
-                      <p className="text-[9px] font-bold text-destructive leading-tight uppercase tracking-widest">{error}</p>
+                      <p className="text-sm font-medium text-destructive leading-snug">{error}</p>
                     </div>
                   )}
 
                   <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
                     <div className="space-y-1 sm:space-y-2">
-                      <label htmlFor="login-email" className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Email address</label>
+                      <label htmlFor="login-email" className="text-sm font-medium text-foreground pl-1">Email address</label>
                       <div className="relative group">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-red-600 transition-colors pointer-events-none" />
                         <input
@@ -431,7 +430,7 @@ function LoginContent() {
                     </div>
 
                     <div className="space-y-1 sm:space-y-2">
-                      <label htmlFor="login-password" className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Password</label>
+                      <label htmlFor="login-password" className="text-sm font-medium text-foreground pl-1">Password</label>
                       <div className="relative group">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-red-600 transition-colors pointer-events-none" />
                         <input
@@ -454,7 +453,7 @@ function LoginContent() {
                     <button
                       type="submit"
                       disabled={loading || googleLoading || !selectedRole}
-                      className="w-full py-4 sm:py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] rounded-xl sm:rounded-2xl hover:bg-primary border-2 border-transparent hover:border-brand-red-600 transition-all transform active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
+                      className="w-full py-4 sm:py-5 bg-primary text-white font-semibold text-sm rounded-xl sm:rounded-2xl hover:bg-primary border-2 border-transparent hover:border-brand-red-600 transition-all transform active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
                     >
                       {loading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" /></>}
                     </button>

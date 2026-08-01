@@ -488,7 +488,7 @@ export default function ResendCredentialsPage() {
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search students"
             type="text"
             placeholder="Search name, email, school…"
             value={search}

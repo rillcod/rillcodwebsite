@@ -898,7 +898,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
         {/* â”€â”€ Push Modal â”€â”€ */}
         {showPushModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-popover border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden">
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">

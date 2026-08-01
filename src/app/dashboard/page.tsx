@@ -167,7 +167,7 @@ export default function DashboardPage() {
   // Data loading - show skeleton
   if (dataLoading && !data.stats) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Welcome Banner */}
         <WelcomeBanner profile={profile} now={now} />
         <BillingStickyNotices />
@@ -179,7 +179,7 @@ export default function DashboardPage() {
   // Error state
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <WelcomeBanner profile={profile} now={now} />
         <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 text-center">
           <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto mb-4" />
@@ -200,7 +200,7 @@ export default function DashboardPage() {
   const quickActions = (QUICK_ACTIONS as any)[role] ?? QUICK_ACTIONS.student;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Parents get a tailored welcome inside ParentDashboard — skip the shared banner. */}
       {role !== 'parent' && <WelcomeBanner profile={profile} now={now} />}
       <BillingStickyNotices />
@@ -282,60 +282,56 @@ function currentTermLabel(now: Date): { term: string; months: string; number: nu
 function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
   const role = profile.role;
   const termInfo = now ? currentTermLabel(now) : null;
+  const firstName = profile.full_name?.split(' ')?.[0] || 'User';
 
   return (
-    <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
-      <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-brand-red-accent/15 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:rounded-3xl sm:p-8 sm:shadow-xl">
+      <div className="pointer-events-none absolute right-0 top-0 hidden h-56 w-56 -translate-y-1/2 translate-x-1/3 rounded-full bg-primary/10 blur-3xl sm:block" />
 
-      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-        <div className="flex-shrink-0 p-3.5 bg-background/80 backdrop-blur-md rounded-2xl border border-border/70 shadow-lg">
-          <img src="/images/logo.png" alt="Rillcod Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="px-3 py-1 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm">
-              {role} Portal
-            </span>
-            <div className="h-px w-6 bg-border" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Status: Online</span>
-            {termInfo && (
-              <>
-                <div className="h-px w-6 bg-border hidden sm:block" />
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
-                  <AcademicCapIcon className="w-3.5 h-3.5" />
-                  {termInfo.display} · {termInfo.months}
+      <div className="relative z-10 flex items-center justify-between gap-4 sm:gap-8">
+        <div className="flex min-w-0 items-center gap-4 sm:gap-6">
+          <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-background p-3 shadow-sm sm:flex">
+            <img src="/images/logo.png" alt="" className="h-full w-full object-contain" />
+          </div>
+
+          <div className="min-w-0">
+            <div className="mb-2 flex min-w-0 items-center gap-2">
+              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold capitalize text-primary">
+                {role} portal
+              </span>
+              {termInfo && (
+                <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+                  <AcademicCapIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate sm:hidden">{termInfo.term}</span>
+                  <span className="hidden truncate sm:inline">{termInfo.display} · {termInfo.months}</span>
                 </span>
-              </>
-            )}
-          </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-foreground tracking-tight leading-tight">
-            Welcome back, <span className="bg-gradient-to-r from-primary to-indigo-500 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">{profile.full_name?.split(' ')?.[0] || 'User'}</span>!
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm mt-2 font-medium flex items-center gap-2">
-            <ClockIcon className="w-4 h-4 text-primary" />
-            {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-          </p>
-        </div>
-      </div>
+              )}
+            </div>
 
-      <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-background/60 backdrop-blur-xl border border-border/80 rounded-2xl p-4 sm:p-5 shadow-lg">
-        <div className="text-2xl sm:text-4xl font-black text-foreground tracking-tighter tabular-nums">
-          {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
-        </div>
-        <div className="h-8 w-px bg-border hidden sm:block" />
-        <div className="flex flex-col items-start gap-1">
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
-            <span className="text-[8px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest">Active</span>
+            <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Welcome back, <span className="text-primary">{firstName}</span>
+            </h1>
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:text-sm">
+              <ClockIcon className="h-4 w-4 shrink-0 text-primary" />
+              {now ? now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+            </p>
           </div>
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-1">Live Feed</p>
+        </div>
+
+        <div className="relative z-10 hidden shrink-0 items-center gap-4 rounded-2xl border border-border bg-background/80 px-5 py-3 sm:flex">
+          <div className="text-3xl font-bold tabular-nums text-foreground">
+            {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div>
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Online</p>
+            <p className="text-[10px] text-muted-foreground">Live updates</p>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
-
 // Transform functions to match existing component interfaces
 function transformStatsForAdmin(stats: any) {
   if (!stats) return [];

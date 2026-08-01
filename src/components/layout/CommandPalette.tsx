@@ -19,13 +19,80 @@ import {
   UserGroupIcon,
   CogIcon,
   EnvelopeIcon,
-  DocumentTextIcon,
   RocketLaunchIcon,
   CommandLineIcon,
+  HomeIcon,
+  BuildingOfficeIcon,
+  ChartBarIcon,
+  BanknotesIcon,
+  ClipboardDocumentListIcon,
+  TrophyIcon,
 } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { isPlatformStaffRole } from '@/lib/dashboard/route-access';
+
+type PageItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  keywords?: string;
+};
+
+const PAGE_ITEMS_BY_ROLE: Record<string, PageItem[]> = {
+  admin: [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
+    { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
+    { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+    { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
+    { name: 'Finance', href: '/dashboard/finance', icon: BanknotesIcon },
+    { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+  ],
+  teacher: [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+    { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+    { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
+    { name: 'Grading', href: '/dashboard/grading', icon: TrophyIcon },
+    { name: 'Learner Progress', href: '/dashboard/learner-progress', icon: ChartBarIcon },
+    { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+  ],
+  school: [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+    { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
+    { name: 'Finance', href: '/dashboard/finance', icon: BanknotesIcon },
+    { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+  ],
+  student: [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+    { name: 'CBT Exams', href: '/dashboard/cbt', icon: CommandLineIcon },
+    { name: 'Path Progress', href: '/dashboard/path-progress', icon: ChartBarIcon },
+    { name: 'Certificates', href: '/dashboard/certificates', icon: TrophyIcon },
+    { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+  ],
+  parent: [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon },
+    { name: 'Report Cards', href: '/dashboard/parent-results', icon: TrophyIcon },
+    { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentListIcon },
+    { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
+    { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+  ],
+};
+
+const itemClassName =
+  'flex min-h-12 items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary';
 
 export default function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -37,20 +104,26 @@ export default function CommandPalette() {
   });
   const router = useRouter();
   const { profile } = useAuth();
-  const db = createClient();
+  const db = React.useMemo(() => createClient(), []);
   const staff = isPlatformStaffRole(profile?.role);
   const canRosterSearch = staff || profile?.role === 'school';
+  const pageItems = PAGE_ITEMS_BY_ROLE[profile?.role ?? ''] ?? PAGE_ITEMS_BY_ROLE.student;
 
   React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setOpen((current) => !current);
       }
     };
+    const onOpen = () => setOpen(true);
 
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('rillcod:open-command-palette', onOpen);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('rillcod:open-command-palette', onOpen);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -64,16 +137,20 @@ export default function CommandPalette() {
       const lessonsQ = canSearchLessons
         ? db.from('lessons').select('id, title').ilike('title', `%${query}%`).limit(3)
         : Promise.resolve({ data: [] as any[] });
-      const [cRes, lRes, sRes] = await Promise.all([
-        canRosterSearch ? db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
+      const [classesResult, lessonsResult, studentsResult] = await Promise.all([
+        canRosterSearch
+          ? db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3)
+          : Promise.resolve({ data: [] as any[] }),
         lessonsQ,
-        canRosterSearch ? db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
+        canRosterSearch
+          ? db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
 
       setResults({
-        classes: (cRes as { data?: any[] }).data || [],
-        lessons: lRes.data || [],
-        students: (sRes as { data?: any[] }).data || [],
+        classes: (classesResult as { data?: any[] }).data || [],
+        lessons: lessonsResult.data || [],
+        students: (studentsResult as { data?: any[] }).data || [],
       });
     };
 
@@ -81,107 +158,117 @@ export default function CommandPalette() {
     return () => clearTimeout(timer);
   }, [query, profile, db, staff, canRosterSearch]);
 
-  const runCommand = (command: () => void) => {
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) setQuery('');
+  };
+
+  const goTo = (href: string) => {
     setOpen(false);
-    command();
+    setQuery('');
+    router.push(href);
   };
 
   if (!profile) return null;
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <div className="bg-background border border-border rounded-3xl overflow-hidden shadow-2xl">
-        <div className="flex items-center border-b border-border px-6 py-4">
-          <MagnifyingGlassIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400 mr-4 opacity-50" />
+    <CommandDialog open={open} onOpenChange={handleOpenChange} label="Search dashboard">
+      <div className="overflow-hidden bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-border px-4 sm:px-5 py-3">
+          <MagnifyingGlassIcon className="w-5 h-5 text-primary shrink-0" />
           <CommandInput
-            placeholder="Search activities, modules, or pupils..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-foreground placeholder-muted-foreground text-sm font-medium h-10 outline-none"
+            value={query}
+            placeholder="Search pages, lessons, classes, or students"
+            className="flex-1 min-w-0 bg-transparent border-none text-foreground placeholder:text-muted-foreground text-base font-medium h-11 outline-none"
             onValueChange={setQuery}
           />
-          <div className="flex items-center gap-1.5 ml-4">
-             <kbd className="px-2 py-1 bg-card shadow-sm rounded text-[10px] font-black text-muted-foreground uppercase">ESC</kbd>
-          </div>
+          <kbd className="hidden sm:inline-flex px-2 py-1 bg-muted border border-border rounded-md text-[10px] font-semibold text-muted-foreground">
+            Esc
+          </kbd>
         </div>
 
-        <CommandList className="max-h-[70vh] overflow-y-auto p-4 custom-scrollbar">
-          <CommandEmpty className="py-20 text-center">
-            <RocketLaunchIcon className="w-12 h-12 text-muted-foreground/10 mx-auto mb-4" />
-            <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">No resonance detected</p>
+        <CommandList className="max-h-[68dvh] overflow-y-auto p-2 sm:p-3 custom-scrollbar">
+          <CommandEmpty className="py-14 text-center">
+            <MagnifyingGlassIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-muted-foreground">No results found</p>
           </CommandEmpty>
 
+          <CommandGroup heading={<span className="px-3 py-2 block text-[11px] font-semibold text-muted-foreground">Pages</span>}>
+            {pageItems.map(({ name, href, icon: Icon, keywords }) => (
+              <CommandItem
+                key={href}
+                value={`${name} ${keywords ?? ''}`}
+                onSelect={() => goTo(href)}
+                className={itemClassName}
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Icon className="w-4.5 h-4.5" />
+                </div>
+                <span className="text-sm font-semibold">{name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+
           {results.lessons.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-[0.3em] px-4 py-2 block">Operative Modules</span>}>
-              {results.lessons.map((l) => (
-                <CommandItem key={l.id} onSelect={() => runCommand(() => router.push(`/dashboard/lessons/${l.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 rounded-xl group-hover:scale-110 transition-transform">
-                    <BookOpenIcon className="w-5 h-5" />
+            <CommandGroup heading={<span className="px-3 py-2 block text-[11px] font-semibold text-muted-foreground">Lessons</span>}>
+              {results.lessons.map((lesson) => (
+                <CommandItem key={lesson.id} value={lesson.title} onSelect={() => goTo(`/dashboard/lessons/${lesson.id}`)} className={itemClassName}>
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <BookOpenIcon className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{l.title}</span>
+                  <span className="text-sm font-semibold truncate">{lesson.title}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
 
           {canRosterSearch && results.classes.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.3em] px-4 py-2 block">Learning Cells</span>}>
-              {results.classes.map((c) => (
-                <CommandItem key={c.id} onSelect={() => runCommand(() => router.push(`/dashboard/classes/${c.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-primary/10 text-primary rounded-xl group-hover:scale-110 transition-transform">
-                    <AcademicCapIcon className="w-5 h-5" />
+            <CommandGroup heading={<span className="px-3 py-2 block text-[11px] font-semibold text-muted-foreground">Classes</span>}>
+              {results.classes.map((classroom) => (
+                <CommandItem key={classroom.id} value={classroom.name} onSelect={() => goTo(`/dashboard/classes/${classroom.id}`)} className={itemClassName}>
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <AcademicCapIcon className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{c.name}</span>
+                  <span className="text-sm font-semibold truncate">{classroom.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
 
           {canRosterSearch && results.students.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-[0.3em] px-4 py-2 block">Students</span>}>
-              {results.students.map((s) => (
-                <CommandItem key={s.id} onSelect={() => runCommand(() => router.push(`/dashboard/students/${s.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl group-hover:scale-110 transition-transform">
-                    <UserGroupIcon className="w-5 h-5" />
+            <CommandGroup heading={<span className="px-3 py-2 block text-[11px] font-semibold text-muted-foreground">Students</span>}>
+              {results.students.map((student) => (
+                <CommandItem key={student.id} value={student.full_name} onSelect={() => goTo(`/dashboard/students/${student.id}`)} className={itemClassName}>
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <UserGroupIcon className="w-4.5 h-4.5" />
                   </div>
-                  <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{s.full_name}</span>
+                  <span className="text-sm font-semibold truncate">{student.full_name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
 
-          <CommandSeparator className="my-4 h-px bg-card shadow-sm" />
+          <CommandSeparator className="my-2 h-px bg-border" />
 
-          <CommandGroup heading={<span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] px-4 py-2 block">Quick Actions</span>}>
-            {(staff || profile.role === 'student') && (
-              <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/lessons'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-all">
-                  <CommandLineIcon className="w-5 h-5" />
-                </div>
-                <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Lesson Hub</span>
-              </CommandItem>
-            )}
-            <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/messages'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-              <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-primary/20 group-hover:text-primary transition-all">
-                <EnvelopeIcon className="w-5 h-5" />
+          <CommandGroup heading={<span className="px-3 py-2 block text-[11px] font-semibold text-muted-foreground">Quick actions</span>}>
+            <CommandItem onSelect={() => goTo('/dashboard/inbox')} className={itemClassName}>
+              <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                <EnvelopeIcon className="w-4.5 h-4.5" />
               </div>
-              <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Messages</span>
+              <span className="text-sm font-semibold">Open inbox</span>
             </CommandItem>
-            {staff && (
-              <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-emerald-500/20 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-all">
-                  <CogIcon className="w-5 h-5" />
-                </div>
-                <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Parameters</span>
-              </CommandItem>
-            )}
+            <CommandItem onSelect={() => goTo('/dashboard/settings')} className={itemClassName}>
+              <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                <CogIcon className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-sm font-semibold">Account settings</span>
+            </CommandItem>
           </CommandGroup>
         </CommandList>
-        
-        <div className="p-4 bg-muted/30 border-t border-border flex items-center justify-between text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-           <div className="flex gap-4">
-             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">↑↓</kbd> Navigate</span>
-             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">ENTER</kbd> Activate</span>
-           </div>
-           <span className="text-cyan-600/40 dark:text-cyan-400/40">Nucleus AI Search v1.0</span>
+
+        <div className="hidden sm:flex items-center justify-between border-t border-border bg-muted/30 px-5 py-2.5 text-[10px] font-medium text-muted-foreground">
+          <span>Use arrow keys to move</span>
+          <span>Press Enter to open</span>
         </div>
       </div>
     </CommandDialog>

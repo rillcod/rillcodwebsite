@@ -1716,7 +1716,7 @@ tbody tr:hover{background:#f3f4f6}
                             {/* Search */}
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input
+                                <input aria-label="Search students"
                                     type="text"
                                     placeholder="Search students…"
                                     value={search}
@@ -2245,7 +2245,7 @@ tbody tr:hover{background:#f3f4f6}
 
                                     {/* Email share modal */}
                                     {emailShareOpen && reportToDisplay && (
-                                        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                                        <div className="mobile-native-dialog fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                                             <div className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm font-black text-foreground">Email Report PDF</p>
@@ -2292,7 +2292,7 @@ tbody tr:hover{background:#f3f4f6}
 
                                     {/* Bulk email summary modal */}
                                     {showBulkEmailSummary && bulkEmailResults.length > 0 && (
-                                        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                                        <div className="mobile-native-dialog fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                                             <div className="w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 max-h-[80vh] flex flex-col">
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm font-black text-foreground">Bulk Email Results</p>
@@ -2589,7 +2589,7 @@ tbody tr:hover{background:#f3f4f6}
 
             {/* ══ Edit / Rename modal ══ */}
             {showEditModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden" onClick={() => setShowEditModal(false)}>
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden" onClick={() => setShowEditModal(false)}>
                     <div className="bg-background border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-5">
                             <div>

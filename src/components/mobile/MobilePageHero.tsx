@@ -52,11 +52,11 @@ export default function MobilePageHero({
         </div>
         <div className="min-w-0 flex-1">
           <span className={MOBILE_HERO_BADGE}>{badge}</span>
-          <h1 className="text-xl font-black uppercase tracking-tight text-foreground sm:text-2xl md:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl">
             {title}
           </h1>
           {description && (
-            <p className="mt-0.5 max-w-2xl text-xs font-medium leading-relaxed text-muted-foreground sm:text-sm">
+            <p className="mt-1 max-w-2xl text-sm font-normal leading-relaxed text-muted-foreground sm:text-sm">
               {description}
             </p>
           )}
@@ -71,10 +71,10 @@ export default function MobilePageHero({
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="min-w-[5.5rem] rounded-xl border border-border bg-background/70 px-4 py-3 text-center backdrop-blur-md"
+                  className="min-w-[5rem] rounded-xl border border-border bg-background px-3 py-2.5 text-center"
                 >
                   <p
-                    className={`text-xl font-black tabular-nums ${
+                    className={`text-lg font-bold tabular-nums ${
                       stat.tone === "emerald"
                         ? "text-emerald-600 dark:text-emerald-400"
                         : stat.tone === "primary"
@@ -84,7 +84,7 @@ export default function MobilePageHero({
                   >
                     {stat.value}
                   </p>
-                  <p className="mt-0.5 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+                  <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
                     {stat.label}
                   </p>
                 </div>

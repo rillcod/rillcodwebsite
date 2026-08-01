@@ -164,7 +164,7 @@ export default function ExamsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
+          <input aria-label="Search exams" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
         <select value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}

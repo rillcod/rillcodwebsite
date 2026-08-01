@@ -375,7 +375,7 @@ export default function LessonsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search lessons or courses"
             type="text"
             placeholder="Search by lesson or course name..."
             value={search}

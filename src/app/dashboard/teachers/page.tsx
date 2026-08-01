@@ -1211,7 +1211,7 @@ function AdminTeacherView() {
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
       {/* Credentials Modal */}
       {credentials && (
-        <div className="fixed inset-0 z-[60] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-[60] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1409,7 +1409,7 @@ function AdminTeacherView() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="relative sm:col-span-1">
               <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
+              <input aria-label="Search teachers"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name, email, phone…"
@@ -1781,7 +1781,7 @@ function AdminTeacherView() {
 
       {/* Reset Password Modal */}
       {resetTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-foreground/35 backdrop-blur-sm"
             onClick={() => setResetTarget(null)}

@@ -396,6 +396,15 @@ export default function NewProjectActivityPage() {
     if (!isStaff) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground mobile-page-root">Access denied</div>;
 
     const filteredStudents = students.filter(s => !studentSearch || (s.full_name || '').toLowerCase().includes(studentSearch.toLowerCase()));
+    const studentSearchField = (
+        <input
+            aria-label="Search students"
+            value={studentSearch}
+            onChange={e => setStudentSearch(e.target.value)}
+            placeholder="Search students by name..."
+            className={`${INPUT} mb-3`}
+        />
+    );
     const catInfo = CATEGORIES.find(c => c.key === category) || CATEGORIES[0];
 
     return (
@@ -454,7 +463,7 @@ export default function NewProjectActivityPage() {
 
             {/* ── AI Generation Panel ────────────────────────────────────────── */}
             {aiOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="w-full max-w-lg bg-card border border-border shadow-2xl">
                         <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-primary/5">
                             <div className="w-8 h-8 bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
@@ -918,8 +927,7 @@ export default function NewProjectActivityPage() {
                                             <label className={LABEL + ' mb-0'}>Select Students</label>
                                             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">{targetStudentIds.length} selected</span>
                                         </div>
-                                        <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                                            placeholder="Search by name..." className={`${INPUT} mb-3`} />
+                                        {studentSearchField}
                                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
                                             {filteredStudents.map(s => {
                                                 const sel = targetStudentIds.includes(s.id);
@@ -946,8 +954,7 @@ export default function NewProjectActivityPage() {
                                         </div>
 
                                         {/* Student search */}
-                                        <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                                            placeholder="Search student by name..." className={`${INPUT} mb-4`} />
+                                        {studentSearchField}
 
                                         <div className="space-y-3">
                                             {groups.map((group, gi) => (

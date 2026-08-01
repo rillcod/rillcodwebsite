@@ -214,7 +214,7 @@ export default function BulkDeletePage() {
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search students"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"

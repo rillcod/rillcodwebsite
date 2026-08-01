@@ -95,7 +95,7 @@ function IssueCertModal({ onClose, onIssued }: { onClose: () => void; onIssued: 
                         ) : (
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input
+                                <input aria-label="Search students"
                                     type="text"
                                     placeholder="Search student name…"
                                     value={studentSearch}
@@ -217,7 +217,7 @@ export default function CertificateVault() {
                     <div className="flex flex-col sm:flex-row sm:items-stretch gap-3 w-full lg:max-w-xl lg:w-auto lg:min-w-[280px]">
                         <div className="relative flex-1 min-w-0 group">
                             <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
-                            <input
+                            <input aria-label="Search certificates"
                                 type="text"
                                 placeholder={isStaff ? 'Search by student, course or cert ID…' : 'Search by course or certificate ID...'}
                                 value={searchQuery}

@@ -1674,7 +1674,7 @@ export default function UnifiedInbox() {
             <div className="px-3 py-2.5 bg-[#111b21] shrink-0">
               <div className="relative">
                 <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input value={convSearch} onChange={e => setConvSearch(e.target.value)}
+                <input aria-label="Search conversations" value={convSearch} onChange={e => setConvSearch(e.target.value)}
                   placeholder={`Search ${activeTab === 'school' && isSchool ? 'teachers' : activeTab}…`}
                   className="w-full bg-[#2a3942] text-foreground text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
                 {convSearch && (
@@ -1847,7 +1847,7 @@ export default function UnifiedInbox() {
             <div className="px-3 py-2 bg-[#111b21] shrink-0 space-y-2">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
+                <input aria-label="Search contacts" value={contactSearch} onChange={e => setContactSearch(e.target.value)}
                   placeholder="Search contacts…"
                   className="w-full bg-[#2a3942] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 {contactSearch && (
@@ -2492,7 +2492,7 @@ export default function UnifiedInbox() {
                         style={{ background: '#233138', border: '1px solid rgba(255,255,255,0.08)' }}>
                         {/* Search bar */}
                         <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-                          <input
+                          <input aria-label="Search emoji"
                             value={emojiSearch} onChange={e => setEmojiSearch(e.target.value)}
                             placeholder="Search emoji…"
                             className="w-full text-[#d1d7db] text-[13px] rounded-lg px-3 py-1.5 outline-none"
@@ -2729,7 +2729,7 @@ export default function UnifiedInbox() {
             <div className="px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#1f2c34' }}>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
-                <input autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
+                <input aria-label="Search directory" autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
                   placeholder="Search by name, school…"
                   className="w-full text-foreground text-[14px] rounded-xl pl-9 pr-4 py-2.5 outline-none"
                   style={{ background: '#2a3942', caretColor: '#00a884' }}

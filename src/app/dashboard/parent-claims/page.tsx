@@ -332,7 +332,7 @@ export default function ParentClaimsAuditPage() {
           {/* Search current links */}
           <div className="relative">
             <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <input aria-label="Search parent and child links"
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm"
               placeholder="Search linked parent, child, email, school…"
               value={linksSearch}
@@ -493,7 +493,7 @@ export default function ParentClaimsAuditPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <input aria-label="Search parent claims"
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm"
             placeholder="Search email, phone, note…"
             value={search}

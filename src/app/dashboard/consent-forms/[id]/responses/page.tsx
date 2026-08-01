@@ -1702,7 +1702,7 @@ export default function ResponsesPage() {
         <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
           <div className="relative w-full">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
+            <input aria-label="Search consent responses"
               type="search"
               placeholder="Search by name, email, phone…"
               value={search}
@@ -2600,7 +2600,7 @@ export default function ResponsesPage() {
 
       {/* ── Roster sibling review ─────────────────────────────────────────── */}
       {siblingReview && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+        <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12121e] p-6 shadow-2xl">
             <h3 className="text-base font-semibold text-foreground">Possible siblings on this roster</h3>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
@@ -2843,7 +2843,7 @@ export default function ResponsesPage() {
               </div>
 
               <div className="px-5 py-4 space-y-3">
-                <input
+                <input aria-label="Search students in this school"
                   type="search"
                   value={studentSearch}
                   onChange={e => filterStudentOptions(e.target.value)}
@@ -2938,7 +2938,7 @@ export default function ResponsesPage() {
 
       {/* ── WhatsApp message modal ─────────────────────────────────────────── */}
       {waBlastOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
               <div>

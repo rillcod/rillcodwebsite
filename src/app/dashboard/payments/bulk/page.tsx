@@ -521,7 +521,7 @@ export default function BulkPaymentsPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="text" placeholder="Search by name or email..." value={search}
+                  <input aria-label="Search payment recipients" type="text" placeholder="Search by name or email..." value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>

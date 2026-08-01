@@ -6,6 +6,7 @@ import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade,
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { selectAutomaticClassTeacher } from '@/lib/classes/teacher-allocation';
+import { loadCourseRecommendation } from '@/lib/courses/recommend-server';
 
 function adminClient() {
   return createClient(
@@ -393,6 +394,27 @@ export async function POST(request: NextRequest) {
     insertRow.name = cleanClassName(String(insertRow.name));
     if (!insertRow.name) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
+    }
+
+    // No course chosen? Work it out from the school's adopted editions, the band, and what the
+    // rest of the school already teaches — the same answer the picker proposes. Classes created
+    // through bulk registration and other server paths land ready instead of waiting for the
+    // nightly readiness sweep. Ambiguity is left alone: a person still decides between two live
+    // editions, and a course with no curriculum is never chosen automatically.
+    if (!insertRow.current_course_id && insertRow.program_id) {
+      try {
+        const suggestion = await loadCourseRecommendation(admin, {
+          programId: String(insertRow.program_id),
+          schoolId: insertRow.school_id ? String(insertRow.school_id) : null,
+          grade: String(body.grade ?? body.section ?? body.range ?? insertRow.qa_grade_band ?? ''),
+          classLabel: String(insertRow.name),
+        });
+        if (suggestion.recommended?.teachable && suggestion.confidence !== 'ambiguous') {
+          insertRow.current_course_id = suggestion.recommended.id;
+        }
+      } catch {
+        // Inference is a convenience — never block class creation on it.
+      }
     }
 
     // Resolve a live session when none was supplied so create/reuse stay year+term scoped.

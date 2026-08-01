@@ -978,7 +978,7 @@ export default function ProjectsPage() {
                     <div className="px-6 md:px-10 py-4 border-b border-border bg-card">
                         <div className="relative max-w-md">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input type="text" placeholder="Search student or school..." value={search} onChange={e => setSearch(e.target.value)}
+                            <input aria-label="Search project submissions" type="text" placeholder="Search student or school..." value={search} onChange={e => setSearch(e.target.value)}
                                 className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                         </div>
                     </div>
@@ -1718,7 +1718,7 @@ export default function ProjectsPage() {
                         </div>
                         <div className="relative flex-1 max-w-sm ml-auto">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                            <input value={actSearch} onChange={e => setActSearch(e.target.value)} placeholder="Search activities..."
+                            <input aria-label="Search activities" value={actSearch} onChange={e => setActSearch(e.target.value)} placeholder="Search activities..."
                                 className="w-full pl-8 pr-3 py-2 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                         </div>
                         <Link href="/dashboard/projects/new"

@@ -118,7 +118,7 @@ function LinkStudentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Link Student</h2>
@@ -449,7 +449,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Bulk Import Parents</h2>
@@ -1123,7 +1123,7 @@ export default function ParentsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search parents"
             value={search}
             onChange={e => handleSearchChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); load(); } }}
@@ -1581,7 +1581,7 @@ export default function ParentsPage() {
         />
       )}
       {resetResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-2">
@@ -1696,7 +1696,7 @@ export default function ParentsPage() {
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+        <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="w-full max-w-md bg-card border border-rose-500/40 shadow-2xl overflow-hidden">
             {/* Top accent strip */}
             <div className="h-1 w-full bg-gradient-to-r from-rose-600 to-rose-400" />

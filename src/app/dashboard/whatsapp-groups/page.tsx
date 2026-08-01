@@ -899,7 +899,7 @@ export default function WhatsAppGroupsPage() {
           <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2" style={{ background: '#111b21', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)}
+              <input aria-label="Search WhatsApp groups" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search groups, schools, classes…"
                 className="w-full text-foreground text-[13px] rounded-xl pl-9 pr-4 py-2.5 outline-none"
                 style={{ background: '#2a3942', caretColor: '#00a884' }} />

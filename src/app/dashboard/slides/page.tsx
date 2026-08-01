@@ -76,7 +76,7 @@ export default function SlidesCatalogPage() {
           </div>
         </div>
         {totalDecks > 0 && (
-          <input
+          <input aria-label="Search slides"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search slides, course, programme…"

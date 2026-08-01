@@ -206,7 +206,7 @@ export default function ClassesPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search classes"
             type="text"
             placeholder="Search classes by name or programme..."
             value={searchTerm}
@@ -421,7 +421,7 @@ export default function ClassesPage() {
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
+        <div className="mobile-native-dialog fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
           <div className="bg-card border border-border w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="h-1 w-full bg-rose-600" />
             <div className="p-6 space-y-4">

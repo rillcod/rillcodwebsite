@@ -377,7 +377,7 @@ function CentralResultsPageInner() {
               Use <strong className="text-foreground">Recalculate</strong> only on automatic rows.
             </p>
           </div>
-          <input
+          <input aria-label="Search learners or courses"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search learner or course"
