@@ -399,6 +399,23 @@
   text-rendering: optimizeLegibility;
 }
 
+/* The shell owns page gutters. Direct page roots should not add a second
+   horizontal gutter, and operational canvases should fill the shell. */
+.app-page-main > :where(.p-4, .p-6, .p-8, .px-4, .px-6, .px-8) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.app-page-main > :where(.max-w-6xl, .max-w-7xl, .max-w-\[1400px\], .max-w-\[1600px\], .max-w-\[1750px\], .max-w-\[1800px\]) {
+  width: 100%;
+  max-width: none !important;
+}
+
+.app-page-main :where(.grid) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 :is(.public-page-root, .app-visual-standard) :where(h1, h2, h3),
 .app-page-main :where(h1, h2, h3) {
   text-wrap: balance;
@@ -427,18 +444,14 @@
   font-size: 0.75rem !important;
   line-height: 1rem !important;
 }
-:is(.public-page-root, .app-visual-standard) :where(.italic),
-.app-page-main :where(.italic) {
-  font-style: normal !important;
-}
 
 :is(.public-page-root, .app-visual-standard) :where(.shadow-lg, .shadow-xl, .shadow-2xl),
 .app-page-main :where(.shadow-lg, .shadow-xl, .shadow-2xl) {
   box-shadow: var(--surface-shadow) !important;
 }
 
-:is(.public-page-root, .app-visual-standard) :where(.rounded-3xl, .rounded-none),
-.app-page-main :where(.rounded-3xl, .rounded-none) {
+:is(.public-page-root, .app-visual-standard) :where(.rounded-3xl),
+.app-page-main :where(.rounded-3xl) {
   border-radius: 1.25rem !important;
 }
 

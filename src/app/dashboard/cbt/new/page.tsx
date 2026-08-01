@@ -760,7 +760,7 @@ export default function NewExamPage() {
             </div>
             {useWeights && (
               <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {(['objective', 'subjective', 'practical'] as const).map(sec => (
                     <div key={sec}>
                       <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">{sec} %</label>

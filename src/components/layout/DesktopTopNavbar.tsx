@@ -8,7 +8,6 @@ import ThemeToggle from '@/components/ThemeToggle';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 import {
   ChevronRightIcon,
-  MagnifyingGlassIcon,
   HomeIcon,
 } from '@/lib/icons';
 
@@ -44,10 +43,6 @@ export default function DesktopTopNavbar() {
   const currentLabel =
     PATH_LABELS[pathname] || pathname.split('/').pop()?.replace(/-/g, ' ') || 'Dashboard';
 
-  const openSearch = () => {
-    window.dispatchEvent(new CustomEvent('rillcod:open-command-palette'));
-  };
-
   return (
     <header className="hidden md:flex items-center justify-between px-6 lg:px-10 py-3 bg-card/95 backdrop-blur-xl border-b border-border/80 sticky top-0 z-40">
       <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
@@ -69,18 +64,6 @@ export default function DesktopTopNavbar() {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <button
-          type="button"
-          onClick={openSearch}
-          className="flex min-h-10 items-center gap-2.5 px-3.5 rounded-xl border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
-          aria-label="Search dashboard"
-        >
-          <MagnifyingGlassIcon className="w-4 h-4 text-primary" />
-          <span>Search</span>
-          <kbd className="hidden lg:inline-flex px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground bg-muted border border-border rounded">
-            Ctrl K
-          </kbd>
-        </button>
 
         {profile?.role && (
           <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold capitalize">

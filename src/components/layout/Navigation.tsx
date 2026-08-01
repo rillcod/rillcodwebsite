@@ -14,6 +14,7 @@ import {
 import { Command, ShieldCheck, Zap } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { isAppUtilityRoute } from '@/lib/layout/public-route-policy';
 
 type NavIcon = React.ComponentType<{ className?: string }>;
 
@@ -73,24 +74,7 @@ const Navigation = () => {
     };
   }, []);
 
-  const hiddenRoutePrefixes = [
-    '/dashboard',
-    '/login',
-    '/signup',
-    '/reset-password',
-    '/student/login',
-    '/student-registration',
-    '/school-registration',
-    '/online-registration',
-    '/summer-school/pay-balance',
-    '/portal',
-    '/verify',
-    '/forms',
-    '/result-check',
-    '/parent-claim',
-    '/account-deletion',
-  ];
-  const isHiddenRoute = hiddenRoutePrefixes.some((route) => pathname?.startsWith(route));
+  const isHiddenRoute = isAppUtilityRoute(pathname);
 
   if (isHiddenRoute) return null;
 
@@ -188,7 +172,7 @@ const Navigation = () => {
                 <>
                   <Link
                     href="/student-registration"
-                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98] sm:px-5"
+                    className="hidden min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98] sm:inline-flex sm:px-5"
                     aria-label="Enrol a learner"
                   >
                     <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />

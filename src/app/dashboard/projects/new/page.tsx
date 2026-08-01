@@ -901,7 +901,7 @@ export default function NewProjectActivityPage() {
                                 {/* ── SECTION B: Work Mode ── */}
                                 <div className={CARD}>
                                     <label className={LABEL}>How do students work on it?</label>
-                                    <div className="grid grid-cols-3 gap-3 mt-1">
+                                    <div className="grid grid-cols-1 gap-3 mt-1 md:grid-cols-3">
                                         {([
                                             { key: 'individual', label: 'Individual',       sub: 'Every student submits their own work',          icon: '👤' },
                                             { key: 'specific',   label: 'Specific Students', sub: 'Only hand-picked students can submit',           icon: '🎯' },

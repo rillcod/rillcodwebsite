@@ -607,7 +607,7 @@ function AddLessonPageContent() {
             {/* Lesson Mode Selector */}
             <div className="pt-4 space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Mode</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {([
                   { id: 'academic', label: 'Academic', Icon: GraduationCap, desc: 'Deep theory, notes & curriculum', activeClass: 'border-primary bg-primary/10', textClass: 'text-primary' },
                   { id: 'project', label: 'Project', Icon: Hammer, desc: 'Builds, labs & capstone missions', activeClass: 'border-emerald-500 bg-emerald-500/10', textClass: 'text-emerald-600 dark:text-emerald-400' },

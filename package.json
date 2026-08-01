@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:encoding": "node scripts/check-encoding.mjs",
+    "audit:ui": "node scripts/audit-ui-standards.mjs",
     "audit:embeds": "npx tsx scripts/audit-supabase-embeds.ts",
     "cron:table": "npx tsx scripts/print-cron-table.ts",
     "test": "vitest run",

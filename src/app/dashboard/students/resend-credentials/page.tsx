@@ -469,7 +469,7 @@ export default function ResendCredentialsPage() {
       )}
 
       {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-center">
           <div className="text-2xl font-black text-foreground">{students.length}</div>
           <div className="text-xs text-muted-foreground mt-1">Total Approved</div>

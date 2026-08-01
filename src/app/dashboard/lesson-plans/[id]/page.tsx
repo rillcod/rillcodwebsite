@@ -5562,7 +5562,7 @@ export default function LessonPlanDetailPage() {
                     Practical Assessment
                   </h3>
                 </div>
-                <div className="grid grid-cols-3 gap-3 bg-amber-500/[0.02] border border-amber-500/10 p-4 rounded-2xl">
+                <div className="grid grid-cols-1 gap-3 bg-amber-500/[0.02] sm:grid-cols-3 border border-amber-500/10 p-4 rounded-2xl">
                   <label className="block space-y-1.5">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-600/60 dark:text-amber-400/60 ml-1">
                       Max Score

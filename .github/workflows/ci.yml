@@ -32,6 +32,9 @@ jobs:
       - name: Encoding check
         run: npm run lint:encoding
 
+      - name: UI standards audit
+        run: npm run audit:ui
+
       - name: Typecheck
         run: npx tsc --noEmit
 

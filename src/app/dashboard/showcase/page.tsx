@@ -75,7 +75,7 @@ function AddItemModal({ onClose, onSave, schoolId }: {
               value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="What did the student build or achieve?" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Type</label>
               <select className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"

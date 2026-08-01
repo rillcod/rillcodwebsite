@@ -16,43 +16,13 @@ import { Toaster } from "sonner";
 import { usePathname } from "next/navigation";
 import SmartWhatsAppWidget from "@/components/SmartWhatsAppWidget";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
+import { hasPublicMarketingFooter } from "@/lib/layout/public-route-policy";
 
-const PUBLIC_FOOTER_ROUTES = [
-  '/',
-  '/about',
-  '/programs',
-  '/curriculum',
-  '/services',
-  '/implementation',
-  '/team',
-  '/testimonials',
-  '/gallery',
-  '/media',
-  '/events',
-  '/faq',
-  '/contact',
-  '/partnership',
-  '/careers',
-  '/student-projects',
-  '/student-journey',
-  '/showcase',
-  '/privacy-policy',
-  '/terms-of-service',
-  '/special',
-  '/summer-school',
-];
-
-function hasPublicFooter(pathname: string | null): boolean {
-  if (!pathname || pathname.includes('/pay-balance')) return false;
-  return PUBLIC_FOOTER_ROUTES.some((route) =>
-    route === '/' ? pathname === '/' : pathname === route || pathname.startsWith(`${route}/`),
-  );
-}
 export default function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith('/dashboard');
   const isNativeApp = useIsNativeApp();
-  const showPublicFooter = !isDashboard && !isNativeApp && hasPublicFooter(pathname);
+  const showPublicFooter = !isDashboard && !isNativeApp && hasPublicMarketingFooter(pathname);
 
   return (
     <ThemeProvider>
