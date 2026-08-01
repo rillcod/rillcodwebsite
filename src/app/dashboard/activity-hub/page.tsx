@@ -161,7 +161,7 @@ export default function ActivityHubPage() {
   const currentAesthetic = TAB_AESTHETICS[activeTab];
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden mobile-page-root">
       {/* ── Background Aesthetics ── */}
       <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20">
         <div

@@ -1170,7 +1170,7 @@ export default function StudentsPage() {
   if (profile?.role === 'student') return <StudentSelfView />;
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="text-center">
         <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
         <p className="text-muted-foreground">You don&apos;t have access to this page.</p>
@@ -2530,7 +2530,7 @@ function StudentSelfView() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );

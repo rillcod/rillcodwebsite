@@ -441,7 +441,7 @@ export default function StudentLearningPage() {
   }, [coursesByProgram]);
 
   if (authLoading || profileLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent animate-spin rounded-full" />
         <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest animate-pulse">Loading...</p>
@@ -450,7 +450,7 @@ export default function StudentLearningPage() {
   );
 
   if (!profile) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="text-center space-y-4">
         <p className="text-muted-foreground text-sm">Session expired. Please sign in again.</p>
         <a href="/login" className="inline-block px-6 py-3 bg-primary text-white text-sm font-bold hover:bg-primary transition-colors">Sign In</a>

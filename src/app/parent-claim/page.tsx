@@ -133,7 +133,7 @@ function ParentClaimContent() {
 export default function ParentClaimPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 public-page-root overflow-x-clip">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Loading parent setup form…</p>
       </div>
     }>

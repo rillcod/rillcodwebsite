@@ -335,7 +335,7 @@ export default function Curriculum() {
   };
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="min-h-screen bg-background font-sans public-page-root overflow-x-clip">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>

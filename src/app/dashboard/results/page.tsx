@@ -1424,7 +1424,7 @@ tbody tr:hover{background:#f3f4f6}
 
     // ── Loading screen ─────────────────────────────────────────────────────────
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
@@ -2651,7 +2651,7 @@ tbody tr:hover{background:#f3f4f6}
 export default function ResultsPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
         }>

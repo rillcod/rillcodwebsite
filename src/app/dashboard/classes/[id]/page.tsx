@@ -1215,7 +1215,7 @@ export default function ClassDetailPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading class...</p>
@@ -1224,7 +1224,7 @@ export default function ClassDetailPage() {
   );
 
   if (!canView) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
         <ExclamationTriangleIcon className="w-12 h-12 text-rose-600/40 dark:text-rose-400/40 mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">You need staff access to view this page.</p>
@@ -1233,7 +1233,7 @@ export default function ClassDetailPage() {
   );
 
   if (error || !cls) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 mobile-page-root">
       <div className="w-16 h-16 bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
         <ExclamationTriangleIcon className="w-8 h-8 text-rose-600 dark:text-rose-400" />
       </div>

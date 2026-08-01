@@ -289,7 +289,7 @@ function AssignmentsPageInner() {
 
   // ── NO PROFILE ───────────────────────────────────────────────
   if (!profile) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="text-center">
         <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">Please sign in to view assignments.</p>

@@ -136,7 +136,7 @@ export default function StudentProgressReportPage() {
   const late = submissions.filter(s => s.status === 'late').length;
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="flex flex-col items-center gap-3">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading student report…</p>
@@ -145,13 +145,13 @@ export default function StudentProgressReportPage() {
   );
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Staff access required to view student reports.</p>
     </div>
   );
 
   if (error || !student) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 mobile-page-root">
       <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400" />
       <p className="text-rose-600 dark:text-rose-400">{error ?? 'Student not found'}</p>
       <Link href="/dashboard/students" className="text-primary hover:text-primary text-sm flex items-center gap-1">
@@ -161,7 +161,7 @@ export default function StudentProgressReportPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black">
+    <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black mobile-page-root">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Header bar ── */}

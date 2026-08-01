@@ -162,13 +162,13 @@ export default function EditAssignmentPage() {
     };
 
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     if (!isStaff) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <p className="text-muted-foreground">Staff access required.</p>
         </div>
     );

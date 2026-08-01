@@ -782,7 +782,7 @@ export default function TimetablePage() {
   const teacherTodaySlots = teacherSlots.filter(s => s.day_of_week === TODAY);
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="flex flex-col items-center gap-3">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading timetable…</p>

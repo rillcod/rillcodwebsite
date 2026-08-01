@@ -206,7 +206,7 @@ export default function PayBalancePage() {
   const currentStep = verified || submitted ? 3 : balanceInfo && balanceInfo.balanceDue > 0 ? 2 : 1;
 
   return (
-    <div className="min-h-screen bg-background text-foreground px-4 py-12 transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground px-4 py-12 transition-colors duration-200 public-page-root overflow-x-clip">
       <div className="max-w-lg mx-auto space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest">

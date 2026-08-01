@@ -204,13 +204,13 @@ export default function GradeSessionPage() {
     };
 
     if (loading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     if (error || !session) return (
-        <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
+        <div className="min-h-screen bg-background flex items-center justify-center text-foreground mobile-page-root">
             <div className="text-center">
                 <XCircleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto mb-4" />
                 <p className="text-muted-foreground">{error || 'Session not found'}</p>

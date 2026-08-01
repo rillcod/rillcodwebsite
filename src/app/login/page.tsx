@@ -289,7 +289,7 @@ function LoginContent() {
 
   if (clearingSession) {
     return (
-      <div className="min-h-dvh bg-background text-foreground flex items-center justify-center px-6">
+      <div className="min-h-dvh bg-background text-foreground flex items-center justify-center px-6 public-page-root overflow-x-clip">
         <div
           className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl space-y-3"
           role="status"

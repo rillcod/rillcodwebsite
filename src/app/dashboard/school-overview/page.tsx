@@ -257,19 +257,19 @@ export default function SchoolOverviewPage() {
     });
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (profile?.role !== 'school' && profile?.role !== 'admin') return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Access restricted to partner schools.</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 mobile-page-root">
       {/* Header */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>

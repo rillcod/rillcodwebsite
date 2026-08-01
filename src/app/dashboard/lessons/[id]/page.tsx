@@ -3273,7 +3273,7 @@ export default function LessonDetailPage() {
   );
 
   if (authLoading || profileLoading || loading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 mobile-page-root">
       {alwaysScripts}
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Loading lesson...</p>
@@ -3281,7 +3281,7 @@ export default function LessonDetailPage() {
   );
 
   if (error || !lesson) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center gap-6 mobile-page-root">
       <ExclamationTriangleIcon className="w-16 h-16 text-rose-600/20 dark:text-rose-400/20" />
       <h2 className="text-2xl font-bold text-rose-600 dark:text-rose-400">Could not load lesson</h2>
       <p className="text-muted-foreground max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
@@ -3294,7 +3294,7 @@ export default function LessonDetailPage() {
   const isReading = lesson.lesson_type === 'reading';
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row h-screen overflow-hidden mobile-page-root">
       {alwaysScripts}
       <AnimatePresence>
         {showCelebration && (

@@ -441,7 +441,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
   if (!['admin', 'school', 'teacher', 'student', 'parent'].includes(profile?.role || '')) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 mobile-page-root">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-600 dark:text-rose-400">
             <InformationCircleIcon className="w-12 h-12" />

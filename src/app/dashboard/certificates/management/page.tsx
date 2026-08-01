@@ -318,7 +318,7 @@ export default function CertificateManagement() {
     const [viewMode, setViewMode] = useState<'library' | 'builder'>('library');
 
     if (authLoading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
@@ -326,7 +326,7 @@ export default function CertificateManagement() {
     if (!profile || !canView) return null;
 
     return (
-        <div className="min-h-screen bg-background text-muted-foreground font-sans selection:bg-primary/30">
+        <div className="min-h-screen bg-background text-muted-foreground font-sans selection:bg-primary/30 mobile-page-root">
             {/* Header */}
             <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border bg-card flex flex-wrap justify-between items-center gap-3">
                 <div className="flex items-center gap-3 sm:gap-6 min-w-0">

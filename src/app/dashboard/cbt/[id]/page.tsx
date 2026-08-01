@@ -103,12 +103,12 @@ export default function ExamDetailPage() {
   }, [profile?.id, params?.id, authLoading]); // eslint-disable-line
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!exam) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Exam not found.</p>
     </div>
   );

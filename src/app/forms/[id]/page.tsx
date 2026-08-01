@@ -42,7 +42,7 @@ async function fetchForm(id: string): Promise<PublicForm | null> {
 
 function FormUnavailable({ title, school }: { title?: string; school?: string }) {
   return (
-    <div className="min-h-screen bg-[#0b0c0e] text-white flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0b0c0e] text-white flex items-center justify-center px-4 public-page-root overflow-x-clip">
       <div className="max-w-sm w-full text-center space-y-6">
         <div className="flex justify-center">
           <Image src="/images/logoB.png" alt="Rillcod" width={48} height={48} className="object-contain" />
@@ -101,7 +101,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
   const publicUrl = `${appUrl}/forms/${id}`;
 
   return (
-    <div className="min-h-screen bg-[#0b0c0e] text-white">
+    <div className="min-h-screen bg-[#0b0c0e] text-white public-page-root overflow-x-clip">
       {/* Ambient glows */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px]" />

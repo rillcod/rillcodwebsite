@@ -1042,7 +1042,7 @@ export default function GradesPage() {
     );
 
     if (!profile) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="text-center">
                 <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground mb-4">Sign in to view grades</p>

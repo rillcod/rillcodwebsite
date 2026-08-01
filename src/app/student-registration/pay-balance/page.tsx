@@ -208,7 +208,7 @@ export default function TermPayBalancePage() {
   const currentStep = verified || submitted ? 3 : balanceInfo && balanceInfo.balanceDue > 0 ? 2 : 1;
 
   return (
-    <div className="min-h-screen bg-background text-foreground px-4 py-12 transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground px-4 py-12 transition-colors duration-200 public-page-root overflow-x-clip">
       <div className="max-w-lg mx-auto space-y-6">
         {/* Header section */}
         <div className="text-center space-y-2">

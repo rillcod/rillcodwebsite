@@ -589,7 +589,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
 export default function ReportBuilderPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
         }>
@@ -2719,14 +2719,14 @@ function ReportBuilderInner() {
 
     // ── Guards ────────────────────────────────────────────────────────────────
     if (authLoading || profileLoading || loading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     // Ensure isStaff is definitely defined and checked
     if (profile && !isStaff) return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 mobile-page-root">
             <ExclamationTriangleIcon className="w-12 h-12 text-amber-600 dark:text-amber-400 mb-4" />
             <h1 className="text-xl font-bold text-foreground mb-2">Access Restricted</h1>
             <p className="text-muted-foreground text-sm text-center max-w-md">

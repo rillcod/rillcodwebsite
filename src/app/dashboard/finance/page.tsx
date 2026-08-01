@@ -2208,7 +2208,7 @@ export default function FinancePage() {
 
   if (authLoading || profileLoading || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-background mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -2219,7 +2219,7 @@ export default function FinancePage() {
 
   if (visibleTabs.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background mobile-page-root">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">

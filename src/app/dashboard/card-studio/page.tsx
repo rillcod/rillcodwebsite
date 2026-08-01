@@ -1628,7 +1628,7 @@ export default function CardStudioPage() {
   // ── Guards ────────────────────────────────────────────────────────────────
   if (isLoading) return null;
   if (!canAccess) return (
-    <div className="flex items-center justify-center min-h-screen bg-background text-muted-foreground">
+    <div className="flex items-center justify-center min-h-screen bg-background text-muted-foreground mobile-page-root">
       <div className="text-center">
         <CreditCardIcon className="w-8 h-8 mx-auto mb-3 text-rose-600 dark:text-rose-400"/>
         <p className="font-semibold text-foreground">Card Studio access is for staff only</p>

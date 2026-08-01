@@ -392,14 +392,14 @@ export default function NewProjectActivityPage() {
         }
     }
 
-    if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
-    if (!isStaff) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Access denied</div>;
+    if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    if (!isStaff) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground mobile-page-root">Access denied</div>;
 
     const filteredStudents = students.filter(s => !studentSearch || (s.full_name || '').toLowerCase().includes(studentSearch.toLowerCase()));
     const catInfo = CATEGORIES.find(c => c.key === category) || CATEGORIES[0];
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background mobile-page-root">
 
             {/* ── Header ────────────────────────────────────────────────────── */}
             <div className="bg-[#0a0a12] border-b border-white/[0.06] px-6 md:px-10 py-5 sticky top-0 z-20">

@@ -117,7 +117,7 @@ export default function StudyGroupsPage() {
   }
 
   if (authLoading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Loading study groups...</p>
     </div>

@@ -148,13 +148,13 @@ export default function BulkDeletePage() {
   }
 
   if (authLoading || !profile) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!isAdmin) return (
-    <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-4">
+    <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-4 mobile-page-root">
       <ShieldExclamationIcon className="w-12 h-12 text-rose-600/40 dark:text-rose-400/40" />
       <p className="text-muted-foreground font-bold">Admin access only.</p>
       <Link href="/dashboard/students" className="text-primary text-sm hover:underline">← Back to Students</Link>
@@ -164,7 +164,7 @@ export default function BulkDeletePage() {
   const selectedStudents = students.filter((s) => selected.has(s.id));
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:px-8 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 max-w-6xl mx-auto mobile-page-root">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4">

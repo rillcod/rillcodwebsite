@@ -3556,7 +3556,7 @@ export default function CurriculumPage() {
   // ── Auth loading guard — prevents role-based flash ──────────────────────
   if (authLoading || (profileLoading && !profile)) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-background mobile-page-root">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );

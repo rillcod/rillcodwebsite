@@ -166,7 +166,7 @@ export default function StudentJourney() {
   const [activeCareer, setActiveCareer] = useState(0);
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden transition-colors duration-300 public-page-root overflow-x-clip">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>

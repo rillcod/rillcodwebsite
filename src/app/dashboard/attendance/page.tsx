@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 export default function AttendancePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
@@ -541,7 +541,7 @@ function AttendanceContent() {
   }, [qrStudent, selectedSession, qrStatus, qrNotes, students]);
 
   if (authLoading || profileLoading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );

@@ -43,7 +43,7 @@ export default function EditFlashcardDeckPage() {
 
   if (!isTeacher) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="text-center">
           <p className="text-muted-foreground">Access denied. Teachers only.</p>
           <Link href="/dashboard/flashcards" className="text-primary hover:text-primary mt-2 inline-block">
@@ -56,7 +56,7 @@ export default function EditFlashcardDeckPage() {
 
   if (loading || !deck) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );

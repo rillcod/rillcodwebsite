@@ -48,7 +48,7 @@ export default function VerifyCodePage() {
   }, [code]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/20">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 public-page-root overflow-x-clip">
 
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">

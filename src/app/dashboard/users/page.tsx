@@ -303,14 +303,14 @@ export default function UsersPage() {
     };
 
     if (authLoading || !profile) return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     if (profile.role !== 'admin') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
                 <p className="text-muted-foreground">Only admins can access this page.</p>
             </div>
         );

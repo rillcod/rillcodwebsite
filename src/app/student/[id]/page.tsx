@@ -23,7 +23,7 @@ export default function PublicStudentProfileRedirect() {
   }, [id, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background p-6 text-center public-page-root overflow-x-clip">
       <p className="text-sm text-muted-foreground">Redirecting to secure result check…</p>
     </div>
   );

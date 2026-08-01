@@ -229,13 +229,13 @@ export default function FlashcardDeckPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!deck) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6 mobile-page-root">
         <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 space-y-4">
           <h2 className="text-lg font-black">Unable to open flashcard deck</h2>
           <p className="text-sm text-muted-foreground">

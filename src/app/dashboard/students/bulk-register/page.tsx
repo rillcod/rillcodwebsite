@@ -1797,12 +1797,12 @@ export default function BulkRegisterPage() {
 
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-xl animate-spin" />
     </div>
   );
   if (!canAccess) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Access restricted to admins and teachers.</p>
     </div>
   );
@@ -1876,7 +1876,7 @@ export default function BulkRegisterPage() {
 
   return (
     <>
-      <div className="min-h-screen overflow-x-hidden bg-background p-4 sm:p-6 md:p-8 font-sans">
+      <div className="min-h-screen overflow-x-hidden bg-background p-4 sm:p-6 md:p-8 font-sans mobile-page-root">
 
         {/* Page Header */}
         <div className="mx-auto mb-6 flex max-w-7xl min-w-0 items-center justify-between gap-3">

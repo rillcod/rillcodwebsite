@@ -197,7 +197,7 @@ export default function TestimonialsPage() {
   const regular = filteredTestimonials.filter((t) => !t.featured);
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors">
+    <div className="min-h-screen bg-background text-foreground transition-colors public-page-root overflow-x-clip">
       {/* ── Hero Section ────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-primary/5 via-background to-background py-16 sm:py-24">
         <div className="pointer-events-none absolute -top-32 -left-20 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />

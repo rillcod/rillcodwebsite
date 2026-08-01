@@ -30,7 +30,7 @@ type DrainDetail = { student_id: string; student_name: string; signal_teacher_na
 export default function ClassHealPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <ArrowPathIcon className="w-8 h-8 animate-spin text-primary" />
       </div>
     }>
@@ -332,7 +332,7 @@ function ClassHealPageInner() {
     (data?.classes ?? []).filter((c) => c.school_id === sid);
 
   if (authLoading || (loading && activeTab === 'roster')) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <ArrowPathIcon className="w-8 h-8 animate-spin text-primary" />
     </div>
   );

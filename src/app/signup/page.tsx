@@ -163,7 +163,7 @@ export default function SignUpPage() {
   const strengthColor = ['', 'bg-rose-500', 'bg-amber-500', 'bg-yellow-400', 'bg-emerald-500'];
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4 py-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4 py-12 relative overflow-hidden public-page-root overflow-x-clip">
       {/* Background orbs */}
       <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-violet-700/15 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-15%] right-[-10%] w-[45%] h-[45%] bg-blue-700/15 rounded-full blur-[140px] pointer-events-none" />

@@ -150,13 +150,13 @@ export default function LeaderboardPage() {
   const myEntry = entries.find(e => e.id === profile?.id);
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 mobile-page-root">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-4 py-2 rounded-full mb-4">

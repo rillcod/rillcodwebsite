@@ -24,7 +24,7 @@ export default function AccountDeletionPage() {
     finally { setLoading(false); }
   }
 
-  return <main className="min-h-dvh bg-background px-[max(1rem,var(--safe-area-left))] py-[max(2rem,var(--safe-area-top))] text-foreground">
+  return <main className="min-h-dvh bg-background px-[max(1rem,var(--safe-area-left))] py-[max(2rem,var(--safe-area-top))] text-foreground public-page-root overflow-x-clip">
     <div className="mx-auto max-w-2xl space-y-6">
       <Link href="/login" className="text-sm font-bold text-primary">← Back to Rillcod Academy</Link>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-xl sm:p-8">

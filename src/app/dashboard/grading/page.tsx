@@ -346,7 +346,7 @@ export default function GradingQueuePage() {
 
   if (!isStaff) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <p className="text-muted-foreground text-sm">Staff access required.</p>
       </div>
     );

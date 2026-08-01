@@ -23,15 +23,19 @@ export const MOBILE_HERO_BADGE =
 export const MOBILE_TOUCH_BTN =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black touch-active-scale active:scale-[0.98]";
 
-/**
- * Standard page root — prevents horizontal bleed. Shell handles dock clearance.
- * @deprecated Prefer MOBILE_PAGE_ROOT; kept for backward compatibility.
- */
-export const MOBILE_PAGE_BOTTOM = MOBILE_PAGE_ROOT;
-
 /** Page root: contain overflow, allow flex shrink. Shell clears the dock globally. */
 export const MOBILE_PAGE_ROOT =
   "min-w-0 overflow-x-clip md:overflow-visible";
+
+/**
+ * Standard page root — prevents horizontal bleed. Shell handles dock clearance.
+ * @deprecated Prefer MOBILE_PAGE_ROOT; kept for backward compatibility.
+ *
+ * Must be declared AFTER MOBILE_PAGE_ROOT: a `const` is in the temporal dead zone until its own
+ * declaration runs, so reading it earlier is not merely a type error — it throws at module load,
+ * taking down every page that imports from this file.
+ */
+export const MOBILE_PAGE_BOTTOM = MOBILE_PAGE_ROOT;
 
 /**
  * Extra scroll padding when the page renders a fixed strip above the dock

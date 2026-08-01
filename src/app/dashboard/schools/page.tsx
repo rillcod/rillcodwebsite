@@ -443,7 +443,7 @@ export default function SchoolsPage() {
   if (profile?.role === 'school') return <SchoolSelfView />;
 
   if (!isAdmin) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Admin access required.</p>
     </div>
   );
@@ -1280,7 +1280,7 @@ function SchoolSelfView() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );

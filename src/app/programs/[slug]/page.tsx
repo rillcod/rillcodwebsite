@@ -63,7 +63,7 @@ export default function ProgramPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center public-page-root overflow-x-clip">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -71,7 +71,7 @@ export default function ProgramPage() {
 
   if (notFound || !program) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center public-page-root overflow-x-clip">
         <div className="text-center">
           <h1 className="text-2xl font-black text-foreground mb-4 uppercase tracking-tight">Program Not Found</h1>
           <p className="text-muted-foreground mb-6 font-medium italic">
@@ -92,7 +92,7 @@ export default function ProgramPage() {
   const programId    = program.id as string;
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="min-h-screen bg-background font-sans public-page-root overflow-x-clip">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />

@@ -287,13 +287,13 @@ export default function CourseDetailPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (error || !course) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 mobile-page-root">
       <p className="text-rose-600 dark:text-rose-400 font-semibold">{error ?? 'Course not found'}</p>
       <Link href="/dashboard/courses" className="text-sm text-primary hover:underline">← Back to Courses</Link>
     </div>

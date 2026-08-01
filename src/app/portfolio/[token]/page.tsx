@@ -26,7 +26,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4 public-page-root overflow-x-clip">
         <div className="text-center max-w-md">
           <RocketLaunchIcon className="w-16 h-16 text-primary/30 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-white mb-2">Link Expired or Not Found</h1>
@@ -42,7 +42,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
   
   if (!expiry || expiry < new Date()) {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4 public-page-root overflow-x-clip">
         <div className="text-center max-w-md">
           <RocketLaunchIcon className="w-16 h-16 text-primary/30 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-white mb-2">This Link Has Expired</h1>
@@ -60,7 +60,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white">
+    <div className="min-h-screen bg-[#0a0f1e] text-white public-page-root overflow-x-clip">
       <div className="max-w-5xl mx-auto px-4 py-12 space-y-10">
         {/* Header */}
         <div className="border-b border-white/10 pb-8">

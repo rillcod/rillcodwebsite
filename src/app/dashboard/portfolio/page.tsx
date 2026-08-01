@@ -970,7 +970,7 @@ export default function PortfolioPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#020817]">
+      <div className="min-h-screen flex items-center justify-center bg-[#020817] mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );

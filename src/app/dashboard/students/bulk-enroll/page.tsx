@@ -275,18 +275,18 @@ export default function BulkEnrollPage() {
   const selectedClass = classesList.find((c: any) => c.id === classId);
 
   if (authLoading || profileLoading || !profile || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!canAccess) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <p className="text-muted-foreground">Access restricted to admins and teachers.</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 md:px-8 max-w-6xl mx-auto font-sans">
+    <div className="min-h-screen bg-background px-4 py-8 md:px-8 max-w-6xl mx-auto font-sans mobile-page-root">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-8 gap-4 pb-6 border-b border-white/5">

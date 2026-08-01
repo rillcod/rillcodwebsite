@@ -117,7 +117,7 @@ export default function DashboardPage() {
   // No user — redirect queued
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <div className="flex flex-col items-center gap-4 text-center px-4">
           <div className="w-10 h-10 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin" />
           <p className="text-foreground font-semibold">Redirecting to login…</p>
@@ -134,7 +134,7 @@ export default function DashboardPage() {
   // Session exists but profile could not be loaded (API error, no profile row, expired cookies).
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 mobile-page-root">
         <div className="max-w-md w-full border border-rose-500/25 bg-rose-500/5 p-6 sm:p-8 text-center space-y-4">
           <ExclamationTriangleIcon className="w-12 h-12 text-rose-600 dark:text-rose-400 mx-auto" />
           <h2 className="text-lg font-black text-foreground">We couldn&apos;t load your account</h2>

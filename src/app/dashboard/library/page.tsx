@@ -1011,7 +1011,7 @@ export default function ContentLibraryPage() {
   };
 
   if (authLoading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 mobile-page-root">
       <div className="relative w-24 h-24">
         <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
         <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1022,7 +1022,7 @@ export default function ContentLibraryPage() {
 
   if (!canAccess) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 mobile-page-root">
         <div className="max-w-md text-center bg-card border border-border rounded-3xl p-8 shadow-xl">
           <ExclamationTriangleIcon className="w-10 h-10 text-amber-600 dark:text-amber-400 mx-auto mb-4" />
           <h1 className="text-xl font-black text-foreground mb-2">Library Unavailable</h1>
@@ -1035,7 +1035,7 @@ export default function ContentLibraryPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 mobile-page-root">
       <div className="relative w-24 h-24">
         <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
         <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />

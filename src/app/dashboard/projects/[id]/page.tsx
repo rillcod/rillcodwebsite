@@ -633,12 +633,12 @@ export default function ProjectBuilderPage() {
     // ── Render guards ─────────────────────────────────────────────────────────
 
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
         </div>
     );
     if (!activity) return (
-        <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-3">
+        <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-3 mobile-page-root">
             <p className="text-muted-foreground">Activity not found.</p>
             <Link href="/dashboard/projects" className="text-primary text-sm font-bold hover:underline">← Back to Projects</Link>
         </div>
@@ -657,7 +657,7 @@ export default function ProjectBuilderPage() {
     // ── JSX ───────────────────────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen bg-background flex flex-col">
+        <div className="min-h-screen bg-background flex flex-col mobile-page-root">
 
             {/* ── Grade Canvas overlay (staff) ─────────────────────────────── */}
             {gradingSubmission && (

@@ -213,13 +213,13 @@ export default function TakeExamPage() {
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (examError && !exam) return (
-    <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
+    <div className="min-h-screen bg-background flex items-center justify-center text-foreground mobile-page-root">
       <div className="text-center max-w-md px-6 pb-12">
         <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">Exam Not Available</h1>
@@ -230,7 +230,7 @@ export default function TakeExamPage() {
   );
 
   if (!loading && questions.length === 0) return (
-    <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
+    <div className="min-h-screen bg-background flex items-center justify-center text-foreground mobile-page-root">
       <div className="text-center pb-12">
         <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">No Questions Yet</h1>
@@ -244,7 +244,7 @@ export default function TakeExamPage() {
     const isPending = result.status === 'pending_grading';
 
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-foreground p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground p-6 relative overflow-hidden mobile-page-root">
         {/* Animated Background Accents */}
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -330,7 +330,7 @@ export default function TakeExamPage() {
   const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
 
   return (
-    <div className={`min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-[calc(var(--app-bottom-nav-height)+9.5rem)] md:pb-0`}>
+    <div className={"min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-[calc(var(--app-bottom-nav-height)+9.5rem)] md:pb-0 mobile-page-root"}>
       {/* Cinematic Header */}
       <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border px-3 sm:px-6 py-3 sm:py-4">
         <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between gap-3 sm:gap-8">

@@ -85,7 +85,7 @@ export default function TeacherDashboardPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
         <div className="flex flex-col items-center gap-4">
           <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
@@ -104,7 +104,7 @@ export default function TeacherDashboardPage() {
 
   // ── ALL OTHER ROLES: No access ──
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
       <p className="text-muted-foreground">
         You don&apos;t have access to this page.
       </p>
@@ -366,7 +366,7 @@ function TeacherPersonalDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
         <div className="flex flex-col items-center gap-4">
           <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
