@@ -127,7 +127,7 @@ export default function ProgressionAnalyticsPage({
   const classBreakdown = data?.class_breakdown ?? [];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-10 space-y-12 pb-32">
+    <div className="max-w-7xl mx-auto p-4 sm:p-10 space-y-12 mobile-page-root">
       {/* Header */}
       <div
         className={

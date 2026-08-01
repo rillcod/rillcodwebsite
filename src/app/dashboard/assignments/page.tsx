@@ -259,7 +259,7 @@ function AssignmentsPageInner() {
 
   // ── LOADING ──────────────────────────────────────────────────
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Hero skeleton */}
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8 animate-pulse">
@@ -320,7 +320,7 @@ function AssignmentsPageInner() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <ShareToParentModal
         open={!!sharing}
         onClose={() => setSharing(null)}

@@ -99,7 +99,7 @@ export default function CommunicationReportsPage({
     );
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-10 space-y-12 pb-32">
+    <div className="max-w-6xl mx-auto p-4 sm:p-10 space-y-12 mobile-page-root">
       {/* Official Letterhead (Print Only) */}
       <div className="hidden print:flex flex-col gap-6 border-b-2 border-black pb-8 mb-10">
         <div className="flex items-start justify-between">

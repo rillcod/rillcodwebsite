@@ -23,7 +23,7 @@ const Hero: React.FC = () => {
   return (
     <section
       id="home"
-      className="relative min-h-[90svh] flex items-center bg-background overflow-hidden pt-24 pb-12 sm:pt-32 sm:pb-20"
+      className="relative min-h-[90svh] flex items-center bg-background overflow-x-clip public-page-root pt-24 pb-12 sm:pt-32 sm:pb-20"
     >
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-primary/5 blur-[100px] rounded-xl" />

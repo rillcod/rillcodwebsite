@@ -78,7 +78,7 @@ export default function Home() {
   }, [checked]);
 
   return (
-    <div className="bg-background min-h-screen relative">
+    <div className="bg-background min-h-screen relative public-page-root overflow-x-clip">
       <Hero />
       <About />
       <ProgramExplorer />

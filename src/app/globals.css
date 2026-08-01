@@ -218,6 +218,27 @@
   .mobile-glass-hero {
     @apply bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl relative overflow-hidden;
   }
+
+  /* Public / marketing pages (outside dashboard shell) */
+  .public-page-root {
+    @apply min-w-0 overflow-x-clip antialiased;
+  }
+
+  .public-ambient-orb {
+    @apply absolute rounded-full blur-[120px] opacity-40;
+    animation: public-ambient-drift 18s var(--ease-in-out-soft, ease-in-out) infinite;
+  }
+
+  @keyframes public-ambient-drift {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(12px, -8px, 0) scale(1.04); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-ambient-orb {
+      animation: none !important;
+    }
+  }
 }
 
 :root {

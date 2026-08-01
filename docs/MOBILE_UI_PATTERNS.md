@@ -92,7 +92,25 @@ import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 5. Fixed footer: `MOBILE_STICKY_ACTIONS_BOTTOM` + `bottom-[var(--app-bottom-nav-height)] z-[55]`
 6. Do **not** change desktop sidebar or `lg:` layouts
 
-## Immersive routes (shell-managed)
+## Public / marketing pages
+
+Use `src/components/mobile/public-styles.ts` outside the dashboard shell:
+
+```tsx
+import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET, PUBLIC_SURFACE } from '@/components/mobile/public-styles';
+
+<div className={`${PUBLIC_PAGE_ROOT} ${PUBLIC_SAFE_INSET}`}>
+```
+
+| Token | Purpose |
+|-------|---------|
+| `PUBLIC_PAGE_ROOT` | Safe-area + bleed prevention on login/landing |
+| `PUBLIC_SAFE_INSET` | Notch/home-indicator padding |
+| `PUBLIC_SURFACE` | Form cards |
+| `.public-ambient-orb` | Restrained background motion (globals.css) |
+
+Landing `Hero`, home root, and login use these patterns.
+
 
 These bypass standard shell padding; the page controls scroll:
 

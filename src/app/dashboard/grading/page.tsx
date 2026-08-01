@@ -356,7 +356,7 @@ export default function GradingQueuePage() {
   const sub = submissions[activeIdx] ?? null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-5">
 
         {/* ── Page header ─────────────────────────────────────────────────── */}

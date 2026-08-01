@@ -14,6 +14,7 @@ import Image from 'next/image';
 
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
+import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET, PUBLIC_SURFACE, PUBLIC_AMBIENT_BG } from "@/components/mobile/public-styles";
 
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500"   },
@@ -304,11 +305,11 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-dvh bg-background text-foreground flex flex-col items-center justify-center px-[max(0.75rem,var(--safe-area-left))] pt-[max(0.75rem,var(--safe-area-top))] pb-[max(0.75rem,var(--safe-area-bottom))] sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
+    <div className={`${PUBLIC_PAGE_ROOT} flex flex-col items-center justify-center ${PUBLIC_SAFE_INSET} sm:p-6 lg:p-10 relative font-sans transition-colors duration-500`}>
       {/* ── Background Effects ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] rounded-full bg-primary/10 dark:bg-primary/5 blur-[160px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-[500px] h-[500px] rounded-full bg-brand-red-600/5 dark:bg-brand-red-600/5 blur-[140px] animate-pulse [animation-delay:2s]" />
+      <div className={PUBLIC_AMBIENT_BG} aria-hidden>
+        <div className="public-ambient-orb top-1/4 -left-20 w-[600px] h-[600px] bg-primary/10 dark:bg-primary/5" />
+        <div className="public-ambient-orb bottom-1/4 -right-20 w-[500px] h-[500px] bg-brand-red-600/5 [animation-delay:-6s]" />
       </div>
 
       <div className="w-full max-w-7xl mx-auto relative z-10">

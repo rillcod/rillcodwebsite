@@ -452,7 +452,7 @@ function TeacherPersonalDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="bg-background border border-primary/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
@@ -1208,7 +1208,7 @@ function AdminTeacherView() {
     search.trim() !== "" || schoolFilter !== "all" || statusFilter !== "all";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground mobile-page-root">
       {/* Credentials Modal */}
       {credentials && (
         <div className="fixed inset-0 z-[60] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4">

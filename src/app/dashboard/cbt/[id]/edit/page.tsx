@@ -202,7 +202,7 @@ export default function EditExamPage() {
     );
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="min-h-screen bg-background text-foreground mobile-page-root">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <Link href={`/dashboard/cbt/${id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeftIcon className="w-4 h-4" /> Back to Exam

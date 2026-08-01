@@ -209,7 +209,7 @@ const Navigation = () => {
 
         {/* ── Mobile Menu ── */}
         {mounted && isOpen && (
-          <div className="lg:hidden border-t border-border/80 bg-background/95 backdrop-blur-2xl overflow-y-auto max-h-[calc(100vh-72px)] rounded-b-3xl shadow-2xl">
+          <div className="lg:hidden border-t border-border/80 bg-background/95 backdrop-blur-2xl overflow-y-auto overflow-x-clip max-h-[calc(100dvh-var(--app-header-height,4rem))] rounded-b-3xl shadow-2xl">
              <div className="p-5 sm:p-8 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 {/* Native drag handle */}
                 <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto -mt-1 mb-2" />
@@ -225,7 +225,7 @@ const Navigation = () => {
                           key={href}
                           href={href}
                           onClick={() => setIsOpen(false)}
-                          className={`text-sm sm:text-base font-black uppercase tracking-wide transition-all py-3 px-4 rounded-xl flex items-center gap-3 ${
+                          className={`text-sm sm:text-base font-black uppercase tracking-wide transition-all min-h-11 py-3 px-4 rounded-xl flex items-center gap-3 touch-active-scale ${
                             isActive(href)
                               ? 'text-primary bg-primary/10 border border-primary/20'
                               : isSummer

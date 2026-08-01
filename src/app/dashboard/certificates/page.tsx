@@ -190,7 +190,7 @@ export default function CertificateVault() {
     );
 
     return (
-        <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+        <div className="min-h-screen bg-background text-foreground mobile-page-root p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             {/* Header */}
             <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />

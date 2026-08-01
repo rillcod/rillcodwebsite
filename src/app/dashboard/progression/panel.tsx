@@ -454,7 +454,7 @@ export default function ProgressionPage({
     );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 pb-32">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 mobile-page-root">
       {/* Page Header */}
       <div className={embedded ? "hidden" : "space-y-1"}>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
