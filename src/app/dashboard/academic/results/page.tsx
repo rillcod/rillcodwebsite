@@ -95,10 +95,20 @@ function CentralResultsPageInner() {
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
   const plans = useMemo(() => data.plans.filter((item) => item.class_id === classId), [data.plans, classId]);
 
+  const classStudentIds = useMemo(
+    () => new Set(students.map((s) => s.id)),
+    [students],
+  );
+
   const visibleReports = useMemo(() => {
     const q = search.trim().toLowerCase();
     return data.reports.filter((report) => {
-      if (classId && report.class_id && report.class_id !== classId) return false;
+      if (classId) {
+        const inSelectedClass =
+          report.class_id === classId ||
+          (!!report.student_id && classStudentIds.has(report.student_id));
+        if (!inSelectedClass) return false;
+      }
       if (listFilter === 'manual' && report.calculation_mode !== 'manual') return false;
       if (listFilter === 'automatic' && report.calculation_mode !== 'automatic') return false;
       if (listFilter === 'draft' && report.is_published) return false;
@@ -108,11 +118,15 @@ function CentralResultsPageInner() {
         .toLowerCase()
         .includes(q);
     });
-  }, [data.reports, classId, listFilter, search]);
+  }, [data.reports, classId, classStudentIds, listFilter, search]);
 
   const counts = useMemo(() => {
     const scoped = classId
-      ? data.reports.filter((r) => !r.class_id || r.class_id === classId)
+      ? data.reports.filter(
+          (r) =>
+            r.class_id === classId ||
+            (!!r.student_id && classStudentIds.has(r.student_id)),
+        )
       : data.reports;
     return {
       all: scoped.length,
@@ -121,7 +135,7 @@ function CentralResultsPageInner() {
       draft: scoped.filter((r) => !r.is_published).length,
       published: scoped.filter((r) => r.is_published).length,
     };
-  }, [data.reports, classId]);
+  }, [data.reports, classId, classStudentIds]);
 
   async function prepare() {
     setSaving(true);
@@ -186,7 +200,16 @@ function CentralResultsPageInner() {
         icon={ChartBarIcon}
         stats={[
           { label: 'Classes', value: data.classes.length },
-          { label: 'Reports', value: data.reports.length, tone: 'primary' },
+          {
+            label: 'Prepared results',
+            value: data.reports.length,
+            tone: 'primary',
+          },
+          {
+            label: 'Published',
+            value: data.reports.filter((r) => r.is_published).length,
+            tone: 'emerald',
+          },
         ]}
         actions={
           <>

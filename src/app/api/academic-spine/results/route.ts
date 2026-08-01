@@ -32,17 +32,57 @@ export async function GET() {
   if (classError) return NextResponse.json({ error: classError.message }, { status: 500 });
   const classIds = (classes ?? []).map((item: any) => item.id);
   if (!classIds.length) return NextResponse.json({ data: { classes: [], students: [], plans: [], reports: [] } });
-  const [students, plans, reports] = await Promise.all([
+  const [students, plans] = await Promise.all([
     db.from('portal_users').select('id,full_name,class_id,enrollment_type').eq('role', 'student').in('class_id', classIds).eq('is_deleted', false).order('full_name'),
     db.from('lesson_plans').select('id,class_id,course_id,curriculum_release_id,status,courses(title)').in('class_id', classIds).neq('status', 'archived'),
-    // The column is overall_grade; selecting 'grade' failed the whole query and
-    // took the results workspace down with it.
-    db.from('student_progress_reports').select('id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at').in('class_id', classIds).order('updated_at', { ascending: false }).limit(250),
   ]);
-  const error = students.error || plans.error || reports.error;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const listError = students.error || plans.error;
+  if (listError) return NextResponse.json({ error: listError.message }, { status: 500 });
+
+  // Report Builder loads by student_id. Many older rows have null class_id, so
+  // filtering only `.in('class_id', classIds)` under-counted the workspace hero.
+  const reportSelect =
+    'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at';
+  const byId = new Map<string, Record<string, unknown>>();
+  const studentIds = ((students.data ?? []) as Array<{ id: string }>).map((s) => s.id);
+
+  async function collectReports(column: 'class_id' | 'student_id', ids: string[]) {
+    for (let i = 0; i < ids.length; i += 120) {
+      const batch = ids.slice(i, i + 120);
+      const { data, error } = await db
+        .from('student_progress_reports')
+        .select(reportSelect)
+        .in(column, batch)
+        .order('updated_at', { ascending: false })
+        .limit(400);
+      if (error) throw new Error(error.message);
+      for (const row of data ?? []) {
+        if (row?.id) byId.set(row.id as string, row);
+      }
+    }
+  }
+
+  try {
+    await collectReports('class_id', classIds);
+    if (studentIds.length) await collectReports('student_id', studentIds);
+  } catch (cause) {
+    return NextResponse.json(
+      { error: cause instanceof Error ? cause.message : 'Unable to load results.' },
+      { status: 500 },
+    );
+  }
+
+  const reports = [...byId.values()].sort((a, b) => {
+    const aTime = String(a.updated_at || '');
+    const bTime = String(b.updated_at || '');
+    return bTime.localeCompare(aTime);
+  });
+
   return NextResponse.json({ data: {
-    classes: classes ?? [], students: students.data ?? [], plans: plans.data ?? [], reports: reports.data ?? [],
+    classes: classes ?? [],
+    students: students.data ?? [],
+    plans: plans.data ?? [],
+    reports,
   } });
 }
 
