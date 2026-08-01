@@ -455,7 +455,7 @@ function TeacherPersonalDashboard() {
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="bg-background border border-primary/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-12 md:p-16 relative overflow-hidden shadow-xl group">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/20 transition-all duration-1000" />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
 

@@ -64,6 +64,16 @@ const SECRET_KEYS = [
   "CRON_SECRET",
   "BILLING_CRON_SECRET",
   "FIREBASE_SERVICE_ACCOUNT_JSON",
+  // Meta WhatsApp Cloud API. WHATSAPP_APP_SECRET signs inbound webhooks — without
+  // it every unsigned webhook is rejected, so inbound WhatsApp goes dark.
+  "WHATSAPP_APP_SECRET",
+  // An account identifier rather than a credential, but it stays a secret so it
+  // does not land in wrangler.toml, which is committed to a public repo.
+  "WHATSAPP_PHONE_NUMBER_ID",
+  // Jitsi-as-a-Service token minting (/api/live-sessions/jaas-token).
+  "JAAS_APP_ID",
+  "JAAS_KEY_ID",
+  "JAAS_PRIVATE_KEY",
 ];
 
 function parseEnvFile(filePath) {
@@ -167,8 +177,22 @@ if (!fs.existsSync(ENV_FILE)) {
   process.exit(1);
 }
 
-const env = parseEnvFile(ENV_FILE);
-console.log(`Loaded ${Object.keys(env).length} keys from ${ENV_FILE}`);
+// Layer the local env files, lowest precedence first, so a key that only ever
+// lived in .env/.env.local still reaches Cloudflare. Reading ENV_FILE alone is
+// how WHATSAPP_APP_SECRET and the JAAS_* keys silently never got uploaded.
+// ENV_FILE is applied last: production values always win.
+const env = {};
+const sourceFiles = [".env", ".env.local", ENV_FILE];
+for (const candidate of sourceFiles) {
+  const resolved = path.resolve(ROOT, candidate);
+  if (!fs.existsSync(resolved)) continue;
+  const parsed = parseEnvFile(resolved);
+  for (const [key, value] of Object.entries(parsed)) {
+    if (value !== undefined && value !== "") env[key] = value;
+  }
+  console.log(`Loaded ${Object.keys(parsed).length} keys from ${path.basename(resolved)}`);
+}
+console.log(`Merged to ${Object.keys(env).length} keys`);
 console.log(`Cloudflare Workers project: ${PROJECT}`);
 
 if (!secretsOnly) writeWranglerVars(env);
