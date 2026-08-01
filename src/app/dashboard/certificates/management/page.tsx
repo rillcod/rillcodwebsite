@@ -328,26 +328,27 @@ export default function CertificateManagement() {
     return (
         <div className="min-h-screen bg-background text-muted-foreground font-sans selection:bg-primary/30 mobile-page-root">
             {/* Header */}
-            <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border bg-card flex flex-wrap justify-between items-center gap-3">
-                <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+            <div className="mb-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-wrap justify-between items-center gap-4">
+                <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+                <div className="relative z-10 flex items-center gap-4 min-w-0">
                     <button
-                        onClick={() => router.push('/dashboard')}
-                        className="p-2 bg-muted/50 border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all flex-shrink-0"
-                        title="Back to Dashboard"
+                        onClick={() => router.push('/dashboard/certificates')}
+                        className="p-2.5 bg-muted/60 border border-border/80 rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/40 active:scale-95 transition-all flex-shrink-0"
+                        title="Back to Certificates Vault"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                        </svg>
+                        <ArrowLeftIcon className="w-4 h-4" />
                     </button>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 border border-primary/20 flex items-center justify-center relative overflow-hidden group flex-shrink-0">
-                        <TrophyIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary group-hover:scale-110 transition-transform" />
-                        <div className="absolute inset-0 bg-primary/5 animate-pulse" />
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 shrink-0">
+                        <TrophyIcon className="w-6 h-6 text-white" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-lg sm:text-2xl font-black text-foreground uppercase italic tracking-tighter leading-none">
-                            Certificates
+                        <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1.5">
+                            Official Certification Management
+                        </span>
+                        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">
+                            Certificate Operations
                         </h1>
-                        <p className="text-xs text-muted-foreground mt-1">Issue and manage student certificates</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-medium">Issue, verify, publish, and manage official student graduation certificates</p>
                     </div>
                 </div>
 

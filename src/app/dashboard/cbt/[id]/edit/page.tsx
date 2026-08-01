@@ -208,13 +208,20 @@ export default function EditExamPage() {
                     <ArrowLeftIcon className="w-4 h-4" /> Back to Exam
                 </Link>
 
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Edit Exam</span>
+                <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
+                    <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+                    <div className="relative z-10 flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 shrink-0">
+                            <AcademicCapIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+                                CBT Exam Builder &amp; Questions
+                            </span>
+                            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">Edit CBT Exam</h1>
+                            <p className="text-muted-foreground text-sm mt-1.5 font-medium">Update exam settings, questions, and grading criteria</p>
+                        </div>
                     </div>
-                    <h1 className="text-3xl font-extrabold">Edit CBT Exam</h1>
-                    <p className="text-muted-foreground text-sm mt-1">Update exam settings and manage questions</p>
                 </div>
 
                 {error && (

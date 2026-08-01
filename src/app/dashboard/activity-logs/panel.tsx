@@ -540,15 +540,22 @@ export default function ActivityLogsPage({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
-        <div className={embedded ? "hidden" : ""}>
-          <h1 className="text-2xl font-black text-foreground flex items-center gap-2 tracking-tight">
-            <ClipboardDocumentListIcon className="w-7 h-7 text-primary" />
-            System Activity
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {total.toLocaleString()} records · page {page} of {totalPages || 1}
-            {" · "}Who did what: reports, cards, finance, students, and more
-          </p>
+        <div className={embedded ? "hidden" : "mb-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden"}>
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 shrink-0">
+              <ClipboardDocumentListIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+                Audit Trail &amp; Security Logs
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">System Activity Logs</h1>
+              <p className="text-muted-foreground text-xs sm:text-sm mt-1.5 font-medium">
+                {total.toLocaleString()} records · page {page} of {totalPages || 1} · Complete audit history of actions, reports, cards, and access logs
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap print:hidden">

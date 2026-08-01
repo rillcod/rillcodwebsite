@@ -168,12 +168,18 @@ export default function ExamDetailPage() {
         </Link>
 
         {/* Exam header */}
-        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
-          <div className="flex items-start justify-between gap-4">
+        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10 flex items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{exam.programs?.name}</span>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
+                  CBT Examination Workspace
+                </span>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                  <AcademicCapIcon className="w-4 h-4" />
+                  {exam.programs?.name}
+                </span>
               </div>
               <h1 className="text-2xl font-extrabold mb-2">{exam.title}</h1>
               {exam.description && (

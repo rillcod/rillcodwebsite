@@ -1512,43 +1512,44 @@ export default function ResponsesPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 sm:pb-8">
 
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <button
-              onClick={() => router.push('/dashboard/consent-forms')}
-              className="mt-0.5 p-2 rounded-md hover:bg-muted transition-colors shrink-0"
-            >
-              <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-medium text-muted-foreground">Consent Forms</span>
-                <span className="text-muted-foreground text-xs">/</span>
-                <span className="text-[11px] font-medium text-muted-foreground">Responses</span>
+        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl mb-6">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              <button
+                onClick={() => router.push('/dashboard/consent-forms')}
+                className="mt-0.5 p-2.5 bg-muted/60 border border-border/80 rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/40 active:scale-95 transition-all shrink-0"
+                title="Back to Consent Forms"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
+                  Digital Consent &amp; Submissions
+                </span>
+                {loading ? (
+                  <div className="h-7 w-48 sm:w-64 bg-muted animate-pulse rounded-md" />
+                ) : (
+                  <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">{form?.title ?? 'Responses'}</h1>
+                )}
+                {form && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-medium text-muted-foreground">
+                    {form.schools?.name && <span className="font-bold text-foreground">{form.schools.name}</span>}
+                    {form.form_type !== 'general' && (
+                      <span className="bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                        {form.form_type === 'assessment' ? 'Assessment' : 'Registration'}
+                      </span>
+                    )}
+                    {form.due_date && (
+                      <span>
+                        Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {form.is_public && <span className="text-emerald-600 dark:text-emerald-400 font-bold">Public Form</span>}
+                  </div>
+                )}
               </div>
-              {loading ? (
-                <div className="h-7 w-48 sm:w-64 bg-muted animate-pulse rounded-md" />
-              ) : (
-                <h1 className="text-xl sm:text-2xl font-semibold tracking-tight break-words">{form?.title ?? 'Responses'}</h1>
-              )}
-              {form && (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
-                  {form.schools?.name && <span>{form.schools.name}</span>}
-                  {form.form_type !== 'general' && (
-                    <span>
-                      {form.form_type === 'assessment' ? 'Assessment' : 'Registration'}
-                    </span>
-                  )}
-                  {form.due_date && (
-                    <span>
-                      Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                  {form.is_public && <span>Public form</span>}
-                </div>
-              )}
             </div>
-          </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 w-full sm:w-auto pl-11 sm:pl-0">
             <button
               onClick={load}
@@ -1604,6 +1605,7 @@ export default function ResponsesPage() {
             )}
           </div>
         </div>
+      </div>
 
         {/* Stats + Funnel */}
         {!loading && leads.length > 0 && (() => {
