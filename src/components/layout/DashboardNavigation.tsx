@@ -1508,10 +1508,7 @@ function NavSection({
   pathname: string;
   setMobileOpen: (o: boolean) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(() => {
-    // Auto-expand if any item inside is active
-    return items.some((item) => isNavActive(pathname, item.href));
-  });
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <div className="space-y-px">

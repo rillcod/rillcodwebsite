@@ -1,15 +1,10 @@
 // @refresh reset
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import {
-  XMarkIcon, ArrowRightOnRectangleIcon, UserIcon,
-  BellIcon, DocumentTextIcon, QuestionMarkCircleIcon,
-  CogIcon, BuildingOfficeIcon, ShieldCheckIcon, AcademicCapIcon,
-  BookOpenIcon, ClipboardDocumentCheckIcon, TrophyIcon, CreditCardIcon
-} from '@/lib/icons';
+import { XMarkIcon, ArrowRightOnRectangleIcon } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 import ViewAsSwitcher from '@/components/layout/ViewAsSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,9 +29,33 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
     };
   }, [isOpen]);
 
-  if (!isOpen || !profile) return null;
+  // Group nav entries by section dividers
+  const categorizedGroups = useMemo(() => {
+    const groups: Array<{ title: string; items: Array<{ name: string; href: string; icon: any }> }> = [];
+    let currentGroup: { title: string; items: Array<{ name: string; href: string; icon: any }> } = {
+      title: 'Main Hub',
+      items: [],
+    };
 
-  const linksOnly = navEntries.filter((e): e is { name: string; href: string; icon: any } => !('divider' in e));
+    navEntries.forEach((entry) => {
+      if ('divider' in entry) {
+        if (currentGroup.items.length > 0) {
+          groups.push(currentGroup);
+        }
+        currentGroup = { title: entry.label, items: [] };
+      } else {
+        currentGroup.items.push(entry);
+      }
+    });
+
+    if (currentGroup.items.length > 0) {
+      groups.push(currentGroup);
+    }
+
+    return groups;
+  }, [navEntries]);
+
+  if (!isOpen || !profile) return null;
 
   return (
     <AnimatePresence>
@@ -59,7 +78,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
           transition={{ type: 'spring', damping: 28, stiffness: 300 }}
           className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-card/95 backdrop-blur-2xl border-t border-border/80 rounded-t-[2.5rem] shadow-2xl flex flex-col overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
-          {/* Drag Handle */}
+          {/* Drag Handle Bar */}
           <div className="pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing" onClick={onClose}>
             <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
           </div>
@@ -95,26 +114,33 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
             </div>
           )}
 
-          {/* Nav Grid */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 custom-scrollbar">
-            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">
-              Quick Shortcuts
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {linksOnly.map(({ name, href, icon: Icon }) => (
-                <Link
-                  key={name}
-                  href={href}
-                  onClick={onClose}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-background/50 hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all shadow-sm group"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-bold text-foreground truncate">{name}</span>
-                </Link>
-              ))}
-            </div>
+          {/* Categorized Nav List */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 custom-scrollbar">
+            {categorizedGroups.map((group, idx) => (
+              <div key={group.title || idx} className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-brand-red-accent uppercase tracking-[0.25em]">
+                    {group.title}
+                  </span>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {group.items.map(({ name, href, icon: Icon }) => (
+                    <Link
+                      key={name}
+                      href={href}
+                      onClick={onClose}
+                      className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-background/60 hover:bg-primary/10 hover:border-primary/40 active:scale-95 transition-all shadow-sm group"
+                    >
+                      <div className="w-8.5 h-8.5 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-foreground truncate">{name}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Footer Controls */}
