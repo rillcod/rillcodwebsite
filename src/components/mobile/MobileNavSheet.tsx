@@ -351,32 +351,57 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
               )}
             </div>
 
-            {/* Bottom actions — above floating dock */}
+            {/* Bottom thumb-reachable search bar & actions */}
             <div
-              className="px-5 pt-3 pb-1 border-t border-border/60 bg-card/95 backdrop-blur-2xl flex items-center gap-3"
-              style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+              className="px-5 py-3 border-t border-border/60 bg-card/95 backdrop-blur-2xl space-y-2.5"
+              style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
             >
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close menu"
-                className="flex-1 flex items-center justify-center gap-2 min-h-11 py-3 px-4 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-primary/30 touch-active-scale active:scale-[0.98]"
-              >
-                <XMarkIcon className="w-4 h-4" />
-                Done
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  void signOut();
-                }}
-                disabled={signingOut}
-                aria-label="Sign out"
-                className="flex min-h-11 min-w-11 items-center justify-center p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl hover:bg-rose-500 hover:text-white touch-active-scale active:scale-[0.98] disabled:opacity-50"
-              >
-                <ArrowRightOnRectangleIcon className="w-5 h-5" />
-              </button>
+              {/* Thumb Search Tile */}
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Thumb search & jump to page…"
+                  aria-label="Thumb search menu"
+                  className="w-full min-h-12 pl-10 pr-10 rounded-2xl border border-border bg-muted/30 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:bg-background transition-all shadow-sm"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-muted-foreground hover:bg-muted"
+                    aria-label="Clear search"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close menu"
+                  className="flex-1 flex items-center justify-center gap-2 min-h-12 py-3 px-4 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-primary/30 touch-active-scale active:scale-[0.98]"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                  Close Menu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    void signOut();
+                  }}
+                  disabled={signingOut}
+                  aria-label="Sign out"
+                  className="flex min-h-12 min-w-12 items-center justify-center p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl hover:bg-rose-500 hover:text-white touch-active-scale active:scale-[0.98] disabled:opacity-50"
+                >
+                  <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

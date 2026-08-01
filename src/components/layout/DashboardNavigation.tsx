@@ -48,6 +48,7 @@ import {
   QuestionMarkCircleIcon,
   ChevronDownIcon,
   ExclamationTriangleIcon,
+  MagnifyingGlassIcon,
 } from "@/lib/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -1473,6 +1474,20 @@ export default function DashboardNavigation() {
             </Link>
           );
         })}
+        <button
+          onClick={() => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+          }}
+          aria-label="Open Search"
+          className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-90 duration-150 group"
+        >
+          <div className="flex items-center justify-center w-10 h-8 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+            <MagnifyingGlassIcon className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 text-primary">
+            Search
+          </span>
+        </button>
         <button
           onClick={() => setMobileOpen((v) => !v)}
           aria-expanded={mobileOpen}

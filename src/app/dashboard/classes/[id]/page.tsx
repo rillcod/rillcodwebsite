@@ -1378,16 +1378,18 @@ export default function ClassDetailPage() {
       <div className={`space-y-4 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
-        <div className="min-w-0 w-full max-w-full rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl md:rounded-3xl">
-          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-3 sm:p-5 md:p-6">
-            <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2 sm:mb-3">
-                  <button type="button" onClick={() => router.back()} className="rounded-xl p-2 transition-colors hover:bg-muted" aria-label="Go back">
-                    <ArrowLeftIcon className="h-4 w-4 text-muted-foreground" />
+        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl mb-6">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10 space-y-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeftIcon className="w-3.5 h-3.5" /> Classes
                   </button>
+                  <span className="text-muted-foreground">/</span>
                   <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
-                    Class Workspace
+                    {pathwayLabel}
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                     cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
@@ -1397,30 +1399,27 @@ export default function ClassDetailPage() {
                     {cls.status}
                   </span>
                 </div>
-                <span className="inline-flex w-fit rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                  {pathwayLabel}
-                </span>
-                <h1 className="break-words text-lg font-black leading-snug tracking-tight text-foreground sm:text-2xl md:text-4xl">{cls.name}</h1>
-                <p className="mt-1.5 max-w-2xl break-words text-xs leading-relaxed text-muted-foreground sm:mt-2 sm:text-sm">
+                <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-foreground leading-none">{cls.name}</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                   {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
                 </p>
               </div>
 
               {isStaff && (
-                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap lg:justify-end">
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
                   <Link href={`/dashboard/classes/${id}/edit`}
-                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted sm:px-4">
-                    <PencilIcon className="h-4 w-4 flex-shrink-0 text-primary" /> Setup
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border/80 bg-background/80 px-4 py-2.5 text-xs font-black text-foreground hover:bg-muted transition-colors">
+                    <PencilIcon className="h-4 w-4 text-primary" /> Setup
                   </Link>
                   <button
                     type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4">
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors">
                     Broadcast
                   </button>
                   <Link href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:px-4">
-                    <ClipboardDocumentCheckIcon className="h-4 w-4 flex-shrink-0" />
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-primary/30 hover:scale-[1.02] transition-transform">
+                    <ClipboardDocumentCheckIcon className="h-4 w-4" />
                     Attendance
                   </Link>
                 </div>

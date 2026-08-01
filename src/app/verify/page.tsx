@@ -74,9 +74,9 @@ export default function VerifyLandingPage() {
                 <div className="max-w-3xl w-full text-center space-y-12">
 
                     <div className="space-y-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full">
-                            <ShieldCheckIcon className="w-4 h-4 text-violet-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-violet-400">Secure Verification Portal</span>
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Secure Verification Portal</span>
                         </div>
 
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-white">

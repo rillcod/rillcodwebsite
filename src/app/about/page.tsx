@@ -91,19 +91,24 @@ export default function About() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10">
         
         {/* Hero Section */}
-        <div className="text-center mb-16 sm:mb-20 bg-card border border-border p-8 sm:p-16 rounded-3xl shadow-xl border-t-4 border-t-primary relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-4">
-            <Sparkles className="w-3.5 h-3.5" /> Institutional STEM Excellence
+        <div className="text-center mb-16 sm:mb-20 bg-card/90 backdrop-blur-2xl border border-border/80 p-8 sm:p-16 rounded-3xl shadow-xl relative overflow-hidden">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
+                <Users className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
+            </div>
+            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+              Institutional STEM Excellence
+            </span>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-4 uppercase tracking-tight leading-none">
+              About <span className="text-primary">Rillcod Technologies</span>
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-3xl mx-auto font-medium leading-relaxed italic">
+              Empowering the next generation of world-class innovators through an accredited, 12-year progressive STEM curriculum that blends Artificial Intelligence, Robotics, and Software Engineering.
+            </p>
           </div>
-          
-          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-4 uppercase tracking-tight">
-            About <span className="text-primary">Rillcod Technologies</span>
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-3xl mx-auto font-medium leading-relaxed">
-            Empowering the next generation of world-class innovators through an accredited, 12-year progressive STEM curriculum that blends Artificial Intelligence, Robotics, and Software Engineering.
-          </p>
         </div>
 
         {/* Key Performance Stats */}

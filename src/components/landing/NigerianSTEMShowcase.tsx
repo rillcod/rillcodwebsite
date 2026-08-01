@@ -44,9 +44,9 @@ export default function NigerianSTEMShowcase() {
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
           <div>
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
-               <Trophy className="w-4 h-4 text-primary" />
-               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Impact</span>
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
+               <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
+               <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Global STEM Impact</span>
             </div>
             <h3 className="text-4xl sm:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase">
               MAKING <br />
@@ -58,18 +58,18 @@ export default function NigerianSTEMShowcase() {
           </p>
         </div>
 
-        {/* Achievement Grid - Sharp Cards */}
+        {/* Achievement Grid - Glass Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-32">
           {achievements.map((item) => (
             <div
               key={item.id}
-              className="group relative bg-card border border-border rounded-xl p-8 transition-all hover:bg-muted shadow-xl border-t-2 border-t-transparent hover:border-t-brand-red-600"
+              className="group relative bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 transition-all hover:bg-card shadow-xl border-t-2 border-t-brand-red-600"
             >
               <div className="absolute top-6 right-8">
-                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-background px-4 py-1.5 rounded-xl border border-border shadow-sm`}>{item.badge}</span>
+                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-background px-4 py-1.5 rounded-full border border-border shadow-sm`}>{item.badge}</span>
               </div>
               
-              <div className={`w-14 h-14 ${item.bg} rounded-xl flex items-center justify-center mb-6 border ${item.border} group-hover:scale-110 transition-transform shadow-inner`}>
+              <div className={`w-14 h-14 ${item.bg} rounded-2xl flex items-center justify-center mb-6 border ${item.border} group-hover:scale-110 transition-transform shadow-inner`}>
                  <item.icon className={`w-7 h-7 ${item.color}`} />
               </div>
 
@@ -97,7 +97,7 @@ export default function NigerianSTEMShowcase() {
             {testimonials.map((t) => (
               <div
                 key={t.id}
-                className="bg-card border border-border rounded-xl p-10 hover:bg-muted transition-all relative group shadow-2xl border-l-2 border-l-brand-red-600/20 hover:border-l-brand-red-600"
+                className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-10 hover:bg-card transition-all relative group shadow-2xl border-l-2 border-l-brand-red-600"
               >
                 <div className="flex items-center gap-5 mb-8">
                   <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary shadow-inner">

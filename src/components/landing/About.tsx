@@ -38,9 +38,9 @@ const About: React.FC = () => {
           
           {/* CONTENT */}
           <div>
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
-               <Command className="w-4 h-4 text-primary" />
-               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Our Mission</span>
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
+               <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
+               <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Our STEM Mission</span>
             </div>
             
             <h2 className="text-3xl sm:text-6xl font-black text-foreground leading-[1.05] tracking-tight mb-8 uppercase">
@@ -54,7 +54,7 @@ const About: React.FC = () => {
 
             <div className="grid sm:grid-cols-3 gap-6">
               {pillars.map((p) => (
-                <div key={p.title} className="group p-6 bg-card border border-border rounded-xl hover:bg-muted transition-all border-b-2 border-b-transparent hover:border-b-brand-red-600 shadow-sm">
+                <div key={p.title} className="group p-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl hover:bg-card transition-all border-t-2 border-t-brand-red-600 shadow-xl">
                   <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-inner`}>
                     <p.icon className="w-6 h-6" />
                   </div>

@@ -95,9 +95,9 @@ const ProgramExplorer: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="max-w-xl">
-             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card border border-border rounded-xl">
-                <Layers className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Learning Tracks</span>
+             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
+                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.3em]">Learning Tracks</span>
              </div>
              <h2 className="text-4xl md:text-6xl font-black text-foreground leading-tight uppercase tracking-tight">
                Discover Your <br />
@@ -110,7 +110,7 @@ const ProgramExplorer: React.FC = () => {
         </div>
 
         {/* Desktop Browser-style Container */}
-        <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col lg:flex-row">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col lg:flex-row">
           
           {/* LEFT: Sidebar Tabs */}
           <div className="w-full lg:w-[320px] bg-muted/30 border-r border-border p-6 lg:p-8 shrink-0">

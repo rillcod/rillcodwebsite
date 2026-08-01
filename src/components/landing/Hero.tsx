@@ -89,8 +89,8 @@ const Hero: React.FC = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-card border border-border rounded-xl p-4 sm:p-5 border-t-2 border-t-brand-red-600/40">
-                  <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter">{s.value}</p>
+                <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 border-t-2 border-t-brand-red-600 shadow-xl hover:scale-[1.03] transition-all">
+                  <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter tabular-nums">{s.value}</p>
                   <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
               ))}

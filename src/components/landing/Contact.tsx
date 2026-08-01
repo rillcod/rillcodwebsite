@@ -56,9 +56,9 @@ const Contact: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
           <div>
-              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
-                 <Sparkles className="w-4 h-4 text-primary" />
-                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Get In Touch</span>
+              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
+                 <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
+                 <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Get In Touch</span>
               </div>
               <h3 className="text-3xl sm:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase">
                 Let's Work <br />
@@ -75,8 +75,8 @@ const Contact: React.FC = () => {
           {/* Info Side (4 Cols) */}
           <div className="lg:col-span-4 space-y-4">
             {contactCards.map((c, i) => (
-              <div key={i} className="group flex items-center gap-5 bg-card border border-border rounded-xl p-6 hover:bg-muted transition-all border-l-2 border-l-transparent hover:border-l-primary shadow-sm">
-                 <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-xl flex items-center justify-center shrink-0`}>
+              <div key={i} className="group flex items-center gap-5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 hover:bg-card transition-all border-l-2 border-l-brand-red-600 shadow-xl">
+                 <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-2xl flex items-center justify-center shrink-0`}>
                     <c.icon className="w-6 h-6" />
                  </div>
                  <div>
@@ -88,7 +88,7 @@ const Contact: React.FC = () => {
             ))}
 
             {/* Response Notice */}
-            <div className="mt-8 p-8 bg-card border border-border rounded-xl relative overflow-hidden group border-t-2 border-t-primary shadow-2xl">
+            <div className="mt-8 p-8 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl relative overflow-hidden group border-t-2 border-t-brand-red-600 shadow-2xl">
                <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-primary/5 rotate-12" />
                <h5 className="text-foreground font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-3">
                  <ShieldCheck className="w-4 h-4 text-primary" /> Quick Response
@@ -101,7 +101,7 @@ const Contact: React.FC = () => {
 
           {/* Form Side (8 Cols) */}
           <div className="lg:col-span-8">
-             <div className="bg-card border border-border rounded-xl p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-primary">
+             <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-brand-red-600">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-xl blur-[100px] pointer-events-none" />
                 
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">

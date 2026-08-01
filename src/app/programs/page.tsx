@@ -90,33 +90,38 @@ export default function Programs() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
         {/* Hero */}
-        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 px-4">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
-              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
+        <div className="text-center py-16 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl mb-16 px-6 relative overflow-hidden">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
+                <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
             </div>
+            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+              STEM Curriculum &amp; Pathways
+            </span>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-6 uppercase tracking-tight leading-none">
+              Our Learning Programs
+            </h1>
+            <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto font-medium italic">
+              Discover our comprehensive range of technology education programs for students from{" "}
+              <strong className="text-foreground">kids to professionals</strong> — covering coding, robotics, AI, data science,
+              UI/UX, and more.
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">
-            Our Learning Programs
-          </h1>
-          <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-8 font-medium italic">
-            Discover our comprehensive range of technology education programs for students from{" "}
-            <strong>kids to professionals</strong> — covering coding, robotics, AI, data science,
-            UI/UX, and more.
-          </p>
-          <div className="w-20 h-1 bg-primary mx-auto rounded-none" />
         </div>
 
         {/* Summer School Banner */}
-        <div className="bg-card border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-none -translate-y-32 translate-x-32 blur-3xl" />
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl border-t-4 border-t-amber-500 p-8 sm:p-10 mb-16 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -translate-y-32 translate-x-32 blur-3xl pointer-events-none" />
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
               <div className="flex-1 text-foreground mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
-                  <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+                  <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500" />
                   <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">{featuredMeta.title || cta.title}</span>
-                  <div className="bg-yellow-500/20 border border-yellow-500/20 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest text-yellow-500">
+                  <div className="bg-amber-500/20 border border-amber-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                     Limited Time
                   </div>
                 </div>
@@ -131,10 +136,10 @@ export default function Programs() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   {[
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: `Start Date: ${formatSpecialDate(featuredMeta.starts_on || null)}` },
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: `Ending Date: ${formatSpecialDate(featuredMeta.ends_on || null)}` },
-                    { icon: <MapPin className="w-4 h-4 text-yellow-500" />,   text: "Online & Onsite available" },
-                    { icon: <Users className="w-4 h-4 text-yellow-500" />,    text: "Small class sizes (8–15 students)" },
+                    { icon: <Calendar className="w-4 h-4 text-amber-500" />, text: `Start Date: ${formatSpecialDate(featuredMeta.starts_on || null)}` },
+                    { icon: <Calendar className="w-4 h-4 text-amber-500" />, text: `Ending Date: ${formatSpecialDate(featuredMeta.ends_on || null)}` },
+                    { icon: <MapPin className="w-4 h-4 text-amber-500" />,   text: "Online & Onsite available" },
+                    { icon: <Users className="w-4 h-4 text-amber-500" />,    text: "Small class sizes (8–15 students)" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
                       {item.icon}<span>{item.text}</span>
@@ -143,14 +148,14 @@ export default function Programs() {
                 </div>
                 <Link
                   href={cta.href}
-                  className="inline-flex items-center justify-center w-full sm:w-auto bg-yellow-500 text-white px-10 py-5 rounded-none font-black text-xs uppercase tracking-[0.4em] hover:bg-yellow-600 transition-all shadow-xl shadow-yellow-500/20 text-center"
+                  className="inline-flex items-center justify-center w-full sm:w-auto bg-amber-500 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-amber-600 transition-all shadow-xl shadow-amber-500/20 text-center"
                 >
                   Register Now
                 </Link>
               </div>
-              <div className="flex-shrink-0 hidden lg:block">
-                <div className="w-32 h-32 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
-                  <GraduationCap className="w-16 h-16 text-yellow-500" />
+              <div className="flex-shrink-0 hidden lg:block ml-8">
+                <div className="w-32 h-32 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center shadow-xl">
+                  <GraduationCap className="w-16 h-16 text-amber-500" />
                 </div>
               </div>
             </div>
@@ -158,17 +163,17 @@ export default function Programs() {
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl p-8 mb-16">
           <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">
             Our Impact Across Nigeria
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {nigerianStats.map((stat, i) => (
               <div key={i} className="text-center group">
-                <div className="w-12 h-12 bg-background border border-border rounded-none flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-primary shadow-sm">
-                  <div className="text-muted-foreground group-hover:text-primary transition-colors">{stat.icon}</div>
+                <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-all group-hover:scale-110 shadow-sm">
+                  <div className="text-primary transition-colors">{stat.icon}</div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter italic">{stat.number}</div>
+                <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter tabular-nums italic">{stat.number}</div>
                 <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}

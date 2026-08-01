@@ -113,8 +113,12 @@ const Navigation = () => {
                 <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic">
                    RILLCOD<span className="text-brand-red-600 not-italic">.</span>
                 </span>
-                <span className="text-xs sm:text-sm font-black uppercase tracking-[0.15em] block text-muted-foreground">
-                  Technologies
+                <span className="flex items-center gap-1.5 mt-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                  <span className="relative flex h-1.5 w-1.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                  </span>
+                  STEM Academy · Live Sync
                 </span>
               </div>
             </Link>

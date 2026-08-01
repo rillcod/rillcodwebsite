@@ -345,18 +345,24 @@ export default function Curriculum() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-4 border-t-primary">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
-          <div className="flex justify-center mb-10">
-            <div className="w-20 h-20 bg-background border border-border rounded-none flex items-center justify-center ring-1 ring-primary/50 ring-offset-4 ring-offset-card shadow-sm">
-              <GraduationCap className="w-10 h-10 text-primary" />
+        <div className="text-center py-16 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl mb-16 px-6 relative overflow-hidden">
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
+                <GraduationCap className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
             </div>
+            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+              12-Year STEM Framework &amp; AI Pathways
+            </span>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-6 uppercase tracking-tight leading-none">
+              12-Year AI-Powered <span className="text-primary italic">Curriculum.</span>
+            </h1>
+            <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto font-medium italic leading-relaxed border-l-2 border-brand-red-600 pl-6 text-left">
+              A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future of Rillcod Technologies.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">12-Year AI-Powered <span className="text-primary italic">Curriculum.</span></h1>
-          <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-12 font-medium italic leading-relaxed border-l-2 border-primary pl-8 mx-auto inline-block text-left">
-            A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future of Rillcod Technologies.
-          </p>
-          <div className="w-24 h-1 bg-primary mx-auto mt-8"></div>
         </div>
 
         {/* 6 Core Pillars of Modern STEM in the AI Era */}
