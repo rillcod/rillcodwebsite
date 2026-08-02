@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircleIcon } from "@/lib/icons";
 import { mergeAssetLaneHref } from "@/lib/curriculum/href";
-import { LANES, stagesInLane, type LaneId, type StageId } from "@/lib/academic/lanes";
+import { LANES, navigationStepsInLane, type LaneId, type StageId } from "@/lib/academic/lanes";
 
 /**
  * One stepper for a lane, built from the kernel. Any page inside a lane mounts
@@ -20,11 +20,11 @@ export function LaneChrome({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const stages = stagesInLane(lane);
+  const stages = navigationStepsInLane(lane);
 
   const activeIndex = (() => {
     if (current) {
-      const byId = stages.findIndex((s) => s.id === current);
+      const byId = stages.findIndex((s) => s.stageIds.includes(current));
       if (byId >= 0) return byId;
     }
     // Longest matching href wins, so /studio/schools beats /studio.

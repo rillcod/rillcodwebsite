@@ -25,6 +25,13 @@ import {
   SparklesIcon,
 } from '@/lib/icons';
 import { buildCurriculumHref } from '@/lib/curriculum/href';
+import {
+  findLiveDirectionForDraft,
+  findScheduleForTimingScope,
+  timingValuesFromSchedule,
+  type CurriculumDirectionSummary,
+  type CurriculumTimingSchedule,
+} from '@/lib/curriculum/rollout-workflow';
 
 type Rel<T> = T | T[] | null | undefined;
 function relation<T>(value: Rel<T>): T | null {
@@ -90,6 +97,16 @@ function IssueCard({ issue }: { issue: QualityIssue }) {
   );
 }
 
+interface OfficialDirection extends CurriculumDirectionSummary {
+  title?: string;
+}
+
+interface TimingSchedule extends CurriculumTimingSchedule {
+  schools?: Rel<{ name?: string }>;
+  classes?: Rel<{ name?: string }>;
+  courses?: Rel<{ title?: string }>;
+}
+
 interface TimingAssignment {
   id: string;
   school_id: string;
@@ -152,7 +169,7 @@ function RolloutWorkspace() {
   const [termNumber, setTermNumber] = useState(1);
 
   // Step 2 — where it landed
-  const [directions, setDirections] = useState<Array<{ id: string; title?: string; status?: string; course_id?: string }>>([]);
+  const [directions, setDirections] = useState<OfficialDirection[]>([]);
   /** Dry-run of who an edition reaches, before or after it is assigned. */
   const [preview, setPreview] = useState<{
     summary: { eligible: number; skipped: number; conflict: number; protected_active_plans: number };
@@ -168,7 +185,7 @@ function RolloutWorkspace() {
   // settings on save.
   const [assignments, setAssignments] = useState<TimingAssignment[]>([]);
   const [classes, setClasses] = useState<Array<{ id: string; name: string; school_id: string; program_id?: string | null }>>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<TimingSchedule[]>([]);
   const [assignmentId, setAssignmentId] = useState('');
   const [classId, setClassId] = useState('');
   const [entryTerm, setEntryTerm] = useState(1);
@@ -179,10 +196,27 @@ function RolloutWorkspace() {
   const [sessionsPerWeek, setSessionsPerWeek] = useState(1);
   const [pacing, setPacing] = useState('standard');
   const [savingTiming, setSavingTiming] = useState(false);
+  const [showTiming, setShowTiming] = useState(false);
 
   const selected = useMemo(() => drafts.find((d) => d.id === curriculumId) ?? null, [drafts, curriculumId]);
   const course = relation(selected?.courses);
   const programme = relation(course?.programs);
+  const liveDirection = useMemo(
+    () =>
+      selected
+        ? findLiveDirectionForDraft(directions, {
+            curriculumId: selected.id,
+            academicSession: session,
+            effectiveTermNumber: termNumber,
+            audienceLabel: audience,
+          })
+        : null,
+    [audience, directions, selected, session, termNumber],
+  );
+  const courseAssignments = useMemo(
+    () => assignments.filter((assignment) => assignment.course_id === selected?.course_id),
+    [assignments, selected?.course_id],
+  );
 
   const load = useCallback(async () => {
     setError('');
@@ -216,7 +250,7 @@ function RolloutWorkspace() {
         setAssignments(items);
         setClasses(payload?.data?.classes ?? []);
         setSchedules(payload?.data?.schedules ?? []);
-        setAssignmentId((current) => current || items[0]?.id || '');
+        setAssignmentId((current) => items.some((item) => item.id === current) ? current : (items[0]?.id ?? ''));
       }
       if (strandedRes.ok) setStranded(await strandedRes.json());
 
@@ -234,6 +268,22 @@ function RolloutWorkspace() {
   }, [linkedCourseId, linkedCurriculumId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (window.location.hash === '#timing') setShowTiming(true);
+  }, []);
+
+  useEffect(() => {
+    setAssignmentId((current) =>
+      courseAssignments.some((assignment) => assignment.id === current)
+        ? current
+        : (courseAssignments[0]?.id ?? ''),
+    );
+  }, [courseAssignments]);
+
+  useEffect(() => {
+    setClassId('');
+  }, [assignmentId]);
 
   async function runReview() {
     if (!curriculumId) return;
@@ -408,7 +458,32 @@ function RolloutWorkspace() {
     } finally { setFixing(null); }
   }
 
-  const timingAssignment = assignments.find((a) => a.id === assignmentId) ?? null;
+  const timingAssignment = courseAssignments.find((a) => a.id === assignmentId) ?? null;
+  const savedTiming = useMemo(
+    () => findScheduleForTimingScope(schedules, timingAssignment, classId),
+    [classId, schedules, timingAssignment],
+  );
+  const relevantSchedules = useMemo(
+    () =>
+      schedules.filter(
+        (schedule) =>
+          schedule.course_id === selected?.course_id &&
+          (!timingAssignment || schedule.school_id === timingAssignment.school_id),
+      ),
+    [schedules, selected?.course_id, timingAssignment],
+  );
+
+  useEffect(() => {
+    const values = timingValuesFromSchedule(savedTiming);
+    setEntryTerm(values.entryTerm);
+    setEntryWeek(values.entryWeek);
+    setProgrammeYear(values.programmeYear);
+    setProgrammeTerm(values.programmeTerm);
+    setProgrammeWeek(values.programmeWeek);
+    setSessionsPerWeek(values.sessionsPerWeek);
+    setPacing(values.pacing);
+  }, [savedTiming]);
+
   /** Only classes in the chosen school that sit on the same programme as the course. */
   const availableClasses = useMemo(
     () => classes.filter((item) =>
@@ -463,7 +538,7 @@ function RolloutWorkspace() {
         <p className="text-xs font-black uppercase tracking-widest text-primary">Academic Office</p>
         <h1 className="mt-2 text-3xl font-black">Rollout</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Review, publish and time one curriculum. Publishing certifies the edition and assigns it to every eligible school in the same action.
+          Choose a curriculum, check it once, and publish it to eligible schools. Existing class plans stay protected.
         </p>
       </header>
 
@@ -476,7 +551,7 @@ function RolloutWorkspace() {
           Curriculum
           <select
             value={curriculumId}
-            onChange={(event) => { setCurriculumId(event.target.value); setReport(null); }}
+            onChange={(event) => { setCurriculumId(event.target.value); setReport(null); setPreview(null); setMessage(''); }}
             className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm"
           >
             {drafts.length === 0 && <option value="">No curriculum drafts yet</option>}
@@ -519,34 +594,54 @@ function RolloutWorkspace() {
               </div>
             </div>
 
+            {liveDirection && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-800 dark:text-emerald-200">
+                <CheckCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="text-sm font-black">This edition is live</p>
+                  <p className="mt-1 text-xs leading-5">
+                    {liveDirection.title || 'The selected curriculum'} is already protected and assigned. Repeating the action refreshes school coverage safely; it does not create a duplicate edition.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="text-xs font-bold">Academic session
-                <input value={session} onChange={(e) => setSession(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
+                <input value={session} onChange={(e) => { setSession(e.target.value); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
               </label>
               <label className="text-xs font-bold">Audience
-                <input value={audience} onChange={(e) => setAudience(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
+                <input value={audience} onChange={(e) => { setAudience(e.target.value); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
               </label>
               <label className="text-xs font-bold">Starts in
-                <select value={termNumber} onChange={(e) => setTermNumber(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm">
+                <select value={termNumber} onChange={(e) => { setTermNumber(Number(e.target.value)); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm">
                   <option value={1}>First Term</option><option value={2}>Second Term</option><option value={3}>Third Term</option>
                 </select>
               </label>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button onClick={() => void runReview()} disabled={checking || !curriculumId}
-                className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-black text-primary disabled:opacity-50">
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-black text-primary disabled:opacity-50">
                 {checking ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShieldCheckIcon className="h-4 w-4" />}
-                {checking ? 'Reviewing…' : 'Run review'}
+                {checking ? 'Checking…' : liveDirection ? 'Recheck quality' : 'Check readiness'}
               </button>
               {isAdmin && (
-                <button onClick={() => void publish()} disabled={publishing || !curriculumId}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:opacity-50">
+                <button
+                  onClick={() => void publish()}
+                  disabled={publishing || !curriculumId || (!liveDirection && (!report || report.readiness === 'not_ready'))}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   {publishing ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
-                  {publishing ? 'Publishing…' : 'Publish and assign to schools'}
+                  {publishing
+                    ? liveDirection ? 'Refreshing…' : 'Publishing…'
+                    : liveDirection ? 'Refresh school coverage' : 'Publish to schools'}
                 </button>
               )}
             </div>
+            {!liveDirection && !report && (
+              <p className="mt-2 text-xs text-muted-foreground">Check readiness to unlock publishing.</p>
+            )}
 
             {report && (
               <div className="mt-5">
@@ -668,7 +763,7 @@ function RolloutWorkspace() {
             <div className="mb-4 flex items-start gap-3">
               <CheckCircleIcon className="h-7 w-7 shrink-0 text-primary" />
               <div>
-                <h2 className="text-lg font-black">2 · Schools</h2>
+                <h2 className="text-lg font-black">2 · School coverage</h2>
                 <p className="text-sm text-muted-foreground">Publishing assigns automatically. Anything left on a retired edition is listed here.</p>
               </div>
             </div>
@@ -682,7 +777,7 @@ function RolloutWorkspace() {
             {/* Publishing reaches the schools, but a class only picks the edition up once this
                 course is set on it. Where a programme offers several courses nothing can infer
                 which one a class teaches, so without this they sit unassigned indefinitely. */}
-            {isAdmin && selected && (
+            {isAdmin && selected && publishedForCourse.length > 0 && (
               <div className="mt-4 rounded-2xl border border-border bg-muted/20 p-4">
                 <p className="text-sm font-black text-foreground">Classes teaching this course</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -745,7 +840,7 @@ function RolloutWorkspace() {
             {publishedForCourse.length > 0 && (
               <button
                 type="button"
-                onClick={() => void checkImpact(publishedForCourse[0].id)}
+                onClick={() => void checkImpact((liveDirection ?? publishedForCourse[0]).id)}
                 disabled={previewing}
                 className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2 text-xs font-black text-primary disabled:opacity-50"
               >
@@ -838,21 +933,39 @@ function RolloutWorkspace() {
 
           {/* 3 — When teaching actually starts. */}
           <section id="timing" className={SECTION}>
-            <div className="mb-4 flex items-start gap-3">
-              <CalendarDaysIcon className="h-7 w-7 shrink-0 text-primary" />
-              <div>
-                <h2 className="text-lg font-black">3 · When teaching starts</h2>
-                <p className="text-sm text-muted-foreground">The sequence stays intact; each school begins from its real calendar position.</p>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowTiming((current) => !current)}
+              aria-expanded={showTiming}
+              className="flex min-h-11 w-full items-start justify-between gap-4 text-left"
+            >
+              <span className="flex items-start gap-3">
+                <CalendarDaysIcon className="h-7 w-7 shrink-0 text-primary" />
+                <span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-lg font-black">School timing exceptions</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Optional</span>
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">
+                    Standard rollout needs no change. Open this only when a school joins mid-programme or uses a different pace.
+                  </span>
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-black text-primary">{showTiming ? 'Hide' : 'Adjust'}</span>
+            </button>
 
-            {assignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No school assignments yet. Publish an edition above, then set its entry point here.</p>
+            {showTiming && (courseAssignments.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">No school assignments yet. Publish an edition above, then set its entry point here.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="mt-4 space-y-4">
+                {savedTiming && (
+                  <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                    Saved timing loaded. Changes update this setting instead of replacing it with defaults.
+                  </p>
+                )}
                 <label className="block text-sm font-bold">School and course
                   <select value={assignmentId} onChange={(e) => { setAssignmentId(e.target.value); setClassId(''); }} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
-                    {assignments.map((item) => (
+                    {courseAssignments.map((item) => (
                       <option key={item.id} value={item.id}>
                         {relation(item.schools)?.name ?? 'School'} · {relation(item.courses)?.title ?? 'Course'}
                       </option>
@@ -883,7 +996,7 @@ function RolloutWorkspace() {
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <p className="text-sm font-black">Where should the programme continue from?</p>
                   <p className="mt-1 text-xs text-muted-foreground">Usually Year 1, First Term, Week 1. Change this only when learners are joining an existing programme.</p>
-                  <div className="mt-3 grid grid-cols-3 gap-3">
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <label className="text-xs font-bold">Year
                       <input type="number" min={1} max={6} value={programmeYear} onChange={(e) => setProgrammeYear(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" />
                     </label>
@@ -912,7 +1025,7 @@ function RolloutWorkspace() {
                   </label>
                 </div>
                 <button onClick={() => void saveTiming()} disabled={savingTiming || !timingAssignment}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:opacity-50">
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:opacity-50 sm:w-auto">
                   {savingTiming ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
                   {savingTiming ? 'Saving…' : 'Save school timing'}
                 </button>
@@ -921,18 +1034,18 @@ function RolloutWorkspace() {
                 <div className="mt-2 border-t border-border pt-4">
                   <p className="text-sm font-black">Current timing</p>
                   <div className="mt-3 space-y-3">
-                    {schedules.length === 0 && (
+                    {relevantSchedules.length === 0 && (
                       <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                         No school timing has been set yet.
                       </p>
                     )}
-                    {schedules.map((item: any) => (
+                    {relevantSchedules.map((item) => (
                       <article key={item.id} className="rounded-2xl border border-border p-4">
                         <h3 className="font-black">{relation(item.classes)?.name ?? relation(item.schools)?.name ?? 'School default'}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{relation(item.courses)?.title ?? 'Course'}</p>
-                        <p className="mt-3 text-sm font-bold">Begins {TERM_LABELS[item.entry_term_number] ?? `Term ${item.entry_term_number}`}, Week {item.entry_week_number}</p>
+                        <p className="mt-3 text-sm font-bold">Begins {TERM_LABELS[Number(item.entry_term_number ?? 1)] ?? `Term ${item.entry_term_number}`}, Week {item.entry_week_number}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Starts from Programme Year {item.curriculum_year_number}, {TERM_LABELS[item.curriculum_term_number] ?? `Term ${item.curriculum_term_number}`}, Week {item.curriculum_week_number}
+                          Starts from Programme Year {item.curriculum_year_number}, {TERM_LABELS[Number(item.curriculum_term_number ?? 1)] ?? `Term ${item.curriculum_term_number}`}, Week {item.curriculum_week_number}
                           {' · '}{item.sessions_per_week} session(s) weekly · {item.pacing_mode} pace
                         </p>
                       </article>
@@ -940,7 +1053,7 @@ function RolloutWorkspace() {
                   </div>
                 </div>
               </div>
-            )}
+            ))}
           </section>
         </div>
       )}

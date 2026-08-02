@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { actorSchoolIds, requireGovernanceActor } from '@/lib/curriculum/governance-server';
 import { humanTermLabel } from '@/lib/curriculum/humanLabels';
+import { validateCurriculumTiming } from '@/lib/curriculum/rollout-workflow';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,8 +46,20 @@ export async function POST(req: NextRequest) {
   }
   const entryTerm = Number(body.entry_term_number ?? 1);
   const entryWeek = Number(body.entry_week_number ?? 1);
-  if (![1, 2, 3].includes(entryTerm) || !Number.isInteger(entryWeek) || entryWeek < 1 || entryWeek > 12) {
-    return NextResponse.json({ error: 'Choose First Term, Second Term, or Third Term, and a starting week from 1 to 12.' }, { status: 400 });
+  const programmeYear = Number(body.curriculum_year_number ?? 1);
+  const programmeTerm = Number(body.curriculum_term_number ?? 1);
+  const programmeWeek = Number(body.curriculum_week_number ?? 1);
+  const sessionsPerWeek = Number(body.sessions_per_week ?? 1);
+  const timingCheck = validateCurriculumTiming({
+    entryTerm,
+    entryWeek,
+    programmeYear,
+    programmeTerm,
+    programmeWeek,
+    sessionsPerWeek,
+  });
+  if (!timingCheck.ok) {
+    return NextResponse.json({ error: timingCheck.error }, { status: 400 });
   }
   const db: any = createAdminClient();
   const { data: adoption } = await db
@@ -77,10 +90,10 @@ export async function POST(req: NextRequest) {
     academic_term_id: typeof body.academic_term_id === 'string' ? body.academic_term_id : null,
     entry_term_number: entryTerm,
     entry_week_number: entryWeek,
-    curriculum_year_number: Number(body.curriculum_year_number ?? 1),
-    curriculum_term_number: Number(body.curriculum_term_number ?? 1),
-    curriculum_week_number: Number(body.curriculum_week_number ?? 1),
-    sessions_per_week: Number(body.sessions_per_week ?? 1),
+    curriculum_year_number: programmeYear,
+    curriculum_term_number: programmeTerm,
+    curriculum_week_number: programmeWeek,
+    sessions_per_week: sessionsPerWeek,
     pacing_mode: ['standard', 'accelerated', 'extended', 'custom'].includes(body.pacing_mode) ? body.pacing_mode : 'standard',
     status: 'active',
     created_by: actor.id,

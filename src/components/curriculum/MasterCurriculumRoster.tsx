@@ -422,7 +422,7 @@ export function MasterCurriculumRoster({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
                 <SparklesIcon className="w-3 h-3 animate-pulse" />
-                Master Curriculum Roster
+                Curriculum management
               </span>
               <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
                 {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
@@ -432,7 +432,7 @@ export function MasterCurriculumRoster({
               Curricula
             </h1>
             <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-              Open a row to see what is using it before you delete.
+              Review saved curricula, publication status, and where each one is in use.
             </p>
           </div>
 
@@ -446,24 +446,33 @@ export function MasterCurriculumRoster({
             </button>
 
             {isAdmin && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void inspectDebris()}
-                  disabled={debrisLoading}
-                  className="px-4 py-2.5 text-xs font-bold bg-card border border-amber-500/40 text-amber-600 hover:bg-amber-500/10 rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
-                >
-                  <ExclamationTriangleIcon className="w-4 h-4" />
-                  {debrisLoading ? 'Checking…' : 'Check for leftovers'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowResetModal(true)}
-                  className="px-4 py-2.5 text-xs font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/30 hover:bg-rose-600 hover:text-white rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
-                >
-                  <ExclamationTriangleIcon className="w-4 h-4" /> Start Fresh / Wipe All
-                </button>
-              </>
+              <details className="relative">
+                <summary className="cursor-pointer list-none rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted">
+                  Maintenance
+                </summary>
+                <div className="absolute right-0 z-30 mt-2 w-64 space-y-2 rounded-2xl border border-border bg-card p-3 shadow-xl">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Rare recovery and deletion tools. Normal curriculum work does not need these.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void inspectDebris()}
+                    disabled={debrisLoading}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-amber-500/40 px-3 py-2 text-left text-xs font-bold text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
+                  >
+                    <ExclamationTriangleIcon className="h-4 w-4" />
+                    {debrisLoading ? 'Checking…' : 'Check for leftover records'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(true)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-left text-xs font-bold text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
+                  >
+                    <ExclamationTriangleIcon className="h-4 w-4" />
+                    Delete every curriculum
+                  </button>
+                </div>
+              </details>
             )}
           </div>
         </div>

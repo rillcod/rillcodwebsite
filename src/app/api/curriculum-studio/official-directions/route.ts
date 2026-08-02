@@ -48,7 +48,7 @@ export async function GET() {
       db
         .from("academic_curriculum_releases")
         .select(
-          "id, course_id, title, change_summary, status, academic_session, effective_term_number, grade_key, audience_label, quality_status, quality_report, published_at, source_metadata, courses(title, programs(name))"
+          "id, course_id, source_curriculum_id, content_hash, title, change_summary, status, academic_session, effective_term_number, grade_key, audience_label, quality_status, quality_report, published_at, source_metadata, courses(title, programs(name))"
         )
         .order("published_at", { ascending: false }),
       db
@@ -143,23 +143,39 @@ export async function POST(req: NextRequest) {
   const hash = curriculumContentHash(curriculum.content);
   let duplicateQuery = db
     .from("academic_curriculum_releases")
-    .select("id, title")
+    .select("*")
     .eq("course_id", curriculum.course_id)
     .eq("content_hash", hash)
     .eq("academic_session", academicSession)
-    .eq("effective_term_number", effectiveTermNumber);
+    .eq("effective_term_number", effectiveTermNumber)
+    .eq("status", "published");
   duplicateQuery = gradeKey
     ? duplicateQuery.eq("grade_key", gradeKey)
-    : duplicateQuery.is("grade_key", null);
+    : duplicateQuery.is("grade_key", null).eq("audience_label", audienceLabel);
   const { data: duplicate } = await duplicateQuery.maybeSingle();
   if (duplicate) {
-    return NextResponse.json(
-      {
-        error: `This exact academic direction is already protected as “${duplicate.title}”.`,
-        existing_id: duplicate.id,
+    const assignment = await applyCurriculumRollout({
+      releaseId: duplicate.id,
+      actorId: actor.id,
+    });
+    await db
+      .from("course_curricula")
+      .update({ is_visible_to_school: true })
+      .eq("id", curriculum.id);
+    return NextResponse.json({
+      data: {
+        direction: duplicate,
+        quality,
+        assignment,
+        already_published: true,
+        message:
+          "“" +
+          duplicate.title +
+          "” is already live. School coverage was refreshed for " +
+          assignment.applied_count +
+          " schools; existing class plans remain unchanged.",
       },
-      { status: 409 }
-    );
+    });
   }
   const { data: latest } = await db
     .from("academic_curriculum_releases")
@@ -212,6 +228,10 @@ export async function POST(req: NextRequest) {
     releaseId: direction.id,
     actorId: actor.id,
   });
+  await db
+    .from("course_curricula")
+    .update({ is_visible_to_school: true })
+    .eq("id", curriculum.id);
   return NextResponse.json(
     {
       data: {

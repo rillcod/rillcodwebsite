@@ -45,6 +45,16 @@ export type Stage = {
   doneWhen: string;
 };
 
+export type LaneNavigationStep = {
+  id: string;
+  lane: LaneId;
+  step: number;
+  label: string;
+  purpose: string;
+  href: string;
+  stageIds: StageId[];
+};
+
 export const LANES: Record<LaneId, { id: LaneId; label: string; scope: string; summary: string }> = {
   asset: {
     id: "asset",
@@ -172,6 +182,64 @@ export const STAGES: Stage[] = [
   },
 ];
 
+/**
+ * The state engine keeps certify, distribute, and timing distinct because each
+ * has a different finish line. They are not three separate user journeys:
+ * publishing certifies and distributes in one transaction, while timing is an
+ * optional exception inside the same rollout workspace.
+ */
+export const LANE_NAVIGATION: Record<LaneId, LaneNavigationStep[]> = {
+  asset: [
+    {
+      id: "build",
+      lane: "asset",
+      step: 1,
+      label: "Build",
+      purpose: "Choose a course and write its week-by-week curriculum.",
+      href: "/dashboard/academic/build",
+      stageIds: ["author"],
+    },
+    {
+      id: "rollout",
+      lane: "asset",
+      step: 2,
+      label: "Rollout",
+      purpose: "Review once, publish to schools, and manage timing exceptions.",
+      href: "/dashboard/academic/rollout",
+      stageIds: ["certify", "distribute", "time"],
+    },
+  ],
+  delivery: [
+    {
+      id: "plan",
+      lane: "delivery",
+      step: 1,
+      label: "Plan",
+      purpose: "Open the class term plan built from the assigned official edition.",
+      href: "/dashboard/classes",
+      stageIds: ["plan"],
+    },
+    {
+      id: "teach",
+      lane: "delivery",
+      step: 2,
+      label: "Teach",
+      purpose: "Teach the class and record curriculum coverage.",
+      href: "/dashboard/classes",
+      stageIds: ["teach", "cover"],
+    },
+    {
+      id: "results",
+      lane: "delivery",
+      step: 3,
+      label: "Results",
+      purpose: "Collect evidence, prepare results, and publish them.",
+      href: "/dashboard/academic/results",
+      stageIds: ["evidence", "result"],
+    },
+  ],
+};
+
 const BY_ID = new Map(STAGES.map((stage) => [stage.id, stage]));
 
 export function findStage(id: string): Stage | null {
@@ -186,6 +254,10 @@ export function stage(id: StageId): Stage {
 
 export function stagesInLane(lane: LaneId): Stage[] {
   return STAGES.filter((s) => s.lane === lane).sort((a, b) => a.step - b.step);
+}
+
+export function navigationStepsInLane(lane: LaneId): LaneNavigationStep[] {
+  return LANE_NAVIGATION[lane];
 }
 
 /**

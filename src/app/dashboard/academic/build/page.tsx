@@ -423,7 +423,7 @@ export default function CurriculumPage() {
   const [allCurricula, setAllCurricula] = useState<any[]>([]);
   const [curriculumViewMode, setCurriculumViewMode] = useState<
     'roster' | 'inspector' | 'builder'
-  >('roster');
+  >('builder');
 
   const loadAllCurricula = useCallback(async () => {
     try {
@@ -3851,7 +3851,7 @@ export default function CurriculumPage() {
 
             {/* Plain-English Mode Switcher Tabs for Staff */}
             {["admin", "teacher", "school"].includes(profile?.role || "") && (
-              <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-md border border-border p-1.5 rounded-2xl shadow-inner my-1 md:my-0">
+              <div className="flex max-w-full flex-row-reverse items-center gap-1 overflow-x-auto rounded-xl border border-border bg-background p-1 my-1 md:my-0">
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("roster")}
@@ -3861,7 +3861,7 @@ export default function CurriculumPage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  <span>📋</span> All Curricula ({allCurricula.length})
+                  Manage ({allCurricula.length})
                 </button>
                 <button
                   type="button"
@@ -3872,7 +3872,7 @@ export default function CurriculumPage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  <span>🧩</span> Building Blocks
+                  Coverage map
                 </button>
                 <button
                   type="button"
@@ -3883,7 +3883,7 @@ export default function CurriculumPage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  <span>🪄</span> Syllabus Builder
+                  Build curriculum
                 </button>
               </div>
             )}
@@ -5475,7 +5475,7 @@ export default function CurriculumPage() {
                             className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
-                            Review &amp; certify
+                            {officialStatus.release ? "Manage rollout" : "Review & publish"}
                           </Link>
                         )}
                         {canPublish &&
