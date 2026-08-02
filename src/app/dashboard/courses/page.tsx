@@ -25,12 +25,14 @@ const LEVEL_BADGE: Record<string, string> = {
   advanced: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
 };
 
-function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram, onToggleLock, locking }: {
+function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram, onToggleLock, locking, openCardMenu, setOpenCardMenu }: {
   course: any; i: number; canEdit: boolean;
   deleting: string | null; onDelete: (id: string, title: string) => void;
   programs?: any[]; onAssignProgram?: (courseId: string, programId: string) => Promise<void>;
   onToggleLock?: (courseId: string, locked: boolean) => Promise<void>;
   locking?: string | null;
+  openCardMenu: string | null;
+  setOpenCardMenu: (id: string | null) => void;
 }) {
   const [assigning, setAssigning] = useState(false);
   const isUncategorized = !course.program_id;
@@ -45,8 +47,8 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
   }
 
   return (
-    <div className={`bg-card shadow-sm border rounded-xl overflow-hidden hover:border-primary/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
-      <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
+    <div className={`bg-card shadow-sm border rounded-xl hover:border-primary/30 transition-all flex flex-col group relative ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
+      <div className={`h-1.5 rounded-t-[11px] bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2">
           <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
@@ -79,24 +81,38 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           const subject = meta.subject?.trim();
           const grades = Array.isArray(meta.grade_levels) ? meta.grade_levels.filter(Boolean) : [];
           if (!subject && grades.length === 0) return null;
+          
+          let displayGrades = grades;
+          if (grades.length >= 3) {
+             const first = grades[0];
+             const last = grades[grades.length - 1];
+             const lastNumMatch = last.match(/\d+/);
+             const lastNum = lastNumMatch ? lastNumMatch[0] : last;
+             displayGrades = [`${first}–${lastNum}`];
+          }
+
+          const infoBadges = [];
+          if (subject) infoBadges.push({ type: 'subject', text: subject });
+          displayGrades.forEach(g => infoBadges.push({ type: 'grade', text: g }));
+          const visibleBadges = infoBadges.slice(0, 2);
+
           return (
             <div className="flex flex-wrap items-center gap-1 mb-2">
-              {subject && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-primary/10 text-violet-700 dark:text-violet-300 border-primary/25">
-                  {subject}
-                </span>
-              )}
-              {grades.slice(0, 4).map((g) => (
+              {visibleBadges.map((b, idx) => (
                 <span
-                  key={g}
-                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/25"
-                  title={`Target grade: ${g}`}
+                  key={idx}
+                  className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border ${
+                    b.type === 'subject' 
+                      ? 'bg-primary/10 text-violet-700 dark:text-violet-300 border-primary/25'
+                      : 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/25'
+                  }`}
+                  title={b.type === 'grade' ? `Target grade: ${b.text}` : undefined}
                 >
-                  {g}
+                  {b.text}
                 </span>
               ))}
-              {grades.length > 4 && (
-                <span className="text-[9px] font-black text-muted-foreground">+{grades.length - 4}</span>
+              {infoBadges.length > 2 && (
+                <span className="text-[9px] font-black text-muted-foreground">+{infoBadges.length - 2}</span>
               )}
             </div>
           );
@@ -119,46 +135,53 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           {course.duration_hours && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>}
           <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{course.assignment_submissions?.length ?? 0} submissions</span>
         </div>
-        <div className="flex gap-2 mt-auto">
+        <div className="flex gap-2 mt-auto relative">
           <Link href={`/dashboard/courses/${course.id}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors min-h-11">
             <EyeIcon className="w-3.5 h-3.5" /> View
           </Link>
           {canEdit && (
             <>
-              <Link href={`/dashboard/courses/${course.id}/edit`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors">
-                <PencilIcon className="w-3.5 h-3.5" /> Edit
-              </Link>
               <button
-                onClick={() => onToggleLock?.(course.id, !course.is_locked)}
-                disabled={locking === course.id || isAlwaysPublic}
-                title={
-                  isAlwaysPublic
-                    ? 'Flagship programme — always visible to every learner; lock has no effect'
-                    : course.is_locked
-                      ? 'Unlock course for students'
-                      : 'Lock course from students'
-                }
-                className={`p-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isAlwaysPublic
-                    ? 'text-sky-600 dark:text-sky-400 bg-sky-500/10'
-                    : course.is_locked
-                      ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
-                      : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400'
-                }`}>
-                {isAlwaysPublic
-                  ? <GlobeAltIcon className="w-3.5 h-3.5" />
-                  : course.is_locked
-                    ? <LockClosedIcon className="w-3.5 h-3.5" />
-                    : <LockOpenIcon className="w-3.5 h-3.5" />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setOpenCardMenu(openCardMenu === course.id ? null : course.id);
+                }}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors min-h-11 min-w-[44px] flex items-center justify-center"
+              >
+                ⋯
               </button>
-              <button
-                onClick={() => onDelete(course.id, course.title)}
-                disabled={deleting === course.id}
-                className="p-2 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
-                <TrashIcon className="w-3.5 h-3.5" />
-              </button>
+              {openCardMenu === course.id && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenCardMenu(null)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-card border border-border rounded-xl shadow-2xl p-1.5">
+                    <Link href={`/dashboard/courses/${course.id}/edit`}
+                      onClick={() => setOpenCardMenu(null)}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold rounded-lg hover:bg-muted/60 transition-colors text-left text-foreground">
+                      <PencilIcon className="w-4 h-4" /> Edit
+                    </Link>
+                    <button
+                      onClick={() => {
+                        onToggleLock?.(course.id, !course.is_locked);
+                        setOpenCardMenu(null);
+                      }}
+                      disabled={locking === course.id || isAlwaysPublic}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold rounded-lg hover:bg-muted/60 transition-colors text-left text-foreground disabled:opacity-50">
+                      {isAlwaysPublic ? <GlobeAltIcon className="w-4 h-4" /> : course.is_locked ? <LockClosedIcon className="w-4 h-4" /> : <LockOpenIcon className="w-4 h-4" />}
+                      {isAlwaysPublic ? 'Always Public' : course.is_locked ? 'Unlock' : 'Lock'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        onDelete(course.id, course.title);
+                        setOpenCardMenu(null);
+                      }}
+                      disabled={deleting === course.id}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold rounded-lg hover:bg-muted/60 transition-colors text-left text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50">
+                      <TrashIcon className="w-4 h-4" /> Delete
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -181,6 +204,7 @@ export default function CoursesPage() {
   const [bulkFixOpen, setBulkFixOpen] = useState(false);
   const [bulkProgramId, setBulkProgramId] = useState('');
   const [bulkFixing, setBulkFixing] = useState(false);
+  const [openCardMenu, setOpenCardMenu] = useState<string | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
   const canEdit = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -520,7 +544,7 @@ export default function CoursesPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {group.courses.map((course: any, i: number) => (
-                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} />
+                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} openCardMenu={openCardMenu} setOpenCardMenu={setOpenCardMenu} />
                     ))}
                   </div>
                 </div>
@@ -529,7 +553,7 @@ export default function CoursesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map((course: any, i: number) => (
-                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} />
+                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} openCardMenu={openCardMenu} setOpenCardMenu={setOpenCardMenu} />
               ))}
             </div>
           )

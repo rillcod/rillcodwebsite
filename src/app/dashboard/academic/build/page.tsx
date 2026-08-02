@@ -493,6 +493,7 @@ export default function CurriculumPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAdvancedCurriculumControls, setShowAdvancedCurriculumControls] =
     useState(false);
+  const [showBuilderMenu, setShowBuilderMenu] = useState(false);
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(
     null
   );
@@ -5451,13 +5452,8 @@ export default function CurriculumPage() {
                         </div>
                       </div>
 
-                      {/* Row 3: action buttons — primary then secondary, all wrap */}
+                      {/* Row 3: action buttons — primary CTA visible, secondary in overflow */}
                       <div className="flex flex-wrap gap-1.5 sm:gap-2 relative z-10">
-                        {/* Authoring the curriculum source is admin-only at the
-                           API, so gate on canGenerate rather than
-                           canModifyCurriculum: the latter admits a teacher on a
-                           school-scoped curriculum, who was shown a Generate
-                           button that always came back 403. */}
                         {canGenerate && (
                           <button
                             onClick={openGenerateModal}
@@ -5478,109 +5474,93 @@ export default function CurriculumPage() {
                             {officialStatus.release ? "Manage rollout" : "Review & publish"}
                           </Link>
                         )}
-                        {canPublish &&
-                          !!curriculum.school_id &&
-                          showAdvancedCurriculumControls &&
-                          (curriculum.is_visible_to_school ? (
-                            <button
-                              onClick={() => togglePublish(false)}
-                              disabled={publishing}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0 cursor-pointer"
-                              title="Make private"
-                            >
-                              {publishing ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <PencilIcon className="w-3.5 h-3.5" />
-                              )}
-                              <span className="hidden xs:inline">
-                                Make Private
-                              </span>
-                              <span className="xs:hidden">Private</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => togglePublish(true)}
-                              disabled={publishing}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shrink-0 cursor-pointer"
-                              title="Share with school"
-                            >
-                              {publishing ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircleIcon className="w-3.5 h-3.5" />
-                              )}
-                              <span className="hidden sm:inline">
-                                Share with School
-                              </span>
-                              <span className="sm:hidden">Share</span>
-                            </button>
-                          ))}
-                        {/* Clone to school — only on platform curricula, for teachers */}
-                        {canModifyCurriculum && (
+                        {/* More overflow menu */}
+                        <div className="relative">
                           <button
                             type="button"
-                            onClick={() =>
-                              setShowAdvancedCurriculumControls(
-                                (value) => !value
-                              )
-                            }
-                            aria-expanded={showAdvancedCurriculumControls}
+                            onClick={() => setShowBuilderMenu(v => !v)}
                             className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:px-3 sm:py-1.5 sm:text-[10px]"
                           >
-                            {showAdvancedCurriculumControls
-                              ? "Hide advanced tools"
-                              : "Advanced tools"}
+                            More
+                            <ChevronDownIcon className={`w-3 h-3 transition-transform ${showBuilderMenu ? 'rotate-180' : ''}`} />
                           </button>
-                        )}
-                        <button
-                          onClick={openPrintOptions}
-                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
-                        >
-                          <PrinterIcon className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">
-                            Print / Export
-                          </span>
-                          <span className="sm:hidden">Export</span>
-                        </button>
-                        {canModifyCurriculum &&
-                          showAdvancedCurriculumControls && (
-                            <button
-                              onClick={() => {
-                                setNotifSettingsDraft(
-                                  curriculum.content.notification_settings ?? {
-                                    mode: "all",
-                                    channels: ["whatsapp"],
-                                  }
-                                );
-                                setShowNotifSettings(true);
-                              }}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
-                            >
-                              <BellIcon className="w-3.5 h-3.5" /> Notifications
-                            </button>
+                          {showBuilderMenu && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowBuilderMenu(false)} />
+                              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => { setShowBuilderMenu(false); openPrintOptions(); }}
+                                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                >
+                                  <PrinterIcon className="w-4 h-4 text-muted-foreground" />
+                                  Print / Export
+                                </button>
+                                {canModifyCurriculum && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setShowBuilderMenu(false); setShowAdvancedCurriculumControls(v => !v); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <BoltIcon className="w-4 h-4 text-muted-foreground" />
+                                    {showAdvancedCurriculumControls ? 'Hide advanced tools' : 'Advanced tools'}
+                                  </button>
+                                )}
+                                {canModifyCurriculum && showAdvancedCurriculumControls && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowBuilderMenu(false);
+                                      setNotifSettingsDraft(
+                                        curriculum.content.notification_settings ?? {
+                                          mode: "all",
+                                          channels: ["whatsapp"],
+                                        }
+                                      );
+                                      setShowNotifSettings(true);
+                                    }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <BellIcon className="w-4 h-4 text-muted-foreground" />
+                                    Notifications
+                                  </button>
+                                )}
+                                {canPublish && !!curriculum.school_id && showAdvancedCurriculumControls && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setShowBuilderMenu(false); togglePublish(!curriculum.is_visible_to_school); }}
+                                    disabled={publishing}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors disabled:opacity-50"
+                                  >
+                                    {curriculum.is_visible_to_school
+                                      ? <><PencilIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Make Private</>
+                                      : <><CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Share with School</>
+                                    }
+                                  </button>
+                                )}
+                                <Link
+                                  href="/dashboard/classes"
+                                  onClick={() => setShowBuilderMenu(false)}
+                                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                >
+                                  <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+                                  Open classes
+                                </Link>
+                                {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setShowBuilderMenu(false); void handleDeleteCurriculum(); }}
+                                    disabled={deleting}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+                                  >
+                                    {deleting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           )}
-                        <Link
-                          href="/dashboard/classes"
-                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
-                        >
-                          <ChartBarIcon className="w-3.5 h-3.5" /> Open classes
-                        </Link>
-                        {(isAdmin ||
-                          (isTeacher && !!curriculum.school_id)) && (
-                            <button
-                              onClick={() => void handleDeleteCurriculum()}
-                              disabled={deleting}
-                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
-                            >
-                              {deleting ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <TrashIcon className="w-3.5 h-3.5" />
-                              )}
-                              Delete
-                            </button>
-                          )}
+                        </div>
                       </div>
 
                       {/* Description — below buttons on all sizes */}

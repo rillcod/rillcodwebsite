@@ -133,6 +133,7 @@ export default function ClassDetailPage() {
   // Roster collapse: the list is dense by default (name + work signal) and each learner
   // opens on demand, so a 40-student class still fits one phone screen.
   const [rosterOpen, setRosterOpen] = useState(true);
+  const [showRosterActions, setShowRosterActions] = useState(false);
   const [showWithdrawnList, setShowWithdrawnList] = useState(false);
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
   const toggleStudentExpanded = (studentId: string) => {
@@ -1604,41 +1605,64 @@ export default function ClassDetailPage() {
                         </p>
                       )}
                       {isStaff && (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground"
                           >
                             <PlusIcon className="h-3.5 w-3.5" />
                             Add Students
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowRegisterModal(true)}
-                            title="Register a brand-new student straight into this class"
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
-                          >
-                            <UserPlusIcon className="h-3.5 w-3.5 text-primary" />
-                            Register New
-                          </button>
-                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50">
-                            <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" />
-                            Transfer / Move
-                          </Link>
-                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/20">
-                            <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
-                            Ownership Requests
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={handleExportLogins}
-                            title="Print the class login / acknowledgement register"
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 py-2.5 text-xs font-black text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-600 hover:text-white sm:col-span-2 lg:col-span-1"
-                          >
-                            <CloudArrowDownIcon className="h-3.5 w-3.5" />
-                            Export Logins
-                          </button>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowRosterActions(v => !v)}
+                              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                            >
+                              More
+                              <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showRosterActions && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowRosterActions(false)} />
+                                <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setShowRosterActions(false); setShowRegisterModal(true); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <UserPlusIcon className="h-4 w-4 text-primary" />
+                                    Register New Student
+                                  </button>
+                                  <Link
+                                    href={`/dashboard/classes/transfer?from=${id}`}
+                                    onClick={() => setShowRosterActions(false)}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
+                                    Transfer / Move
+                                  </Link>
+                                  <Link
+                                    href={`/dashboard/classes/transfer-requests?class=${id}`}
+                                    onClick={() => setShowRosterActions(false)}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
+                                  >
+                                    <ArrowsRightLeftIcon className="h-4 w-4" />
+                                    Ownership Requests
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setShowRosterActions(false); handleExportLogins(); }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <CloudArrowDownIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    Export Logins
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

@@ -12,7 +12,7 @@ import {
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
   SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
   ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon,
+  AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon, ArrowRightIcon
 } from '@/lib/icons';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
@@ -68,21 +68,6 @@ export default function LessonsPage() {
   const [filterCourseId, setFilterCourseId] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // AI lesson plan generator
-  const [planOpen, setPlanOpen] = useState(false);
-  const [planTopic, setPlanTopic] = useState('');
-  const [planGrade, setPlanGrade] = useState('JSS1–SS3');
-  const [planWeeks, setPlanWeeks] = useState('12');
-  const [planGenerating, setPlanGenerating] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
-  const [planResult, setPlanResult] = useState<any | null>(null);
-  const [savingPlan, setSavingPlan] = useState(false);
-  const [planSaved, setPlanSaved] = useState(false);
-  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
-  const [planCourseId, setPlanCourseId] = useState('');
-  const [courses, setCourses] = useState<any[]>([]);
-  const [planMap, setPlanMap] = useState<Record<string, { class_name: string | null; course_title: string | null; term: string | null }>>({});
-
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
@@ -98,84 +83,6 @@ export default function LessonsPage() {
       alert('Delete failed — network error');
     } finally {
       setDeleting(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!planOpen || !profile || courses.length > 0) return;
-    const fetchCourses = async () => {
-      let query = createClient().from('courses').select('id, title, school_id').eq('is_active', true);
-      if (profile?.school_id) query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
-      const { data } = await query.order('title');
-      setCourses(data ?? []);
-    };
-    fetchCourses();
-  }, [planOpen, profile?.id, profile?.school_id]); // eslint-disable-line
-
-  const handleSavePlan = async () => {
-    if (!planResult || !profile) return;
-    if (!planCourseId) { setPlanSaveError('Select a course to attach this plan to.'); return; }
-    setSavingPlan(true);
-    setPlanSaveError(null);
-    try {
-      const objectives = (planResult.objectives ?? []).join('\n');
-      const activities = (planResult.weeks ?? []).map((w: any) =>
-        `Week ${w.week} — ${w.theme}:\n${(w.activities ?? []).map((a: string) => `• ${a}`).join('\n')}`
-      ).join('\n\n');
-      const res = await fetch('/api/lessons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: planResult.course_title || planTopic,
-          description: planResult.description,
-          lesson_type: 'interactive',
-          status: 'active', // auto-publish generated content (no manual draft→active step)
-          course_id: planCourseId,
-          lesson_plan: {
-            objectives, activities,
-            assessment_methods: planResult.assessment_strategy ?? '',
-            staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
-            plan_data: planResult,
-            covers_full_course: true,
-          },
-        }),
-      });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save plan'); }
-      const { data: newLesson } = await res.json();
-      setPlanSaved(true);
-      setLessons(prev => [{
-        id: newLesson.id, title: planResult.course_title || planTopic,
-        description: planResult.description, lesson_type: 'interactive',
-        status: 'active', created_at: new Date().toISOString(),
-        courses: courses.find(c => c.id === planCourseId),
-      }, ...prev]);
-    } catch (e: any) {
-      setPlanSaveError(e.message ?? 'Failed to save plan');
-    } finally {
-      setSavingPlan(false);
-    }
-  };
-
-  const handleGeneratePlan = async () => {
-    if (!planTopic.trim()) { setPlanError('Enter a subject/course name.'); return; }
-    setPlanGenerating(true);
-    setPlanError(null);
-    setPlanResult(null);
-    setPlanSaved(false);
-    setPlanSaveError(null);
-    try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'lesson-plan', topic: planTopic, gradeLevel: planGrade, termWeeks: parseInt(planWeeks) || 12 }),
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
-      setPlanResult(payload.data);
-    } catch (e: any) {
-      setPlanError(e.message ?? 'Failed to generate lesson plan');
-    } finally {
-      setPlanGenerating(false);
     }
   };
 
@@ -248,29 +155,6 @@ export default function LessonsPage() {
     load();
     return () => { cancelled = true; };
   }, [profile?.id, authLoading, lessonPlanId]); // eslint-disable-line
-
-  // Batch-fetch lesson plan details (class + term) for generated lessons
-  useEffect(() => {
-    const planIds = [...new Set(
-      lessons.map((l: any) => l.metadata?.lesson_plan_id).filter(Boolean)
-    )];
-    if (planIds.length === 0) return;
-    const db = createClient();
-    db.from('lesson_plans')
-      .select('id, term, classes!lesson_plans_class_id_fkey(name), courses(title)')
-      .in('id', planIds)
-      .then(({ data }) => {
-        const map: Record<string, { class_name: string | null; course_title: string | null; term: string | null }> = {};
-        for (const p of (data ?? [])) {
-          map[(p as any).id] = {
-            class_name: (p as any).classes?.name ?? null,
-            course_title: (p as any).courses?.title ?? null,
-            term: (p as any).term ?? null,
-          };
-        }
-        setPlanMap(map);
-      });
-  }, [lessons]);
 
   const filtered = lessons.filter(l => {
     const q = search.toLowerCase();
@@ -518,40 +402,6 @@ export default function LessonsPage() {
                       )}
                     </div>
 
-                    {/* Origin badges for AI-generated lessons */}
-                    {lesson.metadata?.lesson_plan_id && (
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
-                          <SparklesIcon className="w-3 h-3" />
-                          AI Generated
-                        </span>
-                        {lesson.metadata.week_number && (
-                          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                            Week {lesson.metadata.week_number}
-                            {lesson.metadata.term_number ? ` · T${lesson.metadata.term_number}` : ''}
-                            {lesson.metadata.year_number ? ` · Y${lesson.metadata.year_number}` : ''}
-                          </span>
-                        )}
-                        {planMap[lesson.metadata.lesson_plan_id]?.class_name && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                            <UserGroupIcon className="w-3 h-3" />
-                            {planMap[lesson.metadata.lesson_plan_id].class_name}
-                          </span>
-                        )}
-                        {planMap[lesson.metadata.lesson_plan_id]?.term && (
-                          <span className="px-2 py-0.5 bg-muted border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
-                            {planMap[lesson.metadata.lesson_plan_id].term}
-                          </span>
-                        )}
-                        <Link
-                          href={`/dashboard/lesson-plans/${lesson.metadata.lesson_plan_id}`}
-                          onClick={e => e.stopPropagation()}
-                          className="text-[10px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
-                        >
-                          → View Plan
-                        </Link>
-                      </div>
-                    )}
                   </div>
 
                   {/* Actions */}
@@ -618,227 +468,21 @@ export default function LessonsPage() {
         </div>
       )}
 
-      {/* AI Lesson Plan Generator — quick shortcut (not part of the main pipeline) */}
+      {/* AI Lesson Plan Generator — quick shortcut */}
       {isStaff && (
-        <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
-            className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-muted transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 bg-primary/10 flex items-center justify-center border border-primary/20 transition-all ${planOpen ? 'border-primary' : ''}`}>
-                <SparklesIcon className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Quick Lesson Plan Generator</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">One-off plan for a single topic — for the full pipeline use <a href="/dashboard/academic/build" className="text-primary hover:underline">Course Syllabus → Lesson Plans</a></p>
-              </div>
-            </div>
-            {planOpen
-              ? <ChevronUpIcon className="w-4 h-4 text-primary" />
-              : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
-          </button>
-
-          {planOpen && (
-            <div className="px-6 pb-6 space-y-5 border-t border-border">
-              {planError && (
-                <p className="mt-4 text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-4 py-3">{planError}</p>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Subject / Course Name *</label>
-                  <input
-                    value={planTopic}
-                    onChange={e => setPlanTopic(e.target.value)}
-                    placeholder="e.g. Python Programming for Beginners"
-                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Grade Level</label>
-                  <select
-                    value={planGrade}
-                    onChange={e => setPlanGrade(e.target.value)}
-                    className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                  >
-                    {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Term Length</label>
-                  <select
-                    value={planWeeks}
-                    onChange={e => setPlanWeeks(e.target.value)}
-                    className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                  >
-                    {['8', '10', '12', '14', '16'].map(w => (
-                      <option key={w} value={w}>{w} weeks</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGeneratePlan}
-                disabled={planGenerating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-colors"
-              >
-                {planGenerating
-                  ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  : <SparklesIcon className="w-4 h-4" />}
-                {planGenerating ? 'Generating...' : 'Generate Lesson Plan'}
-              </button>
-
-              {/* Plan result */}
-              {planResult && (
-                <div className="space-y-6 pt-2">
-                  {/* Overview */}
-                  <div className="bg-background border border-border p-6">
-                    <h4 className="text-xl font-extrabold text-foreground mb-1">{planResult.course_title}</h4>
-                    <p className="text-sm text-muted-foreground mb-4 border-l-2 border-primary/30 pl-3">{planResult.description}</p>
-                    <div className="flex flex-wrap gap-3 text-xs font-bold uppercase">
-                      <span className="px-3 py-1 bg-primary/10 border border-primary/20 text-primary">{planResult.grade_level}</span>
-                      <span className="px-3 py-1 bg-card border border-border text-muted-foreground">{planResult.duration}</span>
-                    </div>
-                  </div>
-
-                  {/* Learning Objectives */}
-                  {planResult.objectives?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Learning Objectives</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {planResult.objectives.map((o: string, i: number) => (
-                          <div key={i} className="flex items-start gap-3 p-3 bg-background border border-border text-sm text-muted-foreground">
-                            <CheckCircleIcon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                            <span>{o}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Weekly breakdown */}
-                  <div>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Weekly Breakdown</p>
-                    <div className="space-y-3">
-                      {(planResult.weeks ?? []).map((week: any) => (
-                        <div key={week.week} className="bg-background border border-border p-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
-                          <div className="flex items-start gap-3">
-                            <span className="w-8 h-8 bg-primary text-white font-extrabold text-sm flex items-center justify-center flex-shrink-0">
-                              {week.week}
-                            </span>
-                            <div>
-                              <p className="text-[10px] font-bold text-primary uppercase tracking-wide">Theme</p>
-                              <p className="text-sm font-semibold text-foreground leading-tight">{week.theme}</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Topics</p>
-                            <ul className="space-y-1">
-                              {(week.topics ?? []).map((t: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                  <span className="w-1 h-1 rounded-full bg-primary/50 mt-1.5 flex-shrink-0" />{t}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Activities</p>
-                            <ul className="space-y-1">
-                              {(week.activities ?? []).map((a: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground italic">
-                                  <span className="w-1 h-1 rounded-full bg-emerald-500/50 mt-1.5 flex-shrink-0" />{a}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="bg-card border border-border p-3">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">Assessment</p>
-                            <p className="text-xs text-muted-foreground">{week.assessment}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Materials & Strategy */}
-                  {(planResult.materials?.length > 0 || planResult.assessment_strategy) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {planResult.assessment_strategy && (
-                        <div className="bg-background border border-border p-4">
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Assessment Strategy</p>
-                          <p className="text-sm text-muted-foreground">{planResult.assessment_strategy}</p>
-                        </div>
-                      )}
-                      {planResult.materials?.length > 0 && (
-                        <div className="bg-background border border-border p-4">
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Materials</p>
-                          <div className="flex flex-wrap gap-2">
-                            {planResult.materials.map((m: string, i: number) => (
-                              <span key={i} className="px-3 py-1 bg-card border border-border text-xs text-muted-foreground font-bold">{m}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Save to course */}
-                  {planSaved ? (
-                    <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-5 py-4">
-                      <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Plan saved!</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Lesson plan saved to the selected course.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-background border border-primary/20 p-5 space-y-4">
-                      <div>
-                        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Save to Course</p>
-                        <p className="text-sm text-muted-foreground">Select a course to attach this lesson plan to.</p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <select
-                          value={planCourseId}
-                          onChange={e => { setPlanCourseId(e.target.value); setPlanSaveError(null); }}
-                          className="flex-1 bg-card border border-border px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                        >
-                          <option value="">Select course...</option>
-                          {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={handleSavePlan}
-                          disabled={savingPlan || !planCourseId}
-                          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-colors"
-                        >
-                          {savingPlan
-                            ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
-                            : <><SparklesIcon className="w-4 h-4" /> Save Plan</>}
-                        </button>
-                      </div>
-                      {planSaveError && <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 px-3 py-2 border border-rose-500/20">{planSaveError}</p>}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => { setPlanResult(null); setPlanTopic(''); setPlanSaved(false); setPlanSaveError(null); setPlanCourseId(''); }}
-                    className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Clear plan
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <Link
+          href="/dashboard/academic/build"
+          className="flex items-center gap-4 p-5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl transition-all hover:border-primary/30 hover:shadow-2xl group"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0 group-hover:scale-105 transition-transform">
+            <SparklesIcon className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-foreground">Need a lesson plan?</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Open the Curriculum Builder to generate full AI-powered lesson plans, week-by-week syllabi, and assessments.</p>
+          </div>
+          <ArrowRightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+        </Link>
       )}
 
     </div>

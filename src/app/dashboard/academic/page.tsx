@@ -15,6 +15,8 @@ import {
 } from "@/lib/academic/overview-flow";
 import {
   AcademicCapIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
 } from "@/lib/icons";
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { AcademicPipelinePanel } from '@/components/academic/AcademicPipelinePanel';
@@ -139,6 +141,8 @@ export default function AcademicSpinePage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [showTools, setShowTools] = useState(false);
+  const [showAllAttention, setShowAllAttention] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -586,7 +590,7 @@ export default function AcademicSpinePage() {
                   No traceable reports need attention in this view.
                 </div>
               )}
-              {data.attention.map((report) => (
+              {(showAllAttention ? data.attention : data.attention.slice(0, 3)).map((report) => (
                 <article
                   key={report.id}
                   className="flex flex-col gap-4 rounded-2xl border border-border p-5 lg:flex-row lg:items-center lg:justify-between"
@@ -628,6 +632,14 @@ export default function AcademicSpinePage() {
                   </div>
                 </article>
               ))}
+              {!showAllAttention && data.attention.length > 3 && (
+                <button
+                  onClick={() => setShowAllAttention(true)}
+                  className="w-full text-center py-3 text-sm font-bold text-primary hover:text-primary/80 transition-colors"
+                >
+                  Show all {data.attention.length} reports
+                </button>
+              )}
             </div>
           </section>
 
@@ -642,8 +654,24 @@ export default function AcademicSpinePage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Open the tool you need without leaving the academic flow.
               </p>
+              <button
+                onClick={() => setShowTools(!showTools)}
+                className="mt-3 flex items-center gap-2 text-sm font-bold text-primary transition-colors hover:text-primary/80"
+              >
+                {showTools ? (
+                  <>
+                    <ChevronDownIcon className="h-4 w-4" />
+                    Hide academic tools
+                  </>
+                ) : (
+                  <>
+                    <ChevronRightIcon className="h-4 w-4" />
+                    Show academic tools
+                  </>
+                )}
+              </button>
             </div>
-            {([
+            {showTools && ([
               ["teaching", "Teaching resources", "Prepare and support what happens in class."],
               ["evidence", "Evidence and outcomes", "Record learning, review progress and publish outcomes."],
               ["help", "Guidance", "Understand how the whole academic flow works."],

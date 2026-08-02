@@ -10,7 +10,7 @@ import {
   ClockIcon, UserGroupIcon, ChartBarIcon, DocumentTextIcon,
   EyeIcon, PencilIcon, TrashIcon, BuildingOfficeIcon,
   ArrowPathIcon, ExclamationTriangleIcon, CalendarDaysIcon,
-  ClipboardDocumentCheckIcon, ArrowsRightLeftIcon,
+  ClipboardDocumentCheckIcon, ArrowsRightLeftIcon, ChevronDownIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
@@ -32,6 +32,7 @@ export default function ClassesPage() {
   const [filterTerm, setFilterTerm] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -137,29 +138,47 @@ export default function ClassesPage() {
           </div>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-          <Link
-            href="/dashboard/classes/transfer-requests"
-            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/20"
-          >
-            <ArrowsRightLeftIcon className="h-4 w-4" />
-            Transfer Requests
-          </Link>
-          <Link
-            href="/dashboard/classes/transfer"
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/50"
-          >
-            <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
-            Transfer
-          </Link>
-          {profile?.role !== 'school' && (
-            <Link
-              href="/dashboard/reports/builder"
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/50"
             >
-              <ChartBarIcon className="h-4 w-4 text-primary" />
-              Reports
-            </Link>
-          )}
+              More <ChevronDownIcon className="h-4 w-4" />
+            </button>
+            {showMoreMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                  <Link
+                    href="/dashboard/classes/transfer-requests"
+                    onClick={() => setShowMoreMenu(false)}
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                  >
+                    <ArrowsRightLeftIcon className="h-4 w-4 text-amber-500" />
+                    Transfer Requests
+                  </Link>
+                  <Link
+                    href="/dashboard/classes/transfer"
+                    onClick={() => setShowMoreMenu(false)}
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                  >
+                    <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
+                    Transfer
+                  </Link>
+                  {profile?.role !== 'school' && (
+                    <Link
+                      href="/dashboard/reports/builder"
+                      onClick={() => setShowMoreMenu(false)}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                    >
+                      <ChartBarIcon className="h-4 w-4 text-primary" />
+                      Reports
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/classes/add"
@@ -186,12 +205,12 @@ export default function ClassesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', border: 'border-primary/10 hover:border-primary/20', color: 'text-primary' },
-          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   border: 'border-primary/10 hover:border-primary/20', color: 'text-primary'   },
-          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-600 dark:text-purple-400'  },
+          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', border: 'border-primary/10 hover:border-primary/20', color: 'text-primary', mobile: true },
+          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   border: 'border-primary/10 hover:border-primary/20', color: 'text-primary', mobile: false },
+          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-600 dark:text-emerald-400', mobile: true },
+          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-600 dark:text-purple-400', mobile: false },
         ].map(s => (
-          <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}>
+          <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl ${!s.mobile ? 'hidden sm:block' : ''}`}>
             <div className={`absolute top-0 right-0 w-20 h-20 ${s.bg} rounded-full blur-3xl opacity-30 -mr-8 -mt-8`} />
             <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-110`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
@@ -387,35 +406,6 @@ export default function ClassesPage() {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Quick links — staff only */}
-      {profile?.role !== 'school' && (
-        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
-          <h2 className="text-sm font-bold text-foreground mb-4">Quick Links</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { label: 'Students',          desc: 'Student records',        icon: UserGroupIcon,    color: 'text-primary',     bg: 'bg-primary/10',     href: '/dashboard/students'   },
-              { label: 'Grading Center',    desc: 'Work needing action',    icon: DocumentTextIcon, color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/10',   href: '/dashboard/grading'    },
-              { label: 'Curriculum guide', desc: 'The approved direction for teaching', icon: AcademicCapIcon,  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/academic/build' },
-              { label: 'Gradebook',         desc: 'Results and outcomes',   icon: BookOpenIcon,     color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-500/10',  href: '/dashboard/grades'     },
-            ].map(a => (
-              <Link
-                key={a.label}
-                href={a.href}
-                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-xl group"
-              >
-                <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
-                  <a.icon className={`w-4 h-4 ${a.color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{a.label}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
         </div>
       )}
 
