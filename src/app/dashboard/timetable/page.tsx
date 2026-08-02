@@ -859,7 +859,7 @@ export default function TimetablePage() {
             )}
             {isAdmin && (
               <button onClick={openNewTT}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/30">
                 <PlusIcon className="w-4 h-4" /> New Timetable
               </button>
             )}
@@ -1226,7 +1226,7 @@ export default function TimetablePage() {
                     <p className="text-lg font-semibold text-muted-foreground">No timetables yet</p>
                     <p className="text-muted-foreground text-sm mt-1">Create one and assign it to a school, section, and term.</p>
                     <button onClick={openNewTT}
-                      className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all">
+                      className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all">
                       <PlusIcon className="w-4 h-4" /> Create First Timetable
                     </button>
                   </>

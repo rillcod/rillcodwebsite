@@ -168,7 +168,7 @@ export default function ImportStudentsPage() {
         </div>
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors flex-shrink-0"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Download Template
         </button>

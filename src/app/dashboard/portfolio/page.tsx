@@ -1020,7 +1020,7 @@ export default function PortfolioPage() {
             {tab === 'projects' && (
               <button
                 onClick={() => { setEditing(null); setShowForm(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors shadow-lg shadow-primary/30"
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-primary/30"
               >
                 <PlusIcon className="w-4 h-4" /> Add Project
               </button>
@@ -1168,7 +1168,7 @@ export default function PortfolioPage() {
                       Every great coder started with project #1 🚀
                     </p>
                     <button onClick={() => { setEditing(null); setShowForm(true); }}
-                      className="px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-colors">
+                      className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-colors">
                       Add My First Project
                     </button>
                   </>

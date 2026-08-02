@@ -145,7 +145,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
         </p>
         <button
           onClick={resetForm}
-          className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all"
+          className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all rounded-xl shadow-lg shadow-primary/20"
         >
           Submit Another
         </button>

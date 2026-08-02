@@ -287,7 +287,7 @@ export default function SchoolOverviewPage() {
           </Link>
           <Link
             href="/dashboard/students/import"
-            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors"
           >
             <UserGroupIcon className="w-4 h-4" /> Import Students
           </Link>

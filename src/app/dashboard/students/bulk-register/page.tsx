@@ -2815,7 +2815,7 @@ Yusuf Ibrahim SS1A`}
                 <div className="bg-gradient-to-b from-primary to-primary/10 to-[#0d1526] border border-emerald-500/20 rounded-xl p-8 text-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
                   <div className="relative z-10">
-                    <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
+                    <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">Process Complete</h2>
                     <div className="flex items-center justify-center gap-4 font-black tracking-widest uppercase text-[10px] flex-wrap">
                       <span className="text-emerald-600/80 dark:text-emerald-400/80">Created: {successCount - reinstateCount}</span>
                       {reinstateCount > 0 && (
@@ -2843,7 +2843,7 @@ Yusuf Ibrahim SS1A`}
                 <div className="flex flex-wrap gap-4 justify-center">
                   {/* Card Export Group */}
                   <div className="flex bg-card border border-border p-1">
-                    <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                    <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest transition-all">
                       <DocumentArrowDownIcon className="w-4 h-4" /> Cards PDF
                     </button>
                     <button onClick={() => handleMassPrint(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
@@ -2853,7 +2853,7 @@ Yusuf Ibrahim SS1A`}
 
                   {/* Roster Export Group */}
                   <div className="flex bg-card border border-border p-1">
-                    <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                    <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest transition-all">
                       <DocumentArrowDownIcon className="w-4 h-4" /> Roster PDF
                     </button>
                     <button onClick={() => handleMassPrintReport(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">

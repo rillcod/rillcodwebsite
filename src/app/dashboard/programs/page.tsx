@@ -398,7 +398,7 @@ export default function ProgramsPage() {
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-muted-foreground hover:text-foreground font-bold transition-all">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-foreground font-black rounded-xl transition-all shadow-lg shadow-primary/40">
+                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-all shadow-lg shadow-primary/40">
                   {saving ? 'Saving...' : editing ? 'Update Program' : 'Create Program'}
                 </button>
               </div>

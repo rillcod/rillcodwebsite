@@ -1465,7 +1465,7 @@ export default function StudentsPage() {
               )}
             </div>
             <div className="p-4 border-t border-border flex-shrink-0">
-              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all">
+              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-white font-bold rounded-xl text-sm transition-all">
                 Done
               </button>
             </div>
@@ -1637,7 +1637,7 @@ export default function StudentsPage() {
             <div className="relative z-10 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
                 <PlusIcon className="w-4 h-4" /> Register Student
               </button>
               <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
@@ -1652,7 +1652,7 @@ export default function StudentsPage() {
                     <PrinterIcon className="w-4 h-4" /> Print
                   </button>
                   <button onClick={handlePrintAllLoginSlips}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
+                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
                     <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
                   <button onClick={exportCSV}
@@ -2388,7 +2388,7 @@ export default function StudentsPage() {
             <span className="text-sm font-bold text-foreground">{selectedForEnrol.size} selected</span>
             <button
               onClick={openBulkEnrol}
-              className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2"
             >
               <AcademicCapIcon className="w-4 h-4" /> Enrol in Class
             </button>
