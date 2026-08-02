@@ -163,14 +163,14 @@ export function AccountsPanel() {
   };
 
   const del = async (acct: PaymentAccount) => {
-    if (!confirm(`Remove the account "${acct.label}"? This cannot be undone.`)) return;
+    if (!confirm(`Deactivate the account "${acct.label}"? Its history will be preserved.`)) return;
     const res = await fetch(`/api/payment-accounts/${acct.id}`, { method: 'DELETE' });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      toast.error(j.error || 'Delete failed');
+      toast.error(j.error || 'Deactivation failed');
       return;
     }
-    toast.success('Account removed');
+    toast.success('Account deactivated');
     setAccounts((prev) => prev.filter((a) => a.id !== acct.id));
   };
 

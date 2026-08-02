@@ -166,10 +166,16 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   // (generate_receipt_number() trigger reads NEW.stream).
   const { data: existing } = await supabase
     .from('receipts')
-    .select('id, receipt_number, pdf_url')
+    .select('id, receipt_number, pdf_url, metadata')
     .eq('transaction_id', transactionId)
     .maybeSingle();
 
+  if ((existing?.metadata as Record<string, unknown> | null)?.withdrawn === true) {
+    throw new AppError(
+      'This receipt was withdrawn and remains locked in the audit trail. Issue a correcting transaction instead.',
+      409,
+    );
+  }
   let receiptId = existing?.id as string | undefined;
   let receiptNumber = existing?.receipt_number as string | null | undefined;
 

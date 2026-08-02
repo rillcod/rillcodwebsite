@@ -40,6 +40,10 @@ export type Capability =
   | 'reset_scoped_passwords'
   /** Manage platform-wide user lifecycle and role placement. */
   | 'manage_users'
+  /** Mutate the authoritative finance ledger, approvals, invoices, or settlements. */
+  | 'manage_finance'
+  /** Manage payment destination/contact settings for the caller's own school. */
+  | 'manage_school_payment_settings'
   /** Destroy a record (submission, student, account). Never a partner school. */
   | 'delete_records'
   /**
@@ -82,6 +86,10 @@ const CAPABILITY_ROLES: Record<Capability, readonly PortalRole[]> = {
   // Platform-wide role and lifecycle management remains a central-admin action.
   manage_users: ['admin'],
   // A school may see its own account with Rillcod...
+  // Financial authority is not implied by teaching or by being the payer.
+  manage_finance: ['admin'],
+  // A school manager may maintain only its own payment destinations and contacts.
+  manage_school_payment_settings: ['admin', 'school'],
   view_school_finance: ['admin', 'school'],
   // ...but the FIGURES on a family's invoice reveal Rillcod's margin over what the
   // school is billed. Amounts stay on the platform.

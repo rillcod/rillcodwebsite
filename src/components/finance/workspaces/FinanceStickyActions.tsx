@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { BanknotesIcon, DocumentTextIcon, BoltIcon } from '@/lib/icons';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 type Props = {
   workspace: string;
@@ -15,9 +16,9 @@ type Action = { href: string; label: string; icon: typeof BanknotesIcon };
  * Never duplicate the current workspace as a no-op primary action.
  */
 export function FinanceStickyActions({ workspace, role }: Props) {
-  if (role !== 'admin' && role !== 'school' && role !== 'teacher') return null;
-
-  const isAdmin = role === 'admin';
+  if (!roleHasCapability(role, 'view_student_payment_status')) return null;
+  const isAdmin = roleHasCapability(role, 'manage_finance');
+  const isSchool = role === 'school';
 
   const invoices = { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon };
   const collections = { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Collect', icon: BoltIcon };
@@ -26,32 +27,20 @@ export function FinanceStickyActions({ workspace, role }: Props) {
   const settings = { href: '/dashboard/finance?workspace=settings', label: 'Settings', icon: BanknotesIcon };
 
   let actions: Action[];
-  if (workspace === 'today' || workspace === 'reports') {
-    actions = [
-      invoices,
-      collections,
-      collections,
-    ];
-    if (role === 'teacher') {
-      actions = [invoices, collections, today];
-    }
+  if (workspace === 'today') {
+    actions = isAdmin ? [invoices, collections, reconcile] : isSchool ? [invoices, settings] : [invoices];
+  } else if (workspace === 'reports') {
+    actions = isAdmin ? [invoices, collections, reconcile] : [today, invoices, settings];
   } else if (workspace === 'collections') {
-    // Already on Collections — don't show Collect/Approvals as a dead click.
-    actions = [
-      today,
-      invoices,
-      isAdmin ? reconcile : today,
-    ];
+    actions = [today, invoices, reconcile];
   } else if (workspace === 'invoices') {
-    actions = [invoices, collections, today];
-  } else if (workspace === 'reconciliation' || workspace === 'settings') {
-    actions = [
-      today,
-      invoices,
-      isAdmin ? reconcile : collections,
-    ];
-  } else {
+    actions = isAdmin ? [today, collections, reconcile] : isSchool ? [today, settings] : [today];
+  } else if (workspace === 'reconciliation') {
     actions = [today, invoices, collections];
+  } else if (workspace === 'settings') {
+    actions = isAdmin ? [today, invoices, reconcile] : [today, invoices];
+  } else {
+    actions = [today, invoices];
   }
 
   // De-dupe by href so teacher/today paths never show two identical tiles.

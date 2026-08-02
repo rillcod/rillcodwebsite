@@ -5,6 +5,7 @@ import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
 import { settleBillingCyclePayment } from '@/lib/finance/billing-cycle-payment';
 import { syncRosterBillingForCycle } from '@/lib/rosters/billing-sync';
 import { logAudit } from '@/lib/audit/log';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -38,7 +39,7 @@ async function teacherScopedSchoolIds(
  */
 export async function GET(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !roleHasCapability(caller.role, 'view_school_finance')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

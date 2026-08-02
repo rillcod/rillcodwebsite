@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import { createClient } from '@/lib/supabase/client';
 import {
   ReceiptPercentIcon,
@@ -29,6 +30,7 @@ interface AuditEntry {
   resource_id: string;
   old_value: string | null;
   new_value: string | null;
+  new_values?: { reason?: string } | null;
   created_at: string;
   portal_users?: { full_name?: string } | null;
 }
@@ -52,9 +54,17 @@ interface ReceiptRow {
     payment_method?: string;
     notes?: string;
     reference?: string;
+    withdrawn?: boolean;
+    withdrawn_at?: string;
+    withdrawn_by?: string;
+    withdrawal_reason?: string;
     received_by?: string;
     deposit_account?: { bank_name: string; account_number: string; account_name: string };
   } | null;
+}
+
+function isWithdrawnReceipt(receipt: ReceiptRow): boolean {
+  return receipt.metadata?.withdrawn === true;
 }
 
 /**
@@ -68,15 +78,15 @@ interface ReceiptRow {
 export function ReceiptsPanel() {
   const { profile } = useAuth();
   const db = createClient();
-  const isAdmin = profile?.role === 'admin';
-  const canManage = ['admin', 'school', 'teacher'].includes(profile?.role || '');
+  const isAdmin = roleHasCapability(profile?.role, 'manage_finance');
+  const canManage = roleHasCapability(profile?.role, 'view_school_finance');
 
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
@@ -85,40 +95,40 @@ export function ReceiptsPanel() {
     if (!isAdmin) return;
     const { data } = await (db as any)
       .from('audit_logs')
-      .select('id, resource_id, old_value, new_value, created_at, portal_users!audit_logs_user_id_fkey(full_name)')
+      .select('id, resource_id, old_value, new_value, new_values, created_at, portal_users!audit_logs_user_id_fkey(full_name)')
       .eq('resource_type', 'receipt')
-      .eq('action', 'deleted')
+      .in('action', ['receipt_withdrawn', 'delete_receipt', 'deleted'])
       .order('created_at', { ascending: false })
       .limit(20);
     setAuditLog((data ?? []) as AuditEntry[]);
   };
 
-  const deleteReceipt = async (r: ReceiptRow) => {
+  const withdrawReceipt = async (r: ReceiptRow) => {
     const payer = r.metadata?.payer_name || r.schools?.name || r.portal_users?.full_name || r.receipt_number;
     const reason = window.prompt(
-      `Delete receipt ${r.receipt_number} for ${payer}?\n\nEnter a reason for deletion (required for audit trail):`,
+      `Withdraw receipt ${r.receipt_number} for ${payer}?\n\nThe record will be preserved. Enter a withdrawal reason:`,
       '',
     );
     if (reason === null) return;
     if (!reason.trim()) {
-      toast.error('A deletion reason is required.');
+      toast.error('A withdrawal reason is required.');
       return;
     }
-    setDeletingId(r.id);
+    setWithdrawingId(r.id);
     try {
       const res = await fetch(`/api/receipts/${r.id}?reason=${encodeURIComponent(reason.trim())}`, { method: 'DELETE' });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Delete failed');
+      if (!res.ok) throw new Error(j.error || 'Withdrawal failed');
       toast.success(
-        `Receipt ${r.receipt_number} deleted · Reason: "${j.audit?.reason ?? reason}" · Logged to audit trail`,
+        `Receipt ${r.receipt_number} withdrawn and preserved · Reason: "${j.audit?.reason ?? reason}"`,
         { duration: 6000 },
       );
-      setRows((prev) => prev.filter((x) => x.id !== r.id));
+      await load();
       loadAuditLog();
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
-      setDeletingId(null);
+      setWithdrawingId(null);
     }
   };
 
@@ -198,7 +208,7 @@ export function ReceiptsPanel() {
       id: r.id,
       number: r.receipt_number,
       date: new Date(r.issued_at).toLocaleDateString(),
-      status: 'paid',
+      status: isWithdrawnReceipt(r) ? 'withdrawn' : 'paid',
       stream,
       items,
       amount: r.amount,
@@ -301,10 +311,10 @@ export function ReceiptsPanel() {
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Receipt deletion audit trail</p>
+            <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Receipt withdrawal audit trail</p>
           </div>
           {auditLog.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No receipt deletions recorded yet.</p>
+            <p className="text-xs text-muted-foreground">No receipt withdrawals recorded yet.</p>
           ) : (
             <div className="space-y-1.5">
               {auditLog.map((entry) => (
@@ -315,7 +325,7 @@ export function ReceiptsPanel() {
                     <span className="text-muted-foreground">by {entry.portal_users?.full_name ?? 'Admin'}</span>
                     <span className="text-muted-foreground ml-auto">{formatShortDate(entry.created_at)}</span>
                   </div>
-                  <p className="text-amber-700/80 dark:text-amber-300/80">Reason: {entry.new_value ?? '—'}</p>
+                  <p className="text-amber-700/80 dark:text-amber-300/80">Reason: {entry.new_values?.reason ?? entry.new_value ?? '—'}</p>
                 </div>
               ))}
             </div>
@@ -344,14 +354,15 @@ export function ReceiptsPanel() {
               r.portal_users?.full_name ||
               r.schools?.name ||
               'Client';
+            const withdrawn = isWithdrawnReceipt(r);
             return (
-              <div key={r.id} className="relative group">
-              {isAdmin && (
+              <div key={r.id} className={`relative group ${withdrawn ? 'opacity-75' : ''}`}>
+              {isAdmin && !withdrawn && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteReceipt(r); }}
-                  disabled={deletingId === r.id}
+                  onClick={(e) => { e.stopPropagation(); withdrawReceipt(r); }}
+                  disabled={withdrawingId === r.id}
                   className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete this receipt"
+                  title="Withdraw this receipt and preserve its audit record"
                 >
                   <TrashIcon className="w-3 h-3" />
                 </button>
@@ -376,8 +387,8 @@ export function ReceiptsPanel() {
                     </div>
                     <p className="text-sm font-black text-foreground mt-1 truncate">{payer}</p>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black rounded-full uppercase shrink-0">
-                    Paid
+                  <span className={`px-2 py-0.5 text-[9px] font-black rounded-full uppercase shrink-0 ${withdrawn ? 'bg-zinc-500/10 text-muted-foreground' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+                    {withdrawn ? 'Withdrawn' : 'Paid'}
                   </span>
                 </div>
 
@@ -403,7 +414,7 @@ export function ReceiptsPanel() {
                       : ''}
                   </span>
                   <div className="flex items-center gap-2">
-                    {r.pdf_url && (
+                    {!withdrawn && r.pdf_url && (
                       <a
                         href={r.pdf_url}
                         target="_blank"
@@ -414,7 +425,7 @@ export function ReceiptsPanel() {
                         <DocumentArrowDownIcon className="w-3 h-3" /> PDF
                       </a>
                     )}
-                    {canManage && r.portal_user_id && (
+                    {!withdrawn && canManage && r.portal_user_id && (
                       <button
                         onClick={(e) => { e.stopPropagation(); resendReceipt(r); }}
                         disabled={resendingId === r.id}

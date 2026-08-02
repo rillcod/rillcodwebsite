@@ -32,6 +32,7 @@ import {
   getCurrentTermLabel,
   periodFromStartYear,
 } from '@/lib/reports/academic-period';
+import { roleHasCapability, type Capability } from '@/lib/auth/capabilities';
 import { MOBILE_PAGE_ROOT, MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
@@ -284,18 +285,16 @@ type TabDef = {
   key: TabKey;
   label: string;
   icon: typeof BanknotesIcon;
-  adminOnly?: boolean;
-  /** Omit = any authenticated user that passes adminOnly check */
-  roles?: readonly PortalRole[];
+  capability?: Capability;
 };
 
 const ALL_TABS: TabDef[] = [
   { key: 'today', label: 'Today', icon: BanknotesIcon },
-  { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
-  { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
-  { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin', 'school'] },
+  { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, capability: 'view_student_payment_status' },
+  { key: 'collections', label: 'Collections', icon: BoltIcon, capability: 'manage_finance' },
+  { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, capability: 'manage_finance' },
+  { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, capability: 'view_school_finance' },
+  { key: 'settings', label: 'Settings', icon: CreditCardIcon, capability: 'manage_school_payment_settings' },
 ];
 
 const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
@@ -334,8 +333,7 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
 const COLLECTIONS_OPS = new Set(['approvals', 'reminders', 'collect']);
 
 function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
-  if (t.adminOnly && !isAdmin) return false;
-  if (t.roles && !t.roles.includes(role)) return false;
+  if (t.capability && !roleHasCapability(role, t.capability)) return false;
   return true;
 }
 
@@ -1758,15 +1756,15 @@ function SetupTab({ profile }: { profile: any }) {
   }
 
   async function deleteAccount(id: string) {
-    if (!confirm('Delete this account?')) return;
+    if (!confirm('Deactivate this account? Its history will be preserved.')) return;
     try {
       const res = await fetch(`/api/payment-accounts/${id}`, { method: 'DELETE' });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Delete failed');
-      toast.success('Deleted');
+      if (!res.ok) throw new Error(j.error || 'Deactivation failed');
+      toast.success('Account deactivated');
       await load();
     } catch (err: any) {
-      toast.error(err.message ?? 'Delete failed');
+      toast.error(err.message ?? 'Deactivation failed');
     }
   }
 
@@ -2238,7 +2236,7 @@ export default function FinancePage() {
     );
   }
 
-  const showSticky = profile.role === 'admin' || profile.role === 'school' || profile.role === 'teacher';
+  const showSticky = roleHasCapability(profile.role, 'view_student_payment_status');
 
   return (
     <div className={`min-h-screen bg-background ${MOBILE_PAGE_ROOT} ${showSticky ? MOBILE_STICKY_ACTIONS_BOTTOM : ''}`}>
@@ -2250,9 +2248,9 @@ export default function FinancePage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {profile.role === 'teacher'
-              ? 'Today = what needs action · Reports = summary · Invoices/Collections = the work'
+              ? 'Today = payment status overview · Invoices = scoped records'
               : profile.role === 'school'
-              ? 'Today = what needs action · Reports = summary & statements · Invoices/Collections = the work'
+              ? 'Today = what needs action · Reports = summary & statements · Invoices = bills & payment proof'
               : 'Today = action queue · Reports = KPIs & docs · Invoices/Collections/Reconciliation = the work'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">

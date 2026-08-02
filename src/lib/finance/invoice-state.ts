@@ -12,7 +12,7 @@ const TRANSITIONS: Record<string, readonly string[]> = {
   sent: ['partially_paid', 'paid', 'overdue', 'void', 'cancelled'],
   partially_paid: ['partially_paid', 'paid', 'overdue', 'void', 'cancelled'],
   overdue: ['partially_paid', 'paid', 'void', 'cancelled'],
-  paid: ['void'],
+  paid: [],
   void: [],
   cancelled: [],
 };

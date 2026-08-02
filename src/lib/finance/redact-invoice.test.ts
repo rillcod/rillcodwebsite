@@ -67,6 +67,12 @@ describe('invoice redaction', () => {
     expect(out.portal_users).toBeUndefined();
     expect(JSON.stringify(out)).not.toMatch(/carol@example\.com|Caroline/);
   });
+  it("a teacher sees only status even for a school's own bill", () => {
+    const out = redactInvoiceForRole(schoolBill, 'teacher')!;
+    expect(out.payment_status).toBe('unpaid');
+    expect(out.amount).toBeUndefined();
+  });
+
 
   it('but a school DOES still see the paid indicator', () => {
     const out = redactInvoiceForRole(familyInvoice, 'school')!;
@@ -153,6 +159,13 @@ describe('invoice redaction', () => {
     const tx = { id: 'tx-2', school_id: 'school-1', portal_user_id: null, amount: 20000, payment_status: 'completed' };
     expect(redactTransactionForRole(tx, 'school')?.amount).toBe(20000);
   });
+  it('a teacher never sees settlement transaction amounts', () => {
+    const tx = { id: 'tx-teacher', school_id: 'school-1', portal_user_id: null, amount: 20000, payment_status: 'completed' };
+    const out = redactTransactionForRole(tx, 'teacher')!;
+    expect(out.amount).toBeUndefined();
+    expect(out.payment_status_indicator).toBe('paid');
+  });
+
 
   it('a parent still sees their own payment in full', () => {
     const tx = { id: 'tx-3', school_id: 'school-1', portal_user_id: 'parent-1', amount: 50000, payment_status: 'completed' };

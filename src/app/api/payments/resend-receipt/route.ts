@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { logAudit } from '@/lib/audit/log';
 
+import { roleHasCapability } from '@/lib/auth/capabilities';
 // POST /api/payments/resend-receipt
 // Body: { portalUserId: string } | { studentId: string }
 // Admin/teacher — resends the branded receipt email for the most recent completed payment
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
       .select('role, id, school_id')
       .eq('id', user.id)
       .single();
-    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Admin or teacher access required' }, { status: 403 });
+    if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
+      return NextResponse.json({ error: 'Finance administrator access required' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -51,12 +51,6 @@ export async function POST(req: NextRequest) {
 
     if (!payer?.email) {
       return NextResponse.json({ error: 'No email on file for this user' }, { status: 400 });
-    }
-    if (caller.role === 'teacher') {
-      const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-      if (!payer.school_id || !schoolIds.includes(payer.school_id)) {
-        return NextResponse.json({ error: 'Payer is outside your assigned schools' }, { status: 403 });
-      }
     }
 
     // Find the most recent completed payment for this user

@@ -1,11 +1,10 @@
-import { isSchoolStreamTransaction } from '@/lib/finance/redact-invoice';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
+import { roleHasCapability } from '@/lib/auth/capabilities';
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
@@ -21,10 +20,7 @@ export async function POST(req: Request) {
             .eq('id', user.id)
             .single();
 
-        const canApprove = profile?.role === 'admin' ||
-            profile?.role === 'school' ||
-            profile?.role === 'teacher';
-        if (!canApprove) {
+        if (!roleHasCapability(profile?.role, 'manage_finance')) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -43,20 +39,6 @@ export async function POST(req: Request) {
 
         if (txError || !transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
-        }
-
-        // Non-admin: only approve transactions in their server-derived school scope.
-        if (profile?.role !== 'admin') {
-            const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile?.school_id || null);
-            if (!transaction.school_id || !allowedSchoolIds.includes(transaction.school_id)) {
-                return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
-            }
-            // Approving a FAMILY payment settles Rillcod's own commercial relationship
-            // with that family — and the approval path issues a receipt showing the
-            // amount. A school may only approve its own settlements.
-            if (profile?.role === 'school' && !isSchoolStreamTransaction(transaction)) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-            }
         }
 
         if (transaction.payment_status === 'completed') {

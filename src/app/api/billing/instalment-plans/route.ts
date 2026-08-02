@@ -19,8 +19,12 @@ async function canAccessInvoice(
   invoice: { portal_user_id: string | null; school_id?: string | null },
 ): Promise<boolean> {
   if (caller.role === 'admin') return true;
-  if (caller.role === 'school' || caller.role === 'teacher') {
-    return !!caller.school_id && invoice.school_id === caller.school_id;
+  if (caller.role === 'school') {
+    // A school may arrange only its own Rillcod bill, never a family's invoice.
+    return !invoice.portal_user_id && !!caller.school_id && invoice.school_id === caller.school_id;
+  }
+  if (caller.role === 'teacher') {
+    return false;
   }
   if (caller.role === 'student') return invoice.portal_user_id === caller.id;
   if (caller.role === 'parent') {
@@ -171,13 +175,13 @@ export async function GET(req: NextRequest) {
     const ids = (ownInvoices ?? []).map((r: any) => r.id);
     if (ids.length === 0) return NextResponse.json({ data: [] });
     q = q.in('invoice_id', ids) as any;
-  } else if ((caller.role === 'school' || caller.role === 'teacher') && !invoiceId) {
+  } else if (caller.role === 'school' && !invoiceId) {
     if (!caller.school_id) return NextResponse.json({ data: [] });
-    const { data: schoolInvoices } = await db.from('invoices').select('id').eq('school_id', caller.school_id);
+    const { data: schoolInvoices } = await db.from('invoices').select('id').eq('school_id', caller.school_id).is('portal_user_id', null);
     const ids = (schoolInvoices ?? []).map((r: any) => r.id);
     if (ids.length === 0) return NextResponse.json({ data: [] });
     q = q.in('invoice_id', ids) as any;
-  } else if (caller.role !== 'admin' && !['school', 'teacher', 'parent', 'student'].includes(caller.role)) {
+  } else if (caller.role !== 'admin' && !['school', 'parent', 'student'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

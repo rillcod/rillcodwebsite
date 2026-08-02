@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -56,7 +58,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!['admin', 'school'].includes(caller.role)) {
+  if (!roleHasCapability(caller.role, 'manage_school_payment_settings')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -71,14 +73,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'school_id must match your school' }, { status: 403 });
     }
   }
+  const ownerType = caller.role === 'school'
+    ? 'school'
+    : body.owner_type === 'school' ? 'school' : 'rillcod';
+  const schoolId = ownerType === 'school'
+    ? (caller.role === 'school' ? caller.school_id : body.school_id)
+    : null;
+  const required = ['label', 'bank_name', 'account_number', 'account_name'] as const;
+  if (required.some((field) => !String(body[field] || '').trim())) {
+    return NextResponse.json({ error: 'Label, bank, account number, and account name are required' }, { status: 400 });
+  }
+  if (ownerType === 'school' && !schoolId) {
+    return NextResponse.json({ error: 'school_id is required for a school account' }, { status: 400 });
+  }
+
+  const payload = {
+    owner_type: ownerType,
+    school_id: schoolId,
+    label: String(body.label).trim(),
+    bank_name: String(body.bank_name).trim(),
+    account_number: String(body.account_number).trim(),
+    account_name: String(body.account_name).trim(),
+    account_type: body.account_type === 'current' ? 'current' : 'savings',
+    payment_note: body.payment_note ? String(body.payment_note).trim() : null,
+    is_active: body.is_active !== false,
+    created_by: caller.id,
+  };
+
 
   const admin = adminClient();
   const { data, error } = await admin
     .from('payment_accounts')
-    .insert({ ...body, created_by: caller.id })
+    .insert(payload)
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'create_payment_account',
+    actorId: caller.id,
+    resourceType: 'payment_account',
+    resourceId: data.id,
+    newValue: 'active',
+    newValues: { owner_type: data.owner_type, school_id: data.school_id, label: data.label },
+  });
+
   return NextResponse.json({ data });
 }

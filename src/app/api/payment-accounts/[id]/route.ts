@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -26,6 +28,7 @@ async function canEditAccount(
   accountId: string,
 ) {
   if (caller.role === 'admin') return { allowed: true as const };
+  if (!roleHasCapability(caller.role, 'manage_school_payment_settings')) return { allowed: false as const, reason: 'Forbidden' };
   if (caller.role !== 'school') return { allowed: false as const, reason: 'Forbidden' };
   const admin = adminClient();
   const { data, error } = await admin
@@ -53,21 +56,38 @@ export async function PATCH(
   if (!guard.allowed) return NextResponse.json({ error: guard.reason }, { status: 403 });
 
   const body = await request.json();
-  // Schools cannot change ownership
-  if (caller.role === 'school') {
-    delete body.owner_type;
-    delete body.school_id;
+  const update: Record<string, unknown> = {};
+  for (const field of ['label', 'bank_name', 'account_number', 'account_name', 'account_type', 'payment_note', 'is_active']) {
+    if (body[field] !== undefined) update[field] = body[field];
   }
+  if (caller.role === 'admin' && (body.owner_type === 'school' || body.owner_type === 'rillcod')) {
+    update.owner_type = body.owner_type;
+    update.school_id = body.owner_type === 'school' ? body.school_id || null : null;
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: 'No supported account changes supplied' }, { status: 400 });
+  }
+  update.updated_at = new Date().toISOString();
+
 
   const admin = adminClient();
   const { data, error } = await admin
     .from('payment_accounts')
-    .update(body)
+    .update(update)
     .eq('id', id)
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'update_payment_account',
+    actorId: caller.id,
+    resourceType: 'payment_account',
+    resourceId: id,
+    newValue: data.is_active ? 'active' : 'inactive',
+    newValues: { owner_type: data.owner_type, school_id: data.school_id, label: data.label },
+  });
+
   return NextResponse.json({ data });
 }
 
@@ -84,7 +104,21 @@ export async function DELETE(
   if (!guard.allowed) return NextResponse.json({ error: guard.reason }, { status: 403 });
 
   const admin = adminClient();
-  const { error } = await admin.from('payment_accounts').delete().eq('id', id);
+  const { data, error } = await admin
+    .from('payment_accounts')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id, label')
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  await logAudit(admin as any, {
+    action: 'deactivate_payment_account',
+    actorId: caller.id,
+    resourceType: 'payment_account',
+    resourceId: id,
+    oldValue: 'active',
+    newValue: 'inactive',
+    newValues: { label: data.label, record_preserved: true },
+  });
+  return NextResponse.json({ success: true, action: 'deactivated' });
 }

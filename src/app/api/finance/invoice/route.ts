@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createInvoice } from '@/lib/finance/create-invoice';
 import { financeResultToResponse } from '@/lib/finance/write-result';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { redactInvoiceListForRole } from '@/lib/finance/redact-invoice';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -17,7 +19,7 @@ async function getCaller() {
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
+  if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
     return NextResponse.json({ success: false, error: 'Forbidden', code: 'forbidden' }, { status: 403 });
   }
 
@@ -84,5 +86,5 @@ export async function GET(request: Request) {
   if (status) q = q.eq('status', status) as typeof q;
   const { data, error } = await q;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, data: data ?? [] });
+  return NextResponse.json({ success: true, data: redactInvoiceListForRole(data ?? [], caller.role) });
 }

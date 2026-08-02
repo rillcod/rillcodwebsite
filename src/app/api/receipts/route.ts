@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyReceiptStream } from '@/lib/finance/streams';
 import { getParentLinkScope } from '@/lib/parents/links';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { logAudit } from '@/lib/audit/log';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -57,9 +57,7 @@ export async function GET(request: NextRequest) {
     // school_id, so this hides nothing a school legitimately needs.)
     query = query.eq('school_id', caller.school_id).eq('stream', 'school');
   } else if (caller.role === 'teacher') {
-    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-    if (schoolIds.length === 0) return NextResponse.json({ data: [] });
-    query = query.in('school_id', schoolIds);
+    return NextResponse.json({ data: [] });
   } else if (caller.role === 'parent') {
     const { studentUserIds } = await getParentLinkScope(
       admin as any,
@@ -81,7 +79,7 @@ export async function GET(request: NextRequest) {
 // Official receipts can only originate from a completed payment transaction.
 export async function POST(request: NextRequest) {
   const caller = await requireCaller();
-  if (!caller || !['admin', 'teacher'].includes(String(caller.role))) {
+  if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
     return NextResponse.json({ success: false, error: 'Forbidden', code: 'forbidden' }, { status: 403 });
   }
 
@@ -102,13 +100,6 @@ export async function POST(request: NextRequest) {
   if (!['completed', 'success', 'paid'].includes(status)) {
     return NextResponse.json({ success: false, error: 'Receipt can only be issued for a completed payment', code: 'invalid_transition' }, { status: 409 });
   }
-  if (caller.role === 'teacher') {
-    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-    if (!transaction.school_id || !schoolIds.includes(transaction.school_id)) {
-      return NextResponse.json({ success: false, error: 'Transaction is outside your assigned schools', code: 'forbidden' }, { status: 403 });
-    }
-  }
-
   try {
     const receipt = await issueReceiptForTransaction(transactionId);
     await logAudit(admin as any, {

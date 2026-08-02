@@ -57,6 +57,15 @@ describe('capabilities', () => {
     expect(roleHasCapability('student', 'reset_scoped_passwords')).toBe(false);
   });
 
+
+  it('separates finance authority from payment and school visibility', () => {
+    expect(roleHasCapability('admin', 'manage_finance')).toBe(true);
+    expect(roleHasCapability('school', 'manage_finance')).toBe(false);
+    expect(roleHasCapability('teacher', 'manage_finance')).toBe(false);
+    expect(roleHasCapability('school', 'manage_school_payment_settings')).toBe(true);
+    expect(roleHasCapability('teacher', 'manage_school_payment_settings')).toBe(false);
+  });
+
   it('denial is a 403 that does not leak the permission model', () => {
     const denied = denyIfMissingCapability('school', 'grade');
     expect(denied).not.toBeNull();

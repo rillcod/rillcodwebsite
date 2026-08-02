@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -96,7 +97,7 @@ export function ApprovalsPanel() {
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
-  const canApprove = isAdmin || isSchool || isTeacher;
+  const canApprove = roleHasCapability(profile?.role, 'manage_finance');
 
   const [tab, setTab] = useState<TabKey>('pending_tx');
   const [txs, setTxs] = useState<TxRow[]>([]);

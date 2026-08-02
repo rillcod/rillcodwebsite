@@ -525,27 +525,27 @@ export function SchoolBillingDocsPanel() {
   }, []);
 
   const deleteArchivedDoc = useCallback(async (doc: RecentDoc) => {
-    if (!confirm(`Permanently delete ${doc.ref}? This cannot be undone.`)) return;
+    if (!confirm(`Archive ${doc.ref}? Its financial history will be preserved.`)) return;
     try {
       const qs = doc.archiveId
         ? `id=${encodeURIComponent(doc.archiveId)}`
         : `ref=${encodeURIComponent(doc.ref)}`;
       const r = await fetch(`/api/billing/docs/archive?${qs}`, { method: 'DELETE' });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || 'Delete failed');
+      if (!r.ok) throw new Error(j.error || 'Archive failed');
       setRecentDocs(prev => {
         const updated = prev.filter(d => d.ref !== doc.ref);
         try { localStorage.setItem(DOCS_STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
         return updated;
       });
     } catch (e: any) {
-      alert(e.message ?? 'Failed to delete document');
+      alert(e.message ?? 'Failed to archive document');
     }
   }, []);
 
   const clearRecentDocs = useCallback(async () => {
     if (recentDocs.length === 0) return;
-    if (!confirm(`Permanently delete all ${recentDocs.length} saved billing document(s)? This cannot be undone.`)) return;
+    if (!confirm(`Archive all ${recentDocs.length} saved billing document(s)? Their history will be preserved.`)) return;
     await Promise.allSettled(
       recentDocs.map((doc) => {
         const qs = doc.archiveId

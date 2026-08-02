@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -10,8 +11,8 @@ function adminClient() {
   );
 }
 
-// DELETE /api/receipts/[id] — admin-only hard delete of a receipt record.
-// Removes the receipts row and clears receipt_url on the linked transaction.
+// DELETE /api/receipts/[id] — admin-only withdrawal of an issued receipt.
+// Preserves the receipt as financial evidence and clears the live transaction link.
 // Requires a ?reason= query param for audit trail.
 export async function DELETE(
   req: NextRequest,
@@ -27,13 +28,13 @@ export async function DELETE(
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Only admin can delete receipts' }, { status: 403 });
+  if (!roleHasCapability(profile?.role, 'manage_finance')) {
+    return NextResponse.json({ error: 'Only finance administrators can withdraw receipts' }, { status: 403 });
   }
 
   const { id } = await context.params;
   const reason = String(req.nextUrl.searchParams.get('reason') || '').trim();
-  if (!reason) return NextResponse.json({ error: 'A deletion reason is required' }, { status: 400 });
+  if (!reason) return NextResponse.json({ error: 'A withdrawal reason is required' }, { status: 400 });
   const admin = adminClient();
 
   const { data: receipt, error } = await (admin as any).rpc('withdraw_receipt_atomic', {
@@ -48,32 +49,33 @@ export async function DELETE(
     receipt_number: (receipt as any).receipt_number,
     amount: (receipt as any).amount,
     currency: (receipt as any).currency,
-    deleted_by_id: user.id,
-    deleted_by_name: (profile as any)?.full_name ?? 'unknown',
-    deleted_by_email: (profile as any)?.email ?? 'unknown',
+    withdrawn_by_id: user.id,
+    withdrawn_by_name: (profile as any)?.full_name ?? 'unknown',
+    withdrawn_by_email: (profile as any)?.email ?? 'unknown',
     reason,
-    deleted_at: new Date().toISOString(),
+    withdrawn_at: new Date().toISOString(),
   };
 
   // Write to audit_logs table for queryable trail (standard helper)
   await logAudit(admin as any, {
-    action: 'delete_receipt',
+    action: 'receipt_withdrawn',
     actorId: user.id,
     resourceType: 'receipt',
     resourceId: id,
-    oldValue: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
-    newValue: reason,
+    oldValue: 'issued',
+    newValue: 'withdrawn',
     newValues: {
-      summary: `Deleted receipt ${(receipt as any).receipt_number} · Reason: ${reason}`,
+      summary: `Withdrew receipt ${(receipt as any).receipt_number} · Reason: ${reason}`,
       receipt_number: (receipt as any).receipt_number,
       amount: (receipt as any).amount,
       currency: (receipt as any).currency,
       reason,
+      evidence_preserved: true,
     },
   });
 
   // Structured server log as secondary trail
-  console.warn('[RECEIPT DELETED]', JSON.stringify(auditEntry));
+  console.warn('[RECEIPT WITHDRAWN]', JSON.stringify(auditEntry));
 
-  return NextResponse.json({ success: true, audit: { receipt_number: (receipt as any).receipt_number, reason }, effects: ['transaction_receipt_unlinked', 'receipt_deleted', 'audit_logged'] });
+  return NextResponse.json({ success: true, action: 'withdrawn', audit: { receipt_number: (receipt as any).receipt_number, reason }, effects: ['transaction_receipt_unlinked', 'receipt_preserved', 'audit_logged'] });
 }

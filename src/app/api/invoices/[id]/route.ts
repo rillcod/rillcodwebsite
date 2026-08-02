@@ -9,6 +9,7 @@ import {
   syncInvoiceFieldsThroughBillingCycle,
 } from '@/lib/finance/billing-cycle-invoice-sync';
 import { logAudit } from '@/lib/audit/log';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -91,8 +92,8 @@ export async function PATCH(
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   // Editing invoices is a finance action — teachers can view but not mutate.
-  if (!['admin', 'school'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Only finance admins or school accounts can update invoices' }, { status: 403 });
+  if (!roleHasCapability(caller.role, 'manage_finance')) {
+    return NextResponse.json({ error: 'Finance administrator access required' }, { status: 403 });
   }
   // A school may manage its OWN bill from Rillcod, never a family's invoice.
   if (caller.role === 'school') {
@@ -319,8 +320,8 @@ export async function DELETE(
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Only admin may delete across all invoices; schools may only delete their own.
-  if (caller.role !== 'admin' && caller.role !== 'school') {
-    return NextResponse.json({ error: 'Only admin can delete invoices' }, { status: 403 });
+  if (!roleHasCapability(caller.role, 'manage_finance')) {
+    return NextResponse.json({ error: 'Finance administrator access required' }, { status: 403 });
   }
   if (caller.role === 'school') {
     const cycleSchoolId = await getLinkedCycleSchoolId(admin, existing);

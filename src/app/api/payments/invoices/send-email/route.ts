@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceIssueEmail, defaultInvoicePaymentUrl } from '@/lib/finance/invoice-email';
@@ -8,6 +7,7 @@ import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 
 export async function POST(req: Request) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             .single();
 
         // Sending invoices (with payment links) is a staff-only action.
-        if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+        if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -66,13 +66,6 @@ export async function POST(req: Request) {
             }, { status: 404 });
         }
 
-        // Non-admin staff are scoped to server-derived school assignments.
-        if (caller.role !== 'admin') {
-            const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-            if (!invoice.school_id || !schoolIds.includes(invoice.school_id)) {
-                return NextResponse.json({ success: false, message: 'Forbidden - invoice is outside your assigned schools' }, { status: 403 });
-            }
-        }
 
         let billingContact = null;
         if (invoice.school_id) {

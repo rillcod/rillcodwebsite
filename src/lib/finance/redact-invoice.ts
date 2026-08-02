@@ -76,7 +76,7 @@ export function redactInvoiceForRole(
   if (!invoice) return null;
   if (role && SELF_SCOPED_ROLES.has(role)) return invoice;
   if (roleHasCapability(role, 'view_student_finance')) return invoice;
-  if (isSchoolStreamInvoice(invoice)) return invoice;
+  if (role === 'school' && isSchoolStreamInvoice(invoice)) return invoice;
   if (!roleHasCapability(role, 'view_student_payment_status')) return null;
 
   const redacted: InvoiceLike = { ...invoice };
@@ -117,7 +117,7 @@ export function redactTransactionForRole(
   if (!tx) return null;
   if (role && SELF_SCOPED_ROLES.has(role)) return tx;
   if (roleHasCapability(role, 'view_student_finance')) return tx;
-  if (isSchoolStreamTransaction(tx)) return tx;
+  if (role === 'school' && isSchoolStreamTransaction(tx)) return tx;
   if (!roleHasCapability(role, 'view_student_payment_status')) return null;
 
   const redacted: InvoiceLike = { ...tx };

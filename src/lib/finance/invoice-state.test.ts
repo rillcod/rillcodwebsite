@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { invoiceOutstandingAmount, isClosedInvoice, isOpenInvoice, isOverdueInvoice } from './invoice-state';
+import { canTransitionInvoice, invoiceOutstandingAmount, isClosedInvoice, isOpenInvoice, isOverdueInvoice } from './invoice-state';
 
 describe('canonical invoice state', () => {
   it('shares one open and closed vocabulary', () => {
@@ -16,4 +16,10 @@ describe('canonical invoice state', () => {
     expect(isOverdueInvoice({ status: 'sent', due_date: '2026-07-01' }, now)).toBe(true);
     expect(isOverdueInvoice({ status: 'paid', due_date: '2026-07-01' }, now)).toBe(false);
   });
+  it('never voids a paid invoice outside the refund workflow', () => {
+    expect(canTransitionInvoice('paid', 'void')).toBe(false);
+    expect(canTransitionInvoice('paid', 'paid')).toBe(true);
+    expect(canTransitionInvoice('sent', 'paid')).toBe(true);
+  });
+
 });

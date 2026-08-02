@@ -1,5 +1,5 @@
 /**
- * POST /api/invoices/mark-paid   (admin / teacher / school)
+ * POST /api/invoices/mark-paid   (finance administrator only)
  * Body: { invoiceId: string; amount?: number }
  *
  * #12 — Invoice lifecycle guard. Marking an invoice paid must be consistent:
@@ -9,13 +9,12 @@
  *   • Generate the receipt + write an audit log.
  * Replaces the raw `update({ status: 'paid' })` the dashboard used.
  */
-import { isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +34,8 @@ export async function POST(req: NextRequest) {
 
     const admin = adminClient();
     const { data: caller } = await admin.from('portal_users').select('role, school_id').eq('id', user.id).single();
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
+      return NextResponse.json({ error: 'Finance administrator access required' }, { status: 403 });
     }
 
     const { invoiceId, amount } = await req.json().catch(() => ({}));
@@ -48,28 +47,6 @@ export async function POST(req: NextRequest) {
       .eq('id', invoiceId)
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-
-    // School boundary for non-admins: invoice school or billed student school
-    // must be in the caller's teacher_schools scope (not primary school_id only).
-    if (caller.role !== 'admin') {
-      const allowedSchoolIds = await getTeacherSchoolIds(user.id, caller.school_id);
-      const studentSchoolId = (invoice as any).portal_users?.school_id ?? null;
-      const inTenant = allowedSchoolIds.length > 0 && (
-        (invoice.school_id && allowedSchoolIds.includes(invoice.school_id))
-        || (studentSchoolId && allowedSchoolIds.includes(studentSchoolId))
-      );
-      if (!inTenant) {
-        return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
-      }
-    }
-
-    // Being in the right school is not enough. Settling a FAMILY invoice is Rillcod's
-    // commercial relationship with that family — a school may only mark its own bill
-    // paid, never a parent's. The response echoes the invoice amount, so this also
-    // stops the figure leaking.
-    if (caller.role === 'school' && !isSchoolStreamInvoice(invoice)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     if (invoice.status === 'paid') {
       return NextResponse.json({ success: true, message: 'Invoice already paid', alreadyPaid: true });

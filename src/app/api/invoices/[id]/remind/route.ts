@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { logAudit } from '@/lib/audit/log';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -23,7 +24,7 @@ async function requireStaff() {
     .select('id, role, school_id, full_name, email')
     .eq('id', user.id)
     .single();
-  if (!profile || !['admin', 'school', 'teacher'].includes(profile.role)) return null;
+  if (!profile || !roleHasCapability(profile.role, 'manage_finance')) return null;
   return profile;
 }
 
@@ -50,15 +51,6 @@ export async function POST(
 
   if (invErr || !invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-  }
-
-  if (caller.role !== 'admin') {
-    const studentSchoolId = (invoice.portal_users as any)?.school_id ?? null;
-    const inTenant = !!caller.school_id
-      && (invoice.school_id === caller.school_id || studentSchoolId === caller.school_id);
-    if (!inTenant) {
-      return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
-    }
   }
 
   let billingContact: { representative_email?: string | null } | null = null;

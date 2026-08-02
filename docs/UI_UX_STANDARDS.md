@@ -86,8 +86,16 @@ Use skeletons for card/list loading, not full-screen spinners, unless the whole 
   from the shared grading policy; clients cannot directly override totals or grades.
 - Finance records are never cleared as part of UI cleanup, account cleanup, or demo cleanup;
   every monetary mutation must preserve traceability and use an explicit finance workflow.
+- Finance UI must mirror the manage_finance boundary: approval, manual ledger writes,
+  statements, refunds, reminders, and receipt withdrawal are administrator actions.
+- Schools manage and pay only their own Rillcod billing; family finance appears as a
+  status indicator without amounts or personal contact details. Teachers receive the
+  same status-only disclosure and no finance documents.
+- Destructive finance labels use Withdraw, Archive, Deactivate, Cancel, or Void and
+  explicitly tell the user that the historical record is preserved.
 - Every privileged lifecycle or financial mutation records an actor-linked audit event without
   logging passwords, tokens, or other reusable secrets.
+
 ## Definition of done for visual changes
 
 Before pushing a UI change:

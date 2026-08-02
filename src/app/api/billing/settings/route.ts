@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -19,7 +21,7 @@ async function getCaller() {
 // GET /api/billing/settings?school_id=...
 export async function GET(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
+  if (!caller || !roleHasCapability(caller.role, 'manage_school_payment_settings')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
 // POST /api/billing/settings
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
+  if (!caller || !roleHasCapability(caller.role, 'manage_school_payment_settings')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -90,5 +92,13 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'save_billing_settings',
+    actorId: caller.id,
+    resourceType: 'billing_contact',
+    resourceId: data.id,
+    newValue: 'configured',
+    newValues: { school_id, representative_configured: Boolean(data.representative_email || data.representative_whatsapp) },
+  });
   return NextResponse.json({ data });
 }

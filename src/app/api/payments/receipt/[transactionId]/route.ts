@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { getParentLinkScope } from '@/lib/parents/links';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 /**
  * POST /api/payments/receipt/[transactionId]
@@ -41,11 +40,9 @@ export async function POST(
     .eq('id', user.id)
     .single();
 
+  if (!profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const isOwner = tx.portal_user_id === user.id;
-  const schoolIds = profile?.role === 'teacher' || profile?.role === 'school'
-    ? await getTeacherSchoolIds(user.id, profile.school_id)
-    : [];
-  const isSameSchool = !!tx.school_id && schoolIds.includes(tx.school_id);
+  const isSameSchool = profile.role === 'school' && !!tx.school_id && tx.school_id === profile.school_id;
   const isAdmin = profile?.role === 'admin';
   let isLinkedParent = false;
   if (profile?.role === 'parent' && tx.portal_user_id) {
@@ -64,8 +61,9 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Allow ?force=1 to re-issue after a template or data correction.
-  const force = new URL(_req.url).searchParams.get('force') === '1';
+  // Only finance administrators may deliberately re-render an issued document.
+  const forceRequested = new URL(_req.url).searchParams.get('force') === '1';
+  const force = forceRequested && isAdmin;
 
   if ((tx as any).receipt_url && !force) {
     return NextResponse.json({ url: (tx as any).receipt_url, cached: true });
@@ -80,6 +78,6 @@ export async function POST(
       cached: false,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to generate receipt' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Failed to generate receipt' }, { status: err.statusCode || 500 });
   }
 }

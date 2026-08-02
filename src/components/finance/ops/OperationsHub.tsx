@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import {
   CheckBadgeIcon,
   DocumentTextIcon,
@@ -40,7 +41,8 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
-  const isStaff = isAdmin || isSchool || isTeacher;
+  const isStaff = roleHasCapability(profile?.role, 'view_student_payment_status');
+  const canManageFinance = roleHasCapability(profile?.role, 'manage_finance');
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -91,7 +93,19 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     hint: string;
   };
 
-  const documentFilters: TabDef[] = [
+  if (workspace === 'collections' && !canManageFinance) {
+    return (
+      <div className="border border-dashed border-border rounded-xl p-10 text-center">
+        <p className="text-sm font-bold text-foreground">Finance approval required</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Payment approval and manual ledger changes are restricted to finance administrators.
+        </p>
+      </div>
+    );
+  }
+
+
+  const documentFilters = ([
     {
       k: 'invoices',
       label: 'Invoices',
@@ -104,7 +118,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       Icon: ReceiptPercentIcon,
       hint: 'Browse issued receipts with full document preview',
     },
-  ];
+  ] satisfies TabDef[]).filter((tab) => tab.k !== 'receipts' || roleHasCapability(profile?.role, 'view_school_finance'));
 
   const showDocumentFilter = workspace === 'invoices';
 

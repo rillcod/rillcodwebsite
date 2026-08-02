@@ -1,6 +1,6 @@
 # Rillcod Academy — Platform Policies
 
-> Last updated: 2026-04-15
+> Last updated: 2026-08-02
 > This document covers all access-control, financial, data-visibility, and operational policies enforced by the platform code and API routes.
 
 ---
@@ -157,6 +157,34 @@ A teacher can be assigned to **one or more schools** via:
 
 ## 7. Finance & Billing Policies
 
+### 7.0 Canonical finance authority and retention contract
+
+This contract is the source of truth for every Finance workspace and API. Where older
+descriptions below differ, this section takes precedence.
+
+- **Finance administrator (manage_finance)**: the admin role alone may approve or
+  reject payments, record manual payments, create or mutate invoices, mark invoices
+  paid, send finance reminders or statements, reconcile, refund, and withdraw receipts.
+- **Partner school**: may view and pay its own Rillcod invoices and billing cycles,
+  upload proof for those invoices, and manage its own billing contact and school-owned
+  payment accounts. A school cannot approve its own proof, mark an invoice paid, or
+  write directly to the ledger.
+- **Teacher**: sees only the paid, part-paid, or unpaid indicator needed for learner
+  follow-up. Teachers do not receive amounts, payer contact details, receipts, payment
+  statements, school billing-cycle amounts, or approval controls.
+- **Parent and student**: may view and pay only records already scoped to themselves or
+  their linked children. Staff disclosure redaction never hides a family's own bill.
+- **No financial hard deletes**: issued receipts are withdrawn in place, billing
+  documents are archived in place, payment accounts are deactivated, invoices are
+  cancelled, and payment attempts are voided. The original database row remains.
+- **Paid is terminal**: a paid invoice cannot be changed to void. Corrections use the
+  refund or correcting-transaction workflow so the ledger remains explainable.
+- **Auditability**: every finance mutation records the actor, resource, state change,
+  timestamp, and preservation outcome in the canonical audit trail.
+- **Single classifier and redaction path**: invoice and transaction disclosure is
+  determined by the canonical finance stream classifier and role capability map, not
+  by page-specific role checks.
+
 ### 7.1 Role Visibility in Smart Finance
 
 | Tab | admin | teacher | school |
@@ -178,19 +206,19 @@ A teacher can be assigned to **one or more schools** via:
 - The overview section is titled **"Outstanding Invoices"** (not "Recent Invoice Activity") for school role.
 
 **For admin/teacher role:**
-- All invoice statuses displayed with standard labels: Draft, Sent, Paid, Overdue, Cancelled.
+- Admin sees all invoice statuses. Teachers see only the learner payment-status indicator.
 - Admin can mark invoices as paid using the "Mark Paid" button.
 
 ### 7.3 Payment Accounts Policy
 
 **Admin:**
-- Can create, edit, and delete any payment account (Rillcod company or school accounts).
+- Can create, edit, and deactivate any payment account (Rillcod company or school accounts).
 - Can set `owner_type` to either `rillcod` or `school`.
 
 **School role:**
 - Can **add** their own school payment account (`owner_type = school`, `school_id = their school`).
 - Can **edit** only their own school accounts — Rillcod company accounts are **view-only**.
-- Cannot delete any account (admin only).
+- Can deactivate only its own school account; the historical row is preserved.
 - School accounts are **visible to parents** alongside the Rillcod company account. A "Visible to parents" indicator is shown.
 - When adding an account, `owner_type` and `school_id` are locked — a school cannot create a Rillcod-type account.
 
@@ -234,7 +262,7 @@ A teacher can be assigned to **one or more schools** via:
 - School can collapse the payment options by clicking "Hide".
 
 **Admin controls:**
-- Admin can edit, delete (cancelled/rolled-over only), and manually change the status of any cycle.
+- Admin can edit, archive (cancelled/rolled-over only), and manually change the status of any cycle.
 - Delete is restricted to `cancelled` and `rolled_over` cycles only.
 
 ### 7.6 Subscription Management
@@ -596,7 +624,7 @@ The platform is multi-tenant — multiple partner schools share the same databas
 
 ### 20.2 Deployment Process
 - **Pre-deployment**: Run deployment checklist
-- **Deployment**: Zero-downtime deployment via Vercel
+- **Deployment**: Zero-downtime deployment via Cloudflare Containers
 - **Post-deployment**: Monitor for 1 hour after deployment
 - **Rollback**: Immediate rollback if error rate > 1%
 
@@ -607,5 +635,5 @@ The platform is multi-tenant — multiple partner schools share the same databas
 
 ---
 
-*Last updated: April 17, 2026*
+*Last updated: August 2, 2026*
 *All policies enforced at code level. This document serves as reference.*

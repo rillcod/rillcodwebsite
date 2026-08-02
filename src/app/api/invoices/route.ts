@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getParentLinkScope } from '@/lib/parents/links';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -28,7 +29,7 @@ async function requireCaller() {
 async function requireWriter() {
   const caller = await requireCaller();
   if (!caller) return null;
-  if (caller.role !== 'admin' && caller.role !== 'school') return null;
+  if (!roleHasCapability(caller.role, 'manage_finance')) return null;
   return caller;
 }
 

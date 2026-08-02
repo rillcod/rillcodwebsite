@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { billingDocsDb, requireBillingDocsCaller } from '@/lib/billing/docs-auth';
+import { logAudit } from '@/lib/audit/log';
 
 /**
  * GET /api/billing/docs/archive
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   const docRef = searchParams.get('ref');
   const includeHtml = searchParams.get('includeHtml') === '1' || Boolean(docRef);
   const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 100);
+  const includeArchived = caller.role === 'admin' && searchParams.get('includeArchived') === '1';
   const db = billingDocsDb();
 
   const selectCols = includeHtml
@@ -44,6 +46,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!includeArchived && (data.metadata as Record<string, unknown> | null)?.archived === true) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
     return NextResponse.json({ data });
   }
 
@@ -67,7 +72,10 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ data: data ?? [] });
+  const visible = includeArchived
+    ? (data ?? [])
+    : (data ?? []).filter((row: any) => row.metadata?.archived !== true);
+  return NextResponse.json({ data: visible });
 }
 
 export async function POST(req: NextRequest) {
@@ -158,15 +166,32 @@ export async function DELETE(req: NextRequest) {
   }
 
   const db = billingDocsDb();
-  let q = db.from('billing_document_archive').delete();
-  q = id ? q.eq('id', id) : q.eq('doc_ref', docRef!);
-
-  const { error } = await q;
+  const lookup = id
+    ? await db.from('billing_document_archive').select('id, doc_ref, metadata').eq('id', id).maybeSingle()
+    : await db.from('billing_document_archive').select('id, doc_ref, metadata').eq('doc_ref', docRef!).maybeSingle();
+  const record = lookup.data;
+  if (!record && !lookup.error) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  const metadata = record?.metadata && typeof record.metadata === 'object' ? record.metadata as Record<string, unknown> : {};
+  const result = lookup.error
+    ? { error: lookup.error }
+    : await db.from('billing_document_archive').update({ metadata: { ...metadata, archived: true, archived_at: new Date().toISOString(), archived_by: caller.id } }).eq('id', record!.id);
+  const { error } = result;
   if (error) {
     if (error.code === '42P01' || /does not exist/i.test(error.message)) {
       return NextResponse.json({ error: 'Archive table not migrated yet', code: 'NOT_MIGRATED' }, { status: 503 });
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ success: true });
+  await logAudit(db as any, {
+    action: 'archive_billing_document',
+    actorId: caller.id,
+    resourceType: 'billing_document',
+    resourceId: record!.id,
+    oldValue: 'active',
+    newValue: 'archived',
+    newValues: { doc_ref: record!.doc_ref, record_preserved: true },
+  });
+  return NextResponse.json({ success: true, action: 'archived' });
 }

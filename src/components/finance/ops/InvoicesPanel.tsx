@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import { createClient } from '@/lib/supabase/client';
 import {
   DocumentTextIcon,
@@ -119,11 +120,10 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const searchParams = useSearchParams();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
-  const isTeacher = profile?.role === 'teacher';
-  const canManageInvoices = isAdmin;
-  const canCreateInvoices = isAdmin;
+  const canManageInvoices = roleHasCapability(profile?.role, 'manage_finance');
+  const canCreateInvoices = canManageInvoices;
   /** Mark paid / remind — staff who collect in person */
-  const canCollect = isAdmin || isSchool || isTeacher;
+  const canCollect = canManageInvoices;
 
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -379,7 +379,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   };
 
   const canPayTermInvoice = (inv: InvoiceRow) =>
-    (isSchool || isTeacher)
+    isSchool
     && !!inv.billing_cycle_id
     && !['paid', 'cancelled', 'void'].includes(inv.status);
 
@@ -389,8 +389,8 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     && (!inv.billing_cycle_id || isAdmin);
 
   const deleteInvoice = async (inv: InvoiceRow) => {
-    const action = inv.billing_cycle_id ? 'Cancel' : 'Delete';
-    if (!confirm(`${action} invoice #${inv.invoice_number}?`)) return;
+    const action = 'Cancel';
+    if (!confirm(`${action} invoice #${inv.invoice_number}? The ledger record will be preserved.`)) return;
     setBusyId(inv.id);
     try {
       const res = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' });
@@ -398,7 +398,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || `Failed to ${action.toLowerCase()}`);
       }
-      toast.success(inv.billing_cycle_id ? 'Invoice cancelled' : 'Invoice deleted');
+      toast.success('Invoice cancelled; history preserved');
       setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
     } catch (e: unknown) {
       toast.error((e as Error).message);
@@ -661,7 +661,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <p className="text-sm font-bold text-foreground mt-2">No invoices found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Create an invoice above. Term invoices include automatic reminders and collections.
+            {canCreateInvoices ? 'Create an invoice above. Term invoices include automatic reminders and collections.' : 'No invoices are available in your permitted scope.'}
           </p>
         </div>
       ) : (
@@ -866,7 +866,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                       onClick={() => deleteInvoice(inv)}
                       disabled={busyId === inv.id}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title={inv.billing_cycle_id ? 'Cancel term invoice (reminders stop; history preserved)' : 'Delete invoice (cannot be undone)'}
+                      title="Cancel invoice (reminders stop; financial history is preserved)"
                     >
                       <TrashIcon className="w-3 h-3" />
                     </button>

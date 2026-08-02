@@ -7,11 +7,11 @@
  * #11 — consolidated payment history (tax receipts / school records / parent peace of mind).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildStatementDocDef, type StatementLine } from '@/lib/finance/templates/statement';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const admin = adminClient();
     const { data: caller, error: callerError } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
     if (callerError) return NextResponse.json({ error: callerError.message }, { status: 500 });
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+    if (!caller || !roleHasCapability(caller.role, 'view_student_finance')) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
@@ -52,13 +52,6 @@ export async function GET(req: NextRequest) {
     // This endpoint IS a per-student finance record — amounts, references, receipts.
     // A partner school may know whether a pupil has settled, never what Rillcod
     // charged the family, so it is excluded from the statement outright.
-    if (caller.role === 'school') {
-      return NextResponse.json({ error: 'You do not have access to this student finance record' }, { status: 403 });
-    }
-    if (caller.role !== 'admin') {
-      const allowedSchoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-      if (!student.school_id || !allowedSchoolIds.includes(student.school_id)) return NextResponse.json({ error: 'You do not have access to this student finance record' }, { status: 403 });
-    }
 
     const studentName = student.full_name || student.name || 'Student';
 

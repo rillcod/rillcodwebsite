@@ -6,6 +6,7 @@ import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { verifyInvoicePayment, verifySummerBalancePayment, verifyTermBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
 import { isSpecialProgramBalancePaymentType, isTermRegistrationBalancePaymentType } from '@/lib/registration/enrollment-types';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -19,11 +20,11 @@ async function getCaller() {
 /**
  * POST /api/payments/manual
  * Records an offline/manual payment transaction (cash, POS, bank transfer, cheque).
- * Admin: any school. School: scoped to its own school_id only.
+ * Finance administrators only; payer accounts submit proof or use checkout.
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !roleHasCapability(caller.role, 'manage_finance')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
