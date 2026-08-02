@@ -115,6 +115,8 @@ export async function runMonitoredCron<T extends Response>(
     });
     return response;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[cron-monitor] ${jobName} exception:`, errorMsg);
     await recordOutcome({
       jobName,
       expectedIntervalMinutes,
@@ -122,8 +124,11 @@ export async function runMonitoredCron<T extends Response>(
       finishedAt: new Date(),
       success: false,
       statusCode: 500,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
     });
-    throw error;
+    return new Response(JSON.stringify({ error: errorMsg, ok: false, job: jobName }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    }) as unknown as T;
   }
 }
