@@ -1,9 +1,9 @@
 /**
- * Rillcod Academy — WAEC-Aligned Grading System
+ * Rillcod Academy — Unified Assessment Policy
  *
- * Built for Nigerian secondary schools (JSS1–SS3) aligned with WAEC/NECO grading.
- * Weighted to reward active students who submit assignments, do projects,
- * attend class, and perform in assessments.
+ * One internal weighting model for continuous assessment, assignments, projects,
+ * attendance and scheduled assessments. WAEC/NECO bands are used to present the
+ * resulting 0–100 score; engagement is a support signal and never changes a mark.
  *
  * Grade Scale (WAEC standard):
  *   A1  75–100   Distinction / Excellent
@@ -43,7 +43,7 @@ export const WAEC_GRADES: WAECGrade[] = [
 // ── Score Components & Weights ───────────────────────────────────────────────
 /**
  * Total must always sum to 100.
- * Designed to push students to be consistently active.
+ * This is the canonical component weighting for official reports.
  *
  * Theory/Written Work   20 — pen-on-paper tests, theory tasks
  * Classwork             10 — in-class participation and exercises
@@ -76,49 +76,40 @@ export const SCORE_WEIGHTS: Record<keyof ScoreComponents, number> = {
   assessment:  0.15,  // 15%
 };
 
-// ── Activity Enforcement ─────────────────────────────────────────────────────
+// ── Engagement Signals ───────────────────────────────────────────────────────
 /**
- * Students must be ACTIVE to earn top grades.
- * If they skip assignments, a grade cap is applied.
- *
- * ≥ 80% assignments submitted → No cap (full grade possible)
- * 60–79%                      → Capped at B3 (68) — still credit
- * 40–59%                      → Capped at C6 (53) — minimum credit
- * < 40%                       → Capped at D7 (48) — borderline pass only
+ * Submission-rate bands guide timely teacher intervention. They are deliberately
+ * separate from academic evidence: no engagement band may cap or overwrite a score.
  */
-export interface ActivityCap {
-  minPct: number;   // minimum assignment submission % for this band
-  maxScore: number; // score is capped at this value
+export interface EngagementBand {
+  minPct: number;
   label: string;
   message: string;
 }
 
-export const ACTIVITY_CAPS: ActivityCap[] = [
+export const ENGAGEMENT_BANDS: EngagementBand[] = [
   {
     minPct: 80,
-    maxScore: 100,
     label: 'Active',
-    message: 'Outstanding engagement — no cap applied.',
+    message: 'Engagement is on track. Maintain the current rhythm and quality of evidence.',
   },
   {
     minPct: 60,
-    maxScore: 68,
     label: 'Moderate',
-    message: 'Submit more assignments to unlock A1/B2 grades.',
+    message: 'Monitor missing work and agree the next action with the learner.',
   },
   {
     minPct: 40,
-    maxScore: 53,
     label: 'Low',
-    message: 'Low assignment completion — grade capped at C6. Catch up to improve.',
+    message: 'Create a recovery plan for missing evidence and learning barriers.',
   },
   {
     minPct: 0,
-    maxScore: 48,
     label: 'Inactive',
-    message: 'Very few assignments submitted — grade capped at D7. Immediate action required.',
+    message: 'Immediate teacher follow-up is recommended; recorded marks remain unchanged.',
   },
 ];
+
 
 // ── XP & Motivation System ───────────────────────────────────────────────────
 export interface XPEvent {
@@ -180,19 +171,18 @@ export const BADGES: Badge[] = [
 
 // ── Calculation Functions ─────────────────────────────────────────────────────
 
-/**
- * Get the activity cap that applies for a given assignment submission rate.
- */
-export function getActivityCap(assignmentSubmissionPct: number): ActivityCap {
-  for (const cap of ACTIVITY_CAPS) {
-    if (assignmentSubmissionPct >= cap.minPct) return cap;
+/** Get the coaching band for a given assignment submission rate. */
+export function getEngagementBand(assignmentSubmissionPct: number): EngagementBand {
+  for (const band of ENGAGEMENT_BANDS) {
+    if (assignmentSubmissionPct >= band.minPct) return band;
   }
-  return ACTIVITY_CAPS[ACTIVITY_CAPS.length - 1];
+  return ENGAGEMENT_BANDS[ENGAGEMENT_BANDS.length - 1];
 }
+
 
 /**
  * Compute the raw weighted score from score components.
- * Result is 0–100 (before activity cap).
+ * Result is the official 0–100 score.
  */
 export function computeWeightedScore(scores: ScoreComponents): number {
   let total = 0;
@@ -205,7 +195,9 @@ export function computeWeightedScore(scores: ScoreComponents): number {
 }
 
 /**
- * Compute the final score after applying the activity enforcement cap.
+ * Compute the official final score. Engagement is returned as a coaching band,
+ * but it never changes a recorded academic mark. The `capped` field is retained
+ * for backwards compatibility and now always equals the weighted score.
  *
  * @param scores       - Raw component scores
  * @param assignmentSubmissionPct - 0–100: % of assignments the student submitted
@@ -213,13 +205,13 @@ export function computeWeightedScore(scores: ScoreComponents): number {
 export function computeFinalScore(scores: ScoreComponents, assignmentSubmissionPct: number): {
   raw: number;
   capped: number;
-  cap: ActivityCap;
+  cap: EngagementBand;
   grade: WAECGrade;
 } {
   const raw = computeWeightedScore(scores);
-  const cap = getActivityCap(assignmentSubmissionPct);
-  const capped = Math.min(raw, cap.maxScore);
-  const grade = getWAECGrade(capped);
+  const cap = getEngagementBand(assignmentSubmissionPct);
+  const capped = raw;
+  const grade = getWAECGrade(raw);
   return { raw, capped, cap, grade };
 }
 

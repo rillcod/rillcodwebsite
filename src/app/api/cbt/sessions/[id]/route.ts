@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
+import { gradeCbtWithManualScores } from '@/lib/cbt/grading';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,6 +169,10 @@ export async function PATCH(
     if (!['admin', 'teacher', 'school'].includes(caller.role)) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) {
+      return NextResponse.json({ error: denied.error }, { status: denied.status });
+    }
 
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
@@ -224,58 +229,20 @@ export async function PATCH(
       const rawManualScores = body.manual_scores && typeof body.manual_scores === 'object'
         ? body.manual_scores as Record<string, unknown>
         : {};
-      const manualScores: Record<string, number | null> = {};
-      for (const q of questions ?? []) {
-        if (!isManualCbtQuestion(q)) continue;
-        const raw = rawManualScores[q.id];
-        const max = Number(q.points ?? 0);
-        const n = raw === null || raw === undefined || raw === '' ? null : Number(raw);
-        manualScores[q.id] = n === null || !Number.isFinite(n)
-          ? null
-          : Math.max(0, Math.min(max, n));
-      }
-
       const answers = ((session as any).answers && typeof (session as any).answers === 'object')
         ? (session as any).answers as Record<string, unknown>
         : {};
       const exam = (session as any).cbt_exams ?? {};
-      const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
-      const hasWeights = Object.values(sectionWeights).some((w: any) => Number(w) > 0);
-      const totalPoints = (questions ?? []).reduce((sum: number, q: any) => sum + Number(q.points ?? 0), 0);
-
-      const earnedForQuestion = (q: any) => {
-        if (isManualCbtQuestion(q)) return Number(manualScores[q.id] ?? 0);
-        return isCbtAnswerCorrect(q, answers[q.id]) ? Number(q.points ?? 0) : 0;
-      };
-
-      let score = 0;
-      if (hasWeights) {
-        const sections = ['objective', 'subjective', 'practical'] as const;
-        const activeWeightTotal = sections.reduce((sum, section) => {
-          const sectionQuestions = (questions ?? []).filter((q: any) => (q.metadata?.section ?? 'objective') === section);
-          const weight = Number(sectionWeights[section] ?? 0);
-          return sectionQuestions.length > 0 && weight > 0 ? sum + weight : sum;
-        }, 0);
-        for (const section of sections) {
-          const sectionQuestions = (questions ?? []).filter((q: any) => (q.metadata?.section ?? 'objective') === section);
-          const sectionTotal = sectionQuestions.reduce((sum: number, q: any) => sum + Number(q.points ?? 0), 0);
-          const sectionEarned = sectionQuestions.reduce((sum: number, q: any) => sum + earnedForQuestion(q), 0);
-          const sectionWeight = Number(sectionWeights[section] ?? 0);
-          if (sectionTotal > 0 && sectionWeight > 0) {
-            score += (sectionEarned / sectionTotal) * (activeWeightTotal > 0 ? (sectionWeight / activeWeightTotal) * 100 : sectionWeight);
-          }
-        }
-        score = Math.round(score);
-      } else {
-        const earned = (questions ?? []).reduce((sum: number, q: any) => sum + earnedForQuestion(q), 0);
-        score = totalPoints > 0 ? Math.round((earned / totalPoints) * 100) : 0;
-      }
-
-      const hasUngradedManual = Object.values(manualScores).some((value) => value === null);
-      allowed.score = Math.max(0, Math.min(100, score));
-      allowed.status = hasUngradedManual ? 'pending_grading' : (score >= Number(exam.passing_score ?? 70) ? 'passed' : 'failed');
-      allowed.needs_grading = hasUngradedManual;
-      allowed.manual_scores = manualScores;
+      const gradeResult = gradeCbtWithManualScores(
+        exam,
+        questions ?? [],
+        answers,
+        rawManualScores,
+      );
+      allowed.score = gradeResult.score;
+      allowed.status = gradeResult.status;
+      allowed.needs_grading = gradeResult.needsGrading;
+      allowed.manual_scores = gradeResult.manualScores;
     }
     if ('grading_notes' in body) allowed.grading_notes = body.grading_notes;
 

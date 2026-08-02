@@ -6,6 +6,7 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import { buildAssignmentGradeTransition } from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function PATCH(
     // Fetch submission + its assignment school for boundary check (single query)
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, file_url, assignments(school_id, created_by, class_id, metadata, weight, max_points)')
+      .select('id, assignment_id, grade, status, file_url, assignments(school_id, created_by, class_id, metadata, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
@@ -87,38 +88,23 @@ export async function PATCH(
     // ── Whitelisted update fields ──────────────────────────────────────────
     // graded_by and graded_at are NOT client-settable — always set server-side
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('grade'           in body) allowed.grade           = gradeResult.value    ?? null;
     if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
-    if ('status'          in body) allowed.status          = statusResult.value;
     if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
-    // Allow explicit weighted_score override from GradeCanvas, bounded by assignment weight.
-    if ('weighted_score' in body) {
-      if (body.weighted_score == null) {
-        allowed.weighted_score = null;
-      } else {
-        const weightedScore = Number(body.weighted_score);
-        if (!Number.isFinite(weightedScore) || weightedScore < 0 || (assignWeight > 0 && weightedScore > assignWeight)) {
-          return NextResponse.json(
-            { error: `weighted_score must be between 0 and ${assignWeight > 0 ? assignWeight : 'the assignment weight'}.`, field: 'weighted_score' },
-            { status: 400 },
-          );
-        }
-        allowed.weighted_score = weightedScore;
-      }
-    }
 
-    if (body.status === 'graded' || 'grade' in body) {
-      // Always use server-determined grader identity — never trust the body
-      allowed.graded_by = caller.id;
-      allowed.graded_at = new Date().toISOString();
-
-      // Auto-compute weighted_score only when not explicitly provided
-      if (gradeResult.value != null && !('weighted_score' in body)) {
-        allowed.weighted_score = (assignWeight > 0 && assignMax > 0)
-          ? Math.round((gradeResult.value / assignMax) * assignWeight)
-          : null;
-      }
+    const transition = buildAssignmentGradeTransition({
+      currentGrade: sub.grade ?? null,
+      currentStatus: sub.status ?? null,
+      grade: 'grade' in body ? gradeResult.value ?? null : undefined,
+      status: statusResult.value,
+      maxPoints: assignMax,
+      weight: assignWeight,
+      graderId: caller.id,
+    });
+    if (transition.error) {
+      return NextResponse.json({ error: transition.error, field: 'grade' }, { status: 400 });
     }
+    Object.assign(allowed, transition.fields);
+
 
     // Keep submitted files after grading so the grade remains auditable.
 
@@ -132,7 +118,7 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Send grade email when a submission is marked graded
-    if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
+    if (transition.finalized && data?.portal_user_id) {
       (async () => {
         const [{ data: student }, { data: asgn }] = await Promise.all([
           admin.from('portal_users').select('email, full_name').eq('id', data.portal_user_id!).single(),

@@ -6,7 +6,7 @@ import {
   BoltIcon, TrophyIcon, FireIcon, CheckCircleIcon,
   ArrowRightIcon, StarIcon, ChartBarIcon,
 } from '@/lib/icons';
-import { getWAECGrade, getMotivationMessage, ACTIVITY_CAPS } from '@/lib/grading';
+import { getMotivationMessage } from '@/lib/grading';
 import { BadgePill } from '@/components/badges/BadgeCard';
 
 interface XPSummary {
@@ -82,7 +82,6 @@ export default function StudentEngagementCard({ studentId }: Props) {
   const { level, xpIntoLevel, xpNeeded } = xpToNextLevel(totalXp);
   const levelPct = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
   const submissionPct = asgn?.submission_pct ?? 100;
-  const actCap = ACTIVITY_CAPS.find(c => submissionPct >= c.minPct) ?? ACTIVITY_CAPS[ACTIVITY_CAPS.length - 1];
   const currentStreak = streak?.current_streak ?? 0;
   const motivation = getMotivationMessage(0, submissionPct, currentStreak);
 
@@ -179,12 +178,8 @@ export default function StudentEngagementCard({ studentId }: Props) {
               ? 'border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400'
               : 'border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400'
           }`}>
-            <span className="font-black">Grade cap active:</span> Max {actCap.maxScore}/100 (
-            {(() => {
-              const g = getWAECGrade(actCap.maxScore);
-              return g.code;
-            })()}
-            ) — submit more to unlock higher grades.
+            <span className="font-black">Support recommended:</span>{' '}
+            Review missing work with your teacher and agree the next submission. Your recorded marks are not silently capped.
           </div>
         )}
 

@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   AcademicCapIcon, ChartBarIcon, CheckCircleIcon,
@@ -11,8 +9,8 @@ import {
 } from '@/lib/icons';
 import {
   WAEC_GRADES, SCORE_WEIGHTS, COMPONENT_LABELS, COMPONENT_DESCRIPTIONS,
-  ACTIVITY_CAPS, XP_EVENTS, BADGES,
-  computeWeightedScore, computeFinalScore, getWAECGrade,
+  ENGAGEMENT_BANDS, XP_EVENTS, BADGES,
+  computeFinalScore,
   getMotivationMessage, formatScore,
   type ScoreComponents, type WAECGrade,
 } from '@/lib/grading';
@@ -61,10 +59,6 @@ function GradeBadge({ grade }: { grade: WAECGrade }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function WAECGradingPage() {
-  const { profile } = useAuth();
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
-  const canEdit  = profile?.role === 'admin' || profile?.role === 'teacher';
-
   const [activeTab, setActiveTab] = useState<'calculator' | 'scale' | 'activity' | 'motivation'>('calculator');
   const [scores, setScores] = useState<ScoreComponents>({
     theory: 70,
@@ -77,7 +71,7 @@ export default function WAECGradingPage() {
   const [assignmentPct, setAssignmentPct] = useState(80);
 
   const result = computeFinalScore(scores, assignmentPct);
-  const motivation = getMotivationMessage(result.capped, assignmentPct, 0);
+  const motivation = getMotivationMessage(result.raw, assignmentPct, 0);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 mobile-page-root">
@@ -89,18 +83,18 @@ export default function WAECGradingPage() {
             <Link href="/dashboard/grades" className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
-            <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">WAEC-Aligned Grading</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Assessment Policy</span>
           </div>
-          <h1 className="text-2xl font-black">Grading System Reference</h1>
+          <h1 className="text-2xl font-black">Grading & Evaluation Guide</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Nigerian WAEC/NECO standard with weighted components and activity enforcement
+            One calculation policy for assignments, projects, evaluations, CBT, gradebook, and reports.
           </p>
         </div>
         <Link
-          href="/dashboard/grades"
+          href="/dashboard/grading"
           className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"
         >
-          <ChartBarIcon className="w-4 h-4 text-primary" /> Grading Queue
+          <ChartBarIcon className="w-4 h-4 text-primary" /> Open Grading Queue
         </Link>
       </div>
 
@@ -109,7 +103,7 @@ export default function WAECGradingPage() {
         {([
           { id: 'calculator', label: 'Score Calculator' },
           { id: 'scale',      label: 'Grade Scale' },
-          { id: 'activity',   label: 'Activity Rules' },
+          { id: 'activity',   label: 'Engagement Signals' },
           { id: 'motivation', label: 'Badges & XP' },
         ] as const).map(t => (
           <button
@@ -147,7 +141,7 @@ export default function WAECGradingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-foreground">Assignment Submission Rate</p>
-                  <p className="text-[10px] text-muted-foreground">% of assignments student actually submitted</p>
+                  <p className="text-[10px] text-muted-foreground">Coaching signal only; it never changes the recorded mark</p>
                 </div>
                 <div className={`text-lg font-black ${
                   assignmentPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
@@ -168,22 +162,16 @@ export default function WAECGradingPage() {
               <h2 className="text-xs font-black uppercase tracking-widest text-primary">Result</h2>
 
               <div className="text-center space-y-3 py-2">
-                <div className={`text-6xl font-black ${result.grade.color}`}>{result.capped}</div>
+                <div className={`text-6xl font-black ${result.grade.color}`}>{result.raw}</div>
                 <GradeBadge grade={result.grade} />
                 <p className={`text-xs ${result.grade.color} font-bold`}>{result.grade.remark}</p>
               </div>
 
               <div className="space-y-2 border-t border-border pt-4">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Raw weighted score</span>
+                  <span className="text-muted-foreground">Official weighted score</span>
                   <span className="font-bold text-foreground">{result.raw}</span>
                 </div>
-                {result.raw !== result.capped && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">Activity cap ({result.cap.label})</span>
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">→ {result.capped}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Assignment rate</span>
                   <span className={`font-bold ${assignmentPct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : assignmentPct >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
@@ -192,12 +180,6 @@ export default function WAECGradingPage() {
                 </div>
               </div>
 
-              {result.raw !== result.capped && (
-                <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-600 dark:text-amber-400">
-                  <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-                  {result.cap.message}
-                </div>
-              )}
             </div>
 
             {/* Motivation */}
@@ -292,16 +274,16 @@ export default function WAECGradingPage() {
       {activeTab === 'activity' && (
         <div className="space-y-4">
           <div className="bg-card border border-border p-6 space-y-4">
-            <h2 className="text-xs font-black uppercase tracking-widest text-primary">Assignment Activity Enforcement</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-primary">Engagement Signals</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Students must be consistently active to earn top WAEC grades. The more assignments submitted, the higher the grade ceiling.
-              This drives students to engage every week, not just during exams.
+              Submission rate helps teachers identify support needs early. It is shown beside academic evidence,
+              but it never silently raises, lowers, or caps the learner&apos;s recorded score.
             </p>
             <div className="space-y-3">
-              {ACTIVITY_CAPS.map((cap, i) => {
+              {ENGAGEMENT_BANDS.map((band, i) => {
                 const isTop = i === 0;
                 return (
-                  <div key={cap.minPct} className={`p-4 border space-y-2 ${
+                  <div key={band.minPct} className={`p-4 border space-y-2 ${
                     isTop ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border bg-muted/20'
                   }`}>
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -310,7 +292,7 @@ export default function WAECGradingPage() {
                           ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           : <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
                         <span className={`text-sm font-black ${isTop ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
-                          {cap.label} — {cap.minPct}%+ assignments submitted
+                          {band.label} — {band.minPct}%+ assignments submitted
                         </span>
                       </div>
                       <span className={`text-xs font-black px-2 py-0.5 border ${
@@ -318,10 +300,14 @@ export default function WAECGradingPage() {
                           ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
                           : 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10'
                       }`}>
-                        {isTop ? 'No cap — Full grade possible' : `Capped at ${cap.maxScore} (${getWAECGrade(cap.maxScore).code})`}
+                        {isTop ? 'On track' : i === 1 ? 'Monitor' : i === 2 ? 'Recovery plan' : 'Immediate follow-up'}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{cap.message}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isTop
+                        ? 'Maintain the current rhythm and quality of evidence.'
+                        : 'Review missing work, barriers, and an agreed next action with the learner.'}
+                    </p>
                   </div>
                 );
               })}
@@ -329,13 +315,10 @@ export default function WAECGradingPage() {
           </div>
 
           <div className="bg-amber-500/5 border border-amber-500/20 p-4 space-y-2 mobile-page-root">
-            <p className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Why This Matters for Nigerian Schools</p>
+            <p className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Evidence before intervention</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Parents pay school fees expecting <strong className="text-foreground">visible results</strong>. Students who skip assignments
-              produce weak portfolios and poor showcase items. By tying the grade ceiling to assignment completion,
-              teachers are empowered to push students consistently — not just before exam season.
-              This creates a school culture of <strong className="text-foreground">weekly delivery</strong>, strong portfolios,
-              and showcase-worthy project outcomes that impress parents at end-of-term presentations.
+              Recorded marks come only from assessed evidence and the published weighting model. Engagement alerts help staff
+              coordinate feedback, catch-up work, and family communication without rewriting academic results.
             </p>
           </div>
         </div>

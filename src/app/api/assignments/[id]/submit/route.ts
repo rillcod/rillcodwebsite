@@ -12,6 +12,10 @@ import {
   type AssignmentStudentScope,
 } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import {
+  computeAssignmentWeightedScore,
+  gradeAssignmentAnswers,
+} from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,38 +36,6 @@ async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, c
   return data?.teacher_id ?? null;
 }
 
-const MCQ_TYPES = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
-
-function computeAutoGrade(
-  questions: any[],
-  answers: Record<string | number, any>,
-  maxPoints: number,
-): number | null {
-  if (!questions?.length || !answers) return null;
-
-  const gradeableQs = questions.filter(
-    (q) => q.correct_answer && MCQ_TYPES.has(q.question_type),
-  );
-  if (!gradeableQs.length) return null;
-
-  const totalQPts = gradeableQs.reduce((s, q) => s + (Number(q.points) || 0), 0);
-  const ptsEach = totalQPts === 0 ? maxPoints / questions.length : null;
-
-  let earned = 0;
-  let possible = 0;
-
-  gradeableQs.forEach((q) => {
-    const idx = questions.indexOf(q);
-    const qPts = ptsEach !== null ? ptsEach : (Number(q.points) || 0);
-    possible += qPts;
-    const studentAns = String(answers[idx] ?? '').trim().toLowerCase();
-    const correctAns = String(q.correct_answer).trim().toLowerCase();
-    if (studentAns && studentAns === correctAns) earned += qPts;
-  });
-
-  if (possible === 0) return null;
-  return Math.round((earned / possible) * maxPoints);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/assignments/[id]/submit
@@ -240,20 +212,22 @@ export async function POST(
     const assignWeight = assignment.weight ?? 0;
 
     if (gradingMode === 'auto' && answers && data) {
-      // Auto-grade: compute score inline and set status='graded'
+      // Only fully objective work is finalized automatically. Mixed or unsupported
+      // legacy assessments enter the teacher queue instead of silently losing marks.
       try {
-        const autoGrade = computeAutoGrade(questions, answers, maxPts);
-        if (autoGrade !== null) {
-          const weightedScore = assignWeight > 0 && maxPts > 0
-            ? Math.round((autoGrade / maxPts) * assignWeight)
-            : null;
+        const autoResult = gradeAssignmentAnswers(questions, answers, maxPts);
+        if (autoResult && !autoResult.needsReview) {
+          const autoGrade = autoResult.grade;
+          const weightedScore = computeAssignmentWeightedScore(autoGrade, maxPts, assignWeight);
+          const gradedAt = new Date().toISOString();
           const { data: gradedRow } = await admin
             .from('assignment_submissions')
             .update({
               grade: autoGrade,
               status: 'graded',
               weighted_score: weightedScore,
-              updated_at: new Date().toISOString(),
+              graded_at: gradedAt,
+              updated_at: gradedAt,
             })
             .eq('assignment_id', assignment_id)
             .eq('portal_user_id', effectiveUserId)
@@ -284,6 +258,21 @@ export async function POST(
             })().catch(console.error);
             return NextResponse.json({ data: gradedRow }, { status: 201 });
           }
+        } else {
+          const reviewAt = new Date().toISOString();
+          await admin
+            .from('assignment_submissions')
+            .update({
+              grade: null,
+              weighted_score: null,
+              status: 'pending_review',
+              updated_at: reviewAt,
+            })
+            .eq('assignment_id', assignment_id)
+            .eq('portal_user_id', effectiveUserId);
+          data.status = 'pending_review';
+          data.grade = null;
+          data.weighted_score = null;
         }
       } catch (autoErr) {
         console.error('[auto-grade] failed:', autoErr);

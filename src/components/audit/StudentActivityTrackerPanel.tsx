@@ -12,7 +12,7 @@ import {
   MagnifyingGlassIcon,
   ArrowPathIcon,
 } from '@/lib/icons';
-import { getWAECGrade, ACTIVITY_CAPS, getMotivationMessage } from '@/lib/grading';
+import { getMotivationMessage } from '@/lib/grading';
 import { engagementTables } from '@/types/engagement';
 import { DonutChart, GaugeBar, CHART_COLORS } from '@/components/charts';
 import { toast } from 'sonner';
@@ -32,7 +32,6 @@ interface StudentEngagementRow {
   submission_pct: number;
   term_number?: number;
   badge_count: number;
-  grade_cap_code: string;
   risk_level: 'safe' | 'watch' | 'at_risk' | 'critical';
 }
 
@@ -52,10 +51,6 @@ const RISK_META = {
 
 function StudentRow({ s, onNudge }: { s: StudentEngagementRow; onNudge: (s: StudentEngagementRow) => void }) {
   const risk = RISK_META[s.risk_level];
-  const grade = getWAECGrade(s.submission_pct >= 80 ? 75 : ACTIVITY_CAPS.find((c) => s.submission_pct >= c.minPct)?.maxScore ?? 48);
-  const capCode = ACTIVITY_CAPS.find((c) => s.submission_pct >= c.minPct)
-    ? getWAECGrade(ACTIVITY_CAPS.find((c) => s.submission_pct >= c.minPct)!.maxScore).code
-    : 'D7';
 
   return (
     <div
@@ -104,8 +99,8 @@ function StudentRow({ s, onNudge }: { s: StudentEngagementRow; onNudge: (s: Stud
           <div className="text-[10px] text-muted-foreground font-semibold">XP</div>
         </div>
         <div className="bg-muted/40 rounded-xl p-2">
-          <div className={`text-sm font-black ${grade.color}`}>{capCode}</div>
-          <div className="text-[10px] text-muted-foreground font-semibold">grade cap</div>
+          <div className={`text-sm font-black ${risk.color}`}>{risk.label}</div>
+          <div className="text-[10px] text-muted-foreground font-semibold">support band</div>
         </div>
       </div>
 
@@ -197,7 +192,6 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
       const st = streakMap[u.id] ?? { current_streak: 0, longest_streak: 0 };
       const ag = asgnMap[u.id] ?? { total_assigned: 0, total_submitted: 0, on_time_count: 0, submission_pct: 0 };
       const subPct = Number(ag.submission_pct ?? 0);
-      const cap = ACTIVITY_CAPS.find((c) => subPct >= c.minPct) ?? ACTIVITY_CAPS[ACTIVITY_CAPS.length - 1];
 
       return {
         student_id: u.id,
@@ -214,7 +208,6 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
         submission_pct: subPct,
         term_number: ag.term_number,
         badge_count: (badgesRes as Record<string, number>)[u.id] ?? 0,
-        grade_cap_code: getWAECGrade(cap.maxScore).code,
         risk_level: riskLevel(subPct, st.current_streak),
       };
     });

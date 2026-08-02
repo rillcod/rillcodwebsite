@@ -6,6 +6,8 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
+import { buildAssignmentGradeTransition } from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,13 +44,15 @@ export async function PATCH(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
     const { id } = await context.params;
     const admin = adminClient();
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, grade, file_url, assignments(title, school_id, created_by, class_id, metadata, weight, max_points)')
+      .select('id, assignment_id, grade, status, file_url, assignments(title, school_id, created_by, class_id, metadata, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
@@ -81,34 +85,22 @@ export async function PATCH(
     }
 
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('grade' in body) allowed.grade = gradeResult.value ?? null;
     if ('feedback' in body) allowed.feedback = body.feedback ?? null;
-    if ('status' in body) allowed.status = statusResult.value;
     if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
-    if ('weighted_score' in body) {
-      if (body.weighted_score == null) {
-        allowed.weighted_score = null;
-      } else {
-        const weightedScore = Number(body.weighted_score);
-        if (!Number.isFinite(weightedScore) || weightedScore < 0 || (assignWeight > 0 && weightedScore > assignWeight)) {
-          return NextResponse.json(
-            { error: `weighted_score must be between 0 and ${assignWeight > 0 ? assignWeight : 'the assignment weight'}.`, field: 'weighted_score' },
-            { status: 400 },
-          );
-        }
-        allowed.weighted_score = weightedScore;
-      }
+    const transition = buildAssignmentGradeTransition({
+      currentGrade: sub.grade ?? null,
+      currentStatus: sub.status ?? null,
+      grade: 'grade' in body ? gradeResult.value ?? null : undefined,
+      status: statusResult.value,
+      maxPoints: assignMax,
+      weight: assignWeight,
+      graderId: caller.id,
+    });
+    if (transition.error) {
+      return NextResponse.json({ error: transition.error, field: 'grade' }, { status: 400 });
     }
+    Object.assign(allowed, transition.fields);
 
-    if (body.status === 'graded' || 'grade' in body) {
-      allowed.graded_by = caller.id;
-      allowed.graded_at = new Date().toISOString();
-      if (gradeResult.value != null && !('weighted_score' in body)) {
-        allowed.weighted_score = (assignWeight > 0 && assignMax > 0)
-          ? Math.round((gradeResult.value / assignMax) * assignWeight)
-          : null;
-      }
-    }
 
     const { data, error } = await admin
       .from('assignment_submissions')
@@ -128,7 +120,7 @@ export async function PATCH(
       newValue: `Score ${sub.grade ?? '—'} → ${allowed.grade ?? '—'}`,
     });
 
-    if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
+    if (transition.finalized && data?.portal_user_id) {
       (async () => {
         const { data: student } = await admin
           .from('portal_users').select('email, full_name').eq('id', data.portal_user_id!).single();

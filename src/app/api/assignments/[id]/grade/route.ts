@@ -13,6 +13,10 @@ import {
   type AssignmentStudentScope,
 } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import {
+  buildAssignmentGradeTransition,
+  computeAssignmentWeightedScore,
+} from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,15 +159,14 @@ export async function POST(
     const normalizedGrade = gradeResult.value;
 
     function computeWeightedScore(g: number | null | undefined): number | null {
-      if (g == null || assignWeight === 0 || assignMax === 0) return null;
-      return Math.round((g / assignMax) * assignWeight);
+      return computeAssignmentWeightedScore(g, assignMax, assignWeight);
     }
 
     let existingSub: any = null;
     if (submission_id) {
       const { data } = await admin
         .from('assignment_submissions')
-        .select('id, assignment_id, file_url, grade')
+        .select('id, assignment_id, file_url, grade, status')
         .eq('id', submission_id)
         .eq('assignment_id', assignment_id)
         .maybeSingle();
@@ -172,7 +175,7 @@ export async function POST(
     } else if (student_id) {
       const { data } = await admin
         .from('assignment_submissions')
-        .select('id, assignment_id, file_url, grade')
+        .select('id, assignment_id, file_url, grade, status')
         .eq('assignment_id', assignment_id)
         .eq('portal_user_id', student_id)
         .maybeSingle();
@@ -223,6 +226,20 @@ export async function POST(
         // Keep submitted files attached after grading so teachers, students, and
         // parents can still review the evidence behind the mark.
       }
+      const transition = buildAssignmentGradeTransition({
+        currentGrade: existingSub?.grade ?? null,
+        currentStatus: existingSub?.status ?? null,
+        grade: 'grade' in body ? normalizedGrade ?? null : undefined,
+        status: statusResult.value,
+        maxPoints: assignMax,
+        weight: assignWeight,
+        graderId: caller.id,
+      });
+      if (transition.error) {
+        return NextResponse.json({ error: transition.error, field: 'grade' }, { status: 400 });
+      }
+      Object.assign(updatePayload, transition.fields);
+
 
       const { data, error } = await admin
         .from('assignment_submissions')
@@ -243,7 +260,7 @@ export async function POST(
         newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
       });
 
-      if (updatePayload.graded_by && data?.portal_user_id) {
+      if (transition.finalized && data?.portal_user_id) {
         sendGradeNotifications(
           admin, data.portal_user_id, assignment.title || 'Assignment',
           data.grade, assignMax, data.weighted_score, feedback,
@@ -254,6 +271,19 @@ export async function POST(
     }
 
     if (student_id) {
+      const insertTransition = buildAssignmentGradeTransition({
+        currentGrade: existingSub?.grade ?? null,
+        currentStatus: existingSub?.status ?? null,
+        grade: 'grade' in body ? normalizedGrade ?? null : undefined,
+        status: statusResult.value ?? 'graded',
+        maxPoints: assignMax,
+        weight: assignWeight,
+        graderId: caller.id,
+      });
+      if (insertTransition.error) {
+        return NextResponse.json({ error: insertTransition.error, field: 'grade' }, { status: 400 });
+      }
+
       const insertPayload: any = {
         assignment_id,
         portal_user_id:  student_id,
@@ -267,6 +297,7 @@ export async function POST(
         updated_at:      new Date().toISOString(),
         weighted_score:  computeWeightedScore(normalizedGrade),
       };
+      Object.assign(insertPayload, insertTransition.fields);
 
       // Keep submitted files attached after grading so the grade remains auditable.
 
@@ -288,7 +319,7 @@ export async function POST(
         newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
       });
 
-      if (data?.portal_user_id) {
+      if (insertTransition.finalized && data?.portal_user_id) {
         sendGradeNotifications(
           admin, data.portal_user_id, assignment.title || 'Assignment',
           data.grade, assignMax, data.weighted_score, feedback,

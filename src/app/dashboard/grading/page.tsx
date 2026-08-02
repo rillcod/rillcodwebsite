@@ -25,6 +25,7 @@ import {
 import { GradingAssessmentView } from '@/components/grading/GradingAssessmentView';
 import Link from 'next/link';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,7 +263,7 @@ export default function GradingQueuePage() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
-  const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
+  const mayGrade = roleHasCapability(profile?.role, 'grade');
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams({ status: 'actionable' });
@@ -306,7 +307,7 @@ export default function GradingQueuePage() {
     setLoading(false);
   }, [classId, queryString, termId]);
 
-  useEffect(() => { if (isStaff) void loadAll(); }, [isStaff, loadAll]);
+  useEffect(() => { if (mayGrade) void loadAll(); }, [mayGrade, loadAll]);
 
   // ── Grading actions ──────────────────────────────────────────────────────
 
@@ -344,7 +345,7 @@ export default function GradingQueuePage() {
 
   // ── Derived state ────────────────────────────────────────────────────────
 
-  if (!isStaff) {
+  if (!mayGrade) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
         <p className="text-muted-foreground text-sm">Staff access required.</p>
@@ -526,7 +527,8 @@ export default function GradingQueuePage() {
                       const gradingMode = sub.grading_mode || assignment?.grading_mode || null;
                       const isSaving = saving === sub.id;
                       const isSaved = saved.has(sub.id);
-                      const canGrade = !!grade[sub.id] && !Number.isNaN(Number(grade[sub.id]));
+                      const scoreValue = Number(grade[sub.id]);
+                      const canGrade = grade[sub.id] !== '' && Number.isFinite(scoreValue) && scoreValue >= 0 && scoreValue <= maxPts;
 
                       return (
                         <div className={`rounded-2xl border overflow-hidden transition-all ${

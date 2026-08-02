@@ -43,8 +43,8 @@ function validateAssignmentInput(body: Record<string, any>, partial = false): { 
   }
   if ('weight' in body && body.weight != null) {
     const weight = Number(body.weight);
-    if (!Number.isFinite(weight) || weight < 0) {
-      return { error: 'weight must be zero or a positive number', field: 'weight' };
+    if (!Number.isFinite(weight) || weight < 0 || weight > 100) {
+      return { error: 'weight must be between 0 and 100', field: 'weight' };
     }
     body.weight = weight;
   }
@@ -378,7 +378,7 @@ export async function POST(request: NextRequest) {
       if (f in body) payload[f] = body[f] ?? null;
     }
     if (!payload.grading_mode && Array.isArray(payload.questions) && payload.questions.length > 0) {
-      const autoTypes = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
+      const autoTypes = new Set(['multiple_choice', 'true_false', 'fill_blank', 'coding_blocks', 'block_sequence']);
       const autoGradeable = payload.questions.every((q: any) => (
         autoTypes.has(String(q.question_type ?? '').toLowerCase())
         && String(q.correct_answer ?? '').trim()

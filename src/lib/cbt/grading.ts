@@ -70,21 +70,43 @@ export function gradeCbtSubmission(
   questions: CbtGradeQuestion[],
   answers: Record<string, unknown>,
 ) {
+  return gradeCbtWithManualScores(exam, questions, answers, {});
+}
+
+/** One score engine for CBT submission, teacher preview, and final manual review. */
+export function gradeCbtWithManualScores(
+  exam: any,
+  questions: CbtGradeQuestion[],
+  answers: Record<string, unknown>,
+  rawManualScores: Record<string, unknown>,
+) {
   const manualQuestions = questions.filter((q) => isManualCbtQuestion(q));
   const autoQuestions = questions.filter((q) => !isManualCbtQuestion(q));
+  const manualScores: Record<string, number | null> = {};
+  for (const question of manualQuestions) {
+    const raw = rawManualScores[question.id];
+    const max = Math.max(0, Number(question.points ?? 0));
+    const parsed = raw === null || raw === undefined || raw === '' ? null : Number(raw);
+    manualScores[question.id] = parsed === null || !Number.isFinite(parsed)
+      ? null
+      : Math.max(0, Math.min(max, parsed));
+  }
   const totalPoints = questions.reduce((sum, q) => sum + Number(q.points ?? 0), 0);
   const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
   const hasWeights = Object.values(sectionWeights).some((w: any) => Number(w) > 0);
 
   let correct = 0;
-  let earnedPoints = 0;
 
   for (const q of autoQuestions) {
     if (isCbtAnswerCorrect(q, answers[q.id])) {
       correct++;
-      earnedPoints += Number(q.points ?? 0);
     }
   }
+  const earnedForQuestion = (question: CbtGradeQuestion): number => {
+    if (isManualCbtQuestion(question)) return Number(manualScores[question.id] ?? 0);
+    return isCbtAnswerCorrect(question, answers[question.id]) ? Number(question.points ?? 0) : 0;
+  };
+  const earnedPoints = questions.reduce((sum, q) => sum + earnedForQuestion(q), 0);
 
   let score = 0;
   if (hasWeights) {
@@ -101,10 +123,7 @@ export function gradeCbtSubmission(
       if (sectionQuestions.length === 0 || sectionWeight <= 0) continue;
 
       const sectionTotal = sectionQuestions.reduce((sum, q) => sum + Number(q.points ?? 0), 0);
-      const sectionEarned = sectionQuestions.reduce((sum, q) => {
-        if (isManualCbtQuestion(q)) return sum;
-        return isCbtAnswerCorrect(q, answers[q.id]) ? sum + Number(q.points ?? 0) : sum;
-      }, 0);
+      const sectionEarned = sectionQuestions.reduce((sum, q) => sum + earnedForQuestion(q), 0);
       const normalizedWeight = activeWeightTotal > 0 ? (sectionWeight / activeWeightTotal) * 100 : sectionWeight;
       score += sectionTotal > 0 ? (sectionEarned / sectionTotal) * normalizedWeight : 0;
     }
@@ -113,14 +132,16 @@ export function gradeCbtSubmission(
     score = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
   }
 
-  const needsGrading = manualQuestions.length > 0;
+  const needsGrading = Object.values(manualScores).some((value) => value === null);
   const passed = score >= Number(exam?.passing_score ?? 70);
   return {
     score,
     correct,
     needsGrading,
+    earnedPoints,
+    totalPoints,
     manualQuestionCount: manualQuestions.length,
     status: needsGrading ? 'pending_grading' : (passed ? 'passed' : 'failed'),
-    manualScores: Object.fromEntries(manualQuestions.map((q) => [q.id, null])),
+    manualScores,
   };
 }

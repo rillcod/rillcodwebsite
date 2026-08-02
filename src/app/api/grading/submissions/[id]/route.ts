@@ -6,6 +6,8 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax } from '@/lib/api-guards';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
+import { computeAssignmentWeightedScore } from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
     const { id } = await context.params;
     const admin = adminClient();
@@ -99,9 +103,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     // Auto-compute weighted_score
     if (updateData.grade != null) {
-      updateData.weighted_score = (assignWeight > 0 && assignMax > 0)
-        ? Math.round((Number(updateData.grade) / assignMax) * assignWeight)
-        : null;
+      updateData.weighted_score = computeAssignmentWeightedScore(Number(updateData.grade), assignMax, assignWeight);
     }
 
     // Keep submitted files after grading so AI/manual decisions remain auditable.

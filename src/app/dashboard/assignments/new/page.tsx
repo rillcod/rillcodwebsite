@@ -260,6 +260,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         program_id: selectedProgramId || null,
         lesson_id: linkedLesson?.id ?? null,
         class_id: preClassId ?? null,
+        lesson_plan_id: preLessonPlanId ?? null,
+        curriculum_week_number: preWeek && Number.isInteger(Number(preWeek)) ? Number(preWeek) : null,
         max_points: parseInt(form.max_points) || 100,
         weight: parseInt(form.weight) || 0,
         assignment_type: form.assignment_type,

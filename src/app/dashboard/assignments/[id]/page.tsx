@@ -23,6 +23,11 @@ import {
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
+import {
+    computeAssignmentWeightedScore,
+    gradeAssignmentAnswers,
+} from '@/lib/assignments/grading';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     const [copied, setCopied] = useState(false);
@@ -301,34 +306,15 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     // Grade is always out of assignment max_points
     const max = maxPoints ?? 100;
 
-    // Auto-grade MCQ: compare each student answer vs correct_answer, scale result to max_points
-    const autoGradeResult = (() => {
-        if (!questions.length || !sub.answers) return null;
-        const MCQ_TYPES = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
-        const gradeableQs = questions.filter(q => q.correct_answer && MCQ_TYPES.has(q.question_type));
-        if (!gradeableQs.length) return null;
-
-        // Use individual points when set; otherwise distribute max_points equally across all questions
-        const totalQPts = gradeableQs.reduce((s, q) => s + (Number(q.points) || 0), 0);
-        const ptsEach = totalQPts === 0 ? max / questions.length : null;
-
-        let earnedRaw = 0;
-        let possibleRaw = 0;
-        const perQ: ('correct' | 'wrong' | 'skipped' | 'manual')[] = questions.map((q, idx) => {
-            if (!q.correct_answer || !MCQ_TYPES.has(q.question_type)) return 'manual';
-            const qPts = ptsEach !== null ? ptsEach : (Number(q.points) || 0);
-            possibleRaw += qPts;
-            const studentAns = String(sub.answers[idx] ?? '').trim().toLowerCase();
-            const correctAns = String(q.correct_answer).trim().toLowerCase();
-            if (!studentAns) return 'skipped';
-            if (studentAns === correctAns) { earnedRaw += qPts; return 'correct'; }
-            return 'wrong';
-        });
-
-        // Scale to max_points so the grade is always "out of max_points"
-        const earned = possibleRaw > 0 ? Math.round((earnedRaw / possibleRaw) * max) : 0;
-        return { earned, earnedRaw, possibleRaw, perQ };
-    })();
+    // The review canvas and submission API use the same answer matcher and scale.
+    const sharedAutoGrade = gradeAssignmentAnswers(questions, sub.answers ?? {}, max);
+    const autoGradeResult = sharedAutoGrade ? {
+        earned: sharedAutoGrade.grade,
+        earnedRaw: sharedAutoGrade.earnedPoints,
+        possibleRaw: sharedAutoGrade.possiblePoints,
+        perQ: sharedAutoGrade.results,
+        needsReview: sharedAutoGrade.needsReview,
+    } : null;
 
     const assignWeight: number = assignment?.weight ?? 0;
 
@@ -337,14 +323,8 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         if (autoGradeResult != null) return String(autoGradeResult.earned);
         return '';
     });
-    // Weighted score = (grade / max_points) * weight — editable for manual override
-    const [weightedScore, setWeightedScore] = useState<string>(() => {
-        if (sub.weighted_score != null) return sub.weighted_score.toString();
-        if (assignWeight > 0 && sub.grade != null) {
-            return String(Math.round((sub.grade / max) * assignWeight));
-        }
-        return '';
-    });
+    // Weighted contribution is derived from the final mark and assignment weight.
+    const weightedScore = computeAssignmentWeightedScore(grade === '' ? null : Number(grade), max, assignWeight);
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
     const [subText, setSubText] = useState(sub.submission_text ?? '');
@@ -358,11 +338,12 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
     const [briefOpen, setBriefOpen] = useState(false);
 
-    // Auto-recalculate weighted score when grade changes
     const handleGradeChange = (val: string) => {
         setGrade(val);
-        if (assignWeight > 0 && val !== '' && !isNaN(Number(val))) {
-            setWeightedScore(String(Math.round((Number(val) / max) * assignWeight)));
+        if (val !== '' && Number.isFinite(Number(val))) {
+            setStatus('graded');
+        } else if (val === '' && status === 'graded') {
+            setStatus(sub.status === 'late' ? 'late' : 'submitted');
         }
     };
 
@@ -371,7 +352,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         const updated = { ...rubricScores, [idx]: val };
         setRubricScores(updated);
         const total = Object.values(updated).reduce((a, b) => a + b, 0);
-        setGrade(String(Math.min(total, max)));
+        handleGradeChange(String(Math.min(total, max)));
     };
 
     const info = grade !== '' ? pctInfo(Number(grade), max) : null;
@@ -382,10 +363,8 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            const ws = weightedScore !== '' && !isNaN(Number(weightedScore)) ? Number(weightedScore) : null;
             const payload: any = {
                 grade: grade === '' ? null : g,
-                weighted_score: ws,
                 feedback, status,
                 submission_text: subText || null,
             };
@@ -889,12 +868,11 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     Report Contribution (out of {assignWeight} pts)
                                 </p>
                                 <div className="flex items-center gap-3">
-                                    <input type="number" min={0} max={assignWeight} value={weightedScore}
-                                        onChange={e => setWeightedScore(e.target.value)}
-                                        className="w-24 px-3 py-2 bg-black/30 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400 text-xl font-black text-center focus:outline-none focus:border-amber-500 transition-colors"
-                                        placeholder="0" />
+                                    <output className="w-24 px-3 py-2 bg-black/30 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400 text-xl font-black text-center">
+                                        {weightedScore ?? '?'}
+                                    </output>
                                     <p className="text-xs text-muted-foreground">
-                                        Auto-calculated from score. Edit to override for report card.
+                                        Calculated from the recorded mark by the shared grading policy.
                                     </p>
                                 </div>
                             </div>
@@ -986,6 +964,7 @@ export default function AssignmentDetailPage() {
     const [emailError, setEmailError] = useState<string | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const canGrade = roleHasCapability(profile?.role, 'grade');
 
     // Called when a grade is successfully saved — refetch from server to sync counters
     const handleGraded = () => {
@@ -1458,7 +1437,7 @@ export default function AssignmentDetailPage() {
                 </div>
             )}
 
-            {grading && (
+            {grading && canGrade && (
                 <GradeCanvas
                     sub={grading}
                     maxPoints={assignment.max_points}
@@ -1528,7 +1507,7 @@ export default function AssignmentDetailPage() {
                                 <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
                             </Link>
                             {/* Staff edit + print + share buttons */}
-                            {isStaff && (
+                            {canGrade && (
                                 <>
                                     <button
                                         onClick={() => setShareOpen(true)}
@@ -2167,7 +2146,7 @@ export default function AssignmentDetailPage() {
                                         </div>
                                         {/* Image thumbnail — larger, with hover */}
                                         {isImg && (
-                                            <button type="button" onClick={() => setGrading(s)} title="Open submission"
+                                            <button type="button" onClick={() => canGrade ? setGrading(s) : setLightboxUrl(s.file_url)} title="Open submission"
                                                 className="flex-shrink-0 w-14 h-14 overflow-hidden rounded-xl border border-white/10 hover:border-amber-500/50 transition-all group relative">
                                                 <SmartImage src={s.file_url} alt="" className="w-full h-full object-cover" />
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -2176,13 +2155,19 @@ export default function AssignmentDetailPage() {
                                             </button>
                                         )}
                                         {/* Document attachment badge */}
-                                        {isDoc && (
+                                        {isDoc && (canGrade ? (
                                             <button type="button" onClick={() => setGrading(s)} title="View document"
                                                 className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors">
                                                 <PaperClipIcon className="w-3.5 h-3.5" />
                                                 <span className="hidden sm:inline">File</span>
                                             </button>
-                                        )}
+                                        ) : (
+                                            <a href={s.file_url} target="_blank" rel="noopener noreferrer" title="View document"
+                                                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors">
+                                                <PaperClipIcon className="w-3.5 h-3.5" />
+                                                <span className="hidden sm:inline">File</span>
+                                            </a>
+                                        ))}
                                         {/* Grade pill */}
                                         {sPct != null ? (
                                             <div className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-black border ${sPct >= 70 ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400' : sPct >= 50 ? 'bg-amber-500/15 border-amber-500/25 text-amber-600 dark:text-amber-400' : 'bg-rose-500/15 border-rose-500/25 text-rose-600 dark:text-rose-400'}`}>
@@ -2190,10 +2175,12 @@ export default function AssignmentDetailPage() {
                                             </div>
                                         ) : null}
                                         {/* Grade button */}
-                                        <button onClick={() => setGrading(s)}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 ${s.status === 'graded' ? 'bg-white/5 hover:bg-white/10 text-muted-foreground border border-white/10' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'}`}>
-                                            {s.status === 'graded' ? 'Re-grade' : 'Grade'}
-                                        </button>
+                                        {canGrade && (
+                                            <button onClick={() => setGrading(s)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 ${s.status === 'graded' ? 'bg-white/5 hover:bg-white/10 text-muted-foreground border border-white/10' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'}`}>
+                                                {s.status === 'graded' ? 'Re-grade' : 'Grade'}
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}

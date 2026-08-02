@@ -46,7 +46,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 
 import { cn } from '@/lib/utils';
-import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
+import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner, ManualEntryDeskBanner } from '@/components/reports/ResultStatusBadges';
@@ -1931,11 +1931,7 @@ function ReportBuilderInner() {
     // Activity cap: students with low assignment submission % are grade-capped.
     // When no assignments exist (totalAssignments=0) pct defaults to 100 → no cap.
     // All staff (admin, teacher, school) bypass the cap — manual grade entry is authoritative.
-    const assignmentSubmissionPct = studentStats.totalAssignments > 0 ? studentStats.assignmentPct : 100;
-    const activityCap = isStaff
-        ? { maxScore: 100, label: '', message: 'Staff override — no cap applied', minPct: 0 }
-        : getActivityCap(assignmentSubmissionPct);
-    const overallScore = Math.min(rawOverallScore, activityCap.maxScore);
+    const overallScore = rawOverallScore;
 
     // ── WAEC grade code (A1–F9) for display and save ─────────────────────────
     const overallGradeObj = reportGrade(overallScore); // kept for Standard report card
@@ -3620,11 +3616,6 @@ function ReportBuilderInner() {
                                 <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
                                     <XMarkIcon className="h-3.5 w-3.5" />
                                 </button>
-                            </div>
-                        )}
-                        {!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore && (
-                            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-                                Grade cap ({activityCap.label}): raw {rawOverallScore}% → <strong className="text-foreground">{overallScore}%</strong>. {activityCap.message}
                             </div>
                         )}
 
