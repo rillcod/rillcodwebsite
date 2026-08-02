@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
   CogIcon,
+  UserIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 import ViewAsSwitcher from '@/components/layout/ViewAsSwitcher';
@@ -270,9 +271,20 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
                 onClick={onClose}
                 className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground"
               >
-                <CogIcon className="w-4.5 h-4.5" />
-                Settings
+                <UserIcon className="w-4.5 h-4.5" />
+                Account
               </Link>
+              {profile.role === 'admin' && (
+                <Link
+                  href="/dashboard/platform-operations"
+                  onClick={onClose}
+                  className="flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-muted text-foreground"
+                  aria-label="Platform Operations"
+                  title="Platform Operations"
+                >
+                  <CogIcon className="w-4.5 h-4.5" />
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {
