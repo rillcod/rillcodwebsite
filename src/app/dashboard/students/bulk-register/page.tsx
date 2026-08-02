@@ -3115,7 +3115,7 @@ Yusuf Ibrahim SS1A`}
                               setLoadingHistory(false);
                             }
                           }}
-                          className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${selectedBatchId === batch.id ? 'bg-primary text-foreground border-primary shadow-xl shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
+                          className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${selectedBatchId === batch.id ? 'bg-primary text-white border-primary shadow-xl shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
                             }`}
                         >
                           {selectedBatchId === batch.id ? 'Hide Students' : 'View Students'}

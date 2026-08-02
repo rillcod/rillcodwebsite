@@ -221,7 +221,7 @@ export default function ProgramsPage() {
               <button key={d} onClick={() => setDiffFilter(d)}
                 className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
                   diffFilter === d
-                    ? d === 'all' ? 'bg-primary text-foreground border-primary'
+                    ? d === 'all' ? 'bg-primary text-white border-primary'
                       : d === 'beginner' ? 'bg-emerald-600 text-foreground border-emerald-600'
                       : d === 'intermediate' ? 'bg-amber-600 text-foreground border-amber-600'
                       : 'bg-rose-600 text-foreground border-rose-600'

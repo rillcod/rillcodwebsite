@@ -1058,7 +1058,7 @@ export default function TimetablePage() {
                       onClick={() => handleSelectTT(tt.id)}
                       onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id
-                        ? 'bg-primary text-foreground shadow-lg shadow-primary/30'
+                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
                         : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                       <BuildingOfficeIcon className="w-4 h-4 flex-shrink-0" />
                       <div className="min-w-0">
@@ -1123,7 +1123,7 @@ export default function TimetablePage() {
                   <button
                     key={day}
                     onClick={() => setMobileDay(day)}
-                    className={`flex-1 min-w-[60px] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-primary text-foreground shadow-lg' : 'text-muted-foreground'}`}
+                    className={`flex-1 min-w-[60px] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground'}`}
                   >
                     {day.slice(0, 3)}
                     {day === TODAY && <span className="block text-[8px] opacity-60">Today</span>}

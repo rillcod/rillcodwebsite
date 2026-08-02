@@ -492,16 +492,16 @@ export default function ApprovalsPage() {
                 {/* Tabs */}
                 <div className="flex gap-2 bg-card shadow-sm p-1 rounded-xl border border-border w-fit">
                     <button onClick={() => setTab('students')}
-                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'students' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'students' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                         Students ({students.length})
                     </button>
                     <button onClick={() => setTab('prospective')}
-                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                         Special programmes ({prospective.length})
                     </button>
                     {profile?.role === 'admin' && (
                         <button onClick={() => setTab('schools')}
-                            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'schools' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'schools' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                             Schools ({schools.length})
                         </button>
                     )}

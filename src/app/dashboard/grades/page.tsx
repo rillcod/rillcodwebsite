@@ -1046,7 +1046,7 @@ export default function GradesPage() {
             <div className="text-center">
                 <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground mb-4">Sign in to view grades</p>
-                <Link href="/login" className="px-5 py-2 bg-primary text-foreground rounded-xl text-sm font-bold">Sign In</Link>
+                <Link href="/login" className="px-5 py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20">Sign In</Link>
             </div>
         </div>
     );

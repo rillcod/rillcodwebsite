@@ -1207,7 +1207,7 @@ function SettingsPageContent({
                   onClick={() => setTab(t.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
                     tab === t.id
-                      ? "bg-primary text-foreground shadow-lg shadow-primary/20"
+                      ? "bg-primary text-white shadow-lg shadow-primary/20"
                       : "text-muted-foreground hover:bg-card hover:text-foreground"
                   }`}
                 >

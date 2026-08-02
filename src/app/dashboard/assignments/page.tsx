@@ -293,7 +293,7 @@ function AssignmentsPageInner() {
       <div className="text-center">
         <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">Please sign in to view assignments.</p>
-        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-primary text-foreground text-sm font-bold">Sign In</Link>
+        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20">Sign In</Link>
       </div>
     </div>
   );

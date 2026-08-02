@@ -504,7 +504,7 @@ export function ParentForm({
 
         <div className="flex gap-3">
           <button onClick={onCancel}
-            className="px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
+            className="px-6 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all rounded-xl shadow-lg shadow-primary/20">
             Done — Back to Parents
           </button>
         </div>

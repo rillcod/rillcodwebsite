@@ -603,7 +603,7 @@ export default function CoursesPage() {
                         href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${enr.status === 'completed'
                           ? 'bg-muted text-muted-foreground hover:bg-muted'
-                          : 'bg-primary text-foreground hover:bg-primary'
+                          : 'bg-primary text-white hover:bg-primary/90'
                         }`}>
                         {enr.status === 'completed' ? <><EyeIcon className="w-4 h-4" /> Review</> : <><PlayIcon className="w-4 h-4" /> Continue</>}
                       </Link>

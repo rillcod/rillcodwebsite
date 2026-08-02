@@ -1200,13 +1200,13 @@ export default function StudentsPage() {
             <div className="px-6 pt-5 pb-1 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setBulkEnrolMode('pick')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 Pick Existing Class
               </button>
               <button
                 onClick={() => setBulkEnrolMode('create')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'create' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 + Create New Class
               </button>
@@ -2224,7 +2224,7 @@ export default function StudentsPage() {
                                     <button
                                       onClick={() => activatePortalAccount(s.id, s.full_name, activateClassId || undefined)}
                                       disabled={activating === s.id}
-                                      className="flex items-center gap-1.5 px-4 py-2 bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl disabled:opacity-50 transition-all active:scale-95">
+                                      className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl disabled:opacity-50 transition-all active:scale-95">
                                       <KeyIcon className="w-3.5 h-3.5" />
                                       {activating === s.id ? 'Creating…' : 'Confirm & Activate'}
                                     </button>
