@@ -6,6 +6,10 @@ import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from 
 import { cleanStudentName } from '@/lib/students/clean-name';
 import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
+import {
+  getProtectedAcademicEvidence,
+  protectedAcademicEvidenceMessage,
+} from '@/lib/students/protected-academic-evidence';
 import { prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 import { preparePortalStructure, clampActiveFlag } from '@/lib/portal/ensure-structure';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
@@ -49,8 +53,17 @@ export async function PATCH(
   if (!isStaff && !isSelf) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
-
   const body = await request.json();
+
+
+  if (isAdmin && isSelf && (
+    body.is_deleted === true
+    || body.is_active === false
+    || (body.role !== undefined && body.role !== 'admin')
+  )) {
+    return NextResponse.json({ error: 'You cannot archive, deactivate, or demote your own admin account.' }, { status: 400 });
+  }
+
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
 
   if (isAdmin) {
@@ -117,7 +130,7 @@ export async function PATCH(
   // auto-place class for students and refuse incomplete active profiles.
   const { data: current } = await admin
     .from('portal_users')
-    .select('role, school_id, school_name, class_id, section_class, grade, is_active')
+    .select('role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, full_name, phone')
     .eq('id', id)
     .maybeSingle();
 
@@ -239,6 +252,19 @@ export async function PATCH(
     await admin.auth.admin.updateUserById(id, { user_metadata: metaUpdate });
   }
 
+  await logAudit(admin as any, {
+    action: update.is_deleted === true ? 'archive_user' : 'update_user',
+    actorId: user.id,
+    resourceType: 'portal_user',
+    resourceId: id,
+    tableName: 'portal_users',
+    oldValues: current as unknown as Record<string, unknown>,
+    newValues: {
+      fields: Object.keys(update).filter((field) => field !== 'updated_at'),
+      ...update,
+    },
+  });
+
   return NextResponse.json({ data });
 }
 
@@ -274,6 +300,7 @@ export async function DELETE(
     .eq('id', id)
     .single();
 
+
   // Teachers can only delete students, and only from their assigned school
   if (caller.role === 'teacher') {
     if (!pu || pu.role !== 'student') {
@@ -293,6 +320,17 @@ export async function DELETE(
 
     if (!pu.school_id || !assignedIds.includes(pu.school_id)) {
       return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
+    }
+  }
+  if (pu?.role === 'student') {
+    const evidence = await getProtectedAcademicEvidence(admin, id);
+    if (evidence.total > 0) {
+      return NextResponse.json({
+        error: protectedAcademicEvidenceMessage(evidence),
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+        evidence,
+        archiveRecommended: true,
+      }, { status: 409 });
     }
   }
 

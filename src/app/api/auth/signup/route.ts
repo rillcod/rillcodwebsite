@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { preparePortalStructure } from '@/lib/portal/ensure-structure';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single();
 
-    if (!callerProfile || !['admin', 'school'].includes(callerProfile.role)) {
+    if (!callerProfile || !roleHasCapability(callerProfile.role, 'create_accounts')) {
       return NextResponse.json({ error: 'Unauthorized: only admin or school managers can create accounts' }, { status: 403 });
     }
 
@@ -198,6 +200,21 @@ export async function POST(request: Request) {
         { onConflict: 'teacher_id,school_id' },
       );
     }
+    await logAudit(admin as any, {
+      action: 'create_user',
+      actorId: user.id,
+      resourceType: 'portal_user',
+      resourceId: authUserId,
+      tableName: 'portal_users',
+      newValues: {
+        email: email.trim().toLowerCase(),
+        role,
+        school_id: placed.schoolId,
+        class_id: placed.classId,
+        is_active: role === 'admin' ? true : placed.isActive,
+      },
+    });
+
 
     return NextResponse.json({
       success: true,

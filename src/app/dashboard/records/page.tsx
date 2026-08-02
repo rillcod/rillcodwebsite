@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon, UserGroupIcon } from '@/lib/icons';
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
@@ -14,7 +15,7 @@ type Rec = {
   registered: string | null; href: string;
 };
 type Reg = {
-  id: string; name: string; email: string; password: string; klass: string;
+  id: string; name: string; email: string; password: string | null; klass: string;
   school: string; source: string; batchName: string; status: string; account: string; registered: string | null; batchId: string;
   portalUserId?: string | null;
 };
@@ -72,7 +73,8 @@ export default function RecordsPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const isStaff = roleHasCapability(profile?.role, 'view_records');
+  const canViewCredentials = roleHasCapability(profile?.role, 'view_registration_credentials');
 
   const [tab, setTab] = useState<'people' | 'registrations'>(() => searchParams.get('tab') === 'registrations' ? 'registrations' : 'people');
   const [rows, setRows] = useState<Rec[]>([]);
@@ -192,7 +194,9 @@ export default function RecordsPage() {
       return next;
     });
   }
-  async function copy(text: string, id: string) {
+  async function copy(text: string | null, id: string) {
+    if (!text) return;
+    if (!showPw && (id.endsWith('p') || id.endsWith('cp') || id.endsWith('cp2'))) return;
     try { await navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(''), 1200); } catch { /* ignore */ }
   }
 
@@ -201,13 +205,14 @@ export default function RecordsPage() {
   }
 
   function exportCsv() {
+    // Standard exports never include reusable login secrets.
     let head: string[]; let lines: string[];
     if (tab === 'people') {
       head = ['Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered'];
       lines = peopleFiltered.map(r => [r.name, r.type, r.email, r.school, r.klass, r.program, r.source, r.status, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     } else {
-      head = ['Name', 'Email', 'Password', 'Grade', 'School', 'Registration Type', 'Batch', 'Status', 'Account', 'Registered'];
-      lines = regsFiltered.map(r => [r.name, r.email, r.password, r.klass, r.school, r.source, r.batchName, r.status, r.account, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+      head = ['Name', 'Email', 'Grade', 'School', 'Registration Type', 'Batch', 'Status', 'Account', 'Registered'];
+      lines = regsFiltered.map(r => [r.name, r.email, r.klass, r.school, r.source, r.batchName, r.status, r.account, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     }
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -217,15 +222,20 @@ export default function RecordsPage() {
   function printList(explicitRows?: Array<Rec | Reg>) {
     const isPeople = tab === 'people';
     const data = explicitRows ?? (isPeople ? peopleFiltered : regsFiltered);
+    const includeCredentials = !isPeople && canViewCredentials && showPw;
     if (data.length === 0) return;
-    const title = isPeople ? 'People Records List' : 'Registration Credentials List';
+    const title = isPeople ? 'People Records List' : includeCredentials ? 'Registration Credentials List' : 'Registration Records List';
     const columns = isPeople
       ? ['#', 'Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered']
-      : ['#', 'Name', 'Login Email', 'Password', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'];
+      : includeCredentials
+        ? ['#', 'Name', 'Login Email', 'Password', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered']
+        : ['#', 'Name', 'Login Email', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'];
     const rowsHtml = data.map((row: any, index) => {
       const cells = isPeople
         ? [index + 1, row.name, row.type, row.email, row.school, row.klass, row.program, row.source, row.status, fmtDate(row.registered)]
-        : [index + 1, row.name, row.email, row.password, row.klass, row.school, row.source, row.batchName, row.status, row.account, fmtDate(row.registered)];
+        : includeCredentials
+          ? [index + 1, row.name, row.email, row.password, row.klass, row.school, row.source, row.batchName, row.status, row.account, fmtDate(row.registered)]
+          : [index + 1, row.name, row.email, row.klass, row.school, row.source, row.batchName, row.status, row.account, fmtDate(row.registered)];
       return `<tr>${cells.map(cell => `<td>${esc(String(cell ?? ''))}</td>`).join('')}</tr>`;
     }).join('');
     const html = `<!doctype html><html><head><title>${esc(title)}</title><style>
@@ -258,6 +268,10 @@ export default function RecordsPage() {
   });
 
   async function printCards(items: Reg[] = regsFiltered) {
+    if (!canViewCredentials) {
+      alert('Temporary credentials are restricted to platform administrators and the relevant school manager.');
+      return;
+    }
     const valid = items.filter(r => r.portalUserId && r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
     if (valid.length === 0) {
       alert('No printable cards found. Cards need a live student portal account and cannot be printed for deleted or failed registrations.');
@@ -320,7 +334,7 @@ export default function RecordsPage() {
           <button onClick={() => location.reload()} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground"><ArrowPathIcon className="w-4 h-4" /> Refresh</button>
           <button onClick={() => printList()} disabled={activeCount === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted disabled:opacity-40 text-xs font-bold text-foreground"><PrinterIcon className="w-4 h-4" /> Print Filtered</button>
           <button onClick={() => printList(selectedVisibleRows)} disabled={selectedVisibleRows.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 disabled:opacity-40 text-xs font-black text-primary"><PrinterIcon className="w-4 h-4" /> Print Selected ({selectedVisibleRows.length})</button>
-          {tab === 'registrations' && (
+          {tab === 'registrations' && canViewCredentials && (
             <button onClick={() => printCards()} disabled={regsFiltered.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 text-xs font-black text-amber-800 dark:text-amber-200"><RectangleGroupIcon className="w-4 h-4" /> Print Cards</button>
           )}
           {tab === 'people' && (fType === 'Student' || fType === 'all') && (
@@ -383,7 +397,11 @@ export default function RecordsPage() {
           <>
             <Select value={fSource} onChange={setFSource}><option value="all">All registration types</option>{uniq(regs, 'source').map(s => <option key={s} value={s}>{s}</option>)}</Select>
             <Select value={fBatch} onChange={setFBatch}><option value="all">All batches</option>{registrationBatches.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}</Select>
-            <button onClick={() => setShowPw(v => !v)} className={INPUT + ' cursor-pointer text-left lg:col-span-2'}>{showPw ? 'Hide passwords' : 'Show passwords'}</button>
+            {canViewCredentials ? (
+              <button onClick={() => setShowPw(v => !v)} className={INPUT + ' cursor-pointer text-left lg:col-span-2'}>{showPw ? 'Hide temporary passwords' : 'Reveal temporary passwords'}</button>
+            ) : (
+              <div className={INPUT + ' lg:col-span-2 text-muted-foreground'}>Credentials restricted to administrators</div>
+            )}
           </>
         )}
       </div>
@@ -450,10 +468,14 @@ export default function RecordsPage() {
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">Status</p><p className="text-foreground truncate">{row.status || '—'}</p></div>
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">Registered</p><p className="text-foreground truncate">{fmtDate(row.registered)}</p></div>
               </div>
-              {tab === 'registrations' && (
+              {tab === 'registrations' && canViewCredentials && (
                 <div className="mt-3 rounded-xl border border-border bg-background p-3">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground">Password</p>
-                  <button onClick={() => copy(row.password, row.id + 'cp')} className="font-mono text-amber-700 dark:text-amber-300 text-sm hover:text-amber-800 dark:hover:text-amber-200">
+                  <p className="text-[10px] uppercase font-black text-muted-foreground">Temporary password</p>
+                  <button
+                    onClick={() => showPw && copy(row.password, row.id + 'cp')}
+                    disabled={!showPw || !row.password}
+                    className="font-mono text-amber-700 dark:text-amber-300 text-sm hover:text-amber-800 dark:hover:text-amber-200 disabled:cursor-default"
+                  >
                     {showPw ? (row.password || '—') : '••••••'}{copied === row.id + 'cp' && ' ✓'}
                   </button>
                 </div>
@@ -464,11 +486,11 @@ export default function RecordsPage() {
                 ) : (
                   <>
                     <button onClick={() => copy(row.email, row.id + 'ce')} className="px-3 py-1.5 rounded-lg border border-border text-foreground text-[10px] font-black uppercase tracking-widest">Copy Email</button>
-                    <button onClick={() => copy(row.password, row.id + 'cp2')} className="px-3 py-1.5 rounded-lg border border-border text-foreground text-[10px] font-black uppercase tracking-widest">Copy Password</button>
+                    {canViewCredentials && showPw && row.password && <button onClick={() => copy(row.password, row.id + 'cp2')} className="px-3 py-1.5 rounded-lg border border-border text-foreground text-[10px] font-black uppercase tracking-widest">Copy Password</button>}
                     {row.portalUserId && (
                       <button onClick={() => window.open(resultCheckHref(row), '_blank', 'noopener,noreferrer')} className="px-3 py-1.5 rounded-lg border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest">Test Check</button>
                     )}
-                    <button onClick={() => printCards([row])} className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-primary-foreground text-[10px] font-black uppercase tracking-widest">Print Card</button>
+                    {canViewCredentials && <button onClick={() => printCards([row])} className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-primary-foreground text-[10px] font-black uppercase tracking-widest">Print Card</button>}
                   </>
                 )}
               </div>
@@ -505,7 +527,7 @@ export default function RecordsPage() {
           ) : (
             <table className="w-full text-sm min-w-[980px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', 'Password', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', ...(canViewCredentials ? ['Password'] : []), 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {regsFiltered.map(r => (
@@ -513,7 +535,9 @@ export default function RecordsPage() {
                     <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap"><button onClick={() => copy(r.email, r.id + 'e')} className="hover:text-foreground" title="Copy email">{r.email || '—'}{copied === r.id + 'e' && ' ✓'}</button></td>
-                    <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => copy(r.password, r.id + 'p')} className="text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200" title="Click to copy password">{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
+                    {canViewCredentials && (
+                    <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => showPw && copy(r.password, r.id + 'p')} disabled={!showPw || !r.password} className="text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 disabled:cursor-default" title={showPw ? 'Copy temporary password' : 'Reveal passwords to enable copying'}>{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
+                    )}
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.klass || '—'}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.school || '—'}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.source || '—'}</td>
@@ -541,7 +565,7 @@ export default function RecordsPage() {
       )}
       <p className="text-[10px] text-muted-foreground px-1">
         Showing <span className="text-foreground font-bold">{activeCount}</span> of {totalCount} {tab === 'people' ? 'records' : 'registrations'} ·
-        {tab === 'people' ? ' click a row to open the full profile ·' : ' click an email or password to copy ·'} live data, no stale copies.
+        {tab === 'people' ? ' click a row to open the full profile ·' : canViewCredentials ? ' reveal credentials before copying ·' : ' credential secrets are restricted ·'} live data, no stale copies.
       </p>
     </div>
   );

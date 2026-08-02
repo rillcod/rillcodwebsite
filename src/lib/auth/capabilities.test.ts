@@ -39,6 +39,24 @@ describe('capabilities', () => {
     expect(roleHasCapability('superuser', 'grade')).toBe(false);
   });
 
+  it('keeps accountability and platform user management admin-only', () => {
+    for (const capability of ['view_accountability', 'manage_users'] as const) {
+      expect(rolesFor(capability)).toEqual(['admin']);
+    }
+  });
+
+  it('separates scoped records from credential disclosure', () => {
+    expect(roleHasCapability('teacher', 'view_records')).toBe(true);
+    expect(roleHasCapability('teacher', 'view_registration_credentials')).toBe(false);
+    expect(roleHasCapability('school', 'view_registration_credentials')).toBe(true);
+  });
+
+  it('centralizes account creation and scoped password recovery policy', () => {
+    expect(rolesFor('create_accounts')).toEqual(['admin', 'school']);
+    expect(rolesFor('reset_scoped_passwords')).toEqual(['admin', 'teacher', 'school']);
+    expect(roleHasCapability('student', 'reset_scoped_passwords')).toBe(false);
+  });
+
   it('denial is a 403 that does not leak the permission model', () => {
     const denied = denyIfMissingCapability('school', 'grade');
     expect(denied).not.toBeNull();

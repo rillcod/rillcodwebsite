@@ -72,6 +72,22 @@ Use skeletons for card/list loading, not full-screen spinners, unless the whole 
 - Use locale-aware date/number formatting and tabular numerals for operational tables.
 - Respect reduced-motion preferences and safe-area insets.
 
+## Operational workflow contract
+
+- Authorization is action-based, not page-local role guessing. Add or change policy in
+  `src/lib/auth/capabilities.ts`, then use the same capability in the page and its API.
+- Accountability remains a separate cross-school admin control centre. It may link to
+  Records, Reports, Users, and Finance, but those workspaces keep their distinct jobs.
+- Records is a scoped directory. Temporary passwords are available only to platform
+  administrators and the relevant school manager, and standard exports omit passwords.
+- Account removal means archive by default. A learner with assignment grades, CBT results,
+  progress reports, or moderated term grades cannot be hard-deleted.
+- Saved student scores are protected evidence. Official report totals are always re-derived
+  from the shared grading policy; clients cannot directly override totals or grades.
+- Finance records are never cleared as part of UI cleanup, account cleanup, or demo cleanup;
+  every monetary mutation must preserve traceability and use an explicit finance workflow.
+- Every privileged lifecycle or financial mutation records an actor-linked audit event without
+  logging passwords, tokens, or other reusable secrets.
 ## Definition of done for visual changes
 
 Before pushing a UI change:

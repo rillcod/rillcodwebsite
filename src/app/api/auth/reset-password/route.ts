@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+    if (!caller || !roleHasCapability(caller.role, 'reset_scoped_passwords')) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
@@ -86,6 +88,18 @@ export async function POST(req: NextRequest) {
 
     const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    await logAudit(admin as any, {
+      action: 'reset_user_password',
+      actorId: caller.id,
+      resourceType: 'portal_user',
+      resourceId: userId,
+      tableName: 'portal_users',
+      newValues: {
+        target_role: targetUser.role,
+        target_school_id: targetUser.school_id,
+        password_changed: true,
+      },
+    });
 
     return NextResponse.json({ success: true, message: 'Password updated successfully' });
   } catch (err: any) {

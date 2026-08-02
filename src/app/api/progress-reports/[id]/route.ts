@@ -14,6 +14,7 @@ import {
   resolveSessionForWrite,
 } from '@/lib/reports/academic-period';
 import { logAudit } from '@/lib/audit/log';
+import { deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
 
 function adminClient() {
   return createClient<Database>(
@@ -109,8 +110,7 @@ export async function PATCH(
   const allowed: Record<string, any> = {};
   const fields = [
     'course_name', 'report_term', 'report_period', 'report_date',
-    'theory_score', 'practical_score', 'attendance_score', 'overall_score',
-    'overall_grade', 'is_published', 'learning_milestones', 'instructor_name',
+    'theory_score', 'practical_score', 'attendance_score', 'is_published', 'learning_milestones', 'instructor_name',
     'participation_score', 'engagement_metrics',
     'participation_grade', 'projects_grade', 'homework_grade',
     'proficiency_level', 'has_certificate', 'certificate_text',
@@ -153,10 +153,18 @@ export async function PATCH(
 
   const { data: currentReport } = await admin
     .from('student_progress_reports')
-    .select('student_id, student_name, section_class, course_id, course_name, is_published, academic_trace_status, academic_qa_status')
+    .select('student_id, student_name, section_class, course_id, course_name, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
     .eq('id', id)
     .maybeSingle();
 
+  if (touchesProgressReportScores(body as Record<string, unknown>)) {
+    const result = deriveProgressReportResult({ ...(currentReport as any), ...allowed });
+    allowed.overall_score = result.overallScore;
+    allowed.overall_grade = result.overallGrade;
+  }
+
+  // Direct overall-score overrides are intentionally ignored; evidence components
+  // are the only input to the official calculation.
   const reconciledCourse = await reconcileReportCourseFromClassContext(admin, {
     course_id: allowed.course_id ?? (currentReport as any)?.course_id,
     course_name: allowed.course_name ?? (currentReport as any)?.course_name,
@@ -197,6 +205,18 @@ export async function PATCH(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (data && typeof body.is_published !== 'boolean') {
+    await logAudit(admin as any, {
+      action: 'update_progress_report',
+      actorId: caller.id,
+      resourceType: 'progress_report',
+      resourceId: id,
+      tableName: 'student_progress_reports',
+      oldValues: { overall_score: (currentReport as any)?.overall_score ?? null, overall_grade: (currentReport as any)?.overall_grade ?? null },
+      newValues: { overall_score: data.overall_score ?? null, overall_grade: data.overall_grade ?? null, fields: Object.keys(allowed) },
+    });
+  }
 
   if (typeof body.is_published === 'boolean' && data) {
     const wasPublished = !!(currentReport as any)?.is_published;
@@ -375,9 +395,23 @@ export async function DELETE(
   const admin = adminClient();
   const { data: existing } = await admin
     .from('student_progress_reports')
-    .select('id, student_id, student_name, course_name, is_published')
+    .select('id, student_id, student_name, course_name, is_published, calculation_mode, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score')
     .eq('id', id)
     .maybeSingle();
+  if (existing) {
+    const metrics = existing.engagement_metrics && typeof existing.engagement_metrics === 'object'
+      ? existing.engagement_metrics as Record<string, unknown>
+      : {};
+    const hasRecordedScore = existing.calculation_mode === 'manual' || existing.is_published || [
+      existing.theory_score, existing.practical_score, existing.attendance_score,
+      existing.participation_score, existing.overall_score,
+      metrics.classwork_score, metrics.assessment_score,
+    ].some((value) => value !== null && value !== undefined);
+    if (hasRecordedScore) return NextResponse.json({
+      error: 'This report contains protected academic evidence. Unpublish to correct it, or archive the learner; recorded scores cannot be deleted.',
+      code: 'PROTECTED_ACADEMIC_EVIDENCE',
+    }, { status: 409 });
+  }
   const { error } = await admin
     .from('student_progress_reports')
     .delete()

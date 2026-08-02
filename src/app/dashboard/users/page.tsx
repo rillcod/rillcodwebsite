@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import {
     ShieldCheckIcon, MagnifyingGlassIcon, UserGroupIcon,
     AcademicCapIcon, BuildingOfficeIcon, UserIcon,
@@ -28,6 +29,7 @@ const ROLES = ['admin', 'teacher', 'school', 'student'];
 
 export default function UsersPage() {
     const { profile, loading: authLoading } = useAuth();
+    const canManageUsers = roleHasCapability(profile?.role, 'manage_users');
     const [users, setUsers] = useState<PortalUser[]>([]);
     const [userTotal, setUserTotal] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
@@ -103,9 +105,9 @@ export default function UsersPage() {
     };
 
     useEffect(() => {
-        if (authLoading || profile?.role !== 'admin') return;
+        if (authLoading || !canManageUsers) return;
         load(); checkGaps();
-    }, [profile?.id, authLoading]); // eslint-disable-line
+    }, [profile?.id, profile?.role, authLoading]); // eslint-disable-line
 
     useEffect(() => {
         if (!showCreate) return;
@@ -152,7 +154,7 @@ export default function UsersPage() {
             const res = await fetch(`/api/portal-users/${editing.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm),
+                body: JSON.stringify({ full_name: editForm.full_name, phone: editForm.phone, is_active: editForm.is_active }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Update failed');
@@ -252,12 +254,16 @@ export default function UsersPage() {
 
     const handleDelete = async (u: { id: string, full_name?: string, name?: string, email?: string }) => {
         const name = u.full_name || u.name || u.email || 'this user';
-        if (!confirm(`Delete "${name}"? This removes their account permanently and clears any "already registered" conflicts.`)) return;
+        if (!confirm(`Archive "${name}"? Sign-in will be disabled while scores, reports, payments, and audit history remain preserved.`)) return;
         setDeleting(u.id);
         try {
-            const res = await fetch(`/api/portal-users/${u.id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/portal-users/${u.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: false, is_deleted: true }),
+            });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Delete failed');
+            if (!res.ok) throw new Error(json.error || 'Archive failed');
             setUsers(prev => prev.filter(x => x.id !== u.id));
             await checkGaps();
         } catch (e: any) {
@@ -308,7 +314,7 @@ export default function UsersPage() {
         </div>
     );
 
-    if (profile.role !== 'admin') {
+    if (!canManageUsers) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background mobile-page-root">
                 <p className="text-muted-foreground">Only admins can access this page.</p>
@@ -617,7 +623,7 @@ export default function UsersPage() {
                                                         onClick={() => handleDelete(u)}
                                                         disabled={deleting === u.id}
                                                         className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-400 text-muted-foreground transition-all disabled:opacity-40 flex items-center justify-center border border-border sm:border-none"
-                                                        title="Delete user"
+                                                        title="Archive account and preserve its records"
                                                     >
                                                         {deleting === u.id
                                                             ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -733,7 +739,7 @@ export default function UsersPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Password</label>
-                                <input type="text" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                                <input type="password" autoComplete="new-password" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
                                     placeholder="At least 8 characters"
                                     className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
@@ -827,15 +833,8 @@ export default function UsersPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
-                                <select
-                                    value={editForm.role}
-                                    onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
-                                >
-                                    {ROLES.map(r => (
-                                        <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                                    ))}
-                                </select>
+                                <div className="w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm font-bold text-foreground capitalize">{editForm.role}</div>
+                                <p className="mt-1.5 text-xs text-muted-foreground">Roles are identity boundaries. Create the correct account type instead of converting an existing account with linked records.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Phone (optional)</label>

@@ -6,6 +6,7 @@ import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { programLabel } from '@/lib/consent/onboard-lead-children';
 import { RESULT_INTAKE_FORM_TYPE } from '@/lib/parent-claim/intake-form';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('portal_users').select('id, role, school_id, school_name').eq('id', user.id).single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role ?? '')) {
+  if (!profile || !roleHasCapability(profile.role, 'view_records')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const sb = admin();

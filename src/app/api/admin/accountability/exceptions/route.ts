@@ -5,6 +5,7 @@ import { buildStudentExceptionQueues, filterExceptionQueuesByClassName } from '@
 import type { Person } from '@/lib/accountability/types';
 import { collectHollowAccounts } from '@/lib/admin/platform-sanitation';
 import type { Database } from '@/types/supabase';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ async function assertAdmin() {
     .select('id, role, full_name')
     .eq('id', user.id)
     .maybeSingle();
-  if (caller?.role !== 'admin') {
+  if (!roleHasCapability(caller?.role, 'view_accountability')) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { user, caller };

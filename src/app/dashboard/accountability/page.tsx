@@ -6,6 +6,7 @@ import { ArrowPathIcon, ShieldCheckIcon } from '@/lib/icons';
 import AccountabilityDashboard from '@/components/accountability/AccountabilityDashboard';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import type { Backlog, Coverage, Person } from '@/lib/accountability/types';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import type { StudentExceptionKind } from '@/lib/accountability/student-exceptions';
 
 /**
@@ -26,6 +27,7 @@ export default function AccountabilityPage() {
       source: string;
     } | null;
   } | null>(null);
+  const canViewAccountability = roleHasCapability(profile?.role, 'view_accountability');
   const [exceptionTotals, setExceptionTotals] = useState<Partial<Record<StudentExceptionKind, number>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,8 +98,8 @@ export default function AccountabilityPage() {
   }, [load]);
 
   useEffect(() => {
-    if (profile?.role === 'admin') void load();
-  }, [profile?.role, load]);
+    if (canViewAccountability) void load();
+  }, [canViewAccountability, load]);
 
   // Once per visit: if anyone has the wrong class on their account, fix it automatically.
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function AccountabilityPage() {
     );
   }
 
-  if (profile.role !== 'admin') {
+  if (!canViewAccountability) {
     return (
       <div className="p-8 mobile-page-root">
         <div className="bg-card shadow-sm border border-border rounded-xl p-8 flex items-start gap-4">

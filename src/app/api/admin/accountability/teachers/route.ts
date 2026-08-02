@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ async function assertAdmin() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).maybeSingle();
-  if (caller?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!roleHasCapability(caller?.role, 'view_accountability')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return null;
 }
 

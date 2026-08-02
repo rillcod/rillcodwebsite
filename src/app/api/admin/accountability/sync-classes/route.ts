@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { roleHasCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +33,7 @@ export async function POST() {
     .select('id, role')
     .eq('id', user.id)
     .maybeSingle();
-  if (caller?.role !== 'admin') {
+  if (!roleHasCapability(caller?.role, 'view_accountability')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -87,6 +89,17 @@ export async function POST() {
     // 4. Refresh accountability materialised views so cache is instantly updated
     await db.rpc('refresh_accountability_cache' as never);
 
+    await logAudit(db as any, {
+      action: 'sync_accountability_classes',
+      actorId: user.id,
+      resourceType: 'accountability',
+      resourceId: 'class-placement',
+      tableName: 'portal_users',
+      newValues: {
+        synced_count: syncedCount,
+        source: 'active_class_term_rosters',
+      },
+    });
     return NextResponse.json({ ok: true, synced_count: syncedCount });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Sync failed' }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 
 export const dynamic = 'force-dynamic';
 function admin() { return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!); }
@@ -15,10 +16,12 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { data: profile } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role ?? '')) {
+  if (!profile || !roleHasCapability(profile.role, 'view_records')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const sb = admin();
+  const canViewCredentials = roleHasCapability(profile.role, 'view_registration_credentials');
+
 
   let scopeSchoolIds: string[] | null = null;
   if (profile.role !== 'admin') {
@@ -61,7 +64,9 @@ export async function GET() {
   const results = await fetchAll(
     sb
       .from('registration_results')
-      .select('id, batch_id, full_name, email, password, class_name, status, created_at')
+      .select(canViewCredentials
+        ? 'id, batch_id, full_name, email, password, class_name, status, created_at'
+        : 'id, batch_id, full_name, email, class_name, status, created_at')
       .in('batch_id', batchIds),
   );
 
@@ -89,7 +94,7 @@ export async function GET() {
       portalUserId: liveUser?.id ?? null,
       name: r.full_name,
       email: r.email,
-      password: r.password,
+      password: canViewCredentials ? (r.password ?? null) : null,
       klass: r.class_name || b.class_name || '',
       school: b.school_name || '',
       schoolId: b.school_id || null,
@@ -110,5 +115,5 @@ export async function GET() {
   });
 
   rows.sort((a: any, b: any) => String(b.registered || '').localeCompare(String(a.registered || '')));
-  return NextResponse.json({ registrations: rows, count: rows.length });
+  return NextResponse.json({ registrations: rows, count: rows.length, canViewCredentials });
 }

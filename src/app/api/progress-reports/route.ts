@@ -11,6 +11,9 @@ import {
 } from '@/lib/reports/academic-period';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { logAudit } from '@/lib/audit/log';
+import { deriveProgressReportResult, PROGRESS_REPORT_SCORE_FIELDS } from '@/lib/reports/score';
+
 
 /**
  * student_progress_reports.student_id is portal_users.id (FK + student RLS),
@@ -92,6 +95,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Overall score and grade are server-derived. Clients submit evidence components,
+  // never the official result. Require the full component set before recalculating
+  // so a partial legacy edit cannot zero components it did not send.
+  delete (updatePayload as Record<string, unknown>).overall_score;
+  delete (updatePayload as Record<string, unknown>).overall_grade;
+  delete (insertPayload as Record<string, unknown>).overall_score;
+  delete (insertPayload as Record<string, unknown>).overall_grade;
+  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)) {
+    const result = deriveProgressReportResult(updatePayload as Record<string, unknown>);
+    updatePayload.overall_score = result.overallScore;
+    updatePayload.overall_grade = result.overallGrade;
+    insertPayload.overall_score = result.overallScore;
+    insertPayload.overall_grade = result.overallGrade;
+  }
   // On insert, always stamp teacher_id as caller.
   // On update, do NOT overwrite — original owner stays (ownership is verified below).
   updatePayload.updated_at = new Date().toISOString();
@@ -308,6 +325,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await logAudit(admin as any, {
+      action: 'save_progress_report',
+      actorId: caller.id,
+      resourceType: 'progress_report',
+      resourceId: data.id,
+      tableName: 'student_progress_reports',
+      newValues: { mode: 'update', student_id: updatePayload.student_id ?? existingReport.student_id, overall_score: updatePayload.overall_score ?? null },
+    });
+
     return NextResponse.json({ data });
   } else {
     if (typeof insertPayload.student_id !== 'string' || !insertPayload.student_id.trim()) {
@@ -337,6 +363,15 @@ export async function POST(request: NextRequest) {
         gender:       insGender                   ? String(insGender)                   : null,
       });
     }
+
+    await logAudit(admin as any, {
+      action: 'create_progress_report',
+      actorId: caller.id,
+      resourceType: 'progress_report',
+      resourceId: data.id,
+      tableName: 'student_progress_reports',
+      newValues: { mode: 'insert', student_id: insertPayload.student_id, overall_score: insertPayload.overall_score ?? null },
+    });
 
     return NextResponse.json({ data });
   }

@@ -4,6 +4,10 @@
  * is a best-effort belt for environments where the SQL path cannot reach auth.
  */
 import { clearLeadChildLinks } from '@/lib/consent/lead-child-links';
+import {
+  getProtectedAcademicEvidence,
+  protectedAcademicEvidenceMessage,
+} from '@/lib/students/protected-academic-evidence';
 
 export type PermanentWipeResult =
   | { ok: true }
@@ -17,6 +21,11 @@ type AnyAdmin = {
 
 /** Full cascade delete for one portal user id (any role). */
 export async function wipePortalUserCascade(admin: AnyAdmin, userId: string): Promise<PermanentWipeResult> {
+  const evidence = await getProtectedAcademicEvidence(admin, userId);
+  if (evidence.total > 0) {
+    return { ok: false, error: protectedAcademicEvidenceMessage(evidence) };
+  }
+
   const { error } = await admin.rpc('hard_delete_portal_user', { p_id: userId });
   if (error) return { ok: false, error: error.message };
   await admin.auth.admin.deleteUser(userId).catch(() => {});

@@ -1928,9 +1928,7 @@ function ReportBuilderInner() {
         attendance: parseFloat(form.participation_score) || 0,
         assessment: parseFloat(form.assessment_score) || 0,
     });
-    // Activity cap: students with low assignment submission % are grade-capped.
-    // When no assignments exist (totalAssignments=0) pct defaults to 100 → no cap.
-    // All staff (admin, teacher, school) bypass the cap — manual grade entry is authoritative.
+    // Engagement is coaching evidence only; the official score always uses the canonical weights.
     const overallScore = rawOverallScore;
 
     // ── WAEC grade code (A1–F9) for display and save ─────────────────────────

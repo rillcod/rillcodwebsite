@@ -28,6 +28,18 @@ export type Capability =
   | 'upload_library'
   /** Read student results/reports for a school in scope. */
   | 'view_reports'
+  /** Open the cross-school accountability control centre. */
+  | 'view_accountability'
+  /** Read the people and registration record index within the caller's scope. */
+  | 'view_records'
+  /** Reveal or issue temporary registration credentials within the caller's scope. */
+  | 'view_registration_credentials'
+  /** Create portal accounts within the caller's permitted school and role scope. */
+  | 'create_accounts'
+  /** Reset portal passwords within the caller's permitted school and role scope. */
+  | 'reset_scoped_passwords'
+  /** Manage platform-wide user lifecycle and role placement. */
+  | 'manage_users'
   /** Destroy a record (submission, student, account). Never a partner school. */
   | 'delete_records'
   /**
@@ -57,6 +69,18 @@ const CAPABILITY_ROLES: Record<Capability, readonly PortalRole[]> = {
   view_reports: ['admin', 'teacher', 'school'],
   // Destruction is never delegated to a partner school.
   delete_records: ['admin', 'teacher'],
+  // Accountability is deliberately a separate, cross-school admin control centre.
+  view_accountability: ['admin'],
+  // Teachers and school managers may see their scoped directory, but credential
+  // disclosure is limited to administrators and the relevant school manager.
+  view_records: ['admin', 'teacher', 'school'],
+  view_registration_credentials: ['admin', 'school'],
+  // Partner schools can provision and recover accounts only inside their own scope;
+  // route-level checks still enforce target role and school boundaries.
+  create_accounts: ['admin', 'school'],
+  reset_scoped_passwords: ['admin', 'teacher', 'school'],
+  // Platform-wide role and lifecycle management remains a central-admin action.
+  manage_users: ['admin'],
   // A school may see its own account with Rillcod...
   view_school_finance: ['admin', 'school'],
   // ...but the FIGURES on a family's invoice reveal Rillcod's margin over what the

@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getAccountValuables } from '@/lib/students/account-valuables';
 import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import {
+  getProtectedAcademicEvidence,
+  protectedAcademicEvidenceMessage,
+} from '@/lib/students/protected-academic-evidence';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +86,12 @@ export async function POST(request: NextRequest) {
     // This endpoint is student-focused (withdrawn cleanup). Teacher/parent/school accounts
     // must go through the single-delete flow that handles class reassignment etc.
     if (pu.role !== 'student') { blocked.push({ id, reason: 'Only student accounts can be bulk-deleted here.' }); continue; }
+    const evidence = await getProtectedAcademicEvidence(admin, id);
+    if (evidence.total > 0) {
+      blocked.push({ id, reason: protectedAcademicEvidenceMessage(evidence) });
+      continue;
+    }
+
 
     const inAssignedSchool = !!pu.school_id && assignedIds.includes(pu.school_id);
     if (caller.role === 'teacher' && !inAssignedSchool && !classMemberIds.has(id)) {

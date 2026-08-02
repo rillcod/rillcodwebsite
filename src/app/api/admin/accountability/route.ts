@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 /**
@@ -48,7 +49,7 @@ async function assertAdmin(): Promise<NextResponse | null> {
     .select('id, role')
     .eq('id', user.id)
     .maybeSingle();
-  if (caller?.role !== 'admin') {
+  if (!roleHasCapability(caller?.role, 'view_accountability')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return null;
