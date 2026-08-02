@@ -11,7 +11,7 @@ import {
   PencilIcon, CheckCircleIcon, AcademicCapIcon,
   ClipboardDocumentCheckIcon, PlusIcon, ExclamationTriangleIcon,
   ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon,
-  ClipboardDocumentListIcon, ChevronRightIcon,
+  ClipboardDocumentListIcon, ChevronRightIcon, SparklesIcon,
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon
@@ -2258,6 +2258,26 @@ export default function ClassDetailPage() {
 
             {activeTab === 'overview' && (
               <div className="space-y-4">
+                {/* Full Curriculum & Lessons Access Card */}
+                <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
+                      <BookOpenIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-foreground">Course Curriculum & Lesson Plans</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                        Access all weeks, edit syllabus topics, and generate AI-powered lesson plans for this class.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href={cls.program_id ? `/dashboard/academic/build?course=${cls.program_id}` : "/dashboard/academic/build"}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all shrink-0 min-h-11 cursor-pointer"
+                  >
+                    <SparklesIcon className="w-4 h-4" /> View Full Curriculum →
+                  </Link>
+                </div>
                 {/* Only the facts the identity bar does not already carry. Teacher and
                     programme were repeated here on every view; they now appear once. */}
                 <div className="rounded-2xl border border-border bg-background p-4 sm:p-5">

@@ -3500,7 +3500,16 @@ export default function CurriculumPage() {
     () => allTerms.filter((t) => (t.year ?? 1) === activeYear),
     [allTerms, activeYear]
   );
-  const currentTermData = termsForActiveYear.find((t) => t.term === activeTerm);
+  const currentTermData = activeTerm === 0
+    ? {
+        term: 0,
+        year: activeYear,
+        title: "Full Curriculum (All Terms)",
+        start_date: termsForActiveYear[0]?.start_date,
+        weeks: termsForActiveYear.flatMap((t) => t.weeks || []),
+        objectives: Array.from(new Set(termsForActiveYear.flatMap((t) => t.objectives || []))),
+      }
+    : termsForActiveYear.find((t) => t.term === activeTerm);
   const termCount = allTerms.length;
   const allWeeks = allTerms.flatMap((t) => t.weeks) ?? [];
   const completedCount = tracking.filter(
@@ -5184,6 +5193,11 @@ export default function CurriculumPage() {
                                 }}
                                 className="bg-transparent border-none text-[9px] font-black tracking-widest text-primary focus:ring-0 px-2 h-full cursor-pointer py-0"
                               >
+                                {termsForActiveYear.length > 1 && (
+                                  <option value={0} className="bg-[#0a0a0a] text-primary font-bold">
+                                    ✨ All Terms (Full Curriculum)
+                                  </option>
+                                )}
                                 {[...termsForActiveYear]
                                   .sort((a, b) => {
                                     // Sort by programme term order so Prog.T1 always appears first
