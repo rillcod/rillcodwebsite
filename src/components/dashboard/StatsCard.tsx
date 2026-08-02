@@ -21,11 +21,11 @@ const StatsCard: React.FC<StatsCardProps> = ({
   subtitle
 }) => {
   const colorClasses = {
-    blue: 'bg-blue-50 text-primary',
-    green: 'bg-green-50 text-green-600 dark:text-green-400',
-    purple: 'bg-purple-50 text-purple-600 dark:text-purple-400',
-    orange: 'bg-orange-50 text-primary',
-    red: 'bg-red-50 text-red-600 dark:text-red-400'
+    blue: 'bg-primary/10 text-primary',
+    green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    purple: 'bg-primary/10 text-primary',
+    orange: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    red: 'bg-brand-red-600/10 text-brand-red-600'
   };
 
   const changeColorClasses = {

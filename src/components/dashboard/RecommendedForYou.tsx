@@ -23,7 +23,7 @@ const ICON: Record<Rec['type'], any> = {
   exam: ClipboardDocumentListIcon,
 };
 const ACCENT: Record<Rec['type'], string> = {
-  continue: 'text-violet-600 dark:text-violet-400 border-violet-500/25 bg-violet-500/8',
+  continue: 'text-primary border-primary/25 bg-primary/8',
   reinforce: 'text-amber-600 dark:text-amber-400 border-amber-500/25 bg-amber-500/8',
   start: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/8',
   review: 'text-cyan-600 dark:text-cyan-400 border-cyan-500/25 bg-cyan-500/8',
@@ -56,7 +56,7 @@ export default function RecommendedForYou() {
   return (
     <section className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl">
       <div className="flex items-center gap-2 mb-4">
-        <SparklesIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+        <SparklesIcon className="w-5 h-5 text-primary" />
         <h2 className="text-base font-black text-foreground">Recommended for you</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

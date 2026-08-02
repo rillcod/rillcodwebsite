@@ -33,14 +33,14 @@ export default function Error({
         <div className="text-center">
           {/* Critical Error Protocol */}
           <div className="mb-12 text-foreground">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-card border border-border rounded-none mb-8 shadow-2xl relative group">
-              <div className="absolute inset-0 bg-red-500/10 group-hover:bg-red-500/20 transition-all duration-300"></div>
-              <ExclamationTriangleIcon className="w-12 h-12 text-red-500 relative z-10 animate-fade-in" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500"></div>
-              <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-red-500 animate-ping"></div>
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl mb-8 shadow-2xl relative group">
+              <div className="absolute inset-0 bg-brand-red-600/10 group-hover:bg-brand-red-600/20 transition-all duration-300 rounded-3xl"></div>
+              <ExclamationTriangleIcon className="w-12 h-12 text-brand-red-600 relative z-10 animate-fade-in" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-brand-red-600 rounded-full"></div>
+              <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-brand-red-600 rounded-full animate-ping"></div>
             </div>
             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 italic">
-              Something <span className="text-red-500">Went Wrong</span>
+              Something <span className="text-brand-red-600">Went Wrong</span>
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground mb-12 max-w-lg mx-auto font-bold italic leading-relaxed uppercase tracking-widest opacity-60">
               We could not finish loading this screen. Your saved information is safe. Try again or return to the home page.
@@ -49,10 +49,10 @@ export default function Error({
 
           {/* Error Intel (Development Only) */}
           {process.env.NODE_ENV === 'development' && (
-            <div className="bg-card border border-border rounded-none p-6 mb-12 max-w-2xl mx-auto text-left shadow-2xl overflow-hidden relative group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rotate-45 transform translate-x-12 -translate-y-12"></div>
-              <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4 italic flex items-center gap-2">
-                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 mb-12 max-w-2xl mx-auto text-left shadow-2xl overflow-hidden relative group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-red-600/5 rotate-45 transform translate-x-12 -translate-y-12"></div>
+              <h3 className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest mb-4 italic flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-brand-red-600 rounded-full animate-pulse"></div>
                  Technical details:
               </h3>
               <p className="text-[11px] text-foreground font-mono break-all leading-relaxed whitespace-pre-wrap">
@@ -67,17 +67,17 @@ export default function Error({
           )}
 
           {/* Recovery Protocols */}
-          <div className="flex flex-col sm:flex-row gap-8 justify-center mb-16 relative">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-16 relative">
             <button
               onClick={reset}
-              className="inline-flex items-center justify-center px-12 py-5 bg-foreground text-background rounded-none hover:bg-primary hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] shadow-lg shadow-primary/20 group min-h-11"
             >
               <ArrowPathIcon className="w-4 h-4 mr-3 group-hover:rotate-180 transition-transform duration-500" />
               TRY AGAIN
             </button>
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-12 py-5 border border-border text-foreground rounded-none hover:border-primary transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-card border border-border text-foreground rounded-2xl hover:bg-muted transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] group min-h-11"
             >
               <HomeIcon className="w-4 h-4 mr-3" />
               GO TO HOME
@@ -85,7 +85,7 @@ export default function Error({
           </div>
 
           {/* External Support Uplink */}
-          <div className="bg-card border border-border rounded-none p-10 shadow-2xl relative overflow-hidden max-w-2xl mx-auto">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden max-w-2xl mx-auto">
             <div className="absolute top-0 left-0 w-32 h-32 bg-primary/5 rotate-45 transform -translate-x-16 -translate-y-16"></div>
             <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">Need help?</h3>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-10">
