@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
+import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
 
@@ -141,27 +142,17 @@ export async function POST(
     p_class_session_id: null,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  // Fire-and-forget: notify parents when a week is marked completed
-  if (status === 'completed' && schoolId) {
-    const notifSettings = curriculum?.content?.notification_settings ?? { mode: 'all', channels: ['whatsapp'] };
-    const shouldNotify = (() => {
-      if (notifSettings.mode === 'none') return false;
-      if (notifSettings.mode === 'all') return true;
-      if (notifSettings.mode === 'every_n') return week_number % (notifSettings.every_n ?? 4) === 0;
-      if (notifSettings.mode === 'specific') return (notifSettings.specific_weeks ?? []).includes(week_number);
-      return false;
-    })();
-    if (shouldNotify) {
-      void notifyParentsWeekComplete({
-        schoolId,
-        curriculumId: id,
-        termNumber: term_number,
-        weekNumber: week_number,
-        weekTopic: body.week_topic ?? null,
-        courseName: body.course_name ?? null,
-        channels: notifSettings.channels ?? ['whatsapp'],
-      }).catch(() => {});
-    }
+  // Fire-and-forget: trigger automated Weekly Milestone Digest when a week is marked completed
+  if (status === 'completed') {
+    void triggerWeeklyMilestoneDigest({
+      classId: class_id ?? null,
+      schoolId: schoolId ?? null,
+      curriculumId: id,
+      termNumber: Number(term_number),
+      weekNumber: Number(week_number),
+      weekTopic: body.week_topic ?? null,
+      courseTitle: body.course_name ?? curriculum?.content?.course_title ?? null,
+    }).catch((err) => console.error('[track] milestone digest trigger error:', err));
   }
 
   return NextResponse.json({ data });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,6 +149,16 @@ export async function POST(
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     results.push(data);
+
+    if (w.status === 'completed') {
+      void triggerWeeklyMilestoneDigest({
+        classId: w.class_id ?? null,
+        schoolId: curriculum.school_id ?? null,
+        curriculumId: id,
+        termNumber: Number(w.term_number),
+        weekNumber: Number(w.week_number),
+      }).catch((err) => console.error('[track/bulk] milestone digest trigger error:', err));
+    }
   }
 
   return NextResponse.json({ data: results, count: results.length });
