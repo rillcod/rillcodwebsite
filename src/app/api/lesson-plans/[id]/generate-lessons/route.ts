@@ -24,6 +24,7 @@ import {
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
+import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
 
 const ALLOWED_LESSON_TYPES = [
   "lesson",
@@ -128,9 +129,10 @@ export async function POST(
         week_number?: number;
       };
     }>;
-    const targetWeeks = onlyWeeks && onlyWeeks.length
-      ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
-      : weeks;
+    const targetWeeks =
+      onlyWeeks && onlyWeeks.length
+        ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
+        : weeks;
 
     const planCourseId = plan!.course_id as string;
     const planSchoolId = plan!.school_id as string;
@@ -303,34 +305,45 @@ export async function POST(
           }
 
           const d = aiData.data as Record<string, unknown>;
-          const { error: insertErr } = await supabase.from("lessons").insert({
-            course_id: planCourseId,
-            school_id: planSchoolId,
-            title: (d.title || week.topic) as string,
-            description: (d.description || "") as string,
-            lesson_notes: (d.lesson_notes || "") as string,
-            content_layout: (d.content_layout || []) as [],
-            video_url: (d.video_url || null) as string | null,
-            duration_minutes: (d.duration_minutes || 60) as number,
-            lesson_type: (ALLOWED_LESSON_TYPES.includes(d.lesson_type as string)
-              ? d.lesson_type
-              : "lesson") as string,
-            status: lessonStatus,
-            metadata: {
-              source: "lesson-plan-bulk",
+          const { data: savedLesson, error: insertErr } = await supabase
+            .from("lessons")
+            .insert({
+              created_by: isCron ? plan!.created_by : staff.id,
+              academic_term_id: plan!.term_id,
+              course_id: planCourseId,
+              class_id: plan!.class_id,
+              school_id: planSchoolId,
               lesson_plan_id: id,
-              week: week.week,
-              week_number: week.week,
-              year_number:
-                Number.isFinite(yearNumber) && yearNumber > 0
-                  ? yearNumber
-                  : null,
-              term_number:
-                Number.isFinite(effectiveTermNum) && effectiveTermNum > 0
-                  ? effectiveTermNum
-                  : null,
-            },
-          });
+              curriculum_week_number: week.week,
+              title: (d.title || week.topic) as string,
+              description: (d.description || "") as string,
+              lesson_notes: (d.lesson_notes || "") as string,
+              content_layout: (d.content_layout || []) as [],
+              video_url: (d.video_url || null) as string | null,
+              duration_minutes: (d.duration_minutes || 60) as number,
+              lesson_type: (ALLOWED_LESSON_TYPES.includes(
+                d.lesson_type as string
+              )
+                ? d.lesson_type
+                : "lesson") as string,
+              status: lessonStatus,
+              metadata: {
+                source: "lesson-plan-bulk",
+                lesson_plan_id: id,
+                week: week.week,
+                week_number: week.week,
+                year_number:
+                  Number.isFinite(yearNumber) && yearNumber > 0
+                    ? yearNumber
+                    : null,
+                term_number:
+                  Number.isFinite(effectiveTermNum) && effectiveTermNum > 0
+                    ? effectiveTermNum
+                    : null,
+              },
+            })
+            .select("id")
+            .single();
 
           if (insertErr) {
             console.error(
@@ -351,6 +364,12 @@ export async function POST(
             skipped++;
             continue;
           }
+
+          await relinkTeachingWeekAssets(supabase, {
+            lessonPlanId: id,
+            curriculumWeekNumber: week.week,
+            lessonId: savedLesson.id,
+          });
 
           titlesThisRun.push((d.title || week.topic) as string);
           generated++;

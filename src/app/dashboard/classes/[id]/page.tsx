@@ -62,7 +62,7 @@ export default function ClassDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
   const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function ClassDetailPage() {
   // first record rather than leaving a tab selected that the strip no longer offers.
   useEffect(() => {
     setActiveTab(
-      activeOperation === 'teaching' ? 'lessons'
+      activeOperation === 'teaching' ? 'overview'
         : activeOperation === 'assessment' ? 'assignments'
           : activeOperation === 'communication' ? 'sessions'
             : 'overview',
@@ -1395,7 +1395,6 @@ export default function ClassDetailPage() {
   // "Class record" (details + session history) is reachable from every mode; the rest
   // only appear where they are the work in hand.
   const recordTabs = [
-    { id: 'lessons', label: 'Lessons', icon: BookOpenIcon, count: items.lessons.length, modes: ['teaching'] },
     { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon, count: items.assignments.length, modes: ['assessment'] },
     { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon, count: items.cbt.length, modes: ['assessment'] },
     { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, count: undefined, modes: ['assessment'], staffOnly: true },
@@ -2204,8 +2203,8 @@ export default function ClassDetailPage() {
         {/* ── Records for the current work mode ──────────────────────────────────
             These lists used to sit behind a collapsed "More class records" panel with
             its own five tabs, competing with the work modes above and telling teachers
-            to keep the real work closed. They now follow the mode: Teaching shows
-            lessons, Assessment shows assignments / exams / gradebook, and the class
+            to keep the real work closed. Teaching preparation now stays in the workspace
+            above; Assessment owns assignments / exams / gradebook, and the class
             record is available from anywhere. */}
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="min-w-0 space-y-4">
@@ -2419,55 +2418,6 @@ export default function ClassDetailPage() {
               </div>
             )}
 
-            {activeTab === 'lessons' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <BookOpenIcon className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">Lessons</h2>
-                    <span className="text-xs text-muted-foreground">({items.lessons.length})</span>
-                  </div>
-                  {isStaff && (
-                    <Link href={`/dashboard/lessons/add?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-primary" /> Add Lesson
-                    </Link>
-                  )}
-                </div>
-                {items.lessons.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
-                    <BookOpenIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No lessons found for this programme.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {items.lessons.map(lesson => isSchool ? (
-                      <div key={lesson.id}
-                        className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-3 cursor-default">
-                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <BookOpenIcon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-semibold text-foreground truncate">{lesson.title}</h4>
-                          <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type ?? lesson.status ?? ''}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`}
-                        className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <BookOpenIcon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{lesson.title}</h4>
-                          <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type ?? lesson.status ?? ''}</p>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {activeTab === 'assignments' && (
               <div className="space-y-4">

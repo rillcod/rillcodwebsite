@@ -6,6 +6,7 @@ import {
   buildDistributeHref,
   buildFlashcardsHref,
   buildGradesHref,
+  buildLessonNewHref,
   buildResultsHref,
   mergeAssetLaneHref,
   pickAssetLaneQuery,
@@ -19,18 +20,34 @@ describe("curriculum href helpers", () => {
   });
 
   it("builds academic stage links with context", () => {
-    expect(
-      buildCertifyHref({ curriculumId: "cur1", courseId: "c1" })
-    ).toBe("/dashboard/academic/rollout?curriculum_id=cur1&course_id=c1");
+    expect(buildCertifyHref({ curriculumId: "cur1", courseId: "c1" })).toBe(
+      "/dashboard/academic/rollout?curriculum_id=cur1&course_id=c1"
+    );
     expect(buildDistributeHref({ courseId: "c1" })).toBe(
       "/dashboard/academic/rollout?course_id=c1"
     );
   });
 
   it("builds class teaching and delivery tool links", () => {
-    expect(
-      buildClassTeachingHref({ classId: "cl1", courseId: "c1" })
-    ).toBe("/dashboard/classes/cl1?operation=teaching&course_id=c1");
+    expect(buildClassTeachingHref({ classId: "cl1", courseId: "c1" })).toBe(
+      "/dashboard/classes/cl1?operation=teaching&course_id=c1"
+    );
+    const lessonHref = buildLessonNewHref({
+      classId: "cl1",
+      courseId: "c1",
+      lessonPlanId: "lp1",
+      curriculumId: "cur1",
+      week: 4,
+      topic: "Loops",
+      plan: { objectives: ["Explain repetition"] },
+    });
+    const lessonUrl = new URL(lessonHref, "https://example.com");
+    expect(lessonUrl.pathname).toBe("/dashboard/lessons/add");
+    expect(lessonUrl.searchParams.get("class_id")).toBe("cl1");
+    expect(lessonUrl.searchParams.get("lesson_plan_id")).toBe("lp1");
+    expect(lessonUrl.searchParams.get("week")).toBe("4");
+    expect(lessonUrl.searchParams.get("source")).toBe("curriculum");
+
     expect(
       buildFlashcardsHref({
         deckId: "d1",
@@ -48,12 +65,10 @@ describe("curriculum href helpers", () => {
   });
 
   it("preserves asset lane query across steps", () => {
-    const query = pickAssetLaneQuery(
-      "curriculum_id=cur1&course_id=c1&noise=1"
-    );
+    const query = pickAssetLaneQuery("curriculum_id=cur1&course_id=c1&noise=1");
     expect(query.toString()).toBe("curriculum_id=cur1&course_id=c1");
-    expect(
-      mergeAssetLaneHref("/dashboard/academic/rollout", query)
-    ).toBe("/dashboard/academic/rollout?curriculum_id=cur1&course_id=c1");
+    expect(mergeAssetLaneHref("/dashboard/academic/rollout", query)).toBe(
+      "/dashboard/academic/rollout?curriculum_id=cur1&course_id=c1"
+    );
   });
 });

@@ -1,11 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isPlatformStaffRole, isPartnerSchoolRole, PARTNER_SCHOOL_AI_GENERATE_TYPES } from '@/lib/dashboard/route-access';
-import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
-import { geminiGenerateText } from '@/lib/gemini/client';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import {
+  isPlatformStaffRole,
+  isPartnerSchoolRole,
+  PARTNER_SCHOOL_AI_GENERATE_TYPES,
+} from "@/lib/dashboard/route-access";
+import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
+import { geminiGenerateText } from "@/lib/gemini/client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 // Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
 // (honoured on Vercel Pro; Hobby still hard-caps at 60s — the client now detects a
 // cut-off stream and surfaces a retry instead of a hasty "success").
@@ -13,43 +17,43 @@ export const maxDuration = 300;
 
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
 const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY ?? '',
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY ?? "",
   defaultHeaders: {
-    'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
-    'X-Title': 'Rillcod Technologies',
+    "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "https://rillcod.com",
+    "X-Title": "Rillcod Technologies",
   },
 });
 
 const MODELS = [
   // ── Tier 1: Premium (best quality) ─────────────────────────────
-  "google/gemini-2.5-flash",                  // Gemini 2.5 Flash (stable, OpenRouter)
-  "google/gemini-2.0-flash-001",              // Gemini 2.0 Flash Stable (fallback)
-  "x-ai/grok-2-1212",                         // Grok-2 (Wit & Logic)
-  "moonshotai/kimi-k2.5",                     // High Intelligence (Kimi)
+  "google/gemini-2.5-flash", // Gemini 2.5 Flash (stable, OpenRouter)
+  "google/gemini-2.0-flash-001", // Gemini 2.0 Flash Stable (fallback)
+  "x-ai/grok-2-1212", // Grok-2 (Wit & Logic)
+  "moonshotai/kimi-k2.5", // High Intelligence (Kimi)
   // ── Tier 2: DeepSeek family ────────────────────────────────────
-  "deepseek/deepseek-chat-v3-5",             // DeepSeek V3.2 (latest)
-  "deepseek/deepseek-chat",                   // DeepSeek V3.0
-  "deepseek/deepseek-r1:free",               // DeepSeek R1 (reasoning, free)
+  "deepseek/deepseek-chat-v3-5", // DeepSeek V3.2 (latest)
+  "deepseek/deepseek-chat", // DeepSeek V3.0
+  "deepseek/deepseek-r1:free", // DeepSeek R1 (reasoning, free)
   // ── Tier 3: Qwen3 family ──────────────────────────────────────
-  "qwen/qwen3-235b-a22b:free",               // Qwen3 235B (free tier)
-  "qwen/qwen3-30b-a3b:free",                 // Qwen3 30B (free tier)
-  "qwen/qwen3-14b:free",                     // Qwen3 14B (free tier)
+  "qwen/qwen3-235b-a22b:free", // Qwen3 235B (free tier)
+  "qwen/qwen3-30b-a3b:free", // Qwen3 30B (free tier)
+  "qwen/qwen3-14b:free", // Qwen3 14B (free tier)
   // ── Tier 4: MiniMax ───────────────────────────────────────────
-  "minimax/minimax-01",                       // MiniMax M2.5 (long context)
+  "minimax/minimax-01", // MiniMax M2.5 (long context)
   // ── Tier 5: GLM / ZhipuAI ─────────────────────────────────────
-  "zhipuai/glm-4-flash:free",                // GLM-4 Flash (free tier)
-  "zhipuai/glm-z1-flash:free",               // GLM-Z1 Flash (free tier)
+  "zhipuai/glm-4-flash:free", // GLM-4 Flash (free tier)
+  "zhipuai/glm-z1-flash:free", // GLM-Z1 Flash (free tier)
   // ── Tier 6: StepFun ───────────────────────────────────────────
-  "stepfun/step-3-5-flash",                  // StepFun Step 3.5 Flash
+  "stepfun/step-3-5-flash", // StepFun Step 3.5 Flash
   // ── Tier 7: MiMo ──────────────────────────────────────────────
-  "xiaomi/mimo-v2-flash:free",               // MiMo V2 Flash (free)
+  "xiaomi/mimo-v2-flash:free", // MiMo V2 Flash (free)
   // ── Tier 8: Reliability fallbacks ─────────────────────────────
   "google/gemini-2.0-flash-lite-001",
   "meta-llama/llama-3.3-70b-instruct",
   "mistralai/mistral-large-2411",
-  "meta-llama/llama-3.1-8b-instruct:free",   // Fast free fallback
-  "mistralai/mistral-7b-instruct:free",       // Emergency fallback
+  "meta-llama/llama-3.1-8b-instruct:free", // Fast free fallback
+  "mistralai/mistral-7b-instruct:free", // Emergency fallback
 ];
 
 const SYSTEM_PROMPT = `You are the 'Great Learning Explorer' for Rillcod Technologies.
@@ -131,7 +135,24 @@ Do not add religious, biblical, spiritual, or metaphor-heavy wording unless the 
 Do not invent scores, incidents, awards, or personal details.
 Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'project' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum' | 'flashcard';
+type GenerateType =
+  | "lesson"
+  | "lesson-notes"
+  | "lesson-plan"
+  | "library-content"
+  | "assignment"
+  | "project"
+  | "cbt"
+  | "report-feedback"
+  | "cbt-grading"
+  | "newsletter"
+  | "code-generation"
+  | "daily-missions"
+  | "lesson-hook"
+  | "custom"
+  | "curriculum"
+  | "flashcard"
+  | "slides";
 
 interface GenerateRequest {
   type: GenerateType;
@@ -142,7 +163,7 @@ interface GenerateRequest {
   durationMinutes?: number;
   termWeeks?: number;
   contentType?: string;
-  lessonMode?: 'academic' | 'project' | 'interactive';
+  lessonMode?: "academic" | "project" | "interactive";
   attendance?: string;
   assignments?: string;
   currentContent?: any;
@@ -178,7 +199,7 @@ interface GenerateRequest {
   courseName?: string;
   programName?: string;
   className?: string;
-  examType?: 'examination' | 'evaluation';
+  examType?: "examination" | "evaluation";
   sourceName?: string;
   // Qualifiers selected/typed by the teacher — used to ground AI output
   participationGrade?: string;
@@ -192,6 +213,8 @@ interface GenerateRequest {
   syllabusReference?: string;
   planWeekObjectives?: string;
   planWeekActivities?: string;
+  lessonSummary?: string;
+  slideCount?: number;
   /** Titles already generated in the current bulk job — reduce repetition */
   priorLessonTitlesThisRun?: string[];
   priorAssignmentTitlesThisRun?: string[];
@@ -207,7 +230,7 @@ interface GenerateRequest {
 }
 
 type CbtGenerationPlan = {
-  examType: 'examination' | 'evaluation';
+  examType: "examination" | "evaluation";
   requestedMcq: number;
   requestedOpen: number;
   mcqCount: number;
@@ -221,18 +244,40 @@ type CbtGenerationPlan = {
   boundaryNote: string;
 };
 
-function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+function clampInt(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number
+): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
-  const examType = req.examType === 'evaluation' ? 'evaluation' : 'examination';
-  const maxQuestions = examType === 'evaluation' ? 20 : 40;
-  const requestedMcq = clampInt(req.mcqCount, 0, 80, req.questionCount ?? (examType === 'evaluation' ? 10 : 20));
-  const requestedOpen = clampInt(req.theoryCount, 0, 80, examType === 'evaluation' ? 0 : 5);
-  const requestedTotal = requestedMcq + requestedOpen || clampInt(req.questionCount, 5, maxQuestions, examType === 'evaluation' ? 10 : 20);
+  const examType = req.examType === "evaluation" ? "evaluation" : "examination";
+  const maxQuestions = examType === "evaluation" ? 20 : 40;
+  const requestedMcq = clampInt(
+    req.mcqCount,
+    0,
+    80,
+    req.questionCount ?? (examType === "evaluation" ? 10 : 20)
+  );
+  const requestedOpen = clampInt(
+    req.theoryCount,
+    0,
+    80,
+    examType === "evaluation" ? 0 : 5
+  );
+  const requestedTotal =
+    requestedMcq + requestedOpen ||
+    clampInt(
+      req.questionCount,
+      5,
+      maxQuestions,
+      examType === "evaluation" ? 10 : 20
+    );
 
   let mcqCount = requestedMcq;
   let openCount = requestedOpen;
@@ -254,16 +299,18 @@ function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
   }
 
   const totalQ = mcqCount + openCount;
-  const durationMinutes = examType === 'evaluation'
-    ? clampInt(totalQ * 2 + openCount * 3, 20, 45, 30)
-    : clampInt(totalQ * 2 + openCount * 4, 45, 120, 60);
+  const durationMinutes =
+    examType === "evaluation"
+      ? clampInt(totalQ * 2 + openCount * 3, 20, 45, 30)
+      : clampInt(totalQ * 2 + openCount * 4, 45, 120, 60);
 
-  const objectivePoints = examType === 'evaluation' ? 2 : 2;
-  const theoryPoints = examType === 'evaluation' ? 5 : 6;
-  const passingScore = examType === 'evaluation' ? 60 : 70;
-  const boundaryNote = examType === 'evaluation'
-    ? 'Evaluation/test boundary: 5-20 questions, 20-45 minutes, focused on recent learning.'
-    : 'Main examination boundary: 10-40 questions, 45-120 minutes, broad coverage with balanced difficulty.';
+  const objectivePoints = examType === "evaluation" ? 2 : 2;
+  const theoryPoints = examType === "evaluation" ? 5 : 6;
+  const passingScore = examType === "evaluation" ? 60 : 70;
+  const boundaryNote =
+    examType === "evaluation"
+      ? "Evaluation/test boundary: 5-20 questions, 20-45 minutes, focused on recent learning."
+      : "Main examination boundary: 10-40 questions, 45-120 minutes, broad coverage with balanced difficulty.";
 
   return {
     examType,
@@ -288,65 +335,94 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
   const open: any[] = [];
 
   for (const q of rawQuestions) {
-    const type = String(q?.question_type ?? '').toLowerCase();
-    if (['essay', 'fill_blank', 'coding_blocks'].includes(type)) open.push(q);
+    const type = String(q?.question_type ?? "").toLowerCase();
+    if (["essay", "fill_blank", "coding_blocks"].includes(type)) open.push(q);
     else objective.push(q);
   }
 
-  const fallbackQuestion = (idx: number, kind: 'objective' | 'open') => {
-    if (kind === 'objective') {
+  const fallbackQuestion = (idx: number, kind: "objective" | "open") => {
+    if (kind === "objective") {
       return {
         question_text: `Question ${idx}: ${req.topic} - choose the best answer.`,
-        question_type: 'multiple_choice',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correct_answer: 'Option A',
+        question_type: "multiple_choice",
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        correct_answer: "Option A",
         points: plan.objectivePoints,
-        section: 'objective',
+        section: "objective",
       };
     }
     return {
       question_text: `Question ${idx}: Explain one important idea from ${req.topic}.`,
-      question_type: 'essay',
+      question_type: "essay",
       options: [],
-      correct_answer: 'Award marks for accurate explanation, correct terminology, and a relevant example.',
+      correct_answer:
+        "Award marks for accurate explanation, correct terminology, and a relevant example.",
       points: plan.theoryPoints,
-      section: 'subjective',
+      section: "subjective",
     };
   };
 
   const pickedObjective = objective.slice(0, plan.mcqCount);
   while (pickedObjective.length < plan.mcqCount) {
-    pickedObjective.push(fallbackQuestion(pickedObjective.length + 1, 'objective'));
+    pickedObjective.push(
+      fallbackQuestion(pickedObjective.length + 1, "objective")
+    );
   }
 
   const pickedOpen = open.slice(0, plan.openCount);
   while (pickedOpen.length < plan.openCount) {
-    pickedOpen.push(fallbackQuestion(plan.mcqCount + pickedOpen.length + 1, 'open'));
+    pickedOpen.push(
+      fallbackQuestion(plan.mcqCount + pickedOpen.length + 1, "open")
+    );
   }
 
   const questions = [...pickedObjective, ...pickedOpen].map((q, idx) => {
-    const type = ['multiple_choice', 'true_false', 'fill_blank', 'essay', 'coding_blocks'].includes(q.question_type)
+    const type = [
+      "multiple_choice",
+      "true_false",
+      "fill_blank",
+      "essay",
+      "coding_blocks",
+    ].includes(q.question_type)
       ? q.question_type
-      : (idx < plan.mcqCount ? 'multiple_choice' : 'essay');
+      : idx < plan.mcqCount
+      ? "multiple_choice"
+      : "essay";
     const isObjective = idx < plan.mcqCount;
     const options = isObjective
-      ? (Array.isArray(q.options) && q.options.length >= 2 ? q.options.slice(0, 4).map(String) : ['True', 'False'])
+      ? Array.isArray(q.options) && q.options.length >= 2
+        ? q.options.slice(0, 4).map(String)
+        : ["True", "False"]
       : [];
     return {
-      question_text: String(q.question_text ?? '').trim() || fallbackQuestion(idx + 1, isObjective ? 'objective' : 'open').question_text,
+      question_text:
+        String(q.question_text ?? "").trim() ||
+        fallbackQuestion(idx + 1, isObjective ? "objective" : "open")
+          .question_text,
       question_type: type,
       options,
-      correct_answer: String(q.correct_answer ?? '').trim(),
-      points: Number(q.points) > 0 ? Number(q.points) : (isObjective ? plan.objectivePoints : plan.theoryPoints),
-      section: q.section ?? (isObjective ? 'objective' : 'subjective'),
+      correct_answer: String(q.correct_answer ?? "").trim(),
+      points:
+        Number(q.points) > 0
+          ? Number(q.points)
+          : isObjective
+          ? plan.objectivePoints
+          : plan.theoryPoints,
+      section: q.section ?? (isObjective ? "objective" : "subjective"),
       metadata: q.metadata ?? null,
     };
   });
 
   return {
     ...parsed,
-    title: parsed?.title || `${req.topic} ${plan.examType === 'evaluation' ? 'Evaluation' : 'Examination'}`,
-    description: parsed?.description || `${plan.boundaryNote} Generated from the selected course context.`,
+    title:
+      parsed?.title ||
+      `${req.topic} ${
+        plan.examType === "evaluation" ? "Evaluation" : "Examination"
+      }`,
+    description:
+      parsed?.description ||
+      `${plan.boundaryNote} Generated from the selected course context.`,
     duration_minutes: plan.durationMinutes,
     passing_score: plan.passingScore,
     questions,
@@ -362,23 +438,36 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
   };
 }
 
-function normalizeGeneratedLessonNotes(parsed: any, req: GenerateRequest): { lesson_notes: string } {
-  let notes = typeof parsed?.lesson_notes === 'string' ? parsed.lesson_notes : typeof parsed === 'string' ? parsed : '';
-  notes = notes.replace(/^```(?:json|markdown|md)?\s*/i, '').replace(/\s*```$/i, '').trim();
+function normalizeGeneratedLessonNotes(
+  parsed: any,
+  req: GenerateRequest
+): { lesson_notes: string } {
+  let notes =
+    typeof parsed?.lesson_notes === "string"
+      ? parsed.lesson_notes
+      : typeof parsed === "string"
+      ? parsed
+      : "";
+  notes = notes
+    .replace(/^```(?:json|markdown|md)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
 
-  if (notes.startsWith('{') && notes.endsWith('}')) {
+  if (notes.startsWith("{") && notes.endsWith("}")) {
     try {
       const nested = JSON.parse(notes);
-      if (typeof nested?.lesson_notes === 'string') notes = nested.lesson_notes;
+      if (typeof nested?.lesson_notes === "string") notes = nested.lesson_notes;
     } catch {
       // Keep raw text if this only looks like JSON.
     }
   }
 
-  if (!notes.includes('\n') && notes.includes('\\n')) notes = notes.replace(/\\n/g, '\n');
+  if (!notes.includes("\n") && notes.includes("\\n"))
+    notes = notes.replace(/\\n/g, "\n");
   notes = notes.replace(/\\"/g, '"').trim();
 
-  const hasMarkdownStructure = /(^|\n)\s{0,3}#{2,3}\s+\S|(^|\n)\s*[-*]\s+\S|```/.test(notes);
+  const hasMarkdownStructure =
+    /(^|\n)\s{0,3}#{2,3}\s+\S|(^|\n)\s*[-*]\s+\S|```/.test(notes);
   if (notes && !hasMarkdownStructure) {
     notes = `## ${req.topic}\n\n${notes}`;
   }
@@ -386,9 +475,14 @@ function normalizeGeneratedLessonNotes(parsed: any, req: GenerateRequest): { les
   return { lesson_notes: notes };
 }
 
-function finalizeGeneratedData(type: GenerateType, parsed: any, req: GenerateRequest): any {
-  if (type === 'cbt') return finalizeCbtGeneratedData(parsed, req);
-  if (type === 'lesson-notes') return normalizeGeneratedLessonNotes(parsed, req);
+function finalizeGeneratedData(
+  type: GenerateType,
+  parsed: any,
+  req: GenerateRequest
+): any {
+  if (type === "cbt") return finalizeCbtGeneratedData(parsed, req);
+  if (type === "lesson-notes")
+    return normalizeGeneratedLessonNotes(parsed, req);
   return parsed;
 }
 
@@ -397,13 +491,16 @@ function buildPrompt(req: GenerateRequest): string {
   // generation must build strictly from it. Used by assignment & cbt cases (lesson
   // builds its own inline).
   const sourceBlock = req.sourceMaterial?.trim()
-    ? `\nSOURCE MATERIAL — base this STRICTLY on the teacher's document below; keep its scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(0, 8000)}\n"""`
-    : '';
+    ? `\nSOURCE MATERIAL — base this STRICTLY on the teacher's document below; keep its scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(
+        0,
+        8000
+      )}\n"""`
+    : "";
 
   switch (req.type) {
-    case 'custom':
+    case "custom":
       return req.prompt || req.topic;
-    case 'cbt-grading':
+    case "cbt-grading":
       return `You are an AI Grader for Rillcod Technologies. Grade the following student's responses for a CBT exam.
 Questions and Rubrics: ${JSON.stringify(req.questions)}
 Student Answers: ${JSON.stringify(req.studentAnswers)}
@@ -421,7 +518,7 @@ Return a JSON object with this exact shape:
 
 Important: Be fair but encouraging. For 'essay' questions, look for key concepts. For 'fill_blank', allow minor spelling variations unless it's a technical term.`;
 
-    case 'report-feedback': {
+    case "report-feedback": {
       const overallScore = Number(req.overallScore ?? 0);
       const theory = Number(req.theoryScore ?? 0);
       const practical = Number(req.practicalScore ?? 0);
@@ -429,61 +526,91 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
       const classwork = Number(req.classworkScore ?? 0);
       const assessment = Number(req.assessmentScore ?? 0);
       const attendance = Number(req.attendanceScore ?? 0);
-      const proficiency = req.proficiencyLevel ?? 'intermediate';
+      const proficiency = req.proficiencyLevel ?? "intermediate";
 
       // Convert scores to descriptive bands — never expose raw numbers to the AI output
       const band = (n: number) =>
-        n >= 85 ? 'outstanding' :
-        n >= 75 ? 'excellent' :
-        n >= 65 ? 'very good' :
-        n >= 55 ? 'good' :
-        n >= 45 ? 'satisfactory' :
-        n >= 35 ? 'fair' : 'needs improvement';
+        n >= 85
+          ? "outstanding"
+          : n >= 75
+          ? "excellent"
+          : n >= 65
+          ? "very good"
+          : n >= 55
+          ? "good"
+          : n >= 45
+          ? "satisfactory"
+          : n >= 35
+          ? "fair"
+          : "needs improvement";
 
       const overallBand = band(overallScore);
 
       // Identify weakest/strongest among all 6 WAEC components
       const allScores = {
-        'Theory/Written Tests': theory,
-        'Classwork & Participation': classwork,
-        'Practical/Projects': practical,
-        'Assignments Submitted': attendance,
-        'Session Attendance': participation,
-        'Mid-term Assessment': assessment,
+        "Theory/Written Tests": theory,
+        "Classwork & Participation": classwork,
+        "Practical/Projects": practical,
+        "Assignments Submitted": attendance,
+        "Session Attendance": participation,
+        "Mid-term Assessment": assessment,
       };
-      const sorted = Object.entries(allScores).filter(([, v]) => v > 0).sort(([, a], [, b]) => a - b);
-      const weakest = sorted[0]?.[0] ?? 'Theory';
-      const strongest = sorted[sorted.length - 1]?.[0] ?? 'Practical';
+      const sorted = Object.entries(allScores)
+        .filter(([, v]) => v > 0)
+        .sort(([, a], [, b]) => a - b);
+      const weakest = sorted[0]?.[0] ?? "Theory";
+      const strongest = sorted[sorted.length - 1]?.[0] ?? "Practical";
 
-      const courseLine = req.courseName ? `Course: "${req.courseName}"` : '';
-      const programLine = req.programName ? `Programme: "${req.programName}"` : '';
-      const contextBlock = [courseLine, programLine].filter(Boolean).join('\n');
+      const courseLine = req.courseName ? `Course: "${req.courseName}"` : "";
+      const programLine = req.programName
+        ? `Programme: "${req.programName}"`
+        : "";
+      const contextBlock = [courseLine, programLine].filter(Boolean).join("\n");
 
       // Qualifier context — teacher-selected descriptors ground the AI to real observations
       const qualifierLines = [
-        req.participationGrade ? `Classwork & participation (teacher's observation): "${req.participationGrade}"` : '',
-        req.projectsGrade      ? `Projects & practical (teacher's observation): "${req.projectsGrade}"` : '',
-        req.homeworkGrade      ? `Assignments & homework (teacher's observation): "${req.homeworkGrade}"` : '',
-      ].filter(Boolean).join('\n');
+        req.participationGrade
+          ? `Classwork & participation (teacher's observation): "${req.participationGrade}"`
+          : "",
+        req.projectsGrade
+          ? `Projects & practical (teacher's observation): "${req.projectsGrade}"`
+          : "",
+        req.homeworkGrade
+          ? `Assignments & homework (teacher's observation): "${req.homeworkGrade}"`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       // Gender-based pronoun instruction — use student's name as fallback when gender is unknown
-      const pronounInstruction = req.gender === 'male'
-        ? `Pronouns: he/him/his — use these consistently instead of "the student"`
-        : req.gender === 'female'
+      const pronounInstruction =
+        req.gender === "male"
+          ? `Pronouns: he/him/his — use these consistently instead of "the student"`
+          : req.gender === "female"
           ? `Pronouns: she/her — use these consistently instead of "the student"`
-          : `Refer to the student by name ("${req.studentName ?? 'the student'}") rather than using gendered pronouns`;
+          : `Refer to the student by name ("${
+              req.studentName ?? "the student"
+            }") rather than using gendered pronouns`;
 
       return `You are an experienced Nigerian school administrator writing brief, professional student report card comments.
 
-Student: "${req.studentName ?? 'The student'}"
+Student: "${req.studentName ?? "The student"}"
 ${pronounInstruction}
 ${contextBlock}
 Current Topic/Module: "${req.topic}"
 Overall performance: ${overallBand}
-Scores by component: Theory=${band(theory)} | Classwork=${band(classwork)} | Practical=${band(practical)} | Assignments=${band(attendance)} | Attendance=${band(participation)} | Mid-term=${band(assessment)}
+Scores by component: Theory=${band(theory)} | Classwork=${band(
+        classwork
+      )} | Practical=${band(practical)} | Assignments=${band(
+        attendance
+      )} | Attendance=${band(participation)} | Mid-term=${band(assessment)}
 Strongest component: ${strongest} | Component needing most attention: ${weakest}
 Proficiency level: ${proficiency}
-${qualifierLines ? `\nTeacher qualifiers (use these to make comments specific and grounded):\n${qualifierLines}` : ''}
+${
+  qualifierLines
+    ? `\nTeacher qualifiers (use these to make comments specific and grounded):\n${qualifierLines}`
+    : ""
+}
 
 RULES — follow strictly:
 1. Write EXACTLY 2-3 short, clear sentences per section. No more, no less.
@@ -499,32 +626,50 @@ Return ONLY this JSON (no extra text):
 {
   "key_strengths": "2-3 sentences praising real achievements using descriptive words only.",
   "areas_for_growth": "2-3 sentences with a simple, kind, actionable direction — no numbers."
-}`; }
+}`;
+    }
 
-
-    case 'lesson-notes': {
-      const grade = req.gradeLevel ?? 'Basic 1–SS3';
-      const youngGrades = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'];
-      const isYoung = youngGrades.some(g => grade === g || grade.startsWith(g) || grade.includes('KG'));
+    case "lesson-notes": {
+      const grade = req.gradeLevel ?? "Basic 1–SS3";
+      const youngGrades = [
+        "KG",
+        "Basic 1",
+        "Basic 2",
+        "Basic 3",
+        "Basic 4",
+        "Basic 5",
+        "Basic 6",
+      ];
+      const isYoung = youngGrades.some(
+        (g) => grade === g || grade.startsWith(g) || grade.includes("KG")
+      );
       const notesContextLine = [
-        req.programName ? `Programme: "${req.programName}"` : '',
-        req.courseName ? `Course: "${req.courseName}"` : '',
-      ].filter(Boolean).join(' | ');
+        req.programName ? `Programme: "${req.programName}"` : "",
+        req.courseName ? `Course: "${req.courseName}"` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
 
-      const mode = req.lessonMode ?? 'academic';
+      const mode = req.lessonMode ?? "academic";
       const notesModeStyle =
-        mode === 'academic'
-          ? `NOTES MODE — ACADEMIC: Write like a clear textbook section. Prefer 1000–1600 words (shorter for young grades). Use ## / ### headings, definitions, "Key idea" callouts, and a strong recap. Lesson type context: ${req.contentType ?? 'lesson'}.`
-          : mode === 'project'
-            ? `NOTES MODE — PROJECT: Write a compact "builder's handbook" — mission, tools, numbered build checklist, test steps, and reflection. Prefer 800–1300 words. Imperative steps ("Do this next…"). Lesson type context: ${req.contentType ?? 'hands-on'}.`
-            : `NOTES MODE — INTERACTIVE: Write short "levels" (## Level 1 / 2 / 3) with checkpoints and quick challenges. Prefer 700–1100 words, punchy and encouraging. Lesson type context: ${req.contentType ?? 'interactive'}.`;
+        mode === "academic"
+          ? `NOTES MODE — ACADEMIC: Write like a clear textbook section. Prefer 1000–1600 words (shorter for young grades). Use ## / ### headings, definitions, "Key idea" callouts, and a strong recap. Lesson type context: ${
+              req.contentType ?? "lesson"
+            }.`
+          : mode === "project"
+          ? `NOTES MODE — PROJECT: Write a compact "builder's handbook" — mission, tools, numbered build checklist, test steps, and reflection. Prefer 800–1300 words. Imperative steps ("Do this next…"). Lesson type context: ${
+              req.contentType ?? "hands-on"
+            }.`
+          : `NOTES MODE — INTERACTIVE: Write short "levels" (## Level 1 / 2 / 3) with checkpoints and quick challenges. Prefer 700–1100 words, punchy and encouraging. Lesson type context: ${
+              req.contentType ?? "interactive"
+            }.`;
 
       if (isYoung) {
         return `Write simple, fun study notes for a Nigerian primary school student.
 Topic: "${req.topic}"
 Grade: ${grade}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
-${notesContextLine ? `Context: ${notesContextLine}` : ''}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
+${notesContextLine ? `Context: ${notesContextLine}` : ""}
 
 STRICT RULES for young learners:
 - Write like you are talking to a 7-10 year old friend
@@ -533,9 +678,15 @@ STRICT RULES for young learners:
 - Give real-life Nigerian examples (mention things like phones, generators, traffic lights, Afrobeats, suya, football)
 - NO technical jargon. If you must use a tech word, explain it with "That means..."
 - Use headers like "## What is it? 🤔", "## How does it work? ⚙️", "## Try it yourself! 🚀", "## Fun Facts! 🌟"
-${req.courseName ? `- Show how "${req.topic}" connects to the student's "${req.courseName}" course` : ''}
+${
+  req.courseName
+    ? `- Show how "${req.topic}" connects to the student's "${req.courseName}" course`
+    : ""
+}
 - Keep it SHORT — around 400 words total
-- End with 3 simple fun questions like "Can you name 3 things that use ${req.topic}?"
+- End with 3 simple fun questions like "Can you name 3 things that use ${
+          req.topic
+        }?"
 ${notesModeStyle}
 
 MARKDOWN CONTRACT — lesson_notes MUST be real markdown:
@@ -555,9 +706,9 @@ Return ONLY this JSON (nothing else):
       return `Write engaging, human-feeling study notes for a Rillcod Technologies student.
 Topic: "${req.topic}"
 Grade: ${grade}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
 Duration: ${req.durationMinutes ?? 60} minutes
-${notesContextLine ? `Context: ${notesContextLine}` : ''}
+${notesContextLine ? `Context: ${notesContextLine}` : ""}
 ${notesModeStyle}
 
 MARKDOWN CONTRACT — lesson_notes MUST be real markdown:
@@ -577,8 +728,16 @@ CONTENT GUIDE (adapt freely to the topic — this is a suggestion, not a rigid t
 - For coding, database, and scripting topics (including Python, JS, HTML, Bash, SQL, C++): include complete, functional, and well-commented code snippets or scripts inside explicit triple-backtick language fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html) showing real-world usages and build layouts, and explain every line clearly.
 - Optionally embed ONE relevant illustrative image inline using: ![description](https://image.pollinations.ai/prompt/DESCRIPTION_URL_ENCODED?nologo=true&width=900&height=500&model=flux) — encode spaces as %20
 - End with a brief "What to remember" summary (3-5 bullets) — give it a topic-specific heading
-${req.courseName ? `- Connect at least one section specifically to "${req.courseName}"` : ''}
-${req.programName ? `- Mention the "${req.programName}" programme naturally once` : ''}
+${
+  req.courseName
+    ? `- Connect at least one section specifically to "${req.courseName}"`
+    : ""
+}
+${
+  req.programName
+    ? `- Mention the "${req.programName}" programme naturally once`
+    : ""
+}
 
 WRITING STYLE RULES — follow these strictly:
 - Write like a sharp, enthusiastic human tutor — NOT like a textbook or an AI
@@ -593,16 +752,18 @@ WRITING STYLE RULES — follow these strictly:
 Return ONLY this JSON (nothing else):
 {
   "lesson_notes": "your markdown here"
-}`; }
+}`;
+    }
 
-    case 'lesson': {
-      const mode = req.lessonMode ?? 'academic';
+    case "lesson": {
+      const mode = req.lessonMode ?? "academic";
 
       const modeConfig = {
         academic: {
-          label: 'ACADEMIC DEPTH',
-          lessonTypeHint: 'workshop',
-          notesInstruction: 'lesson_notes MUST be 2000+ words, structured like a highly engaging guide with ## headers (e.g. "## The Core Concept", "## Step-by-Step Breakdown", "## Real-World Applications"). Use simple British English, ZERO unexplained jargon, and highly relatable analogies. Explicitly bridge any conceptual gaps. For coding/scripting topics, include rich, well-commented script samples in explicit triple-backtick fences (e.g. \`\`\`python, \`\`\`bash, \`\`\`sql) representing real, functional examples.',
+          label: "ACADEMIC DEPTH",
+          lessonTypeHint: "workshop",
+          notesInstruction:
+            'lesson_notes MUST be 2000+ words, structured like a highly engaging guide with ## headers (e.g. "## The Core Concept", "## Step-by-Step Breakdown", "## Real-World Applications"). Use simple British English, ZERO unexplained jargon, and highly relatable analogies. Explicitly bridge any conceptual gaps. For coding/scripting topics, include rich, well-commented script samples in explicit triple-backtick fences (e.g. ```python, ```bash, ```sql) representing real, functional examples.',
           blockRules: `ACADEMIC MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation matching the topic keyword, then a 'mermaid' mindmap of the topic landscape.
 2. Include a 'key-terms' block early with 5-8 vocabulary terms from the topic.
@@ -614,12 +775,14 @@ Return ONLY this JSON (nothing else):
 8. Include ONE 'quote' from a relevant scientist or engineer.
 9. End with ONE 'quiz' block with 5 comprehension questions.
 10. Minimum 10 blocks total.`,
-          objectivesNote: 'Objectives MUST be Bloom\'s Taxonomy aligned: cover Remember, Understand, Apply, and Analyse levels.',
+          objectivesNote:
+            "Objectives MUST be Bloom's Taxonomy aligned: cover Remember, Understand, Apply, and Analyse levels.",
         },
         project: {
-          label: 'PROJECT-BASED LEARNING',
-          lessonTypeHint: 'hands-on',
-          notesInstruction: 'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused with zero jargon. Use "## Mission Briefing", "## Your Toolkit", "## Plain-English Build Steps", "## Testing & Verification" as headers. Explain every single tool or step thoroughly to leave no conceptual gaps. For coding/scripting topics, include comprehensive starter codes or scripts inside explicit language code fences (e.g. \`\`\`python, \`\`\`bash). 1000–1500 words.',
+          label: "PROJECT-BASED LEARNING",
+          lessonTypeHint: "hands-on",
+          notesInstruction:
+            'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused with zero jargon. Use "## Mission Briefing", "## Your Toolkit", "## Plain-English Build Steps", "## Testing & Verification" as headers. Explain every single tool or step thoroughly to leave no conceptual gaps. For coding/scripting topics, include comprehensive starter codes or scripts inside explicit language code fences (e.g. ```python, ```bash). 1000–1500 words.',
           blockRules: `PROJECT MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation matching the topic, then a 'mermaid' flowchart of the build process.
 2. Include ONE 'steps-list' as the "Build Sequence" — every step of the project as a numbered list.
@@ -631,12 +794,14 @@ Return ONLY this JSON (nothing else):
 8. For grades Basic 1–JSS1: include a 'scratch' block for visual coding.
 9. End with ONE 'quiz' (3 questions) to verify build understanding.
 10. Minimum 9 blocks total.`,
-          objectivesNote: 'Objectives should be output-oriented: "Students will BUILD...", "Students will DEMONSTRATE...", "Students will DEPLOY...".',
+          objectivesNote:
+            'Objectives should be output-oriented: "Students will BUILD...", "Students will DEMONSTRATE...", "Students will DEPLOY...".',
         },
         interactive: {
-          label: 'INTERACTIVE & GAMIFIED',
-          lessonTypeHint: 'interactive',
-          notesInstruction: 'lesson_notes should be short, punchy, gamified, and completely jargon-free — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Explain everything simply and leave no logic gaps. Every level ends with a "checkpoint" prompt. For coding/scripting topics, embed brief but highly educational code blocks inside explicit language fences.',
+          label: "INTERACTIVE & GAMIFIED",
+          lessonTypeHint: "interactive",
+          notesInstruction:
+            'lesson_notes should be short, punchy, gamified, and completely jargon-free — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Explain everything simply and leave no logic gaps. Every level ends with a "checkpoint" prompt. For coding/scripting topics, embed brief but highly educational code blocks inside explicit language fences.',
           blockRules: `INTERACTIVE MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation for the topic, then a 'motion-graphics' block (animationType: "particles" or "orbit").
 2. Include THREE 'quiz' blocks at different points — each validating the concept just taught.
@@ -648,18 +813,42 @@ Return ONLY this JSON (nothing else):
 8. End with ONE 'assignment-block' as the "Final Boss Challenge" with clear deliverables.
 9. Include ONE 'quote' from an inspiring figure in the field.
 10. Minimum 10 blocks total.`,
-          objectivesNote: 'Objectives should use action verbs: "Students will EXPLORE...", "Students will EXPERIMENT...", "Students will DISCOVER...".',
+          objectivesNote:
+            'Objectives should use action verbs: "Students will EXPLORE...", "Students will EXPERIMENT...", "Students will DISCOVER...".',
         },
       }[mode];
 
-      const grade = req.gradeLevel ?? 'Basic 1–SS3';
-      const youngLearnerGrades = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'Basic 1–Basic 6', 'KG–Basic 3'];
-      const isYoungLearner = youngLearnerGrades.some(g => grade === g || grade.startsWith(g));
-      const isEarlyYears = grade === 'KG' || grade === 'KG–Basic 3' || grade === 'Basic 1' || grade === 'Basic 2' || grade === 'Basic 3' || grade === 'Basic 1–Basic 3';
+      const grade = req.gradeLevel ?? "Basic 1–SS3";
+      const youngLearnerGrades = [
+        "KG",
+        "Basic 1",
+        "Basic 2",
+        "Basic 3",
+        "Basic 4",
+        "Basic 5",
+        "Basic 6",
+        "Basic 1–Basic 3",
+        "Basic 4–Basic 6",
+        "Basic 1–Basic 6",
+        "KG–Basic 3",
+      ];
+      const isYoungLearner = youngLearnerGrades.some(
+        (g) => grade === g || grade.startsWith(g)
+      );
+      const isEarlyYears =
+        grade === "KG" ||
+        grade === "KG–Basic 3" ||
+        grade === "Basic 1" ||
+        grade === "Basic 2" ||
+        grade === "Basic 3" ||
+        grade === "Basic 1–Basic 3";
 
-      const youngLearnerOverride = isYoungLearner ? `
+      const youngLearnerOverride = isYoungLearner
+        ? `
 ⚠ YOUNG LEARNER OVERRIDE (${grade}) — These rules OVERRIDE conflicting mode rules:
-${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
+${
+  isEarlyYears
+    ? `EARLY YEARS (KG–Basic 3):
 - 'scratch' block is MANDATORY and MUST appear FIRST in content_layout after the mermaid/intro block.
 - 'scratch.blocks' MUST contain at least 8 detailed Scratch block steps written as a story: e.g. "when flag clicked", "say 'Hello! I am a Robot!' for 2 seconds", "move 10 steps", "play sound [pop]". Use leading indentation spaces (e.g. 2 spaces) to show blocks nested inside loops (\`forever\`, \`repeat\`) or conditionals (\`if\`, \`else\`). E.g. ["when flag clicked", "repeat 10", "  move 10 steps", "  say 'Hello!'"].
 - 'scratch.instructions' MUST be an extremely detailed, child-friendly guide — use numbered steps, emojis, and "Can you...?" prompts.
@@ -667,55 +856,81 @@ ${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
 - 'illustration' blocks MUST use simple emoji labels, max 5 items each, with child-friendly one-sentence values.
 - lesson_notes MUST be written at a Grade 2 reading level: very short sentences, lots of white space, fun analogies. Max 600 words. You MUST aggressively illustrate actions using inline Scratch block notations, e.g. \`event: when green flag clicked\` or \`motion: move 10 steps\` or \`looks: say 'Hello!'\` or \`control: repeat 10\` by wrapping them in backticks with category prefix so they render as gorgeous realistic puzzle blocks in the text!
 - 'activity' steps MUST be ≤ 8 words each and use "Try this:", "Now do:", "Can you?" prompts.
-- 'quiz' questions MUST be picture-based or concrete: "Which block makes Sprite move?" not abstract reasoning.` : `PRIMARY (Basic 4–Basic 6):
+- 'quiz' questions MUST be picture-based or concrete: "Which block makes Sprite move?" not abstract reasoning.`
+    : `PRIMARY (Basic 4–Basic 6):
 - 'scratch' block is STRONGLY RECOMMENDED — include unless topic is clearly text-code focused.
 - ONE simple 'code-map' block is allowed — use plain English labels, no jargon, max 4 components.
 - 'illustration' blocks should use friendly labels and emoji prefixes.
 - lesson_notes target a Grade 5 reading level: short paragraphs, clear headings, relatable analogies. Max 1000 words.
 - 'activity' steps should be clear and sequential — max 12 words per step.
 - Avoid 'visualizer', 'd3-chart', and 'motion-graphics' unless the topic is data/maths — then use simple bar chart only.
-- 'quiz' questions should be concrete and contextual, not abstract.`}
+- 'quiz' questions should be concrete and contextual, not abstract.`
+}
 - Tone MUST use "Let's...", "Great job!", "Try this!", "Can you...?" — no formal academic language.
-- ALL block content must be age-appropriate: no complex syntax, no technical abbreviations without simple explanation.` : '';
+- ALL block content must be age-appropriate: no complex syntax, no technical abbreviations without simple explanation.`
+        : "";
 
-      const standaloneModeBlock = !(req.courseName || req.programName || req.syllabusReference?.trim() || req.planWeekObjectives?.trim())
+      const standaloneModeBlock = !(
+        req.courseName ||
+        req.programName ||
+        req.syllabusReference?.trim() ||
+        req.planWeekObjectives?.trim()
+      )
         ? `\nSTANDALONE MODE: This lesson is generated as a completely independent, custom topic separate from any school syllabus.
 - Do NOT assume any prior lessons or concepts were taught in previous weeks.
 - Ensure all foundational prerequisites needed to understand "${req.topic}" are fully and clearly introduced within the lesson.
 - Make the lesson fully self-contained, explaining the topic completely from the ground up.`
-        : '';
+        : "";
 
-      const curriculumContext = (req.courseName || req.programName || req.siblingLessons?.length)
-        ? `\nCURRICULUM CONTEXT (use this to tailor all content and examples):
-${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}"` : ''}
-${req.siblingLessons?.length ? `Other lessons already covered in this course (DO NOT repeat — build on them instead): ${req.siblingLessons.slice(0, 10).join(', ')}` : ''}
+      const curriculumContext =
+        req.courseName || req.programName || req.siblingLessons?.length
+          ? `\nCURRICULUM CONTEXT (use this to tailor all content and examples):
+${req.programName ? `Programme: "${req.programName}"` : ""}
+${req.courseName ? `Course: "${req.courseName}"` : ""}
+${
+  req.siblingLessons?.length
+    ? `Other lessons already covered in this course (DO NOT repeat — build on them instead): ${req.siblingLessons
+        .slice(0, 10)
+        .join(", ")}`
+    : ""
+}
 - All examples, analogies, code samples, quiz questions, and activities MUST be directly relevant to this programme and course.
 - Connect new concepts to what students already know from previous lessons where possible.`
-        : '';
+          : "";
 
       const syllabusAnchorBlock = req.syllabusReference?.trim()
         ? `\nSYLLABUS ANCHOR (mandatory spine — keep the sequence of student tasks recognisable; expand into rich blocks):\n${req.syllabusReference.trim()}`
-        : '';
+        : "";
       const planWeekBlock = [
-        req.planWeekObjectives?.trim() ? `Term plan — objectives:\n${req.planWeekObjectives.trim()}` : '',
-        req.planWeekActivities?.trim() ? `Term plan — student-facing activities:\n${req.planWeekActivities.trim()}` : '',
+        req.planWeekObjectives?.trim()
+          ? `Term plan — objectives:\n${req.planWeekObjectives.trim()}`
+          : "",
+        req.planWeekActivities?.trim()
+          ? `Term plan — student-facing activities:\n${req.planWeekActivities.trim()}`
+          : "",
       ]
         .filter(Boolean)
-        .join('\n\n');
-      const planWeekSection = planWeekBlock ? `\nTERM PLANNER FIELDS:\n${planWeekBlock}` : '';
+        .join("\n\n");
+      const planWeekSection = planWeekBlock
+        ? `\nTERM PLANNER FIELDS:\n${planWeekBlock}`
+        : "";
       const dedupLessonsBlock = req.priorLessonTitlesThisRun?.length
-        ? `\nALREADY GENERATED IN THIS BATCH (use fresh examples, quiz stems, hooks; do not reuse or lightly reword these titles):\n${req.priorLessonTitlesThisRun.slice(0, 24).join(' | ')}`
-        : '';
+        ? `\nALREADY GENERATED IN THIS BATCH (use fresh examples, quiz stems, hooks; do not reuse or lightly reword these titles):\n${req.priorLessonTitlesThisRun
+            .slice(0, 24)
+            .join(" | ")}`
+        : "";
 
       const sourceMaterialBlock = req.sourceMaterial?.trim()
-        ? `\nSOURCE MATERIAL — base this lesson STRICTLY on the teacher's document below; keep the same scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(0, 8000)}\n"""`
-        : '';
+        ? `\nSOURCE MATERIAL — base this lesson STRICTLY on the teacher's document below; keep the same scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(
+            0,
+            8000
+          )}\n"""`
+        : "";
 
       return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${grade}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
@@ -723,8 +938,12 @@ ${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSectio
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
-CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${req.topic}":
-- 'mermaid': Real mindmap or flowchart about "${req.topic}". Use mermaid v10 syntax. Start with: flowchart TD, mindmap, sequenceDiagram, or timeline. NEVER use "graph" keyword.
+CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${
+        req.topic
+      }":
+- 'mermaid': Real mindmap or flowchart about "${
+        req.topic
+      }". Use mermaid v10 syntax. Start with: flowchart TD, mindmap, sequenceDiagram, or timeline. NEVER use "graph" keyword.
   - STRICT SYNTAX RULES:
     1. Node IDs MUST be simple alphanumeric words (e.g. A, B, node1, node2) — never contain spaces, brackets, or special characters.
     2. Node labels MUST always be enclosed in double-quotes inside the shape brackets. For example, A["Concept Name"] or B["Step One (Action)"] or C["Robot CPU"]. NEVER use unquoted labels! This prevents parentheses or special characters from crashing the Mermaid parser!
@@ -748,22 +967,36 @@ CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${re
            "comparing": number[] (indices being actively compared, e.g. [0, 1])
          }
   - Use visualizers aggressively for programming, loops, and data structures to keep coding lessons exciting and interactive!
-- 'key-terms': terms array with 4-8 terms directly from "${req.topic}" vocabulary.
+- 'key-terms': terms array with 4-8 terms directly from "${
+        req.topic
+      }" vocabulary.
 - 'table': headers and rows comparing real aspects of "${req.topic}".
-- 'columns': 2-3 columns comparing real aspects/approaches related to "${req.topic}".
-- 'quote': An inspiring quote from a scientist, engineer, or educator relevant to "${req.topic}".
-- 'steps-list': steps that are specific, actionable steps for a process within "${req.topic}".
+- 'columns': 2-3 columns comparing real aspects/approaches related to "${
+        req.topic
+      }".
+- 'quote': An inspiring quote from a scientist, engineer, or educator relevant to "${
+        req.topic
+      }".
+- 'steps-list': steps that are specific, actionable steps for a process within "${
+        req.topic
+      }".
 
 Return a JSON object with this exact shape:
 {
-  "title": "string — engaging title appropriate for ${grade} learners about ${req.topic}",
+  "title": "string — engaging title appropriate for ${grade} learners about ${
+        req.topic
+      }",
   "description": "string — 2-sentence overview at the right reading level",
   "lesson_notes": "string — ${modeConfig.notesInstruction}",
-  "objectives": ["string — at least 5 objectives. ${modeConfig.objectivesNote}"],
+  "objectives": ["string — at least 5 objectives. ${
+    modeConfig.objectivesNote
+  }"],
   "content_layout": [
     {
       "type": "mermaid",
-      "code": "flowchart TD\n    A[\"${req.topic}\"] --> B[\"Concept 1\"]\n    A --> C[\"Concept 2\"]\n    B --> D[\"Detail\"]"
+      "code": "flowchart TD\n    A[\"${
+        req.topic
+      }\"] --> B[\"Concept 1\"]\n    A --> C[\"Concept 2\"]\n    B --> D[\"Detail\"]"
     },
     {
       "type": "motion-graphics",
@@ -774,7 +1007,9 @@ Return a JSON object with this exact shape:
     {
       "type": "illustration",
       "title": "Core Concepts of ${req.topic}",
-      "items": [{ "label": "Concept Name from ${req.topic}", "value": "Clear one-sentence explanation" }]
+      "items": [{ "label": "Concept Name from ${
+        req.topic
+      }", "value": "Clear one-sentence explanation" }]
     },
     {
       "type": "d3-chart",
@@ -785,7 +1020,9 @@ Return a JSON object with this exact shape:
     },
     {
       "type": "code-map",
-      "components": [{ "name": "Real Component Name from topic", "description": "What it does in context of ${req.topic}" }]
+      "components": [{ "name": "Real Component Name from topic", "description": "What it does in context of ${
+        req.topic
+      }" }]
     },
     {
       "type": "visualizer",
@@ -802,25 +1039,35 @@ Return a JSON object with this exact shape:
     {
       "type": "code",
       "language": "python",
-      "content": "# Python code example for ${req.topic}\\n# Well-commented, educational, and runnable\\nprint('Hello from ${req.topic}!')"
+      "content": "# Python code example for ${
+        req.topic
+      }\\n# Well-commented, educational, and runnable\\nprint('Hello from ${
+        req.topic
+      }!')"
     },
     {
       "type": "scratch",
       "projectId": "",
       "instructions": "Step-by-step guide with emojis for ${req.topic}",
-      "blocks": ["when flag clicked", "say 'Let us learn ${req.topic}!' for 2 seconds", "move 10 steps"]
+      "blocks": ["when flag clicked", "say 'Let us learn ${
+        req.topic
+      }!' for 2 seconds", "move 10 steps"]
     },
     {
       "type": "activity",
       "title": "Lab relevant to ${req.topic}",
       "instructions": "Brief intro about what they will build/do",
-      "steps": ["Specific step 1 for ${req.topic}", "Specific step 2", "Step 3: Verify output"],
+      "steps": ["Specific step 1 for ${
+        req.topic
+      }", "Specific step 2", "Step 3: Verify output"],
       "is_coding": true
     },
     {
       "type": "assignment-block",
       "title": "Capstone project about ${req.topic}",
-      "instructions": "Detailed project instructions directly about ${req.topic}",
+      "instructions": "Detailed project instructions directly about ${
+        req.topic
+      }",
       "deliverables": ["Specific output 1", "Specific output 2"]
     },
     {
@@ -838,32 +1085,50 @@ Return a JSON object with this exact shape:
 
 UNIVERSAL RULES:
 - ONLY include block types appropriate for the grade and mode (see mode rules above). Omit blocks that do not fit.
-- Every block MUST be fully populated with real content about "${req.topic}" — zero placeholders.
-- All labels, component names, quiz questions, and chart data MUST be directly about "${req.topic}".
-- ${isYoungLearner ? 'Young Learner Override takes HIGHEST priority over all other rules.' : 'Tone: Encouraging and kid-friendly. British English. No unexplained jargon.'}`;
+- Every block MUST be fully populated with real content about "${
+        req.topic
+      }" — zero placeholders.
+- All labels, component names, quiz questions, and chart data MUST be directly about "${
+        req.topic
+      }".
+- ${
+        isYoungLearner
+          ? "Young Learner Override takes HIGHEST priority over all other rules."
+          : "Tone: Encouraging and kid-friendly. British English. No unexplained jargon."
+      }`;
     }
 
-    case 'assignment': {
+    case "assignment": {
       const syllabusAnchorBlock = req.syllabusReference?.trim()
         ? `\nSYLLABUS / PLAN ANCHOR (shape tasks around this — unique to this week):\n${req.syllabusReference.trim()}`
-        : '';
+        : "";
       const planWeekBlock = [
-        req.planWeekObjectives?.trim() ? `Term plan objectives:\n${req.planWeekObjectives.trim()}` : '',
-        req.planWeekActivities?.trim() ? `Term plan activities:\n${req.planWeekActivities.trim()}` : '',
+        req.planWeekObjectives?.trim()
+          ? `Term plan objectives:\n${req.planWeekObjectives.trim()}`
+          : "",
+        req.planWeekActivities?.trim()
+          ? `Term plan activities:\n${req.planWeekActivities.trim()}`
+          : "",
       ]
         .filter(Boolean)
-        .join('\n\n');
-      const planWeekSection = planWeekBlock ? `\n${planWeekBlock}\n` : '';
+        .join("\n\n");
+      const planWeekSection = planWeekBlock ? `\n${planWeekBlock}\n` : "";
       const dedupAssign = req.priorAssignmentTitlesThisRun?.length
-        ? `\nAssignments already generated in this batch (must differ in task design and question stems):\n${req.priorAssignmentTitlesThisRun.slice(0, 20).join(' | ')}\n`
-        : '';
+        ? `\nAssignments already generated in this batch (must differ in task design and question stems):\n${req.priorAssignmentTitlesThisRun
+            .slice(0, 20)
+            .join(" | ")}\n`
+        : "";
       return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
-${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course` : ''}${sourceBlock}
-Assignment type hint: ${req.assignmentType ?? 'auto-detect'}
+Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
+${req.programName ? `Programme: "${req.programName}"` : ""}
+${
+  req.courseName
+    ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course`
+    : ""
+}${sourceBlock}
+Assignment type hint: ${req.assignmentType ?? "auto-detect"}
 Max Points: 100
 ${syllabusAnchorBlock}${planWeekSection}${dedupAssign}
 
@@ -909,31 +1174,47 @@ RULES:
 - Keep explanations zero-jargon, and provide step-by-step guidance on what to build, test, and submit.`;
     }
 
-    case 'cbt': {
+    case "cbt": {
       const plan = getCbtGenerationPlan(req);
       const mcqCount = plan.mcqCount;
       const openCount = plan.openCount;
       const totalQ = plan.totalQ;
 
-      const mcqInstruction = mcqCount > 0
-        ? `SECTION A — Objective/MCQ: Generate EXACTLY ${mcqCount} multiple-choice or true/false questions. Each MUST have an "options" array of 4 choices and a "correct_answer". Set "question_type" to "multiple_choice" or "true_false". Use ${plan.objectivePoints} points unless a question is unusually demanding.`
-        : '';
-      const theoryInstruction = openCount > 0
-        ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate. Use ${plan.theoryPoints} points for essay/coding_blocks and 3-5 points for fill_blank.`
-        : '';
+      const mcqInstruction =
+        mcqCount > 0
+          ? `SECTION A — Objective/MCQ: Generate EXACTLY ${mcqCount} multiple-choice or true/false questions. Each MUST have an "options" array of 4 choices and a "correct_answer". Set "question_type" to "multiple_choice" or "true_false". Use ${plan.objectivePoints} points unless a question is unusually demanding.`
+          : "";
+      const theoryInstruction =
+        openCount > 0
+          ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate. Use ${plan.theoryPoints} points for essay/coding_blocks and 3-5 points for fill_blank.`
+          : "";
 
       return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
-Exam type: ${plan.examType === 'evaluation' ? 'Evaluation/Test' : 'Main Examination'}
-${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}
-${req.className ? `Class/Cohort: "${req.className}" — pitch difficulty and scenarios to this class.` : ''}
-${req.sourceName ? `Attached teacher material: "${req.sourceName}"` : ''}${sourceBlock}
+Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
+Exam type: ${
+        plan.examType === "evaluation" ? "Evaluation/Test" : "Main Examination"
+      }
+${req.programName ? `Programme: "${req.programName}"` : ""}
+${
+  req.courseName
+    ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context`
+    : ""
+}
+${
+  req.className
+    ? `Class/Cohort: "${req.className}" — pitch difficulty and scenarios to this class.`
+    : ""
+}
+${
+  req.sourceName ? `Attached teacher material: "${req.sourceName}"` : ""
+}${sourceBlock}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
 Realistic boundary: ${plan.boundaryNote}
-Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${plan.passingScore}.
+Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${
+        plan.passingScore
+      }.
 
 ${mcqInstruction}
 ${theoryInstruction}
@@ -971,22 +1252,38 @@ Return a JSON object with this exact shape:
 
 CRITICAL:
 - questions array MUST contain exactly ${totalQ} items total.
-${mcqCount > 0 ? `- First ${mcqCount} questions MUST be objective (MCQ/true_false) with options arrays.` : ''}
-${openCount > 0 ? `- Last ${openCount} questions MUST be open-ended (essay/fill_blank/coding_blocks) with no options.` : ''}
-- Keep boundaries realistic: do not exceed ${plan.maxQuestions} questions, do not return a duration outside ${plan.examType === 'evaluation' ? '20-45' : '45-120'} minutes.
+${
+  mcqCount > 0
+    ? `- First ${mcqCount} questions MUST be objective (MCQ/true_false) with options arrays.`
+    : ""
+}
+${
+  openCount > 0
+    ? `- Last ${openCount} questions MUST be open-ended (essay/fill_blank/coding_blocks) with no options.`
+    : ""
+}
+- Keep boundaries realistic: do not exceed ${
+        plan.maxQuestions
+      } questions, do not return a duration outside ${
+        plan.examType === "evaluation" ? "20-45" : "45-120"
+      } minutes.
 - Cover the topic across foundation, application, and reasoning levels.
-- For technical/coding topics, include code snippets in triple-backtick fences where relevant.`;}
+- For technical/coding topics, include code snippets in triple-backtick fences where relevant.`;
+    }
 
-
-    case 'lesson-plan':
+    case "lesson-plan":
       return `Generate a HIGH-ACTION, BENEFICIAL lesson plan for a Rillcod Technologies instructor.
       Topic: "${req.topic}"
-      Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-      ${req.programName ? `Programme: "${req.programName}"` : ''}
-      ${req.courseName ? `Course: "${req.courseName}"` : ''}
+      Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
+      ${req.programName ? `Programme: "${req.programName}"` : ""}
+      ${req.courseName ? `Course: "${req.courseName}"` : ""}
 
       This plan is for the TEACHER/PARENT. It should contain a "Secret Blueprint" on how to teach this topic effectively.
-      ${req.courseName ? `All activities, examples, and teaching strategies MUST align with the "${req.courseName}" course scope.` : ''}
+      ${
+        req.courseName
+          ? `All activities, examples, and teaching strategies MUST align with the "${req.courseName}" course scope.`
+          : ""
+      }
       
       Return a JSON object with this exact shape:
       {
@@ -1008,12 +1305,14 @@ ${openCount > 0 ? `- Last ${openCount} questions MUST be open-ended (essay/fill_
         }
       }`;
 
-    case 'library-content':
+    case "library-content":
       return `Generate metadata for a piece of educational content for the Rillcod Technologies content library.
 Topic: "${req.topic}"
-Content type: ${req.contentType ?? req.currentContent?.contentType ?? 'document'}
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
-Subject: ${req.subject ?? 'Technology'}
+Content type: ${
+        req.contentType ?? req.currentContent?.contentType ?? "document"
+      }
+Grade level: ${req.gradeLevel ?? "JSS1–SS3"}
+Subject: ${req.subject ?? "Technology"}
 
 Return a JSON object with this exact shape:
 {
@@ -1026,11 +1325,11 @@ Return a JSON object with this exact shape:
   "license_type": "string — e.g. CC BY 4.0 or Rillcod Technologies Proprietary",
   "attribution": "string"
 }`;
-    case 'newsletter':
+    case "newsletter":
       return `Generate a premium, visionary academic newsletter for Rillcod Technologies.
 Topic/Event: "${req.topic}"
-Target Audience: ${req.audience ?? 'All School Stakeholders'}
-Brand Tone: ${req.tone ?? 'Professional & Educational'}
+Target Audience: ${req.audience ?? "All School Stakeholders"}
+Brand Tone: ${req.tone ?? "Professional & Educational"}
 
 EVALUATIVE DIRECTIVES:
 1. Context: Rillcod Technologies is a high-end STEM/Coding academy in Nigeria. Use prestigious, empowering language. 
@@ -1060,25 +1359,33 @@ Return a JSON object with this exact shape:
 }
 `;
 
-    case 'daily-missions': {
+    case "daily-missions": {
       return `You are a smart learning coach for Rillcod Technologies. Generate 3 highly personalized daily missions for a student.
 
 Student Profile:
-- Name: ${req.studentName ?? 'Student'}
-${req.gender ? `- Gender: ${req.gender}` : ''}
+- Name: ${req.studentName ?? "Student"}
+${req.gender ? `- Gender: ${req.gender}` : ""}
 - XP Total: ${req.xp ?? 0}
 - Current Streak: ${req.streak ?? 0} days
 - Lessons Completed: ${req.lessonsDone ?? 0}
 - Average Score: ${req.avgScore ?? 0}%
-- Current Program: ${req.program ?? 'STEM Curriculum'}
-- Next Lesson: ${req.nextLesson ?? 'Not started'}
+- Current Program: ${req.program ?? "STEM Curriculum"}
+- Next Lesson: ${req.nextLesson ?? "Not started"}
 
 Generate 3 missions that are:
 1. Specific and actionable (not generic)
 2. Appropriately challenging for their level
 3. Rewarding with clear XP values
 4. Encouraging and motivating in tone
-5. ${req.gender === 'male' ? 'Use he/him/his pronouns when referring to the student' : req.gender === 'female' ? 'Use she/her pronouns when referring to the student' : `Refer to the student by name (${req.studentName ?? 'the student'}) — avoid gendered pronouns`}
+5. ${
+        req.gender === "male"
+          ? "Use he/him/his pronouns when referring to the student"
+          : req.gender === "female"
+          ? "Use she/her pronouns when referring to the student"
+          : `Refer to the student by name (${
+              req.studentName ?? "the student"
+            }) — avoid gendered pronouns`
+      }
 
 Return a JSON object with this exact shape:
 {
@@ -1097,22 +1404,28 @@ Return a JSON object with this exact shape:
 }`;
     }
 
-    case 'lesson-hook': {
+    case "lesson-hook": {
       const hookContext = [
-        req.programName ? `Programme: "${req.programName}"` : '',
-        req.courseName ? `Course: "${req.courseName}"` : '',
-      ].filter(Boolean).join(' | ');
+        req.programName ? `Programme: "${req.programName}"` : "",
+        req.courseName ? `Course: "${req.courseName}"` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
       return `You are the Great Learning Explorer for Rillcod Technologies. Generate an EXCITING, addictive opening hook for a lesson.
 
 Topic: "${req.topic}"
-Grade Level: ${req.gradeLevel ?? 'JSS1–SS3'}
-${hookContext ? `Curriculum Context: ${hookContext}` : ''}
+Grade Level: ${req.gradeLevel ?? "JSS1–SS3"}
+${hookContext ? `Curriculum Context: ${hookContext}` : ""}
 
 The hook should:
 - Open with a surprising real-world fact or story about "${req.topic}"
 - Create immediate curiosity and excitement
 - Be 2-3 short paragraphs maximum
-${req.courseName ? `- Show how this topic is a key building block in "${req.courseName}"` : ''}
+${
+  req.courseName
+    ? `- Show how this topic is a key building block in "${req.courseName}"`
+    : ""
+}
 - End with a challenge question to the student
 
 Return a JSON object:
@@ -1124,10 +1437,11 @@ Return a JSON object:
 }`;
     }
 
-    case 'code-generation': {
-      let langLabel = req.subject ?? req.topic ?? 'programming';
-      if (langLabel === 'robotics') langLabel = 'Python (for Robotics Simulation)';
-      
+    case "code-generation": {
+      let langLabel = req.subject ?? req.topic ?? "programming";
+      if (langLabel === "robotics")
+        langLabel = "Python (for Robotics Simulation)";
+
       return `You are an expert ${langLabel} assistant for Rillcod Technologies. 
 Generate a high-quality, clean, and well-commented code snippet for the following request:
 Task: "${req.topic}"
@@ -1144,10 +1458,10 @@ Requirements:
 - Follow industry standards and premium coding patterns.`;
     }
 
-    case 'curriculum': {
+    case "curriculum": {
       const courseName = req.course_name ?? req.courseName ?? req.topic;
-      const gradeLevel = req.grade_level ?? req.gradeLevel ?? 'JSS1';
-      const subjectArea = req.subject_area ?? req.subject ?? 'STEM / Coding';
+      const gradeLevel = req.grade_level ?? req.gradeLevel ?? "JSS1";
+      const subjectArea = req.subject_area ?? req.subject ?? "STEM / Coding";
       const termCount = req.term_count ?? 3;
       const weeksPerTerm = req.weeks_per_term ?? 8;
 
@@ -1166,7 +1480,7 @@ Subject Area: ${subjectArea}
 Academic Terms: ${termCount}
 Weeks Per Term: ${weeksPerTerm}
 Target: Nigerian secondary/primary school students (school-partner programme)
-${req.notes ? `Special Notes: ${req.notes}` : ''}
+${req.notes ? `Special Notes: ${req.notes}` : ""}
 
 ━━━ MANDATORY ASSESSMENT SCHEDULE (NEVER DEVIATE) ━━━
 Every term follows this EXACT weekly structure (adapt proportionally if weeks_per_term > 8):
@@ -1180,18 +1494,70 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
 - Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")`;
     }
 
-    case 'flashcard': {
+    case "slides": {
+      const count = Math.min(8, Math.max(5, Number(req.slideCount) || 7));
+      return `Create a teacher-ready ${count}-slide learning deck for Rillcod Academy.
+
+Topic: "${req.topic}"
+Class: ${req.className ?? req.gradeLevel ?? "Basic 1 to SS3"}
+Course: ${req.courseName ?? req.subject ?? "STEM & Technology"}
+${
+  req.planWeekObjectives?.trim()
+    ? `Official week objectives:\n${req.planWeekObjectives.trim()}`
+    : ""
+}
+${
+  req.planWeekActivities?.trim()
+    ? `Official week activities:\n${req.planWeekActivities.trim()}`
+    : ""
+}
+${
+  req.syllabusReference?.trim()
+    ? `Syllabus anchor:\n${req.syllabusReference.trim()}`
+    : ""
+}
+${
+  req.lessonSummary?.trim()
+    ? `Generated lesson context:\n${req.lessonSummary.slice(0, 7000)}`
+    : ""
+}
+
+Design the deck as one coherent classroom story:
+1. Title and curiosity hook.
+2. Learning goals and prior-knowledge bridge.
+3. Two or three clear concept slides with simple British English.
+4. A Nigerian or African real-world example.
+5. A guided learner activity or worked example.
+6. Recap with a short exit question.
+
+Keep each slide scannable: one short title, zero to five concise bullets, and one optional takeaway. Do not repeat the lesson word-for-word. Do not include URLs, markdown, HTML, speaker instructions, or image placeholders.
+
+Return ONLY this JSON shape:
+{
+  "slides": [
+    {
+      "kind": "title" | "concept" | "example" | "activity" | "recap",
+      "kicker": "short section label",
+      "title": "clear slide title",
+      "bullets": ["concise learner-facing point"],
+      "takeaway": "optional one-sentence memory anchor"
+    }
+  ]
+}`;
+    }
+
+    case "flashcard": {
       const count = req.questionCount ?? 10;
       return `Generate a set of ${count} high-quality educational flashcards for Rillcod Technologies.
 Topic: "${req.topic}"
-Grade Level: ${req.gradeLevel ?? 'JSS1–SS3'}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
-Difficulty: ${req.difficulty ?? 'medium'}
+Grade Level: ${req.gradeLevel ?? "JSS1–SS3"}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
+Difficulty: ${req.difficulty ?? "medium"}
 
 RULES:
 1. "Front" should be a clear, concise question or term.
 2. "Back" should be a clear, informative answer or explanation.
-3. Content must be age-appropriate for ${req.gradeLevel ?? 'all levels'}.
+3. Content must be age-appropriate for ${req.gradeLevel ?? "all levels"}.
 4. For technical topics, include brief code snippets or technical diagrams (as text/markdown).
 5. Ensure zero repetition and high conceptual value.
 
@@ -1205,16 +1571,17 @@ Return a JSON object with this exact shape:
       "difficulty": "easy" | "medium" | "hard"
     }
   ]
-}`; }
+}`;
+    }
 
-    case 'project': {
+    case "project": {
       return `Generate a detailed project activity for Rillcod Technologies students.
 Topic / Project Title: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
-Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
-${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}"` : ''}
-Difficulty: ${req.difficulty ?? 'intermediate'}
+Grade level: ${req.gradeLevel ?? "JSS1–SS3"}
+Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
+${req.programName ? `Programme: "${req.programName}"` : ""}
+${req.courseName ? `Course: "${req.courseName}"` : ""}
+Difficulty: ${req.difficulty ?? "intermediate"}
 
 Return a JSON object with this exact shape:
 {
@@ -1235,7 +1602,8 @@ RULES:
 - rubric must have 3-4 criteria with maxPts values summing to exactly 100.
 - submission_types must match the deliverable (code project → link + code; hardware → screenshot + text).
 - Make it engaging and achievable for Nigerian secondary school students.
-- Incorporate structured programming scripts, terminal commands, database setups, or HTML block outlines inside explicit language code fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html, \`\`\`cpp) to ground the project's codebase.`; }
+- Incorporate structured programming scripts, terminal commands, database setups, or HTML block outlines inside explicit language code fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html, \`\`\`cpp) to ground the project's codebase.`;
+    }
 
     default:
       throw new Error(`Unknown generate type: ${req.type}`);
@@ -1249,25 +1617,32 @@ export async function POST(req: NextRequest) {
     let role: string | undefined;
 
     if (isCronCall) {
-      role = 'admin';
+      role = "admin";
     } else {
-      const { data: { user }, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const {
+        data: { user },
+        error: authErr,
+      } = await supabase.auth.getUser();
+      if (authErr || !user)
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       const { data: profile } = await supabase
-        .from('portal_users')
-        .select('role')
-        .eq('id', user.id)
+        .from("portal_users")
+        .select("role")
+        .eq("id", user.id)
         .single();
       role = profile?.role;
     }
 
     const isPlatform = isCronCall || isPlatformStaffRole(role);
     const isSchoolPartner = isPartnerSchoolRole(role);
-    const isStudent = role === 'student';
-    const isParent = role === 'parent';
+    const isStudent = role === "student";
+    const isParent = role === "parent";
 
     if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: 'AI service not configured.' }, { status: 503 });
+      return NextResponse.json(
+        { error: "AI service not configured." },
+        { status: 503 }
+      );
     }
 
     const body: GenerateRequest = await req.json();
@@ -1276,34 +1651,59 @@ export async function POST(req: NextRequest) {
     // Security: platform staff (admin/teacher) = full professional surface; partner school = narrow ops/commms;
     // students/parents = learning-assist types only (aligned with dashboard / partner lockdown).
     const STUDENT_PARENT_ALLOWED: GenerateType[] = [
-      'lesson-hook',
-      'daily-missions',
-      'code-generation',
-      'homework' as GenerateType,
+      "lesson-hook",
+      "daily-missions",
+      "code-generation",
+      "homework" as GenerateType,
     ];
     const canUseType =
       isPlatform ||
-      (isSchoolPartner && (PARTNER_SCHOOL_AI_GENERATE_TYPES as readonly string[]).includes(type)) ||
+      (isSchoolPartner &&
+        (PARTNER_SCHOOL_AI_GENERATE_TYPES as readonly string[]).includes(
+          type
+        )) ||
       ((isStudent || isParent) && STUDENT_PARENT_ALLOWED.includes(type));
 
     if (!canUseType) {
       return NextResponse.json(
         {
-          error: 'Forbidden: This AI action is not available for your account type.',
+          error:
+            "Forbidden: This AI action is not available for your account type.",
           hint: isSchoolPartner
-            ? 'Partner school accounts can use report feedback and newsletter drafting only.'
+            ? "Partner school accounts can use report feedback and newsletter drafting only."
             : undefined,
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
     if (!body.topic?.trim() && !body.prompt?.trim()) {
-      return NextResponse.json({ error: 'topic or prompt is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "topic or prompt is required" },
+        { status: 400 }
+      );
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'project', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum', 'flashcard'];
+    const VALID_TYPES = [
+      "lesson",
+      "lesson-notes",
+      "lesson-plan",
+      "library-content",
+      "assignment",
+      "project",
+      "cbt",
+      "report-feedback",
+      "cbt-grading",
+      "newsletter",
+      "code-generation",
+      "daily-missions",
+      "lesson-hook",
+      "custom",
+      "curriculum",
+      "flashcard",
+      "slides",
+    ];
     if (!VALID_TYPES.includes(type)) {
-      return NextResponse.json({ error: 'invalid type' }, { status: 400 });
+      return NextResponse.json({ error: "invalid type" }, { status: 400 });
     }
 
     const prompt = buildPrompt(body);
@@ -1311,101 +1711,115 @@ export async function POST(req: NextRequest) {
 
     // Rich lesson types need more tokens to avoid truncated JSON
     // For CBT scale tokens with question count: ~150 tokens per question minimum
-    const cbtPlan = type === 'cbt' ? getCbtGenerationPlan(body) : null;
-    const cbtTotal  = cbtPlan?.totalQ ?? ((body.mcqCount ?? 0) + (body.theoryCount ?? 0) || (body.questionCount ?? 10));
-    const cbtTokens = type === 'cbt' ? Math.max(3000, cbtTotal * 200) : 0;
+    const cbtPlan = type === "cbt" ? getCbtGenerationPlan(body) : null;
+    const cbtTotal =
+      cbtPlan?.totalQ ??
+      ((body.mcqCount ?? 0) + (body.theoryCount ?? 0) ||
+        (body.questionCount ?? 10));
+    const cbtTokens = type === "cbt" ? Math.max(3000, cbtTotal * 200) : 0;
     const maxTokens =
-      type === 'lesson' ? 4000 :
-      type === 'lesson-plan' ? 3500 :
-      type === 'cbt' ? cbtTokens :
-      type === 'assignment' ? 3000 :
-      2048;
+      type === "lesson"
+        ? 4000
+        : type === "lesson-plan"
+        ? 3500
+        : type === "cbt"
+        ? cbtTokens
+        : type === "assignment"
+        ? 3000
+        : type === "slides"
+        ? 3500
+        : 2048;
 
     // Safe JSON extraction — handles markdown code fences and truncated responses
     function safeParseJSON(raw: string): any {
       // Strip markdown code fences if present
-      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      
+      const stripped = raw
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
       try {
         return JSON.parse(stripped);
       } catch {
         // Try to recover a JSON object from the string
         const match = stripped.match(/(\{[\s\S]*\})/);
         if (match) {
-          try { 
+          try {
             // Aggressively clean up trailing commas and potential escaped control chars which AI loves
             const cleaned = match[1]
-              .replace(/,\s*([\}\]])/g, '$1') // Trailing commas
-              .replace(/\/\/.*/g, '')         // Comments
-              .replace(/\\n/g, ' ')           // Escaped newlines that might break some parsers
+              .replace(/,\s*([\}\]])/g, "$1") // Trailing commas
+              .replace(/\/\/.*/g, "") // Comments
+              .replace(/\\n/g, " ") // Escaped newlines that might break some parsers
               .trim();
-            return JSON.parse(cleaned); 
+            return JSON.parse(cleaned);
           } catch (e2) {
-             console.error('Safe parse failed even after rescue:', e2);
+            console.error("Safe parse failed even after rescue:", e2);
           }
         }
-        throw new Error('AI returned malformed data — please refresh and try again');
+        throw new Error(
+          "AI returned malformed data — please refresh and try again"
+        );
       }
     }
 
-    // --- AGENTIC HIERARCHICAL TASK ROUTING --- 
+    // --- AGENTIC HIERARCHICAL TASK ROUTING ---
     // We select the "Expert Persona" based on the task type
     let modelQueue = [...MODELS];
     let adaptiveTemperature = 0.7;
     let adaptiveMaxTokens = maxTokens;
 
     switch (type) {
-      case 'lesson':
+      case "lesson":
         // Best models for rich, structured, creative educational content
         modelQueue = [
-          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
-          "qwen/qwen3-235b-a22b:free",             // 235B params, massive reasoning, free
-          "deepseek/deepseek-r1:free",             // Reasoning model — rich structured content
-          "moonshotai/kimi-k2.5",                  // High intelligence, great for detailed content
-          "deepseek/deepseek-chat-v3-5",           // Strong writer fallback
-          "x-ai/grok-2-1212",                      // Creative/playful fallback
+          "google/gemini-2.5-flash", // Gemini 2.5 Flash via OpenRouter fallback
+          "qwen/qwen3-235b-a22b:free", // 235B params, massive reasoning, free
+          "deepseek/deepseek-r1:free", // Reasoning model — rich structured content
+          "moonshotai/kimi-k2.5", // High intelligence, great for detailed content
+          "deepseek/deepseek-chat-v3-5", // Strong writer fallback
+          "x-ai/grok-2-1212", // Creative/playful fallback
         ];
         adaptiveTemperature = 0.75;
         adaptiveMaxTokens = 16000;
         break;
 
-      case 'lesson-notes':
+      case "lesson-notes":
         modelQueue = [
-          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
-          "qwen/qwen3-235b-a22b:free",             // 235B free — excellent at structured writing
-          "moonshotai/kimi-k2.5",                  // Deep synthesis
-          "deepseek/deepseek-chat-v3-5",           // Strong writer
-          "meta-llama/llama-3.3-70b-instruct",     // Solid free fallback
-          "google/gemini-2.0-flash-lite-001",               // Reliable emergency fallback
+          "google/gemini-2.5-flash", // Gemini 2.5 Flash via OpenRouter fallback
+          "qwen/qwen3-235b-a22b:free", // 235B free — excellent at structured writing
+          "moonshotai/kimi-k2.5", // Deep synthesis
+          "deepseek/deepseek-chat-v3-5", // Strong writer
+          "meta-llama/llama-3.3-70b-instruct", // Solid free fallback
+          "google/gemini-2.0-flash-lite-001", // Reliable emergency fallback
           "meta-llama/llama-3.1-8b-instruct:free", // Last resort
         ];
         adaptiveTemperature = 0.6;
         adaptiveMaxTokens = 3500;
         break;
 
-      case 'code-generation':
+      case "code-generation":
         // DeepSeek V3 is the undisputed king of logic/code
         modelQueue = [
           "deepseek/deepseek-chat-v3-5",
           "deepseek/deepseek-chat",
-          "google/gemini-2.0-flash-001"
+          "google/gemini-2.0-flash-001",
         ];
         adaptiveTemperature = 0.2; // High precision
         break;
 
-      case 'cbt':
-      case 'cbt-grading':
+      case "cbt":
+      case "cbt-grading":
         // Analytical models for precision — Qwen 2.5 removed from primary (returns malformed JSON)
         modelQueue = [
-          "google/gemini-2.0-flash-001",          // Reliable JSON + fast
-          "deepseek/deepseek-chat-v3-5",           // Strong analytical fallback
-          "meta-llama/llama-3.3-70b-instruct",    // Solid fallback
-          "google/gemini-2.0-flash-lite-001",               // Emergency fallback
+          "google/gemini-2.0-flash-001", // Reliable JSON + fast
+          "deepseek/deepseek-chat-v3-5", // Strong analytical fallback
+          "meta-llama/llama-3.3-70b-instruct", // Solid fallback
+          "google/gemini-2.0-flash-lite-001", // Emergency fallback
         ];
         adaptiveTemperature = 0.1; // Zero hallucination
         break;
 
-      case 'lesson-hook':
+      case "lesson-hook":
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "x-ai/grok-2-1212",
@@ -1415,7 +1829,7 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 1024;
         break;
 
-      case 'daily-missions':
+      case "daily-missions":
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "x-ai/grok-2-1212",
@@ -1425,11 +1839,11 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 2048;
         break;
 
-      case 'assignment':
+      case "assignment":
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "deepseek/deepseek-chat-v3-5",
-          "deepseek/deepseek-r1:free",             // Free reasoning fallback
+          "deepseek/deepseek-r1:free", // Free reasoning fallback
           "qwen/qwen3-235b-a22b:free",
           "meta-llama/llama-3.3-70b-instruct",
           "google/gemini-2.0-flash-lite-001",
@@ -1438,10 +1852,10 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 2000;
         break;
 
-      case 'project':
+      case "project":
         modelQueue = [
           "google/gemini-2.0-flash-001",
-          "deepseek/deepseek-r1:free",             // Reasoning — structured project specs
+          "deepseek/deepseek-r1:free", // Reasoning — structured project specs
           "qwen/qwen3-235b-a22b:free",
           "deepseek/deepseek-chat-v3-5",
           "meta-llama/llama-3.3-70b-instruct",
@@ -1451,54 +1865,65 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 3000;
         break;
 
-      case 'lesson-plan':
+      case "lesson-plan":
         modelQueue = [
-          "qwen/qwen3-235b-a22b:free",             // Primary: 235B free, superb at structured plans
-          "google/gemini-2.0-flash-001",           // Fast reliable second choice
-          "moonshotai/kimi-k2.5",                  // High intelligence fallback
+          "qwen/qwen3-235b-a22b:free", // Primary: 235B free, superb at structured plans
+          "google/gemini-2.0-flash-001", // Fast reliable second choice
+          "moonshotai/kimi-k2.5", // High intelligence fallback
           "meta-llama/llama-3.3-70b-instruct",
         ];
         adaptiveTemperature = 0.5; // Structured and pedagogically sound
         adaptiveMaxTokens = 2000;
         break;
 
-      case 'report-feedback':
+      case "report-feedback":
         modelQueue = [
-          "qwen/qwen3-235b-a22b:free",             // Primary: nuanced writing, 235B free
-          "google/gemini-2.0-flash-001",           // Fast reliable second
-          "deepseek/deepseek-chat-v3-5",           // Strong at empathetic prose
+          "qwen/qwen3-235b-a22b:free", // Primary: nuanced writing, 235B free
+          "google/gemini-2.0-flash-001", // Fast reliable second
+          "deepseek/deepseek-chat-v3-5", // Strong at empathetic prose
         ];
         adaptiveTemperature = 0.75;
         adaptiveMaxTokens = 2048;
         break;
 
-      case 'newsletter':
+      case "newsletter":
         modelQueue = [
-          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
-          "deepseek/deepseek-chat-v3-5",           // Strong at professional writing
-          "x-ai/grok-2-1212",                      // Witty, visionary tone
-          "qwen/qwen3-235b-a22b:free",             // Large context, free fallback
-          "meta-llama/llama-3.3-70b-instruct",     // Solid fallback
+          "google/gemini-2.5-flash", // Gemini 2.5 Flash via OpenRouter fallback
+          "deepseek/deepseek-chat-v3-5", // Strong at professional writing
+          "x-ai/grok-2-1212", // Witty, visionary tone
+          "qwen/qwen3-235b-a22b:free", // Large context, free fallback
+          "meta-llama/llama-3.3-70b-instruct", // Solid fallback
           "meta-llama/llama-3.1-8b-instruct:free", // Emergency free fallback
         ];
         adaptiveTemperature = 0.8;
         adaptiveMaxTokens = 3000;
         break;
 
-      case 'curriculum':
+      case "curriculum":
         modelQueue = [
-          "google/gemini-2.5-flash",           // Gemini 2.5 Flash (stable, cheaper)
-          "deepseek/deepseek-r1:free",         // Free reasoning model
-          "qwen/qwen3-235b-a22b:free",          // 235B free — thorough but may truncate
-          "google/gemini-2.0-flash-001",       // 1M ctx fallback
-          "meta-llama/llama-3.3-70b-instruct",  // Reliable fallback
-          "google/gemini-2.0-flash-lite-001",   // Emergency fallback
+          "google/gemini-2.5-flash", // Gemini 2.5 Flash (stable, cheaper)
+          "deepseek/deepseek-r1:free", // Free reasoning model
+          "qwen/qwen3-235b-a22b:free", // 235B free — thorough but may truncate
+          "google/gemini-2.0-flash-001", // 1M ctx fallback
+          "meta-llama/llama-3.3-70b-instruct", // Reliable fallback
+          "google/gemini-2.0-flash-lite-001", // Emergency fallback
         ];
         adaptiveTemperature = 0.55; // Creative enough for fresh topics, structured enough for JSON
-        adaptiveMaxTokens = 16000;  // Full lesson plans per week need many tokens
+        adaptiveMaxTokens = 16000; // Full lesson plans per week need many tokens
         break;
 
-      case 'flashcard':
+      case "slides":
+        modelQueue = [
+          "google/gemini-2.5-flash",
+          "google/gemini-2.0-flash-001",
+          "deepseek/deepseek-chat-v3-5",
+          "meta-llama/llama-3.3-70b-instruct",
+        ];
+        adaptiveTemperature = 0.55;
+        adaptiveMaxTokens = 3500;
+        break;
+
+      case "flashcard":
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "deepseek/deepseek-chat-v3-5",
@@ -1513,16 +1938,20 @@ export async function POST(req: NextRequest) {
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "x-ai/grok-2-1212",
-          "meta-llama/llama-3.1-8b-instruct:free"
+          "meta-llama/llama-3.1-8b-instruct:free",
         ];
     }
 
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
-    const useJsonFormat = type !== 'lesson-notes';
-    const aiSystemPrompt = type === 'report-feedback' ? REPORT_FEEDBACK_SYSTEM_PROMPT : SYSTEM_PROMPT;
+    const useJsonFormat = type !== "lesson-notes";
+    const aiSystemPrompt =
+      type === "report-feedback"
+        ? REPORT_FEEDBACK_SYSTEM_PROMPT
+        : SYSTEM_PROMPT;
 
     // ── SSE Streaming path — used when client sends ?stream=1 (lesson type only) ──
-    const wantsStream = req.nextUrl?.searchParams.get('stream') === '1' && type === 'lesson';
+    const wantsStream =
+      req.nextUrl?.searchParams.get("stream") === "1" && type === "lesson";
 
     if (wantsStream) {
       const enc = new TextEncoder();
@@ -1530,44 +1959,52 @@ export async function POST(req: NextRequest) {
         async start(streamController) {
           const emit = (payload: object) => {
             try {
-              streamController.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`));
-            } catch { /* stream may be closed */ }
+              streamController.enqueue(
+                enc.encode(`data: ${JSON.stringify(payload)}\n\n`)
+              );
+            } catch {
+              /* stream may be closed */
+            }
           };
 
-          emit({ status: 'Initialising lesson engine...' });
+          emit({ status: "Initialising lesson engine..." });
 
           for (const modelId of modelQueue) {
-            const shortName = modelId.split('/').pop()?.split(':')[0] ?? modelId;
+            const shortName =
+              modelId.split("/").pop()?.split(":")[0] ?? modelId;
             emit({ status: `Generating with ${shortName}...` });
 
             try {
               const abortCtrl = new AbortController();
               const tid = setTimeout(() => abortCtrl.abort(), 55000);
 
-              const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                  'X-Title': 'Rillcod Technologies (Kid-Friendly Platform)',
-                  'Content-Type': 'application/json',
-                },
-                signal: abortCtrl.signal,
-                body: JSON.stringify({
-                  model: modelId,
-                  messages: [
-                    { role: 'system', content: aiSystemPrompt },
-                    { role: 'user', content: prompt },
-                  ],
-                  max_tokens: Math.min(adaptiveMaxTokens, 16000),
-                  temperature: adaptiveTemperature,
-                  response_format: { type: 'json_object' },
-                }),
-              });
+              const apiRes = await fetch(
+                "https://openrouter.ai/api/v1/chat/completions",
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
+                    "Content-Type": "application/json",
+                  },
+                  signal: abortCtrl.signal,
+                  body: JSON.stringify({
+                    model: modelId,
+                    messages: [
+                      { role: "system", content: aiSystemPrompt },
+                      { role: "user", content: prompt },
+                    ],
+                    max_tokens: Math.min(adaptiveMaxTokens, 16000),
+                    temperature: adaptiveTemperature,
+                    response_format: { type: "json_object" },
+                  }),
+                }
+              );
 
               clearTimeout(tid);
 
               if (apiRes.ok) {
-                emit({ status: 'Assembling lesson blocks...' });
+                emit({ status: "Assembling lesson blocks..." });
                 const apiData = await apiRes.json();
                 const content = apiData.choices[0]?.message?.content;
                 if (content) {
@@ -1577,27 +2014,29 @@ export async function POST(req: NextRequest) {
                     streamController.close();
                     return;
                   } catch {
-                    emit({ status: 'Retrying with better model...' });
+                    emit({ status: "Retrying with better model..." });
                   }
                 }
               } else {
-                emit({ status: 'Switching to backup model...' });
+                emit({ status: "Switching to backup model..." });
               }
             } catch {
-              emit({ status: 'Switching to backup model...' });
+              emit({ status: "Switching to backup model..." });
             }
           }
 
-          emit({ error: 'All AI models are currently busy. Please try again.' });
+          emit({
+            error: "All AI models are currently busy. Please try again.",
+          });
           streamController.close();
         },
       });
 
       return new Response(sseStream, {
         headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
         },
       });
     }
@@ -1606,24 +2045,52 @@ export async function POST(req: NextRequest) {
     // Try free direct Gemini API before spending OpenRouter credits.
     // Skipped ONLY for SSE streaming (handled above) — handles all else including cbt-grading.
     if (process.env.GEMINI_API_KEY && !wantsStream) {
-      const geminiResult = await geminiGenerateText(aiSystemPrompt, prompt, useJsonFormat).catch(() => null);
+      const geminiResult = await geminiGenerateText(
+        aiSystemPrompt,
+        prompt,
+        useJsonFormat
+      ).catch(() => null);
       if (geminiResult?.text) {
-        if (type === 'lesson-notes') {
-          const clean = geminiResult.text.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        if (type === "lesson-notes") {
+          const clean = geminiResult.text
+            .replace(/^```(?:json|markdown)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
           if (clean.length > 100) {
             try {
               const parsed = safeParseJSON(clean);
-              if (parsed.lesson_notes) return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, parsed, body) });
+              if (parsed.lesson_notes)
+                return NextResponse.json({
+                  success: true,
+                  model: geminiResult.model,
+                  data: finalizeGeneratedData(type, parsed, body),
+                });
             } catch {}
-            return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, { lesson_notes: clean }, body) });
+            return NextResponse.json({
+              success: true,
+              model: geminiResult.model,
+              data: finalizeGeneratedData(type, { lesson_notes: clean }, body),
+            });
           }
         } else {
           try {
             const parsed = safeParseJSON(geminiResult.text);
-            if (type === 'custom') {
-              return NextResponse.json({ success: true, content: parsed.content || parsed.text || parsed.answer || geminiResult.text, ...parsed });
+            if (type === "custom") {
+              return NextResponse.json({
+                success: true,
+                content:
+                  parsed.content ||
+                  parsed.text ||
+                  parsed.answer ||
+                  geminiResult.text,
+                ...parsed,
+              });
             }
-            return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, parsed, body) });
+            return NextResponse.json({
+              success: true,
+              model: geminiResult.model,
+              data: finalizeGeneratedData(type, parsed, body),
+            });
           } catch {
             // Malformed JSON from Gemini — fall through to OpenRouter queue
           }
@@ -1635,33 +2102,40 @@ export async function POST(req: NextRequest) {
     for (const modelId of modelQueue) {
       try {
         const controller = new AbortController();
-        const timeoutMs = ['lesson', 'lesson-notes', 'curriculum'].includes(type) ? 55000 : 30000;
+        const timeoutMs = ["lesson", "lesson-notes", "curriculum"].includes(
+          type
+        )
+          ? 55000
+          : 30000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         const requestBody: any = {
           model: modelId,
           messages: [
-            { role: 'system', content: aiSystemPrompt },
-            { role: 'user', content: prompt }
+            { role: "system", content: aiSystemPrompt },
+            { role: "user", content: prompt },
           ],
           max_tokens: Math.min(adaptiveMaxTokens, 16000),
           temperature: adaptiveTemperature,
         };
         // Only add response_format for types that need strict JSON — skip for lesson-notes
         if (useJsonFormat) {
-          requestBody.response_format = { type: 'json_object' };
+          requestBody.response_format = { type: "json_object" };
         }
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'X-Title': 'Rillcod Technologies (Kid-Friendly Platform)',
-            'Content-Type': 'application/json'
-          },
-          signal: controller.signal,
-          body: JSON.stringify(requestBody),
-        });
+        const response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+            body: JSON.stringify(requestBody),
+          }
+        );
 
         clearTimeout(timeoutId);
 
@@ -1670,37 +2144,73 @@ export async function POST(req: NextRequest) {
           const content = data.choices[0]?.message?.content;
           if (content) {
             // For lesson-notes: try JSON parse first, then fall back to wrapping raw text
-            if (type === 'lesson-notes') {
+            if (type === "lesson-notes") {
               try {
                 const parsed = safeParseJSON(content);
                 // If parsed but lesson_notes is missing, wrap the whole content
-                if (!parsed.lesson_notes && typeof content === 'string') {
-                  return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, { lesson_notes: content }, body) });
+                if (!parsed.lesson_notes && typeof content === "string") {
+                  return NextResponse.json({
+                    success: true,
+                    model: modelId,
+                    data: finalizeGeneratedData(
+                      type,
+                      { lesson_notes: content },
+                      body
+                    ),
+                  });
                 }
-                return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, parsed, body) });
+                return NextResponse.json({
+                  success: true,
+                  model: modelId,
+                  data: finalizeGeneratedData(type, parsed, body),
+                });
               } catch {
                 // JSON parse failed — use raw text as lesson_notes directly
-                const cleanContent = content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                const cleanContent = content
+                  .replace(/^```(?:json|markdown)?\s*/i, "")
+                  .replace(/\s*```$/i, "")
+                  .trim();
                 if (cleanContent.length > 100) {
-                  return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, { lesson_notes: cleanContent }, body) });
+                  return NextResponse.json({
+                    success: true,
+                    model: modelId,
+                    data: finalizeGeneratedData(
+                      type,
+                      { lesson_notes: cleanContent },
+                      body
+                    ),
+                  });
                 }
               }
             } else {
               const parsed = safeParseJSON(content);
               // Handle 'custom' type specifically to match ProtocolPage expectation
-              if (type === 'custom') {
+              if (type === "custom") {
                 return NextResponse.json({
                   success: true,
-                  content: parsed.content || parsed.text || parsed.answer || (typeof content === 'string' ? content : JSON.stringify(content)),
-                  ...parsed
+                  content:
+                    parsed.content ||
+                    parsed.text ||
+                    parsed.answer ||
+                    (typeof content === "string"
+                      ? content
+                      : JSON.stringify(content)),
+                  ...parsed,
                 });
               }
-              return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, parsed, body) });
+              return NextResponse.json({
+                success: true,
+                model: modelId,
+                data: finalizeGeneratedData(type, parsed, body),
+              });
             }
           }
         } else {
           const errData = await response.json().catch(() => ({}));
-          console.warn(`Model ${modelId} failed with status ${response.status}:`, errData.error?.message || response.statusText);
+          console.warn(
+            `Model ${modelId} failed with status ${response.status}:`,
+            errData.error?.message || response.statusText
+          );
           lastError = errData.error?.message || `Status ${response.status}`;
         }
       } catch (err: any) {
@@ -1709,10 +2219,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    throw new Error(`AI generation failed after trying all models. Last error: ${lastError}`);
+    throw new Error(
+      `AI generation failed after trying all models. Last error: ${lastError}`
+    );
   } catch (err: any) {
     const status = err?.status ?? 500;
-    const message = err?.message ?? 'AI generation failed';
+    const message = err?.message ?? "AI generation failed";
     return NextResponse.json({ error: message }, { status });
   }
 }

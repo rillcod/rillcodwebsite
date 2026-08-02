@@ -21,6 +21,7 @@ import {
   canAccessLessonScope,
   requireStaffUser,
 } from "@/app/api/lesson-plans/authz";
+import { indexFirstByWeek } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
@@ -112,29 +113,37 @@ export async function POST(
         week_number?: number;
       };
     }>;
-    const targetWeeks = onlyWeeks && onlyWeeks.length
-      ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
-      : weeks;
+    const targetWeeks =
+      onlyWeeks && onlyWeeks.length
+        ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
+        : weeks;
 
-    const { data: existingAssignments } = await supabase
-      .from("assignments")
-      .select("id, metadata, assignment_type")
-      .eq("course_id", planCourseId)
-      .eq("school_id", planSchoolId)
-      .neq("assignment_type", "project");
+    const [existingResult, linkedLessonResult] = await Promise.all([
+      supabase
+        .from("assignments")
+        .select(
+          "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number"
+        )
+        .neq("assignment_type", "project")
+        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+      supabase
+        .from("lessons")
+        .select("id,curriculum_week_number,metadata")
+        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
+        .order("created_at", { ascending: false }),
+    ]);
+    const existingAssignments = existingResult.data ?? [];
+    const lessonsByWeek = indexFirstByWeek<any>(linkedLessonResult.data ?? []);
 
     const existingWeekSet = new Set<string>(
-      (existingAssignments ?? [])
-        .filter((a) => {
-          const metadata =
-            (a.metadata as Record<string, unknown> | null) ?? null;
-          return metadata?.lesson_plan_id === id;
+      (existingAssignments ?? []).map((a) =>
+        getMetadataWeekCompositeKey({
+          ...((a.metadata as Record<string, unknown> | null) ?? {}),
+          ...(a.curriculum_week_number
+            ? { week: a.curriculum_week_number }
+            : {}),
         })
-        .map((a) =>
-          getMetadataWeekCompositeKey(
-            a.metadata as Record<string, unknown> | null
-          )
-        )
+      )
     );
 
     const projectedSkips = targetWeeks.filter((w) =>
@@ -267,9 +276,16 @@ export async function POST(
             .from("assignments")
             .insert({
               course_id: planCourseId,
+              lesson_id: lessonsByWeek.get(Number(week.week))?.id ?? null,
               class_id: plan.class_id,
+              created_by: isCron ? plan.created_by : staff.id,
               school_id: planSchoolId,
               term_id: assignmentTermId,
+              lesson_plan_id: plan.id,
+              curriculum_release_id: plan.curriculum_release_id,
+              academic_offering_id: plan.academic_offering_id,
+              offering_period_id: plan.offering_period_id,
+              curriculum_week_number: week.week,
               title: (d.title || `${week.topic} Assignment`) as string,
               description: (d.description || "") as string,
               instructions: (d.instructions || "") as string,

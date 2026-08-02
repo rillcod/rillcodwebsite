@@ -21,6 +21,7 @@ import {
   canAccessLessonScope,
   requireStaffUser,
 } from "@/app/api/lesson-plans/authz";
+import { indexFirstByWeek } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
@@ -119,31 +120,40 @@ export async function POST(
         week_number?: number;
       };
     }>;
-    const targetWeeks = onlyWeeks && onlyWeeks.length
-      ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
-      : weeks;
+    const targetWeeks =
+      onlyWeeks && onlyWeeks.length
+        ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
+        : weeks;
 
-    const { data: existingProjects } = await supabase
-      .from("assignments")
-      .select("id, metadata, assignment_type")
-      .eq("course_id", planCourseId)
-      .eq("school_id", planSchoolId)
-      .eq("assignment_type", "project");
+    const [existingResult, linkedLessonResult] = await Promise.all([
+      supabase
+        .from("assignments")
+        .select(
+          "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number"
+        )
+        .eq("assignment_type", "project")
+        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+      supabase
+        .from("lessons")
+        .select("id,curriculum_week_number,metadata")
+        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
+        .order("created_at", { ascending: false }),
+    ]);
+    const existingProjects = existingResult.data ?? [];
+    const lessonsByWeek = indexFirstByWeek<any>(linkedLessonResult.data ?? []);
 
     const existingWeekSet = new Set<string>(
       (existingProjects ?? [])
-        .filter((a) => {
-          const metadata =
-            (a.metadata as Record<string, unknown> | null) ?? null;
-          return metadata?.lesson_plan_id === id;
-        })
         // Use the shared helper, which also understands the legacy metadata
         // shape that only carries `week`. Reading week_number alone made every
         // older project invisible to this check and silently duplicated it.
         .map((a) =>
-          getMetadataWeekCompositeKey(
-            a.metadata as Record<string, unknown> | null
-          )
+          getMetadataWeekCompositeKey({
+            ...((a.metadata as Record<string, unknown> | null) ?? {}),
+            ...(a.curriculum_week_number
+              ? { week: a.curriculum_week_number }
+              : {}),
+          })
         )
     );
 
@@ -286,9 +296,16 @@ export async function POST(
             .from("assignments")
             .insert({
               course_id: planCourseId,
+              lesson_id: lessonsByWeek.get(Number(week.week))?.id ?? null,
               class_id: plan.class_id,
+              created_by: isCron ? plan.created_by : staff.id,
               school_id: planSchoolId,
               term_id: assignmentTermId,
+              lesson_plan_id: plan.id,
+              curriculum_release_id: plan.curriculum_release_id,
+              academic_offering_id: plan.academic_offering_id,
+              offering_period_id: plan.offering_period_id,
+              curriculum_week_number: week.week,
               title: (d.title ||
                 week.project?.title ||
                 `${week.topic} Project`) as string,
@@ -305,6 +322,7 @@ export async function POST(
               metadata: {
                 ...(d.metadata as Record<string, unknown> | undefined),
                 lesson_plan_id: plan.id,
+                week: week.week,
                 week_number: week.week,
                 year_number:
                   Number.isFinite(yearNumber) && yearNumber > 0

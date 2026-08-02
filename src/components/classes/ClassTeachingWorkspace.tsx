@@ -16,11 +16,16 @@ import {
   buildCurriculumHref,
   buildFlashcardsHref,
   buildGradesHref,
+  buildLessonNewHref,
   buildLessonPlanHref,
   buildLessonSlidesHref,
   buildProjectNewHref,
   buildResultsHref,
 } from "@/lib/curriculum/href";
+import {
+  indexFirstByWeek,
+  weekPackageStatus,
+} from "@/lib/academic/week-package";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
@@ -45,9 +50,6 @@ export function ClassTeachingWorkspace({
     href: string;
     label: string;
   } | null>(null);
-  const [adding, setAdding] = useState(false),
-    [lessonTitle, setLessonTitle] = useState(""),
-    [lessonWeek, setLessonWeek] = useState(1);
   // Why this class can or cannot start a plan, named precisely rather than
   // left as the database's refusal message.
   const [planStage, setPlanStage] = useState<StageStatus | null>(null);
@@ -60,6 +62,9 @@ export function ClassTeachingWorkspace({
     topic: string;
     objectives?: string;
     activities?: string;
+    notes?: string;
+    assignment?: { title?: string; brief?: string };
+    project?: { title?: string; description?: string };
   } | null>(null);
   const load = useCallback(
     async (cid?: string) => {
@@ -113,10 +118,10 @@ export function ClassTeachingWorkspace({
         : [],
     [data]
   );
-  const delivered = new Map(
-    (data?.deliveries || []).map((d: any) => [
-      `${d.week_number}:${d.lesson_id || ""}`,
-      d,
+  const deliveredByWeek = new Map<number, any>(
+    (data?.deliveries || []).map((delivery: any) => [
+      Number(delivery.week_number),
+      delivery,
     ])
   );
   async function chooseCourse(id: string) {
@@ -141,36 +146,6 @@ export function ClassTeachingWorkspace({
         }
         throw new Error(j.detail || j.error || "Action failed");
       }
-      await load(courseId);
-    } catch (e: any) {
-      setError(e.message);
-      setBusy(false);
-    }
-  }
-  async function createLesson() {
-    if (!lessonTitle.trim() || !plan) return;
-    setBusy(true);
-    setError("");
-    try {
-      const r = await fetch("/api/lessons", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: lessonTitle.trim(),
-          course_id: courseId,
-          school_id: data?.class?.school_id,
-          lesson_plan_id: plan.id,
-          class_id: classId,
-          curriculum_week_number: Number(lessonWeek) || 1,
-          status: "draft",
-          lesson_type: "lesson",
-          metadata: { week: String(Number(lessonWeek) || 1) },
-        }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Unable to create lesson");
-      setLessonTitle("");
-      setAdding(false);
       await load(courseId);
     } catch (e: any) {
       setError(e.message);
@@ -223,7 +198,8 @@ export function ClassTeachingWorkspace({
         body: JSON.stringify({}),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || j.detail || "AI could not generate lessons");
+      if (!r.ok)
+        throw new Error(j.error || j.detail || "AI could not generate lessons");
       await load(courseId);
     } catch (e: any) {
       setError(e.message || "AI generate failed");
@@ -243,21 +219,17 @@ export function ClassTeachingWorkspace({
   const officialDirection = data?.academic_direction?.available
     ? data.academic_direction.title
     : null;
-  const projectsByWeek = new Map<number, any>(
-    (data?.projects || []).map((project: any) => [
-      Number(project.curriculum_week_number || project.metadata?.week || project.metadata?.week_number),
-      project,
-    ])
+  const lessonsByWeek = indexFirstByWeek<any>(data?.lessons);
+  const assignmentsByWeek = indexFirstByWeek<any>(data?.assignments);
+  const projectsByWeek = indexFirstByWeek<any>(data?.projects);
+  const slidesByWeek = indexFirstByWeek<any>(data?.slide_decks);
+  const flashcardsByWeek = indexFirstByWeek<any>(data?.flashcard_decks);
+  const selectedCourse = (data?.courses || []).find(
+    (course: any) => course.id === courseId
   );
-  const slideLessonIds = new Set(
-    (data?.slide_decks || []).map((deck: any) => deck.lesson_id).filter(Boolean)
-  );
-  const flashcardsByWeek = new Map<number, any>(
-    (data?.flashcard_decks || []).map((deck: any) => [
-      Number(deck.curriculum_week_number),
-      deck,
-    ])
-  );
+  const toolLinkClass =
+    "inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-black text-foreground transition-colors hover:border-primary/40";
+
   return (
     <div className="space-y-4">
       {courseId && (
@@ -333,19 +305,26 @@ export function ClassTeachingWorkspace({
           )}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Curriculum weeks, AI generate, and mark-as-taught all live in this Teaching tab.
+          Curriculum weeks, AI generate, and mark-as-taught all live in this
+          Teaching tab.
         </p>
       </div>
       {data && !data.courses?.length && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-black text-foreground">This class needs a course before teaching can begin</p>
+            <p className="text-sm font-black text-foreground">
+              This class needs a course before teaching can begin
+            </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              The class pathway is present, but it has no programme course to turn into a teaching plan.
+              The class pathway is present, but it has no programme course to
+              turn into a teaching plan.
             </p>
           </div>
           {canEdit && (
-            <Link href={`/dashboard/classes/${classId}/edit`} className="shrink-0 rounded-xl bg-foreground px-4 py-2.5 text-xs font-black text-background">
+            <Link
+              href={`/dashboard/classes/${classId}/edit`}
+              className="shrink-0 rounded-xl bg-foreground px-4 py-2.5 text-xs font-black text-background"
+            >
               Complete class setup
             </Link>
           )}
@@ -420,12 +399,12 @@ export function ClassTeachingWorkspace({
             />
             <Stat label="Projects" value={data.projects?.length || 0} />
             <Stat label="Slides ready" value={data.slide_decks?.length || 0} />
-            <Stat label="Flashcard decks" value={data.flashcard_decks?.length || 0} />
-            <Stat label="Delivered" value={progress?.delivered_count || 0} />
             <Stat
-              label="Latest week"
-              value={progress?.latest_delivered_week || "—"}
+              label="Flashcard decks"
+              value={data.flashcard_decks?.length || 0}
             />
+            <Stat label="Delivered" value={progress?.delivered_count || 0} />
+            <Stat label="Assignments" value={data.assignments?.length || 0} />
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -455,10 +434,13 @@ export function ClassTeachingWorkspace({
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 text-sm font-black text-foreground">
                     <SparklesIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    {aiBusy ? "Generating lessons…" : "AI generate lessons"}
+                    {aiBusy
+                      ? "Generating lessons…"
+                      : "Generate lesson foundations"}
                   </span>
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                    Builds lessons from each curriculum week for this class.
+                    Creates missing lessons in bulk. Complete each five-part
+                    package below.
                   </span>
                 </span>
                 {aiBusy ? (
@@ -505,54 +487,17 @@ export function ClassTeachingWorkspace({
           <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h3 className="text-sm font-black">Curriculum weeks · delivery</h3>
-                <p className="text-xs text-muted-foreground">
-                  Mark taught, open materials, or generate a week with AI.
+                <h3 className="text-sm font-black">Weekly teaching packages</h3>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                  Prepare the lesson, learning slides, flashcards, assignment,
+                  and project as one connected week.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAdding((v) => !v)}
-                className="w-fit rounded-lg border border-border px-3 py-2 text-xs font-bold"
-              >
-                {adding ? "Cancel" : "Add lesson"}
-              </button>
+              <span className="w-fit rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary">
+                5 linked assets per week
+              </span>
             </div>
-            {adding && (
-              <div className="mt-4 grid gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:grid-cols-[110px_1fr_auto]">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Week
-                  <input
-                    type="number"
-                    min={1}
-                    max={53}
-                    value={lessonWeek}
-                    onChange={(e) => setLessonWeek(Number(e.target.value))}
-                    className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                  />
-                </label>
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Lesson title
-                  <input
-                    autoFocus
-                    value={lessonTitle}
-                    onChange={(e) => setLessonTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void createLesson();
-                    }}
-                    placeholder="What will this class learn?"
-                    className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                  />
-                </label>
-                <button
-                  disabled={busy || !lessonTitle.trim()}
-                  onClick={() => void createLesson()}
-                  className="self-end rounded-lg bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground disabled:opacity-50"
-                >
-                  Create
-                </button>
-              </div>
-            )}{" "}
+
             {canEdit && picked.size > 0 && (
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
                 <p className="flex-1 text-xs font-bold text-foreground">
@@ -594,39 +539,95 @@ export function ClassTeachingWorkspace({
                 </button>
               </div>
             )}
+
             <div className="mt-4 space-y-3">
-              {(data.lessons.length ? data.lessons : weeks).map(
-                (item: any, i: number) => {
-                  const lesson = !!item.id && !!item.title;
-                  const week = Number(
-                    item.curriculum_week_number || item.week || i + 1
-                  );
-                  const key = `${week}:${lesson ? item.id : ""}`;
-                  const delivery: any = delivered.get(key);
-                  const done = delivery?.status === "delivered";
-                  const project = projectsByWeek.get(week);
-                  const hasSlides = lesson && slideLessonIds.has(item.id);
-                  const flashcardDeck = flashcardsByWeek.get(week);
-                  const topic = item.title || item.topic || `Week ${week}`;
-                  const weekMeta = weeks.find(
-                    (w: any) => Number(w.week) === week
-                  ) || { week, topic };
-                  return (
-                    <div
-                      key={key + i}
-                      className="rounded-xl border border-border bg-card p-3"
-                    >
-                      <div className="flex items-start gap-2">
+              {curriculumWeeks.map((weekMeta: any, i: number) => {
+                const week = Number(
+                  weekMeta.week || weekMeta.curriculum_week_number || i + 1
+                );
+                const lesson = lessonsByWeek.get(week);
+                const assignment = assignmentsByWeek.get(week);
+                const project = projectsByWeek.get(week);
+                const slideDeck =
+                  slidesByWeek.get(week) ||
+                  (lesson
+                    ? (data?.slide_decks || []).find(
+                        (deck: any) => deck.lesson_id === lesson.id
+                      )
+                    : null);
+                const flashcardDeck =
+                  flashcardsByWeek.get(week) ||
+                  (lesson
+                    ? (data?.flashcard_decks || []).find(
+                        (deck: any) => deck.lesson_id === lesson.id
+                      )
+                    : null);
+                const topic = weekMeta.topic || lesson?.title || `Week ${week}`;
+                const objectives: string =
+                  typeof weekMeta.objectives === "string"
+                    ? weekMeta.objectives
+                    : Array.isArray(weekMeta.objectives)
+                    ? weekMeta.objectives.join("\n")
+                    : "";
+                const activities: string =
+                  typeof weekMeta.activities === "string"
+                    ? weekMeta.activities
+                    : Array.isArray(weekMeta.activities)
+                    ? weekMeta.activities.join("\n")
+                    : "";
+                const packageStatus = weekPackageStatus({
+                  lesson: Boolean(lesson),
+                  slides: Boolean(slideDeck),
+                  flashcards: Boolean(flashcardDeck),
+                  assignment: Boolean(assignment),
+                  project: Boolean(project),
+                });
+                const delivery = deliveredByWeek.get(week);
+                const taught = delivery?.status === "delivered";
+                const manualLessonHref = buildLessonNewHref({
+                  classId,
+                  courseId,
+                  programId: data?.class?.program_id,
+                  lessonPlanId: plan.id,
+                  curriculumId: plan.curriculum_version_id,
+                  week,
+                  topic,
+                  subject: selectedCourse?.title,
+                  description: [objectives, activities]
+                    .filter(Boolean)
+                    .join("\n\n"),
+                  notes: weekMeta.notes,
+                  plan: {
+                    objectives: objectives
+                      .split("\n")
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                    student_activities: activities
+                      .split("\n")
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                    assignment: weekMeta.assignment,
+                    project: weekMeta.project,
+                  },
+                });
+
+                return (
+                  <article
+                    key={week}
+                    className="overflow-hidden rounded-2xl border border-border bg-card"
+                  >
+                    <div className="p-3 sm:p-4">
+                      <div className="flex items-start gap-3">
                         {canEdit && (
                           <label className="flex shrink-0 items-center pt-1">
                             <input
                               type="checkbox"
                               aria-label={`Select week ${week}`}
                               checked={picked.has(week)}
-                              onChange={(e) =>
-                                setPicked((prev) => {
-                                  const next = new Set(prev);
-                                  if (e.target.checked) next.add(week);
+                              onChange={(event) =>
+                                setPicked((previous) => {
+                                  const next = new Set(previous);
+                                  if (event.target.checked) next.add(week);
                                   else next.delete(week);
                                   return next;
                                 })
@@ -636,115 +637,92 @@ export function ClassTeachingWorkspace({
                           </label>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                            Week {week}
-                            {done && (
-                              <span className="ml-2 text-emerald-600 dark:text-emerald-400">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                              Week {week}
+                            </p>
+                            {taught && (
+                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                                 Taught
                               </span>
                             )}
+                          </div>
+                          <h4 className="mt-1 text-sm font-black leading-5 text-foreground sm:text-base">
+                            {topic}
+                          </h4>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {packageStatus.readyCount} of{" "}
+                            {packageStatus.totalCount} teaching assets ready
                           </p>
-                          <p className="text-sm font-bold text-foreground">{topic}</p>
                         </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                            packageStatus.complete
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                          }`}
+                        >
+                          {packageStatus.complete
+                            ? "Ready"
+                            : `${packageStatus.missing.length} missing`}
+                        </span>
                       </div>
 
-                      {canEdit && (
-                        <div className="mt-3 space-y-2">
-                          <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() =>
-                                setAiWeek({
-                                  week,
-                                  topic,
-                                  objectives: weekMeta.objectives,
-                                  activities: weekMeta.activities,
-                                })
-                              }
-                              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-2 text-[10px] font-black text-violet-700 dark:text-violet-300"
-                            >
-                              <SparklesIcon className="h-3.5 w-3.5" />
-                              AI generate
-                            </button>
-                            {lesson && (
-                              <Link
-                                href={buildLessonSlidesHref({
-                                  lessonId: item.id,
-                                  returnClassId: classId,
-                                })}
-                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                              >
-                                {hasSlides ? "Open slides" : "Add slides"}
-                              </Link>
-                            )}
-                            {flashcardDeck ? (
-                              <Link
-                                href={buildFlashcardsHref({
-                                  deckId: flashcardDeck.id,
-                                  classId,
-                                  courseId,
-                                  lessonId: lesson ? item.id : null,
-                                  lessonPlanId: plan.id,
-                                  topic,
-                                })}
-                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                              >
-                                Flashcards
-                              </Link>
-                            ) : (
-                              <button
-                                disabled={busy}
-                                onClick={() => void createFlashcardDeck(item, week)}
-                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                              >
-                                Flashcards
-                              </button>
-                            )}
-                            <Link
-                              href={buildAssignmentNewHref({
-                                classId,
-                                courseId,
-                                lessonPlanId: plan.id,
-                                lessonId: lesson ? item.id : null,
-                                week,
-                              })}
-                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                            >
-                              Assignment
-                            </Link>
-                            <Link
-                              href={project
-                                ? `/dashboard/projects/${project.id}`
-                                : buildProjectNewHref({
-                                    classId,
-                                    courseId,
-                                    schoolId: data?.class?.school_id,
-                                    lessonPlanId: plan.id,
-                                    lessonId: lesson ? item.id : null,
-                                    week,
-                                  })}
-                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                            >
-                              {project ? "Open project" : "Create project"}
-                            </Link>
-                            <Link
-                              href={buildCbtNewHref({
-                                classId,
-                                courseId,
-                                programId: data?.class?.program_id,
-                                schoolId: data?.class?.school_id,
-                                lessonPlanId: plan.id,
-                                lessonId: lesson ? item.id : null,
-                                curriculumId: plan.curriculum_version_id,
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        <AssetStatus label="Lesson" ready={Boolean(lesson)} />
+                        <AssetStatus
+                          label="Slides"
+                          ready={Boolean(slideDeck)}
+                        />
+                        <AssetStatus
+                          label="Flashcards"
+                          ready={Boolean(flashcardDeck)}
+                        />
+                        <AssetStatus
+                          label="Assignment"
+                          ready={Boolean(assignment)}
+                        />
+                        <AssetStatus label="Project" ready={Boolean(project)} />
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        {canEdit && !packageStatus.complete ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setAiWeek({
                                 week,
                                 topic,
-                              })}
-                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black"
-                            >
-                              Evaluation
-                            </Link>
-                          </div>
+                                objectives,
+                                activities,
+                                notes: weekMeta.notes,
+                                assignment: weekMeta.assignment,
+                                project: weekMeta.project,
+                              })
+                            }
+                            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-50"
+                          >
+                            <SparklesIcon className="h-4 w-4" />
+                            Prepare missing assets with AI
+                          </button>
+                        ) : lesson ? (
+                          <Link
+                            href={`/dashboard/lessons/${lesson.id}`}
+                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm"
+                          >
+                            Review lesson package
+                          </Link>
+                        ) : null}
+                        {canEdit && !lesson && (
+                          <Link
+                            href={manualLessonHref}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground"
+                          >
+                            Build lesson manually
+                          </Link>
+                        )}
+                        {canEdit && (
                           <button
                             disabled={busy}
                             onClick={() =>
@@ -752,28 +730,147 @@ export function ClassTeachingWorkspace({
                                 action: "record_delivery",
                                 lesson_plan_id: plan.id,
                                 week_number: week,
-                                lesson_id: lesson ? item.id : null,
-                                status: done ? "planned" : "delivered",
+                                lesson_id: lesson?.id || null,
+                                status: taught ? "planned" : "delivered",
                               })
                             }
-                            className={`inline-flex w-full min-h-10 items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-black sm:w-auto ${
-                              done
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "border border-border bg-background"
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-black ${
+                              taught
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                : "border border-border bg-background text-foreground"
                             }`}
                           >
                             <CheckCircleIcon className="h-4 w-4" />
-                            {done ? "Taught — tap to undo" : "Mark as taught"}
+                            {taught ? "Taught - undo" : "Mark as taught"}
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  );
-                }
-              )}
-              {!data.lessons.length && !weeks.length && (
-                <p className="py-5 text-center text-xs text-muted-foreground">
-                  The plan is linked. Add a lesson or run AI generate lessons to begin delivery.
+
+                    <details className="border-t border-border bg-muted/20">
+                      <summary className="cursor-pointer list-none px-3 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground sm:px-4">
+                        Open individual tools
+                      </summary>
+                      <div className="grid grid-cols-2 gap-2 border-t border-border p-3 sm:flex sm:flex-wrap sm:p-4">
+                        {lesson ? (
+                          <Link
+                            href={`/dashboard/lessons/${lesson.id}`}
+                            className={toolLinkClass}
+                          >
+                            Open lesson
+                          </Link>
+                        ) : canEdit ? (
+                          <Link
+                            href={manualLessonHref}
+                            className={toolLinkClass}
+                          >
+                            Rich lesson builder
+                          </Link>
+                        ) : null}
+                        {lesson && (
+                          <Link
+                            href={buildLessonSlidesHref({
+                              lessonId: lesson.id,
+                              returnClassId: classId,
+                            })}
+                            className={toolLinkClass}
+                          >
+                            {slideDeck ? "Open slides" : "Add slides"}
+                          </Link>
+                        )}
+                        {flashcardDeck ? (
+                          <Link
+                            href={buildFlashcardsHref({
+                              deckId: flashcardDeck.id,
+                              classId,
+                              courseId,
+                              lessonId: lesson?.id || null,
+                              lessonPlanId: plan.id,
+                              topic,
+                            })}
+                            className={toolLinkClass}
+                          >
+                            Open flashcards
+                          </Link>
+                        ) : canEdit ? (
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              void createFlashcardDeck(lesson || weekMeta, week)
+                            }
+                            className={`${toolLinkClass} disabled:opacity-50`}
+                          >
+                            Create flashcards
+                          </button>
+                        ) : null}
+                        {assignment ? (
+                          <Link
+                            href={`/dashboard/assignments/${assignment.id}`}
+                            className={toolLinkClass}
+                          >
+                            Open assignment
+                          </Link>
+                        ) : canEdit ? (
+                          <Link
+                            href={buildAssignmentNewHref({
+                              classId,
+                              courseId,
+                              lessonPlanId: plan.id,
+                              lessonId: lesson?.id || null,
+                              week,
+                            })}
+                            className={toolLinkClass}
+                          >
+                            Create assignment
+                          </Link>
+                        ) : null}
+                        {project ? (
+                          <Link
+                            href={`/dashboard/projects/${project.id}`}
+                            className={toolLinkClass}
+                          >
+                            Open project
+                          </Link>
+                        ) : canEdit ? (
+                          <Link
+                            href={buildProjectNewHref({
+                              classId,
+                              courseId,
+                              schoolId: data?.class?.school_id,
+                              lessonPlanId: plan.id,
+                              lessonId: lesson?.id || null,
+                              week,
+                            })}
+                            className={toolLinkClass}
+                          >
+                            Create project
+                          </Link>
+                        ) : null}
+                        <Link
+                          href={buildCbtNewHref({
+                            classId,
+                            courseId,
+                            programId: data?.class?.program_id,
+                            schoolId: data?.class?.school_id,
+                            lessonPlanId: plan.id,
+                            lessonId: lesson?.id || null,
+                            curriculumId: plan.curriculum_version_id,
+                            week,
+                            topic,
+                          })}
+                          className={toolLinkClass}
+                        >
+                          Evaluation
+                        </Link>
+                      </div>
+                    </details>
+                  </article>
+                );
+              })}
+              {curriculumWeeks.length === 0 && (
+                <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs leading-5 text-muted-foreground">
+                  This plan has no curriculum weeks yet. Open the full teaching
+                  plan to add its progression.
                 </p>
               )}
             </div>
@@ -786,6 +883,14 @@ export function ClassTeachingWorkspace({
           week={aiWeek}
           planId={plan.id}
           courseId={courseId}
+          classId={classId}
+          existing={{
+            lessonId: lessonsByWeek.get(aiWeek.week)?.id,
+            slideDeckId: slidesByWeek.get(aiWeek.week)?.id,
+            deckId: flashcardsByWeek.get(aiWeek.week)?.id,
+            assignmentId: assignmentsByWeek.get(aiWeek.week)?.id,
+            projectId: projectsByWeek.get(aiWeek.week)?.id,
+          }}
           onClose={() => setAiWeek(null)}
           onDone={() => {
             setAiWeek(null);
@@ -804,5 +909,25 @@ function Stat({ label, value }: { label: string; value: string | number }) {
         {label}
       </p>
     </div>
+  );
+}
+
+function AssetStatus({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+        ready
+          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          : "border-border bg-muted/40 text-muted-foreground"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`h-1.5 w-1.5 rounded-full ${
+          ready ? "bg-emerald-500" : "bg-muted-foreground/40"
+        }`}
+      />
+      {label}
+    </span>
   );
 }

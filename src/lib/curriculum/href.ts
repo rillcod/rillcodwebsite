@@ -77,12 +77,10 @@ export function buildTimingHref(
 }
 
 /** Open a class on the teaching workspace for a course. */
-export function buildClassTeachingHref(
-  args: {
-    classId: string;
-    courseId?: string | null;
-  }
-): string {
+export function buildClassTeachingHref(args: {
+  classId: string;
+  courseId?: string | null;
+}): string {
   return withQuery(`/dashboard/classes/${args.classId}`, {
     operation: "teaching",
     course_id: args.courseId,
@@ -90,12 +88,10 @@ export function buildClassTeachingHref(
 }
 
 /** Open a class on the assessment desk. */
-export function buildClassAssessmentHref(
-  args: {
-    classId: string;
-    courseId?: string | null;
-  }
-): string {
+export function buildClassAssessmentHref(args: {
+  classId: string;
+  courseId?: string | null;
+}): string {
   return withQuery(`/dashboard/classes/${args.classId}`, {
     operation: "assessment",
     course_id: args.courseId,
@@ -106,16 +102,48 @@ export function buildLessonPlanHref(planId: string): string {
   return `/dashboard/lesson-plans/${planId}`;
 }
 
-export function buildLessonSlidesHref(
-  args: {
-    lessonId: string;
-    returnClassId?: string | null;
-  }
-): string {
-  return withQuery(`/dashboard/lessons/${args.lessonId}`, {
-    tab: "materials",
-    return_class_id: args.returnClassId,
-  }) + "#learning-slides";
+export function buildLessonNewHref(args: {
+  classId?: string | null;
+  courseId?: string | null;
+  programId?: string | null;
+  lessonPlanId?: string | null;
+  curriculumId?: string | null;
+  week?: number | string | null;
+  topic?: string | null;
+  subject?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  plan?: Record<string, unknown> | null;
+}): string {
+  const planJson = args.plan ? JSON.stringify(args.plan) : "";
+  return withQuery("/dashboard/lessons/add", {
+    source: args.curriculumId ? "curriculum" : null,
+    flow_origin: "class-teaching",
+    class_id: args.classId,
+    course_id: args.courseId,
+    program_id: args.programId,
+    lesson_plan_id: args.lessonPlanId,
+    curriculum_id: args.curriculumId,
+    week: args.week,
+    title: args.topic,
+    topic: args.topic,
+    subject: args.subject,
+    description: args.description,
+    lesson_notes: args.notes,
+    lesson_plan: planJson.length <= 4500 ? planJson : null,
+  });
+}
+
+export function buildLessonSlidesHref(args: {
+  lessonId: string;
+  returnClassId?: string | null;
+}): string {
+  return (
+    withQuery(`/dashboard/lessons/${args.lessonId}`, {
+      tab: "materials",
+      return_class_id: args.returnClassId,
+    }) + "#learning-slides"
+  );
 }
 
 export function buildFlashcardsHref(
@@ -202,47 +230,52 @@ export function buildCbtNewHref(args: {
   });
 }
 
-export function buildGradesHref(args: {
-  classId?: string | null;
-  courseId?: string | null;
-} = {}): string {
+export function buildGradesHref(
+  args: {
+    classId?: string | null;
+    courseId?: string | null;
+  } = {}
+): string {
   return withQuery("/dashboard/grades", {
     class_id: args.classId,
     course_id: args.courseId,
   });
 }
 
-export function buildResultsHref(args: {
-  classId?: string | null;
-  courseId?: string | null;
-} = {}): string {
+export function buildResultsHref(
+  args: {
+    classId?: string | null;
+    courseId?: string | null;
+  } = {}
+): string {
   return withQuery("/dashboard/academic/results", {
     class_id: args.classId,
     course_id: args.courseId,
   });
 }
 
-export function buildParentGradesHref(args: {
-  studentId?: string | null;
-} = {}): string {
+export function buildParentGradesHref(
+  args: {
+    studentId?: string | null;
+  } = {}
+): string {
   return withQuery("/dashboard/parent-grades", {
     student: args.studentId,
   });
 }
 
-export function buildParentResultsHref(args: {
-  studentId?: string | null;
-} = {}): string {
+export function buildParentResultsHref(
+  args: {
+    studentId?: string | null;
+  } = {}
+): string {
   return withQuery("/dashboard/parent-results", {
     student: args.studentId,
   });
 }
 
 /** Params carried across the curriculum asset lane (author → timing). */
-export const ASSET_LANE_QUERY_KEYS = [
-  "curriculum_id",
-  "course_id",
-] as const;
+export const ASSET_LANE_QUERY_KEYS = ["curriculum_id", "course_id"] as const;
 
 export function pickAssetLaneQuery(
   source: URLSearchParams | string

@@ -69,7 +69,8 @@ export async function GET(
     new URL(req.url).searchParams.get("course_id") ||
     klass.current_course_id ||
     null;
-  const effectiveProgrammeId = klass.program_id || klass.academic_offerings?.programme_id || null;
+  const effectiveProgrammeId =
+    klass.program_id || klass.academic_offerings?.programme_id || null;
   const { data: courses } = effectiveProgrammeId
     ? await db
         .from("courses")
@@ -91,6 +92,7 @@ export async function GET(
   let plan: any = null;
   let lessons: any[] = [];
   let projects: any[] = [];
+  let assignments: any[] = [];
   let slideDecks: any[] = [];
   let flashcardDecks: any[] = [];
   let deliveries: any[] = [];
@@ -123,9 +125,11 @@ export async function GET(
         db
           .from("lessons")
           .select(
-            "id,title,description,status,session_date,duration_minutes,curriculum_week_number,lesson_plan_id"
+            "id,title,description,status,session_date,duration_minutes,curriculum_week_number,lesson_plan_id,metadata"
           )
-          .eq("lesson_plan_id", plan.id)
+          .or(
+            `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
+          )
           .order("curriculum_week_number")
           .order("order_index"),
         db
@@ -142,25 +146,50 @@ export async function GET(
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
-      const [projectResult, slideResult, flashcardResult] = await Promise.all([
-        db
-          .from("assignments")
-          .select("id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,metadata")
-          .eq("assignment_type", "project")
-          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`)
-          .order("created_at", { ascending: false }),
-        db
-          .from("lesson_materials")
-          .select("id,title,lesson_id,curriculum_week_number")
-          .eq("lesson_plan_id", plan.id)
-          .eq("file_type", "slide-deck"),
-        db
-          .from("flashcard_decks")
-          .select("id,title,lesson_id,curriculum_week_number")
-          .eq("lesson_plan_id", plan.id)
-          .order("created_at", { ascending: false }),
-      ]);
-      projects = projectResult.data || [];
+      const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
+      const planOrLessonScope = [
+        `lesson_plan_id.eq.${plan.id}`,
+        ...(lessonIds.length ? [`lesson_id.in.(${lessonIds.join(",")})`] : []),
+      ].join(",");
+      const [assignmentResult, slideResult, flashcardResult] =
+        await Promise.all([
+          db
+            .from("assignments")
+            .select(
+              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,metadata,assignment_type"
+            )
+            .or(
+              [
+                `lesson_plan_id.eq.${plan.id}`,
+                `metadata->>lesson_plan_id.eq.${plan.id}`,
+                ...(lessonIds.length
+                  ? [`lesson_id.in.(${lessonIds.join(",")})`]
+                  : []),
+              ].join(",")
+            )
+            .order("created_at", { ascending: false }),
+          db
+            .from("lesson_materials")
+            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
+            .or(planOrLessonScope)
+            .eq("file_type", "slide-deck"),
+          db
+            .from("flashcard_decks")
+            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
+            .or(planOrLessonScope)
+            .order("created_at", { ascending: false }),
+        ]);
+      const assignmentRows = assignmentResult.data || [];
+      const isLegacyAssignmentBlock = (row: any) =>
+        row.metadata?.source === "week-ai-generator";
+      assignments = assignmentRows.filter(
+        (row: any) =>
+          row.assignment_type !== "project" || isLegacyAssignmentBlock(row)
+      );
+      projects = assignmentRows.filter(
+        (row: any) =>
+          row.assignment_type === "project" && !isLegacyAssignmentBlock(row)
+      );
       slideDecks = slideResult.data || [];
       flashcardDecks = flashcardResult.data || [];
     }
@@ -199,6 +228,7 @@ export async function GET(
           },
       plan,
       lessons,
+      assignments,
       projects,
       slide_decks: slideDecks,
       flashcard_decks: flashcardDecks,
@@ -299,9 +329,7 @@ export async function POST(
             .maybeSingle(),
           db
             .from("academic_curriculum_adoptions")
-            .select(
-              "release_id, academic_session, effective_term_number"
-            )
+            .select("release_id, academic_session, effective_term_number")
             .eq("school_id", klass.school_id)
             .eq("course_id", courseId)
             .eq("status", "active"),
@@ -313,9 +341,7 @@ export async function POST(
         effective_term_number: number | null;
       }>;
       const sameSession = candidates.filter(
-        (a) =>
-          !term?.academic_year ||
-          a.academic_session === term.academic_year
+        (a) => !term?.academic_year || a.academic_session === term.academic_year
       );
       const applicable = (sameSession.length ? sameSession : candidates).find(
         (a) =>
@@ -485,9 +511,7 @@ export async function POST(
   if (body.action === "record_delivery_bulk") {
     const weekNumbers: number[] = Array.isArray(body.week_numbers)
       ? [
-          ...new Set(
-            (body.week_numbers as unknown[]).map((w) => Number(w))
-          ),
+          ...new Set((body.week_numbers as unknown[]).map((w) => Number(w))),
         ].filter((w) => Number.isFinite(w) && w > 0)
       : [];
     if (weekNumbers.length === 0) {
@@ -502,7 +526,12 @@ export async function POST(
         { status: 403 }
       );
     }
-    const status = body.status === "planned" ? "planned" : body.status === "skipped" ? "skipped" : "delivered";
+    const status =
+      body.status === "planned"
+        ? "planned"
+        : body.status === "skipped"
+        ? "skipped"
+        : "delivered";
     const results: unknown[] = [];
     for (const week of weekNumbers) {
       const { data, error } = await db.rpc("record_class_lesson_delivery", {
