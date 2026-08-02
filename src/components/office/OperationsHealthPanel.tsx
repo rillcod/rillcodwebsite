@@ -217,7 +217,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                     type="button"
                     disabled={busy === row.job_name}
                     onClick={() => void act({ action: 'run_now', jobName: row.job_name })}
-                    className="min-h-11 touch-manipulation rounded-lg border border-primary px-3 py-2 text-xs font-black text-primary disabled:opacity-50"
+                    className="min-h-11 touch-manipulation rounded-xl border border-primary px-4 py-2 text-xs font-black text-primary hover:bg-primary hover:text-white transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {busy === row.job_name ? 'Checking' : 'Check now'}
                   </button>
