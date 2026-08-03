@@ -153,12 +153,21 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       intentionalUnmountRef.current = true;
       setSeatPending(true);
 
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => {
+        if (seq === loadSeqRef.current && !exitedRef.current) {
+          controller.abort();
+        }
+      }, 6000);
+
       try {
         const res = await fetch('/api/live-sessions/livekit-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId }),
+          signal: controller.signal,
         });
+        clearTimeout(fetchTimeout);
         const j = await res.json();
         if (!res.ok) throw new Error(j.error ?? 'Token error');
         if (seq !== loadSeqRef.current || exitedRef.current) return;
@@ -187,7 +196,11 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         });
       } catch (e: unknown) {
         if (seq !== loadSeqRef.current || exitedRef.current) return;
-        const msg = e instanceof Error ? e.message : 'Failed to connect';
+        clearTimeout(fetchTimeout);
+        const isAbort = e instanceof Error && e.name === 'AbortError';
+        const msg = isAbort
+          ? 'LiveKit server gateway is slow to respond. Please try again or use the backup room.'
+          : e instanceof Error ? e.message : 'Failed to connect';
         setSeatPending(false);
         setError(msg);
         // The server refusing a seat because the host kicked them is its own screen — the
@@ -472,26 +485,21 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       <Overlay>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
         <p className="text-white/70 text-sm font-bold">Starting live meeting…</p>
-        {error ? (
-          <div className="flex flex-col items-center gap-3 mt-2">
-            <p className="text-rose-400 text-xs max-w-sm font-bold text-center px-4">{error}</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
-                  window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
-                }}
-                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
-              >
-                Launch via Jitsi Backup
-              </button>
-              <button type="button" onClick={handleClose} className={BTN_GHOST}>Close</button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-white/40 text-[11px]">Connecting to secure video gateway…</p>
-        )}
+        {error && <p className="text-rose-400 text-xs max-w-sm font-bold text-center px-4">{error}</p>}
+        <p className="text-white/40 text-[11px] mt-1">Connecting to secure video gateway…</p>
+        <div className="flex gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+              window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+            }}
+            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+          >
+            Launch Jitsi Backup
+          </button>
+          <button type="button" onClick={handleClose} className={BTN_GHOST}>Close</button>
+        </div>
       </Overlay>
     );
   }
@@ -515,13 +523,27 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
-        >
-          Leave
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {!mediaReady && (
+            <button
+              type="button"
+              onClick={() => {
+                const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+                window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+              }}
+              className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+            >
+              Use Jitsi Backup
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors shrink-0"
+          >
+            Leave
+          </button>
+        </div>
       </div>
 
       {/* Once the room is mounted the overlays are gone, so this is the ONLY place an error

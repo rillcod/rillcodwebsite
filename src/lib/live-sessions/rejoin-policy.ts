@@ -25,7 +25,7 @@ export type MeetingPhase =
 export const MAX_AUTO_REJOIN = 5;
 
 /** How long a fresh Room gets to reach Connected before we call it a drop. */
-export const CONNECT_DEADLINE_MS = 45_000;
+export const CONNECT_DEADLINE_MS = 15_000;
 
 /**
  * Errors that will never succeed on retry — a closed session, a revoked seat.
