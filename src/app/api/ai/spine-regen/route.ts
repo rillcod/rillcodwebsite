@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 import OpenAI from 'openai';
+import { modelQueueFor } from '@/lib/ai/model-policy';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
 // AI generation is slow on long context (big prompt + dedup retries + model
@@ -80,7 +81,10 @@ async function callAI(prompt: string, temperature = 0.65): Promise<string> {
     }
   }
 
-  for (const model of MODELS) {
+  // Preferences resolved by the one policy: retired ids dropped, free and
+  // healthy models first.
+  const queue = await modelQueueFor({ prefer: MODELS, needsJson: true });
+  for (const model of queue) {
     try {
       const res = await openai.chat.completions.create({
         model,

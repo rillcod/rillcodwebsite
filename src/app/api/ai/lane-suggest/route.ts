@@ -1,3 +1,4 @@
+import { modelQueueFor } from '@/lib/ai/model-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { LANE_LABELS, MAX_LANE } from '@/lib/qa/resolveQaSpineLane';
@@ -28,7 +29,10 @@ async function callAI(prompt: string): Promise<string> {
     if (text.length > 20) return text;
   }
 
-  for (const model of MODELS) {
+  // Preferences; the policy decides. Retired ids are dropped and free,
+  // healthy models lead — the same rule for every AI path in the app.
+  const resolved = await modelQueueFor({ prefer: MODELS, needsJson: true });
+  for (const model of resolved) {
     try {
       const res = await openai.chat.completions.create({
         model,

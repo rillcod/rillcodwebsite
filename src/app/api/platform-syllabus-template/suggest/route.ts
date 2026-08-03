@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
+import { modelQueueFor } from '@/lib/ai/model-policy';
 import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 
 const client = new OpenAI({
@@ -68,7 +69,8 @@ Requirements:
     'meta-llama/llama-3.3-70b-instruct',
   ];
 
-  for (const model of models) {
+  const queue = await modelQueueFor({ prefer: models, needsJson: true });
+  for (const model of queue) {
     try {
       const res = await client.chat.completions.create({
         model,

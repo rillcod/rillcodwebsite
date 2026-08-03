@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
+import { modelQueueFor } from '@/lib/ai/model-policy';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -73,10 +74,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Task-Specific Prioritization: Grok-2 for Scratch Visuals
-    let modelQueue = [...MODELS];
+    let preferences = [...MODELS];
     if (type === 'scratch-blocks') {
-      modelQueue = ["x-ai/grok-2-1212", ...MODELS.filter(m => m !== "x-ai/grok-2-1212")];
+      preferences = ["x-ai/grok-2-1212", ...MODELS.filter(m => m !== "x-ai/grok-2-1212")];
     }
+
+    // One policy for the whole app: resolves these against the live free tier,
+    // drops the retired ids, and puts free and healthy models first. The list
+    // above stays as a statement of what suits the task, not as the decision.
+    const modelQueue = await modelQueueFor({ prefer: preferences, needsJson: true });
 
     for (const model of modelQueue) {
       try {

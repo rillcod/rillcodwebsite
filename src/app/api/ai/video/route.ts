@@ -1,3 +1,4 @@
+import { defaultFreeModel } from '@/lib/ai/model-policy';
 import { NextRequest, NextResponse } from 'next/server';
 
 // AI video generation APIs do not offer a free/reliable public endpoint.
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
         'X-Title': 'Rillcod Technologies',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
+        model: await defaultFreeModel(),
         messages: [
           {
             role: 'user',

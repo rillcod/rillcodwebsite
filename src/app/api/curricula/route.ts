@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { getParentLinkScope } from "@/lib/parents/links";
 import { geminiGenerateText } from "@/lib/gemini/client";
+import { modelQueueFor } from "@/lib/ai/model-policy";
 import {
   consolidateSameScopeCurricula,
   forceDeleteCurriculumDraft,
@@ -38,7 +39,14 @@ const openRouter = new OpenAI({
   maxRetries: 0,
 });
 
-const CURRICULUM_MODELS = [
+/**
+ * Preferences, not the decision. modelQueueFor resolves these against the live
+ * free tier, drops the ones OpenRouter has retired — deepseek-r1:free and
+ * qwen3-235b:free among them — and orders what remains free-first and
+ * healthiest-first. Left here because the ordering still says something about
+ * what suits a multi-week syllabus.
+ */
+const CURRICULUM_MODEL_PREFERENCES = [
   "google/gemini-2.5-flash", // Cutting-edge premium stable
   "google/gemini-2.5-pro", // Cutting-edge premium reasoning
   "deepseek/deepseek-r1:free", // Reasoning model — great for multi-week curriculum
@@ -523,7 +531,13 @@ async function generateCurriculum(prompt: string): Promise<any> {
     }
   }
 
-  for (const model of CURRICULUM_MODELS) {
+  // A syllabus is a JSON document, so only models that can be asked for one.
+  const curriculumModels = await modelQueueFor({
+    prefer: CURRICULUM_MODEL_PREFERENCES,
+    needsJson: true,
+  });
+
+  for (const model of curriculumModels) {
     try {
       const response = await openRouter.chat.completions.create({
         model,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { modelQueueFor } from "@/lib/ai/model-policy";
 import OpenAI from 'openai';
 import { requireGovernanceActor } from '@/lib/curriculum/governance-server';
 import { academicVoiceInstruction, cleanAcademicVoice, voiceForRole } from '@/lib/ai/academicVoice';
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
 Intent: ${intent}.
 Respect these boundaries: the official academic direction is read-only unless a human Academic Admin publishes a new edition; school timing is separate from curriculum content; teacher delivery ideas may change activities and examples but not official topics, sequence, grade, or learning outcomes.`;
   let answer = '';
-  for (const model of MODELS) {
+  const queue = await modelQueueFor({ prefer: MODELS, needsJson: true });
+  for (const model of queue) {
     try {
       const response = await client.chat.completions.create({
         model,

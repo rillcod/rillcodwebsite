@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { modelQueueFor } from "@/lib/ai/model-policy";
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
@@ -157,7 +158,10 @@ FORMATTING — your reply is rendered as Markdown, so use it:
       { role: 'user', content: message.trim() },
     ];
 
-    for (const model of FALLBACK_MODELS) {
+    // Preferences; the policy decides. Retired ids are dropped and free,
+    // healthy models lead — the same rule for every AI path in the app.
+    const resolved = await modelQueueFor({ prefer: FALLBACK_MODELS, needsJson: true });
+    for (const model of resolved) {
       try {
         const completion = await client.chat.completions.create({
           model,

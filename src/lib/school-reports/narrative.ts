@@ -1,3 +1,4 @@
+import { modelQueueFor } from '@/lib/ai/model-policy';
 import OpenAI from 'openai';
 import { buildDeliveredTopicsSummary, buildDeliveryContext, buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
 import {
@@ -276,12 +277,17 @@ function mergeNarrative(
 /**
  * OpenRouter model for the narrative.
  *
- * The previous default, google/gemini-2.0-flash-001, had been retired: OpenRouter
- * answered every request with "404 No endpoints found", so EVERY school report
- * silently fell back to template text. Nothing surfaced it because the fallback
- * is a legitimate code path that produces a valid-looking report.
+ * The comment this replaces recorded the exact failure twice over: the default
+ * google/gemini-2.0-flash-001 had been retired, OpenRouter answered every
+ * request with "404 No endpoints found", and EVERY school report silently fell
+ * back to template text — invisible, because the fallback is a legitimate path
+ * producing a valid-looking report. It was fixed by hardcoding another id.
+ *
+ * That replacement is retired too. Which is the argument against ever writing
+ * one here: this is now a preference, resolved by modelQueueFor against what
+ * OpenRouter actually serves, so the next retirement fixes itself.
  */
-const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.0-flash-exp:free';
+const PREFERRED_OPENROUTER_MODEL = 'google/gemini-2.0-flash-exp:free';
 
 /**
  * Ask for the narrative JSON, native Gemini first.
@@ -365,8 +371,15 @@ Return JSON: { "topicsCovered": "..." }`
     : null;
 
   try {
+    // An explicit env override still wins outright — that is someone choosing
+    // deliberately. Otherwise the policy picks from what is actually served.
+    const override = process.env.SCHOOL_REPORT_AI_MODEL?.trim();
     const model =
-      process.env.SCHOOL_REPORT_AI_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+      override ||
+      (await modelQueueFor({
+        prefer: [PREFERRED_OPENROUTER_MODEL],
+        needsJson: true,
+      }))[0];
     const raw = await requestNarrativeJson({
       client,
       model,

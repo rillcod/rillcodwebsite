@@ -1,3 +1,4 @@
+import { modelQueueFor } from '@/lib/ai/model-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -183,7 +184,10 @@ export async function POST(req: NextRequest) {
     'qwen/qwen3-14b:free',
   ];
 
-  for (const model of MODELS) {
+  // Preferences; the policy decides. Retired ids are dropped and free,
+  // healthy models lead — the same rule for every AI path in the app.
+  const resolved = await modelQueueFor({ prefer: MODELS, needsJson: true });
+  for (const model of resolved) {
     try {
       const completion = await client.chat.completions.create({
         model,
