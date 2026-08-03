@@ -14,6 +14,8 @@
  * correctly.
  */
 
+import { readStoredFreeModels } from "./model-catalogue-store";
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export function isFreeModel(modelId: string): boolean {
@@ -71,7 +73,25 @@ export async function availableFreeModels(signal?: AbortSignal): Promise<string[
     cachedFreeModels = { at: Date.now(), ids };
     return ids;
   } catch {
-    return cachedFreeModels?.ids ?? FREE_FALLBACK_MODELS;
+    if (cachedFreeModels?.ids.length) return cachedFreeModels.ids;
+
+    // The catalogue is unreachable and nothing is cached — the one moment a
+    // fallback matters. Prefer the list the drift job last recorded, which is
+    // real, over the constant in this file, which is the thing that rots.
+    //
+    // Guarded separately: this runs inside the catch above, so a store that
+    // threw would escape and take generation down at precisely the moment the
+    // fallback was supposed to save it.
+    try {
+      const stored = await readStoredFreeModels();
+      if (stored?.ids.length) {
+        cachedFreeModels = { at: Date.now(), ids: stored.ids };
+        return stored.ids;
+      }
+    } catch {
+      /* fall through to the constant */
+    }
+    return FREE_FALLBACK_MODELS;
   }
 }
 

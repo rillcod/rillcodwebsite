@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   openRouterComplete,
+  availableFreeModels,
   orderFreeFirst,
   resolveModelQueue,
   resetFreeModelCache,
@@ -284,6 +285,61 @@ describe("resolveModelQueue — dead free models replaced from the live catalogu
     await resolveModelQueue([]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+vi.mock("./model-catalogue-store", () => ({
+  readStoredFreeModels: vi.fn(),
+  writeStoredFreeModels: vi.fn(),
+}));
+import { readStoredFreeModels } from "./model-catalogue-store";
+
+describe("the fallback the drift job keeps repaired", () => {
+  afterEach(() => {
+    resetFreeModelCache();
+    vi.mocked(readStoredFreeModels).mockReset();
+  });
+
+  it("prefers the recorded list over the constant when the catalogue is down", async () => {
+    // The constant is the thing that rots; the recorded list was real as of
+    // the last daily check.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    vi.mocked(readStoredFreeModels).mockResolvedValue({
+      ids: ["recorded/model:free"],
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    expect(await availableFreeModels()).toEqual(["recorded/model:free"]);
+  });
+
+  it("falls back to the constant only when nothing has been recorded", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    vi.mocked(readStoredFreeModels).mockResolvedValue(null);
+
+    expect(await availableFreeModels()).toEqual(FREE_FALLBACK_MODELS);
+  });
+
+  it("does not consult the store while the catalogue is answering", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: [{ id: "live/model:free", context_length: 9 }] }),
+      } as unknown as Response)
+    );
+
+    expect(await availableFreeModels()).toEqual(["live/model:free"]);
+    expect(readStoredFreeModels).not.toHaveBeenCalled();
+  });
+
+  it("survives a store that throws, rather than taking generation down", async () => {
+    // The store read runs inside the catalogue's own catch block, so an
+    // unguarded throw here would escape at exactly the moment the fallback was
+    // meant to rescue the request.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    vi.mocked(readStoredFreeModels).mockRejectedValue(new Error("db down"));
+
+    await expect(availableFreeModels()).resolves.toEqual(FREE_FALLBACK_MODELS);
   });
 });
 

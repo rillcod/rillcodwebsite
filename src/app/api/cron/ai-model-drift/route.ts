@@ -20,6 +20,7 @@ import { runMonitoredCron } from "@/lib/operations/cron-monitor";
 import { cronInterval } from "@/lib/operations/cron-registry";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { detectFreeModelDrift } from "@/lib/ai/openrouter";
+import { writeStoredFreeModels } from "@/lib/ai/model-catalogue-store";
 import { referencedOpenRouterModels } from "@/lib/ai/referenced-models";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,16 @@ async function handle(req: NextRequest) {
     });
   }
 
+  // Record the live list as the new safety net. This is the automatic part:
+  // the fallback used when OpenRouter is unreachable is refreshed every day, so
+  // it can never decay into the nine dead ids the constant had accumulated.
+  const recorded = await writeStoredFreeModels(drift.live);
+  if (!recorded) {
+    console.warn(
+      "[ai-model-drift] could not record the live model list — the fallback stays as it was"
+    );
+  }
+
   if (drift.retired.length) {
     console.warn(
       `[ai-model-drift] ${drift.retired.length} referenced free model(s) retired: ${drift.retired.join(", ")}. ` +
@@ -75,6 +86,7 @@ async function handle(req: NextRequest) {
     newlyAvailable: drift.added,
     // The strongest free models on offer, for whoever reads this.
     suggestedFallback: drift.live.slice(0, 4),
+    fallbackRecorded: recorded,
     healthy: drift.retired.length === 0 && drift.staleFallback.length === 0,
   });
 }
