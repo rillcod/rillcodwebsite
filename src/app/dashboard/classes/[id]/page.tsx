@@ -20,6 +20,7 @@ import { AddStudentModal } from '@/features/students/components/AddStudentModal'
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { classCoverageFromRows } from '@/lib/academic/class-coverage';
 import {
   buildAssignmentNewHref,
   buildCbtNewHref,
@@ -349,9 +350,8 @@ export default function ClassDetailPage() {
           cbtSessions
         });
 
-        // Teaching workspace writes class_lesson_delivery; older flows use
-        // curriculum_week_tracking. Prefer delivery rows so coverage matches what
-        // teachers mark in the Teaching tab (otherwise the bar stays empty forever).
+        // Precedence between the two sources lives in classCoverageFromRows,
+        // so this and the realtime refresh below cannot disagree.
         const [deliveryRes, weekRes] = await Promise.all([
           withTimeout(
             supabase
@@ -370,26 +370,10 @@ export default function ClassDetailPage() {
             'class week tracking coverage',
           ),
         ]);
-        const deliveryRows = ((deliveryRes as { data: { week_number: number; status: string }[] | null })?.data ?? []);
-        const weekRows = ((weekRes as { data: { status: string }[] | null })?.data ?? []);
-        if (deliveryRows.length > 0) {
-          const byWeek = new Map<number, string>();
-          for (const row of deliveryRows) {
-            const week = Number(row.week_number);
-            if (!Number.isFinite(week)) continue;
-            const prev = byWeek.get(week);
-            if (row.status === 'delivered' || !prev) byWeek.set(week, row.status);
-          }
-          const statuses = [...byWeek.values()];
-          setCoverage({
-            delivered: statuses.filter((s) => s === 'delivered').length,
-            planned: statuses.length,
-          });
-        } else {
-          setCoverage({
-            delivered: weekRows.filter((w) => w.status === 'delivered').length,
-            planned: weekRows.length,
-          });
+        {
+          const deliveryRows = ((deliveryRes as { data: { week_number: number; status: string }[] | null })?.data ?? []);
+          const weekRows = ((weekRes as { data: { status: string }[] | null })?.data ?? []);
+          setCoverage(classCoverageFromRows(deliveryRows, weekRows));
         }
       } else {
         // No program_id, set empty items
@@ -545,27 +529,9 @@ export default function ClassDetailPage() {
           .select('status')
           .eq('class_id', id),
       ]);
-      const deliveryRows = deliveryRes.data ?? [];
-      const weekRows = weekRes.data ?? [];
-      if (deliveryRows.length > 0) {
-        const byWeek = new Map<number, string>();
-        for (const row of deliveryRows) {
-          const week = Number(row.week_number);
-          if (!Number.isFinite(week)) continue;
-          const prev = byWeek.get(week);
-          if (row.status === 'delivered' || !prev) byWeek.set(week, row.status);
-        }
-        const statuses = [...byWeek.values()];
-        setCoverage({
-          delivered: statuses.filter((s) => s === 'delivered').length,
-          planned: statuses.length,
-        });
-        return;
-      }
-      setCoverage({
-        delivered: weekRows.filter((w: { status: string }) => w.status === 'delivered').length,
-        planned: weekRows.length,
-      });
+      setCoverage(
+        classCoverageFromRows(deliveryRes.data ?? [], weekRes.data ?? [])
+      );
     };
 
     // assignment_submissions and cbt_sessions carry no class_id, so the subscription
@@ -1531,14 +1497,12 @@ export default function ClassDetailPage() {
             </aside>
 
             <div className="min-h-0 min-w-0 p-2 sm:min-h-[320px] sm:p-5 md:p-6">
-              <div className="mb-3 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
-                  <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground">{selectedOperation.desc}</p>
-                </div>
-                <span className="w-fit max-w-full flex-shrink-0 break-words rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  {termLabel}
-                </span>
+              {/* The term pill that sat here repeated the identity bar's own
+                  subtitle a few pixels above, where it already reads
+                  "Programme · Term · Teacher". */}
+              <div className="mb-3 min-w-0 sm:mb-5">
+                <h2 className="break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
+                <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground">{selectedOperation.desc}</p>
               </div>
 
               {activeOperation === 'roster' && (
