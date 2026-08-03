@@ -16,6 +16,7 @@ import {
   computeAssignmentWeightedScore,
   gradeAssignmentAnswers,
 } from '@/lib/assignments/grading';
+import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core';
 
 export const dynamic = 'force-dynamic';
 
@@ -280,34 +281,29 @@ export async function POST(
     } else if (gradingMode === 'ai_suggested' && answers && data) {
       // AI-assisted: call AI grading endpoint, store suggestions, set status='pending_review'
       try {
-        const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': request.headers.get('cookie') || '',
-          },
-          body: JSON.stringify({
-            type: 'cbt-grading',
-            questions,
-            studentAnswers: answers,
-          }),
-        });
+        // In-process, not a self-fetch: NEXT_PUBLIC_APP_URL names the production
+        // host wherever this runs, so posting back to it graded against a
+        // different deployment — or, with no cookie surviving the hop, not at
+        // all. The submitting user is already authorised here.
+        const aiData = await generateAIContent({
+          type: 'cbt-grading',
+          topic: assignment.title || 'Assignment grading',
+          questions,
+          studentAnswers: answers,
+        } as GenerateRequest);
 
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          if (aiData.success && aiData.data) {
-            const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
-            await admin
-              .from('assignment_submissions')
-              .update({
-                ai_suggested_grade: totalScore,
-                ai_suggested_feedback: aiData.data.feedback || '',
-                status: 'pending_review',
-                updated_at: new Date().toISOString(),
-              })
-              .eq('assignment_id', assignment_id)
-              .eq('portal_user_id', effectiveUserId);
-          }
+        if (aiData?.data) {
+          const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
+          await admin
+            .from('assignment_submissions')
+            .update({
+              ai_suggested_grade: totalScore,
+              ai_suggested_feedback: aiData.data.feedback || '',
+              status: 'pending_review',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('assignment_id', assignment_id)
+            .eq('portal_user_id', effectiveUserId);
         }
       } catch (aiErr) {
         console.error('[ai-assisted-grade] failed:', aiErr);

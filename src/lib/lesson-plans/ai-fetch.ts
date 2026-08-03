@@ -1,3 +1,5 @@
+import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core';
+
 export class AIFetchError extends Error {
   constructor(
     public readonly reason: string,
@@ -8,31 +10,45 @@ export class AIFetchError extends Error {
   }
 }
 
+/** Reasons worth telling a teacher apart from "it failed". */
+function classify(message: string): string {
+  if (/quota|rate.?limit|429|RESOURCE_EXHAUSTED/i.test(message)) return 'AI quota exceeded';
+  if (/malformed|invalid JSON|parse/i.test(message)) return 'AI returned malformed content';
+  if (/no OpenRouter key|not configured/i.test(message)) return 'AI service not configured';
+  if (/timeout|abort|deadline/i.test(message)) return 'AI timed out';
+  return message || 'AI generation failed';
+}
+
+/**
+ * Runs a generation for the lesson-plan generators.
+ *
+ * This used to POST to `${baseUrl}/api/ai/generate` and forward the caller's
+ * cookie. That indirection is why lessons, slides, assignments and projects all
+ * failed while flashcards — which call Gemini in-process — succeeded: the
+ * self-fetch had to re-authenticate against a base URL taken from
+ * NEXT_PUBLIC_APP_URL, which points at production regardless of where the code
+ * is actually running, and it spent the caller's remaining function budget on a
+ * second cold request. None of those are real constraints for code that is
+ * already running on the server with the user's request authorised.
+ *
+ * So it calls the engine directly. Authorisation stays with the caller, which
+ * has already established staff role and lesson scope before getting here.
+ */
 export async function fetchAIGenerate(
-  baseUrl: string,
-  cookieHeader: string,
   payload: Record<string, unknown>,
-  extraHeaders?: Record<string, string>,
 ): Promise<{ success: true; data: unknown }> {
-  const res = await fetch(`${baseUrl}/api/ai/generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Cookie: cookieHeader,
-      'x-cron-secret': process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || '',
-      ...extraHeaders,
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const reason = res.status === 429 ? 'AI quota exceeded' : `AI error (${res.status})`;
-    throw new AIFetchError(reason, res.status);
+  let result;
+  try {
+    result = await generateAIContent(payload as unknown as GenerateRequest);
+  } catch (error) {
+    throw new AIFetchError(
+      classify(error instanceof Error ? error.message : String(error)),
+    );
   }
-  const json = await res.json();
-  if (!json.success || !json.data) {
+  if (!result?.data) {
     throw new AIFetchError('Invalid AI response');
   }
-  return json as { success: true; data: unknown };
+  return { success: true, data: result.data };
 }
 
 export async function consumeSSEUntilDone(res: Response): Promise<{

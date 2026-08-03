@@ -55,7 +55,11 @@
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\);console.log\\('package.json valid'\\)\")",
       "Bash(node -e \"const p=require\\('./package.json'\\); const d={...p.dependencies,...p.devDependencies}; Object.keys\\(d\\).filter\\(k=>/livekit|jitsi/i.test\\(k\\)\\).forEach\\(k=>console.log\\(k,d[k]\\)\\)\")",
       "Bash(node -e \"console.log\\(require.resolve\\('ws'\\)\\)\")",
-      "Bash(git --no-pager diff --stat -- src supabase)"
+      "Bash(git --no-pager diff --stat -- src supabase)",
+      "Bash(git --no-pager diff --stat)",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && sed -n '256,300p' 'src/app/api/lesson-plans/[id]/generate-assignments/route.ts' && echo \"===PROJECTS===\" && sed -n '268,300p' 'src/app/api/lesson-plans/[id]/generate-projects/route.ts' && echo \"===EXTRAHEADERS===\" && rg -n \"extraHeaders\" src/app/api/lesson-plans -r '$0')",
+      "Read(//c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/**)",
+      "Bash(npx next *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",

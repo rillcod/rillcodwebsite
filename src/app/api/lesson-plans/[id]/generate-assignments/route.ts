@@ -101,7 +101,6 @@ export async function POST(
     // Auto-publish generated assignments by default (visible to students).
     // Pass auto_publish:false to keep them hidden for manual review.
     const assignmentActive = body.auto_publish !== false;
-    const extraHeaders = isCron ? { "x-cron-secret": cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
       week: number;
       topic: string;
@@ -184,9 +183,6 @@ export async function POST(
     )?.programs?.name;
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
     const cadenceDays = 7;
-    const appBaseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
-    const cookieHeader = req.headers.get("cookie") || "";
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -237,26 +233,21 @@ export async function POST(
 
           let aiData: { success: true; data: unknown };
           try {
-            aiData = await fetchAIGenerate(
-              appBaseUrl,
-              cookieHeader,
-              {
-                type: "assignment",
-                topic: week.topic,
-                gradeLevel: plan.classes?.name || "Basic 1–SS3",
-                subject: plan.courses?.title || "Coding & Technology",
-                courseName: plan.courses?.title,
-                programName,
-                assignmentType: "homework",
-                syllabusReference,
-                planWeekObjectives:
-                  typeof week.objectives === "string" ? week.objectives : "",
-                planWeekActivities:
-                  typeof week.activities === "string" ? week.activities : "",
-                priorAssignmentTitlesThisRun: [...titlesThisRun],
-              },
-              extraHeaders
-            );
+            aiData = await fetchAIGenerate({
+              type: "assignment",
+              topic: week.topic,
+              gradeLevel: plan.classes?.name || "Basic 1–SS3",
+              subject: plan.courses?.title || "Coding & Technology",
+              courseName: plan.courses?.title,
+              programName,
+              assignmentType: "homework",
+              syllabusReference,
+              planWeekObjectives:
+                typeof week.objectives === "string" ? week.objectives : "",
+              planWeekActivities:
+                typeof week.activities === "string" ? week.activities : "",
+              priorAssignmentTitlesThisRun: [...titlesThisRun],
+            });
           } catch (err) {
             const reason =
               err instanceof AIFetchError ? err.reason : "Unexpected AI error";

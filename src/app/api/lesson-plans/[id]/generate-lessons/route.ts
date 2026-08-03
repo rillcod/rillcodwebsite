@@ -117,7 +117,6 @@ export async function POST(
     // Auto-publish generated lessons by default (visible to students immediately).
     // Pass auto_publish:false to keep them as drafts for manual review.
     const lessonStatus = body.auto_publish === false ? "draft" : "active";
-    const extraHeaders = isCron ? { "x-cron-secret": cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan!.plan_data) as Array<{
       week: number;
       topic: string;
@@ -209,9 +208,6 @@ export async function POST(
     const courseName =
       (plan!.courses as { title?: string | null } | null)?.title || undefined;
     const termNum = inferTermNumberFromPlanTerm(plan!.term);
-    const appBaseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
-    const cookieHeader = req.headers.get("cookie") || "";
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -269,27 +265,22 @@ export async function POST(
 
           let aiData: { success: true; data: unknown };
           try {
-            aiData = await fetchAIGenerate(
-              appBaseUrl,
-              cookieHeader,
-              {
-                type: "lesson",
-                topic: week.topic,
-                gradeLevel: plan!.classes?.name || "Basic 1–SS3",
-                subject: courseName || "Coding & Technology",
-                durationMinutes,
-                courseName,
-                programName,
-                siblingLessons: siblingLessons.slice(0, 10),
-                syllabusReference,
-                planWeekObjectives:
-                  typeof week.objectives === "string" ? week.objectives : "",
-                planWeekActivities:
-                  typeof week.activities === "string" ? week.activities : "",
-                priorLessonTitlesThisRun: [...titlesThisRun],
-              },
-              extraHeaders
-            );
+            aiData = await fetchAIGenerate({
+              type: "lesson",
+              topic: week.topic,
+              gradeLevel: plan!.classes?.name || "Basic 1–SS3",
+              subject: courseName || "Coding & Technology",
+              durationMinutes,
+              courseName,
+              programName,
+              siblingLessons: siblingLessons.slice(0, 10),
+              syllabusReference,
+              planWeekObjectives:
+                typeof week.objectives === "string" ? week.objectives : "",
+              planWeekActivities:
+                typeof week.activities === "string" ? week.activities : "",
+              priorLessonTitlesThisRun: [...titlesThisRun],
+            });
           } catch (err) {
             const reason =
               err instanceof AIFetchError ? err.reason : "Unexpected AI error";

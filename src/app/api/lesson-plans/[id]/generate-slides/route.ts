@@ -186,27 +186,20 @@ export async function POST(
   }
 
   const course = Array.isArray(plan.courses) ? plan.courses[0] : plan.courses;
-  const appBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-  ).replace(/\/$/, "");
   let aiData: { success: true; data: unknown };
   try {
-    aiData = await fetchAIGenerate(
-      appBaseUrl,
-      req.headers.get("cookie") ?? "",
-      {
-        type: "slides",
-        topic: lesson.title || planWeek.topic || `Week ${week}`,
-        className: klass?.name || "Basic 1 to SS3",
-        gradeLevel: klass?.name || "Basic 1 to SS3",
-        courseName: course?.title || "STEM & Technology",
-        planWeekObjectives: planWeek.objectives || "",
-        planWeekActivities: planWeek.activities || "",
-        syllabusReference: planWeek.notes || "",
-        lessonSummary: lessonSummary(lesson as Record<string, unknown>),
-        slideCount: 7,
-      }
-    );
+    aiData = await fetchAIGenerate({
+      type: "slides",
+      topic: lesson.title || planWeek.topic || `Week ${week}`,
+      className: klass?.name || "Basic 1 to SS3",
+      gradeLevel: klass?.name || "Basic 1 to SS3",
+      courseName: course?.title || "STEM & Technology",
+      planWeekObjectives: planWeek.objectives || "",
+      planWeekActivities: planWeek.activities || "",
+      syllabusReference: planWeek.notes || "",
+      lessonSummary: lessonSummary(lesson as Record<string, unknown>),
+      slideCount: 7,
+    });
   } catch (error) {
     const reason =
       error instanceof AIFetchError ? error.reason : "Slide generation failed";

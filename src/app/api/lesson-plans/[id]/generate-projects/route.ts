@@ -98,7 +98,6 @@ export async function POST(
           .map((w) => Number(w))
           .filter((w) => Number.isFinite(w))
       : null;
-    const extraHeaders = isCron ? { "x-cron-secret": cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
       week: number;
       topic: string;
@@ -195,9 +194,6 @@ export async function POST(
     )?.programs?.name;
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
     const cadenceDays = 7;
-    const appBaseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
-    const cookieHeader = req.headers.get("cookie") || "";
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -247,36 +243,31 @@ export async function POST(
 
           let aiData: { success: true; data: unknown };
           try {
-            aiData = await fetchAIGenerate(
-              appBaseUrl,
-              cookieHeader,
-              {
-                type: "assignment",
-                topic: week.topic,
-                gradeLevel: plan.classes?.name || "Basic 1–SS3",
-                subject: plan.courses?.title || "Coding & Technology",
-                courseName: plan.courses?.title,
-                assignmentType: "project",
-                programName,
-                syllabusReference,
-                planWeekObjectives:
-                  typeof week.objectives === "string" ? week.objectives : "",
-                planWeekActivities:
-                  typeof week.activities === "string" ? week.activities : "",
-                projectTitle: week.project?.title || `${week.topic} Project`,
-                projectDescription:
-                  week.project?.description || week.notes || "",
-                projectDeliverables: Array.isArray(week.project?.deliverables)
-                  ? week.project!.deliverables
-                  : [],
-                practicalCheckpoints: Array.isArray(
-                  week.practical_assessment?.skill_checkpoints
-                )
-                  ? week.practical_assessment!.skill_checkpoints
-                  : [],
-              },
-              extraHeaders
-            );
+            aiData = await fetchAIGenerate({
+              type: "assignment",
+              topic: week.topic,
+              gradeLevel: plan.classes?.name || "Basic 1–SS3",
+              subject: plan.courses?.title || "Coding & Technology",
+              courseName: plan.courses?.title,
+              assignmentType: "project",
+              programName,
+              syllabusReference,
+              planWeekObjectives:
+                typeof week.objectives === "string" ? week.objectives : "",
+              planWeekActivities:
+                typeof week.activities === "string" ? week.activities : "",
+              projectTitle: week.project?.title || `${week.topic} Project`,
+              projectDescription:
+                week.project?.description || week.notes || "",
+              projectDeliverables: Array.isArray(week.project?.deliverables)
+                ? week.project!.deliverables
+                : [],
+              practicalCheckpoints: Array.isArray(
+                week.practical_assessment?.skill_checkpoints
+              )
+                ? week.practical_assessment!.skill_checkpoints
+                : [],
+            });
           } catch (err) {
             const reason =
               err instanceof AIFetchError ? err.reason : "Unexpected AI error";
