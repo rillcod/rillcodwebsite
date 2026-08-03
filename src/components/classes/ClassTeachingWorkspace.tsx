@@ -56,6 +56,10 @@ export function ClassTeachingWorkspace({
   // Weeks picked for a batch delivery update — catching up after a break took
   // one request per week before.
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  // Twelve near-identical cards make "what still needs me?" a scanning job.
+  const [weekFilter, setWeekFilter] = useState<"all" | "todo" | "taught">(
+    "all"
+  );
   const [aiBusy, setAiBusy] = useState(false);
   const [aiWeek, setAiWeek] = useState<{
     week: number;
@@ -224,7 +228,9 @@ export function ClassTeachingWorkspace({
   }
   const plan = data?.plan,
     progress = data?.progress;
-  const curriculumWeeks = weeks.length
+  // Explicit array type: weeks comes back untyped, and without this the derived
+  // week rows infer as any and every filter callback loses its parameter type.
+  const curriculumWeeks: any[] = weeks.length
     ? weeks
     : (data?.lessons || []).map((lesson: any, i: number) => ({
         week: Number(lesson.curriculum_week_number) || i + 1,
@@ -245,6 +251,117 @@ export function ClassTeachingWorkspace({
   );
   const toolLinkClass =
     "inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-black text-foreground transition-colors hover:border-primary/40";
+
+  // Resolved once per render instead of inside the list, so the same facts can
+  // drive the counts and the filter rather than only the card they sit in.
+  const weekRows = curriculumWeeks.map((weekMeta: any, i: number) => {
+    const week = Number(
+      weekMeta.week || weekMeta.curriculum_week_number || i + 1
+    );
+    const lesson = lessonsByWeek.get(week);
+    const assignment = assignmentsByWeek.get(week);
+    const project = projectsByWeek.get(week);
+    const slideDeck =
+      slidesByWeek.get(week) ||
+      (lesson
+        ? (data?.slide_decks || []).find(
+            (deck: any) => deck.lesson_id === lesson.id
+          )
+        : null);
+    const flashcardDeck =
+      flashcardsByWeek.get(week) ||
+      (lesson
+        ? (data?.flashcard_decks || []).find(
+            (deck: any) => deck.lesson_id === lesson.id
+          )
+        : null);
+    // Assessment evidence for the week, not teaching preparation:
+    // deliberately outside the five-asset package, which is what
+    // the AI generator produces and what "Ready" measures.
+    const evaluation =
+      examsByWeek.get(week) ||
+      (lesson
+        ? (data?.exams || []).find((exam: any) => exam.lesson_id === lesson.id)
+        : null);
+    const topic = weekMeta.topic || lesson?.title || `Week ${week}`;
+    const objectives: string =
+      typeof weekMeta.objectives === "string"
+        ? weekMeta.objectives
+        : Array.isArray(weekMeta.objectives)
+        ? weekMeta.objectives.join("\n")
+        : "";
+    const activities: string =
+      typeof weekMeta.activities === "string"
+        ? weekMeta.activities
+        : Array.isArray(weekMeta.activities)
+        ? weekMeta.activities.join("\n")
+        : "";
+    const packageStatus = weekPackageStatus({
+      lesson: Boolean(lesson),
+      slides: Boolean(slideDeck),
+      flashcards: Boolean(flashcardDeck),
+      assignment: Boolean(assignment),
+      project: Boolean(project),
+    });
+    const delivery = deliveredByWeek.get(week);
+    const taught = delivery?.status === "delivered";
+    const manualLessonHref = buildLessonNewHref({
+      classId,
+      courseId,
+      programId: data?.class?.program_id,
+      lessonPlanId: plan?.id ?? null,
+      curriculumId: plan?.curriculum_version_id ?? null,
+      week,
+      topic,
+      subject: selectedCourse?.title,
+      description: [objectives, activities].filter(Boolean).join("\n\n"),
+      notes: weekMeta.notes,
+      plan: {
+        objectives: objectives
+          .split("\n")
+          .map((value) => value.trim())
+          .filter(Boolean),
+        student_activities: activities
+          .split("\n")
+          .map((value) => value.trim())
+          .filter(Boolean),
+        assignment: weekMeta.assignment,
+        project: weekMeta.project,
+      },
+    });
+    return {
+      weekMeta,
+      week,
+      lesson,
+      assignment,
+      project,
+      slideDeck,
+      flashcardDeck,
+      evaluation,
+      topic,
+      objectives,
+      activities,
+      packageStatus,
+      taught,
+      manualLessonHref,
+    };
+  });
+
+  const weeksNeedingWork = weekRows.filter(
+    (row) => !row.packageStatus.complete
+  ).length;
+  const weeksTaught = weekRows.filter((row) => row.taught).length;
+  const visibleWeekRows = weekRows.filter((row) =>
+    weekFilter === "todo"
+      ? !row.packageStatus.complete
+      : weekFilter === "taught"
+      ? row.taught
+      : true
+  );
+  // The first week that is neither prepared nor taught — where work resumes.
+  const resumeWeek = weekRows.find(
+    (row) => !row.taught && !row.packageStatus.complete
+  );
 
   return (
     <div className="space-y-4">
@@ -534,6 +651,45 @@ export function ClassTeachingWorkspace({
               </span>
             </div>
 
+            {/* Where the work stands, and a way to see only the part that wants
+                attention. Twelve cards that all look alike made "which weeks
+                still need me?" a question you answered by reading every one. */}
+            {weekRows.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    ["all", `All ${weekRows.length}`],
+                    ["todo", `Needs preparation ${weeksNeedingWork}`],
+                    ["taught", `Taught ${weeksTaught}`],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={weekFilter === key}
+                    onClick={() => setWeekFilter(key)}
+                    className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      weekFilter === key
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {resumeWeek && weekFilter === "all" && (
+                  <span className="text-[10px] font-bold text-muted-foreground">
+                    Next up: Week {resumeWeek.week} —{" "}
+                    {resumeWeek.packageStatus.missing.length} asset
+                    {resumeWeek.packageStatus.missing.length === 1
+                      ? ""
+                      : "s"}{" "}
+                    missing
+                  </span>
+                )}
+              </div>
+            )}
+
             {canEdit && picked.size > 0 && (
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
                 <p className="flex-1 text-xs font-bold text-foreground">
@@ -581,85 +737,23 @@ export function ClassTeachingWorkspace({
             )}
 
             <div className="mt-4 space-y-3">
-              {curriculumWeeks.map((weekMeta: any, i: number) => {
-                const week = Number(
-                  weekMeta.week || weekMeta.curriculum_week_number || i + 1
-                );
-                const lesson = lessonsByWeek.get(week);
-                const assignment = assignmentsByWeek.get(week);
-                const project = projectsByWeek.get(week);
-                const slideDeck =
-                  slidesByWeek.get(week) ||
-                  (lesson
-                    ? (data?.slide_decks || []).find(
-                        (deck: any) => deck.lesson_id === lesson.id
-                      )
-                    : null);
-                const flashcardDeck =
-                  flashcardsByWeek.get(week) ||
-                  (lesson
-                    ? (data?.flashcard_decks || []).find(
-                        (deck: any) => deck.lesson_id === lesson.id
-                      )
-                    : null);
-                // Assessment evidence for the week, not teaching preparation:
-                // deliberately outside the five-asset package, which is what
-                // the AI generator produces and what "Ready" measures.
-                const evaluation =
-                  examsByWeek.get(week) ||
-                  (lesson
-                    ? (data?.exams || []).find(
-                        (exam: any) => exam.lesson_id === lesson.id
-                      )
-                    : null);
-                const topic = weekMeta.topic || lesson?.title || `Week ${week}`;
-                const objectives: string =
-                  typeof weekMeta.objectives === "string"
-                    ? weekMeta.objectives
-                    : Array.isArray(weekMeta.objectives)
-                    ? weekMeta.objectives.join("\n")
-                    : "";
-                const activities: string =
-                  typeof weekMeta.activities === "string"
-                    ? weekMeta.activities
-                    : Array.isArray(weekMeta.activities)
-                    ? weekMeta.activities.join("\n")
-                    : "";
-                const packageStatus = weekPackageStatus({
-                  lesson: Boolean(lesson),
-                  slides: Boolean(slideDeck),
-                  flashcards: Boolean(flashcardDeck),
-                  assignment: Boolean(assignment),
-                  project: Boolean(project),
-                });
-                const delivery = deliveredByWeek.get(week);
-                const taught = delivery?.status === "delivered";
-                const manualLessonHref = buildLessonNewHref({
-                  classId,
-                  courseId,
-                  programId: data?.class?.program_id,
-                  lessonPlanId: plan.id,
-                  curriculumId: plan.curriculum_version_id,
+              {visibleWeekRows.map((row) => {
+                const {
+                  weekMeta,
                   week,
+                  lesson,
+                  assignment,
+                  project,
+                  slideDeck,
+                  flashcardDeck,
+                  evaluation,
                   topic,
-                  subject: selectedCourse?.title,
-                  description: [objectives, activities]
-                    .filter(Boolean)
-                    .join("\n\n"),
-                  notes: weekMeta.notes,
-                  plan: {
-                    objectives: objectives
-                      .split("\n")
-                      .map((value) => value.trim())
-                      .filter(Boolean),
-                    student_activities: activities
-                      .split("\n")
-                      .map((value) => value.trim())
-                      .filter(Boolean),
-                    assignment: weekMeta.assignment,
-                    project: weekMeta.project,
-                  },
-                });
+                  objectives,
+                  activities,
+                  packageStatus,
+                  taught,
+                  manualLessonHref,
+                } = row;
 
                 return (
                   <article
@@ -973,6 +1067,24 @@ export function ClassTeachingWorkspace({
                   </article>
                 );
               })}
+              {/* A filter that matches nothing must say so rather than leave a
+                  blank space where the weeks were. */}
+              {weekRows.length > 0 && visibleWeekRows.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {weekFilter === "todo"
+                      ? "Every week has its full five-asset package prepared."
+                      : "No week has been marked taught yet."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setWeekFilter("all")}
+                    className="mt-3 text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                  >
+                    Show all {weekRows.length} weeks
+                  </button>
+                </div>
+              )}
               {curriculumWeeks.length === 0 && (
                 /* Told you to open the full teaching plan and then made you go
                    find it. */
