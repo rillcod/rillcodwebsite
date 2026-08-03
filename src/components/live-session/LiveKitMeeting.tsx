@@ -345,10 +345,20 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       <Overlay>
         <p className="text-rose-400 text-sm font-bold">{error ?? 'Lost connection to the class.'}</p>
         <p className="text-white/50 text-[11px] max-w-sm">
-          Weak network — check your connection, then retry. Keep this tab open during class.
+          Check camera/mic permission and your network.
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-center mt-2">
           <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>Retry</button>
+          <button
+            type="button"
+            onClick={() => {
+              const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+              window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+            }}
+            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+          >
+            Launch via Jitsi Backup
+          </button>
           <button type="button" onClick={handleClose} className={BTN_GHOST}>Close</button>
         </div>
       </Overlay>
@@ -374,8 +384,18 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         <p className="text-white/50 text-[11px]">
           Attempt {attemptLabel(autoTry)} of {MAX_AUTO_REJOIN} · stay on this page
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-center mt-2">
           <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>Rejoin now</button>
+          <button
+            type="button"
+            onClick={() => {
+              const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+              window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+            }}
+            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+          >
+            Launch Backup Room
+          </button>
           <button type="button" onClick={handleClose} className={BTN_GHOST}>Leave</button>
         </div>
       </Overlay>
@@ -386,8 +406,27 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
     return (
       <Overlay>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-        <p className="text-white/50 text-sm font-bold">Starting meeting…</p>
-        {error && <p className="text-rose-400 text-xs max-w-sm">{error}</p>}
+        <p className="text-white/70 text-sm font-bold">Starting live meeting…</p>
+        {error ? (
+          <div className="flex flex-col items-center gap-3 mt-2">
+            <p className="text-rose-400 text-xs max-w-sm font-bold text-center px-4">{error}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const jitsiUrl = `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+                  window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+              >
+                Launch via Jitsi Backup
+              </button>
+              <button type="button" onClick={handleClose} className={BTN_GHOST}>Close</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-white/40 text-[11px]">Connecting to secure video gateway…</p>
+        )}
       </Overlay>
     );
   }
