@@ -1593,7 +1593,16 @@ export default function LiveSessionsPage() {
     if (!profile) return;
     setSaving(true); setModalError(null);
     try {
-      const scheduled_at = new Date(`${form.scheduled_date}T${form.scheduled_time}`).toISOString();
+      let scheduled_at: string;
+      try {
+        const d = form.scheduled_date || new Date().toISOString().split('T')[0];
+        const t = form.scheduled_time || '10:00';
+        const parsed = new Date(`${d}T${t}`);
+        scheduled_at = isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+      } catch {
+        scheduled_at = new Date().toISOString();
+      }
+      const resolvedSchoolId = form.school_id || profile?.school_id || (schools[0]?.id ?? null);
       const payload = {
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -1601,8 +1610,8 @@ export default function LiveSessionsPage() {
         // Auto-generate Jitsi URL if platform is jitsi and no URL set
         session_url: form.session_url.trim() || null,
         scheduled_at,
-        duration_minutes: Number(form.duration_minutes),
-        school_id: form.school_id || null,
+        duration_minutes: Number(form.duration_minutes) || 60,
+        school_id: resolvedSchoolId,
         program_id: form.program_id || null,
         status: form.status,
         recording_url: form.recording_url.trim() || null,

@@ -1153,18 +1153,15 @@ export function ClassTeachingWorkspace({
                 </div>
               )}
               {curriculumWeeks.length === 0 && (
-                /* Told you to open the full teaching plan and then made you go
-                   find it. */
                 <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
                   <p className="text-xs leading-5 text-muted-foreground">
                     This plan has no curriculum weeks yet. Its weeks come from
-                    the official edition assigned to this class.
+                    the official edition assigned to this class. Try Refresh
+                    academic direction, or open the full teaching plan to add
+                    weeks by hand.
                   </p>
                   <Link
-                    href={buildCurriculumHref({
-                      courseId,
-                      programId: data?.class?.program_id,
-                    })}
+                    href={buildLessonPlanHref(plan.id)}
                     className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40"
                   >
                     Open the full teaching plan

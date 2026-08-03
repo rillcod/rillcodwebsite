@@ -42,12 +42,23 @@
       "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && rm -f supabase/migrations/20260927000001_enable_rls_email_events.sql supabase/migrations/20260927000002_pin_function_search_path.sql supabase/migrations/20260927000003_index_foreign_keys.sql && echo \"removed 3 unapplied migrations\" && echo \"\" && echo \"=== supabase/migrations/ now ===\" && ls -la supabase/migrations/ && echo \"\" && echo \"=== git status ===\" && git status --porcelain | grep -v \"^ D supabase/migrations/\" | grep -v \"^ D supabase/migrations_legacy/\")",
       "Bash(npx tsc *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(echo \"TSC-EXIT=$?\")",
+      "Bash(sed -i 's#import { detectFreeModelDrift } from \"@/lib/ai/openrouter\";#import { detectFreeModelDrift } from \"@/lib/ai/openrouter\";\\\\nimport { writeStoredFreeModels } from \"@/lib/ai/model-catalogue-store\";#' src/app/api/cron/ai-model-drift/route.ts)",
+      "Bash(sed -i 's/    healthy: drift.retired.length === 0 \\\\&\\\\& drift.staleFallback.length === 0,/    fallbackRecorded: recorded,\\\\n    healthy: drift.retired.length === 0 \\\\&\\\\& drift.staleFallback.length === 0,/' src/app/api/cron/ai-model-drift/route.ts)",
+      "Bash(timeout 90 node -e ' *)",
+      "Bash(timeout 300 npx tsx scripts/smoke-ai-continuation.ts)",
+      "Bash(node -e ' *)",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && head -8 src/app/api/ai/graphics/route.ts | grep -n import; sed -i \"s#^import { geminiGenerateText } from '@/lib/gemini/client';#import { geminiGenerateText } from '@/lib/gemini/client';\\\\nimport { modelQueueFor } from '@/lib/ai/model-policy';#\" src/app/api/ai/graphics/route.ts; grep -n \"modelQueueFor\" src/app/api/ai/graphics/route.ts | head -2)",
+      "Bash(timeout 300 npx tsx scripts/verify-ai-central.ts)",
+      "Bash(sed -i 's#\"smoke:ai\": \"npx tsx scripts/smoke-ai-continuation.ts\",#\"smoke:ai\": \"npx tsx scripts/smoke-ai-continuation.ts\",\\\\n    \"verify:ai\": \"npx tsx scripts/verify-ai-central.ts\",#' package.json)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\);console.log\\('package.json valid'\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",
       "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\src\\app\\api\\public\\consent-forms\\[id]",
-      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\supabase\\migrations"
+      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\supabase\\migrations",
+      "C:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\src\\app\\api\\ai\\graphics"
     ]
   }
 }

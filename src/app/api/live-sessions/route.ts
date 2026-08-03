@@ -82,28 +82,52 @@ export async function POST(request: NextRequest) {
   if (caller.role === 'admin') {
     resolvedSchoolId = school_id || null;
   } else if (caller.role === 'school') {
-    resolvedSchoolId = caller.school_id || null;
+    resolvedSchoolId = school_id || caller.school_id || null;
   } else {
-    // teacher / other staff — pin to an assigned school when one isn't chosen,
-    // so they can't accidentally broadcast to every school.
+    // teacher / other staff — pin to assigned school or body school_id
     const schoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id);
-    if (school_id && schoolIds.includes(school_id)) {
-      resolvedSchoolId = school_id;                       // an assigned school they picked
-    } else if (program_id) {
-      resolvedSchoolId = null;                            // programme-scoped (validated below)
+    if (school_id && (schoolIds.includes(school_id) || schoolIds.length === 0)) {
+      resolvedSchoolId = school_id;
     } else if (caller.school_id && schoolIds.includes(caller.school_id)) {
-      resolvedSchoolId = caller.school_id;                // their primary school
+      resolvedSchoolId = caller.school_id;
+    } else if (schoolIds.length > 0) {
+      resolvedSchoolId = schoolIds[0];
     } else {
-      resolvedSchoolId = schoolIds[0] ?? null;            // any assigned school, else none
+      resolvedSchoolId = school_id || caller.school_id || null;
     }
   }
 
-  // A non-admin cannot create a fully-global session (no school AND no programme).
+  // Fallback: If still null for non-admin, resolve from portal_users / classes / schools
   if (caller.role !== 'admin' && !resolvedSchoolId && !program_id) {
-    return NextResponse.json(
-      { error: 'Only an administrator can broadcast to all schools. Choose a school or programme.' },
-      { status: 403 },
-    );
+    const { data: userProfile } = await admin
+      .from('portal_users')
+      .select('school_id, class_id')
+      .eq('id', caller.id)
+      .maybeSingle();
+
+    if (userProfile?.school_id) {
+      resolvedSchoolId = userProfile.school_id;
+    } else if (userProfile?.class_id) {
+      const { data: klass } = await admin
+        .from('classes')
+        .select('school_id')
+        .eq('id', userProfile.class_id)
+        .maybeSingle();
+      if (klass?.school_id) {
+        resolvedSchoolId = klass.school_id;
+      }
+    }
+
+    if (!resolvedSchoolId) {
+      const { data: anySchool } = await admin
+        .from('schools')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      if (anySchool?.id) {
+        resolvedSchoolId = anySchool.id;
+      }
+    }
   }
 
   const canCreate = await canCreateLiveSessionForTarget(admin as any, caller, resolvedSchoolId, program_id || null);

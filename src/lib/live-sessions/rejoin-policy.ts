@@ -19,7 +19,7 @@ export const CONNECT_DEADLINE_MS = 45_000;
  * Errors that will never succeed on retry — a closed session, a revoked seat.
  * Burning the rejoin budget on these just delays the honest error screen.
  */
-const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found/i;
+const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found|not configured|credential|LiveKit is not/i;
 
 export function isFatalJoinError(message?: string | null): boolean {
   return typeof message === 'string' && FATAL_JOIN_ERROR.test(message);

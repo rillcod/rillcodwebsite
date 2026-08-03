@@ -16,6 +16,7 @@ import {
   MAX_AUTO_REJOIN,
   attemptLabel,
   hasExhaustedRejoins,
+  isFatalJoinError,
   rejoinDelayMs,
   shouldAutoRejoin,
   type MeetingPhase,
@@ -331,7 +332,8 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
     void loadToken({ rejoin: true });
   }, [loadToken]);
 
-  const stalled = phase === 'dropped' && hasExhaustedRejoins(autoTry);
+  const isFatal = isFatalJoinError(error);
+  const stalled = (phase === 'dropped' && hasExhaustedRejoins(autoTry)) || isFatal;
 
   // Room shows once we have a seat and phase is live (set on token success).
   const roomMounted =

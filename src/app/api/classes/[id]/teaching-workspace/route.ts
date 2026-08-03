@@ -467,57 +467,59 @@ export async function POST(
     if (error)
       return NextResponse.json({ error: error.message }, { status: 400 });
     const result = data as { plan_id: string; created: boolean };
-    // Rebuild the weeks when the plan has none, not only when it has no edition
-    // pinned yet. Every plan written while the old mapper was in place got an
-    // empty weeks array and a release id at the same moment, so gating on the
-    // release id alone meant "Refresh academic direction" could never repair
-    // one: the button ran, reported success, and changed nothing. Weeks already
-    // written are still left alone — this only fills a gap.
-    const existingWeekCount = Array.isArray(
-      (existing?.plan_data as any)?.weeks
-    )
-      ? ((existing?.plan_data as any).weeks as unknown[]).length
-      : 0;
-    if (!existing?.curriculum_release_id || existingWeekCount === 0) {
-      // A delivery period has no national term to map against, so its weeks
-      // start from the edition's own entry point rather than a calendar term.
-      const calendarTerm = hasTerm
-        ? Number(klass.academic_terms.term_number)
-        : Number(schedule.entry_term_number) || 1;
-      const currentSession = hasTerm
-        ? klass.academic_terms.academic_year
-        : direction.academic_session;
-      const weeks = mapOfficialCurriculumToCalendarWeeks({
-        content: direction.content,
-        directionAcademicSession: direction.academic_session,
-        currentAcademicSession: currentSession,
-        calendarTerm,
-        schedule,
-      });
-      await db
-        .from("lesson_plans")
-        .update({
-          curriculum_release_id: direction.id,
-          curriculum_version_id: direction.source_curriculum_id,
-          plan_data: {
-            academic_direction: {
-              title: direction.title,
-              academic_session: direction.academic_session,
-              entry_point: humanEntryPoint({
-                termNumber: Number(schedule.entry_term_number),
-                weekNumber: Number(schedule.entry_week_number),
-              }),
-              current_term: hasTerm
-                ? humanTermLabel(Number(klass.academic_terms.term_number))
-                : klass.academic_offering_periods?.label ?? "Delivery period",
-            },
-            starts_at_week: Number(schedule.entry_week_number),
-            weeks,
-          },
-          updated_at: new Date().toISOString(),
+    // Match readiness-automation: backfill weeks when missing even if a release
+    // is already pinned. Refresh used to skip fill once pinned, leaving teachers
+    // stuck on "no curriculum weeks yet". Always refresh direction metadata so
+    // Refresh stays meaningful when weeks already exist; never overwrite
+    // teacher-edited weeks.
+    const currentPlanData =
+      existing?.plan_data && typeof existing.plan_data === "object"
+        ? (existing.plan_data as Record<string, unknown>)
+        : {};
+    const alreadyHasWeeks =
+      Array.isArray(currentPlanData.weeks) &&
+      (currentPlanData.weeks as unknown[]).length > 0;
+    // A delivery period has no national term to map against, so its weeks
+    // start from the edition's own entry point rather than a calendar term.
+    const calendarTerm = hasTerm
+      ? Number(klass.academic_terms.term_number)
+      : Number(schedule.entry_term_number) || 1;
+    const currentSession = hasTerm
+      ? klass.academic_terms.academic_year
+      : direction.academic_session;
+    const weeks = !alreadyHasWeeks
+      ? mapOfficialCurriculumToCalendarWeeks({
+          content: direction.content,
+          directionAcademicSession: direction.academic_session,
+          currentAcademicSession: currentSession,
+          calendarTerm,
+          schedule,
         })
-        .eq("id", result.plan_id);
-    }
+      : null;
+    await db
+      .from("lesson_plans")
+      .update({
+        curriculum_release_id: direction.id,
+        curriculum_version_id: direction.source_curriculum_id,
+        plan_data: {
+          ...currentPlanData,
+          academic_direction: {
+            title: direction.title,
+            academic_session: direction.academic_session,
+            entry_point: humanEntryPoint({
+              termNumber: Number(schedule.entry_term_number),
+              weekNumber: Number(schedule.entry_week_number),
+            }),
+            current_term: hasTerm
+              ? humanTermLabel(Number(klass.academic_terms.term_number))
+              : klass.academic_offering_periods?.label ?? "Delivery period",
+          },
+          starts_at_week: Number(schedule.entry_week_number),
+          ...(weeks ? { weeks } : {}),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", result.plan_id);
     return NextResponse.json(
       { data: { ...result, official_direction: direction.title } },
       { status: result.created ? 201 : 200 }
