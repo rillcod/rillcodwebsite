@@ -802,9 +802,14 @@ export default function CurriculumPage() {
   const isStudent = profile?.role === "student";
   const isParent = profile?.role === "parent";
   const isSchool = profile?.role === "school";
-  // Admin & Teachers & Schools: can generate and edit school-specific/assigned curriculum plans
-  const canGenerate = isAdmin || isTeacher || isSchool;
-  const canModifyCurriculum = isAdmin || isTeacher || isSchool;
+  // Authoring the curriculum source is the Academic Office's job: it is one
+  // official edition shared by every school, so a teacher or a partner school
+  // writing into it would change what other schools teach. They adapt delivery
+  // on the class plan instead, which is per class and cannot leak sideways.
+  const canGenerate = isAdmin;
+  const canModifyCurriculum = isAdmin;
+  // Recording what has been taught is delivery, not authoring, so it stays open
+  // to the people doing the teaching.
   const canTrack = isAdmin || isTeacher || isSchool;
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
