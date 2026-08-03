@@ -42,10 +42,7 @@
       "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && rm -f supabase/migrations/20260927000001_enable_rls_email_events.sql supabase/migrations/20260927000002_pin_function_search_path.sql supabase/migrations/20260927000003_index_foreign_keys.sql && echo \"removed 3 unapplied migrations\" && echo \"\" && echo \"=== supabase/migrations/ now ===\" && ls -la supabase/migrations/ && echo \"\" && echo \"=== git status ===\" && git status --porcelain | grep -v \"^ D supabase/migrations/\" | grep -v \"^ D supabase/migrations_legacy/\")",
       "Bash(npx tsc *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(git push *)",
-      "Bash(node \"C:/Users/USER/AppData/Local/Temp/claude/c--Users-USER-Downloads-rillcod-academy-main-rillcod-academy-main/34bd108d-6687-4ff0-94cd-131cb4ecdd96/scratchpad/pk-check.mjs\")",
-      "Bash(grep -vE \"^\\\\+\\\\s*//|^\\\\+\\\\s*$|^-\\\\s*$\")",
-      "Bash(grep -n \"attendance?class_id\\\\|classes/\\\\${id}/edit\" \"src/app/dashboard/classes/[id]/page.tsx\")"
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",

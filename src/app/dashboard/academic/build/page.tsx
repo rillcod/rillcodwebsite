@@ -802,14 +802,11 @@ export default function CurriculumPage() {
   const isStudent = profile?.role === "student";
   const isParent = profile?.role === "parent";
   const isSchool = profile?.role === "school";
-  // Admin: full access. Teacher: generate/delete school-specific only (not platform template).
-  const canGenerate = isAdmin;
-  // Authoring the curriculum source became admin-only when the official
-  // curriculum was enforced; the teacher branch predates that and only showed
-  // controls whose API call came back 403. Teachers adapt delivery on the
-  // class plan instead.
-  const canModifyCurriculum = isAdmin;
-  const canTrack = isAdmin || isTeacher;
+  // Admin & Teachers & Schools: can generate and edit school-specific/assigned curriculum plans
+  const canGenerate = isAdmin || isTeacher || isSchool;
+  const canModifyCurriculum = isAdmin || isTeacher || isSchool;
+  const canTrack = isAdmin || isTeacher || isSchool;
+  const canPublish = isAdmin;
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
@@ -2134,9 +2131,7 @@ export default function CurriculumPage() {
         .filter((t) => (t.year ?? 1) === firstYear)
         .map((t) => t.term);
       if (termNumsForYear.length > 0) {
-        setActiveTerm((prev) =>
-          termNumsForYear.includes(prev) ? prev : termNumsForYear[0]
-        );
+        setActiveTerm(termNumsForYear[0]);
       }
       try {
         const tRes = await fetch(`/api/curricula/${id}/track`);
@@ -2288,16 +2283,11 @@ export default function CurriculumPage() {
                 ? Number(savedPst)
                 : null;
               setActiveTerm(() => {
-                const today = getCurrentTerm();
-                const pstForSort = metaPst ?? 1;
-                // Prefer today's national term if it exists in the curriculum
-                if (termNumsForYear.includes(today)) return today;
-                // Today not generated — show Prog.T1 (the national term = PST) if available
-                if (metaPst && termNumsForYear.includes(metaPst))
-                  return metaPst;
-                // Neither today nor Prog.T1 exists — pick the term with the lowest programme
-                // term number so we always land as close to Prog.T1 as possible
-                const sorted = [...termNumsForYear].sort(
+                // Land on Term 1 (or the first generated term) so users start at Week 1
+                if (termNumsForYear.includes(1)) return 1;
+                if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
+                return termNumsForYear[0];
+              });
                   (a, b) =>
                     getProgrammeTerm(a, pstForSort) -
                     getProgrammeTerm(b, pstForSort)
@@ -5351,10 +5341,13 @@ export default function CurriculumPage() {
                                           PROG_THEME[progTermNum] ?? ""
                                         } (${nationalLabel})`
                                       : nationalLabel;
-                                  // Tabs get the short form; the full wording is the tooltip.
+                                  // Tabs get descriptive labels with week range for quick scanning.
+                                  const weekMin = term.weeks?.[0]?.week;
+                                  const weekMax = term.weeks?.[term.weeks.length - 1]?.week;
+                                  const weekRangeLabel = weekMin && weekMax ? ` (W${weekMin}–${weekMax})` : "";
                                   const tabLabel = isCohortFormat
                                     ? nationalLabel
-                                    : `${unitNoun.charAt(0)}${progTermNum}`;
+                                    : `${unitNoun.charAt(0)}${progTermNum}${weekRangeLabel}`;
                                   const isSelected = activeTerm === term.term;
                                   return (
                                     <button
@@ -5966,6 +5959,18 @@ export default function CurriculumPage() {
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                             Jump to this week (Week {currentWeekEntry.week.week})
+                          </button>
+                        )}
+                        {termsForActiveYear.length > 1 && activeTerm !== 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTerm(1);
+                              setActiveWeek(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                          >
+                            📅 View Term 1 (Weeks 1–12)
                           </button>
                         )}
                         {termsForActiveYear.length > 1 && activeTerm !== 0 && (
