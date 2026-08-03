@@ -25,6 +25,9 @@ import {
   SparklesIcon,
 } from '@/lib/icons';
 import { buildCurriculumHref } from '@/lib/curriculum/href';
+// The same limits the schedule maths uses, so the form cannot offer a week the
+// engine would clamp, nor refuse one it can represent.
+import { MAX_CURRICULUM_YEARS, TERM_WEEK_STRIDE } from '@/lib/curriculum/deliverySchedule';
 import {
   findLiveDirectionForDraft,
   findScheduleForTimingScope,
@@ -953,9 +956,12 @@ function RolloutWorkspace() {
               aria-expanded={showTiming}
               className="flex min-h-11 w-full items-start justify-between gap-4 text-left"
             >
-              <span className="flex items-start gap-3">
+              {/* min-w-0 at both levels: without it the long description below
+                  sets this row's minimum width and pushes the page sideways on
+                  a phone. */}
+              <span className="flex min-w-0 items-start gap-3">
                 <CalendarDaysIcon className="h-7 w-7 shrink-0 text-primary" />
-                <span>
+                <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-black">School timing exceptions</span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Optional</span>
@@ -1002,7 +1008,9 @@ function RolloutWorkspace() {
                   </label>
                   <label className="text-sm font-bold">First teaching week
                     <select value={entryWeek} onChange={(e) => setEntryWeek(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
-                      {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>Week {index + 1}</option>)}
+                      {/* Was a hardcoded 12, so a school whose term runs to 13
+                          could not state its real first teaching week. */}
+                      {Array.from({ length: TERM_WEEK_STRIDE }, (_, index) => <option key={index + 1} value={index + 1}>Week {index + 1}</option>)}
                     </select>
                   </label>
                 </div>
@@ -1012,7 +1020,7 @@ function RolloutWorkspace() {
                   <p className="mt-1 text-xs text-muted-foreground">Usually Year 1, First Term, Week 1. Change this only when learners are joining an existing programme.</p>
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <label className="text-xs font-bold">Year
-                      <input type="number" min={1} max={6} value={programmeYear} onChange={(e) => setProgrammeYear(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" />
+                      <input type="number" min={1} max={MAX_CURRICULUM_YEARS} value={programmeYear} onChange={(e) => setProgrammeYear(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" />
                     </label>
                     <label className="text-xs font-bold">Term
                       <select value={programmeTerm} onChange={(e) => setProgrammeTerm(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2">
@@ -1020,7 +1028,7 @@ function RolloutWorkspace() {
                       </select>
                     </label>
                     <label className="text-xs font-bold">Week
-                      <input type="number" min={1} max={12} value={programmeWeek} onChange={(e) => setProgrammeWeek(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" />
+                      <input type="number" min={1} max={TERM_WEEK_STRIDE} value={programmeWeek} onChange={(e) => setProgrammeWeek(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background p-2" />
                     </label>
                   </div>
                 </div>

@@ -54,7 +54,11 @@ export function LaneChrome({
   const displayIndex = isOverviewHome ? -1 : activeIndex;
 
   return (
-    <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+    // The scrollport starts at the top of the viewport on mobile and is padded
+    // down by the header's height, so `top-0` pinned this strip underneath the
+    // fixed app header — z-30 against its z-50 — and the stage stepper vanished
+    // as soon as you scrolled. Offset it by the same header height on mobile.
+    <div className="sticky top-[var(--app-header-height)] z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 md:top-0 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-sm font-black text-foreground">
