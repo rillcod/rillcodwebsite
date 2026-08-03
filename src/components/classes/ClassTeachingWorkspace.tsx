@@ -239,6 +239,7 @@ export function ClassTeachingWorkspace({
   const projectsByWeek = indexFirstByWeek<any>(data?.projects);
   const slidesByWeek = indexFirstByWeek<any>(data?.slide_decks);
   const flashcardsByWeek = indexFirstByWeek<any>(data?.flashcard_decks);
+  const examsByWeek = indexFirstByWeek<any>(data?.exams);
   const selectedCourse = (data?.courses || []).find(
     (course: any) => course.id === courseId
   );
@@ -601,6 +602,16 @@ export function ClassTeachingWorkspace({
                         (deck: any) => deck.lesson_id === lesson.id
                       )
                     : null);
+                // Assessment evidence for the week, not teaching preparation:
+                // deliberately outside the five-asset package, which is what
+                // the AI generator produces and what "Ready" measures.
+                const evaluation =
+                  examsByWeek.get(week) ||
+                  (lesson
+                    ? (data?.exams || []).find(
+                        (exam: any) => exam.lesson_id === lesson.id
+                      )
+                    : null);
                 const topic = weekMeta.topic || lesson?.title || `Week ${week}`;
                 const objectives: string =
                   typeof weekMeta.objectives === "string"
@@ -733,6 +744,18 @@ export function ClassTeachingWorkspace({
                           ready={Boolean(assignment)}
                         />
                         <AssetStatus label="Project" ready={Boolean(project)} />
+                        {/* Divider, because what follows is assessment evidence
+                            rather than one of the five prepared assets. */}
+                        <span
+                          aria-hidden="true"
+                          className="mx-0.5 self-center text-muted-foreground/30"
+                        >
+                          |
+                        </span>
+                        <AssetStatus
+                          label="Evaluation"
+                          ready={Boolean(evaluation)}
+                        />
                       </div>
 
                       {/* A week with a lesson always offers a way into it. These
@@ -915,22 +938,36 @@ export function ClassTeachingWorkspace({
                             Create project
                           </Link>
                         ) : null}
-                        <Link
-                          href={buildCbtNewHref({
-                            classId,
-                            courseId,
-                            programId: data?.class?.program_id,
-                            schoolId: data?.class?.school_id,
-                            lessonPlanId: plan.id,
-                            lessonId: lesson?.id || null,
-                            curriculumId: plan.curriculum_version_id,
-                            week,
-                            topic,
-                          })}
-                          className={toolLinkClass}
-                        >
-                          Evaluation
-                        </Link>
+                        {/* Every other asset here flips between Open and
+                            Create. Evaluation always said "Evaluation" and
+                            always opened the create form, so a week that
+                            already had one offered no way back to it and a
+                            second click quietly made a duplicate. */}
+                        {evaluation ? (
+                          <Link
+                            href={`/dashboard/cbt/${evaluation.id}`}
+                            className={toolLinkClass}
+                          >
+                            Open evaluation
+                          </Link>
+                        ) : canEdit ? (
+                          <Link
+                            href={buildCbtNewHref({
+                              classId,
+                              courseId,
+                              programId: data?.class?.program_id,
+                              schoolId: data?.class?.school_id,
+                              lessonPlanId: plan.id,
+                              lessonId: lesson?.id || null,
+                              curriculumId: plan.curriculum_version_id,
+                              week,
+                              topic,
+                            })}
+                            className={toolLinkClass}
+                          >
+                            Create evaluation
+                          </Link>
+                        ) : null}
                       </div>
                     </details>
                   </article>

@@ -95,6 +95,10 @@ export async function GET(
   let assignments: any[] = [];
   let slideDecks: any[] = [];
   let flashcardDecks: any[] = [];
+  // Evaluations were the one asset the workspace could create but never read
+  // back, so a week that already had one looked identical to a week that did
+  // not, and "Evaluation" always reopened the create form.
+  let exams: any[] = [];
   let deliveries: any[] = [];
   let progress: any = null;
   let direction: any = null;
@@ -151,7 +155,7 @@ export async function GET(
         `lesson_plan_id.eq.${plan.id}`,
         ...(lessonIds.length ? [`lesson_id.in.(${lessonIds.join(",")})`] : []),
       ].join(",");
-      const [assignmentResult, slideResult, flashcardResult] =
+      const [assignmentResult, slideResult, flashcardResult, examResult] =
         await Promise.all([
           db
             .from("assignments")
@@ -178,6 +182,13 @@ export async function GET(
             .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
             .or(planOrLessonScope)
             .order("created_at", { ascending: false }),
+          db
+            .from("cbt_exams")
+            .select(
+              "id,title,is_active,exam_type,lesson_id,lesson_plan_id,curriculum_week_number"
+            )
+            .or(planOrLessonScope)
+            .order("created_at", { ascending: false }),
         ]);
       const assignmentRows = assignmentResult.data || [];
       const isLegacyAssignmentBlock = (row: any) =>
@@ -192,6 +203,7 @@ export async function GET(
       );
       slideDecks = slideResult.data || [];
       flashcardDecks = flashcardResult.data || [];
+      exams = examResult.data || [];
     }
   }
   const legacyCurricula = direction
@@ -232,6 +244,7 @@ export async function GET(
       projects,
       slide_decks: slideDecks,
       flashcard_decks: flashcardDecks,
+      exams,
       deliveries,
       progress,
     },
