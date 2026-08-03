@@ -68,6 +68,9 @@ function CentralResultsPageInner() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [reportId, setReportId] = useState('');
+  // The list was hard-capped at 60 with nothing on screen to say so, so a school
+  // past that number simply could not see its remaining results.
+  const [listLimit, setListLimit] = useState(60);
 
   const load = useCallback(async () => {
     const response = await fetch('/api/academic-spine/results', { cache: 'no-store' });
@@ -433,7 +436,7 @@ function CentralResultsPageInner() {
         </div>
 
         <div className="mt-4 space-y-3">
-          {visibleReports.slice(0, 60).map((report) => (
+          {visibleReports.slice(0, listLimit).map((report) => (
             <article
               key={report.id}
               className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -482,6 +485,20 @@ function CentralResultsPageInner() {
               </div>
             </article>
           ))}
+          {visibleReports.length > listLimit && (
+            <div className="rounded-2xl border border-border bg-muted/40 p-4 text-center">
+              <p className="text-xs font-bold text-muted-foreground">
+                Showing {listLimit} of {visibleReports.length} results in this filter.
+              </p>
+              <button
+                type="button"
+                onClick={() => setListLimit((current) => current + 60)}
+                className="mt-2 min-h-11 rounded-xl border border-border bg-background px-4 py-2 text-sm font-black text-foreground hover:border-primary/40"
+              >
+                Show 60 more
+              </button>
+            </div>
+          )}
           {visibleReports.length === 0 ? (
             <p className="rounded-2xl bg-muted p-5 text-sm text-muted-foreground">
               No results match this filter yet. Prepare a learner result above, or open Report Builder to enter marks.

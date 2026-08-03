@@ -23,6 +23,7 @@ export default function AcademicWeightsPage() {
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [applyToAll, setApplyToAll] = useState(true);
   const [activeSchemes, setActiveSchemes] = useState<any[]>([]);
+  const [schemeLimit, setSchemeLimit] = useState(8);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -107,7 +108,11 @@ export default function AcademicWeightsPage() {
 
           <section className="rounded-3xl border border-border bg-card p-6">
             <h2 className="text-lg font-black text-foreground">Active rules</h2>
-            <div className="mt-4 space-y-3">{activeSchemes.slice(0, 8).map((scheme) => <div key={scheme.id} className="rounded-xl bg-muted/50 p-3"><p className="text-sm font-bold text-foreground">{scheme.name}</p><p className="mt-1 text-xs text-muted-foreground">{scheme.schools?.name || 'All schools'} · {scheme.courses?.title || 'All courses'}</p></div>)}</div>
+            {/* This list was cut to 8 with nothing saying so, and rendered as an
+                empty box when there were none at all. */}
+            <div className="mt-4 space-y-3">{activeSchemes.slice(0, schemeLimit).map((scheme) => <div key={scheme.id} className="rounded-xl bg-muted/50 p-3"><p className="text-sm font-bold text-foreground">{scheme.name}</p><p className="mt-1 text-xs text-muted-foreground">{scheme.schools?.name || 'All schools'} · {scheme.courses?.title || 'All courses'}</p></div>)}</div>
+            {activeSchemes.length === 0 && <p className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">No weighting rule has been published yet. Until one exists, automatic results fall back to the built-in defaults shown on the left.</p>}
+            {activeSchemes.length > schemeLimit && <button type="button" onClick={() => setSchemeLimit(activeSchemes.length)} className="mt-3 min-h-11 w-full rounded-xl border border-border bg-background px-4 py-2 text-sm font-black text-foreground hover:border-primary/40">Show all {activeSchemes.length} rules</button>}
           </section>
         </div>
       </section>

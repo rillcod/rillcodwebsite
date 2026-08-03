@@ -76,6 +76,9 @@ export default function AcademicPathwaysPage() {
     {issues.length > 0 && <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="font-black text-amber-800 dark:text-amber-200">{issues.length} learner placement{issues.length === 1 ? '' : 's'} need attention</p><p className="mt-1 text-sm text-amber-800 dark:text-amber-200">Their enrollment type does not match their current class. No new results will cross that boundary.</p></section>}
     <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
       <section className="space-y-3">
+        {/* With no offerings the left column was blank and the right pane never
+            rendered, so the page read as broken rather than as empty. */}
+        {offerings.length === 0 && !error && <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground"><p className="font-bold text-foreground">No pathway exists yet.</p><p className="mt-1">Regular School runs on the standard academic calendar without one. Create a pathway {canCreatePathway ? 'above' : '(Academic Office only)'} when Online School or a Special Programme needs its own curriculum direction, timing and results.</p></div>}
         {offerings.map((item) => <button key={item.id} onClick={() => { setSelected(item.id); setReleaseId(''); }} className={`w-full rounded-2xl border p-4 text-left ${selected === item.id ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
           <p className="text-xs font-black uppercase tracking-wide text-primary">{label[item.enrollment_type] || item.enrollment_type}</p>
           <p className="mt-1 font-black text-foreground">{item.title}</p>

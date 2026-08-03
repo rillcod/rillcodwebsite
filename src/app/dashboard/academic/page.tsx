@@ -65,7 +65,7 @@ type OfficeTool = {
   title: string;
   description: string;
   href: string;
-  group: "teaching" | "evidence" | "help";
+  group: "teaching" | "evidence" | "governance" | "help";
   adminOnly?: boolean;
 };
 
@@ -124,6 +124,26 @@ const SUPPORTING_TOOLS: OfficeTool[] = [
     href: "/dashboard/certificates/management",
     group: "evidence",
   },
+  // Both of these govern the academic engine and had no route in. Weights had
+  // no inbound link anywhere in the app — the only way to reach the rule that
+  // decides how every automatic result is calculated was to type the URL.
+  // Pathways had one, at the bottom of the guide.
+  {
+    title: "Learning pathways",
+    description:
+      "Give Regular School, Online School and each Special Programme their own curriculum direction and calendar.",
+    href: "/dashboard/academic/pathways",
+    group: "governance",
+    adminOnly: true,
+  },
+  {
+    title: "Result weighting",
+    description:
+      "Set how theory, practical, assignments and attendance combine into an automatic score.",
+    href: "/dashboard/academic/weights",
+    group: "governance",
+    adminOnly: true,
+  },
   {
     title: "How the Academic Office works",
     description: "Read the simple guide from curriculum to results.",
@@ -141,7 +161,11 @@ export default function AcademicSpinePage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [showTools, setShowTools] = useState(false);
+  // Open by default. Collapsed, these nine links were the only route to
+  // Projects, Slides, Flashcards and the rest, and the "Teaching Resources"
+  // sidebar entry deep-linked #teaching-resources into a node that was not
+  // rendered — so the anchor scrolled nowhere and the tools looked absent.
+  const [showTools, setShowTools] = useState(true);
   const [showAllAttention, setShowAllAttention] = useState(false);
 
   const load = useCallback(async () => {
@@ -446,8 +470,15 @@ export default function AcademicSpinePage() {
               <span className="font-bold text-amber-700 dark:text-amber-300">
                 {overview.stuck_plans} class plan(s)
               </span>{" "}
-              are not attached to an official edition. Open a class to see the
-              exact reason and the fix for that class.
+              are not attached to an official edition.{" "}
+              {/* The sentence said "open a class" and then made you go find one. */}
+              <Link
+                href="/dashboard/classes"
+                className="font-bold text-primary hover:underline"
+              >
+                Open Classes
+              </Link>{" "}
+              to see the exact reason and the fix for that class.
             </p>
           )}
         </section>
@@ -509,17 +540,15 @@ export default function AcademicSpinePage() {
                       <StageList statuses={statuses} lane={laneId} />
                     ) : !isAdmin ? (
                       <ol className="space-y-2" role="list">
+                        {/* Classes belongs to the delivery lane only. Listing it in
+                            both put the same destination on screen twice, under two
+                            different descriptions, side by side. */}
                         {(laneId === "asset"
                           ? [
                               {
                                 label: "Curriculum",
                                 href: "/dashboard/academic/build",
                                 purpose: "Read the official course direction.",
-                              },
-                              {
-                                label: "Classes",
-                                href: "/dashboard/classes",
-                                purpose: "Teach from your assigned classes.",
                               },
                             ]
                           : [
@@ -674,15 +703,21 @@ export default function AcademicSpinePage() {
             {showTools && ([
               ["teaching", "Teaching resources", "Prepare and support what happens in class."],
               ["evidence", "Evidence and outcomes", "Record learning, review progress and publish outcomes."],
+              ["governance", "Academic rules", "Decide how pathways run and how results are calculated."],
               ["help", "Guidance", "Understand how the whole academic flow works."],
-            ] as const).map(([group, title, description]) => (
+            ] as const).map(([group, title, description]) => {
+              const tools = SUPPORTING_TOOLS.filter(
+                (tool) => tool.group === group && (!tool.adminOnly || isAdmin),
+              );
+              // Governance is admin-only, so for everyone else the group would
+              // render as a heading over nothing.
+              if (tools.length === 0) return null;
+              return (
               <div key={group} id={group === "teaching" ? "teaching-resources" : undefined} className="scroll-mt-24 rounded-2xl border border-border bg-background p-4">
                 <h3 className="text-sm font-black text-foreground">{title}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">{description}</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {SUPPORTING_TOOLS.filter(
-                    (tool) => tool.group === group && (!tool.adminOnly || isAdmin),
-                  ).map((tool) => (
+                  {tools.map((tool) => (
                     <Link
                       key={tool.href}
                       href={tool.href}
@@ -698,7 +733,8 @@ export default function AcademicSpinePage() {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </section>
 
           {isAdmin && <AcademicExceptionsWorkspace classId={classId} />}

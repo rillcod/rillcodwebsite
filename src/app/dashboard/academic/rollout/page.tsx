@@ -198,6 +198,13 @@ function RolloutWorkspace() {
   const [savingTiming, setSavingTiming] = useState(false);
   const [showTiming, setShowTiming] = useState(false);
 
+  // The Timing stage in lanes.ts points at #timing. The anchor scrolled here
+  // correctly and then showed a collapsed header, so arriving from the stepper
+  // looked like the stage had no content. Asking for it counts as opening it.
+  useEffect(() => {
+    if (window.location.hash === '#timing') setShowTiming(true);
+  }, []);
+
   const selected = useMemo(() => drafts.find((d) => d.id === curriculumId) ?? null, [drafts, curriculumId]);
   const course = relation(selected?.courses);
   const programme = relation(course?.programs);
@@ -796,11 +803,18 @@ function RolloutWorkspace() {
                       <p className="text-muted-foreground">No class is waiting for a course in this programme.</p>
                     )}
                     {coursePlan.refused?.length > 0 && (
-                      <ul className="mt-2 space-y-1 text-xs text-amber-700 dark:text-amber-300">
-                        {coursePlan.refused.slice(0, 5).map((r) => (
-                          <li key={r.id}>{r.name}: {r.reason}</li>
-                        ))}
-                      </ul>
+                      <>
+                        <ul className="mt-2 space-y-1 text-xs text-amber-700 dark:text-amber-300">
+                          {coursePlan.refused.slice(0, 5).map((r) => (
+                            <li key={r.id}>{r.name}: {r.reason}</li>
+                          ))}
+                        </ul>
+                        {coursePlan.refused.length > 5 && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            and {coursePlan.refused.length - 5} more refused for the same kinds of reason.
+                          </p>
+                        )}
+                      </>
                     )}
                     {coursePlan.assign?.length > 0 && (
                       <ul className="mt-2 max-h-32 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
