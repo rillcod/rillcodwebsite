@@ -60,6 +60,7 @@ export function ClassTeachingWorkspace({
   const [weekFilter, setWeekFilter] = useState<"all" | "todo" | "taught">(
     "all"
   );
+  const [termFilter, setTermFilter] = useState<number>(0);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiWeek, setAiWeek] = useState<{
     week: number;
@@ -351,13 +352,23 @@ export function ClassTeachingWorkspace({
     (row) => !row.packageStatus.complete
   ).length;
   const weeksTaught = weekRows.filter((row) => row.taught).length;
-  const visibleWeekRows = weekRows.filter((row) =>
-    weekFilter === "todo"
-      ? !row.packageStatus.complete
-      : weekFilter === "taught"
-      ? row.taught
-      : true
-  );
+  const visibleWeekRows = weekRows.filter((row) => {
+    const matchesStatus =
+      weekFilter === "todo"
+        ? !row.packageStatus.complete
+        : weekFilter === "taught"
+        ? row.taught
+        : true;
+    const matchesTerm =
+      termFilter === 0
+        ? true
+        : termFilter === 1
+        ? row.week <= 8
+        : termFilter === 2
+        ? row.week > 8 && row.week <= 16
+        : row.week > 16;
+    return matchesStatus && matchesTerm;
+  });
   // The first week that is neither prepared nor taught — where work resumes.
   const resumeWeek = weekRows.find(
     (row) => !row.taught && !row.packageStatus.complete
@@ -677,6 +688,29 @@ export function ClassTeachingWorkspace({
                     {label}
                   </button>
                 ))}
+                {weekRows.length > 8 && (
+                  <div className="flex items-center gap-1 sm:border-l border-border sm:pl-2">
+                    {[
+                      [0, "All Terms"],
+                      [1, "T1 (W1–8)"],
+                      [2, "T2 (W9–16)"],
+                      [3, "T3 (W17+)"],
+                    ].map(([termNum, label]) => (
+                      <button
+                        key={termNum}
+                        type="button"
+                        onClick={() => setTermFilter(Number(termNum))}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                          termFilter === termNum
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "text-muted-foreground hover:text-foreground border border-transparent"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {resumeWeek && weekFilter === "all" && (
                   <span className="text-[10px] font-bold text-muted-foreground">
                     Next up: Week {resumeWeek.week} —{" "}

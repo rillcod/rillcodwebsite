@@ -207,6 +207,33 @@ export async function GET(
       flashcardDecks = flashcardResult.data || [];
       exams = examResult.data || [];
     }
+    // Auto-heal plan_data.weeks if missing Week 1 or truncated from legacy term-slicing
+    if (direction?.content && plan?.plan_data) {
+      const existingWeeks: any[] = Array.isArray(plan.plan_data.weeks)
+        ? plan.plan_data.weeks
+        : [];
+      if (
+        existingWeeks.length === 0 ||
+        !existingWeeks.some((w: any) => Number(w.week) === 1)
+      ) {
+        const fullWeeks = mapOfficialCurriculumToCalendarWeeks({
+          content: direction.content,
+          directionAcademicSession: direction.academic_session,
+          currentAcademicSession: klass.academic_terms?.academic_year ?? null,
+          calendarTerm: klass.academic_terms?.term_number ?? 1,
+          schedule: {},
+        });
+        if (fullWeeks.length > 0) {
+          plan = {
+            ...plan,
+            plan_data: {
+              ...plan.plan_data,
+              weeks: fullWeeks,
+            },
+          };
+        }
+      }
+    }
   }
   const legacyCurricula = direction
     ? [

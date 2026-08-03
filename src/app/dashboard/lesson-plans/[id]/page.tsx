@@ -942,15 +942,8 @@ export default function LessonPlanDetailPage() {
     )
       return null;
     const c = plan.curriculum.content as SyllabusContent;
-    if (!c.terms?.length) return null;
-    const tn = inferTermNumberFromPlanTerm(plan.term);
-    const cy = plan.plan_data?.curriculum_year ?? 1;
-    const term =
-      c.terms.find((t) => t.term === tn && (t.year ?? 1) === cy) ??
-      c.terms.find((t) => t.term === tn) ??
-      c.terms[0];
-    return { ...c, terms: [term] };
-  }, [plan?.curriculum?.content, plan?.term, plan?.plan_data?.curriculum_year]);
+    return c;
+  }, [plan?.curriculum?.content]);
 
   async function saveWeeks(updatedWeeks: WeekEntry[]) {
     setSaving(true);

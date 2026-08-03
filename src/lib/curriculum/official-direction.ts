@@ -150,40 +150,62 @@ export function mapOfficialCurriculumToCalendarWeeks(input: {
   const terms: any[] = Array.isArray(input.content?.terms)
     ? (input.content.terms as any[])
     : [];
-  for (let calendarWeek = 1; calendarWeek <= 12; calendarWeek += 1) {
-    const position = mapSessionCalendarToCurriculumPosition({
-      entryAcademicSession: input.directionAcademicSession,
-      currentAcademicSession: input.currentAcademicSession,
-      calendarTerm: input.calendarTerm,
-      calendarWeek,
-      schedule: {
-        entryTerm: Number(input.schedule.entry_term_number ?? 1),
-        entryWeek: Number(input.schedule.entry_week_number ?? 1),
-        curriculumYear: Number(input.schedule.curriculum_year_number ?? 1),
-        curriculumTerm: Number(input.schedule.curriculum_term_number ?? 1),
-        curriculumWeek: Number(input.schedule.curriculum_week_number ?? 1),
-      },
-    });
-    if (!position) continue;
-    const term =
-      terms.find(
-        (item) =>
-          Number(item.year ?? 1) === position.year &&
-          Number(item.term) === position.term
-      ) ?? terms.find((item) => Number(item.term) === position.term);
-    const sourceWeek = Array.isArray(term?.weeks)
-      ? term.weeks.find((item: any) => Number(item.week) === position.week)
-      : null;
-    if (!sourceWeek) continue;
-    weeks.push({
-      ...mapSyllabusWeekToPlanRow(sourceWeek as SyllabusWeekImport),
-      week: calendarWeek,
-      official_position: {
-        programme_year: position.year,
-        programme_term: position.term,
-        programme_week: position.week,
-      },
-    });
+
+  // Iterate over all terms in the curriculum to ensure every single week is mapped
+  for (const term of terms) {
+    const termWeeks = Array.isArray(term.weeks) ? term.weeks : [];
+    for (const sourceWeek of termWeeks) {
+      const mappedRow = mapSyllabusWeekToPlanRow(sourceWeek as SyllabusWeekImport);
+      const weekNum = Number(sourceWeek.week || (weeks.length + 1));
+      weeks.push({
+        ...mappedRow,
+        week: weekNum,
+        official_position: {
+          programme_year: Number(term.year ?? 1),
+          programme_term: Number(term.term ?? 1),
+          programme_week: weekNum,
+        },
+      });
+    }
+  }
+
+  // Fallback: If no terms or weeks were populated through term iteration, use position mapper
+  if (weeks.length === 0) {
+    for (let calendarWeek = 1; calendarWeek <= 12; calendarWeek += 1) {
+      const position = mapSessionCalendarToCurriculumPosition({
+        entryAcademicSession: input.directionAcademicSession,
+        currentAcademicSession: input.currentAcademicSession,
+        calendarTerm: input.calendarTerm,
+        calendarWeek,
+        schedule: {
+          entryTerm: Number(input.schedule.entry_term_number ?? 1),
+          entryWeek: Number(input.schedule.entry_week_number ?? 1),
+          curriculumYear: Number(input.schedule.curriculum_year_number ?? 1),
+          curriculumTerm: Number(input.schedule.curriculum_term_number ?? 1),
+          curriculumWeek: Number(input.schedule.curriculum_week_number ?? 1),
+        },
+      });
+      if (!position) continue;
+      const term =
+        terms.find(
+          (item) =>
+            Number(item.year ?? 1) === position.year &&
+            Number(item.term) === position.term
+        ) ?? terms.find((item) => Number(item.term) === position.term);
+      const sourceWeek = Array.isArray(term?.weeks)
+        ? term.weeks.find((item: any) => Number(item.week) === position.week)
+        : null;
+      if (!sourceWeek) continue;
+      weeks.push({
+        ...mapSyllabusWeekToPlanRow(sourceWeek as SyllabusWeekImport),
+        week: calendarWeek,
+        official_position: {
+          programme_year: position.year,
+          programme_term: position.term,
+          programme_week: position.week,
+        },
+      });
+    }
   }
   return weeks;
 }
