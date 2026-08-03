@@ -96,12 +96,46 @@ describe('geminiGenerateText', () => {
         expect(mocks.calls[1].config.thinkingConfig.thinkingBudget).toBe(0);
     });
 
-    it('returns partial output rather than nothing when truncation persists', async () => {
+    it('resumes an answer that is genuinely longer than one response', async () => {
+        // Turning thinking off did not help, so the answer really is too long.
+        // It must be carried on and stitched together, not handed back cut in
+        // half for the caller's JSON parse to choke on.
+        mocks.generateContent
+            .mockResolvedValueOnce(reply('', 'MAX_TOKENS'))
+            .mockResolvedValueOnce(reply('{"a":1,"b":"hel', 'MAX_TOKENS'))
+            .mockResolvedValueOnce(reply('lo"}'));
+
+        const result = await geminiGenerateText('sys', 'user');
+
+        // Joined with no separator, so a body split mid-token closes up.
+        expect(result).toMatchObject({ text: '{"a":1,"b":"hello"}', continued: 1 });
+        expect(result?.truncated).toBeFalsy();
+        expect(JSON.parse(result!.text)).toEqual({ a: 1, b: 'hello' });
+    });
+
+    it('keeps everything it gathered when it is still unfinished at the pass limit', async () => {
         mocks.generateContent.mockResolvedValue(reply('half an ans', 'MAX_TOKENS'));
 
         const result = await geminiGenerateText('sys', 'user');
 
-        expect(result).toMatchObject({ text: 'half an ans', truncated: true });
+        expect(result?.truncated).toBe(true);
+        // Whatever it managed is returned rather than nothing, and it is longer
+        // than the single fragment the old behaviour gave back.
+        expect(result!.text.startsWith('half an ans')).toBe(true);
+        expect(result!.text.length).toBeGreaterThan('half an ans'.length);
+    });
+
+    it('stops resuming as soon as the model says it has finished', async () => {
+        mocks.generateContent
+            .mockResolvedValueOnce(reply('', 'MAX_TOKENS'))
+            .mockResolvedValueOnce(reply('the answer', 'MAX_TOKENS'))
+            .mockResolvedValueOnce(reply('   '));
+
+        const result = await geminiGenerateText('sys', 'user');
+
+        expect(result?.text).toBe('the answer');
+        // One thinking-off retry, then one resume that came back empty. No more.
+        expect(mocks.calls).toHaveLength(3);
     });
 
     it('retries the same model on the next key before downgrading the model', async () => {

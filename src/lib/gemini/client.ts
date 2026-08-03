@@ -145,6 +145,8 @@ export interface GeneratedText {
     model: string;
     /** True when the model stopped because it ran out of output budget. */
     truncated?: boolean;
+    /** How many resume passes were needed to finish this answer. */
+    continued?: number;
     usage?: { input?: number; output?: number; thoughts?: number };
 }
 
@@ -172,6 +174,78 @@ function thinkingBudgetFor(
 
     const wanted = effort === 'none' ? 0 : effort === 'low' ? 1024 : effort === 'medium' ? 4096 : 16_384;
     return Math.min(wanted, ceiling);
+}
+
+/**
+ * How many times a single answer may be resumed. Each pass spends another full
+ * output allowance, so this bounds both cost and latency. Three passes over a
+ * 65k cap carries roughly 200k tokens of answer, far beyond any prompt here.
+ */
+const MAX_CONTINUATIONS = 3;
+
+/**
+ * Resume an answer that hit the output ceiling.
+ *
+ * The model is shown the original request and everything produced so far, and
+ * asked to carry on from the exact character it stopped at. Pieces are joined
+ * without a separator, so a JSON body split mid-token still closes correctly.
+ *
+ * Before this, a long generation came back as a partial: valid-looking prose
+ * that stopped mid-sentence, or JSON missing its closing braces that every
+ * caller then failed to parse. Retrying the whole thing produced the same
+ * length and the same cut.
+ */
+async function continueUntilComplete(
+    apiKey: string,
+    spec: TextModelSpec,
+    systemPrompt: string,
+    originalContents: string,
+    firstPartial: string,
+    opts: GenerateTextOptions & { maxOutputTokens: number; timeoutMs: number },
+): Promise<GeneratedText> {
+    let assembled = firstPartial;
+
+    for (let pass = 0; pass < MAX_CONTINUATIONS; pass++) {
+        if (opts.signal?.aborted) break;
+
+        const resumePrompt = [
+            originalContents,
+            '--- RESPONSE SO FAR ---',
+            assembled,
+            '--- INSTRUCTION ---',
+            'Your previous response was cut off because it ran out of room.',
+            'Continue from the exact point it stopped — the next character you write',
+            'is appended directly to the text above. Do not repeat anything already',
+            'written, do not restate the beginning, do not add a preamble, and do not',
+            'wrap the continuation in code fences. If the response above is complete,',
+            'reply with nothing at all.',
+        ].join('\n\n');
+
+        const next = await callModel(apiKey, spec, systemPrompt, resumePrompt, {
+            ...opts,
+            // Thinking here only eats the room needed to finish the answer.
+            thinkingBudget: spec.thinking === 'forced' ? 128 : 0,
+        });
+
+        if (next.kind === 'error') break;
+
+        const addition = next.kind === 'ok' ? next.value.text : next.partial;
+        if (!addition?.trim()) break; // model says it is finished
+
+        assembled += addition;
+
+        if (next.kind === 'ok') {
+            return { text: assembled, model: spec.id, continued: pass + 1 };
+        }
+        // Still truncated — go round again while passes remain.
+    }
+
+    return {
+        text: assembled,
+        model: spec.id,
+        truncated: true,
+        continued: MAX_CONTINUATIONS,
+    };
 }
 
 function buildContents(userPrompt: string, context?: string | string[]): string {
@@ -247,12 +321,22 @@ export async function geminiGenerateText(
                         timeoutMs,
                     });
                     if (retry.kind === 'ok') return retry.value;
-                    // Still truncated: hand back what we have rather than nothing.
-                    if (retry.kind === 'truncated' && retry.partial) {
-                        return { text: retry.partial, model: spec.id, truncated: true };
-                    }
-                    if (result.partial) {
-                        return { text: result.partial, model: spec.id, truncated: true };
+
+                    // Thinking was not the problem: the answer is genuinely longer
+                    // than one response can hold. Ask the model to carry on from
+                    // where it stopped and stitch the pieces together, rather than
+                    // handing back a half-finished lesson that fails to parse.
+                    const partial =
+                        (retry.kind === 'truncated' && retry.partial) || result.partial;
+                    if (partial) {
+                        return await continueUntilComplete(
+                            apiKey,
+                            spec,
+                            systemPrompt,
+                            contents,
+                            partial,
+                            { ...opts, maxOutputTokens: maxOutput, timeoutMs },
+                        );
                     }
                     break; // next key
                 }

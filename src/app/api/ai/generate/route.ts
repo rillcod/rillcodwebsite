@@ -8,6 +8,7 @@ import {
 } from "@/lib/dashboard/route-access";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { geminiGenerateText } from "@/lib/gemini/client";
+import { openRouterComplete } from "@/lib/ai/openrouter";
 
 export const dynamic = "force-dynamic";
 // Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
@@ -1978,44 +1979,33 @@ export async function POST(req: NextRequest) {
               const abortCtrl = new AbortController();
               const tid = setTimeout(() => abortCtrl.abort(), 55000);
 
-              const apiRes = await fetch(
-                "https://openrouter.ai/api/v1/chat/completions",
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                    "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
-                    "Content-Type": "application/json",
-                  },
-                  signal: abortCtrl.signal,
-                  body: JSON.stringify({
-                    model: modelId,
-                    messages: [
-                      { role: "system", content: aiSystemPrompt },
-                      { role: "user", content: prompt },
-                    ],
-                    max_tokens: Math.min(adaptiveMaxTokens, 16000),
-                    temperature: adaptiveTemperature,
-                    response_format: { type: "json_object" },
-                  }),
-                }
-              );
+              // Resumes itself on max_tokens rather than emitting a half-written
+              // lesson that safeParseJSON rejects, which used to look like a
+              // model failure and send the whole job to the next model.
+              const completion = await openRouterComplete({
+                apiKey: process.env.OPENROUTER_API_KEY ?? "",
+                model: modelId,
+                system: aiSystemPrompt,
+                user: prompt,
+                maxTokens: Math.min(adaptiveMaxTokens, 16000),
+                temperature: adaptiveTemperature,
+                json: true,
+                signal: abortCtrl.signal,
+                onContinue: (pass) =>
+                  emit({ status: `Still writing — part ${pass + 1}...` }),
+              });
 
               clearTimeout(tid);
 
-              if (apiRes.ok) {
-                emit({ status: "Assembling lesson blocks..." });
-                const apiData = await apiRes.json();
-                const content = apiData.choices[0]?.message?.content;
-                if (content) {
-                  try {
-                    const parsed = safeParseJSON(content);
-                    emit({ done: true, model: modelId, data: parsed });
-                    streamController.close();
-                    return;
-                  } catch {
-                    emit({ status: "Retrying with better model..." });
-                  }
+              emit({ status: "Assembling lesson blocks..." });
+              if (completion.content) {
+                try {
+                  const parsed = safeParseJSON(completion.content);
+                  emit({ done: true, model: modelId, data: parsed });
+                  streamController.close();
+                  return;
+                } catch {
+                  emit({ status: "Retrying with better model..." });
                 }
               } else {
                 emit({ status: "Switching to backup model..." });
@@ -2109,39 +2099,30 @@ export async function POST(req: NextRequest) {
           : 30000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-        const requestBody: any = {
-          model: modelId,
-          messages: [
-            { role: "system", content: aiSystemPrompt },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: Math.min(adaptiveMaxTokens, 16000),
-          temperature: adaptiveTemperature,
-        };
-        // Only add response_format for types that need strict JSON — skip for lesson-notes
-        if (useJsonFormat) {
-          requestBody.response_format = { type: "json_object" };
-        }
-
-        const response = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-              "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
-              "Content-Type": "application/json",
-            },
+        // Resumes itself when it hits max_tokens instead of returning a body
+        // cut mid-token that the parser then rejects.
+        let completion: Awaited<ReturnType<typeof openRouterComplete>> | null =
+          null;
+        let requestFailed = false;
+        try {
+          completion = await openRouterComplete({
+            apiKey: process.env.OPENROUTER_API_KEY ?? "",
+            model: modelId,
+            system: aiSystemPrompt,
+            user: prompt,
+            maxTokens: Math.min(adaptiveMaxTokens, 16000),
+            temperature: adaptiveTemperature,
+            json: useJsonFormat,
             signal: controller.signal,
-            body: JSON.stringify(requestBody),
-          }
-        );
+          });
+        } catch {
+          requestFailed = true;
+        }
 
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const data = await response.json();
-          const content = data.choices[0]?.message?.content;
+        if (!requestFailed && completion) {
+          const content = completion.content;
           if (content) {
             // For lesson-notes: try JSON parse first, then fall back to wrapping raw text
             if (type === "lesson-notes") {
@@ -2206,12 +2187,8 @@ export async function POST(req: NextRequest) {
             }
           }
         } else {
-          const errData = await response.json().catch(() => ({}));
-          console.warn(
-            `Model ${modelId} failed with status ${response.status}:`,
-            errData.error?.message || response.statusText
-          );
-          lastError = errData.error?.message || `Status ${response.status}`;
+          console.warn(`Model ${modelId} failed — trying the next one`);
+          lastError = `Model ${modelId} did not return a usable response`;
         }
       } catch (err: any) {
         console.error(`Error attempting model ${modelId}:`, err.message);
