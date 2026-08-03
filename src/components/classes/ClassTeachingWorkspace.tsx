@@ -641,6 +641,17 @@ export function ClassTeachingWorkspace({
                             <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                               Week {week}
                             </p>
+                            {/* Where this week sits in the curriculum. Without it
+                                a bare "Week 14" reads as being dropped into the
+                                middle of something with no way back, when it is
+                                really this term's week 2 of the official edition. */}
+                            {weekMeta.official_position && (
+                              <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                                Curriculum T
+                                {weekMeta.official_position.programme_term} · W
+                                {weekMeta.official_position.programme_week}
+                              </span>
+                            )}
                             {taught && (
                               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                                 Taught
@@ -685,8 +696,26 @@ export function ClassTeachingWorkspace({
                         <AssetStatus label="Project" ready={Boolean(project)} />
                       </div>
 
+                      {/* A week with a lesson always offers a way into it. These
+                          were one either/or: the lesson link lived in the else
+                          branch of "Prepare missing assets", so the moment any of
+                          the five assets was missing — the normal state — the only
+                          route to an existing lesson was the collapsed tools
+                          section below, while the Lesson chip above still showed
+                          green. That is the "I can see it exists but I cannot open
+                          it" case. */}
                       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                        {canEdit && !packageStatus.complete ? (
+                        {lesson && (
+                          <Link
+                            href={`/dashboard/lessons/${lesson.id}`}
+                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm"
+                          >
+                            {packageStatus.complete
+                              ? "Review lesson package"
+                              : "Open lesson"}
+                          </Link>
+                        )}
+                        {canEdit && !packageStatus.complete && (
                           <button
                             type="button"
                             disabled={busy}
@@ -701,19 +730,18 @@ export function ClassTeachingWorkspace({
                                 project: weekMeta.project,
                               })
                             }
-                            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-50"
+                            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black disabled:opacity-50 ${
+                              lesson
+                                ? "border border-border bg-background text-foreground"
+                                : "bg-primary text-primary-foreground shadow-sm"
+                            }`}
                           >
                             <SparklesIcon className="h-4 w-4" />
-                            Prepare missing assets with AI
+                            {lesson
+                              ? `Prepare ${packageStatus.missing.length} missing`
+                              : "Prepare week with AI"}
                           </button>
-                        ) : lesson ? (
-                          <Link
-                            href={`/dashboard/lessons/${lesson.id}`}
-                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm"
-                          >
-                            Review lesson package
-                          </Link>
-                        ) : null}
+                        )}
                         {canEdit && !lesson && (
                           <Link
                             href={manualLessonHref}
@@ -748,8 +776,10 @@ export function ClassTeachingWorkspace({
                     </div>
 
                     <details className="border-t border-border bg-muted/20">
+                      {/* Named contents, not a category. "Open individual tools"
+                          gave no reason to believe the lesson was in there. */}
                       <summary className="cursor-pointer list-none px-3 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground sm:px-4">
-                        Open individual tools
+                        Lesson · Slides · Flashcards · Assignment · Project · Evaluation
                       </summary>
                       <div className="grid grid-cols-2 gap-2 border-t border-border p-3 sm:flex sm:flex-wrap sm:p-4">
                         {lesson ? (
@@ -868,10 +898,23 @@ export function ClassTeachingWorkspace({
                 );
               })}
               {curriculumWeeks.length === 0 && (
-                <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs leading-5 text-muted-foreground">
-                  This plan has no curriculum weeks yet. Open the full teaching
-                  plan to add its progression.
-                </p>
+                /* Told you to open the full teaching plan and then made you go
+                   find it. */
+                <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    This plan has no curriculum weeks yet. Its weeks come from
+                    the official edition assigned to this class.
+                  </p>
+                  <Link
+                    href={buildCurriculumHref({
+                      courseId,
+                      programId: data?.class?.program_id,
+                    })}
+                    className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40"
+                  >
+                    Open the full teaching plan
+                  </Link>
+                </div>
               )}
             </div>
           </div>

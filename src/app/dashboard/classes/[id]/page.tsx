@@ -1418,9 +1418,13 @@ export default function ClassDetailPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground">
+                {/* A breadcrumb has to go where it is labelled. This was
+                    router.back(), so "Classes" returned to whatever was
+                    previously in history — the lesson you just came from, the
+                    report before it, or nothing at all on a deep link. */}
+                <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground">
                   <ArrowLeftIcon className="h-3.5 w-3.5" /> Classes
-                </button>
+                </Link>
                 <span className="text-muted-foreground/50">/</span>
                 <span className="rounded-full bg-brand-red-accent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">
                   {pathwayLabel}
