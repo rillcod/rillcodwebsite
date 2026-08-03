@@ -1984,6 +1984,35 @@ export async function POST(req: NextRequest) {
 
           emit({ status: "Initialising lesson engine..." });
 
+          // Free Gemini first, exactly as the non-streaming path does. This was
+          // skipped here, so the single most common generation in the product —
+          // a streamed lesson — went straight to OpenRouter and never touched
+          // the free ladder it was supposed to prefer. Gemini has no token
+          // stream in this client, so progress is reported rather than streamed;
+          // the SSE contract is unchanged either way.
+          if (process.env.GEMINI_API_KEY) {
+            emit({ status: "Generating with Gemini (free)..." });
+            const geminiResult = await geminiGenerateText(
+              aiSystemPrompt,
+              prompt,
+              { json: true }
+            ).catch(() => null);
+
+            const text = geminiResult?.text ?? "";
+            if (text && text.length >= MIN_CONTENT_CHARS) {
+              try {
+                const parsed = safeParseJSON(text);
+                emit({ done: true, model: geminiResult!.model, data: parsed });
+                streamController.close();
+                return;
+              } catch {
+                emit({ status: "Falling back to the model queue..." });
+              }
+            } else if (text) {
+              emit({ status: "Answer came back thin — trying another model..." });
+            }
+          }
+
           for (const modelId of modelQueue) {
             const shortName =
               modelId.split("/").pop()?.split(":")[0] ?? modelId;
