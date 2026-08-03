@@ -917,24 +917,9 @@ export default function ClassDetailPage() {
     });
   };
 
-  const saveEditedSession = async () => {
-    if (!editingSession) return;
-    setSavingSession(true);
-    try {
-      const res = await fetch(`/api/class-sessions/${editingSession.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sessionForm),
-      });
-      if (!res.ok) throw new Error('Failed to update session');
-      setEditingSession(null);
-      await fetchData();
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setSavingSession(false);
-    }
-  };
+  // saveEditedSession lived here: an edit-only copy of the save the session
+  // modal already performs inline, where one handler covers both new and edit.
+  // It had no callers.
 
   const deleteSession = async (sessId: string) => {
     if (!confirm('Permanently delete this session record?')) return;
@@ -1295,7 +1280,6 @@ export default function ClassDetailPage() {
   const visibleCurrent = currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
   const visibleInactive = inactiveTermStudents.filter(matchesRoster);
   const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 6;
-  const latestSession = sessions[0] ?? null;
   const openAssignments = items.assignments.filter((assignment: any) => {
     if (!assignment.due_date) return true;
     return new Date(assignment.due_date).getTime() >= Date.now();
@@ -2718,8 +2702,8 @@ export default function ClassDetailPage() {
 
       {/* Student Enrol Modal */}
       {showStudentModal && (() => {
-        const unassigned = availableStudents.filter((s: any) => !s.class_id);
-        const inOtherClass = availableStudents.filter((s: any) => s.class_id);
+        // unassigned / inOtherClass were filtered here on every render and never
+        // read; directlyEnrollable and requestableTransfers replaced them.
         const directlyEnrollable = availableStudents.filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request);
         const requestableTransfers = pasteClaimEnabled
           ? []
@@ -3727,7 +3711,5 @@ export default function ClassDetailPage() {
   );
 }
 
-// Support Icons (inline SVGs for icons not in the heroicons import above)
-function StarIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.385a.563.563 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" /></svg>; }
-function ArrowRightIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>; }
-function XMarkIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>; }
+// StarIcon, ArrowRightIcon and XMarkIcon were declared here as inline SVGs and
+// never rendered. All three exist in @/lib/icons if they are wanted again.
