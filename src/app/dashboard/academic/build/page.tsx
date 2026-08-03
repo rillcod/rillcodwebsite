@@ -410,7 +410,7 @@ export default function CurriculumPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [curriculum, setCurriculum] = useState<CurriculumDoc | null>(null);
   const [tracking, setTracking] = useState<WeekTracking[]>([]);
-  const [activeTerm, setActiveTerm] = useState(getCurrentTerm);
+  const [activeTerm, setActiveTerm] = useState<number>(1);
   const [activeYear, setActiveYear] = useState<number>(1);
   const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
   // "Today" is resolved after mount only — reading the clock during render
@@ -806,7 +806,6 @@ export default function CurriculumPage() {
   const canGenerate = isAdmin || isTeacher || isSchool;
   const canModifyCurriculum = isAdmin || isTeacher || isSchool;
   const canTrack = isAdmin || isTeacher || isSchool;
-  const canPublish = isAdmin;
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
@@ -2287,12 +2286,6 @@ export default function CurriculumPage() {
                 if (termNumsForYear.includes(1)) return 1;
                 if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
                 return termNumsForYear[0];
-              });
-                  (a, b) =>
-                    getProgrammeTerm(a, pstForSort) -
-                    getProgrammeTerm(b, pstForSort)
-                );
-                return sorted[0];
               });
             }
 
