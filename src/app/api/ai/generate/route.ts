@@ -8,7 +8,12 @@ import {
 } from "@/lib/dashboard/route-access";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { geminiGenerateText } from "@/lib/gemini/client";
-import { openRouterComplete } from "@/lib/ai/openrouter";
+import {
+  openRouterComplete,
+  orderFreeFirst,
+  MIN_CONTENT_CHARS,
+  OPENROUTER_MAX_OUTPUT_TOKENS,
+} from "@/lib/ai/openrouter";
 
 export const dynamic = "force-dynamic";
 // Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
@@ -1943,6 +1948,13 @@ export async function POST(req: NextRequest) {
         ];
     }
 
+    // OpenRouter is the fallback behind the free Gemini ladder, so it stays on
+    // its free tier. The per-task queues above name paid models in a dozen
+    // places; filtering once here holds the rule for all of them rather than
+    // relying on every list being kept honest. AI_ALLOW_PAID_MODELS=true opts
+    // back in deliberately.
+    modelQueue = orderFreeFirst(modelQueue);
+
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
     const useJsonFormat = type !== "lesson-notes";
     const aiSystemPrompt =
@@ -1987,7 +1999,7 @@ export async function POST(req: NextRequest) {
                 model: modelId,
                 system: aiSystemPrompt,
                 user: prompt,
-                maxTokens: Math.min(adaptiveMaxTokens, 16000),
+                maxTokens: Math.min(adaptiveMaxTokens, OPENROUTER_MAX_OUTPUT_TOKENS),
                 temperature: adaptiveTemperature,
                 json: true,
                 signal: abortCtrl.signal,
@@ -1998,7 +2010,12 @@ export async function POST(req: NextRequest) {
               clearTimeout(tid);
 
               emit({ status: "Assembling lesson blocks..." });
-              if (completion.content) {
+              // A stub that happens to parse is not a lesson. Falling through
+              // to the next model is the whole point of having a queue, and
+              // free models under load are exactly where stubs come from.
+              if (completion.content.length < MIN_CONTENT_CHARS) {
+                emit({ status: "Answer came back thin — trying a stronger model..." });
+              } else if (completion.content) {
                 try {
                   const parsed = safeParseJSON(completion.content);
                   emit({ done: true, model: modelId, data: parsed });
@@ -2110,7 +2127,7 @@ export async function POST(req: NextRequest) {
             model: modelId,
             system: aiSystemPrompt,
             user: prompt,
-            maxTokens: Math.min(adaptiveMaxTokens, 16000),
+            maxTokens: Math.min(adaptiveMaxTokens, OPENROUTER_MAX_OUTPUT_TOKENS),
             temperature: adaptiveTemperature,
             json: useJsonFormat,
             signal: controller.signal,
@@ -2123,7 +2140,14 @@ export async function POST(req: NextRequest) {
 
         if (!requestFailed && completion) {
           const content = completion.content;
-          if (content) {
+          // Same quality gate as the streaming path: a stub that parses is not
+          // content, and the queue exists so a weak reply can be improved on.
+          if (content && content.length < MIN_CONTENT_CHARS) {
+            console.warn(
+              `Model ${modelId} returned ${content.length} chars — below the content floor, trying the next model`
+            );
+            lastError = `${modelId} returned too little content`;
+          } else if (content) {
             // For lesson-notes: try JSON parse first, then fall back to wrapping raw text
             if (type === "lesson-notes") {
               try {

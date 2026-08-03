@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openRouterComplete, MAX_OPENROUTER_CONTINUATIONS } from "./openrouter";
+import {
+  openRouterComplete,
+  orderFreeFirst,
+  FREE_FALLBACK_MODELS,
+  MAX_OPENROUTER_CONTINUATIONS,
+} from "./openrouter";
 
 function reply(content: string, finish_reason: string, ok = true) {
   return {
@@ -107,5 +112,92 @@ describe("openRouterComplete", () => {
   it("throws when the very first call fails, since there is nothing to keep", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply("", "error", false)));
     await expect(openRouterComplete(ARGS)).rejects.toThrow("OpenRouter 500");
+  });
+});
+
+describe("orderFreeFirst", () => {
+  const PAID_AND_FREE = [
+    "google/gemini-2.5-flash",
+    "qwen/qwen3-235b-a22b:free",
+    "x-ai/grok-2-1212",
+    "deepseek/deepseek-r1:free",
+  ];
+
+  afterEach(() => {
+    delete process.env.AI_FREE_MODELS_ONLY;
+  });
+
+  it("puts every free model ahead of every paid one, order preserved within each", () => {
+    expect(orderFreeFirst(PAID_AND_FREE)).toEqual([
+      "qwen/qwen3-235b-a22b:free",
+      "deepseek/deepseek-r1:free",
+      "google/gemini-2.5-flash",
+      "x-ai/grok-2-1212",
+    ]);
+  });
+
+  it("keeps the paid models so an exhausted free tier degrades instead of failing", () => {
+    // This is the whole reason they are reordered rather than removed.
+    expect(orderFreeFirst(PAID_AND_FREE)).toContain("google/gemini-2.5-flash");
+  });
+
+  it("tries the free list first even when the queue names no free model", () => {
+    expect(orderFreeFirst(["x-ai/grok-2-1212"])).toEqual([
+      ...FREE_FALLBACK_MODELS,
+      "x-ai/grok-2-1212",
+    ]);
+  });
+
+  it("never returns an empty queue", () => {
+    expect(orderFreeFirst([])).toEqual(FREE_FALLBACK_MODELS);
+  });
+
+  it("drops the paid tail only when free-only is explicitly demanded", () => {
+    process.env.AI_FREE_MODELS_ONLY = "true";
+    expect(orderFreeFirst(PAID_AND_FREE)).toEqual([
+      "qwen/qwen3-235b-a22b:free",
+      "deepseek/deepseek-r1:free",
+    ]);
+  });
+
+  it("only counts an exact :free suffix", () => {
+    // ":free-preview" or a name merely containing "free" is not the free tier.
+    expect(orderFreeFirst(["vendor/free-model"])).toEqual([
+      ...FREE_FALLBACK_MODELS,
+      "vendor/free-model",
+    ]);
+  });
+
+  it("ships a fallback list that is itself entirely free", () => {
+    expect(FREE_FALLBACK_MODELS.every((m) => m.endsWith(":free"))).toBe(true);
+  });
+});
+
+describe("a resume pass that starts over instead of continuing", () => {
+  it("does not weld two half-documents together", () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply('{"a":1,"b":"hel', "length"))
+      // Ignored the instruction and answered the whole thing again.
+      .mockResolvedValueOnce(reply('{"a":1,"b":"hello","c":2}', "stop"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    return openRouterComplete({ ...ARGS, json: true }).then((result) => {
+      expect(result.content).toBe('{"a":1,"b":"hello","c":2}');
+      expect(() => JSON.parse(result.content)).not.toThrow();
+    });
+  });
+
+  it("keeps the longer text when the continuation repeats the opening", async () => {
+    const first = "The lesson begins with a warm-up activity that";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply(first, "length"))
+      .mockResolvedValueOnce(reply(`${first} lasts ten minutes.`, "stop"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await openRouterComplete(ARGS);
+
+    expect(result.content).toBe(`${first} lasts ten minutes.`);
   });
 });

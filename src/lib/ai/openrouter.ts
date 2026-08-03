@@ -16,8 +16,67 @@
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+export function isFreeModel(modelId: string): boolean {
+  return modelId.endsWith(":free");
+}
+
+/** Known-good free models, strongest first, for queues that name none. */
+export const FREE_FALLBACK_MODELS = [
+  "qwen/qwen3-235b-a22b:free",
+  "deepseek/deepseek-r1:free",
+  "qwen/qwen3-30b-a3b:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
+];
+
+/**
+ * Free tier first, paid kept behind it.
+ *
+ * The per-task queues name paid and free models interleaved, in a dozen places,
+ * so whichever happened to be listed first is what got billed. Ordering here
+ * makes free-first hold for every queue without depending on each list being
+ * kept honest.
+ *
+ * Paid models are reordered, not removed. Dropping them would mean a
+ * rate-limited free tier fails the teacher's request outright; keeping them at
+ * the back means the free models are always tried first and paid is only
+ * reached when every free option is exhausted. A queue naming no free model at
+ * all still gets one attempt at the free list before its paid entries.
+ *
+ * AI_FREE_MODELS_ONLY=true drops the paid tail for hard cost control, accepting
+ * that generation fails when the free tier is out.
+ */
+export function orderFreeFirst(queue: string[]): string[] {
+  const free = queue.filter(isFreeModel);
+  const paid = queue.filter((model) => !isFreeModel(model));
+  const freeTier = free.length ? free : FREE_FALLBACK_MODELS;
+
+  if (process.env.AI_FREE_MODELS_ONLY === "true") return freeTier;
+  return [...freeTier, ...paid];
+}
+
 /** Each pass spends another full allowance, so this bounds cost and latency. */
 export const MAX_OPENROUTER_CONTINUATIONS = 3;
+
+/**
+ * Output ceiling for a single request.
+ *
+ * Deliberately not raised beyond what free models reliably accept: several
+ * reject a larger value outright with a 400, which would cost the whole
+ * generation rather than lengthen it. Length is bought with continuation
+ * instead, which every model supports — three passes carry roughly 64k tokens
+ * of finished content, far more than a full lesson needs.
+ */
+export const OPENROUTER_MAX_OUTPUT_TOKENS = 16_000;
+
+/**
+ * Shortest reply worth accepting for a content task, in characters.
+ *
+ * A free model under load sometimes returns a stub — an opening paragraph, or a
+ * JSON skeleton with empty fields. That parses, so it used to be accepted and
+ * delivered as a lesson. Treating it as a failure lets the queue fall through
+ * to a stronger model, which is the point of having a queue.
+ */
+export const MIN_CONTENT_CHARS = 400;
 
 export type OpenRouterMessage = {
   role: "system" | "user" | "assistant";
@@ -41,6 +100,29 @@ const RESUME_INSTRUCTION = [
   "continuation in code fences. If the response is already complete, reply with",
   "nothing at all.",
 ].join(" ");
+
+/**
+ * True when a resume pass looks like a fresh start rather than a continuation.
+ *
+ * Models sometimes ignore "carry on from here" and reply with the whole answer
+ * again. Detected by the shape of the opening: a body that already began as a
+ * JSON document, answered with another one; or a repeat of the text already
+ * written.
+ */
+function restartsInsteadOfContinuing(assembled: string, addition: string): boolean {
+  const soFar = assembled.trimStart();
+  const next = addition.trimStart();
+  if (!soFar || !next) return false;
+
+  const bothOpenJson =
+    (soFar.startsWith("{") && next.startsWith("{")) ||
+    (soFar.startsWith("[") && next.startsWith("["));
+  if (bothOpenJson) return true;
+
+  // A continuation that opens with the first words of the answer is a repeat.
+  const opening = soFar.slice(0, 40);
+  return opening.length >= 20 && next.startsWith(opening);
+}
 
 export async function openRouterComplete(input: {
   apiKey: string;
@@ -109,6 +191,14 @@ export async function openRouterComplete(input: {
     const addition: string = choice?.message?.content ?? "";
 
     if (!addition.trim()) break; // nothing more to add
+
+    if (pass > 0 && restartsInsteadOfContinuing(assembled, addition)) {
+      // The model ignored the instruction and began again. Concatenating would
+      // produce two half-documents welded together, which is worse than the
+      // truncated one — keep whichever is longer and stop asking.
+      if (addition.length > assembled.length) assembled = addition;
+      break;
+    }
 
     assembled += addition;
     if (pass > 0) continued = pass;

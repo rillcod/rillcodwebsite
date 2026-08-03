@@ -184,6 +184,25 @@ function thinkingBudgetFor(
 const MAX_CONTINUATIONS = 3;
 
 /**
+ * True when a resume pass looks like a fresh start rather than a continuation.
+ * Models sometimes ignore "carry on from here" and reply with the whole answer
+ * again; concatenating that produces two half-documents welded together.
+ */
+function restartsInsteadOfContinuing(assembled: string, addition: string): boolean {
+    const soFar = assembled.trimStart();
+    const next = addition.trimStart();
+    if (!soFar || !next) return false;
+
+    const bothOpenJson =
+        (soFar.startsWith('{') && next.startsWith('{')) ||
+        (soFar.startsWith('[') && next.startsWith('['));
+    if (bothOpenJson) return true;
+
+    const opening = soFar.slice(0, 40);
+    return opening.length >= 20 && next.startsWith(opening);
+}
+
+/**
  * Resume an answer that hit the output ceiling.
  *
  * The model is shown the original request and everything produced so far, and
@@ -231,6 +250,14 @@ async function continueUntilComplete(
 
         const addition = next.kind === 'ok' ? next.value.text : next.partial;
         if (!addition?.trim()) break; // model says it is finished
+
+        if (restartsInsteadOfContinuing(assembled, addition)) {
+            // Ignored the instruction and began again. Welding two half-answers
+            // together is worse than the truncated one, so keep the longer and
+            // stop asking.
+            if (addition.length > assembled.length) assembled = addition;
+            break;
+        }
 
         assembled += addition;
 
