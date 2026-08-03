@@ -2,6 +2,8 @@ import {
   absoluteCurriculumWeek,
   curriculumPositionFromAbsolute,
   termWeekOrdinal,
+  TERM_WEEK_STRIDE,
+  TERMS_PER_YEAR,
   type CurriculumPosition,
   type DeliverySchedule,
 } from './deliverySchedule';
@@ -34,11 +36,13 @@ export function mapSessionCalendarToCurriculumPosition(input: {
   schedule: DeliverySchedule;
 }): CurriculumPosition | null {
   const sessionDistance = academicSessionDistance(input.entryAcademicSession, input.currentAcademicSession);
-  const entryTerm = Math.max(1, Math.min(3, Math.floor(input.schedule.entryTerm)));
-  const currentTerm = Math.max(1, Math.min(3, Math.floor(input.calendarTerm)));
-  const currentWeek = Math.max(1, Math.min(12, Math.floor(input.calendarWeek)));
-  const entryWeek = Math.max(1, Math.min(12, Math.floor(input.schedule.entryWeek)));
-  const localTermDistance = sessionDistance * 3 + currentTerm - entryTerm;
+  const entryTerm = Math.max(1, Math.min(TERMS_PER_YEAR, Math.floor(input.schedule.entryTerm)));
+  const currentTerm = Math.max(1, Math.min(TERMS_PER_YEAR, Math.floor(input.calendarTerm)));
+  // Clamped to the same stride as deliverySchedule: a term running past it
+  // would map two calendar weeks onto one curriculum week.
+  const currentWeek = Math.max(1, Math.min(TERM_WEEK_STRIDE, Math.floor(input.calendarWeek)));
+  const entryWeek = Math.max(1, Math.min(TERM_WEEK_STRIDE, Math.floor(input.schedule.entryWeek)));
+  const localTermDistance = sessionDistance * TERMS_PER_YEAR + currentTerm - entryTerm;
   if (localTermDistance < 0) return null;
   if (localTermDistance === 0 && currentWeek < entryWeek) return null;
 
@@ -48,11 +52,16 @@ export function mapSessionCalendarToCurriculumPosition(input: {
     input.schedule.curriculumTerm ?? 1,
     input.schedule.curriculumWeek ?? 1,
   );
-  return curriculumPositionFromAbsolute(base + localTermDistance * 12 + weekOffset);
+  return curriculumPositionFromAbsolute(
+    base + localTermDistance * TERM_WEEK_STRIDE + weekOffset
+  );
 }
 
-/** Kept public for audit tools that compare a raw 36-week calendar cycle. */
+/** Kept public for audit tools that compare a raw one-year calendar cycle. */
 export function sessionCalendarOrdinal(sessionDistance: number, term: number, week: number): number {
-  return Math.max(0, sessionDistance) * 36 + termWeekOrdinal(term, week);
+  return (
+    Math.max(0, sessionDistance) * TERMS_PER_YEAR * TERM_WEEK_STRIDE +
+    termWeekOrdinal(term, week)
+  );
 }
 

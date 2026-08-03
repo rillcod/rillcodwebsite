@@ -151,19 +151,35 @@ export function mapOfficialCurriculumToCalendarWeeks(input: {
     ? (input.content.terms as any[])
     : [];
 
-  // Iterate over all terms in the curriculum to ensure every single week is mapped
+  // Every week of every term, keeping the numbering the curriculum was authored
+  // with. The plan's week number is the key everything downstream joins on —
+  // lessons, assignments, delivery records — so it has to be unique across the
+  // whole plan. Curricula that restart at 1 each term would otherwise produce
+  // three weeks called "1", and indexFirstByWeek would hand Term 1's card the
+  // Term 2 lesson. Where the authored number is already taken, the week keeps
+  // its true position in official_position and is given the next free number.
+  const takenWeekNumbers = new Set<number>();
   for (const term of terms) {
     const termWeeks = Array.isArray(term.weeks) ? term.weeks : [];
     for (const sourceWeek of termWeeks) {
       const mappedRow = mapSyllabusWeekToPlanRow(sourceWeek as SyllabusWeekImport);
-      const weekNum = Number(sourceWeek.week || (weeks.length + 1));
+      const authored = Number(sourceWeek.week);
+      const programmeWeek =
+        Number.isInteger(authored) && authored > 0 ? authored : weeks.length + 1;
+
+      let weekNum = programmeWeek;
+      while (takenWeekNumbers.has(weekNum)) weekNum += 1;
+      takenWeekNumbers.add(weekNum);
+
       weeks.push({
         ...mappedRow,
         week: weekNum,
         official_position: {
           programme_year: Number(term.year ?? 1),
           programme_term: Number(term.term ?? 1),
-          programme_week: weekNum,
+          // The week as the curriculum names it, even when the plan had to
+          // renumber to keep its own keys unique.
+          programme_week: programmeWeek,
         },
       });
     }
