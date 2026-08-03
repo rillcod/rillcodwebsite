@@ -164,6 +164,26 @@ function effectiveAcademicYearForTerm(
   return `${sy + 1}/${ey + 1}`;
 }
 
+// First teaching Monday of a term — every week offset is measured from here.
+function termWeekOneMonday(
+  termNum: string | number,
+  academicYear: string,
+  termStartDate?: string
+): Date | null {
+  const termDates = termStartDate
+    ? { start: termStartDate, end: "" }
+    : termDatesNg(String(termNum), academicYear); // raw NG dates for week offset calc
+  if (!termDates) return null;
+  const termStart = new Date(termDates.start);
+  if (Number.isNaN(termStart.getTime())) return null;
+  // Find first Monday on or after term start
+  const day = termStart.getDay();
+  const toMon = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  const week1Mon = new Date(termStart);
+  week1Mon.setDate(week1Mon.getDate() + toMon);
+  return week1Mon;
+}
+
 // Returns the Mon–Fri date range for a given week number within a term
 function weekDateRange(
   termNum: string | number,
@@ -171,16 +191,8 @@ function weekDateRange(
   academicYear: string,
   termStartDate?: string
 ): { start: string; end: string } | null {
-  const termDates = termStartDate
-    ? { start: termStartDate, end: "" }
-    : termDatesNg(String(termNum), academicYear); // weekDateRange uses raw NG dates for week offset calc
-  if (!termDates) return null;
-  const termStart = new Date(termDates.start);
-  // Find first Monday on or after term start
-  const day = termStart.getDay();
-  const toMon = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
-  const week1Mon = new Date(termStart);
-  week1Mon.setDate(week1Mon.getDate() + toMon);
+  const week1Mon = termWeekOneMonday(termNum, academicYear, termStartDate);
+  if (!week1Mon) return null;
   const weekMon = new Date(week1Mon);
   weekMon.setDate(weekMon.getDate() + (weekNum - 1) * 7);
   const weekFri = new Date(weekMon);
@@ -401,6 +413,9 @@ export default function CurriculumPage() {
   const [activeTerm, setActiveTerm] = useState(getCurrentTerm);
   const [activeYear, setActiveYear] = useState<number>(1);
   const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
+  // "Today" is resolved after mount only — reading the clock during render
+  // would make the server and client markup disagree.
+  const [todayLocal, setTodayLocal] = useState<Date | null>(null);
   const [loadingCurr, setLoadingCurr] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [showSchoolScopeException, setShowSchoolScopeException] =
@@ -3519,6 +3534,107 @@ export default function CurriculumPage() {
     ? Math.round((completedCount / allWeeks.length) * 100)
     : 0;
   const weeks = currentTermData?.weeks ?? [];
+
+  // ── One continuous week sequence ─────────────────────────────────────────
+  // Weeks are stored per term, but they are taught as one run. The view used to
+  // open on whichever term the calendar says it is and offer no way forward or
+  // back except a 9px term dropdown, so earlier terms read as unreachable.
+  // Flattening the year in teaching order gives the panel something to step
+  // through, and gives All-Terms mode a way to answer "which term owns this
+  // week?" — without that, activeTerm is 0, matches no tracking row, and every
+  // progress badge silently disappears.
+  const orderedTerms = useMemo(
+    () =>
+      [...termsForActiveYear].sort(
+        (a, b) =>
+          getProgrammeTerm(a.term, effectiveProgramStartTerm) -
+          getProgrammeTerm(b.term, effectiveProgramStartTerm)
+      ),
+    [termsForActiveYear, effectiveProgramStartTerm]
+  );
+  const orderedWeeks = useMemo(
+    () =>
+      orderedTerms.flatMap((t) =>
+        [...(t.weeks ?? [])]
+          .sort((a, b) => a.week - b.week)
+          .map((w, indexInTerm) => ({
+            term: t.term,
+            termTitle: t.title,
+            indexInTerm,
+            week: w,
+          }))
+      ),
+    [orderedTerms]
+  );
+  // Term that actually owns a week number — activeTerm is 0 in All-Terms mode.
+  const termOwning = (weekNum: number) =>
+    activeTerm !== 0
+      ? activeTerm
+      : orderedWeeks.find((e) => e.week.week === weekNum)?.term ?? activeTerm;
+
+  useEffect(() => {
+    setTodayLocal(new Date());
+  }, []);
+
+  // The week whose Mon–Fri span contains today. Measured by the week's position
+  // inside its term rather than its printed number, because curricula differ on
+  // whether numbering restarts each term or runs straight through the year.
+  const currentWeekEntry = useMemo(() => {
+    if (!todayLocal || isCohortFormat) return null;
+    for (const term of orderedTerms) {
+      const termAcYear = effectiveAcademicYearForTerm(
+        term.term,
+        effectiveProgramStartTerm,
+        academicYear
+      );
+      const week1Mon = termWeekOneMonday(
+        term.term,
+        termAcYear,
+        term.start_date ??
+          resolveTermDates(term.term, termAcYear, termCalendar)?.start
+      );
+      if (!week1Mon) continue;
+      const elapsedWeeks = Math.floor(
+        (todayLocal.getTime() - week1Mon.getTime()) / (7 * 24 * 60 * 60 * 1000)
+      );
+      if (elapsedWeeks < 0) continue;
+      const match = orderedWeeks.find(
+        (e) => e.term === term.term && e.indexInTerm === elapsedWeeks
+      );
+      if (match) return match;
+    }
+    return null;
+  }, [
+    todayLocal,
+    isCohortFormat,
+    orderedTerms,
+    orderedWeeks,
+    effectiveProgramStartTerm,
+    academicYear,
+    termCalendar,
+  ]);
+
+  // Step to any week in the year, switching term underneath when the step
+  // crosses a term boundary. In All-Terms mode the term stays at 0.
+  const activeWeekIndex = activeWeek
+    ? orderedWeeks.findIndex(
+        (e) =>
+          e.week.week === activeWeek.week &&
+          (activeTerm === 0 || e.term === activeTerm)
+      )
+    : -1;
+  const prevWeekEntry =
+    activeWeekIndex > 0 ? orderedWeeks[activeWeekIndex - 1] : null;
+  const nextWeekEntry =
+    activeWeekIndex >= 0 && activeWeekIndex < orderedWeeks.length - 1
+      ? orderedWeeks[activeWeekIndex + 1]
+      : null;
+  const goToWeekEntry = (entry: (typeof orderedWeeks)[number] | null) => {
+    if (!entry) return;
+    if (activeTerm !== 0 && entry.term !== activeTerm) setActiveTerm(entry.term);
+    setActiveWeek(entry.week);
+  };
+
   const linkedLessons: any[] = []; // Default empty array since it's not loaded
   const scopeLabel =
     generateScope === "platform"
@@ -5185,79 +5301,104 @@ export default function CurriculumPage() {
                                   {unitNoun}
                                 </span>
                               </div>
-                              <select
-                                value={activeTerm}
-                                onChange={(e) => {
-                                  setActiveTerm(Number(e.target.value));
-                                  setActiveWeek(null);
-                                }}
-                                className="bg-transparent border-none text-[9px] font-black tracking-widest text-primary focus:ring-0 px-2 h-full cursor-pointer py-0"
-                              >
+                              {/* Terms as visible tabs, not a dropdown. As a <select> the
+                                  other terms were invisible until opened, so the view read
+                                  as "this term only" and Week 1 looked unreachable. */}
+                              <div className="flex items-stretch h-full overflow-x-auto no-scrollbar">
                                 {termsForActiveYear.length > 1 && (
-                                  <option value={0} className="bg-[#0a0a0a] text-primary font-bold">
-                                    ✨ All Terms (Full Curriculum)
-                                  </option>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveTerm(0);
+                                      setActiveWeek(null);
+                                    }}
+                                    title="Show every week of the year in one list"
+                                    className={`flex items-center gap-1 px-2.5 h-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap border-r border-border transition-colors cursor-pointer ${
+                                      activeTerm === 0
+                                        ? "bg-primary/15 text-primary"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                    }`}
+                                  >
+                                    ✨ All
+                                  </button>
                                 )}
-                                {[...termsForActiveYear]
-                                  .sort((a, b) => {
-                                    // Sort by programme term order so Prog.T1 always appears first
-                                    const pa = getProgrammeTerm(
-                                      a.term,
-                                      effectiveProgramStartTerm
-                                    );
-                                    const pb = getProgrammeTerm(
-                                      b.term,
-                                      effectiveProgramStartTerm
-                                    );
-                                    return pa - pb;
-                                  })
-                                  .map((term) => {
-                                    const tw = tracking.filter(
-                                      (t) => t.term_number === term.term
-                                    );
-                                    const termWeeks = term.weeks?.length ?? 0;
-                                    const termDone = tw.filter(
-                                      (t) => t.status === "completed"
-                                    ).length;
-                                    const isNow =
-                                      !isCohortFormat &&
-                                      term.term === getCurrentTerm();
-                                    const progTermNum = getProgrammeTerm(
-                                      term.term,
-                                      effectiveProgramStartTerm
-                                    );
-                                    const PROG_THEME: Record<number, string> = {
-                                      1: "Foundations",
-                                      2: "Application",
-                                      3: "Innovation",
-                                    };
-                                    const nationalLabel = unitLabel(term);
-                                    // Programme-term theming only applies to the school calendar; cohort
-                                    // formats (online/bootcamp/self-paced) just show Module/Week labels.
-                                    const progLabel =
-                                      !isCohortFormat &&
-                                      effectiveProgramStartTerm !== 1
-                                        ? `T${progTermNum} ${
-                                            PROG_THEME[progTermNum] ?? ""
-                                          } (${nationalLabel})`
-                                        : nationalLabel;
-                                    const doneLabel =
-                                      termWeeks > 0
-                                        ? ` · ${termDone}/${termWeeks}`
-                                        : "";
-                                    return (
-                                      <option
-                                        key={term.term}
-                                        value={term.term}
-                                        className="bg-[#0a0a0a] text-foreground"
-                                      >
-                                        {isNow ? "▶ " : ""}
-                                        {progLabel}
-                                        {doneLabel}
-                                      </option>
-                                    );
-                                  })}
-                              </select>
+                                {orderedTerms.map((term) => {
+                                  const termWeeks = term.weeks?.length ?? 0;
+                                  const termDone = tracking.filter(
+                                    (t) =>
+                                      t.term_number === term.term &&
+                                      t.status === "completed"
+                                  ).length;
+                                  const isNow =
+                                    !isCohortFormat &&
+                                    term.term === getCurrentTerm();
+                                  const progTermNum = getProgrammeTerm(
+                                    term.term,
+                                    effectiveProgramStartTerm
+                                  );
+                                  const PROG_THEME: Record<number, string> = {
+                                    1: "Foundations",
+                                    2: "Application",
+                                    3: "Innovation",
+                                  };
+                                  const nationalLabel = unitLabel(term);
+                                  // Programme-term theming only applies to the school calendar; cohort
+                                  // formats (online/bootcamp/self-paced) just show Module/Week labels.
+                                  const fullLabel =
+                                    !isCohortFormat &&
+                                    effectiveProgramStartTerm !== 1
+                                      ? `T${progTermNum} ${
+                                          PROG_THEME[progTermNum] ?? ""
+                                        } (${nationalLabel})`
+                                      : nationalLabel;
+                                  // Tabs get the short form; the full wording is the tooltip.
+                                  const tabLabel = isCohortFormat
+                                    ? nationalLabel
+                                    : `${unitNoun.charAt(0)}${progTermNum}`;
+                                  const isSelected = activeTerm === term.term;
+                                  return (
+                                    <button
+                                      key={term.term}
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveTerm(term.term);
+                                        setActiveWeek(null);
+                                      }}
+                                      title={`${fullLabel}${
+                                        termWeeks > 0
+                                          ? ` — ${termDone} of ${termWeeks} weeks taught`
+                                          : ""
+                                      }`}
+                                      className={`flex items-center gap-1 px-2.5 h-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap border-r border-border last:border-r-0 transition-colors cursor-pointer ${
+                                        isSelected
+                                          ? "bg-primary/15 text-primary"
+                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                      }`}
+                                    >
+                                      {isNow && (
+                                        <span
+                                          className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
+                                          aria-label="Current term"
+                                        />
+                                      )}
+                                      <span className="max-w-[9rem] truncate">
+                                        {tabLabel}
+                                      </span>
+                                      {termWeeks > 0 && (
+                                        <span
+                                          className={
+                                            isSelected
+                                              ? "text-primary/70"
+                                              : "text-muted-foreground/60"
+                                          }
+                                        >
+                                          {termDone}/{termWeeks}
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               {canModifyCurriculum &&
                                 showAdvancedCurriculumControls &&
                                 allTerms.length > 1 && (
@@ -5812,6 +5953,36 @@ export default function CurriculumPage() {
                       </div>
                     )}
 
+                    {/* Two ways back to the middle of the year: land on today's
+                        week, or open the whole year at once. Both used to require
+                        knowing that the term control was a dropdown. */}
+                    {(currentWeekEntry || termsForActiveYear.length > 1) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {currentWeekEntry && (
+                          <button
+                            type="button"
+                            onClick={() => goToWeekEntry(currentWeekEntry)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            Jump to this week (Week {currentWeekEntry.week.week})
+                          </button>
+                        )}
+                        {termsForActiveYear.length > 1 && activeTerm !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTerm(0);
+                              setActiveWeek(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card/60 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
+                          >
+                            ✨ Show all {orderedWeeks.length} weeks
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {/* Week grid */}
                     {currentTermData?.weeks && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -5820,30 +5991,41 @@ export default function CurriculumPage() {
                           .map((week) => {
                             const meta =
                               WEEK_META[week.type] ?? WEEK_META.lesson;
-                            const trackRec = getTracking(activeTerm, week.week);
+                            // All-Terms mode has no single active term, so tracking
+                            // and dates resolve against the term that owns the week.
+                            const weekTerm = termOwning(week.week);
+                            const trackRec = getTracking(weekTerm, week.week);
                             const trackMeta =
                               TRACK_META[trackRec?.status ?? "pending"];
                             const TrackIcon = trackMeta.icon;
                             const WeekIcon = meta.icon;
                             const isActive = activeWeek?.week === week.week;
+                            const isThisWeek =
+                              currentWeekEntry?.week.week === week.week &&
+                              currentWeekEntry?.term === weekTerm;
                             const termAcYear = effectiveAcademicYearForTerm(
-                              activeTerm,
+                              weekTerm,
                               effectiveProgramStartTerm,
                               academicYear
                             );
                             const dateRange = weekDateRange(
-                              activeTerm,
+                              weekTerm,
                               week.week,
                               termAcYear,
-                              currentTermData?.start_date
+                              activeTerm === 0
+                                ? orderedTerms.find((t) => t.term === weekTerm)
+                                    ?.start_date
+                                : currentTermData?.start_date
                             );
 
                             return (
                               <div
-                                key={week.week}
+                                key={`t${weekTerm}-w${week.week}`}
                                 className={`group relative border transition-all duration-500 ${
                                   isActive
                                     ? "border-primary/50 bg-primary/5 shadow-[0_0_30px_rgba(255,107,0,0.1)]"
+                                    : isThisWeek
+                                    ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10"
                                     : "border-border bg-card/40 hover:border-border hover:bg-card/60 hover:shadow-xl"
                                 }`}
                               >
@@ -7188,19 +7370,33 @@ export default function CurriculumPage() {
                       Week {activeWeek.week} ·{" "}
                       {WEEK_META[activeWeek.type]?.label}
                     </span>
-                    {getTracking(activeTerm, activeWeek.week) && (
+                    {getTracking(
+                      termOwning(activeWeek.week),
+                      activeWeek.week
+                    ) && (
                       <span
                         className={`text-[9px] font-bold ${
                           TRACK_META[
-                            getTracking(activeTerm, activeWeek.week)!.status
+                            getTracking(
+                              termOwning(activeWeek.week),
+                              activeWeek.week
+                            )!.status
                           ].color
                         }`}
                       >
                         {
                           TRACK_META[
-                            getTracking(activeTerm, activeWeek.week)!.status
+                            getTracking(
+                              termOwning(activeWeek.week),
+                              activeWeek.week
+                            )!.status
                           ].label
                         }
+                      </span>
+                    )}
+                    {activeWeekIndex >= 0 && (
+                      <span className="text-[9px] font-bold text-muted-foreground/60">
+                        {activeWeekIndex + 1} of {orderedWeeks.length}
                       </span>
                     )}
                   </div>
@@ -7213,15 +7409,19 @@ export default function CurriculumPage() {
                     </p>
                   )}
                   {(() => {
+                    const panelTerm = termOwning(activeWeek.week);
                     const dr = weekDateRange(
-                      activeTerm,
+                      panelTerm,
                       activeWeek.week,
                       effectiveAcademicYearForTerm(
-                        activeTerm,
+                        panelTerm,
                         effectiveProgramStartTerm,
                         academicYear
                       ),
-                      currentTermData?.start_date
+                      activeTerm === 0
+                        ? orderedTerms.find((t) => t.term === panelTerm)
+                            ?.start_date
+                        : currentTermData?.start_date
                     );
                     return dr ? (
                       <p className="text-[10px] text-muted-foreground/60 font-bold mt-1">
@@ -7314,16 +7514,82 @@ export default function CurriculumPage() {
                     />
                   ))}
 
-                {/* No plan generated */}
+                {/* No plan generated — the old copy said "try regenerating" and
+                    stopped there, which is a dead end for whoever can't. */}
                 {activeWeek.type === "lesson" && !activeWeek.lesson_plan && (
                   <div className="text-center py-10 text-muted-foreground text-sm">
                     <p>No lesson plan data found for this week.</p>
-                    <p className="text-xs mt-1">
-                      Try regenerating the curriculum to get full lesson plans.
-                    </p>
+                    {canGenerate ? (
+                      <>
+                        <p className="text-xs mt-1">
+                          Regenerate the curriculum to fill in the missing
+                          lesson plans.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveWeek(null);
+                            setShowGenerate(true);
+                          }}
+                          className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                        >
+                          <SparklesIcon className="w-4 h-4 shrink-0" />
+                          Generate lesson plans
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-xs mt-1">
+                        Curriculum content is authored centrally — ask an
+                        academic admin to generate this week&apos;s plan.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
+
+              {/* Step through the year — crossing into the previous or next term
+                  when you reach the edge of this one. Without this the only way
+                  to reach Week 1 from the current term was the term control. */}
+              {(prevWeekEntry || nextWeekEntry) && (
+                <div className="flex items-stretch gap-2 border-t border-border bg-card px-3 py-2.5 shrink-0">
+                  {[
+                    { entry: prevWeekEntry, dir: "prev" as const },
+                    { entry: nextWeekEntry, dir: "next" as const },
+                  ].map(({ entry, dir }) => {
+                    const crossesTerm =
+                      !!entry && activeTerm !== 0 && entry.term !== activeTerm;
+                    return (
+                      <button
+                        key={dir}
+                        type="button"
+                        disabled={!entry}
+                        onClick={() => goToWeekEntry(entry)}
+                        className={`flex-1 min-w-0 min-h-[44px] flex flex-col justify-center px-3 py-1.5 border border-border rounded-lg transition-colors ${
+                          dir === "next" ? "text-right items-end" : "items-start"
+                        } ${
+                          entry
+                            ? "hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                            : "opacity-40 cursor-not-allowed"
+                        }`}
+                      >
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                          {dir === "prev" ? "← Previous" : "Next →"}
+                          {crossesTerm && entry
+                            ? ` · ${unitNoun} ${entry.term}`
+                            : ""}
+                        </span>
+                        <span className="w-full truncate text-[11px] font-bold text-foreground">
+                          {entry
+                            ? `Week ${entry.week.week} · ${entry.week.topic}`
+                            : dir === "prev"
+                            ? "Start of year"
+                            : "End of year"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

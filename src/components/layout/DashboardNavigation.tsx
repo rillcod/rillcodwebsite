@@ -583,24 +583,19 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentListIcon,
           },
           {
-            name: "Academic Overview",
-            href: "/dashboard/academic",
-            icon: ShieldCheckIcon,
-          },
-          {
             name: "Learner Progress",
             href: "/dashboard/learner-progress",
             icon: ChartBarIcon,
           },
+          // One academic entry, not three. "Academic Overview" and "Teaching
+          // Resources" both landed on /dashboard/academic — the second one on an
+          // anchor — so the same page occupied three sidebar rows. Every academic
+          // page mounts LaneChrome, whose step 0 links Overview, so the builder
+          // stays the way in and Overview is one click from it.
           {
             name: "Curriculum",
             href: "/dashboard/academic/build",
             icon: BookOpenIcon,
-          },
-          {
-            name: "Teaching Resources",
-            href: "/dashboard/academic#teaching-resources",
-            icon: ArchiveBoxIcon,
           },
           {
             name: "Guide",
@@ -1158,7 +1153,7 @@ export default function DashboardNavigation() {
     student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
     school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
     admin: ["Dashboard", "Office Center", "Records", "Results Workspace"],
-    teacher: ["Dashboard", "My Classes", "Grading Queue", "Academic Overview"],
+    teacher: ["Dashboard", "My Classes", "Grading Queue", "Curriculum"],
     parent: ["Dashboard", "My Children", "Report Cards", "Finance Center"],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ""] ?? ["Dashboard"];
