@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowPathIcon,
@@ -66,8 +66,14 @@ export function ClassTeachingWorkspace({
     assignment?: { title?: string; brief?: string };
     project?: { title?: string; description?: string };
   } | null>(null);
+  // Changing course fires a fresh load while the previous one is still in
+  // flight. Without a sequence guard the slower reply wins, so the workspace
+  // could settle on the previous course's weeks — and worse, line 81 writes the
+  // reply's course back into state, silently moving the picker back too.
+  const loadSeq = useRef(0);
   const load = useCallback(
     async (cid?: string) => {
+      const seq = ++loadSeq.current;
       setBusy(true);
       setError("");
       setErrorAction(null);
@@ -75,14 +81,15 @@ export function ClassTeachingWorkspace({
         const q = cid ? `?course_id=${encodeURIComponent(cid)}` : "";
         const r = await fetch(`/api/classes/${classId}/teaching-workspace${q}`);
         const j = await r.json();
+        if (seq !== loadSeq.current) return;
         if (!r.ok)
           throw new Error(j.error || "Unable to load teaching workspace");
         setData(j.data);
         setCourseId(j.data.selected_course_id || "");
       } catch (e: any) {
-        setError(e.message);
+        if (seq === loadSeq.current) setError(e.message);
       } finally {
-        setBusy(false);
+        if (seq === loadSeq.current) setBusy(false);
       }
     },
     [classId]
@@ -129,7 +136,13 @@ export function ClassTeachingWorkspace({
     await onCourseChange?.(id || null);
     await load(id || undefined);
   }
-  async function act(body: any) {
+  /** Resolves true only when the action actually succeeded. It reports failure
+   *  by return value rather than by throwing, because every caller is a click
+   *  handler — but callers that undo their own UI state on completion need to
+   *  know the difference. Marking a batch of weeks used to clear the selection
+   *  from .then(), which runs on failure too, so a rejected update wiped the
+   *  ticks and left the teacher re-selecting every week. */
+  async function act(body: any): Promise<boolean> {
     setBusy(true);
     setError("");
     setErrorAction(null);
@@ -147,9 +160,11 @@ export function ClassTeachingWorkspace({
         throw new Error(j.detail || j.error || "Action failed");
       }
       await load(courseId);
+      return true;
     } catch (e: any) {
       setError(e.message);
       setBusy(false);
+      return false;
     }
   }
   async function createFlashcardDeck(item: any, week: number) {
@@ -385,9 +400,23 @@ export function ClassTeachingWorkspace({
           <BookOpenIcon className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-2 text-sm font-bold">No teaching plan yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Start the plan here — it inherits the official edition assigned to
-            this class. Do not create a separate progression record.
+            The plan inherits the official edition assigned to this class. Do
+            not create a separate progression record.
           </p>
+          {/* "Start the plan here" pointed at nothing — the only button was in
+              the toolbar above, in a different card. */}
+          {canEdit && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void act({ action: "ensure_plan", course_id: courseId })
+              }
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-50"
+            >
+              Start teaching plan
+            </button>
+          )}
         </div>
       )}
       {plan && (
@@ -429,6 +458,12 @@ export function ClassTeachingWorkspace({
                 type="button"
                 disabled={busy || aiBusy || curriculumWeeks.length === 0}
                 onClick={() => void generateLessonsWithAi()}
+                // Greyed out with no reason given is indistinguishable from broken.
+                title={
+                  curriculumWeeks.length === 0
+                    ? "This plan has no curriculum weeks yet, so there is nothing to generate lessons for."
+                    : undefined
+                }
                 className="flex items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4 text-left transition-colors hover:border-violet-500/50 disabled:opacity-50"
               >
                 <span className="min-w-0">
@@ -511,7 +546,9 @@ export function ClassTeachingWorkspace({
                       lesson_plan_id: plan.id,
                       week_numbers: [...picked],
                       status: "delivered",
-                    }).then(() => setPicked(new Set()))
+                    }).then((ok) => {
+                      if (ok) setPicked(new Set());
+                    })
                   }
                   className="rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary-foreground disabled:opacity-50"
                 >
@@ -525,7 +562,9 @@ export function ClassTeachingWorkspace({
                       lesson_plan_id: plan.id,
                       week_numbers: [...picked],
                       status: "planned",
-                    }).then(() => setPicked(new Set()))
+                    }).then((ok) => {
+                      if (ok) setPicked(new Set());
+                    })
                   }
                   className="rounded-lg border border-border px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
                 >
