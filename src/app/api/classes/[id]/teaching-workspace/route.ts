@@ -335,7 +335,7 @@ export async function POST(
     }
     const existingQuery = db
       .from("lesson_plans")
-      .select("id,curriculum_release_id")
+      .select("id,curriculum_release_id,plan_data")
       .eq("class_id", id)
       .eq("course_id", courseId)
       .neq("status", "archived");
@@ -467,7 +467,18 @@ export async function POST(
     if (error)
       return NextResponse.json({ error: error.message }, { status: 400 });
     const result = data as { plan_id: string; created: boolean };
-    if (!existing?.curriculum_release_id) {
+    // Rebuild the weeks when the plan has none, not only when it has no edition
+    // pinned yet. Every plan written while the old mapper was in place got an
+    // empty weeks array and a release id at the same moment, so gating on the
+    // release id alone meant "Refresh academic direction" could never repair
+    // one: the button ran, reported success, and changed nothing. Weeks already
+    // written are still left alone — this only fills a gap.
+    const existingWeekCount = Array.isArray(
+      (existing?.plan_data as any)?.weeks
+    )
+      ? ((existing?.plan_data as any).weeks as unknown[]).length
+      : 0;
+    if (!existing?.curriculum_release_id || existingWeekCount === 0) {
       // A delivery period has no national term to map against, so its weeks
       // start from the edition's own entry point rather than a calendar term.
       const calendarTerm = hasTerm
