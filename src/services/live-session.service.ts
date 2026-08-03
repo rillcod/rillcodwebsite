@@ -272,7 +272,57 @@ export class LiveSessionService {
             }
         }
 
-        return { processed: sessions?.length ?? 0 };
+        const closed = await this.closeOverdueSessions();
+        return { processed: sessions?.length ?? 0, closed: closed.length };
+    }
+
+    /**
+     * Nothing ever took a session out of 'live' except the host pressing End, so a class the
+     * host simply closed the tab on stayed LIVE forever — a pulsing badge on the card and a
+     * Join button dropping students into an empty room. Two sessions had been stuck for 24
+     * and 35 days.
+     *
+     * The grace is deliberately long (and longer than JOIN_LATE_GRACE_MS, so this never closes
+     * something a student could still legitimately be joining): ending a class that is actually
+     * running is far worse than leaving a dead one up for an extra evening.
+     */
+    async closeOverdueSessions(graceMs = 6 * 60 * 60 * 1000) {
+        const supabase = await createClient();
+        const { data: live, error } = await supabase
+            .from('live_sessions')
+            .select('*')
+            .eq('status', 'live');
+
+        if (error) throw new AppError(error.message, 500);
+
+        const now = Date.now();
+        const overdue = (live ?? []).filter((s) => {
+            const startedAt = s.scheduled_at ? new Date(s.scheduled_at).getTime() : NaN;
+            if (!Number.isFinite(startedAt)) return false;   // no schedule → never auto-close
+            const endsAt = startedAt + (Number(s.duration_minutes) || 60) * 60_000;
+            return now > endsAt + graceMs;
+        });
+
+        const closed: string[] = [];
+        for (const session of overdue) {
+            const { error: updErr } = await supabase
+                .from('live_sessions')
+                .update({ status: 'completed' })
+                .eq('id', session.id)
+                .eq('status', 'live');   // no-op if the host ended it in the meantime
+            if (updErr) {
+                console.error('[live-sessions] could not auto-close', session.id, updErr.message);
+                continue;
+            }
+            closed.push(session.id);
+            // Same bookkeeping a host-pressed End would do — but a CRM hiccup must not stop
+            // the sweep from closing the rest.
+            try { await this.logCompletionInteractions(session); }
+            catch (e) { console.error('[live-sessions] completion log failed', session.id, e); }
+        }
+
+        if (closed.length) console.log('[live-sessions] auto-closed overdue sessions:', closed.length);
+        return closed;
     }
 
     private async logCompletionInteractions(session: Database['public']['Tables']['live_sessions']['Row']) {

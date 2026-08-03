@@ -15,6 +15,25 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Turn LiveKit's Egress errors into something a teacher can act on.
+ *
+ * "Start signal not received" is what LiveKit Cloud returns when no Egress worker ever picks
+ * the job up — i.e. Egress is not enabled for the project, not a fault in this session. A real
+ * take against the live project aborted with exactly this after 70s, and session_recordings
+ * has never held a single row, so this is the error hosts would actually hit.
+ */
+function friendlyEgressError(raw: string | undefined) {
+  const msg = raw ?? '';
+  if (/start signal not received|no.*egress.*(worker|available)|not enabled/i.test(msg)) {
+    return 'Recording is not available on this LiveKit plan yet — no recorder picked up the job. The class itself is unaffected.';
+  }
+  if (/quota|limit|credit|billing/i.test(msg)) {
+    return 'Recording quota exhausted on the LiveKit plan. The class itself is unaffected.';
+  }
+  return msg || 'Could not start recording.';
+}
+
 async function loadSessionAsModerator(id: string) {
   const caller = await requireLiveSessionUser();
   if (!caller) return { error: 'Unauthorized', status: 401 as const };
@@ -44,7 +63,23 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
     .order('started_at', { ascending: false })
     .limit(1);
   const active = activeRows?.[0] ?? null;
-  return NextResponse.json({ recording: !!active && active.status === 'recording', active });
+
+  // Egress can accept the job and abort minutes later (that is what "Start signal not
+  // received" looks like), so the failure never reaches the POST caller. Without this the
+  // host just watched the button silently flip back from "Recording" with no explanation.
+  let lastError: string | null = null;
+  if (!active) {
+    const { data: failed } = await ctx.admin
+      .from('session_recordings')
+      .select('error, started_at')
+      .eq('session_id', id)
+      .eq('status', 'failed')
+      .order('started_at', { ascending: false })
+      .limit(1);
+    if (failed?.[0]?.error) lastError = friendlyEgressError(failed[0].error);
+  }
+
+  return NextResponse.json({ recording: !!active && active.status === 'recording', active, lastError });
 }
 
 // POST — { action: 'start' | 'stop' }. Records the whole room to Cloudflare R2 via LiveKit Egress.
@@ -112,7 +147,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (error) throw error;
       return NextResponse.json({ ok: true, recordingId: row.id, egressId: info.egressId });
     } catch (err: any) {
-      return NextResponse.json({ error: err?.message ?? 'Could not start recording (is Egress enabled?)' }, { status: 502 });
+      return NextResponse.json({ error: friendlyEgressError(err?.message) }, { status: 502 });
     }
   }
 

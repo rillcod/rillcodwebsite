@@ -35,12 +35,21 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
   useEffect(() => { void loadRemoved(); }, [loadRemoved]);
 
   // Poll recording state so the button reflects reality (also across host devices).
+  const lastRecErrorRef = useRef<string | null>(null);
   const loadRecState = useCallback(async () => {
     try {
       const r = await fetch(`/api/live-sessions/${sessionId}/recording`, { cache: 'no-store' });
-      if (r.ok) { const j = await r.json(); setRecording(!!j.recording); }
+      if (!r.ok) return;
+      const j = await r.json();
+      setRecording(!!j.recording);
+      // Egress can abort minutes after accepting the job, so the failure arrives here rather
+      // than from the button press. Tell the host once instead of silently un-pressing it.
+      if (j.lastError && j.lastError !== lastRecErrorRef.current) {
+        lastRecErrorRef.current = j.lastError;
+        flash(j.lastError);
+      }
     } catch { /* transient */ }
-  }, [sessionId]);
+  }, [sessionId, flash]);
   useEffect(() => { void loadRecState(); const iv = setInterval(loadRecState, 20_000); return () => clearInterval(iv); }, [loadRecState]);
 
   const moderate = useCallback(async (body: Record<string, unknown>, key: string, okMsg: string) => {

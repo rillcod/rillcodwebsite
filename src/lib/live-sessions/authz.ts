@@ -237,8 +237,35 @@ export async function canCreateLiveSessionForTarget(
   return schoolId ? teacherSchoolIds.includes(schoolId) : !!programId;
 }
 
-export function isSessionJoinWindowOpen(session: LiveSessionScope) {
-  return session.status === 'live' || session.status === 'scheduled';
+/** How early a student may enter a session the host has not started yet. */
+export const JOIN_EARLY_MS = 30 * 60_000;
+/**
+ * How long after a scheduled session's nominal end it stays joinable. Deliberately generous:
+ * durations are a guess, and locking a class out of a lesson that overran is far worse than
+ * leaving a dead room reachable for an afternoon.
+ */
+export const JOIN_LATE_GRACE_MS = 4 * 60 * 60_000;
+
+/**
+ * Is this session open for a non-moderator to join?
+ *
+ * This used to read `status === 'live' || status === 'scheduled'` — it selected scheduled_at
+ * and duration_minutes and then ignored both, so a student could walk into a session
+ * scheduled for next month while the error message claimed there was a window.
+ *
+ * `live` is always open: the host explicitly started it, and a class that runs past its
+ * nominal duration must never eject the students sitting in it.
+ */
+export function isSessionJoinWindowOpen(session: LiveSessionScope, now: number = Date.now()) {
+  if (session.status === 'live') return true;
+  if (session.status !== 'scheduled') return false;
+
+  // No usable schedule — fail open rather than invent a window.
+  const startsAt = session.scheduled_at ? new Date(session.scheduled_at).getTime() : NaN;
+  if (!Number.isFinite(startsAt)) return true;
+
+  const durationMs = (Number(session.duration_minutes) || 60) * 60_000;
+  return now >= startsAt - JOIN_EARLY_MS && now <= startsAt + durationMs + JOIN_LATE_GRACE_MS;
 }
 
 // ── Host removals ─────────────────────────────────────────────────────────────
