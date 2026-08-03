@@ -252,6 +252,18 @@ export const CRON_REGISTRY = [
     purpose: 'Approved academic plan generation',
   },
 
+  {
+    name: 'ai-model-drift',
+    label: 'Watch for retired AI models',
+    // Daily is ample: a retirement costs money quietly rather than breaking anything,
+    // because resolveModelQueue reads the live catalogue on every request anyway.
+    intervalMinutes: 1440,
+    trigger: 'fanout',
+    triggeredBy: 'onboarding-sweep',
+    schedule: 'Daily (fan-out behind a daily guard)',
+    purpose: 'Free AI model retirements and new free models',
+  },
+
   // ── No independent schedule ─────────────────────────────────────────────────────────────
   {
     name: 'publish-newsletters',

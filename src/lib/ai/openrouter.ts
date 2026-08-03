@@ -80,6 +80,48 @@ export function resetFreeModelCache(): void {
   cachedFreeModels = null;
 }
 
+export type FreeModelDrift = {
+  /** Ids this repo still names that OpenRouter no longer serves. */
+  retired: string[];
+  /** Free models being served that the fallback list does not know about. */
+  added: string[];
+  /** Fallback entries that are no longer real, so the fallback itself is rotting. */
+  staleFallback: string[];
+  live: string[];
+  checkedAt: string;
+  /** False when the catalogue could not be read, so nothing here is conclusive. */
+  catalogueReachable: boolean;
+};
+
+/**
+ * Compare the model ids this codebase names against what OpenRouter serves.
+ *
+ * The runtime already heals itself — resolveModelQueue drops dead ids on every
+ * call — but healing silently is how the rot went unnoticed in the first place:
+ * every :free id in the repo had been retired and generation had been quietly
+ * falling through to billable models. This is the part that says so out loud.
+ */
+export async function detectFreeModelDrift(
+  referencedIds: string[],
+  signal?: AbortSignal
+): Promise<FreeModelDrift> {
+  resetFreeModelCache(); // a scheduled check must not read an hour-old answer
+  const live = await availableFreeModels(signal);
+  const catalogueReachable = live !== FREE_FALLBACK_MODELS;
+  const liveSet = new Set(live);
+
+  const referencedFree = [...new Set(referencedIds.filter(isFreeModel))];
+
+  return {
+    retired: referencedFree.filter((id) => !liveSet.has(id)),
+    added: live.filter((id) => !FREE_FALLBACK_MODELS.includes(id)),
+    staleFallback: FREE_FALLBACK_MODELS.filter((id) => !liveSet.has(id)),
+    live,
+    checkedAt: new Date().toISOString(),
+    catalogueReachable,
+  };
+}
+
 /**
  * Free tier first, paid kept behind it.
  *

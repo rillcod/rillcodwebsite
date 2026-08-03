@@ -34,7 +34,11 @@ export const maxDuration = 120;
 // sweep (daily guard below) so they run without a separate cron-job.org entry.
 // integrity-sweep already has its own Vercel schedule; auto-generate-content chains from
 // academic-readiness so plans are prepared before content generation.
-const DAILY_FANOUT = ['assignment-reminders', 'form-followup', 'lead-nurture', 'academic-readiness'];
+// ai-model-drift rides here rather than taking a scheduler entry of its own: a
+// retired free model costs money quietly instead of breaking anything, because
+// the queue reads OpenRouter's live catalogue on every request, so noticing
+// within a day is soon enough.
+const DAILY_FANOUT = ['assignment-reminders', 'form-followup', 'lead-nurture', 'academic-readiness', 'ai-model-drift'];
 const DAILY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_daily_fanout_date';
 const FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_fanout';
 // Weekly teaching content needs more than one pass a day — see the hourly fan-out below.
