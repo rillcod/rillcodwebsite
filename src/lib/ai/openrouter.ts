@@ -42,7 +42,36 @@ const MODELS_URL = "https://openrouter.ai/api/v1/models";
 /** A model catalogue does not change minute to minute. */
 const CATALOGUE_TTL_MS = 60 * 60 * 1000;
 
+export type FreeModel = {
+  id: string;
+  contextTokens: number;
+  /** Can be asked for a JSON object rather than coaxed into one. */
+  supportsJson: boolean;
+};
+
+let cachedCatalogue: { at: number; models: FreeModel[] } | null = null;
 let cachedFreeModels: { at: number; ids: string[] } | null = null;
+
+/**
+ * Models that answer prompts, separated from models that classify them.
+ *
+ * The catalogue lists specialists alongside general models: a content-safety
+ * classifier, a vision-language model, a code-completion model. Sorting the raw
+ * list by context window put a safety classifier in the queue to write lesson
+ * plans. Nothing would have errored — it would have returned a safety verdict
+ * where a curriculum was expected.
+ */
+const NOT_A_GENERAL_WRITER =
+  /(content-safety|guard|moderation|shield|-vl$|-vl:|embed|rerank|whisper|tts|stt)/i;
+
+function isGeneralWriter(model: any): boolean {
+  const output: string[] = model?.architecture?.output_modalities ?? [];
+  const input: string[] = model?.architecture?.input_modalities ?? [];
+  // Must write text, and must accept text at all.
+  if (output.length && !output.includes("text")) return false;
+  if (input.length && !input.includes("text")) return false;
+  return !NOT_A_GENERAL_WRITER.test(String(model?.id ?? ""));
+}
 
 /**
  * Free models that OpenRouter is serving right now, longest context first.
@@ -62,14 +91,27 @@ export async function availableFreeModels(signal?: AbortSignal): Promise<string[
     if (!response.ok) throw new Error(`catalogue ${response.status}`);
     const body = await response.json();
 
-    const ids: string[] = (body?.data ?? [])
-      .filter((model: any) => typeof model?.id === "string" && isFreeModel(model.id))
+    const models: FreeModel[] = (body?.data ?? [])
+      .filter(
+        (model: any) =>
+          typeof model?.id === "string" &&
+          isFreeModel(model.id) &&
+          isGeneralWriter(model)
+      )
       .sort(
         (a: any, b: any) => (b?.context_length ?? 0) - (a?.context_length ?? 0)
       )
-      .map((model: any) => model.id as string);
+      .map((model: any) => ({
+        id: model.id as string,
+        contextTokens: Number(model?.context_length) || 0,
+        supportsJson: (model?.supported_parameters ?? []).includes(
+          "response_format"
+        ),
+      }));
 
-    if (!ids.length) throw new Error("catalogue listed no free models");
+    const ids = models.map((model) => model.id);
+    if (!ids.length) throw new Error("catalogue listed no usable free models");
+    cachedCatalogue = { at: Date.now(), models };
     cachedFreeModels = { at: Date.now(), ids };
     return ids;
   } catch {
@@ -95,9 +137,32 @@ export async function availableFreeModels(signal?: AbortSignal): Promise<string[
   }
 }
 
+/**
+ * The live free tier with its capabilities, for callers that must choose on
+ * more than a name — whether a model can be asked for JSON, how much input it
+ * takes. Falls back to bare ids with unknown capabilities when the catalogue
+ * cannot be read, so a caller never has to handle "no catalogue" itself.
+ */
+export async function freeModelCatalogue(
+  signal?: AbortSignal
+): Promise<FreeModel[]> {
+  const fresh =
+    cachedCatalogue && Date.now() - cachedCatalogue.at < CATALOGUE_TTL_MS;
+  if (fresh) return cachedCatalogue!.models;
+
+  const ids = await availableFreeModels(signal);
+  if (cachedCatalogue && Date.now() - cachedCatalogue.at < CATALOGUE_TTL_MS) {
+    return cachedCatalogue.models;
+  }
+  // Reached the stored or hardcoded fallback: ids only, capabilities unknown.
+  // supportsJson is assumed true so a JSON task is not left with nothing.
+  return ids.map((id) => ({ id, contextTokens: 0, supportsJson: true }));
+}
+
 /** Testing seam — clears the cached catalogue. */
 export function resetFreeModelCache(): void {
   cachedFreeModels = null;
+  cachedCatalogue = null;
 }
 
 export type FreeModelDrift = {

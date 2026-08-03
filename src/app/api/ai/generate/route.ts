@@ -10,10 +10,10 @@ import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { geminiGenerateText } from "@/lib/gemini/client";
 import {
   openRouterComplete,
-  resolveModelQueue,
   MIN_CONTENT_CHARS,
   OPENROUTER_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/openrouter";
+import { modelQueueFor } from "@/lib/ai/model-policy";
 
 export const dynamic = "force-dynamic";
 // Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
@@ -1948,15 +1948,17 @@ export async function POST(req: NextRequest) {
         ];
     }
 
-    // OpenRouter is the fallback behind the free Gemini ladder, so it stays on
-    // its free tier. The per-task queues above name paid models in a dozen
-    // places; filtering once here holds the rule for all of them rather than
-    // relying on every list being kept honest. AI_ALLOW_PAID_MODELS=true opts
-    // back in deliberately.
-    modelQueue = await resolveModelQueue(modelQueue);
-
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
     const useJsonFormat = type !== "lesson-notes";
+
+    // The queues above are preferences, not the decision. One policy resolves
+    // them against the live free tier for every AI route in the app, so
+    // free-first, retired ids and JSON capability are settled in one place
+    // rather than re-litigated per route.
+    modelQueue = await modelQueueFor({
+      prefer: modelQueue,
+      needsJson: useJsonFormat,
+    });
     const aiSystemPrompt =
       type === "report-feedback"
         ? REPORT_FEEDBACK_SYSTEM_PROMPT
