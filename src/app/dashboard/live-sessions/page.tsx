@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import ClassReplays from '@/components/live-session/ClassReplays';
+import RecurrenceFields, { blankRecurrence, type RecurrenceForm, type TermOption } from '@/components/live-session/RecurrenceFields';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
@@ -24,7 +25,7 @@ import {
   VideoCameraIcon, CalendarDaysIcon, ClockIcon, PencilIcon, TrashIcon,
   PlusIcon, XMarkIcon, LinkIcon, SignalIcon, FilmIcon, UserCircleIcon,
   ArrowRightIcon, UsersIcon, CheckCircleIcon, ChartBarIcon, PlayIcon, EyeIcon,
-  XCircleIcon as StopCircleIcon, ChatBubbleLeftEllipsisIcon,
+  XCircleIcon as StopCircleIcon, ChatBubbleLeftEllipsisIcon, ArrowPathIcon,
 } from '@/lib/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,6 +81,8 @@ function blankForm(): SessionForm {
 interface LiveSession {
   id: string; title: string; description: string | null;
   host_id: string; school_id: string | null; program_id: string | null;
+  /** Set when this class was generated from a recurring series. */
+  series_id?: string | null;
   session_url: string | null;
   platform: 'zoom' | 'google_meet' | 'teams' | 'discord' | 'other';
   scheduled_at: string; duration_minutes: number;
@@ -903,9 +906,10 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
-function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onStart, onEnd, onPolls, onRooms, onRecording, onAttendance, onQA }: {
+function SessionCard({ session, canManage, userId, onEdit, onDelete, onStopSeries, onJoin, onStart, onEnd, onPolls, onRooms, onRecording, onAttendance, onQA }: {
   session: LiveSession; canManage: boolean; userId: string;
   onEdit: (s: LiveSession) => void; onDelete: (id: string) => void;
+  onStopSeries: (s: LiveSession) => void;
   onJoin: (id: string, url: string | null) => void;
   onStart: (s: LiveSession) => void;
   onEnd: (s: LiveSession) => void;
@@ -962,6 +966,15 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
                 {countdown}
               </div>
             )}
+            {session.series_id && (
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest"
+                title="One class in a repeating series"
+              >
+                <ArrowPathIcon className="w-3 h-3" />
+                Recurring
+              </div>
+            )}
           </div>
 
           {canManage && (
@@ -974,6 +987,16 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
               >
                 <PencilIcon className="w-4 h-4" />
               </button>
+              {session.series_id && (
+                <button
+                  onClick={() => onStopSeries(session)}
+                  title="Stop the whole repeating series"
+                  aria-label="Stop repeating series"
+                  className="p-2.5 bg-muted hover:bg-amber-500/15 border border-border hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-all rounded-sm"
+                >
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() => onDelete(session.id)}
                 title="Delete session"
@@ -1105,13 +1128,21 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
 
 // ─── Session Form Modal ───────────────────────────────────────────────────────
 
-function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, error, onClose, onSave }: {
+function SessionModal({ initial, isEdit, schools, programs, terms, canGlobal, saving, error, onClose, onSave }: {
   initial: SessionForm; isEdit: boolean; schools: School[]; programs: Program[];
+  terms: TermOption[];
   canGlobal: boolean; saving: boolean; error: string | null;
-  onClose: () => void; onSave: (form: SessionForm) => void;
+  onClose: () => void; onSave: (form: SessionForm, recurrence: RecurrenceForm) => void;
 }) {
   const [form, setForm] = useState<SessionForm>(initial);
+  const [recurrence, setRecurrence] = useState<RecurrenceForm>(() => blankRecurrence(initial.scheduled_date));
   const set = (k: keyof SessionForm, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // A repeating series needs days, and a bound so it cannot generate forever.
+  const recurrenceIncomplete = recurrence.enabled && (
+    recurrence.weekdays.length === 0
+    || (recurrence.boundary === 'term' ? !recurrence.term_id : !recurrence.ends_on)
+  );
 
   const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-foreground font-medium focus:outline-none focus:border-primary/60 placeholder:text-white/20 transition-all";
   const labelCls = "block text-[9px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2";
@@ -1270,6 +1301,20 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
             </div>
           </div>
 
+          {/* Editing one occurrence must not silently rewrite the whole timetable, so the
+              recurrence block is create-only. */}
+          {!isEdit && (
+            <RecurrenceFields
+              value={recurrence}
+              onChange={setRecurrence}
+              terms={terms}
+              startTime={form.scheduled_time}
+              durationMinutes={Number(form.duration_minutes) || 60}
+              fieldCls={fieldCls}
+              labelCls={labelCls}
+            />
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {(canGlobal || schools.length > 0) && (
               <div>
@@ -1346,14 +1391,18 @@ function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, e
             </button>
           </div>
           <button
-            onClick={() => onSave(form)}
-            disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time}
+            onClick={() => onSave(form, recurrence)}
+            disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time || recurrenceIncomplete}
             className="px-8 py-3 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-3"
           >
             {saving
               ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <PlusIcon className="w-4 h-4" />}
-            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Schedule Session'}
+            {saving
+              ? 'Saving…'
+              : isEdit ? 'Save Changes'
+              : recurrence.enabled ? 'Schedule Series'
+              : 'Schedule Session'}
           </button>
         </div>
       </div>
@@ -1452,6 +1501,7 @@ export default function LiveSessionsPage() {
   const [sessions, setSessions]     = useState<LiveSession[]>([]);
   const [schools, setSchools]       = useState<School[]>([]);
   const [programs, setPrograms]     = useState<Program[]>([]);
+  const [terms, setTerms]           = useState<TermOption[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [filter, setFilter]         = useState<FilterTab>('upcoming');
@@ -1497,6 +1547,18 @@ export default function LiveSessionsPage() {
       }
       const { data: progs } = await supabase.from('programs').select('id, name').order('name');
       setPrograms(progs ?? []);
+
+      // Terms bound a recurring series. Only future-ending ones are offerable — you cannot
+      // schedule a timetable into a term that has already finished.
+      if (canCreateSession) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: termRows } = await supabase
+          .from('academic_terms')
+          .select('id, term_label, academic_year, start_date, end_date')
+          .gte('end_date', today)
+          .order('start_date', { ascending: true });
+        setTerms((termRows ?? []) as TermOption[]);
+      }
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load sessions');
     } finally {
@@ -1589,10 +1651,38 @@ export default function LiveSessionsPage() {
     setModalError(null); setShowModal(true);
   }
 
-  async function handleSave(form: SessionForm) {
+  async function handleSave(form: SessionForm, recurrence?: RecurrenceForm) {
     if (!profile) return;
     setSaving(true); setModalError(null);
     try {
+      // A repeating class is a different object: the series owns the pattern and the cron
+      // materialises the individual classes from it.
+      if (recurrence?.enabled && !editingSession) {
+        const res = await fetch('/api/live-sessions/series', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title.trim(),
+            description: form.description.trim() || null,
+            platform: form.platform,
+            weekdays: recurrence.weekdays,
+            start_time: form.scheduled_time,
+            duration_minutes: Number(form.duration_minutes) || 60,
+            school_id: form.school_id || profile?.school_id || (schools[0]?.id ?? null),
+            program_id: form.program_id || null,
+            term_id: recurrence.boundary === 'term' ? recurrence.term_id : null,
+            starts_on: recurrence.boundary === 'custom' ? (recurrence.starts_on || form.scheduled_date) : form.scheduled_date,
+            ends_on: recurrence.boundary === 'custom' ? recurrence.ends_on : null,
+            notify_parents: recurrence.notify_parents,
+          }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || 'Failed to create the series');
+        setShowModal(false);
+        await loadData();
+        return;
+      }
+
       let scheduled_at: string;
       try {
         const d = form.scheduled_date || new Date().toISOString().split('T')[0];
@@ -1634,6 +1724,23 @@ export default function LiveSessionsPage() {
     } catch (err: any) {
       setModalError(err?.message ?? 'Failed to save session');
     } finally { setSaving(false); }
+  }
+
+  // Stopping a series keeps the classes that already ran — they have attendance and replays
+  // attached — and only clears the ones still ahead.
+  async function handleStopSeries(session: LiveSession) {
+    if (!session.series_id) return;
+    if (!confirm(
+      `Stop the repeating series for "${session.title}"?\n\n`
+      + 'Upcoming classes that nobody has joined will be removed. '
+      + 'Classes that already ran are kept, with their attendance and replays.',
+    )) return;
+    try {
+      const res = await fetch(`/api/live-sessions/series/${session.series_id}`, { method: 'DELETE' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Failed to stop the series');
+      await loadData();
+    } catch (err: any) { alert(err?.message ?? 'Failed to stop the series'); }
   }
 
   async function handleDelete(id: string) {
@@ -1804,6 +1911,7 @@ export default function LiveSessionsPage() {
                   canManage={canManageSession(profile, s)}
                   onEdit={openEdit}
                   onDelete={handleDelete}
+                  onStopSeries={handleStopSeries}
                   onJoin={handleJoin}
                   onStart={handleStart}
                   onEnd={handleEnd}
@@ -1827,6 +1935,7 @@ export default function LiveSessionsPage() {
       {/* ── Modals ── */}
       {showModal && (
         <SessionModal
+          terms={terms}
           initial={modalForm}
           isEdit={!!editingSession}
           schools={schools}

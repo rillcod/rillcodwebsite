@@ -215,19 +215,80 @@ export class LiveSessionService {
         return data;
     }
 
+    /**
+     * Parents to notify about a session, given the students in scope.
+     *
+     * The hop matters: `parent_student_links.student_id` references `students.id`, NOT
+     * `portal_users.id`. Joining a portal user id straight onto it matches nothing and the
+     * feature silently notifies no one — the failure mode is total silence, not an error.
+     *
+     * Staff switch parent alerts on per series; a parent can still mute them for themselves
+     * via notification_preferences.live_session_reminders.
+     */
+    private async parentsForStudents(studentUserIds: string[]): Promise<string[]> {
+        if (studentUserIds.length === 0) return [];
+        const supabase = await createClient();
+
+        // portal_users.id → students.id
+        const { data: students } = await supabase
+            .from('students')
+            .select('id')
+            .in('user_id', studentUserIds);
+        const studentIds = (students ?? []).map((s: any) => s.id).filter(Boolean);
+        if (studentIds.length === 0) return [];
+
+        const { data: links } = await supabase
+            .from('parent_student_links')
+            .select('parent_id')
+            .in('student_id', studentIds);
+        const parentIds = [...new Set((links ?? []).map((l: any) => l.parent_id).filter(Boolean))];
+        if (parentIds.length === 0) return [];
+
+        // Respect an individual parent's opt-out. Missing row = default on.
+        // Cast: live_session_reminders arrives with migration 20260929000023 and is not in
+        // the generated Database type until `db:types:linked` is re-run.
+        const { data: muted } = await (supabase as any)
+            .from('notification_preferences')
+            .select('portal_user_id')
+            .in('portal_user_id', parentIds)
+            .eq('live_session_reminders', false);
+        const mutedIds = new Set((muted ?? []).map((p: any) => p.portal_user_id));
+
+        return parentIds.filter((id) => !mutedIds.has(id));
+    }
+
     async sendSessionReminders() {
         const supabase = await createClient();
         const now = new Date();
         const inFifteen = new Date(now.getTime() + 15 * 60 * 1000);
 
-        const { data: sessions, error } = await supabase
+        // Keep the calendar populated before looking for what to remind about, so a series
+        // created minutes ago still fires its first reminder on time.
+        let materialised = { created: 0, errors: [] as string[] };
+        try {
+            const { materialiseSeries } = await import('@/lib/live-sessions/series');
+            const r = await materialiseSeries(supabase as any, { now });
+            materialised = { created: r.created, errors: r.errors };
+            if (r.errors.length) console.error('[live-sessions] materialise errors', r.errors);
+        } catch (e) {
+            console.error('[live-sessions] materialiseSeries failed', e);
+        }
+
+        // Cast: live_sessions.series_id arrives with migration 20260929000023 and is not in
+        // the generated Database type until `db:types:linked` is re-run.
+        const { data: sessions, error } = await (supabase as any)
             .from('live_sessions')
-            .select('id, title, scheduled_at, program_id, school_id')
+            .select('id, title, scheduled_at, program_id, school_id, series_id')
             .gte('scheduled_at', now.toISOString())
             .lte('scheduled_at', inFifteen.toISOString())
-            .eq('status', 'scheduled');
+            .eq('status', 'scheduled') as {
+                data: Array<{ id: string; title: string; scheduled_at: string; program_id: string | null; school_id: string | null; series_id: string | null }> | null;
+                error: { message: string } | null;
+            };
 
         if (error) throw new AppError(error.message, 500);
+
+        let parentsNotified = 0;
 
         for (const session of sessions ?? []) {
             let recipientIds: string[] = [];
@@ -270,10 +331,41 @@ export class LiveSessionService {
                     }
                 );
             }
+
+            // 3. Linked parents — only when staff enabled it on the series this session
+            // belongs to. A one-off session has no series and so never notifies parents.
+            if (!session.series_id) continue;
+            const { data: series } = await (supabase as any)
+                .from('live_session_series')
+                .select('notify_parents')
+                .eq('id', session.series_id)
+                .maybeSingle();
+            if (!(series as any)?.notify_parents) continue;
+
+            const parentIds = await this.parentsForStudents(recipientIds);
+            for (const parentId of parentIds) {
+                await notificationsService.logNotification(
+                    parentId,
+                    'Class Reminder',
+                    `Your child's class "${session.title}" starts in 15 minutes.`,
+                    'info'
+                );
+                await sendPushNotification(parentId, {
+                    title: 'Class Reminder',
+                    body: `Your child's class "${session.title}" starts in 15 minutes.`,
+                    url: buildNotificationUrl('live_session', session.id),
+                });
+            }
+            parentsNotified += parentIds.length;
         }
 
         const closed = await this.closeOverdueSessions();
-        return { processed: sessions?.length ?? 0, closed: closed.length };
+        return {
+            processed: sessions?.length ?? 0,
+            closed: closed.length,
+            materialised: materialised.created,
+            parentsNotified,
+        };
     }
 
     /**
