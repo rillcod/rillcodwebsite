@@ -333,6 +333,11 @@ export function ClassTeachingWorkspace({
     return {
       weekMeta,
       week,
+      // The term this week actually belongs to, as recorded when the plan was
+      // built from the official edition. Never inferred from the week number:
+      // weeks per term is configurable and the generator's own prompt allows a
+      // term to run short or long, so any fixed boundary is wrong for someone.
+      term: Number(weekMeta.official_position?.programme_term) || null,
       lesson,
       assignment,
       project,
@@ -352,6 +357,14 @@ export function ClassTeachingWorkspace({
     (row) => !row.packageStatus.complete
   ).length;
   const weeksTaught = weekRows.filter((row) => row.taught).length;
+  // Whichever terms this plan actually contains, in order — not a fixed list.
+  const termsPresent = [
+    ...new Set(
+      weekRows
+        .map((row) => row.term)
+        .filter((term): term is number => term !== null)
+    ),
+  ].sort((a, b) => a - b);
   const visibleWeekRows = weekRows.filter((row) => {
     const matchesStatus =
       weekFilter === "todo"
@@ -359,14 +372,7 @@ export function ClassTeachingWorkspace({
         : weekFilter === "taught"
         ? row.taught
         : true;
-    const matchesTerm =
-      termFilter === 0
-        ? true
-        : termFilter === 1
-        ? row.week <= 8
-        : termFilter === 2
-        ? row.week > 8 && row.week <= 16
-        : row.week > 16;
+    const matchesTerm = termFilter === 0 || row.term === termFilter;
     return matchesStatus && matchesTerm;
   });
   // The first week that is neither prepared nor taught — where work resumes.
@@ -688,27 +694,45 @@ export function ClassTeachingWorkspace({
                     {label}
                   </button>
                 ))}
-                {weekRows.length > 8 && (
+                {/* Built from the terms this plan actually holds. Fixed week
+                    ranges would be wrong for any curriculum that is not exactly
+                    eight weeks a term, and weeks_per_term is configurable. */}
+                {termsPresent.length > 1 && (
                   <div className="flex items-center gap-1 sm:border-l border-border sm:pl-2">
-                    {[
-                      [0, "All Terms"],
-                      [1, "T1 (W1–8)"],
-                      [2, "T2 (W9–16)"],
-                      [3, "T3 (W17+)"],
-                    ].map(([termNum, label]) => (
-                      <button
-                        key={termNum}
-                        type="button"
-                        onClick={() => setTermFilter(Number(termNum))}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                          termFilter === termNum
-                            ? "bg-primary/20 text-primary border border-primary/30"
-                            : "text-muted-foreground hover:text-foreground border border-transparent"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                    {[0, ...termsPresent].map((termNum) => {
+                      const inTerm = weekRows.filter(
+                        (row) => termNum === 0 || row.term === termNum
+                      );
+                      const first = inTerm[0]?.week;
+                      const last = inTerm[inTerm.length - 1]?.week;
+                      const range =
+                        first === undefined
+                          ? ""
+                          : first === last
+                          ? ` (W${first})`
+                          : ` (W${first}–${last})`;
+                      return (
+                        <button
+                          key={termNum}
+                          type="button"
+                          onClick={() => setTermFilter(termNum)}
+                          title={
+                            termNum === 0
+                              ? `All ${weekRows.length} weeks`
+                              : `${inTerm.length} week${
+                                  inTerm.length === 1 ? "" : "s"
+                                } in term ${termNum}`
+                          }
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                            termFilter === termNum
+                              ? "bg-primary/20 text-primary border border-primary/30"
+                              : "text-muted-foreground hover:text-foreground border border-transparent"
+                          }`}
+                        >
+                          {termNum === 0 ? "All terms" : `T${termNum}${range}`}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {resumeWeek && weekFilter === "all" && (
@@ -1106,13 +1130,22 @@ export function ClassTeachingWorkspace({
               {weekRows.length > 0 && visibleWeekRows.length === 0 && (
                 <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
                   <p className="text-xs leading-5 text-muted-foreground">
-                    {weekFilter === "todo"
-                      ? "Every week has its full five-asset package prepared."
-                      : "No week has been marked taught yet."}
+                    {weekFilter === "all"
+                      ? `No week in term ${termFilter} yet.`
+                      : weekFilter === "todo"
+                      ? `Every week${
+                          termFilter ? ` in term ${termFilter}` : ""
+                        } has its full five-asset package prepared.`
+                      : `No week${
+                          termFilter ? ` in term ${termFilter}` : ""
+                        } has been marked taught yet.`}
                   </p>
                   <button
                     type="button"
-                    onClick={() => setWeekFilter("all")}
+                    onClick={() => {
+                      setWeekFilter("all");
+                      setTermFilter(0);
+                    }}
                     className="mt-3 text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
                   >
                     Show all {weekRows.length} weeks
