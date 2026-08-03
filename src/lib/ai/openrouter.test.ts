@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   openRouterComplete,
   orderFreeFirst,
+  resolveModelQueue,
+  resetFreeModelCache,
   FREE_FALLBACK_MODELS,
   MAX_OPENROUTER_CONTINUATIONS,
 } from "./openrouter";
@@ -170,6 +172,118 @@ describe("orderFreeFirst", () => {
 
   it("ships a fallback list that is itself entirely free", () => {
     expect(FREE_FALLBACK_MODELS.every((m) => m.endsWith(":free"))).toBe(true);
+  });
+});
+
+describe("resolveModelQueue — dead free models replaced from the live catalogue", () => {
+  const catalogue = (ids: Array<[string, number]>) =>
+    ({
+      ok: true,
+      json: async () => ({
+        data: ids.map(([id, context_length]) => ({ id, context_length })),
+      }),
+    }) as unknown as Response;
+
+  afterEach(() => {
+    resetFreeModelCache();
+    delete process.env.AI_FREE_MODELS_ONLY;
+  });
+
+  it("drops a free model OpenRouter no longer serves", async () => {
+    // The real failure: every :free id in this repo had been retired, so the
+    // queue 404'd its way down to a billable model on every call.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(catalogue([["live/model:free", 1_000_000]]))
+    );
+
+    const queue = await resolveModelQueue([
+      "retired/model:free",
+      "vendor/paid-model",
+    ]);
+
+    expect(queue).not.toContain("retired/model:free");
+    expect(queue).toEqual(["live/model:free", "vendor/paid-model"]);
+  });
+
+  it("keeps a requested free model ahead of the rest of the live tier", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        catalogue([
+          ["big/model:free", 1_000_000],
+          ["asked/model:free", 100],
+        ])
+      )
+    );
+
+    const queue = await resolveModelQueue(["asked/model:free"]);
+
+    // The task picked it deliberately, so it leads despite the smaller window.
+    expect(queue[0]).toBe("asked/model:free");
+    expect(queue).toContain("big/model:free");
+  });
+
+  it("orders the rest of the free tier by context length", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        catalogue([
+          ["small/model:free", 8_000],
+          ["huge/model:free", 1_000_000],
+        ])
+      )
+    );
+
+    expect(await resolveModelQueue([])).toEqual([
+      "huge/model:free",
+      "small/model:free",
+    ]);
+  });
+
+  it("falls back rather than failing when the catalogue is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const queue = await resolveModelQueue(["vendor/paid-model"]);
+
+    expect(queue).toEqual([...FREE_FALLBACK_MODELS, "vendor/paid-model"]);
+  });
+
+  it("keeps paid models behind the free tier", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(catalogue([["live/model:free", 1000]]))
+    );
+
+    const queue = await resolveModelQueue(["vendor/paid-model"]);
+
+    expect(queue.indexOf("live/model:free")).toBeLessThan(
+      queue.indexOf("vendor/paid-model")
+    );
+  });
+
+  it("drops the paid tail when free-only is demanded", async () => {
+    process.env.AI_FREE_MODELS_ONLY = "true";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(catalogue([["live/model:free", 1000]]))
+    );
+
+    expect(await resolveModelQueue(["vendor/paid-model"])).toEqual([
+      "live/model:free",
+    ]);
+  });
+
+  it("fetches the catalogue once and reuses it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(catalogue([["live/model:free", 1000]]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await resolveModelQueue([]);
+    await resolveModelQueue([]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

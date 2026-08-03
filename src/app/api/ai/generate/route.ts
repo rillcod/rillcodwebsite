@@ -10,7 +10,7 @@ import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { geminiGenerateText } from "@/lib/gemini/client";
 import {
   openRouterComplete,
-  orderFreeFirst,
+  resolveModelQueue,
   MIN_CONTENT_CHARS,
   OPENROUTER_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/openrouter";
@@ -1953,7 +1953,7 @@ export async function POST(req: NextRequest) {
     // places; filtering once here holds the rule for all of them rather than
     // relying on every list being kept honest. AI_ALLOW_PAID_MODELS=true opts
     // back in deliberately.
-    modelQueue = orderFreeFirst(modelQueue);
+    modelQueue = await resolveModelQueue(modelQueue);
 
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
     const useJsonFormat = type !== "lesson-notes";

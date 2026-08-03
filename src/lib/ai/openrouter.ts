@@ -20,13 +20,65 @@ export function isFreeModel(modelId: string): boolean {
   return modelId.endsWith(":free");
 }
 
-/** Known-good free models, strongest first, for queues that name none. */
+/**
+ * Last-resort free models, longest context first.
+ *
+ * Only reached when the live catalogue cannot be fetched. Every previous
+ * hardcoded list in this codebase had rotted — checked against OpenRouter,
+ * none of qwen3-235b, deepseek-r1, qwen3-30b or llama-3.1-8b still existed,
+ * so "free first" was really "404 first, then bill the paid model behind it".
+ * That is why the live list below is preferred over this one.
+ */
 export const FREE_FALLBACK_MODELS = [
-  "qwen/qwen3-235b-a22b:free",
-  "deepseek/deepseek-r1:free",
-  "qwen/qwen3-30b-a3b:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-20b:free",
 ];
+
+const MODELS_URL = "https://openrouter.ai/api/v1/models";
+/** A model catalogue does not change minute to minute. */
+const CATALOGUE_TTL_MS = 60 * 60 * 1000;
+
+let cachedFreeModels: { at: number; ids: string[] } | null = null;
+
+/**
+ * Free models that OpenRouter is serving right now, longest context first.
+ *
+ * Asking the catalogue rather than trusting a list in the repo is the whole
+ * point: model ids are retired without notice, and a stale one costs a wasted
+ * round trip and a silent fall through to something billable. Failures are
+ * swallowed — an unreachable catalogue must not take generation down with it.
+ */
+export async function availableFreeModels(signal?: AbortSignal): Promise<string[]> {
+  const fresh =
+    cachedFreeModels && Date.now() - cachedFreeModels.at < CATALOGUE_TTL_MS;
+  if (fresh) return cachedFreeModels!.ids;
+
+  try {
+    const response = await fetch(MODELS_URL, { signal });
+    if (!response.ok) throw new Error(`catalogue ${response.status}`);
+    const body = await response.json();
+
+    const ids: string[] = (body?.data ?? [])
+      .filter((model: any) => typeof model?.id === "string" && isFreeModel(model.id))
+      .sort(
+        (a: any, b: any) => (b?.context_length ?? 0) - (a?.context_length ?? 0)
+      )
+      .map((model: any) => model.id as string);
+
+    if (!ids.length) throw new Error("catalogue listed no free models");
+    cachedFreeModels = { at: Date.now(), ids };
+    return ids;
+  } catch {
+    return cachedFreeModels?.ids ?? FREE_FALLBACK_MODELS;
+  }
+}
+
+/** Testing seam — clears the cached catalogue. */
+export function resetFreeModelCache(): void {
+  cachedFreeModels = null;
+}
 
 /**
  * Free tier first, paid kept behind it.
@@ -54,7 +106,50 @@ export function orderFreeFirst(queue: string[]): string[] {
   return [...freeTier, ...paid];
 }
 
-/** Each pass spends another full allowance, so this bounds cost and latency. */
+/**
+ * The queue to actually call, with dead free models removed.
+ *
+ * A queue's own free entries are kept only if OpenRouter is still serving them;
+ * the rest of the live free tier follows, longest context first, so the free
+ * options are genuinely exhausted before anything billable is reached. Paid
+ * entries stay at the back for the same reason as in orderFreeFirst — an
+ * exhausted free tier should degrade, not fail.
+ */
+export async function resolveModelQueue(
+  queue: string[],
+  signal?: AbortSignal
+): Promise<string[]> {
+  const live = await availableFreeModels(signal);
+  const liveSet = new Set(live);
+
+  const requestedAndLive = queue.filter(
+    (model) => isFreeModel(model) && liveSet.has(model)
+  );
+  const remainingLive = live.filter((model) => !requestedAndLive.includes(model));
+  const freeTier = [...requestedAndLive, ...remainingLive];
+  const paid = queue.filter((model) => !isFreeModel(model));
+
+  if (process.env.AI_FREE_MODELS_ONLY === "true") {
+    return freeTier.length ? freeTier : FREE_FALLBACK_MODELS;
+  }
+  return [...freeTier, ...paid];
+}
+
+/**
+ * How many times one answer may be resumed.
+ *
+ * Each pass spends another full allowance, so this bounds cost and latency.
+ * Three covers any prompt in this codebase at the production output cap; raise
+ * AI_MAX_CONTINUATIONS for a genuinely enormous generation rather than editing
+ * code. Clamped so a stray value cannot spin forever or disable resuming.
+ */
+export function maxContinuations(): number {
+  const configured = Number(process.env.AI_MAX_CONTINUATIONS);
+  if (!Number.isFinite(configured)) return 3;
+  return Math.max(1, Math.min(10, Math.floor(configured)));
+}
+
+/** @deprecated read maxContinuations() — kept so existing imports still resolve. */
 export const MAX_OPENROUTER_CONTINUATIONS = 3;
 
 /**
@@ -144,7 +239,8 @@ export async function openRouterComplete(input: {
   let assembled = "";
   let continued = 0;
 
-  for (let pass = 0; pass <= MAX_OPENROUTER_CONTINUATIONS; pass++) {
+  const passLimit = maxContinuations();
+  for (let pass = 0; pass <= passLimit; pass++) {
     if (input.signal?.aborted) break;
     if (pass > 0) input.onContinue?.(pass);
 

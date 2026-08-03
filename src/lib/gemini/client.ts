@@ -180,8 +180,16 @@ function thinkingBudgetFor(
  * How many times a single answer may be resumed. Each pass spends another full
  * output allowance, so this bounds both cost and latency. Three passes over a
  * 65k cap carries roughly 200k tokens of answer, far beyond any prompt here.
+ *
+ * Read from AI_MAX_CONTINUATIONS — the same knob the OpenRouter engine uses, so
+ * the two never drift — and clamped so a stray value cannot spin forever or
+ * switch resuming off entirely.
  */
-const MAX_CONTINUATIONS = 3;
+function maxContinuations(): number {
+    const configured = Number(process.env.AI_MAX_CONTINUATIONS);
+    if (!Number.isFinite(configured)) return 3;
+    return Math.max(1, Math.min(10, Math.floor(configured)));
+}
 
 /**
  * True when a resume pass looks like a fresh start rather than a continuation.
@@ -224,7 +232,8 @@ async function continueUntilComplete(
 ): Promise<GeneratedText> {
     let assembled = firstPartial;
 
-    for (let pass = 0; pass < MAX_CONTINUATIONS; pass++) {
+    const passLimit = maxContinuations();
+    for (let pass = 0; pass < passLimit; pass++) {
         if (opts.signal?.aborted) break;
 
         const resumePrompt = [
@@ -271,7 +280,7 @@ async function continueUntilComplete(
         text: assembled,
         model: spec.id,
         truncated: true,
-        continued: MAX_CONTINUATIONS,
+        continued: passLimit,
     };
 }
 
