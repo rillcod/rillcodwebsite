@@ -3,7 +3,9 @@ import { AccessToken } from 'livekit-server-sdk';
 import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import {
   canManageLiveSession,
+  isRemovedFromLiveSession,
   isSessionJoinWindowOpen,
+  LIVE_SESSION_REMOVED_MESSAGE,
   LiveSessionAuthError,
   requireLiveSessionAccess,
   requireLiveSessionUser,
@@ -61,6 +63,12 @@ export async function POST(req: NextRequest) {
     }
 
     const isModerator = await canManageLiveSession(admin as any, profile, session);
+    // A kicked participant must not be handed a fresh seat — their client auto-rejoins within
+    // seconds of being dropped, which is what made "Remove" a no-op. Moderators are exempt so
+    // a host can never lock themselves out of their own class.
+    if (!isModerator && await isRemovedFromLiveSession(admin as any, sessionId, profile.id)) {
+      return NextResponse.json({ error: LIVE_SESSION_REMOVED_MESSAGE }, { status: 403 });
+    }
     if (!isModerator && !isSessionJoinWindowOpen(session)) {
       return NextResponse.json({ error: 'This session is not open for joining yet.' }, { status: 403 });
     }

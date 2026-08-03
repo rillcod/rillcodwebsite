@@ -6,6 +6,8 @@ import { useParticipants } from '@livekit/components-react';
 // Host-only in-call controls: mute-all, per-participant mute/remove, and record to R2.
 // Rendered INSIDE <LiveKitRoom> so it has the room context (participant list is live).
 // Mobile-first: a compact pill bar that expands into a bottom-sheet participants panel.
+type RemovedParticipant = { identity: string; name: string; removed_at: string };
+
 export default function HostControls({ sessionId }: { sessionId: string }) {
   const participants = useParticipants();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -13,6 +15,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
   const [recording, setRecording] = useState(false);
   const [recBusy, setRecBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<RemovedParticipant[]>([]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flash = useCallback((msg: string) => {
@@ -20,6 +23,16 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   }, []);
+
+  // Removals now stick, so the host needs to see who is locked out — a removed person is by
+  // definition NOT in the live participant list, so this is the only way back for them.
+  const loadRemoved = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/live-sessions/${sessionId}/moderate`, { cache: 'no-store' });
+      if (r.ok) { const j = await r.json(); setRemoved(Array.isArray(j.removed) ? j.removed : []); }
+    } catch { /* transient */ }
+  }, [sessionId]);
+  useEffect(() => { void loadRemoved(); }, [loadRemoved]);
 
   // Poll recording state so the button reflects reality (also across host devices).
   const loadRecState = useCallback(async () => {
@@ -39,9 +52,10 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? 'Action failed');
       flash(okMsg);
+      if (body.action === 'remove' || body.action === 'readmit') void loadRemoved();
     } catch (e: any) { flash(e.message ?? 'Action failed'); }
     finally { setBusy(null); }
-  }, [sessionId, flash]);
+  }, [sessionId, flash, loadRemoved]);
 
   const toggleRecord = useCallback(async () => {
     setRecBusy(true);
@@ -95,9 +109,16 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
 
           <button
             onClick={() => setPanelOpen((v) => !v)}
-            className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:bg-white/20"
+            className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:bg-white/20"
           >
             👥 {remotes.length}
+            {/* Someone is locked out and can't get back without the host — make that visible
+                without having to open the panel. */}
+            {removed.length > 0 && (
+              <span className="rounded-full bg-rose-600/30 px-1.5 text-rose-200" title={`${removed.length} removed`}>
+                −{removed.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -134,7 +155,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
                         {micOn ? '🔇 Mute' : '🔈 Unmute'}
                       </button>
                       <button
-                        onClick={() => { if (confirm(`Remove ${p.name || 'this participant'} from the session?`)) moderate({ action: 'remove', identity: p.identity }, `r-${p.identity}`, 'Removed'); }}
+                        onClick={() => { if (confirm(`Remove ${p.name || 'this participant'} from the session?\n\nThey will not be able to rejoin until you allow them back.`)) moderate({ action: 'remove', identity: p.identity }, `r-${p.identity}`, 'Removed'); }}
                         disabled={busy === `r-${p.identity}`}
                         className="rounded-lg bg-rose-600/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300 hover:bg-rose-600/30 disabled:opacity-50"
                       >
@@ -144,6 +165,31 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
                   );
                 })}
               </ul>
+            )}
+
+            {removed.length > 0 && (
+              <div className="mt-4 border-t border-white/10 pt-3">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-rose-400">
+                  Removed · {removed.length}
+                </p>
+                <ul className="space-y-1.5">
+                  {removed.map((r) => (
+                    <li key={r.identity} className="flex items-center gap-2 rounded-xl bg-rose-950/30 p-2.5">
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-xs font-black text-rose-600 dark:text-rose-400">
+                        {(r.name || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">{r.name}</span>
+                      <button
+                        onClick={() => moderate({ action: 'readmit', identity: r.identity }, `a-${r.identity}`, `${r.name} can rejoin`)}
+                        disabled={busy === `a-${r.identity}`}
+                        className="rounded-lg bg-emerald-600/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600/30 disabled:opacity-50"
+                      >
+                        {busy === `a-${r.identity}` ? '…' : 'Allow back'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>

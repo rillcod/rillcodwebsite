@@ -5,10 +5,12 @@ import {
   attemptLabel,
   hasExhaustedRejoins,
   isFatalJoinError,
+  isRemovedJoinError,
   rejoinDelayMs,
   shouldAutoRejoin,
   type RejoinState,
 } from './rejoin-policy';
+import { LIVE_SESSION_REMOVED_MESSAGE } from './authz';
 
 const base: RejoinState = { phase: 'dropped', attempt: 0, error: null, exited: false };
 
@@ -63,13 +65,33 @@ describe('shouldAutoRejoin', () => {
   });
 
   it('never rejoins a session that is not dropped', () => {
-    for (const phase of ['loading', 'live', 'rejoining', 'ended'] as const) {
+    for (const phase of ['loading', 'live', 'rejoining', 'ended', 'removed', 'superseded'] as const) {
       expect(shouldAutoRejoin({ ...base, phase })).toBe(false);
     }
   });
 
   it('does not burn the budget on fatal errors', () => {
     expect(shouldAutoRejoin({ ...base, error: 'Unauthorized' })).toBe(false);
+  });
+
+  it('never rejoins someone the host removed', () => {
+    // Otherwise "Remove" is a ~2s pause: the client rejoins and the server re-seats them.
+    expect(shouldAutoRejoin({ ...base, error: LIVE_SESSION_REMOVED_MESSAGE })).toBe(false);
+  });
+});
+
+describe('isRemovedJoinError', () => {
+  it('recognises the exact 403 the token route returns for a removed participant', () => {
+    // These two strings live in different modules; if they drift, a kicked student lands on
+    // the generic stalled screen, which offers Retry and the Jitsi backup room.
+    expect(isRemovedJoinError(LIVE_SESSION_REMOVED_MESSAGE)).toBe(true);
+    expect(isFatalJoinError(LIVE_SESSION_REMOVED_MESSAGE)).toBe(true);
+  });
+
+  it('does not fire on ordinary connection trouble', () => {
+    expect(isRemovedJoinError('Failed to fetch')).toBe(false);
+    expect(isRemovedJoinError('This session is no longer active.')).toBe(false);
+    expect(isRemovedJoinError(null)).toBe(false);
   });
 });
 

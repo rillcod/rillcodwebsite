@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   canManageLiveSession,
+  isRemovedFromLiveSession,
   isSessionJoinWindowOpen,
+  LIVE_SESSION_REMOVED_MESSAGE,
   LiveSessionAuthError,
   requireLiveSessionAccess,
 } from '@/lib/live-sessions/authz';
@@ -53,6 +55,11 @@ export async function POST(
   }
 
   const isManager = await canManageLiveSession(admin, profile, session);
+  // Removed by the host — don't re-open the attendance row either, or the register shows them
+  // present in a class they were ejected from.
+  if (!isManager && await isRemovedFromLiveSession(admin, sessionId, user.id)) {
+    return NextResponse.json({ error: LIVE_SESSION_REMOVED_MESSAGE }, { status: 403 });
+  }
   if (!isManager && !isSessionJoinWindowOpen(session)) {
     return NextResponse.json({ error: 'This session is not open for joining yet.' }, { status: 403 });
   }

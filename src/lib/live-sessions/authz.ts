@@ -241,6 +241,42 @@ export function isSessionJoinWindowOpen(session: LiveSessionScope) {
   return session.status === 'live' || session.status === 'scheduled';
 }
 
+// ── Host removals ─────────────────────────────────────────────────────────────
+
+/**
+ * Shown to a participant the host kicked. The meeting client matches on this text to stop
+ * auto-rejoining, so keep it in sync with FATAL_JOIN_ERROR in `rejoin-policy.ts`.
+ */
+export const LIVE_SESSION_REMOVED_MESSAGE =
+  'You were removed from this session by the host.';
+
+/**
+ * Did the host kick this person out of this session?
+ *
+ * LiveKit's removeParticipant only closes the socket — the client sees an ordinary drop and
+ * rejoins within seconds with a fresh token. Every seat-issuing path has to consult this, or
+ * "Remove" is decorative. Cleared by the host re-admitting them (the row is deleted).
+ */
+export async function isRemovedFromLiveSession(
+  admin: SupabaseClient,
+  sessionId: string,
+  userId: string,
+): Promise<boolean> {
+  if (!sessionId || !userId) return false;
+  const { data, error } = await (admin as any)
+    .from('live_session_removals')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('portal_user_id', userId)
+    .maybeSingle();
+  // Fail open: a lookup error must not lock a whole class out of their lesson.
+  if (error) {
+    console.warn('[live-sessions] removal lookup failed', error.message);
+    return false;
+  }
+  return !!data;
+}
+
 // ── Shared caller resolution (one implementation for every live-session route) ──
 
 /** Authenticated caller + profile, or null. Used by all live-session routes. */

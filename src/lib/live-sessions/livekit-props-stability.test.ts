@@ -81,16 +81,81 @@ function loadTokenSource(): string {
   return src.slice(start, end);
 }
 
+/** handleError's body, up to the visibilitychange effect that follows it. */
+function handleErrorSource(): string {
+  const start = src.indexOf('const handleError');
+  expect(start, 'handleError must exist').toBeGreaterThan(-1);
+  const end = src.indexOf('const onVis', start);
+  expect(end, 'the visibilitychange effect must follow handleError').toBeGreaterThan(start);
+  return src.slice(start, end);
+}
+
+/** The JSX rendered once the room is mounted — everything before it is an Overlay. */
+function mountedRoomSource(): string {
+  const start = src.indexOf('data-lk-theme="default"');
+  expect(start, 'the mounted room must exist').toBeGreaterThan(-1);
+  // lastIndexOf: the header comment about prop stability also mentions <LiveKitRoom>.
+  const end = src.lastIndexOf('<LiveKitRoom');
+  expect(end, 'the LiveKitRoom element must follow the mounted shell').toBeGreaterThan(start);
+  return src.slice(start, end);
+}
+
 describe('LiveKitMeeting reconnect invariants', () => {
-  it('resets the retry budget on token success and onConnected', () => {
-    const resets = src.match(/setAutoTry\(0\)/g) ?? [];
-    expect(resets.length).toBeGreaterThanOrEqual(2);
-    expect(loadTokenSource()).toMatch(/setAutoTry\(0\)/);
+  it('resets the retry budget ONLY on a real media connection', () => {
+    // Resetting on token success pinned autoTry at 0 forever: the timer's increment lands
+    // before the fetch resolves, so the reset always won. hasExhaustedRejoins() could then
+    // never fire — on a media-only failure (blocked UDP, no TURN) the client retried at a
+    // flat 2s for the whole lesson, showed "Attempt 1 of 5" throughout, and never reached
+    // the screen offering Retry / the Jitsi backup room.
+    expect(loadTokenSource(), 'loadToken must not reset the retry budget').not.toMatch(/setAutoTry\(0\)/);
     const connected = src.slice(
       src.indexOf('const handleConnected'),
       src.indexOf('const handleDisconnected'),
     );
-    expect(connected).toMatch(/setAutoTry\(0\)/);
+    expect(connected, 'onConnected is the only proof media works').toMatch(/setAutoTry\(0\)/);
+    // manualRejoin resets too — an explicit user retry deserves a fresh budget.
+    const manual = src.slice(src.indexOf('const manualRejoin'), src.indexOf('const isFatal'));
+    expect(manual).toMatch(/setAutoTry\(0\)/);
+  });
+
+  it('treats a host removal as terminal, not as a drop to retry', () => {
+    // PARTICIPANT_REMOVED used to fall through to 'dropped' → auto-rejoin, so the kicked
+    // student was handed a fresh seat ~2s later. Verified against the live server.
+    const disconnected = src.slice(
+      src.indexOf('const handleDisconnected'),
+      src.indexOf('const handleError'),
+    );
+    expect(disconnected).toMatch(/DisconnectReason\.PARTICIPANT_REMOVED/);
+    expect(disconnected).toMatch(/setPhase\('removed'\)/);
+  });
+
+  it('stops fighting a second tab instead of ping-ponging with it', () => {
+    // LiveKit Cloud evicts the older connection on a duplicate identity. Rejoining evicts the
+    // newer one, which rejoins and evicts us — forever, once the budget stopped exhausting.
+    const disconnected = src.slice(
+      src.indexOf('const handleDisconnected'),
+      src.indexOf('const handleError'),
+    );
+    expect(disconnected).toMatch(/DisconnectReason\.DUPLICATE_IDENTITY/);
+    expect(disconnected).toMatch(/setPhase\('superseded'\)/);
+    // ...and onError must not quietly restart the same loop.
+    expect(handleErrorSource()).not.toMatch(/loadToken/);
+  });
+
+  it('never offers Retry or the backup room to someone the host removed', () => {
+    // The removal 403 matches isFatalJoinError, so without this the generic stalled screen
+    // (Retry + "Launch via Jitsi Backup") would render — two ways around the host's decision.
+    expect(src).toMatch(/const isTerminal = phase === 'removed' \|\| phase === 'superseded'/);
+    expect(src).toMatch(/const stalled = !isTerminal &&/);
+    const removedScreen = src.slice(src.indexOf("if (phase === 'removed')"), src.indexOf("if (phase === 'superseded')"));
+    expect(removedScreen).not.toMatch(/meet\.jit\.si/);
+    expect(removedScreen).not.toMatch(/manualRejoin/);
+  });
+
+  it('shows connect errors while the room is mounted', () => {
+    // Everything below `roomMounted` renders the room, not an Overlay — so an error set by
+    // the 45s watchdog or a denied camera/mic was written to state and never displayed.
+    expect(mountedRoomSource()).toMatch(/\{error &&/);
   });
 
   it('shows the room as soon as the token lands (pre-cleanup join behaviour)', () => {
@@ -153,9 +218,10 @@ describe('LiveKitMeeting reconnect invariants', () => {
   });
 
   it('does not treat onError as a terminal drop (avoids connect storms)', () => {
-    const handleError = src.slice(src.indexOf('const handleError'), src.indexOf('useEffect(() => {\n    const onVis'));
-    expect(handleError).not.toMatch(/setPhase\('dropped'\)/);
-    expect(handleError).not.toMatch(/setPhase\(\(p\)/);
+    // NB: this used to slice on a '\n'-literal anchor that never matched, so it asserted
+    // against the tail of the file and passed for free.
+    expect(handleErrorSource()).not.toMatch(/setPhase\('dropped'\)/);
+    expect(handleErrorSource()).not.toMatch(/setPhase\(\(p\)/);
   });
 });
 

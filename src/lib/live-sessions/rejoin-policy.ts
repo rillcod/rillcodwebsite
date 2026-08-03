@@ -7,7 +7,19 @@
  * covered by `rejoin-policy.test.ts`.
  */
 
-export type MeetingPhase = 'loading' | 'live' | 'rejoining' | 'dropped' | 'ended';
+/**
+ * `removed` and `superseded` are terminal on purpose: both mean someone *decided* this client
+ * should stop being in the room. Retrying either one fights that decision — a removed student
+ * walks back in, and two tabs on one account kick each other forever.
+ */
+export type MeetingPhase =
+  | 'loading'
+  | 'live'
+  | 'rejoining'
+  | 'dropped'
+  | 'ended'
+  | 'removed'
+  | 'superseded';
 
 /** App-level rejoin attempts, on top of LiveKit's own per-connection backoff. */
 export const MAX_AUTO_REJOIN = 5;
@@ -18,11 +30,23 @@ export const CONNECT_DEADLINE_MS = 45_000;
 /**
  * Errors that will never succeed on retry — a closed session, a revoked seat.
  * Burning the rejoin budget on these just delays the honest error screen.
+ *
+ * `removed from this session` must stay in step with LIVE_SESSION_REMOVED_MESSAGE in
+ * `authz.ts`: that is the 403 the token route returns to someone the host kicked.
  */
-const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found|not configured|credential|LiveKit is not/i;
+const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found|not configured|credential|LiveKit is not|removed from this session/i;
 
 export function isFatalJoinError(message?: string | null): boolean {
   return typeof message === 'string' && FATAL_JOIN_ERROR.test(message);
+}
+
+/**
+ * The token route's 403 for someone the host kicked. Distinguished from other fatal errors so
+ * the UI can show the removal screen rather than the generic "lost connection" one — the
+ * latter offers Retry and a backup room, which would route straight around the host.
+ */
+export function isRemovedJoinError(message?: string | null): boolean {
+  return typeof message === 'string' && /removed from this session/i.test(message);
 }
 
 /** Exponential backoff, capped so a long class never waits more than 12s to retry. */

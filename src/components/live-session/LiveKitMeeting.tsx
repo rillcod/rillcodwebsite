@@ -17,6 +17,7 @@ import {
   attemptLabel,
   hasExhaustedRejoins,
   isFatalJoinError,
+  isRemovedJoinError,
   rejoinDelayMs,
   shouldAutoRejoin,
   type MeetingPhase,
@@ -175,16 +176,23 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         // Waiting for onConnected left everyone on "Connecting…" on slow networks
         // and the watchdog below kept killing the attempt mid-flight.
         setPhase('live');
-        setAutoTry(0);
+        // NB: the retry budget is NOT reset here. A seat is only proof the API is up; when
+        // media can't get through (blocked UDP, unreachable TURN) the token keeps succeeding,
+        // so resetting here pinned the counter at 0 and the loop ran forever at 2s intervals —
+        // "Attempt 1 of 5" for eternity, and the Retry / Jitsi-backup screen was unreachable.
+        // Only handleConnected — a real media path — clears it.
         armConnectWatchdog();
         requestAnimationFrame(() => {
           intentionalUnmountRef.current = false;
         });
       } catch (e: unknown) {
         if (seq !== loadSeqRef.current || exitedRef.current) return;
+        const msg = e instanceof Error ? e.message : 'Failed to connect';
         setSeatPending(false);
-        setError(e instanceof Error ? e.message : 'Failed to connect');
-        setPhase('dropped');
+        setError(msg);
+        // The server refusing a seat because the host kicked them is its own screen — the
+        // generic drop screen offers Retry and a backup room, i.e. a way around the host.
+        setPhase(isRemovedJoinError(msg) ? 'removed' : 'dropped');
       }
     },
     [sessionId, armConnectWatchdog],
@@ -248,6 +256,24 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       setPhase('ended');
       return;
     }
+    // The host kicked us. This used to fall through to 'dropped' → auto-rejoin, which handed
+    // the student a fresh seat ~2s later and made Remove a no-op. Terminal now; the server
+    // refuses a new token too, until the host re-admits them.
+    if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+      clearWatchdog();
+      intentionalUnmountRef.current = true;
+      setPhase('removed');
+      return;
+    }
+    // The same account joined somewhere else and LiveKit evicted this connection. Rejoining
+    // would evict the other one, which would rejoin and evict us — two tabs ping-ponging
+    // forever. Stop, and let the user pick a device.
+    if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+      clearWatchdog();
+      intentionalUnmountRef.current = true;
+      setPhase('superseded');
+      return;
+    }
     // Terminal drop after LiveKit's own reconnect gave up → unmount + auto-rejoin.
     intentionalUnmountRef.current = true;
     setPhase((p) => (p === 'ended' ? p : 'dropped'));
@@ -260,12 +286,14 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       return;
     }
     if (/duplicate.?identity|already connected/i.test(msg)) {
-      setError('Reconnecting — clearing a stale seat…');
-      void loadToken({ rejoin: true });
+      // Every token mint already clears a stale ghost seat server-side, so a duplicate here
+      // means a genuine second client. Auto-rejoining just started the ping-pong.
+      intentionalUnmountRef.current = true;
+      setPhase('superseded');
       return;
     }
     console.warn('[livekit]', msg);
-  }, [loadToken]);
+  }, []);
 
   useEffect(() => {
     const onVis = () => {
@@ -283,6 +311,8 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         hideLeaveTimer.current = null;
       }
       if (exitedRef.current) return;
+      // Kicked / superseded is a decision, not a blip — don't re-open attendance either.
+      if (phase === 'removed' || phase === 'superseded') return;
       recordRejoin();
       if (shouldAutoRejoin({ phase, attempt: autoTry, error: errorRef.current, exited: false })) {
         void loadToken({ rejoin: true });
@@ -333,7 +363,11 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
   }, [loadToken]);
 
   const isFatal = isFatalJoinError(error);
-  const stalled = (phase === 'dropped' && hasExhaustedRejoins(autoTry)) || isFatal;
+  // A terminal decision (kicked / superseded) outranks `stalled`: the stalled screen offers
+  // Retry and a backup room, and the removal 403 is itself a "fatal" error, so checking
+  // stalled first would hand a kicked student two ways straight back around the host.
+  const isTerminal = phase === 'removed' || phase === 'superseded';
+  const stalled = !isTerminal && ((phase === 'dropped' && hasExhaustedRejoins(autoTry)) || isFatal);
 
   // Room shows once we have a seat and phase is live (set on token success).
   const roomMounted =
@@ -372,6 +406,35 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
       <Overlay>
         <p className="text-white/70 text-sm font-bold">This session has been ended by the host.</p>
         <button type="button" onClick={handleClose} className={BTN_PRIMARY}>Close</button>
+      </Overlay>
+    );
+  }
+
+  // Deliberately offers no Retry and no backup room — both would walk straight around the
+  // host's decision. Only the host re-admitting clears this.
+  if (phase === 'removed') {
+    return (
+      <Overlay>
+        <p className="text-rose-400 text-sm font-bold">You were removed from this session by the host.</p>
+        <p className="text-white/50 text-[11px] max-w-sm">
+          Ask your teacher to let you back in if you think this was a mistake.
+        </p>
+        <button type="button" onClick={handleClose} className={BTN_PRIMARY}>Close</button>
+      </Overlay>
+    );
+  }
+
+  if (phase === 'superseded') {
+    return (
+      <Overlay>
+        <p className="text-amber-400 text-sm font-bold">You joined this class on another tab or device.</p>
+        <p className="text-white/50 text-[11px] max-w-sm">
+          Only one can be connected at a time. Continuing here will disconnect the other one.
+        </p>
+        <div className="flex flex-wrap gap-2 justify-center mt-2">
+          <button type="button" onClick={manualRejoin} className={BTN_PRIMARY}>Continue here</button>
+          <button type="button" onClick={handleClose} className={BTN_GHOST}>Close</button>
+        </div>
       </Overlay>
     );
   }
@@ -460,6 +523,23 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
           Leave
         </button>
       </div>
+
+      {/* Once the room is mounted the overlays are gone, so this is the ONLY place an error
+          can reach the user. Without it the 45s connect watchdog and every camera/mic
+          permission failure were set into state and silently discarded — a denied mic looked
+          like an eternal "Connecting…" with no explanation. */}
+      {error && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-rose-950/60 border-b border-rose-500/30 shrink-0">
+          <p className="text-rose-300 text-[11px] font-bold min-w-0">{error}</p>
+          <button
+            type="button"
+            onClick={manualRejoin}
+            className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white bg-rose-600/40 hover:bg-rose-600/60 border border-rose-400/40 transition-colors shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 relative">
         <LiveKitRoom
