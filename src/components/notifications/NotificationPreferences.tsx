@@ -109,6 +109,9 @@ export default function NotificationPreferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // A refused save used to go to the console and nowhere else, so the toggle
+  // just sprang back with no explanation.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -166,6 +169,7 @@ export default function NotificationPreferences() {
     const newPreferences = { ...preferences, [key]: value };
     setPreferences(newPreferences);
     setSaving(true);
+    setSaveError(null);
 
     try {
       const supabase = createClient();
@@ -177,11 +181,16 @@ export default function NotificationPreferences() {
         });
 
       if (error) throw error;
-      
+
       setLastSaved(new Date());
     } catch (error) {
       console.error('Failed to update notification preferences:', error);
       setPreferences(preferences);
+      setSaveError(
+        error instanceof Error
+          ? `That setting did not save: ${error.message}`
+          : 'That setting did not save. Please try again.'
+      );
     } finally {
       setSaving(false);
     }
@@ -244,7 +253,12 @@ export default function NotificationPreferences() {
         </div>
         
         <div className="flex items-center gap-3">
-          {lastSaved && (
+          {saveError && (
+            <span className="text-xs text-rose-600 dark:text-rose-400" role="alert">
+              {saveError}
+            </span>
+          )}
+          {lastSaved && !saveError && (
             <motion.span
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}

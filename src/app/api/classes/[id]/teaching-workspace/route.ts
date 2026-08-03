@@ -182,10 +182,12 @@ export async function GET(
             .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
             .or(planOrLessonScope)
             .order("created_at", { ascending: false }),
+          // exam_type is not a column — it lives in metadata, the way the
+          // results views read it (metadata->>'exam_type').
           db
             .from("cbt_exams")
             .select(
-              "id,title,is_active,exam_type,lesson_id,lesson_plan_id,curriculum_week_number"
+              "id,title,is_active,metadata,lesson_id,lesson_plan_id,curriculum_week_number"
             )
             .or(planOrLessonScope)
             .order("created_at", { ascending: false }),
