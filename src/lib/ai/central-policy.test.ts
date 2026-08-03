@@ -32,6 +32,20 @@ const ALLOWED = [
   "src/lib/gemini/client.ts",
 ];
 
+/**
+ * Routes that must pick their own model because they do not send text.
+ *
+ * The policy chooses text writers — it deliberately excludes audio, vision and
+ * classifier models, since a safety classifier writing a lesson plan is exactly
+ * what it was built to prevent. Speech-to-text needs the opposite: a model that
+ * accepts audio. Wiring it to the text policy sent recordings to a text-only
+ * model and broke transcription in live sessions.
+ *
+ * Anything listed here is a standing exception, not an oversight. Adding to it
+ * should mean the route genuinely needs a modality the text policy excludes.
+ */
+const NON_TEXT_MODALITY = ["src/app/api/ai/stt/route.ts"];
+
 /** A vendor/model id, as OpenRouter writes them. */
 const MODEL_ID =
   /["'`]((?:google|deepseek|meta-llama|x-ai|qwen|mistralai|moonshotai|nvidia|openai|cohere|inclusionai|poolside|zhipuai|xiaomi|minimax|stepfun)\/[a-z0-9][\w.-]*(?::[a-z0-9-]+)?)["'`]/gi;
@@ -52,6 +66,7 @@ function sourcesThatCallOpenRouter(): string[] {
 describe("model choice stays central", () => {
   it("routes that name models resolve them through the policy", () => {
     const offenders = sourcesThatCallOpenRouter().filter((rel) => {
+      if (NON_TEXT_MODALITY.includes(rel)) return false;
       const src = readFileSync(join(ROOT, rel), "utf8");
       const namesModels = [...src.matchAll(MODEL_ID)].length > 0;
       if (!namesModels) return false;

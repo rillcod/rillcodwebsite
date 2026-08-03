@@ -1,4 +1,3 @@
-import { defaultFreeModel } from '@/lib/ai/model-policy';
 import { NextRequest, NextResponse } from 'next/server';
 
 
@@ -33,7 +32,7 @@ export async function POST(req: NextRequest) {
         'HTTP-Referer': 'https://rillcod.com'
       },
       body: JSON.stringify({
-        model: await defaultFreeModel(),
+        model: 'google/gemini-2.0-flash-001',
         messages: [
           {
             role: 'user',
