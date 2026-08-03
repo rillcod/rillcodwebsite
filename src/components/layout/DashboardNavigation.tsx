@@ -419,11 +419,9 @@ export default function DashboardNavigation() {
             href: "/dashboard/grades/waec",
             icon: DocumentTextIcon,
           },
-          {
-            name: "Publish & Share",
-            href: "/dashboard/results",
-            icon: DocumentChartBarIcon,
-          },
+          // "Publish & Share" appeared twice in the admin sidebar, in two
+          // different sections, both pointing here. It is kept once, beside
+          // Report Builder, which is where results are actually prepared.
           {
             name: "Certificates",
             href: "/dashboard/certificates/management",
@@ -901,9 +899,13 @@ export default function DashboardNavigation() {
             href: "/dashboard/newsletters",
             icon: DocumentTextIcon,
           },
+          // /dashboard/settings is the platform administration panel — school
+          // setup, grading rules, user permissions — and route-access blocks it
+          // for students, so this row bounced them straight back out. Their
+          // account page is /dashboard/profile.
           {
-            name: "Account Settings",
-            href: "/dashboard/settings",
+            name: "My Profile",
+            href: "/dashboard/profile",
             icon: UserIcon,
           },
         ]);
@@ -1036,9 +1038,11 @@ export default function DashboardNavigation() {
             href: "/dashboard/notifications",
             icon: BellIcon,
           },
+          // Same bounce as the student row: /dashboard/settings is platform
+          // administration and is blocked for partner schools.
           {
-            name: "Account Settings",
-            href: "/dashboard/settings",
+            name: "My Profile",
+            href: "/dashboard/profile",
             icon: UserIcon,
           },
         ];
@@ -1131,9 +1135,11 @@ export default function DashboardNavigation() {
             href: "/dashboard/newsletters",
             icon: DocumentTextIcon,
           },
+          // Parents are on an allow-list that does not include
+          // /dashboard/settings, so this row bounced them too.
           {
-            name: "Account Settings",
-            href: "/dashboard/settings",
+            name: "My Profile",
+            href: "/dashboard/profile",
             icon: UserIcon,
           },
         ];
