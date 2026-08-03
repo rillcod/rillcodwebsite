@@ -15,6 +15,7 @@
  */
 
 import { readStoredFreeModels } from "./model-catalogue-store";
+import { recordModelFailure, recordModelSuccess } from "./model-health";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -405,6 +406,9 @@ export async function openRouterComplete(input: {
     });
 
     if (!response.ok) {
+      // A 404 is a retired model and a 429 is exhausted quota — both are
+      // reasons to stop leading with it on the next generation.
+      recordModelFailure(input.model, response.status);
       if (assembled) break; // keep what we have rather than losing it
       throw new Error(`OpenRouter ${response.status}`);
     }
@@ -413,6 +417,7 @@ export async function openRouterComplete(input: {
     const choice = data?.choices?.[0];
     const addition: string = choice?.message?.content ?? "";
 
+    recordModelSuccess(input.model);
     if (!addition.trim()) break; // nothing more to add
 
     if (pass > 0 && restartsInsteadOfContinuing(assembled, addition)) {

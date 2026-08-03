@@ -4,6 +4,7 @@ import {
   isFreeModel,
   FREE_FALLBACK_MODELS,
 } from "./openrouter";
+import { healthiestFirst } from "./model-health";
 
 /**
  * One place that decides which AI models anything in this app may call.
@@ -73,7 +74,9 @@ export async function modelQueueFor(task: AiTask): Promise<string[]> {
 
   const paid = preferred.filter((id) => !isFreeModel(id));
   const queue = [...free, ...paid];
-  return queue.length ? queue : FREE_FALLBACK_MODELS;
+  // Models that recently 404'd or ran out of quota drop to the back of their
+  // tier. The catalogue says what exists; only real calls say what works.
+  return healthiestFirst(queue.length ? queue : FREE_FALLBACK_MODELS, (id) => id);
 }
 
 /** Convenience for callers that only need somewhere to start. */

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { healthiestFirst, recordModelFailure, recordModelSuccess } from '@/lib/ai/model-health';
 
 /**
  * Rillcod AI engine — free-tier first, large context.
@@ -96,15 +97,113 @@ export interface TextModelSpec {
  * has a workable free daily quota, then degrades to higher-quota models so a busy
  * day downgrades quality instead of failing outright.
  */
+/**
+ * Limits below are the ones the API reports, not estimates — checked against
+ * generativelanguage.googleapis.com/v1beta/models.
+ *
+ * The ladder sat on the 2.x line long after 3.x shipped. Each entry here was
+ * called with this project's key before being added: 3.6 and 3.5 Flash answer
+ * in about two seconds, and the Pro previews return 429 on the free tier, so
+ * they are deliberately absent — a model that always refuses is a wasted round
+ * trip on every generation. 2.5 and 2.0 Flash stay at the back as the
+ * long-stable floor.
+ */
 export const TEXT_MODEL_SPECS: TextModelSpec[] = [
+    { id: 'gemini-3.6-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
+    { id: 'gemini-3.5-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
+    { id: 'gemini-3.5-flash-lite', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'optional' },
     { id: 'gemini-2.5-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
-    { id: 'gemini-2.5-pro', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'forced' },
-    { id: 'gemini-2.5-flash-lite', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'optional' },
     { id: 'gemini-2.0-flash', contextTokens: 1_048_576, maxOutput: 8_192, thinking: 'none' },
 ];
 
 /** Back-compat: plain id list, same order as the ladder. */
 export const TEXT_MODELS = TEXT_MODEL_SPECS.map(m => m.id);
+
+// ── Live ladder ─────────────────────────────────────────────────────────────
+/**
+ * Google retires and ships models on its own schedule, and the list above is a
+ * snapshot of one afternoon. Hardcoding it is the same mistake that left the
+ * OpenRouter queue naming nine models that no longer existed — silent, because
+ * a dead model simply fails over to the next one and nobody sees the waste.
+ *
+ * So the ladder is asked for, not assumed. Google is the authority on which of
+ * its models this key may call and what their limits are; the constant above is
+ * only the floor for when that cannot be reached.
+ */
+const GEMINI_MODELS_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const LADDER_TTL_MS = 60 * 60 * 1000;
+
+let cachedLadder: { at: number; specs: TextModelSpec[] } | null = null;
+
+/** Not general writers: media, embeddings, robotics, agents, research pipelines. */
+const NOT_A_TEXT_MODEL =
+    /(embedding|aqa|imagen|veo|lyria|banana|image|tts|audio|robotics|computer-use|deep-research|omni|gemma)/i;
+
+/** Rough recency from the family number in the id: 3.6 beats 3.5 beats 2.5. */
+function versionRank(id: string): number {
+    const match = id.match(/gemini-(\d+)(?:\.(\d+))?/i);
+    if (!match) return 0;
+    return Number(match[1]) * 100 + Number(match[2] ?? 0);
+}
+
+/**
+ * Free-tier reality beats raw capability. Pro answers better but returns 429 on
+ * this tier, and a model that always refuses costs a wasted round trip on every
+ * single generation. Flash leads; anything unproven sits behind the stable
+ * models rather than in front of them.
+ */
+function tierRank(id: string): number {
+    if (/pro/i.test(id)) return 0;
+    if (/preview|exp/i.test(id)) return 1;
+    if (/lite/i.test(id)) return 2;
+    return 3; // plain flash
+}
+
+export async function liveTextModelSpecs(signal?: AbortSignal): Promise<TextModelSpec[]> {
+    if (cachedLadder && Date.now() - cachedLadder.at < LADDER_TTL_MS) {
+        return cachedLadder.specs;
+    }
+    const key = loadKeys()[0];
+    if (!key) return TEXT_MODEL_SPECS;
+
+    try {
+        const response = await fetch(`${GEMINI_MODELS_URL}?key=${key}&pageSize=200`, { signal });
+        if (!response.ok) throw new Error(`models ${response.status}`);
+        const body: any = await response.json();
+
+        const specs: TextModelSpec[] = (body?.models ?? [])
+            .filter((model: any) =>
+                (model?.supportedGenerationMethods ?? []).includes('generateContent'))
+            .map((model: any) => String(model?.name ?? '').replace(/^models\//, ''))
+            .filter((id: string) => /^gemini-/i.test(id) && !NOT_A_TEXT_MODEL.test(id))
+            .map((id: string) => {
+                const model = (body.models as any[]).find(
+                    (m: any) => String(m?.name).replace(/^models\//, '') === id);
+                return {
+                    id,
+                    contextTokens: Number(model?.inputTokenLimit) || 1_048_576,
+                    maxOutput: Number(model?.outputTokenLimit) || 8_192,
+                    // Thinking cannot be read from this endpoint. 'dynamic' is the
+                    // safe reading: thinkingBudgetFor clamps it either way, and a
+                    // model without thinking ignores the field.
+                    thinking: 'dynamic' as const,
+                };
+            })
+            .sort((a: TextModelSpec, b: TextModelSpec) =>
+                tierRank(b.id) - tierRank(a.id) || versionRank(b.id) - versionRank(a.id));
+
+        if (!specs.length) throw new Error('no usable text models listed');
+        cachedLadder = { at: Date.now(), specs };
+        return specs;
+    } catch {
+        return cachedLadder?.specs ?? TEXT_MODEL_SPECS;
+    }
+}
+
+/** Testing seam. */
+export function resetGeminiLadderCache(): void {
+    cachedLadder = null;
+}
 
 /** Largest input window across the ladder — useful for callers budgeting context. */
 export const MAX_CONTEXT_TOKENS = Math.max(...TEXT_MODEL_SPECS.map(m => m.contextTokens));
@@ -315,9 +414,14 @@ export async function geminiGenerateText(
         return null;
     }
 
-    const ladder = opts.models?.length
-        ? TEXT_MODEL_SPECS.filter(m => opts.models!.includes(m.id))
-        : TEXT_MODEL_SPECS;
+    // Asked for, not assumed — see liveTextModelSpecs.
+    const available = await liveTextModelSpecs(opts.signal);
+    const requested = opts.models?.length
+        ? available.filter(m => opts.models!.includes(m.id))
+        : available;
+    // Models that recently refused go to the back, so a listed-but-unusable
+    // model is not re-discovered at the front of every single generation.
+    const ladder = healthiestFirst(requested, m => m.id);
 
     const effort = opts.reasoning ?? 'medium';
     const contents = buildContents(userPrompt, opts.context);
@@ -342,7 +446,10 @@ export async function geminiGenerateText(
                     timeoutMs,
                 });
 
-                if (result.kind === 'ok') return result.value;
+                if (result.kind === 'ok') {
+                    recordModelSuccess(spec.id);
+                    return result.value;
+                }
 
                 if (result.kind === 'truncated') {
                     // Ran out of budget — usually thinking eating the output allowance.
@@ -379,6 +486,10 @@ export async function geminiGenerateText(
 
                 lastError = result.error;
                 const status = statusOf(result.error);
+                // Remember the refusal so the next generation does not lead with
+                // a model this key cannot call. A dead key is the key's fault,
+                // not the model's, so that is not held against it.
+                if (!isKeyFailure(status) && status) recordModelFailure(spec.id, status);
 
                 if (isKeyFailure(status)) break;            // dead key — next key
                 if (status === 429) break;                   // quota gone on this key — next key
@@ -469,9 +580,14 @@ export async function* geminiStreamText(
     const keys = keyRotation();
     if (!keys.length) return;
 
-    const ladder = opts.models?.length
-        ? TEXT_MODEL_SPECS.filter(m => opts.models!.includes(m.id))
-        : TEXT_MODEL_SPECS;
+    // Asked for, not assumed — see liveTextModelSpecs.
+    const available = await liveTextModelSpecs(opts.signal);
+    const requested = opts.models?.length
+        ? available.filter(m => opts.models!.includes(m.id))
+        : available;
+    // Models that recently refused go to the back, so a listed-but-unusable
+    // model is not re-discovered at the front of every single generation.
+    const ladder = healthiestFirst(requested, m => m.id);
     const contents = buildContents(userPrompt, opts.context);
     const effort = opts.reasoning ?? 'medium';
 
