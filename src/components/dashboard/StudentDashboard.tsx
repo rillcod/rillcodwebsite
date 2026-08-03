@@ -268,10 +268,11 @@ export default function StudentDashboard() {
         </div>
       </Link>
 
-      {/* Quick Nav */}
+      {/* Quick Nav — Learning Center is the CTA directly above, so it is not
+          repeated here, and the Student Hub banner that used to follow this
+          grid was the same destination as its own tile. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
@@ -290,16 +291,6 @@ export default function StudentDashboard() {
         ))}
       </div>
 
-      <Link href="/dashboard/activity-hub"
-        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-transparent border border-brand-red-600/20 hover:border-brand-red-600/40 transition-all rounded-3xl">
-        <div className="w-12 h-12 bg-brand-red-600/20 border border-brand-red-600/30 flex items-center justify-center shrink-0 text-2xl rounded-2xl">🚀</div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-brand-red-600 dark:group-hover:text-brand-red-500 transition-colors">Student Hub</h3>
-          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
-        </div>
-        <div className="text-brand-red-600 dark:text-brand-red-500 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
-      </Link>
     </div>
   );
 
@@ -516,106 +507,34 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Quick Nav Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-        {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
-          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
-        ].map(({ href, icon: Icon, label, color }) => (
-          <Link key={href} href={href}
-            className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
-            <Icon className="w-6 h-6" />
-            <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">{label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Activity Hub Feature Banner */}
-      <Link href="/dashboard/activity-hub"
-        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-transparent border border-brand-red-600/20 hover:border-brand-red-600/40 transition-all rounded-3xl">
-        <div className="w-12 h-12 bg-brand-red-600/20 border border-brand-red-600/30 flex items-center justify-center shrink-0 text-2xl rounded-2xl">
-          🚀
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-brand-red-600 dark:group-hover:text-brand-red-500 transition-colors">Student Hub</h3>
-          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
-        </div>
-        <div className="text-brand-red-600 dark:text-brand-red-500 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
-          Open →
-        </div>
-      </Link>
-
-      <div className="bg-card border border-border p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
-          <div>
-            <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.35em]">Your Learning Tools</p>
-            <h3 className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">Everything in one place</h3>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium max-w-xl">
-            Your community, assignments, saved work, and challenges — all in one place.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+      {/* ── One launcher ──────────────────────────────────────────────────────
+          This was three stacked blocks: a tile grid, a full-width Student Hub
+          banner, and a card set headed "Everything in one place" — the third
+          such block on the screen. Student Hub and My Saved Work each appeared
+          in two of them. One grid, each destination once. */}
+      <div className="space-y-3">
+        <h2 className="px-1 text-sm font-black uppercase tracking-widest text-muted-foreground">
+          Everything in one place
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
-            {
-              href: '/dashboard/engage',
-              icon: ChatBubbleLeftRightIcon,
-              label: 'Community Feed',
-              detail: 'Share ideas, code, and peer wins',
-              color: 'text-cyan-600 dark:text-cyan-400 border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40',
-            },
-            {
-              href: '/dashboard/vault',
-              icon: ArchiveBoxIcon,
-              label: 'My Saved Work',
-              detail: 'Save your notes, code snippets, and work',
-              color: 'text-fuchsia-600 dark:text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/5 hover:border-fuchsia-500/40',
-            },
-            {
-              href: '/dashboard/missions',
-              icon: RocketLaunchIcon,
-              label: 'Practice Quests',
-              detail: 'Practice with guided challenges',
-              color: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40',
-            },
-            {
-              href: '/dashboard/protocol',
-              icon: CommandLineIcon,
-              label: 'Skill Challenges',
-              detail: 'Follow a step-by-step path to get better',
-              color: 'text-primary border-primary/20 bg-primary/5 hover:border-primary/40',
-            },
-            {
-              href: '/dashboard/study-groups',
-              icon: UserGroupIcon,
-              label: 'Study Groups',
-              detail: 'Find your people and learn together',
-              color: 'text-amber-600 dark:text-amber-400 border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40',
-            },
-          ].map(({ href, icon: Icon, label, detail, color }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`group flex min-h-[150px] flex-col gap-4 border p-4 transition-all hover:-translate-y-0.5 ${color}`}
-            >
-              <div className="flex items-center justify-between">
-                <Icon className="w-6 h-6" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
-                  Open →
-                </span>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-black uppercase tracking-tight text-foreground">{label}</h4>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium leading-relaxed">{detail}</p>
-              </div>
+            { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
+            { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
+            { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
+            { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
+            { href: '/dashboard/engage', icon: ChatBubbleLeftRightIcon, label: 'Community Feed', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
+            { href: '/dashboard/missions', icon: RocketLaunchIcon, label: 'Practice Quests', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
+            { href: '/dashboard/protocol', icon: CommandLineIcon, label: 'Skill Challenges', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/study-groups', icon: UserGroupIcon, label: 'Study Groups', color: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:border-amber-500/40' },
+          ].map(({ href, icon: Icon, label, color }) => (
+            <Link key={href} href={href}
+              className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
+              <Icon className="w-6 h-6" />
+              <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">{label}</span>
             </Link>
           ))}
         </div>
@@ -671,8 +590,11 @@ export default function StudentDashboard() {
                   const urgency = daysLeft <= 1 ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20'
                     : daysLeft <= 3 ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20'
                       : 'text-primary bg-primary/10 border-primary/20';
+                  // Opens the assignment itself, the way the overdue rows above
+                  // already do. Every row landing on the same list made the due
+                  // dates read as decoration.
                   return (
-                    <Link key={a.id} href="/dashboard/assignments" className="flex items-center gap-3 p-3 bg-background border border-border hover:border-primary/30 transition-colors">
+                    <Link key={a.id} href={`/dashboard/assignments/${a.id}`} className="flex items-center gap-3 p-3 bg-background border border-border hover:border-primary/30 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black text-foreground truncate">{a.title}</p>
                         {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
@@ -692,7 +614,9 @@ export default function StudentDashboard() {
             <div className="bg-card border border-border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Recent Grades</h3>
-                <Link href="/dashboard/assignments" className="text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
+                {/* Was pointing at Assignments — "View all" under Recent Grades
+                    has to open the grades. */}
+                <Link href="/dashboard/grades" className="text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
                   View All →
                 </Link>
               </div>

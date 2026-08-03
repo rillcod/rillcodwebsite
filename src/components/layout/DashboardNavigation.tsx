@@ -625,15 +625,14 @@ export default function DashboardNavigation() {
             href: "/dashboard/grading",
             icon: ClipboardDocumentCheckIcon,
           },
+          // The Gradebook page carries a staff tab bar across Grading Queue,
+          // Gradebook and Grading Guide, so the guide does not need a third
+          // sidebar row of its own. Students keep theirs — that tab bar is
+          // isStaff-gated, so for them the sidebar is the only route to it.
           {
             name: "Gradebook & Reports",
             href: "/dashboard/grades",
             icon: ChartBarIcon,
-          },
-          {
-            name: "Grading Guide",
-            href: "/dashboard/grades/waec",
-            icon: DocumentTextIcon,
           },
 
           { divider: true, label: "People" },

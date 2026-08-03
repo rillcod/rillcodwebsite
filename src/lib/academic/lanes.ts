@@ -210,28 +210,25 @@ export const LANE_NAVIGATION: Record<LaneId, LaneNavigationStep[]> = {
     },
   ],
   delivery: [
-    {
-      id: "plan",
-      lane: "delivery",
-      step: 1,
-      label: "Plan",
-      purpose: "Open the class term plan built from the assigned official edition.",
-      href: "/dashboard/classes",
-      stageIds: ["plan"],
-    },
+    // Plan and Teach were two steps pointing at the same page. The stepper
+    // showed them as separate destinations and neither could ever be "the
+    // other one" — you open the class and do both there. They stay distinct
+    // stages in STAGES, because their finish lines differ; they are one
+    // navigation step, because there is one place to go.
     {
       id: "teach",
       lane: "delivery",
-      step: 2,
-      label: "Teach",
-      purpose: "Teach the class and record curriculum coverage.",
+      step: 1,
+      label: "Plan & teach",
+      purpose:
+        "Open the class, attach its term plan to the official edition, teach it and record coverage.",
       href: "/dashboard/classes",
-      stageIds: ["teach", "cover"],
+      stageIds: ["plan", "teach", "cover"],
     },
     {
       id: "results",
       lane: "delivery",
-      step: 3,
+      step: 2,
       label: "Results",
       purpose: "Collect evidence, prepare results, and publish them.",
       href: "/dashboard/academic/results",
