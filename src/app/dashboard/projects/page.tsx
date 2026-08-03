@@ -696,17 +696,15 @@ export default function ProjectsPage() {
                 {/* STUDENT ACTIVITIES TAB */}
                 {tab === 'activities' && (
                     <div>
-                        {/* Quick links to other activity sections */}
+                        {/* Only what the tab bar at the top of this page does not
+                            already offer. This strip used to repeat Assignments and
+                            CBT, so the same two destinations sat on screen twice,
+                            styled as two different kinds of thing. Written Exams is
+                            the one place neither the tab bar nor the sidebar links. */}
                         <div className="bg-card border-b border-border px-6 md:px-10 py-3 flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0">Also see:</span>
                             <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <AcademicCapIcon className="w-3 h-3" /> Written Exams
-                            </Link>
-                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
-                                <ChartBarIcon className="w-3 h-3" /> CBT / Evaluation
-                            </Link>
-                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
-                                <ClipboardDocumentListIcon className="w-3 h-3" /> Assignments
                             </Link>
                         </div>
                         {actLoading ? (

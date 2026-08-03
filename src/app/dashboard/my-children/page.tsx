@@ -78,6 +78,7 @@ export default function MyChildrenPage() {
   const [loading, setLoading] = useState(true);
   const [statsMap, setStatsMap] = useState<Record<string, ChildStats>>({});
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [activityLimit, setActivityLimit] = useState(25);
   const [activityLoading, setActivityLoading] = useState(false);
   const [pendingConsent, setPendingConsent] = useState<Array<{
     studentUserId: string;
@@ -125,7 +126,9 @@ export default function MyChildrenPage() {
             );
             const allEvents: ActivityEvent[] = activityResults.flat();
             allEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setActivityEvents(allEvents.slice(0, 25));
+            // Keep them all: the heading promises 90 days, and cutting to 25
+            // here meant a parent with several children silently lost the rest.
+            setActivityEvents(allEvents);
           } finally {
             setActivityLoading(false);
           }
@@ -410,7 +413,7 @@ export default function MyChildrenPage() {
 
           {activityEvents.length > 0 && (
             <ul className="divide-y divide-border">
-              {activityEvents.map((evt, i) => {
+              {activityEvents.slice(0, activityLimit).map((evt, i) => {
                 const clsMap = COLOR_MAP[evt.color] ?? COLOR_MAP.primary;
                 return (
                   <li key={`${evt.id}-${i}`} className="flex items-start gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
@@ -441,6 +444,16 @@ export default function MyChildrenPage() {
                 );
               })}
             </ul>
+          )}
+
+          {activityEvents.length > activityLimit && (
+            <button
+              type="button"
+              onClick={() => setActivityLimit((current) => current + 25)}
+              className="w-full border-t border-border px-5 py-3 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-muted/30 transition-colors"
+            >
+              Show more — {activityLimit} of {activityEvents.length} shown
+            </button>
           )}
 
           {activityEvents.length > 0 && (
