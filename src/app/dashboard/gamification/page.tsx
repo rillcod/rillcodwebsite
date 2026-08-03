@@ -289,6 +289,17 @@ export default function GamificationPage() {
                     </td>
                   </tr>
                 ))}
+                {/* An empty tbody under a full header row reads as a broken
+                    page. A search that matches nobody is the common case. */}
+                {filteredLeader.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-card-foreground/50">
+                      {search
+                        ? `No student on the leaderboard matches "${search}".`
+                        : 'No leaderboard activity yet. Points appear here as students earn badges and complete work.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
