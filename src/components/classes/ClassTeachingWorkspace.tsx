@@ -26,6 +26,10 @@ import {
 import {
   indexFirstByWeek,
   weekPackageStatus,
+  buildWeekVisibility,
+  weekVisibilitySummary,
+  weekClassroomAction,
+  type AssetVisibility,
 } from "@/lib/academic/week-package";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import PipelineStepper from "@/components/pipeline/PipelineStepper";
@@ -319,8 +323,27 @@ export function ClassTeachingWorkspace({
       assignment: Boolean(assignment),
       project: Boolean(project),
     });
+    const visibility = buildWeekVisibility({
+      lesson,
+      slides: slideDeck,
+      flashcards: flashcardDeck,
+      assignment,
+      project,
+    });
+    const visibilitySummary = weekVisibilitySummary(visibility);
     const delivery = deliveredByWeek.get(week);
     const taught = delivery?.status === "delivered";
+    const classroomAction = weekClassroomAction({
+      presence: {
+        lesson: Boolean(lesson),
+        slides: Boolean(slideDeck),
+        flashcards: Boolean(flashcardDeck),
+        assignment: Boolean(assignment),
+        project: Boolean(project),
+      },
+      visibility,
+      taught,
+    });
     const manualLessonHref = buildLessonNewHref({
       classId,
       courseId,
@@ -345,6 +368,17 @@ export function ClassTeachingWorkspace({
         project: weekMeta.project,
       },
     });
+    const liveSessionHref = `/dashboard/live-sessions?create=1&title=${encodeURIComponent(
+      `Week ${week}: ${topic}`
+    )}&notes=${encodeURIComponent(
+      JSON.stringify({
+        class_id: classId,
+        course_id: courseId,
+        lesson_plan_id: plan?.id ?? null,
+        week,
+        lesson_id: lesson?.id ?? null,
+      })
+    )}`;
     return {
       weekMeta,
       week,
@@ -363,13 +397,17 @@ export function ClassTeachingWorkspace({
       objectives,
       activities,
       packageStatus,
+      visibility,
+      visibilitySummary,
+      classroomAction,
       taught,
       manualLessonHref,
+      liveSessionHref,
     };
   });
 
   const weeksNeedingWork = weekRows.filter(
-    (row) => !row.packageStatus.complete
+    (row) => !row.packageStatus.complete || row.visibilitySummary.needsRelease
   ).length;
   const weeksTaught = weekRows.filter((row) => row.taught).length;
   // Whichever terms this plan actually contains, in order — not a fixed list.
@@ -383,16 +421,18 @@ export function ClassTeachingWorkspace({
   const visibleWeekRows = weekRows.filter((row) => {
     const matchesStatus =
       weekFilter === "todo"
-        ? !row.packageStatus.complete
+        ? !row.packageStatus.complete || row.visibilitySummary.needsRelease
         : weekFilter === "taught"
         ? row.taught
         : true;
     const matchesTerm = termFilter === 0 || row.term === termFilter;
     return matchesStatus && matchesTerm;
   });
-  // The first week that is neither prepared nor taught — where work resumes.
+  // The first week that still needs prepare or release — where work resumes.
   const resumeWeek = weekRows.find(
-    (row) => !row.taught && !row.packageStatus.complete
+    (row) =>
+      !row.taught &&
+      (!row.packageStatus.complete || row.visibilitySummary.needsRelease)
   );
 
   return (
@@ -619,12 +659,29 @@ export function ClassTeachingWorkspace({
                 <p className="mt-2 text-xs leading-5 text-foreground/80">
                   {planBlock?.detail ?? planBlock?.error}
                 </p>
-                <Link
-                  href={planBlock?.action_href ?? buildLessonPlanHref(plan.id)}
-                  className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-[10px] font-black uppercase tracking-widest text-amber-800 transition-colors hover:bg-amber-500/25 dark:text-amber-200"
-                >
-                  {planBlock?.action_label ?? "Open plan"} →
-                </Link>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canEdit && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void act({
+                          action: "publish_plan",
+                          lesson_plan_id: plan.id,
+                        })
+                      }
+                      className="inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground disabled:opacity-50"
+                    >
+                      Publish plan
+                    </button>
+                  )}
+                  <Link
+                    href={planBlock?.action_href ?? buildLessonPlanHref(plan.id)}
+                    className="inline-flex min-h-9 items-center rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-[10px] font-black uppercase tracking-widest text-amber-800 transition-colors hover:bg-amber-500/25 dark:text-amber-200"
+                  >
+                    {planBlock?.action_label ?? "Open plan"} →
+                  </Link>
+                </div>
               </div>
             )}
             {canEdit && (
@@ -721,7 +778,7 @@ export function ClassTeachingWorkspace({
                 {(
                   [
                     ["all", `All ${weekRows.length}`],
-                    ["todo", `Needs preparation ${weeksNeedingWork}`],
+                    ["todo", `Needs work ${weeksNeedingWork}`],
                     ["taught", `Taught ${weeksTaught}`],
                   ] as const
                 ).map(([key, label]) => (
@@ -854,9 +911,26 @@ export function ClassTeachingWorkspace({
                   objectives,
                   activities,
                   packageStatus,
+                  visibility,
+                  visibilitySummary,
+                  classroomAction,
                   taught,
                   manualLessonHref,
+                  liveSessionHref,
                 } = row;
+
+                const statusLabel = !packageStatus.complete
+                  ? `${packageStatus.missing.length} missing`
+                  : visibilitySummary.needsRelease
+                  ? "Held"
+                  : taught
+                  ? "Taught"
+                  : "Live";
+                const statusClass = !packageStatus.complete
+                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : visibilitySummary.needsRelease
+                  ? "bg-orange-500/10 text-orange-700 dark:text-orange-300"
+                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
 
                 return (
                   <article
@@ -910,37 +984,36 @@ export function ClassTeachingWorkspace({
                           </h4>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {packageStatus.readyCount} of{" "}
-                            {packageStatus.totalCount} teaching assets ready
+                            {packageStatus.totalCount} prepared
+                            {visibilitySummary.heldCount > 0
+                              ? ` · ${visibilitySummary.heldCount} held for students`
+                              : visibilitySummary.fullyLive
+                              ? " · live for students"
+                              : ""}
                           </p>
                         </div>
                         <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-                            packageStatus.complete
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                              : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                          }`}
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${statusClass}`}
                         >
-                          {packageStatus.complete
-                            ? "Ready"
-                            : `${packageStatus.missing.length} missing`}
+                          {statusLabel}
                         </span>
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        <AssetStatus label="Lesson" ready={Boolean(lesson)} />
-                        <AssetStatus
-                          label="Slides"
-                          ready={Boolean(slideDeck)}
-                        />
+                        <AssetStatus label="Lesson" state={visibility.lesson} />
+                        <AssetStatus label="Slides" state={visibility.slides} />
                         <AssetStatus
                           label="Flashcards"
-                          ready={Boolean(flashcardDeck)}
+                          state={visibility.flashcards}
                         />
                         <AssetStatus
                           label="Assignment"
-                          ready={Boolean(assignment)}
+                          state={visibility.assignment}
                         />
-                        <AssetStatus label="Project" ready={Boolean(project)} />
+                        <AssetStatus
+                          label="Project"
+                          state={visibility.project}
+                        />
                         {/* Divider, because what follows is assessment evidence
                             rather than one of the five prepared assets. */}
                         <span
@@ -951,7 +1024,7 @@ export function ClassTeachingWorkspace({
                         </span>
                         <AssetStatus
                           label="Evaluation"
-                          ready={Boolean(evaluation)}
+                          state={evaluation ? "live" : "missing"}
                         />
                       </div>
 
@@ -963,8 +1036,24 @@ export function ClassTeachingWorkspace({
                           section below, while the Lesson chip above still showed
                           green. That is the "I can see it exists but I cannot open
                           it" case. */}
-                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                        {lesson && (
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {canEdit && classroomAction === "release" && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              void act({
+                                action: "release_week",
+                                lesson_plan_id: plan.id,
+                                week_number: week,
+                              })
+                            }
+                            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-50"
+                          >
+                            Release to class
+                          </button>
+                        )}
+                        {lesson && classroomAction !== "release" && (
                           <Link
                             href={`/dashboard/lessons/${lesson.id}`}
                             className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm"
@@ -990,7 +1079,7 @@ export function ClassTeachingWorkspace({
                               })
                             }
                             className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black disabled:opacity-50 ${
-                              lesson
+                              lesson || classroomAction === "release"
                                 ? "border border-border bg-background text-foreground"
                                 : "bg-primary text-primary-foreground shadow-sm"
                             }`}
@@ -1007,6 +1096,22 @@ export function ClassTeachingWorkspace({
                             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground"
                           >
                             Build lesson manually
+                          </Link>
+                        )}
+                        {canEdit && packageStatus.complete && (
+                          <Link
+                            href={liveSessionHref}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground"
+                          >
+                            Start live class
+                          </Link>
+                        )}
+                        {canEdit && (
+                          <Link
+                            href={buildGradesHref({ classId, courseId })}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground"
+                          >
+                            Grade week
                           </Link>
                         )}
                         {canEdit && (
@@ -1252,22 +1357,39 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function AssetStatus({ label, ready }: { label: string; ready: boolean }) {
+function AssetStatus({
+  label,
+  state,
+}: {
+  label: string;
+  state: AssetVisibility;
+}) {
+  const styles =
+    state === "live"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : state === "held"
+      ? "border-orange-500/25 bg-orange-500/10 text-orange-700 dark:text-orange-300"
+      : "border-border bg-muted/40 text-muted-foreground";
+  const dot =
+    state === "live"
+      ? "bg-emerald-500"
+      : state === "held"
+      ? "bg-orange-500"
+      : "bg-muted-foreground/40";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-        ready
-          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          : "border-border bg-muted/40 text-muted-foreground"
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${styles}`}
+      title={
+        state === "held"
+          ? `${label} prepared — not yet visible to students`
+          : state === "live"
+          ? `${label} live for students`
+          : `${label} missing`
+      }
     >
-      <span
-        aria-hidden="true"
-        className={`h-1.5 w-1.5 rounded-full ${
-          ready ? "bg-emerald-500" : "bg-muted-foreground/40"
-        }`}
-      />
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       {label}
+      {state === "held" ? " · held" : ""}
     </span>
   );
 }

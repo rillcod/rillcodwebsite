@@ -4,6 +4,11 @@ import {
   indexFirstByWeek,
   weekPackagePrimaryAction,
   weekPackageStatus,
+  buildWeekVisibility,
+  weekVisibilitySummary,
+  weekClassroomAction,
+  lessonVisibility,
+  flashcardVisibility,
 } from "./week-package";
 
 describe("academicWeekNumber", () => {
@@ -62,5 +67,59 @@ describe("weekPackageStatus", () => {
     expect(
       weekPackagePrimaryAction({ ...partial, slides: true, assignment: true })
     ).toBe("review");
+  });
+});
+
+describe("visibility", () => {
+  it("treats draft lessons and inactive homework as held", () => {
+    expect(lessonVisibility({ status: "draft" })).toBe("held");
+    expect(lessonVisibility({ status: "active" })).toBe("live");
+    expect(flashcardVisibility({ is_public: false })).toBe("held");
+    expect(flashcardVisibility({ is_public: true })).toBe("live");
+    expect(flashcardVisibility({ is_public: null })).toBe("live");
+  });
+
+  it("needs release when assets exist but students cannot see them", () => {
+    const visibility = buildWeekVisibility({
+      lesson: { status: "draft" },
+      slides: { id: "s1" },
+      flashcards: { is_public: false },
+      assignment: { is_active: false },
+      project: { is_active: false },
+    });
+    const summary = weekVisibilitySummary(visibility);
+    expect(summary.needsRelease).toBe(true);
+    expect(summary.fullyLive).toBe(false);
+    expect(summary.heldCount).toBe(5);
+  });
+
+  it("orders classroom actions prepare → release → teach → done", () => {
+    const presence = {
+      lesson: true,
+      slides: true,
+      flashcards: true,
+      assignment: true,
+      project: true,
+    };
+    const held = buildWeekVisibility({
+      lesson: { status: "draft" },
+      slides: {},
+      flashcards: { is_public: false },
+      assignment: { is_active: false },
+      project: { is_active: false },
+    });
+    expect(weekClassroomAction({ presence, visibility: held })).toBe("release");
+
+    const live = buildWeekVisibility({
+      lesson: { status: "active" },
+      slides: {},
+      flashcards: { is_public: true },
+      assignment: { is_active: true },
+      project: { is_active: true },
+    });
+    expect(weekClassroomAction({ presence, visibility: live })).toBe("teach");
+    expect(
+      weekClassroomAction({ presence, visibility: live, taught: true })
+    ).toBe("done");
   });
 });

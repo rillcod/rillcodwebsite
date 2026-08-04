@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1498,6 +1499,7 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
 
 export default function LiveSessionsPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [sessions, setSessions]     = useState<LiveSession[]>([]);
   const [schools, setSchools]       = useState<School[]>([]);
   const [programs, setPrograms]     = useState<Program[]>([]);
@@ -1626,14 +1628,35 @@ export default function LiveSessionsPage() {
   });
 
   // ── CRUD handlers ───────────────────────────────────────────────────────────
-  function openCreate() {
+  function openCreate(prefill?: Partial<SessionForm>) {
     setEditingSession(null);
-    const base = blankForm();
+    const base = { ...blankForm(), ...prefill };
     // Non-admins can't broadcast globally — preselect their (first) assigned school so
     // the picker is never empty. Admins keep the "All schools (global)" default.
-    if (!isAdmin && schools.length > 0) base.school_id = schools[0].id;
+    if (!base.school_id && !isAdmin && schools.length > 0) base.school_id = schools[0].id;
     setModalForm(base); setModalError(null); setShowModal(true);
   }
+
+  // Deep-link from class teaching workspace: ?create=1&title=...&notes=...
+  useEffect(() => {
+    if (authLoading || loading || !profile || !canCreateSession) return;
+    if (searchParams.get('create') !== '1') return;
+    if (showModal) return;
+    const title = searchParams.get('title')?.trim() || '';
+    const notes = searchParams.get('notes')?.trim() || '';
+    openCreate({
+      title,
+      notes,
+      school_id: profile.school_id || schools[0]?.id || '',
+    });
+    // Strip the create flag so refresh doesn't re-open the modal forever.
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('create');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, loading, profile?.id, schools.length, canCreateSession]);
 
   function openEdit(s: LiveSession) {
     const d = new Date(s.scheduled_at);

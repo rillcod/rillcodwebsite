@@ -60,15 +60,13 @@ export const LANES: Record<LaneId, { id: LaneId; label: string; scope: string; s
     id: "asset",
     label: "Curriculum",
     scope: "course",
-    summary:
-      "The Academic Office builds one official curriculum and decides where it applies.",
+    summary: "Write it once. Certify it. Give it to schools and programmes.",
   },
   delivery: {
     id: "delivery",
-    label: "Delivery",
+    label: "In class",
     scope: "class",
-    summary:
-      "A teacher turns the assigned official edition into real teaching for one class.",
+    summary: "Turn that curriculum into real teaching for one class.",
   },
 };
 

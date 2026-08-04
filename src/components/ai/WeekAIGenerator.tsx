@@ -3,31 +3,12 @@
 /**
  * WeekAIGenerator
  * ───────────────
- * One-click AI content factory per week in the lesson-plan detail page.
+ * One-click week prep UI for a class teaching plan.
  *
- * Generation is delegated to the plan's own generators rather than calling
- * /api/ai/generate directly. Those routes resolve the plan's protected
- * official edition and anchor the prompt to that week's syllabus — topic,
- * subtopics, objectives, activities — plus sibling topics for anti-repetition,
- * and they write server-side. Prompting from the week topic alone, as this
- * component used to, produced content that could drift away from the official
- * curriculum the plan is locked to.
- *
- * Design:
- *  1. Lesson — POST /api/lesson-plans/[id]/generate-lessons for this one week,
- *     streaming its progress. Assignment blocks found in the saved lesson's
- *     content_layout still become assignments, as the lesson add page does.
- *
- *  2. Flashcards — creates a deck, then calls the dedicated AI endpoint
- *     /api/flashcards/decks/[id]/generate which handles generation + insert
- *     atomically. This is the same endpoint the flashcard page uses.
- *
- *  3. Assignment / project — the matching plan generator, used only when the
- *     lesson did not already yield one.
- *
- *  4. Deduplication — pre-loaded existing content from page state is checked
- *     first; API query is only used as fallback when state is empty. The
- *     routes also skip weeks that already have content.
+ * Generation is delegated to POST /api/lesson-plans/[id]/generate-week, which
+ * runs generatePlanWeek — the same central pipeline the nightly
+ * auto-generate-content sweep uses. Publish vs hold comes from the plan's
+ * auto_generate_settings. Do not re-implement generators here.
  */
 
 import { useEffect, useState, useRef } from "react";
@@ -317,29 +298,6 @@ async function publishPlan(planId: string, currentVersion?: number) {
   }
 }
 
-async function checkExistingLesson(
-  planId: string,
-  weekNum: number
-): Promise<string | null> {
-  try {
-    const res = await fetch(`/api/lessons?lesson_plan_id=${planId}`);
-    if (!res.ok) return null;
-    const { data } = await res.json();
-    return (
-      (data ?? []).find(
-        (l: any) =>
-          Number(
-            l.curriculum_week_number ??
-              l.metadata?.week ??
-              l.metadata?.week_number
-          ) === weekNum
-      )?.id ?? null
-    );
-  } catch {
-    return null;
-  }
-}
-
 async function fetchLesson(
   planId: string,
   weekNum: number
@@ -360,57 +318,6 @@ async function fetchLesson(
     );
   } catch {
     return null;
-  }
-}
-
-/**
- * Runs one of the plan generators for a single week and streams its progress.
- *
- * These routes read the plan's protected official edition through
- * canonicalPlanCurriculum and anchor the prompt to that week's syllabus —
- * topic, subtopics, objectives and activities — as well as sibling topics for
- * anti-repetition. Generating straight from /api/ai/generate skipped all of
- * that, so content could drift from the official curriculum the plan is
- * locked to.
- */
-async function runPlanGenerator(
-  planId: string,
-  target: "generate-lessons" | "generate-assignments" | "generate-projects",
-  weekNum: number,
-  onStatus: (message: string) => void
-): Promise<void> {
-  const res = await fetch(`/api/lesson-plans/${planId}/${target}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ only_weeks: [weekNum], auto_publish: false }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? "Generation failed");
-  }
-  const contentType = res.headers.get("Content-Type") ?? "";
-  if (!contentType.includes("text/event-stream") || !res.body) return;
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const event = JSON.parse(line.slice(6));
-        if (event.error) throw new Error(event.error);
-        if (event.status) onStatus(event.status);
-      } catch (parseError: any) {
-        if (parseError?.message !== "Unexpected end of JSON input")
-          throw parseError;
-      }
-    }
   }
 }
 
@@ -679,316 +586,120 @@ export default function WeekAIGenerator({
     }
 
     const res: Result = { skipped: [] };
-    // Content blocks from lesson generation — shared across steps
-    let contentLayout: any[] = [];
-    const lessonId = existing?.lessonId;
-    let assignmentId = existing?.assignmentId;
 
     try {
-      // ─────────────────────────────────────────────────────────────────────
-      // STEP 1 — LESSON (grounded plan generator, single week)
-      // ─────────────────────────────────────────────────────────────────────
+      // One central pipeline — same as the nightly sweep and "Generate week".
+      // Do not re-implement lesson/slides/flashcards/assignments here; that
+      // drifted from generatePlanWeek and skipped hold-for-approval rules.
+      addLog("Preparing this week through the academy pipeline…");
       setStep("lesson", "active");
-      addLog("Looking for a lesson you already have for this week…");
-
-      const existingLessonId =
-        lessonId ?? (await checkExistingLesson(planId, week.week));
-
-      if (existingLessonId) {
-        res.lessonId = existingLessonId;
-        setStep("lesson", "skipped");
-        res.skipped.push("lesson");
-        addLog("Lesson is already ready — keeping your existing one.");
-      } else {
-        addLog("Writing the lesson from this week’s curriculum…");
-
-        try {
-          // The route grounds the prompt in this week's syllabus from the
-          // plan's protected edition and writes the lesson server-side.
-          await runPlanGenerator(planId, "generate-lessons", week.week, (s) =>
-            addLog(s)
-          );
-
-          const saved = await fetchLesson(planId, week.week);
-          if (!saved?.id)
-            throw new Error("Lesson was not created for this week");
-
-          contentLayout = Array.isArray(saved.content_layout)
-            ? saved.content_layout
-            : [];
-
-          res.lessonId = saved.id;
-          res.lessonTitle = saved.title;
-          addLog(`Lesson ready: “${saved.title}”`);
-          setStep("lesson", "done");
-
-          // Auto-create assignment from assignment-block (mirrors lesson add page behaviour)
-          const assignmentBlocks = contentLayout.filter(
-            (b: any) => b.type === "assignment-block" && b.title?.trim()
-          );
-          if (assignmentBlocks.length > 0 && !assignmentId) {
-            const blk = assignmentBlocks[0];
-            const instrParts = [
-              blk.instructions,
-              blk.deliverables?.length
-                ? `\n\nDeliverables:\n${blk.deliverables
-                    .map((d: string, i: number) => `${i + 1}. ${d}`)
-                    .join("\n")}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join("");
-
-            const asnRes = await fetch("/api/assignments", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                title: blk.title,
-                instructions: instrParts,
-                course_id: courseId ?? null,
-                lesson_plan_id: planId,
-                curriculum_week_number: week.week,
-                lesson_id: res.lessonId,
-                assignment_type: "homework",
-                max_points: 100,
-                is_active: false,
-                metadata: {
-                  week: week.week,
-                  lesson_plan_id: planId,
-                  source: "week-ai-generator",
-                },
-              }),
-            });
-            const aj = await asnRes.json();
-            if (asnRes.ok && aj.data?.id) {
-              res.assignmentId = aj.data.id;
-              res.assignmentTitle = aj.data.title;
-              assignmentId = aj.data.id;
-              addLog(
-                `Homework pulled from the lesson: “${aj.data.title}”`
-              );
-            }
-          }
-        } catch (e: any) {
-          setStep("lesson", "error");
-          addLog(`Couldn’t finish the lesson: ${e.message}`);
-          // Don't abort — continue to flashcards
-        }
-      }
-
-      // STEP 2 - LEARNING SLIDES (grounded in the saved rich lesson)
       setStep("slides", "active");
-      addLog("Checking if slides are already prepared…");
-      if (existing?.slideDeckId) {
-        res.slideDeckId = existing.slideDeckId;
-        setStep("slides", "skipped");
-        res.skipped.push("slides");
-        addLog("Slides are already ready — keeping them.");
-      } else {
-        try {
-          const slideRes = await fetch(
-            `/api/lesson-plans/${planId}/generate-slides`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ week: week.week }),
-            }
-          );
-          const slideJson = await slideRes.json().catch(() => ({}));
-          if (!slideRes.ok)
-            throw new Error(slideJson.error || "Slide generation failed");
-          res.slideDeckId = slideJson.data?.id;
-          res.slideDeckTitle = slideJson.data?.title;
-          if (slideJson.already_exists || Number(slideJson.skipped) > 0) {
-            setStep("slides", "skipped");
-            res.skipped.push("slides");
-            addLog("Slides are already ready — keeping them.");
-          } else {
-            setStep("slides", "done");
-            addLog("Slides are ready and linked to the lesson.");
-          }
-        } catch (e: any) {
-          setStep("slides", "error");
-          addLog(`Couldn’t finish the slides: ${e.message}`);
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
-      // STEP 3 — FLASHCARDS (create deck + call /decks/[id]/generate)
-      // ─────────────────────────────────────────────────────────────────────
       setStep("flashcard", "active");
-      addLog("Checking for a flashcard pack you already have…");
+      setStep("assignment", "active");
+      setStep("project", "active");
 
-      // Simple check: does a deck for this week/plan exist already?
-      // We don't have a pre-loaded deck list so we skip the API check and
-      // rely on the existing?.deckId from parent (cheaper).
-      if (existing?.deckId) {
-        res.deckId = existing.deckId;
-        setStep("flashcard", "skipped");
-        res.skipped.push("flashcards");
-        addLog("Flashcards are already ready — keeping them.");
-      } else {
-        addLog("Starting a flashcard pack for this week…");
-        try {
-          const deckBody: Record<string, unknown> = {
-            title: `Week ${week.week}: ${week.topic}`,
-            lesson_id: res.lessonId ?? lessonId ?? null,
-            class_id: classId ?? null,
-            lesson_plan_id: planId,
-            curriculum_week_number: week.week,
-          };
-          if (courseId) deckBody.course_id = courseId;
-
-          const dr = await fetch("/api/flashcards/decks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(deckBody),
-          });
-          const dj = await dr.json();
-          if (!dr.ok || !dj.data?.id)
-            throw new Error(dj.error || "Deck create failed");
-
-          const deckId = dj.data.id;
-          res.deckId = deckId;
-          res.deckTitle = dj.data.title;
-
-          // The API returns deduped:true when this deck already existed (deck create is
-          // now idempotent). Mirror the lesson step: SKIP — don't pile more AI cards onto
-          // an existing deck. This is the fix for "lesson skips but flashcard doesn't".
-          if (dj.deduped) {
-            setStep("flashcard", "skipped");
-            res.skipped.push("flashcards");
-            addLog("Flashcards are already ready — keeping them.");
-          } else {
-            addLog("Writing about 15 practice cards…");
-
-            // Use the dedicated generate endpoint (same as flashcard page)
-            const genRes = await fetch(
-              `/api/flashcards/decks/${deckId}/generate`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  topic: week.topic,
-                  count: 15,
-                  difficulty: "medium",
-                  // Pass lesson content as extra context if available
-                  content:
-                    contentLayout.length > 0
-                      ? contentLayout
-                          .filter((b: any) =>
-                            [
-                              "text",
-                              "heading",
-                              "key-terms",
-                              "steps-list",
-                            ].includes(b.type)
-                          )
-                          .map((b: any) => b.content || b.title || "")
-                          .filter(Boolean)
-                          .join("\n")
-                          .slice(0, 2000)
-                      : undefined,
-                }),
-              }
-            );
-            const gj = await genRes.json();
-            if (!genRes.ok)
-              throw new Error(gj.error || "Card generation failed");
-            const cardCount = Array.isArray(gj.data)
-              ? gj.data.length
-              : gj.count ?? "?";
-            addLog(`${cardCount} practice cards are ready.`);
-            setStep("flashcard", "done");
-          }
-        } catch (e: any) {
-          setStep("flashcard", "error");
-          addLog(`Couldn’t finish the flashcards: ${e.message}`);
-        }
+      const genRes = await fetch(`/api/lesson-plans/${planId}/generate-week`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week: week.week }),
+      });
+      const genJson = await genRes.json().catch(() => ({}));
+      if (!genRes.ok) {
+        throw new Error(genJson.error || "Week preparation failed");
       }
 
-      // ─────────────────────────────────────────────────────────────────────
-      // STEP 4 — ASSIGNMENT (from lesson block, else plan generator)
-      // ─────────────────────────────────────────────────────────────────────
-      setStep("assignment", "active");
-      addLog("Checking for homework you already have…");
+      const byType = (genJson.byType ?? {}) as Record<
+        string,
+        { generated?: number; skipped?: number; error?: string }
+      >;
+      const stepForType: Record<string, keyof StepStatus> = {
+        lessons: "lesson",
+        slides: "slides",
+        flashcards: "flashcard",
+        assignments: "assignment",
+        projects: "project",
+      };
+      const labelFor: Record<string, string> = {
+        lessons: "Lesson",
+        slides: "Slides",
+        flashcards: "Flashcards",
+        assignments: "Homework",
+        projects: "Project",
+      };
 
-      const existingAsnId =
-        assignmentId ??
+      for (const [type, step] of Object.entries(stepForType)) {
+        const outcome = byType[type];
+        if (!outcome) {
+          setStep(step, "skipped");
+          res.skipped.push(type);
+          continue;
+        }
+        if (outcome.error) {
+          setStep(step, "error");
+          addLog(`${labelFor[type]}: ${outcome.error}`);
+          continue;
+        }
+        if (Number(outcome.skipped) > 0 && Number(outcome.generated) === 0) {
+          setStep(step, "skipped");
+          res.skipped.push(type);
+          addLog(`${labelFor[type]} already ready — keeping it.`);
+          continue;
+        }
+        setStep(step, "done");
+        addLog(`${labelFor[type]} prepared.`);
+      }
+
+      if (Array.isArray(genJson.failedTypes) && genJson.failedTypes.length) {
+        addLog(
+          `Still outstanding: ${genJson.failedTypes
+            .map((t: string) => labelFor[t] ?? t)
+            .join(", ")}`
+        );
+      }
+
+      // Hydrate open-links from what the pipeline actually wrote.
+      addLog("Double-checking everything saved correctly…");
+      const lesson = await fetchLesson(planId, week.week);
+      if (lesson?.id) {
+        res.lessonId = lesson.id;
+        res.lessonTitle = lesson.title;
+      }
+      const asnId =
         existing?.assignmentId ??
         (await checkExistingAssignment(planId, week.week));
-
-      if (existingAsnId) {
-        if (!res.assignmentId) {
-          res.assignmentId = existingAsnId;
-          res.skipped.push("assignment");
-          addLog("Homework is already ready — keeping it.");
-        } else {
-          addLog("Homework from the lesson is already set.");
-        }
-        setStep("assignment", "done");
-      } else {
-        // No assignment block came out of the lesson, so generate one from the
-        // official curriculum rather than from the week topic alone.
-        addLog("Writing homework from this week’s curriculum…");
-        try {
-          await runPlanGenerator(
-            planId,
-            "generate-assignments",
-            week.week,
-            (s) => addLog(s)
-          );
-          const saved = await checkExistingAssignment(planId, week.week);
-          if (!saved)
-            throw new Error("Assignment was not created for this week");
-          res.assignmentId = saved;
-          addLog("Homework is ready.");
-          setStep("assignment", "done");
-        } catch (e: any) {
-          setStep("assignment", "error");
-          addLog(`Couldn’t finish the homework: ${e.message}`);
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
-      // STEP 5 — CAPSTONE PROJECT (plan generator)
-      // ─────────────────────────────────────────────────────────────────────
-      setStep("project", "active");
-      addLog("Checking for a project you already have…");
-
-      const existingProjId =
+      if (asnId) res.assignmentId = asnId;
+      const projId =
         existing?.projectId ?? (await checkExistingProject(planId, week.week));
-
-      if (existingProjId) {
-        res.projectId = existingProjId;
-        setStep("project", "skipped");
-        res.skipped.push("project");
-        addLog("Project is already ready — keeping it.");
+      if (projId) res.projectId = projId;
+      if (existing?.slideDeckId) res.slideDeckId = existing.slideDeckId;
+      if (existing?.deckId) {
+        res.deckId = existing.deckId;
       } else {
-        addLog("Designing this week’s project…");
+        // Best-effort: pipeline may have created a held deck for this week.
         try {
-          await runPlanGenerator(planId, "generate-projects", week.week, (s) =>
-            addLog(s)
+          const decksRes = await fetch(
+            `/api/flashcards/decks?lesson_id=${encodeURIComponent(res.lessonId ?? "")}`
           );
-          const saved = await checkExistingProject(planId, week.week);
-          if (!saved) throw new Error("Project was not created for this week");
-          res.projectId = saved;
-          addLog("Project is ready.");
-          setStep("project", "done");
-        } catch (e: any) {
-          setStep("project", "error");
-          addLog(`Couldn’t finish the project: ${e.message}`);
+          const decksJson = await decksRes.json().catch(() => ({}));
+          const match = (decksJson.data ?? []).find(
+            (d: any) =>
+              d.lesson_plan_id === planId &&
+              Number(d.curriculum_week_number) === week.week
+          );
+          if (match?.id) {
+            res.deckId = match.id;
+            res.deckTitle = match.title;
+          }
+        } catch {
+          /* non-fatal */
         }
       }
 
-      // Nothing is offered as a link until it has been confirmed to exist.
-      addLog("Double-checking everything saved correctly…");
       const { verified, dropped } = await verifyArtifacts(planId, res);
       if (dropped.length > 0) {
         addLog(
           `These didn’t save properly, so they won’t open yet: ${dropped.join(", ")}`
         );
-        // Keep the step badges honest too — a dropped artifact is not "done".
         const stepFor: Record<string, keyof StepStatus> = {
           lesson: "lesson",
           "learning slides": "slides",
@@ -1000,8 +711,12 @@ export default function WeekAIGenerator({
           const step = stepFor[label];
           if (step) setStep(step, "error");
         }
+      } else if (genJson.auto_publish) {
+        addLog("All set — this week is live for students.");
       } else {
-        addLog("All set — everything for this week is ready for you to review.");
+        addLog(
+          "All set — held for your approval. Release it from Approvals when ready."
+        );
       }
 
       setResult(verified);
@@ -1017,6 +732,11 @@ export default function WeekAIGenerator({
     } catch (e: any) {
       setError(e.message);
       addLog(`Something went wrong: ${e.message}`);
+      setStep("lesson", "error");
+      setStep("slides", "error");
+      setStep("flashcard", "error");
+      setStep("assignment", "error");
+      setStep("project", "error");
     } finally {
       setRunning(false);
     }

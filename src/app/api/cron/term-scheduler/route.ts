@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
-import { buildAssignmentEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
-import { notificationsService } from '@/services/notifications.service';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
+import { releasePreparedWeek } from '@/lib/academic/release-week-content';
+import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
 import { scheduledWeekForDate } from './schedule';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +16,19 @@ function adminClient() {
   );
 }
 
-// GET or POST /api/cron/term-scheduler
+/**
+ * Cadence clock for plans that opted into a term schedule.
+ *
+ * Release policy comes from the plan's auto_generate_settings — the same
+ * setting the nightly prep sweep and the plan page edit. When auto_publish is
+ * false (the default), this job advances the week marker but does NOT publish;
+ * content stays on the approvals queue. Only an explicit auto_publish: true
+ * releases through releasePreparedWeek.
+ *
+ * Works for both Regular School and Special/Online pathways: schedules are
+ * keyed on lesson_plan_id, and each plan already resolved its own official
+ * edition when it was created.
+ */
 export async function GET(req: NextRequest) {
   return runMonitoredCron('term-scheduler', cronInterval('term-scheduler'), () => handleRequest(req));
 }
@@ -33,20 +44,21 @@ async function handleRequest(req: NextRequest) {
 
   const supabase = adminClient();
 
-  // Get all active schedules
   const { data: schedules } = await supabase
     .from('term_schedules')
-    .select('*, lesson_plans!lesson_plan_id(id, plan_data, class_id, course_id)')
+    .select('*, lesson_plans!lesson_plan_id(id, plan_data, class_id, course_id, metadata)')
     .eq('is_active', true);
 
   let released = 0;
+  let held = 0;
   let waiting = 0;
   let finished = 0;
   let errors = 0;
 
   for (const schedule of schedules ?? []) {
     try {
-      const planData = schedule.lesson_plans?.plan_data;
+      const plan = schedule.lesson_plans;
+      const planData = plan?.plan_data;
       if (!planData?.weeks) continue;
 
       const currentWeek = schedule.current_week;
@@ -68,89 +80,40 @@ async function handleRequest(req: NextRequest) {
       const weekData = planData.weeks[currentWeek - 1];
       if (!weekData) continue;
 
-      // Release lessons for current week (teacher-approved = those with a title set)
-      const { error: lessonReleaseError } = await supabase
-        .from('lessons')
-        .update({ status: 'published', published_at: new Date().toISOString() })
-        .eq('lesson_plan_id', schedule.lesson_plan_id)
-        .eq('week_number', currentWeek)
-        .eq('status', 'draft');
-      if (lessonReleaseError) throw lessonReleaseError;
+      const settings = parseAutoGenerateSettings(
+        (plan?.metadata as Record<string, unknown> | null)?.auto_generate_settings
+      );
 
-      // Release assignments for current week — keyed via metadata.lesson_plan_id + metadata.week_number
-      const { data: activatedAssignments, error: assignmentReleaseError } = await supabase
-        .from('assignments')
-        .update({ is_active: true, updated_at: new Date().toISOString() })
-        .filter('metadata->>lesson_plan_id', 'eq', schedule.lesson_plan_id)
-        .filter('metadata->>week_number', 'eq', String(currentWeek))
-        .or('is_active.is.null,is_active.eq.false')
-        .select('id, title, description, instructions, due_date, max_points, metadata, courses(title)');
-      if (assignmentReleaseError) throw assignmentReleaseError;
-
-      // Notify students and parents by email for each activated assignment
-      if (activatedAssignments && activatedAssignments.length > 0) {
-        try {
-          const classId = schedule.lesson_plans?.class_id;
-          if (classId) {
-            // Fetch students in this class who have email addresses
-            const { data: students } = await supabase
-              .from('portal_users')
-              .select('id, email, full_name, school_id')
-              .eq('section_class', classId)
-              .eq('role', 'student')
-              .eq('is_active', true)
-              .not('email', 'is', null);
-
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com';
-            const portalUrl = `${appUrl}/dashboard/assignments`;
-
-            for (const assignment of activatedAssignments) {
-              const courseName = (assignment.courses as any)?.title ?? '';
-              const className = (assignment.metadata as any)?.target_class_name ?? classId;
-
-              for (const student of (students ?? [])) {
-                if (!student.email || isInAppEmail(student.email)) continue;
-                try {
-                  const html = buildAssignmentEmail({
-                    recipientName:    student.full_name ?? 'Student',
-                    assignmentTitle:  assignment.title,
-                    courseName:       courseName || undefined,
-                    className:        className || undefined,
-                    dueDate:          assignment.due_date || undefined,
-                    maxPoints:        assignment.max_points ?? undefined,
-                    instructions:     (assignment.instructions || assignment.description) ?? undefined,
-                    portalUrl,
-                    appUrl,
-                  });
-                  await notificationsService.sendEmail(student.id, {
-                    to:        student.email,
-                    subject:   `New Assignment: ${assignment.title} — Rillcod Technologies`,
-                    fromName:  'Rillcod Technologies',
-                    fromEmail: SMTP_FROM_EMAIL,
-                    html,
-                  });
-                } catch { /* non-critical per-student failure */ }
-              }
-            }
-          }
-        } catch (notifyErr) {
-          console.error('[term-scheduler] assignment email notification failed:', notifyErr);
-        }
+      // Same publish rule as auto-generate-content / generatePlanWeek.
+      if (settings.auto_publish) {
+        const release = await releasePreparedWeek({
+          planId: schedule.lesson_plan_id,
+          week: currentWeek,
+        });
+        if (release.error) throw new Error(release.error);
+        released++;
+      } else {
+        // Prepared content stays held for the teacher approvals queue.
+        held++;
       }
 
-      // Increment current_week
       const { error: advanceError } = await supabase
         .from('term_schedules')
         .update({ current_week: currentWeek + 1, updated_at: new Date().toISOString() })
         .eq('id', schedule.id);
       if (advanceError) throw advanceError;
-
-      released++;
     } catch (e) {
       console.error(`Failed to release schedule ${schedule.id}:`, e);
       errors++;
     }
   }
 
-  return NextResponse.json({ released, waiting, finished, errors, total: (schedules ?? []).length });
+  return NextResponse.json({
+    released,
+    held,
+    waiting,
+    finished,
+    errors,
+    total: (schedules ?? []).length,
+  });
 }

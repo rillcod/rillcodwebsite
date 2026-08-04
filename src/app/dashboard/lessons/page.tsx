@@ -135,7 +135,9 @@ export default function LessonsPage() {
 
           const { data, error: err } = await supabase.from('lessons')
             .select('id, title, description, lesson_type, status, duration_minutes, session_date, video_url, created_by, created_at, courses(id, title, programs(name))')
-            .in('course_id', courseIds).order('created_at', { ascending: false });
+            .in('course_id', courseIds)
+            .in('status', ['active', 'published', 'scheduled', 'completed'])
+            .order('created_at', { ascending: false });
           if (err) throw err;
           result = data ?? [];
         } else {

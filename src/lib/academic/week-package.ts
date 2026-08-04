@@ -1,3 +1,11 @@
+/**
+ * Week package readiness for teachers.
+ *
+ * Presence alone lied to teachers: a draft lesson and inactive homework still
+ * counted as "Ready", so the class looked finished while students saw nothing.
+ * Visibility (held vs live) is now first-class next to presence.
+ */
+
 export const WEEK_PACKAGE_ASSETS = [
   "lesson",
   "slides",
@@ -12,6 +20,8 @@ export type WeekLinkedAsset = {
   curriculum_week_number?: unknown;
   metadata?: Record<string, unknown> | null;
 };
+
+export type AssetVisibility = "missing" | "held" | "live";
 
 /**
  * Read the canonical week column first, while still understanding records made
@@ -47,6 +57,8 @@ export function indexFirstByWeek<T extends WeekLinkedAsset>(
 
 export type WeekPackagePresence = Record<WeekPackageAsset, boolean>;
 
+export type WeekPackageVisibility = Record<WeekPackageAsset, AssetVisibility>;
+
 export function weekPackageStatus(presence: WeekPackagePresence) {
   const ready = WEEK_PACKAGE_ASSETS.filter((asset) => presence[asset]);
   const missing = WEEK_PACKAGE_ASSETS.filter((asset) => !presence[asset]);
@@ -63,4 +75,95 @@ export function weekPackagePrimaryAction(
   presence: WeekPackagePresence
 ): "prepare" | "review" {
   return weekPackageStatus(presence).complete ? "review" : "prepare";
+}
+
+/** Lesson is live when students may open it. */
+export function lessonVisibility(lesson: {
+  status?: string | null;
+} | null | undefined): AssetVisibility {
+  if (!lesson) return "missing";
+  const status = String(lesson.status ?? "").toLowerCase();
+  if (status === "active" || status === "published" || status === "scheduled") {
+    return "live";
+  }
+  return "held";
+}
+
+/** Assignments/projects are live when is_active is true. */
+export function assignmentVisibility(row: {
+  is_active?: boolean | null;
+} | null | undefined): AssetVisibility {
+  if (!row) return "missing";
+  return row.is_active === true ? "live" : "held";
+}
+
+/**
+ * Flashcard decks hold for approval via is_public === false.
+ * Null/true remains visible for decks created before the hold gate.
+ */
+export function flashcardVisibility(deck: {
+  is_public?: boolean | null;
+} | null | undefined): AssetVisibility {
+  if (!deck) return "missing";
+  return deck.is_public === false ? "held" : "live";
+}
+
+/** Slides follow their lesson: if the lesson is held, slides are held too. */
+export function slidesVisibility(
+  slideDeck: unknown,
+  lesson: { status?: string | null } | null | undefined
+): AssetVisibility {
+  if (!slideDeck) return "missing";
+  return lessonVisibility(lesson);
+}
+
+export function buildWeekVisibility(input: {
+  lesson?: { status?: string | null } | null;
+  slides?: unknown;
+  flashcards?: { is_public?: boolean | null } | null;
+  assignment?: { is_active?: boolean | null } | null;
+  project?: { is_active?: boolean | null } | null;
+}): WeekPackageVisibility {
+  return {
+    lesson: lessonVisibility(input.lesson),
+    slides: slidesVisibility(input.slides, input.lesson),
+    flashcards: flashcardVisibility(input.flashcards),
+    assignment: assignmentVisibility(input.assignment),
+    project: assignmentVisibility(input.project),
+  };
+}
+
+export function weekVisibilitySummary(visibility: WeekPackageVisibility) {
+  const held = WEEK_PACKAGE_ASSETS.filter((a) => visibility[a] === "held");
+  const live = WEEK_PACKAGE_ASSETS.filter((a) => visibility[a] === "live");
+  const missing = WEEK_PACKAGE_ASSETS.filter((a) => visibility[a] === "missing");
+  return {
+    held,
+    live,
+    missing,
+    heldCount: held.length,
+    liveCount: live.length,
+    missingCount: missing.length,
+    /** True when every present asset is live to students. */
+    fullyLive: missing.length === 0 && held.length === 0 && live.length > 0,
+    /** True when something exists but students cannot see it yet. */
+    needsRelease: held.length > 0,
+  };
+}
+
+/**
+ * Next teacher action for a week, in classroom order.
+ * prepare → release → teach (mark delivered is separate).
+ */
+export function weekClassroomAction(input: {
+  presence: WeekPackagePresence;
+  visibility: WeekPackageVisibility;
+  taught?: boolean;
+}): "publish_plan" | "prepare" | "release" | "teach" | "done" {
+  const status = weekPackageStatus(input.presence);
+  if (!status.complete) return "prepare";
+  const vis = weekVisibilitySummary(input.visibility);
+  if (vis.needsRelease) return "release";
+  if (!input.taught) return "teach";
+  return "done";
 }

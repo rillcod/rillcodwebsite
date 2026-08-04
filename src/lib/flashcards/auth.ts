@@ -13,6 +13,9 @@ export type FlashcardDeckScope = {
   created_by: string | null;
   school_id: string | null;
   course_id: string | null;
+  /** false + lesson_plan_id = held for teacher approval; null/true = student-visible. */
+  is_public?: boolean | null;
+  lesson_plan_id?: string | null;
   program_id?: string | null;
   courses?: { program_id?: string | null } | null;
 };
@@ -39,6 +42,10 @@ export async function canReadFlashcardDeck(db: any, caller: FlashcardCaller, dec
   }
 
   if (caller.role === 'student') {
+    // Curriculum-pipeline decks hold until release. Ad-hoc decks (no plan link)
+    // stay readable even when the column default is false — otherwise every
+    // pre-hold deck would vanish from students overnight.
+    if (deck.is_public === false && deck.lesson_plan_id) return false;
     if (caller.school_id && deck.school_id && deck.school_id !== caller.school_id) return false;
     if (!caller.school_id && deck.school_id) return false;
     const scope = await resolveStudentProgramScope(db, caller.id, caller.class_id ?? null);

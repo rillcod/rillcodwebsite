@@ -26,7 +26,7 @@ import {
 } from "@/lib/icons";
 
 type PendingItem = {
-  kind: "lesson" | "slides" | "assignment" | "project";
+  kind: "lesson" | "slides" | "assignment" | "project" | "flashcards";
   id: string;
   title: string;
 };
@@ -54,7 +54,14 @@ const ITEM_META: Record<
     label: "Slides",
     icon: PresentationChartLineIcon,
     cls: "text-cyan-600 dark:text-cyan-400",
-    href: () => null,
+    // id is the lesson id — opens the materials / slides tab
+    href: (id) => `/dashboard/lessons/${id}?tab=materials#learning-slides`,
+  },
+  flashcards: {
+    label: "Flashcards",
+    icon: SparklesIcon,
+    cls: "text-amber-600 dark:text-amber-400",
+    href: (id) => `/dashboard/flashcards?deck_id=${id}`,
   },
   assignment: {
     label: "Assignment",
@@ -109,8 +116,11 @@ export default function ContentApprovalsPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not release this week");
+      const result = json.data?.results?.[0] ?? json.data;
       const n =
-        (json.data?.lessons_released ?? 0) + (json.data?.assignments_released ?? 0);
+        (result?.lessons_released ?? 0) +
+        (result?.assignments_released ?? 0) +
+        (result?.flashcards_released ?? 0);
       toast.success(`Week ${row.week} released — ${n} item${n === 1 ? "" : "s"} now live`);
       setWeeks((prev) =>
         prev.filter((w) => !(w.planId === row.planId && w.week === row.week))

@@ -80,9 +80,17 @@ export async function GET(req: NextRequest) {
         matchesAssignmentSession(deck.term_id, liveTermId, true),
       );
 
+  // Curriculum-held decks (plan-linked + is_public false) stay off the student list.
+  const visibleToRole =
+    role === 'student'
+      ? sessionScoped.filter(
+          (deck: any) => !(deck.is_public === false && deck.lesson_plan_id)
+        )
+      : sessionScoped;
+
   const scopedData = role === 'student'
-    ? await Promise.all(sessionScoped.map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
-    : sessionScoped;
+    ? await Promise.all(visibleToRole.map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
+    : visibleToRole;
   return NextResponse.json({ data: scopedData.filter(Boolean) });
 }
 
@@ -315,6 +323,10 @@ export async function POST(req: NextRequest) {
     class_id: canonicalClassId,
     lesson_plan_id: canonicalPlanId,
     curriculum_week_number: Number.isInteger(Number(curriculum_week_number)) ? Number(curriculum_week_number) : null,
+    // Plan-linked decks stay held until a teacher releases the week.
+    // Ad-hoc decks go live immediately so the column default (false) does not
+    // hide teacher-built practice packs from students.
+    is_public: canonicalPlanId ? false : true,
     created_by: user.id,
     school_progression_enabled: progressionContext.enabled,
     progression_track: progressionContext.track,

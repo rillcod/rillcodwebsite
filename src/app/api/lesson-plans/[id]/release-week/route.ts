@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { metadataMatchesWeek } from '@/lib/progression/lessonPlanOperation';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { releasePreparedWeek } from '@/lib/academic/release-week-content';
 
 export const dynamic = 'force-dynamic';
 
-type MetadataRow = {
-  id: string;
-  metadata: Record<string, unknown> | null;
-};
-
-type LessonRow = MetadataRow & {
-  status: string | null;
-};
-
-type AssignmentRow = MetadataRow & {
-  is_active: boolean | null;
-};
-
+/**
+ * Plan-page "Release week" — same write path as the approvals inbox.
+ *
+ * Previously this route matched legacy metadata.week_number / lesson_plan_id
+ * while the generators wrote curriculum_week_number + lesson_plan_id columns,
+ * so a release from the plan page could no-op while the approvals queue worked
+ * (or the reverse). Both now call releasePreparedWeek.
+ */
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const supabase = await createClient();
@@ -54,73 +49,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  const targetWeek = {
-    week: weekNumber,
-    syllabus_ref: {
-      year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : undefined,
-      term_number: Number.isFinite(termNumber) && termNumber > 0 ? termNumber : undefined,
-    },
-  };
-  const scopedToYearTerm = Number.isFinite(yearNumber) && yearNumber > 0 && Number.isFinite(termNumber) && termNumber > 0;
-  const matchesReleaseTarget = (metadata: Record<string, unknown> | null) => {
-    if (scopedToYearTerm) return metadataMatchesWeek(metadata, targetWeek, yearNumber, termNumber);
-    return Number(metadata?.week_number ?? metadata?.week ?? -1) === weekNumber;
-  };
-
-  const [lessonsRes, assignmentsRes] = await Promise.all([
-    (supabase as any)
-      .from('lessons')
-      .select('id,status,metadata')
-      .eq('course_id', plan.course_id)
-      .eq('school_id', plan.school_id),
-    (supabase as any)
-      .from('assignments')
-      .select('id,is_active,metadata')
-      .eq('school_id', plan.school_id)
-      .eq('course_id', plan.course_id),
-  ]);
-  if (lessonsRes.error || assignmentsRes.error) {
-    return NextResponse.json({
-      error: lessonsRes.error?.message ?? assignmentsRes.error?.message ?? 'Failed to load release targets',
-    }, { status: 500 });
-  }
-
-  const lessonIds = ((lessonsRes.data ?? []) as LessonRow[])
-    .filter((row) => row.status === 'draft')
-    .filter((row) => row.metadata?.lesson_plan_id === id)
-    .filter((row) => matchesReleaseTarget(row.metadata))
-    .map((row) => row.id);
-  const assignmentIds = ((assignmentsRes.data ?? []) as AssignmentRow[])
-    .filter((row) => row.is_active !== true)
-    .filter((row) => row.metadata?.lesson_plan_id === id)
-    .filter((row) => matchesReleaseTarget(row.metadata))
-    .map((row) => row.id);
-
-  if (lessonIds.length > 0) {
-    const { error } = await (supabase as any)
-      .from('lessons')
-      .update({ status: 'active', updated_at: new Date().toISOString() })
-      .in('id', lessonIds);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (assignmentIds.length > 0) {
-    const { error } = await (supabase as any)
-      .from('assignments')
-      .update({ is_active: true, updated_at: new Date().toISOString() })
-      .in('id', assignmentIds);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-    const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
-    Promise.all(
-      assignmentIds.map(aid => triggerAssignmentReleaseNotifications(aid).catch(console.error))
-    ).catch(console.error);
+  const result = await releasePreparedWeek({ planId: id, week: weekNumber });
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
 
   return NextResponse.json({
     success: true,
-    lessonsReleased: lessonIds.length,
-    assignmentsReleased: assignmentIds.length,
+    lessonsReleased: result.lessons_released,
+    assignmentsReleased: result.assignments_released,
+    flashcardsReleased: result.flashcards_released,
     week_number: weekNumber,
     year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
     term_number: Number.isFinite(termNumber) && termNumber > 0 ? termNumber : null,

@@ -91,7 +91,7 @@ export async function generatePlanWeek(input: {
         headers,
         body: JSON.stringify(
           isJsonEndpoint
-            ? { week: input.week }
+            ? { week: input.week, auto_publish: autoPublish }
             : { only_weeks: [input.week], max_weeks: 1, auto_publish: autoPublish },
         ),
         cache: 'no-store',
@@ -143,7 +143,14 @@ export async function generatePlanWeek(input: {
  */
 export async function notifyWeekReady(
   db: any,
-  input: { planId: string; classId: string | null; week: number; outcome: WeekGenerationOutcome },
+  input: {
+    planId: string;
+    classId: string | null;
+    week: number;
+    outcome: WeekGenerationOutcome;
+    /** When false/undefined, point the teacher at the approvals queue. */
+    autoPublish?: boolean;
+  },
 ): Promise<'sent' | 'skipped_no_content' | 'skipped_no_teacher' | 'skipped_duplicate' | 'failed'> {
   if (input.outcome.generated < 1) return 'skipped_no_content';
   if (!input.classId) return 'skipped_no_teacher';
@@ -155,15 +162,20 @@ export async function notifyWeekReady(
     .maybeSingle();
   if (!klass?.teacher_id) return 'skipped_no_teacher';
 
-  const actionUrl = `/dashboard/lesson-plans/${input.planId}?week=${input.week}`;
+  // Held weeks go to the shared approvals inbox; live weeks go to the plan.
+  const actionUrl =
+    input.autoPublish === true
+      ? `/dashboard/lesson-plans/${input.planId}?week=${input.week}`
+      : `/dashboard/teaching/approvals`;
 
-  // Same plan + week + teacher = already told. Scoped by action_url so it cannot collide with
-  // another class's week.
+  // Same plan + week + teacher = already told. Scoped by title+week so a
+  // held→live change later does not re-notify for the same prep.
+  const title = `Week ${input.week} is ready to review`;
   const { data: existing } = await db
     .from('notifications')
     .select('id')
     .eq('user_id', klass.teacher_id)
-    .eq('action_url', actionUrl)
+    .eq('title', title)
     .limit(1)
     .maybeSingle();
   if (existing) return 'skipped_duplicate';
@@ -172,12 +184,16 @@ export async function notifyWeekReady(
   const partial = input.outcome.failedTypes.length
     ? ` (${input.outcome.failedTypes.join(' and ')} still to come)`
     : '';
+  const message =
+    input.autoPublish === true
+      ? `${klass.name}: this week's teaching content is live for students${partial}.`
+      : `${klass.name}: this week's teaching content has been prepared${partial}. ` +
+        `Review it on Approvals and release when you are happy with it.`;
+
   const { error } = await db.from('notifications').insert({
     user_id: klass.teacher_id,
-    title: `Week ${input.week} is ready to review`,
-    message:
-      `${klass.name}: this week's teaching content has been prepared${partial}. ` +
-      `Review it and publish when you are happy with it.`,
+    title,
+    message,
     type: 'info',
     action_url: actionUrl,
     is_read: false,

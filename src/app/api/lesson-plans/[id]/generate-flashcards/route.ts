@@ -126,6 +126,9 @@ export async function POST(
     .limit(1)
     .maybeSingle();
 
+  // Hold for approval unless the caller explicitly asked to publish live.
+  // DB default is also false; setting it here keeps auto_publish honest.
+  const isPublic = body.auto_publish === true;
   const title = `Week ${week}: ${(weekMeta.topic || "Flashcards").toString()}`;
   const { data: deck, error: deckError } = await (db as any)
     .from("flashcard_decks")
@@ -136,6 +139,7 @@ export async function POST(
       class_id: (plan as any).class_id ?? null,
       lesson_plan_id: id,
       curriculum_week_number: week,
+      is_public: isPublic,
       created_by: isCron ? (plan as any).created_by : staff.id,
       school_id: (plan as any).school_id ?? null,
       term_id: (plan as any).term_id ?? null,

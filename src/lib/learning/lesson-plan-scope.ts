@@ -3,6 +3,10 @@ type LessonScopeDb = {
 };
 
 export function lessonPlanIdOf(lesson: any): string | null {
+  // Canonical column first — generators write lesson_plan_id directly.
+  // Metadata remains a fallback for older rows that only stored the link there.
+  const column = lesson?.lesson_plan_id;
+  if (typeof column === 'string' && column.trim()) return column.trim();
   const metadata = lesson?.metadata;
   if (!metadata || typeof metadata !== 'object') return null;
   const id = metadata.lesson_plan_id;

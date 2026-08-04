@@ -388,6 +388,27 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 {parentEnrollmentLabel(selectedChild.status)}
               </span>
             </div>
+            {selectedMilestone && selectedMilestone.current_week > 0 && (
+              <Link
+                href="/dashboard/parent-path-progress"
+                className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-border/80 bg-card/60 px-3 py-2.5 transition-colors hover:border-primary/30"
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    This week · Term {selectedMilestone.current_term} · Week {selectedMilestone.current_week}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-foreground">
+                    {selectedMilestone.last_topic}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {selectedMilestone.course_name}
+                  </p>
+                </div>
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
+                  Path →
+                </span>
+              </Link>
+            )}
           </div>
         )}
 

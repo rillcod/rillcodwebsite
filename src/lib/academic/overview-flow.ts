@@ -20,8 +20,8 @@ export type OverviewFacts = {
 };
 
 /**
- * System-wide Curriculum lane status for the Academic Overview.
- * Order is enforced: write before certify, certify before distribute.
+ * Curriculum lane status for the Academic overview.
+ * Plain sentences only — no process jargon stacked on top of the stage name.
  */
 export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
   const author: StageStatus =
@@ -29,11 +29,11 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "author",
           state: "ready",
-          headline: `${facts.awaitingCurriculumCount} course${
-            facts.awaitingCurriculumCount === 1 ? "" : "s"
-          } still need a curriculum written.`,
-          detail:
-            "Start here. Nothing can be certified or taught until the curriculum exists.",
+          headline:
+            facts.awaitingCurriculumCount === 1
+              ? "One course still needs its curriculum written."
+              : `${facts.awaitingCurriculumCount} courses still need a curriculum written.`,
+          detail: "Teaching cannot start until the weeks and topics exist.",
           actionLabel: "Write curriculum",
           actionHref: buildCurriculumHref({
             courseId: facts.awaitingCurriculumCourseId,
@@ -42,7 +42,7 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "author",
           state: "done",
-          headline: "Every active course has a curriculum draft.",
+          headline: "Every active course has a curriculum.",
           actionLabel: "Open builder",
           actionHref: "/dashboard/academic/build",
         };
@@ -52,19 +52,18 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "certify",
           state: "waiting",
-          headline: "Waiting for curricula to be written.",
-          detail: "Certify opens only after a course has a draft.",
+          headline: "Waiting on a written curriculum.",
         }
       : facts.readyToCertifyCount > 0
         ? {
             id: "certify",
             state: "ready",
-            headline: `${facts.readyToCertifyCount} course${
-              facts.readyToCertifyCount === 1 ? " is" : "s are"
-            } written and waiting to be certified.`,
-            detail:
-              "Until certified, no class can start a teaching plan for these courses.",
-            actionLabel: "Certify a course",
+            headline:
+              facts.readyToCertifyCount === 1
+                ? "One course is written and ready to certify."
+                : `${facts.readyToCertifyCount} courses are written and ready to certify.`,
+            detail: "Certification locks the edition classes will teach from.",
+            actionLabel: "Certify",
             actionHref: buildCertifyHref({
               courseId: facts.readyToCertifyCourseId,
             }),
@@ -74,15 +73,15 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
           ? {
               id: "certify",
               state: "done",
-              headline: `All ${facts.certifiedCourses} courses have an official edition.`,
+              headline: `All ${facts.certifiedCourses} courses are certified.`,
               actionLabel: "Open certify",
               actionHref: "/dashboard/academic/rollout",
             }
           : {
               id: "certify",
               state: "waiting",
-              headline: "No courses are ready to certify yet.",
-              detail: "Write a curriculum first, then return here.",
+              headline: "Nothing ready to certify yet.",
+              detail: "Write a curriculum first.",
             };
 
   const distribute: StageStatus =
@@ -90,23 +89,24 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "distribute",
           state: "waiting",
-          headline: "Waiting for an official edition.",
-          detail: "Distribute opens after at least one course is certified.",
+          headline: "Waiting for a certified course.",
         }
       : facts.assignedDirections === 0
         ? {
             id: "distribute",
             state: "ready",
-            headline: "Editions exist but are not assigned to schools yet.",
-            actionLabel: "Distribute edition",
+            headline: "Certified editions are not assigned to schools yet.",
+            detail: "Schools and special programmes each need their own assignment.",
+            actionLabel: "Assign editions",
             actionHref: buildDistributeHref(),
           }
         : {
             id: "distribute",
             state: "done",
-            headline: `${facts.assignedDirections} school or pathway assignment${
-              facts.assignedDirections === 1 ? "" : "s"
-            } active.`,
+            headline:
+              facts.assignedDirections === 1
+                ? "One school or pathway has its edition."
+                : `${facts.assignedDirections} schools or pathways have their edition.`,
             actionLabel: "Review assignments",
             actionHref: "/dashboard/academic/rollout",
           };
@@ -117,12 +117,11 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
           id: "time",
           state: "waiting",
           headline: "Waiting for school assignment.",
-          detail: "Set timing after an edition is assigned to schools.",
         }
       : {
           id: "time",
           state: "ready",
-          headline: "Confirm each school's real entry term and week.",
+          headline: "Confirm where each school or class starts.",
           actionLabel: "Set timing",
           actionHref: buildTimingHref(),
         };
@@ -136,17 +135,20 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "plan",
           state: "blocked",
-          headline: "No official edition exists yet.",
-          detail: "Finish the Curriculum lane first, starting with writing.",
-          actionLabel: "Back to Overview flow",
+          headline: "No certified curriculum yet.",
+          detail: "Finish writing and certifying first.",
+          actionLabel: "Back to curriculum",
           actionHref: "/dashboard/academic",
         }
       : facts.stuckPlans > 0
         ? {
             id: "plan",
             state: "blocked",
-            headline: `${facts.stuckPlans} class plan(s) are not on an official edition.`,
-            actionLabel: "Review assignments",
+            headline:
+              facts.stuckPlans === 1
+                ? "One class plan is not on a certified edition."
+                : `${facts.stuckPlans} class plans are not on a certified edition.`,
+            actionLabel: "Fix assignments",
             actionHref: "/dashboard/academic/rollout",
           }
         : facts.classesWithPlans < facts.classesTotal
@@ -160,7 +162,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
           : {
               id: "plan",
               state: "done",
-              headline: "Class teaching plans are in place.",
+              headline: "Every class has a teaching plan.",
               actionLabel: "Open classes",
               actionHref: "/dashboard/classes",
             };
@@ -171,18 +173,18 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "teach",
           state: "ready",
-          headline: "Teach from each class: lessons, slides, flashcards.",
+          headline: "Teach from each class — lessons, slides, practice.",
           actionLabel: "Open classes",
           actionHref: "/dashboard/classes",
         };
 
   const cover: StageStatus =
     plan.state === "blocked"
-      ? { id: "cover", state: "waiting", headline: "Waiting for delivery." }
+      ? { id: "cover", state: "waiting", headline: "Waiting for teaching." }
       : {
           id: "cover",
           state: "ready",
-          headline: "Mark weeks taught so coverage stays accurate.",
+          headline: "Mark weeks taught so progress stays honest.",
           actionLabel: "Record coverage",
           actionHref: "/dashboard/learner-progress?view=delivery",
         };
@@ -193,7 +195,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "evidence",
           state: "ready",
-          headline: "Collect assignments, CBT and projects as evidence.",
+          headline: "Collect homework, tests and projects.",
           actionLabel: "Open grades",
           actionHref: "/dashboard/grades",
         };
@@ -204,7 +206,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "result",
           state: "ready",
-          headline: "Prepare results, then publish for the parent portal.",
+          headline: "Prepare results, then share with parents.",
           actionLabel: "Open results",
           actionHref: "/dashboard/academic/results",
         };

@@ -129,6 +129,7 @@ async function handleRequest(req: NextRequest) {
         classId: plan.class_id ?? null,
         week: currentWeek,
         outcome,
+        autoPublish: ags.auto_publish,
       });
 
       // Stamp last_run_at so this plan sinks to the back of the rotation queue

@@ -179,7 +179,7 @@ export async function GET(
             .eq("file_type", "slide-deck"),
           db
             .from("flashcard_decks")
-            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
+            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number,is_public")
             .or(planOrLessonScope)
             .order("created_at", { ascending: false }),
           // exam_type is not a column — it lives in metadata, the way the
@@ -606,6 +606,56 @@ export async function POST(
       results.push(data);
     }
     return NextResponse.json({ data: results, count: results.length, status });
+  }
+
+  // Publish the class plan so week generators stop refusing it. Teachers used to
+  // leave the workspace, open the full plan page, and hunt for a publish button.
+  if (body.action === "publish_plan") {
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const { data, error } = await db
+      .from("lesson_plans")
+      .update({ status: "published", updated_at: new Date().toISOString() })
+      .eq("id", body.lesson_plan_id)
+      .eq("class_id", id)
+      .select("id,status")
+      .single();
+    if (error)
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ data });
+  }
+
+  // Release a prepared week to students from the class workspace (same write
+  // path as /api/teaching/pending-approval and /api/lesson-plans/.../release-week).
+  if (body.action === "release_week") {
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const week = Number(body.week_number);
+    if (!Number.isFinite(week) || week <= 0) {
+      return NextResponse.json(
+        { error: "week_number must be a positive number" },
+        { status: 400 }
+      );
+    }
+    const { releasePreparedWeek } = await import(
+      "@/lib/academic/release-week-content"
+    );
+    const result = await releasePreparedWeek({
+      planId: String(body.lesson_plan_id),
+      week,
+    });
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json({ data: result });
   }
 
   return NextResponse.json(

@@ -143,13 +143,14 @@ export default function StudentLearningPage() {
       const pendingScoped = filterByAssignmentSession((pendingRows ?? []) as any[], liveTermId);
       setPendingAssignments(pendingScoped.length);
 
-      // 3.5 Due flashcards in live-session decks only
+      // 3.5 Due flashcards in live-session decks only (skip held-for-approval decks)
       const { data: decks } = await withTimeout(
-        db.from('flashcard_decks').select('id, term_id'),
+        db.from('flashcard_decks').select('id, term_id, is_public, lesson_plan_id'),
         { data: [], error: null },
         'learning flashcard decks',
       );
       const liveDeckIds = ((decks ?? []) as any[])
+        .filter((d) => !(d.is_public === false && d.lesson_plan_id))
         .filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true))
         .map((d) => d.id);
       let dueFlashcardsCount = 0;
