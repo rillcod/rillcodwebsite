@@ -8,6 +8,11 @@ interface PullToRefreshContainerProps {
   onRefresh?: () => Promise<void> | void;
 }
 
+/**
+ * Optional pull-to-refresh. When no onRefresh is provided, listeners are not
+ * attached — attaching them on every dashboard page was fighting native scroll
+ * on mobile/PWA (shell scrollTop stayed 0, so every drag looked like a pull).
+ */
 export default function PullToRefreshContainer({ children, onRefresh }: PullToRefreshContainerProps) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,11 +28,19 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   }, [pullDistance]);
 
   useEffect(() => {
+    if (!onRefresh) return;
     if (typeof window === "undefined" || window.innerWidth >= 768) return;
 
     const scrollTop = () => {
+      // Mobile uses document scroll; desktop may use .app-shell-scroll.
+      const docTop =
+        window.scrollY ||
+        document.documentElement.scrollTop ||
+        document.body.scrollTop ||
+        0;
+      if (docTop > 0) return docTop;
       const shell = containerRef.current?.closest(".app-shell-scroll") as HTMLElement | null;
-      return shell?.scrollTop ?? window.scrollY;
+      return shell?.scrollTop ?? 0;
     };
 
     const handleTouchStart = (event: TouchEvent) => {
@@ -65,11 +78,7 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
         setPullDistance(50);
         pullDistanceRef.current = 50;
         try {
-          if (onRefresh) {
-            await onRefresh();
-          }
-          // Do not call router.refresh() by default — on mobile/PWA that remounts
-          // the dashboard, races middleware cookie refresh, and bounces users to login.
+          await onRefresh();
         } catch (error) {
           console.error("Pull to refresh error:", error);
         } finally {
@@ -97,8 +106,8 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   }, [refreshing, onRefresh]);
 
   return (
-    <div ref={containerRef} className="relative flex min-h-0 w-full flex-1 flex-col">
-      {(pullDistance > 0 || refreshing) && (
+    <div ref={containerRef} className="relative flex w-full min-w-0 flex-1 flex-col">
+      {onRefresh && (pullDistance > 0 || refreshing) && (
         <div
           style={{ height: `${pullDistance}px` }}
           className="pointer-events-none fixed left-0 right-0 top-[var(--app-header-height)] z-[60] flex items-center justify-center transition-[height] duration-150 md:hidden"

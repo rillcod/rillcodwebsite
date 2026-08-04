@@ -85,6 +85,24 @@
     button, a, input, select, textarea { touch-action: manipulation; }
     input, select, textarea { font-size: 16px; max-width: 100%; }
 
+    /* Mobile dashboard must use document scroll. Nested overflow-y-auto + h-full
+       flex shells routinely freeze touch scrolling in iOS Safari / installed PWAs. */
+    html, body {
+      height: auto !important;
+      min-height: 100dvh;
+      overflow-x: clip;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: auto;
+    }
+
+    .app-shell-scroll {
+      height: auto !important;
+      max-height: none !important;
+      overflow-y: visible !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
     /* One predictable mobile canvas for every dashboard route. */
     .app-page-main {
       line-height: 1.5;
@@ -192,10 +210,10 @@
     backdrop-filter: blur(12px);
   }
 
-  /* Capacitor native shell — notch / status bar / home indicator */
+  /* Capacitor native shell — notch / status bar / home indicator.
+     Do not lock height/overflow here: that froze dashboard scrolling on phones. */
   html.capacitor {
-    height: 100%;
-    overscroll-behavior: none;
+    min-height: 100%;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -209,7 +227,9 @@
 
   html.capacitor body {
     min-height: 100dvh;
-    overscroll-behavior: none;
+    overflow-x: clip;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .app-mobile-header {

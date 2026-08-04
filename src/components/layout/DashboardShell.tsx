@@ -87,12 +87,14 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell-scroll flex-1 flex flex-col w-full h-full min-h-0 min-w-0 relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+0.5rem)] bg-muted/20 md:bg-background md:pt-0 md:pb-0 overflow-y-auto overflow-x-clip md:overflow-y-auto scroll-smooth print:overflow-visible print:pt-0 print:pb-0 print:block">
+    <div
+      className="app-shell-scroll relative flex w-full min-w-0 flex-1 flex-col overflow-x-clip bg-muted/20 pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+0.5rem)] scroll-smooth print:block print:overflow-visible print:pt-0 print:pb-0 md:h-full md:min-h-0 md:overflow-y-auto md:bg-background md:pt-0 md:pb-0"
+    >
       <DesktopTopNavbar />
       <PullToRefreshContainer>
         {profile && <NewsletterPopup userId={profile.id} />}
         {!hideQr && <StaffQRScanner />}
-        <main className="app-page-main flex-1 max-w-[1750px] w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-3 sm:py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base leading-relaxed">
+        <main className="app-page-main mx-auto w-full min-w-0 max-w-[1750px] flex-1 px-4 py-3 text-[15px] leading-relaxed sm:px-6 sm:py-4 md:py-6 lg:px-10 lg:py-8 lg:text-base xl:px-14 mobile-landscape-padding print:m-0 print:max-w-none print:p-0">
           <PartnerSchoolScopeBanner />
           {children}
         </main>

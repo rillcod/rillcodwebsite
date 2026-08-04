@@ -20,12 +20,12 @@ export default function DashboardLayout({
 }) {
   return (
     <AcademicYearProvider>
-    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-foreground font-sans print:h-auto print:min-h-0 print:bg-card print:text-foreground overflow-x-clip">
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-background font-sans text-foreground md:h-screen md:overflow-hidden print:h-auto print:min-h-0 print:bg-card print:text-foreground">
       {/* Role-simulation banner — only renders when a staff user is previewing
           the app as a different role. Server RBAC is unaffected. */}
       <RoleSimBanner />
 
-      <div className="flex flex-col md:flex-row flex-1 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       {/* Force-password-change guard — renders a blocking modal for bulk-registered students */}
       <PasswordChangeGuard />
 
@@ -35,8 +35,8 @@ export default function DashboardLayout({
       {/* Session expiry banner — non-blocking, triggers silent refresh (Req 16) */}
       <SessionExpiryWrapper />
 
-      <div className="print:hidden h-full flex flex-col">
-        <Suspense fallback={<div className="print:hidden w-64 h-full bg-background border-r border-border animate-pulse" />}>
+      <div className="print:hidden md:flex md:h-full md:flex-col">
+        <Suspense fallback={<div className="print:hidden hidden h-full w-64 animate-pulse border-r border-border bg-background md:block" />}>
           <DashboardNavigation />
         </Suspense>
       </div>
