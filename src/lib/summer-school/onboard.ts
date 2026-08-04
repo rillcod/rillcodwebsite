@@ -298,9 +298,79 @@ export async function ensureClassWithTutor(
   return created?.id ?? null;
 }
 
-/** Summer-school cohort class wrapper. */
+/**
+ * The one live duration-programme offering for this school.
+ *
+ * Exactly one can be active per programme per school — enforced by
+ * uq_active_duration_offering_per_programme_school — so this either finds the
+ * cohort's offering or finds nothing, never a choice between duplicates.
+ */
+async function activeDurationOffering(
+  admin: AnySupabase,
+  schoolId: string,
+): Promise<{ id: string; period_id: string | null } | null> {
+  const { data: offering } = await admin
+    .from('academic_offerings')
+    .select('id')
+    .eq('school_id', schoolId)
+    .eq('academic_model', 'duration_programme')
+    .eq('status', 'active')
+    .maybeSingle();
+  if (!offering?.id) return null;
+
+  const { data: period } = await admin
+    .from('academic_offering_periods')
+    .select('id')
+    .eq('offering_id', offering.id)
+    .order('sequence_number', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return { id: offering.id as string, period_id: (period?.id as string) ?? null };
+}
+
+/**
+ * Summer-school cohort class wrapper.
+ *
+ * Attaches the class to its programme's offering. Without this the cohort class
+ * was created with a school term and no offering at all, so registrants landed
+ * off the programme they had just paid for — which is how Summer School 2026
+ * ended up with its money on one offering and its learners on two others.
+ */
 export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: string, schoolName: string): Promise<string | null> {
-  return ensureClassWithTutor(admin, schoolId, schoolName, SUMMER_CLASS_NAME, `${schoolName} — AI Summer School 2026 cohort`);
+  const classId = await ensureClassWithTutor(
+    admin,
+    schoolId,
+    schoolName,
+    SUMMER_CLASS_NAME,
+    `${schoolName} — ${SUMMER_CLASS_NAME} cohort`,
+  );
+  if (!classId) return null;
+
+  const offering = await activeDurationOffering(admin, schoolId);
+  if (offering) {
+    // term_id is cleared by keep_duration_classes_off_the_term_spine once the
+    // offering lands, so a duration cohort never carries a school term.
+    const { error } = await admin
+      .from('classes')
+      .update({
+        academic_offering_id: offering.id,
+        offering_period_id: offering.period_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classId);
+    if (error) {
+      console.error('[ensureSummerClassWithTutor] could not attach offering:', error.message);
+    }
+  } else {
+    console.error(
+      '[ensureSummerClassWithTutor] no active duration offering for school',
+      schoolId,
+      '— cohort class is not attached to a programme',
+    );
+  }
+
+  return classId;
 }
 
 export async function onboardSummerStudent(
