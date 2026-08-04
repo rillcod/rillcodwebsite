@@ -106,6 +106,54 @@ export default function DashboardNavigation() {
     };
   }, [mobileOpen, isMinimal]);
 
+  // Edge swipe opens the menu on Android-style layouts.
+  // Disabled on iOS Safari — the leading edge is reserved for system Back (HIG).
+  useEffect(() => {
+    if (isMinimal || typeof window === "undefined") return;
+
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (isIOS) return;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    const onStart = (event: TouchEvent) => {
+      if (window.innerWidth >= 768 || mobileOpen) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const rtl = getComputedStyle(document.documentElement).direction === "rtl";
+      const fromLeadingEdge = rtl
+        ? touch.clientX > window.innerWidth - 24
+        : touch.clientX < 24;
+      if (!fromLeadingEdge) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      tracking = true;
+    };
+
+    const onEnd = (event: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      const rtl = getComputedStyle(document.documentElement).direction === "rtl";
+      const dx = touch.clientX - startX;
+      const dy = Math.abs(touch.clientY - startY);
+      const opened = rtl ? dx < -64 && dy < 48 : dx > 64 && dy < 48;
+      if (opened) setMobileOpen(true);
+    };
+
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [isMinimal, mobileOpen]);
+
   useEffect(() => {
     if (isMinimal || !profile) return;
     const db = createClient();

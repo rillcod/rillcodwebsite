@@ -30,8 +30,15 @@
  *     routes also skip weeks that already have content.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import {
+  animate,
+  motion,
+  useDragControls,
+  useMotionValue,
+  useReducedMotion,
+} from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { useOverlayScrollLock } from "@/components/ui/BodyPortal";
@@ -203,11 +210,11 @@ function LiveEventFeed({
   return (
     <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-fuchsia-500/5 p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+        <p className="text-xs font-semibold text-muted-foreground">
           Live progress
         </p>
-        <p className="text-[10px] font-bold text-muted-foreground">
-          {Math.round(progress)}% done
+        <p className="text-xs font-medium tabular-nums text-muted-foreground">
+          {Math.round(progress)}%
         </p>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted/50">
@@ -579,6 +586,36 @@ export default function WeekAIGenerator({
   }, []);
 
   useOverlayScrollLock(true);
+
+  const reduceMotion = useReducedMotion();
+  const dragControls = useDragControls();
+  const sheetY = useMotionValue(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const dismissSheet = () => {
+    if (running) return;
+    if (reduceMotion) {
+      onClose();
+      return;
+    }
+    const height = sheetRef.current?.offsetHeight ?? 480;
+    void animate(sheetY, height + 24, {
+      type: "tween",
+      duration: 0.12,
+      ease: [0.3, 0, 1, 1],
+    }).then(() => onClose());
+  };
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !running) {
+        event.preventDefault();
+        dismissSheet();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [running, reduceMotion]);
 
   const addLog = (msg: string) => {
     setLiveMessage(msg);
@@ -1004,25 +1041,66 @@ export default function WeekAIGenerator({
     >
       <div
         className="absolute inset-0 bg-foreground/40 dark:bg-black/70"
-        onClick={!running ? onClose : undefined}
+        onClick={!running ? dismissSheet : undefined}
       />
 
-      <div className="relative flex w-full max-h-[min(92dvh,100%)] flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card text-card-foreground shadow-2xl sm:max-w-md sm:rounded-3xl pb-[env(safe-area-inset-bottom)]">
+      <motion.div
+        ref={sheetRef}
+        style={{ y: sheetY }}
+        drag={!running && !reduceMotion ? "y" : false}
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.06 }}
+        dragMomentum={false}
+        onDragEnd={(_, info) => {
+          if (running) return;
+          const height = sheetRef.current?.offsetHeight ?? 480;
+          if (
+            info.velocity.y > 500 ||
+            info.offset.y > Math.max(56, height * 0.2)
+          ) {
+            dismissSheet();
+            return;
+          }
+          void animate(sheetY, 0, {
+            type: "tween",
+            duration: reduceMotion ? 0.01 : 0.1,
+            ease: [0.2, 0, 0, 1],
+          });
+        }}
+        className="relative flex w-full max-h-[min(92dvh,100%)] flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card text-card-foreground shadow-[0_-8px_32px_rgba(15,23,42,0.12)] sm:max-w-md sm:rounded-3xl"
+      >
+        {!running && (
+          <div
+            className="flex shrink-0 justify-center sm:hidden"
+            onPointerDown={(event) => {
+              if (event.button !== 0 || reduceMotion) return;
+              dragControls.start(event);
+            }}
+            style={{ touchAction: "none" }}
+            aria-hidden
+          >
+            <div className="flex min-h-11 w-full items-center justify-center pt-2">
+              <div className="h-1 w-8 rounded-full bg-muted-foreground/35" />
+            </div>
+          </div>
+        )}
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 pb-3 pt-3 sm:px-6 sm:pb-4 sm:pt-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 shadow-lg shadow-primary/25">
-              <SparklesIcon className="h-5 w-5 text-white" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <SparklesIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">
+              <p className="text-xs font-semibold text-muted-foreground">
                 {running
                   ? "Preparing this week"
                   : done
                   ? "Ready to review"
                   : "Prepare this week"}
               </p>
-              <p className="truncate text-sm font-black text-foreground">
+              <p className="truncate text-base font-semibold text-foreground" dir="auto">
                 Week {week.week}: {week.topic}
               </p>
             </div>
@@ -1030,8 +1108,8 @@ export default function WeekAIGenerator({
           {!running && (
             <button
               type="button"
-              onClick={onClose}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={dismissSheet}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Close"
             >
               <XMarkIcon className="h-5 w-5" />
@@ -1254,23 +1332,23 @@ export default function WeekAIGenerator({
             <button
               type="button"
               onClick={run}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/25 transition-all active:scale-[0.98]"
+              className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground transition-opacity active:scale-[0.98] disabled:opacity-50"
             >
-              <SparklesIcon className="h-4 w-4" /> Prepare this week
+              <SparklesIcon className="h-5 w-5" /> Prepare this week
             </button>
           )}
           {blocked && (
             <button
               type="button"
-              onClick={onClose}
-              className="flex-1 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+              onClick={dismissSheet}
+              className="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-border bg-muted/40 px-4 py-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
             >
               Close
             </button>
           )}
           {running && (
-            <div className="flex flex-1 cursor-not-allowed select-none items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 py-3.5 text-xs font-black uppercase tracking-widest text-primary">
-              <ArrowPathIcon className="h-4 w-4 animate-spin" /> Working on it…
+            <div className="flex min-h-12 flex-1 cursor-not-allowed select-none items-center justify-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3.5 text-[15px] font-semibold text-muted-foreground">
+              <ArrowPathIcon className="h-5 w-5 animate-spin" /> Working on it…
             </div>
           )}
           {(done || error) && (
@@ -1279,22 +1357,22 @@ export default function WeekAIGenerator({
                 <button
                   type="button"
                   onClick={run}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+                  className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
-                  <ArrowPathIcon className="h-4 w-4" /> Try again
+                  <ArrowPathIcon className="h-5 w-5" /> Try again
                 </button>
               )}
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+                onClick={dismissSheet}
+                className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground transition-opacity active:scale-[0.98]"
               >
                 {done ? "Done" : "Close"}
               </button>
             </>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>,
     document.body
   );
