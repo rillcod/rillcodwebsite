@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
 
 export const dynamic = "force-dynamic";
@@ -33,14 +34,19 @@ export async function POST(
   const { id } = await context.params;
 
   try {
-    const supabase = await createServerClient();
+    const sessionClient = await createServerClient();
     const cronSecret = extractCronSecret(req);
     const isCron = isValidCronSecret(cronSecret);
     const staff = isCron
       ? { id: "cron", role: "admin", school_id: null }
-      : await requireStaffUser(supabase);
+      : await requireStaffUser(sessionClient);
     if (!staff)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Identity from the session client, data work on the admin client — the
+    // same split generate-slides uses. Without it a cron run has no session,
+    // RLS returns zero rows, and a plan that exists reports as not found.
+    const supabase = createAdminClient();
 
     const { data: plan, error: planErr } = await (supabase as any)
       .from("lesson_plans")
@@ -53,11 +59,10 @@ export async function POST(
     const validationError = validateLessonPlanForGeneration(
       planErr ? null : plan
     );
-    if (validationError)
-      return NextResponse.json(
-        { error: validationError.error },
-        { status: validationError.status }
-      );
+    if (validationError) {
+      const { status, ...payload } = validationError;
+      return NextResponse.json(payload, { status });
+    }
     if (!isCron && staff.role !== "admin") {
       const teacherSchoolIds =
         staff.role === "teacher"
@@ -98,6 +103,10 @@ export async function POST(
           .map((w) => Number(w))
           .filter((w) => Number.isFinite(w))
       : null;
+    // Opt-in publish: anything other than an explicit true is held for approval.
+    // Omitting is_active used to inherit the DB default (true), so unattended
+    // sweeps with hold-for-approval still put projects in front of students.
+    const projectActive = body.auto_publish === true;
     const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
       week: number;
       topic: string;
@@ -310,6 +319,7 @@ export async function POST(
               assignment_type: "project",
               due_date: dueDate.toISOString(),
               max_points: week.practical_assessment?.max_score || 100,
+              is_active: projectActive,
               metadata: {
                 ...(d.metadata as Record<string, unknown> | undefined),
                 lesson_plan_id: plan.id,

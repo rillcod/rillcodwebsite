@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
 
 export const dynamic = "force-dynamic";
@@ -58,14 +59,22 @@ export async function POST(
   const { id } = await context.params;
 
   try {
-    const supabase = await createServerClient();
+    const sessionClient = await createServerClient();
     const cronSecret = extractCronSecret(req);
     const isCron = isValidCronSecret(cronSecret);
     const staff = isCron
       ? { id: "cron", role: "admin", school_id: null }
-      : await requireStaffUser(supabase);
+      : await requireStaffUser(sessionClient);
     if (!staff)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Identity comes from the session client above; the data work runs on the
+    // admin client, exactly as generate-slides does. A cron run has no browser
+    // session, so an RLS-scoped read returned zero rows and the plan looked
+    // deleted — automated generation reported "Lesson plan not found" for
+    // plans that were sitting right there. Scope is still enforced, in code,
+    // by canAccessLessonScope below.
+    const supabase = createAdminClient();
 
     const { data: plan, error: planErr } = await supabase
       .from("lesson_plans")
@@ -78,11 +87,12 @@ export async function POST(
     const validationError = validateLessonPlanForGeneration(
       planErr ? null : plan
     );
-    if (validationError)
-      return NextResponse.json(
-        { error: validationError.error },
-        { status: validationError.status }
-      );
+    if (validationError) {
+      // Pass the whole block through — reason/detail/action let the caller stop
+      // the run once with a fixable message instead of failing every step.
+      const { status, ...payload } = validationError;
+      return NextResponse.json(payload, { status });
+    }
     if (!isCron && staff.role !== "admin") {
       const teacherSchoolIds =
         staff.role === "teacher"
@@ -115,8 +125,8 @@ export async function POST(
           .filter((w) => Number.isFinite(w))
       : null;
     // Auto-publish generated lessons by default (visible to students immediately).
-    // Pass auto_publish:false to keep them as drafts for manual review.
-    const lessonStatus = body.auto_publish === false ? "draft" : "active";
+    // Opt-in publish: anything other than an explicit true stays draft for review.
+    const lessonStatus = body.auto_publish === true ? "active" : "draft";
     const weeks = extractLessonPlanOperationWeeks(plan!.plan_data) as Array<{
       week: number;
       topic: string;

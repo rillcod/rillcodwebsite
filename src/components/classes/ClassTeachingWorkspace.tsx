@@ -9,6 +9,7 @@ import {
   SparklesIcon,
 } from "@/lib/icons";
 import type { StageStatus } from "@/lib/academic/status";
+import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   buildAssignmentNewHref,
   buildClassAssessmentHref,
@@ -211,6 +212,7 @@ export function ClassTeachingWorkspace({
     if (!plan) return;
     setAiBusy(true);
     setError("");
+    setErrorAction(null);
     try {
       const r = await fetch(`/api/lesson-plans/${plan.id}/generate-lessons`, {
         method: "POST",
@@ -218,8 +220,17 @@ export function ClassTeachingWorkspace({
         body: JSON.stringify({}),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok)
-        throw new Error(j.error || j.detail || "AI could not generate lessons");
+      if (!r.ok) {
+        // The guard now names the fix (publish the plan) and where to do it.
+        // Dropping that on the floor is what made this look unrecoverable.
+        if (j.action_href && j.action_label) {
+          setErrorAction({ href: j.action_href, label: j.action_label });
+        }
+        throw new Error(
+          [j.error, j.detail].filter(Boolean).join(" — ") ||
+            "AI could not generate lessons"
+        );
+      }
       await load(courseId);
     } catch (e: any) {
       setError(e.message || "AI generate failed");
@@ -229,6 +240,10 @@ export function ClassTeachingWorkspace({
   }
   const plan = data?.plan,
     progress = data?.progress;
+  // Asked, not re-derived: this is the same guard the generators enforce, so
+  // the button and the API can never disagree about whether a plan can run.
+  const planBlock = plan ? validateLessonPlanForGeneration(plan) : null;
+  const planReady = Boolean(plan) && planBlock === null;
   // Explicit array type: weeks comes back untyped, and without this the derived
   // week rows infer as any and every filter callback loses its parameter type.
   const curriculumWeeks: any[] = weeks.length
@@ -588,14 +603,44 @@ export function ClassTeachingWorkspace({
                 Open →
               </span>
             </Link>
+            {/* Readiness is stated before anything is pressed. A draft plan
+                refuses every generator, and a teacher had no way to see that
+                until five steps had failed. */}
+            {!planReady && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md border border-amber-500/30 bg-amber-500/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                    {plan.status ?? "draft"}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                    Not ready to generate
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-foreground/80">
+                  {planBlock?.detail ?? planBlock?.error}
+                </p>
+                <Link
+                  href={planBlock?.action_href ?? buildLessonPlanHref(plan.id)}
+                  className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-[10px] font-black uppercase tracking-widest text-amber-800 transition-colors hover:bg-amber-500/25 dark:text-amber-200"
+                >
+                  {planBlock?.action_label ?? "Open plan"} →
+                </Link>
+              </div>
+            )}
             {canEdit && (
               <button
                 type="button"
-                disabled={busy || aiBusy || curriculumWeeks.length === 0}
+                disabled={
+                  busy || aiBusy || curriculumWeeks.length === 0 || !planReady
+                }
                 onClick={() => void generateLessonsWithAi()}
                 // Greyed out with no reason given is indistinguishable from broken.
                 title={
-                  curriculumWeeks.length === 0
+                  !planReady
+                    ? `This plan is a ${
+                        plan.status ?? "draft"
+                      }. Publish it before generating.`
+                    : curriculumWeeks.length === 0
                     ? "This plan has no curriculum weeks yet, so there is nothing to generate lessons for."
                     : undefined
                 }

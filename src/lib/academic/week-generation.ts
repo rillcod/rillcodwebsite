@@ -11,8 +11,15 @@
  */
 import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
 
-export const WEEK_CONTENT_TYPES = ['lessons', 'assignments', 'projects'] as const;
-export type WeekContentType = (typeof WEEK_CONTENT_TYPES)[number];
+// The content types and their order are settings, not generator trivia — see
+// auto-generate-settings, which the cron, the plan page and the readiness
+// automation all read from too. Re-exported so existing importers are unchanged.
+export {
+  WEEK_CONTENT_TYPES,
+  normaliseTypes,
+  type WeekContentType,
+} from './auto-generate-settings';
+import { normaliseTypes } from './auto-generate-settings';
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -24,14 +31,6 @@ export function currentTermWeek(termStart: string | null): number {
   const elapsed = Date.now() - started;
   if (elapsed < 0) return 1; // term has not started yet
   return Math.max(1, Math.ceil(elapsed / MS_PER_WEEK));
-}
-
-export function normaliseTypes(raw: unknown): WeekContentType[] {
-  const list = Array.isArray(raw) ? raw : WEEK_CONTENT_TYPES;
-  const picked = list.filter((t): t is WeekContentType =>
-    WEEK_CONTENT_TYPES.includes(t as WeekContentType),
-  );
-  return picked.length ? picked : [...WEEK_CONTENT_TYPES];
 }
 
 export type WeekGenerationOutcome = {
@@ -57,7 +56,17 @@ export async function generatePlanWeek(input: {
   /** Cron secret for unattended runs; omit and pass `cookie` for a signed-in teacher. */
   cronSecret?: string;
   cookie?: string;
+  /**
+   * Publish generated content straight to students. Defaults to false: nobody
+   * has read it yet.
+   *
+   * Generators treat anything other than an explicit `auto_publish: true` as
+   * hold-for-approval. This function still defaults the field to false so the
+   * unattended sweep never accidentally opts in.
+   */
+  autoPublish?: boolean;
 }): Promise<WeekGenerationOutcome> {
+  const autoPublish = input.autoPublish === true;
   const types = normaliseTypes(input.types);
   const outcome: WeekGenerationOutcome = {
     week: input.week,
@@ -73,20 +82,46 @@ export async function generatePlanWeek(input: {
       if (input.cronSecret) headers['x-cron-secret'] = input.cronSecret;
       if (input.cookie) headers.cookie = input.cookie;
 
+      // Slides is a single-week endpoint that answers with JSON; the other
+      // three are multi-week and stream their progress. Same pipeline, two
+      // shapes — sending the streaming body to slides asks it for week NaN.
+      const isSlides = type === 'slides';
+
       const res = await fetch(`${input.baseUrl}/api/lesson-plans/${input.planId}/generate-${type}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ only_weeks: [input.week], max_weeks: 1 }),
+        body: JSON.stringify(
+          isSlides
+            ? { week: input.week }
+            : { only_weeks: [input.week], max_weeks: 1, auto_publish: autoPublish },
+        ),
         cache: 'no-store',
       });
 
       if (!res.ok) {
-        outcome.byType[type] = { error: `HTTP ${res.status}` };
+        let detail = `HTTP ${res.status}`;
+        // The plan guards answer with a reason worth keeping — "this plan is a
+        // draft" is actionable, "HTTP 422" is not.
+        try {
+          const body = await res.json();
+          if (body?.error) detail = String(body.error);
+        } catch {
+          /* not JSON — the status is all there is */
+        }
+        outcome.byType[type] = { error: detail };
         outcome.failedTypes.push(type);
         continue;
       }
 
-      const { generated, skipped } = await consumeSSEUntilDone(res);
+      let generated = 0;
+      let skipped = 0;
+      if (isSlides) {
+        const body = await res.json().catch(() => ({}));
+        generated = Number(body?.generated) || 0;
+        skipped = Number(body?.skipped) || 0;
+      } else {
+        ({ generated, skipped } = await consumeSSEUntilDone(res));
+      }
       outcome.generated += generated;
       outcome.skipped += skipped;
       outcome.byType[type] = { generated, skipped };
