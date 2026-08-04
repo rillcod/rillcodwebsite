@@ -4443,7 +4443,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Generate confirmation modal — replaces window.confirm for dry-run preview */}
       {genConfirm && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4">
           <div className="bg-card border border-white/[0.12] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3">
@@ -4524,7 +4524,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Progression Run Confirmation Modal */}
       {progressionRunConfirm && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4">
           <div className="bg-card border border-white/[0.12] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-3">
@@ -4628,7 +4628,7 @@ export default function LessonPlanDetailPage() {
 
       {/* ── Clone / Deploy Plan Modal ─────────────────────────────────────── */}
       {cloneModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4">
+        <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
           <div className="bg-card border border-white/10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
               <div>
@@ -4715,7 +4715,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Week View Panel */}
       {viewWeek && (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:flex-row md:justify-end">
+        <div className="app-fixed-overlay fixed inset-0 z-[120] flex flex-col justify-end md:flex-row md:justify-end">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setViewWeek(null)}
@@ -5383,7 +5383,7 @@ export default function LessonPlanDetailPage() {
 
       {/* Week Edit Panel — bottom sheet on mobile, side panel on md+ */}
       {weekPanelOpen && weekDraft && (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:flex-row md:justify-end">
+        <div className="app-fixed-overlay fixed inset-0 z-[120] flex flex-col justify-end md:flex-row md:justify-end">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={cancelEdit}

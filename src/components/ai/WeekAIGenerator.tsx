@@ -30,9 +30,11 @@
  *     routes also skip weeks that already have content.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { useOverlayScrollLock } from "@/components/ui/BodyPortal";
 import {
   SparklesIcon,
   XMarkIcon,
@@ -226,8 +228,8 @@ function LiveEventFeed({
         </div>
       )}
       {events.length > 0 && (
-        <div className="max-h-40 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {[...events].reverse().map((event, i) => (
+        <div className="max-h-28 space-y-1.5 overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-40">
+          {[...events].reverse().slice(0, 12).map((event, i) => (
             <p
               key={`${events.length - i}-${event.slice(0, 24)}`}
               className="rounded-lg bg-background/50 px-2.5 py-1.5 text-[11px] leading-4 text-muted-foreground"
@@ -570,6 +572,13 @@ export default function WeekAIGenerator({
   // school account would just produce a 403 the teacher cannot act on.
   const { profile } = useAuth();
   const canPublish = profile?.role === "admin" || profile?.role === "teacher";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useOverlayScrollLock(true);
 
   const addLog = (msg: string) => {
     setLiveMessage(msg);
@@ -984,21 +993,28 @@ export default function WeekAIGenerator({
     result.projectId
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Prepare week ${week.week}`}
+    >
       <div
-        className="absolute inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-md"
+        className="absolute inset-0 bg-foreground/40 dark:bg-black/70"
         onClick={!running ? onClose : undefined}
       />
 
-      <div className="relative w-full sm:max-w-md bg-card text-card-foreground border border-border backdrop-blur-2xl shadow-2xl rounded-t-[2.5rem] sm:rounded-3xl overflow-hidden transition-all duration-300">
+      <div className="relative flex w-full max-h-[min(92dvh,100%)] flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card text-card-foreground shadow-2xl sm:max-w-md sm:rounded-3xl pb-[env(safe-area-inset-bottom)]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 flex items-center justify-center shadow-lg shadow-primary/25">
-              <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 shadow-lg shadow-primary/25">
+              <SparklesIcon className="h-5 w-5 text-white" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">
                 {running
                   ? "Preparing this week"
@@ -1006,50 +1022,53 @@ export default function WeekAIGenerator({
                   ? "Ready to review"
                   : "Prepare this week"}
               </p>
-              <p className="text-sm font-black text-foreground truncate max-w-[220px]">
+              <p className="truncate text-sm font-black text-foreground">
                 Week {week.week}: {week.topic}
               </p>
             </div>
           </div>
           {!running && (
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close"
             >
-              <XMarkIcon className="w-5 h-5" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           )}
         </div>
 
-        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 custom-scrollbar">
           {blocked && (
-            <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4 space-y-3">
+            <div className="space-y-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                <span className="rounded-md border border-amber-500/30 bg-amber-500/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
                   {blocked.status ?? "Draft"} plan
                 </span>
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
                   One quick step first
                 </p>
               </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
+              <p className="text-xs leading-relaxed text-foreground/80">
                 {blocked.message}
               </p>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 {blocked.fixableByPublishing && canPublish && (
                   <button
+                    type="button"
                     onClick={publishAndRun}
                     disabled={publishing}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-500 disabled:opacity-50"
                   >
                     {publishing ? (
                       <>
-                        <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                         Publishing…
                       </>
                     ) : (
                       <>
-                        <CheckCircleIcon className="w-3.5 h-3.5" />
+                        <CheckCircleIcon className="h-3.5 w-3.5" />
                         Publish &amp; prepare week
                       </>
                     )}
@@ -1059,7 +1078,7 @@ export default function WeekAIGenerator({
                   href={`/dashboard/lesson-plans/${planId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-[11px] font-black uppercase tracking-widest rounded-xl transition-all"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 py-2.5 text-[11px] font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                 >
                   {blocked.fixableByPublishing && canPublish
                     ? "Review plan first"
@@ -1067,13 +1086,13 @@ export default function WeekAIGenerator({
                 </a>
               </div>
               {blocked.fixableByPublishing && !canPublish && (
-                <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                <p className="text-[10px] leading-relaxed text-muted-foreground/80">
                   Your account cannot publish plans — ask an admin or the plan
                   owner to publish it.
                 </p>
               )}
               {blocked.fixableByPublishing && canPublish && (
-                <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                <p className="text-[10px] leading-relaxed text-muted-foreground/80">
                   Publishing locks this week&apos;s syllabus as the source for
                   everything prepared from it.
                 </p>
@@ -1082,14 +1101,14 @@ export default function WeekAIGenerator({
           )}
 
           {!running && !done && !error && !blocked && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Builds a full week for your class: a{" "}
-              <strong className="text-foreground font-bold">lesson</strong>,{" "}
-              <strong className="text-foreground font-bold">slides</strong>,{" "}
-              <strong className="text-foreground font-bold">practice cards</strong>
+              <strong className="font-bold text-foreground">lesson</strong>,{" "}
+              <strong className="font-bold text-foreground">slides</strong>,{" "}
+              <strong className="font-bold text-foreground">practice cards</strong>
               ,{" "}
-              <strong className="text-foreground font-bold">homework</strong>, and a{" "}
-              <strong className="text-foreground font-bold">project</strong>.
+              <strong className="font-bold text-foreground">homework</strong>, and a{" "}
+              <strong className="font-bold text-foreground">project</strong>.
               Anything you already have is kept as-is. Students only see it after
               you release it.
             </p>
@@ -1146,9 +1165,9 @@ export default function WeekAIGenerator({
           </div>
 
           {done && hasResult && (
-            <div className="space-y-2 pt-2 border-t border-border">
+            <div className="space-y-2 border-t border-border pt-2">
               {result.skipped.length > 0 && (
-                <p className="text-[10px] text-muted-foreground italic">
+                <p className="text-[10px] italic text-muted-foreground">
                   Already had these, so they were left alone:{" "}
                   {result.skipped.join(", ")}
                 </p>
@@ -1158,10 +1177,10 @@ export default function WeekAIGenerator({
                   href={`/dashboard/lessons/${result.lessonId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-primary/10 border border-primary/20 hover:border-primary/40 text-xs text-primary font-black uppercase tracking-widest hover:bg-primary/20 transition-all duration-300 shadow-md"
+                  className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-primary transition-all hover:border-primary/40 hover:bg-primary/20"
                 >
                   <span className="flex items-center gap-2">
-                    <BookOpenIcon className="w-4 h-4" /> Open Lesson
+                    <BookOpenIcon className="h-4 w-4" /> Open Lesson
                   </span>
                   <span>→</span>
                 </a>
@@ -1171,11 +1190,10 @@ export default function WeekAIGenerator({
                   href={`/dashboard/lessons/${result.lessonId}?tab=materials#learning-slides`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 text-xs text-cyan-700 dark:text-cyan-300 font-black uppercase tracking-widest hover:bg-cyan-500/20 transition-all duration-300 shadow-md"
+                  className="flex items-center justify-between rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-cyan-700 transition-all hover:border-cyan-500/40 hover:bg-cyan-500/20 dark:text-cyan-300"
                 >
                   <span className="flex items-center gap-2">
-                    <PresentationChartLineIcon className="w-4 h-4" /> Open
-                    Slides
+                    <PresentationChartLineIcon className="h-4 w-4" /> Open Slides
                   </span>
                   <span>→</span>
                 </a>
@@ -1185,11 +1203,10 @@ export default function WeekAIGenerator({
                   href={`/dashboard/flashcards?deckId=${result.deckId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 text-xs text-amber-600 dark:text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all duration-300 shadow-md"
+                  className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-amber-600 transition-all hover:border-amber-500/40 hover:bg-amber-500/20 dark:text-amber-400"
                 >
                   <span className="flex items-center gap-2">
-                    <BoltIcon className="w-4 h-4 animate-pulse" /> Open
-                    Practice Cards
+                    <BoltIcon className="h-4 w-4" /> Open Practice Cards
                   </span>
                   <span>→</span>
                 </a>
@@ -1199,11 +1216,10 @@ export default function WeekAIGenerator({
                   href={`/dashboard/assignments/${result.assignmentId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-xs text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all duration-300 shadow-md"
+                  className="flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-emerald-600 transition-all hover:border-emerald-500/40 hover:bg-emerald-500/20 dark:text-emerald-400"
                 >
                   <span className="flex items-center gap-2">
-                    <ClipboardDocumentListIcon className="w-4 h-4" /> Open
-                    Homework
+                    <ClipboardDocumentListIcon className="h-4 w-4" /> Open Homework
                   </span>
                   <span>→</span>
                 </a>
@@ -1213,10 +1229,10 @@ export default function WeekAIGenerator({
                   href={`/dashboard/projects/${result.projectId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 text-xs text-purple-600 dark:text-purple-400 font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all duration-300 shadow-md"
+                  className="flex items-center justify-between rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-purple-600 transition-all hover:border-purple-500/40 hover:bg-purple-500/20 dark:text-purple-400"
                 >
                   <span className="flex items-center gap-2">
-                    <RocketLaunchIcon className="w-4 h-4" /> Open Project
+                    <RocketLaunchIcon className="h-4 w-4" /> Open Project
                   </span>
                   <span>→</span>
                 </a>
@@ -1225,49 +1241,53 @@ export default function WeekAIGenerator({
           )}
 
           {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3.5">
-              <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold leading-5">
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3.5">
+              <p className="text-xs font-semibold leading-5 text-rose-600 dark:text-rose-400">
                 {error}
               </p>
             </div>
           )}
         </div>
 
-        <div className="px-6 pb-6 pt-4 border-t border-border flex gap-3">
+        <div className="flex shrink-0 gap-3 border-t border-border px-5 py-4 sm:px-6">
           {!running && !done && !blocked && (
             <button
+              type="button"
               onClick={run}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all duration-300 transform active:scale-95"
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/25 transition-all active:scale-[0.98]"
             >
-              <SparklesIcon className="w-4 h-4" /> Prepare this week
+              <SparklesIcon className="h-4 w-4" /> Prepare this week
             </button>
           )}
           {blocked && (
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200"
+              className="flex-1 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
             >
               Close
             </button>
           )}
           {running && (
-            <div className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest rounded-2xl cursor-not-allowed select-none shadow-md">
-              <ArrowPathIcon className="w-4 h-4 animate-spin" /> Working on it…
+            <div className="flex flex-1 cursor-not-allowed select-none items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 py-3.5 text-xs font-black uppercase tracking-widest text-primary">
+              <ArrowPathIcon className="h-4 w-4 animate-spin" /> Working on it…
             </div>
           )}
           {(done || error) && (
             <>
               {error && (
                 <button
+                  type="button"
                   onClick={run}
-                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                 >
-                  <ArrowPathIcon className="w-4 h-4" /> Try again
+                  <ArrowPathIcon className="h-4 w-4" /> Try again
                 </button>
               )}
               <button
+                type="button"
                 onClick={onClose}
-                className="flex-1 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200"
+                className="flex-1 rounded-2xl border border-border bg-muted/40 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
               >
                 {done ? "Done" : "Close"}
               </button>
@@ -1275,6 +1295,7 @@ export default function WeekAIGenerator({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

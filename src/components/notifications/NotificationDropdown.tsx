@@ -209,8 +209,14 @@ export default function NotificationDropdown() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(v => !v)}
-        className="relative p-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all rounded-lg outline-none"
+        type="button"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          setIsOpen((v) => !v);
+        }}
+        onClick={() => setIsOpen((v) => !v)}
+        className="relative rounded-lg p-2 text-sidebar-foreground/50 outline-none hover:bg-sidebar-foreground/[0.06] hover:text-sidebar-foreground"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
       >
         <BellIcon className="w-5 h-5 md:w-6 md:h-6" />

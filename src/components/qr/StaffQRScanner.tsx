@@ -254,7 +254,7 @@ export default function StaffQRScanner() {
 
       {/* ── Modal overlay ── */}
       {open && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 print:hidden">
+        <div className="app-fixed-overlay fixed inset-0 z-[200] flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4 print:hidden">
           <div className="w-full sm:max-w-md bg-[#0f0f1a] border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
 
             {/* Header */}

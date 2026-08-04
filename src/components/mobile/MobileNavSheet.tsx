@@ -2,6 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -135,6 +136,11 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
   const firstMatch = filteredGroups[0]?.items[0];
   // While typing, drop the secondary chrome so results keep every row of the shrunken sheet
   const compactChrome = isSearching || keyboardInset > 0;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // "Go" on the mobile keyboard opens the top result instead of leaving the user to aim at it
   const submitSearch = (event: React.FormEvent) => {
@@ -145,39 +151,40 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
     router.push(firstMatch.href);
   };
 
-  if (!profile) return null;
+  if (!mounted || !profile) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] md:hidden">
+        <div className="fixed inset-0 z-[110] md:hidden">
           <motion.button
             type="button"
             aria-label="Close app menu"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             onClick={onClose}
-            className="absolute inset-0 w-full h-full bg-black/35 dark:bg-black/60 backdrop-blur-[2px]"
+            className="absolute inset-0 h-full w-full bg-black/40 dark:bg-black/55"
           />
 
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            transition={{ type: 'tween', duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             drag={keyboardInset ? false : 'y'}
             dragConstraints={{ top: 0 }}
-            dragElastic={0.16}
+            dragElastic={0.08}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 100 || info.velocity.y > 500) onClose();
+              if (info.offset.y > 80 || info.velocity.y > 700) onClose();
             }}
             style={
               keyboardInset
                 ? { bottom: keyboardInset, maxHeight: `calc(100dvh - ${keyboardInset}px - 1rem)`, paddingBottom: 0 }
                 : undefined
             }
-            className="absolute bottom-0 left-0 right-0 max-h-[90dvh] bg-card border-t border-border rounded-t-[1.75rem] shadow-2xl flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
+            className="absolute bottom-0 left-0 right-0 flex max-h-[90dvh] flex-col overflow-hidden rounded-t-[1.75rem] border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-2xl will-change-transform"
             role="dialog"
             aria-modal="true"
             aria-label="App menu"
@@ -252,7 +259,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.18 }}
+                              transition={{ duration: 0.12 }}
                               className="overflow-hidden"
                             >
                               <div className="space-y-1">
@@ -365,6 +372,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

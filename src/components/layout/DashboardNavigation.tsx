@@ -1208,8 +1208,13 @@ export default function DashboardNavigation() {
           <NotificationDropdown />
           <button
             type="button"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              setMobileOpen(true);
+            }}
             onClick={() => setMobileOpen(true)}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-full active:bg-muted transition-colors"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full active:bg-muted"
             aria-label="Open account and app menu"
           >
             <span className="flex w-9 h-9 items-center justify-center rounded-full bg-primary text-white font-bold text-sm shadow-sm">
@@ -1390,10 +1395,15 @@ export default function DashboardNavigation() {
 
         <button
           type="button"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            setMobileOpen(true);
+          }}
           onClick={() => setMobileOpen(true)}
           aria-expanded={mobileOpen}
           aria-label="Open app menu"
-          className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 transition-transform active:scale-95"
+          className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 active:scale-95"
         >
           <span className={`flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${menuActive || mobileOpen ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
             <Bars3Icon className="w-5 h-5" />

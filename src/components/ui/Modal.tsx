@@ -2,6 +2,7 @@
 
 import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
+import BodyPortal, { useOverlayScrollLock } from '@/components/ui/BodyPortal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -32,10 +33,11 @@ const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
   };
 
+  useOverlayScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
 
-    const previousOverflow = document.body.style.overflow;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const handleCloseRequest = (event: Event) => {
       event.preventDefault();
@@ -67,13 +69,11 @@ const Modal: React.FC<ModalProps> = ({
       }
     };
 
-    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('rillcod:native-back', handleCloseRequest);
     requestAnimationFrame(() => modalRef.current?.focus());
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('rillcod:native-back', handleCloseRequest);
       previouslyFocused?.focus();
@@ -83,58 +83,56 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-hidden overscroll-contain">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-foreground/35 backdrop-blur-[1px] transition-opacity"
-        onClick={closeOnBackdrop ? onClose : undefined}
-      />
-
-      {/* Modal */}
-      <div className="flex min-h-full items-end justify-center px-0 pt-[var(--safe-area-top)] sm:items-center sm:p-4">
+    <BodyPortal>
+      <div className="fixed inset-0 z-[120] overflow-hidden overscroll-contain">
         <div
-          ref={modalRef}
-          className={`relative flex max-h-[calc(100dvh-var(--safe-area-top))] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg ${sizeClasses[size]} transform transition-all`}
-          onClick={(e) => e.stopPropagation()}
-          tabIndex={-1}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={title ? titleId : undefined}
-        >
-          {/* Header */}
-          {(title || showCloseButton) && (
-            <div className="flex flex-shrink-0 items-center justify-between border-b border-border p-4 sm:p-6">
-              {title && (
-                <h3
-                  id={titleId}
-                  className="text-lg font-semibold text-foreground"
-                >
-                  {title}
-                </h3>
-              )}
-              {showCloseButton && (
-                <button
-                  onClick={onClose}
-                  className="p-2 text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
-                  aria-label="Close modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          )}
+          className="fixed inset-0 bg-foreground/40 transition-opacity"
+          onClick={closeOnBackdrop ? onClose : undefined}
+        />
 
-          {/* Content */}
-          <div className="overflow-y-auto overscroll-contain p-4 pb-[max(1rem,var(--safe-area-bottom))] sm:p-6">
-            {children}
+        <div className="flex min-h-full items-end justify-center px-0 pt-[var(--safe-area-top)] sm:items-center sm:p-4">
+          <div
+            ref={modalRef}
+            className={`relative flex max-h-[min(92dvh,calc(100dvh-var(--safe-area-top)))] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg ${sizeClasses[size]}`}
+            onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+          >
+            {(title || showCloseButton) && (
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-border p-4 sm:p-6">
+                {title && (
+                  <h3
+                    id={titleId}
+                    className="text-lg font-semibold text-foreground"
+                  >
+                    {title}
+                  </h3>
+                )}
+                {showCloseButton && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-md p-2 text-muted-foreground/70 hover:bg-muted hover:text-muted-foreground"
+                    aria-label="Close modal"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="overflow-y-auto overscroll-contain p-4 pb-[max(1rem,var(--safe-area-bottom))] sm:p-6">
+              {children}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </BodyPortal>
   );
 };
 
-// Modal components for common use cases
 export const ConfirmModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -171,14 +169,16 @@ export const ConfirmModal: React.FC<{
         <p className="text-muted-foreground">{message}</p>
         <div className="flex justify-end space-x-3">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-foreground/80 bg-card border border-border rounded-md hover:bg-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground/80 hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             {cancelText}
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
-            className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${variantClasses[variant]}`}
+            className={`rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${variantClasses[variant]}`}
           >
             {confirmText}
           </button>
@@ -188,4 +188,4 @@ export const ConfirmModal: React.FC<{
   );
 };
 
-export default Modal; 
+export default Modal;
