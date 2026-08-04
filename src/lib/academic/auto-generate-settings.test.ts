@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_AUTO_GENERATE_SETTINGS,
+  WEEK_CONTENT_TYPES,
+  describeAutoGenerateSettings,
+  normaliseTypes,
+  parseAutoGenerateSettings,
+} from './auto-generate-settings';
+
+describe('WEEK_CONTENT_TYPES', () => {
+  it('lists slides after the lesson they are rendered from', () => {
+    // Slides read the saved lesson. Ahead of it they fail every time with
+    // "generate the lesson before creating its slides".
+    expect(WEEK_CONTENT_TYPES.indexOf('slides')).toBeGreaterThan(
+      WEEK_CONTENT_TYPES.indexOf('lessons'),
+    );
+  });
+});
+
+describe('parseAutoGenerateSettings', () => {
+  it('treats a missing auto_publish as hold-for-approval', () => {
+    // The whole point of the approval queue. An absent flag must never be read
+    // as permission to publish AI writing to learners.
+    expect(parseAutoGenerateSettings({ enabled: true }).auto_publish).toBe(false);
+    expect(parseAutoGenerateSettings({}).auto_publish).toBe(false);
+    expect(parseAutoGenerateSettings(null).auto_publish).toBe(false);
+    expect(parseAutoGenerateSettings({ auto_publish: 'true' }).auto_publish).toBe(false);
+  });
+
+  it('honours an explicit opt-in to publishing', () => {
+    expect(parseAutoGenerateSettings({ auto_publish: true }).auto_publish).toBe(true);
+  });
+
+  it('treats a missing enabled flag as off', () => {
+    expect(parseAutoGenerateSettings({}).enabled).toBe(false);
+    expect(parseAutoGenerateSettings({ enabled: true }).enabled).toBe(true);
+  });
+
+  it('adds slides to the settings every existing plan was seeded with', () => {
+    const stored = { enabled: true, types: ['lessons', 'assignments', 'projects'] };
+    expect(parseAutoGenerateSettings(stored).types).toEqual([
+      'lessons',
+      'slides',
+      'assignments',
+      'projects',
+    ]);
+  });
+
+  it('clamps a nonsense batch size instead of trusting it', () => {
+    expect(parseAutoGenerateSettings({ maxWeeksPerBatch: 999 }).maxWeeksPerBatch).toBe(10);
+    expect(parseAutoGenerateSettings({ maxWeeksPerBatch: -4 }).maxWeeksPerBatch).toBe(0);
+    expect(parseAutoGenerateSettings({ maxWeeksPerBatch: 'x' }).maxWeeksPerBatch).toBe(0);
+    expect(parseAutoGenerateSettings({ maxWeeksPerBatch: 3 }).maxWeeksPerBatch).toBe(3);
+  });
+
+  it('carries last_run_at through so the rotation queue still works', () => {
+    expect(parseAutoGenerateSettings({ last_run_at: '2026-08-04T00:00:00Z' }).last_run_at)
+      .toBe('2026-08-04T00:00:00Z');
+    expect(parseAutoGenerateSettings({}).last_run_at).toBeUndefined();
+  });
+
+  it('is idempotent — parsing its own output changes nothing', () => {
+    const once = parseAutoGenerateSettings({ enabled: true, types: ['lessons'] });
+    expect(parseAutoGenerateSettings(once)).toEqual(once);
+  });
+});
+
+describe('DEFAULT_AUTO_GENERATE_SETTINGS', () => {
+  it('prepares a full week but publishes nothing without a teacher', () => {
+    expect(DEFAULT_AUTO_GENERATE_SETTINGS.auto_publish).toBe(false);
+    expect(DEFAULT_AUTO_GENERATE_SETTINGS.types).toEqual([...WEEK_CONTENT_TYPES]);
+  });
+
+  it('survives a round trip through the parser', () => {
+    expect(parseAutoGenerateSettings(DEFAULT_AUTO_GENERATE_SETTINGS))
+      .toEqual(DEFAULT_AUTO_GENERATE_SETTINGS);
+  });
+});
+
+describe('describeAutoGenerateSettings', () => {
+  it('says plainly when nothing will happen', () => {
+    const s = parseAutoGenerateSettings({ enabled: false });
+    expect(describeAutoGenerateSettings(s)).toMatch(/disabled/i);
+  });
+
+  it('distinguishes held from published', () => {
+    const held = parseAutoGenerateSettings({ enabled: true });
+    const live = parseAutoGenerateSettings({ enabled: true, auto_publish: true });
+    expect(describeAutoGenerateSettings(held)).toMatch(/held for your approval/i);
+    expect(describeAutoGenerateSettings(live)).toMatch(/published straight to students/i);
+  });
+});
+
+describe('normaliseTypes', () => {
+  it('drops anything not a real content type', () => {
+    expect(normaliseTypes(['lessons', 'sql-injection', 'projects']))
+      .toEqual(['lessons', 'slides', 'projects']);
+  });
+
+  it('falls back to everything rather than generating nothing', () => {
+    expect(normaliseTypes([])).toEqual([...WEEK_CONTENT_TYPES]);
+    expect(normaliseTypes(['nonsense'])).toEqual([...WEEK_CONTENT_TYPES]);
+  });
+
+  it('sorts into dependency order, not the order it was stored in', () => {
+    expect(normaliseTypes(['projects', 'slides', 'lessons']))
+      .toEqual(['lessons', 'slides', 'projects']);
+  });
+
+  it('does not invent lessons for a caller that only wants assignments', () => {
+    expect(normaliseTypes(['assignments'])).toEqual(['assignments']);
+  });
+});

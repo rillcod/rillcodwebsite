@@ -34,6 +34,7 @@ function catalogue(specs: Spec[]) {
 
 const BIG = { id: "vendor/big:free", context_length: 1_000_000, json: true };
 const SMALL = { id: "vendor/small:free", context_length: 8_000, json: false };
+const PAID = { id: "vendor/paid-model", context_length: 200_000, json: true };
 
 afterEach(() => {
   resetFreeModelCache();
@@ -119,12 +120,42 @@ describe("modelQueueFor — the one place models are chosen", () => {
   });
 
   it("keeps preferred paid models behind the whole free tier", async () => {
+    // The paid model is in the catalogue, as a real one would be — the queue
+    // only carries ids OpenRouter actually lists.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(catalogue([BIG, SMALL, PAID])));
+
+    const queue = await modelQueueFor({ prefer: [PAID.id] });
+
+    expect(queue[queue.length - 1]).toBe(PAID.id);
+    expect(queue.indexOf(BIG.id)).toBeLessThan(queue.indexOf(PAID.id));
+  });
+
+  it("drops a preferred paid model that the catalogue no longer lists", async () => {
+    // google/gemini-2.0-flash-001 answers 404 and deepseek/deepseek-chat-v3-5
+    // answers 400. Both sat at the end of the real queue as the last resort, so
+    // a rate-limited free tier failed the whole generation with nothing left.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(catalogue([BIG, SMALL])));
 
-    const queue = await modelQueueFor({ prefer: ["vendor/paid-model"] });
+    const queue = await modelQueueFor({ prefer: ["vendor/retired-paid-model"] });
 
-    expect(queue[queue.length - 1]).toBe("vendor/paid-model");
-    expect(queue.indexOf(BIG.id)).toBeLessThan(queue.indexOf("vendor/paid-model"));
+    expect(queue).not.toContain("vendor/retired-paid-model");
+    expect(queue).toContain(BIG.id);
+  });
+
+  it("keeps paid preferences when the catalogue cannot be read", async () => {
+    // Unknown is not the same as retired: dropping every paid fallback because
+    // the catalogue blipped would remove the queue exactly when it is needed.
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(catalogue([BIG]))
+        .mockRejectedValue(new Error("network down"))
+    );
+
+    const queue = await modelQueueFor({ prefer: [PAID.id] });
+
+    expect(queue).toContain(PAID.id);
   });
 
   it("drops the paid tail when free-only is demanded", async () => {

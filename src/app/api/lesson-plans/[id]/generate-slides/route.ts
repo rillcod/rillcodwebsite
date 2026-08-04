@@ -4,7 +4,9 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { requireStaffUser } from "@/app/api/lesson-plans/authz";
+import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
+import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { r2Delete, r2Upload } from "@/lib/r2/client";
 import {
   normaliseGeneratedSlides,
@@ -104,7 +106,14 @@ export async function POST(
 ) {
   const { id: planId } = await context.params;
   const auth = await createServerClient();
-  const staff = await requireStaffUser(auth);
+  // Slides was the only generator with no service path, so an automated run
+  // produced a lesson, an assignment and a project, and then silently never
+  // produced the slides for them. The other three already accept the cron
+  // secret; this makes the five-part package reachable as one package.
+  const isCron = isValidCronSecret(extractCronSecret(req));
+  const staff = isCron
+    ? { id: "cron", role: "admin", school_id: null }
+    : await requireStaffUser(auth);
   if (!staff)
     return NextResponse.json(
       { error: "Staff access required" },
@@ -115,15 +124,26 @@ export async function POST(
   const { data: plan } = await db
     .from("lesson_plans")
     .select(
-      "id,class_id,course_id,school_id,created_by,plan_data,curriculum_release_id,academic_offering_id,offering_period_id,classes!lesson_plans_class_id_fkey(name,teacher_id),courses(title)"
+      "id,status,class_id,course_id,school_id,created_by,plan_data,curriculum_release_id,academic_offering_id,offering_period_id,classes!lesson_plans_class_id_fkey(name,teacher_id),courses(title)"
     )
     .eq("id", planId)
     .maybeSingle();
-  if (!plan)
-    return NextResponse.json(
-      { error: "Teaching plan not found" },
-      { status: 404 }
-    );
+  // Same gate as the lesson/assignment/project generators. Slides used to skip
+  // it, so a draft plan failed here for a missing lesson rather than for the
+  // reason that actually mattered — which is how "only flashcards work" looked
+  // like five unrelated faults instead of one unpublished plan.
+  const validationError = validateLessonPlanForGeneration(plan);
+  if (validationError || !plan) {
+    const block =
+      validationError ??
+      ({
+        error: "Teaching plan not found",
+        status: 404,
+        reason: "not_found" as const,
+      });
+    const { status, ...payload } = block;
+    return NextResponse.json(payload, { status });
+  }
 
   const klass = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
   if (staff.role !== "admin") {
@@ -140,6 +160,8 @@ export async function POST(
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const week = Number(body.week);
+  /** Opt-in: replace an existing deck instead of reporting it already exists. */
+  const regenerate = body.regenerate === true;
   if (!Number.isInteger(week) || week < 1) {
     return NextResponse.json(
       { error: "Choose a valid teaching week" },
@@ -176,13 +198,32 @@ export async function POST(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (existing) {
+  // Re-rolling is the teacher's call, never automatic: regenerating costs a
+  // model call and replaces slides they may already have taught from. Without
+  // it a deck could never be replaced at all, so a deck rendered by an older
+  // template stayed wrong for the life of the lesson.
+  if (existing && !regenerate) {
     return NextResponse.json({
       data: existing,
       generated: 0,
       skipped: 1,
       already_exists: true,
+      can_regenerate: true,
     });
+  }
+  if (existing && regenerate) {
+    // Drop the old images first — orphaned SVGs in R2 are invisible and
+    // permanent, and this is the only moment their keys are still known.
+    try {
+      const parsed = JSON.parse(String(existing.file_url ?? "{}"));
+      const oldKeys: string[] = Array.isArray(parsed?.slides)
+        ? parsed.slides
+        : [];
+      await Promise.all(oldKeys.map((key) => r2Delete(key).catch(() => {})));
+    } catch {
+      /* unreadable payload — the row still goes, the objects are unreachable anyway */
+    }
+    await db.from("lesson_materials").delete().eq("id", existing.id);
   }
 
   const course = Array.isArray(plan.courses) ? plan.courses[0] : plan.courses;

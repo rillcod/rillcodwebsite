@@ -1,5 +1,6 @@
 import {
   availableFreeModels,
+  catalogueModelIds,
   freeModelCatalogue,
   isFreeModel,
   FREE_FALLBACK_MODELS,
@@ -72,7 +73,15 @@ export async function modelQueueFor(task: AiTask): Promise<string[]> {
     return free.length ? free : FREE_FALLBACK_MODELS;
   }
 
-  const paid = preferred.filter((id) => !isFreeModel(id));
+  // Paid preferences are checked against the catalogue for exactly the reason
+  // free ones are: ids are retired without notice. Unchecked, a queue could end
+  // in three models that answer 404/400, so a rate-limited free tier meant the
+  // whole generation failed with no real fallback left. An empty set means the
+  // catalogue could not be read — keep the preferences rather than drop them all.
+  const listed = await catalogueModelIds(task.signal);
+  const paid = preferred.filter(
+    (id) => !isFreeModel(id) && (listed.size === 0 || listed.has(id))
+  );
   const queue = [...free, ...paid];
   // Models that recently 404'd or ran out of quota drop to the back of their
   // tier. The catalogue says what exists; only real calls say what works.

@@ -31,6 +31,8 @@
  */
 
 import { useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   SparklesIcon,
   XMarkIcon,
@@ -180,6 +182,73 @@ function StepRow({
   );
 }
 
+/**
+ * Readiness preflight.
+ *
+ * Every generator that reads the plan's syllabus refuses a draft plan. Without
+ * this check the refusal arrives five times — once per step — so an unpublished
+ * plan looked like five unrelated faults, and the one generator with no plan
+ * gate (flashcards) succeeded in the middle of them. One check up front turns
+ * that into a single fixable statement before anything runs.
+ */
+async function checkPlanReadiness(planId: string): Promise<{
+  ready: boolean;
+  status?: string;
+  /** Carried so a publish bumps the real version instead of resetting it to 2. */
+  version?: number;
+  /** False when the block is something publishing cannot fix. */
+  fixableByPublishing?: boolean;
+  message?: string;
+}> {
+  try {
+    const res = await fetch(`/api/lesson-plans/${planId}`);
+    if (!res.ok) return { ready: true }; // Can't tell — let the generators speak.
+    const { data } = await res.json();
+
+    // Same function the generators enforce server-side. Re-deriving "is this
+    // plan ready" here would be a second copy of the rule, and a rule written
+    // twice is a rule enforced in neither.
+    const block = validateLessonPlanForGeneration(data);
+    const status = data?.status as string | undefined;
+    const version =
+      typeof data?.version === "number" ? (data.version as number) : undefined;
+
+    if (!block) return { ready: true, status, version };
+    return {
+      ready: false,
+      status,
+      version,
+      fixableByPublishing: block.reason === "not_published" && status === "draft",
+      message: block.detail ?? block.error,
+    };
+  } catch {
+    return { ready: true };
+  }
+}
+
+async function publishPlan(planId: string, currentVersion?: number) {
+  const res = await fetch(`/api/lesson-plans/${planId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: "published",
+      // Mirrors the plan page's own publish: bump from the version the plan
+      // actually holds. Omitted entirely when unknown, so the server keeps it.
+      ...(typeof currentVersion === "number"
+        ? { version: currentVersion + 1 }
+        : {}),
+    }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(
+      j.error === "Forbidden"
+        ? "Your account cannot publish this plan — ask an admin or the plan owner."
+        : j.error ?? "Could not publish this plan"
+    );
+  }
+}
+
 async function checkExistingLesson(
   planId: string,
   weekNum: number
@@ -277,6 +346,89 @@ async function runPlanGenerator(
   }
 }
 
+/**
+ * Confirms each artifact actually exists before it is offered as a link.
+ *
+ * Every id here was previously trusted the moment a POST returned. That is not
+ * the same as the thing existing: the flashcard deck id, for one, was recorded
+ * when the deck row was created and kept even if card generation then threw —
+ * so the panel offered "Open Flashcards" for an empty deck. A deck with no
+ * cards, a slide deck the response merely mentioned, a lesson that failed to
+ * save: none of those are content, and none of them should be linkable.
+ *
+ * Anything that cannot be confirmed present is dropped from the result.
+ */
+async function verifyArtifacts(
+  planId: string,
+  candidate: Result
+): Promise<{ verified: Result; dropped: string[] }> {
+  const dropped: string[] = [];
+  const verified: Result = { skipped: candidate.skipped };
+
+  const idsIn = async (url: string): Promise<Set<string>> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return new Set();
+      const { data } = await res.json();
+      return new Set((data ?? []).map((row: any) => String(row.id)));
+    } catch {
+      return new Set();
+    }
+  };
+
+  const [lessonIds, assignmentIds, slideIds, deckOk] = await Promise.all([
+    candidate.lessonId
+      ? idsIn(`/api/lessons?lesson_plan_id=${planId}`)
+      : Promise.resolve(new Set<string>()),
+    candidate.assignmentId || candidate.projectId
+      ? idsIn(`/api/assignments?lesson_plan_id=${planId}`)
+      : Promise.resolve(new Set<string>()),
+    candidate.slideDeckId
+      ? idsIn(`/api/slide-decks`)
+      : Promise.resolve(new Set<string>()),
+    // A deck only counts as generated once it actually holds cards.
+    candidate.deckId
+      ? (async () => {
+          try {
+            const res = await fetch(
+              `/api/flashcards/decks/${candidate.deckId}/cards`
+            );
+            if (!res.ok) return false;
+            const { data } = await res.json();
+            return Array.isArray(data) && data.length > 0;
+          } catch {
+            return false;
+          }
+        })()
+      : Promise.resolve(false),
+  ]);
+
+  const keep = (
+    key: keyof Result,
+    id: string | undefined,
+    present: boolean,
+    label: string,
+    title?: string,
+    titleKey?: keyof Result
+  ) => {
+    if (!id) return;
+    if (present) {
+      (verified as any)[key] = id;
+      if (titleKey && title) (verified as any)[titleKey] = title;
+    } else {
+      dropped.push(label);
+    }
+  };
+
+  keep("lessonId", candidate.lessonId, lessonIds.has(String(candidate.lessonId)), "lesson", candidate.lessonTitle, "lessonTitle");
+  keep("slideDeckId", candidate.slideDeckId, slideIds.has(String(candidate.slideDeckId)), "learning slides", candidate.slideDeckTitle, "slideDeckTitle");
+  keep("deckId", candidate.deckId, deckOk, "flashcards", candidate.deckTitle, "deckTitle");
+  keep("assignmentId", candidate.assignmentId, assignmentIds.has(String(candidate.assignmentId)), "assignment", candidate.assignmentTitle, "assignmentTitle");
+  keep("projectId", candidate.projectId, assignmentIds.has(String(candidate.projectId)), "project", candidate.projectTitle, "projectTitle");
+
+  return { verified, dropped };
+}
+
 async function checkExistingAssignment(
   planId: string,
   weekNum: number
@@ -346,15 +498,43 @@ export default function WeekAIGenerator({
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [result, setResult] = useState<Result>({ skipped: [] });
+  /** Set when the plan itself blocks generation — the teacher's call, not a failure. */
+  const [blocked, setBlocked] = useState<{
+    status?: string;
+    message: string;
+    version?: number;
+    fixableByPublishing?: boolean;
+  } | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  // Only admin and teacher may PATCH a plan's status; offering the button to a
+  // school account would just produce a 403 the teacher cannot act on.
+  const { profile } = useAuth();
+  const canPublish = profile?.role === "admin" || profile?.role === "teacher";
 
   const addLog = (msg: string) => setLog((p) => [...p, msg]);
   const setStep = (k: keyof StepStatus, v: StepState) =>
     setStatus((p) => ({ ...p, [k]: v }));
 
+  /** Publish the plan, then run — the teacher chooses to continue, explicitly. */
+  async function publishAndRun() {
+    setPublishing(true);
+    setError(null);
+    try {
+      await publishPlan(planId, blocked?.version);
+      setBlocked(null);
+      setPublishing(false);
+      await run();
+    } catch (e: any) {
+      setPublishing(false);
+      setError(e.message ?? "Could not publish this plan");
+    }
+  }
+
   async function run() {
     setRunning(true);
     setDone(false);
     setError(null);
+    setBlocked(null);
     setLog([]);
     setResult({ skipped: [] });
     setStatus({
@@ -364,6 +544,19 @@ export default function WeekAIGenerator({
       assignment: "pending",
       project: "pending",
     });
+
+    // Ask once whether this plan can generate at all, before spending anything.
+    const readiness = await checkPlanReadiness(planId);
+    if (!readiness.ready) {
+      setBlocked({
+        status: readiness.status,
+        message: readiness.message!,
+        version: readiness.version,
+        fixableByPublishing: readiness.fixableByPublishing,
+      });
+      setRunning(false);
+      return;
+    }
 
     const res: Result = { skipped: [] };
     // Content blocks from lesson generation — shared across steps
@@ -668,14 +861,35 @@ export default function WeekAIGenerator({
         }
       }
 
-      setResult(res);
+      // Nothing is offered as a link until it has been confirmed to exist.
+      addLog("🔎 Confirming what was actually saved…");
+      const { verified, dropped } = await verifyArtifacts(planId, res);
+      if (dropped.length > 0) {
+        addLog(`⚠️  Not saved, so not linked: ${dropped.join(", ")}`);
+        // Keep the step badges honest too — a dropped artifact is not "done".
+        const stepFor: Record<string, keyof StepStatus> = {
+          lesson: "lesson",
+          "learning slides": "slides",
+          flashcards: "flashcard",
+          assignment: "assignment",
+          project: "project",
+        };
+        for (const label of dropped) {
+          const step = stepFor[label];
+          if (step) setStep(step, "error");
+        }
+      } else {
+        addLog("✅ Every generated item confirmed present");
+      }
+
+      setResult(verified);
       setDone(true);
       onDone?.({
-        lessonId: res.lessonId,
-        slideDeckId: res.slideDeckId,
-        deckId: res.deckId,
-        assignmentId: res.assignmentId,
-        projectId: res.projectId,
+        lessonId: verified.lessonId,
+        slideDeckId: verified.slideDeckId,
+        deckId: verified.deckId,
+        assignmentId: verified.assignmentId,
+        projectId: verified.projectId,
       });
     } catch (e: any) {
       setError(e.message);
@@ -727,7 +941,66 @@ export default function WeekAIGenerator({
         </div>
 
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {!running && !done && !error && (
+          {blocked && (
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                  {blocked.status ?? "Draft"} plan
+                </span>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                  Not ready to generate
+                </p>
+              </div>
+              <p className="text-xs text-foreground/80 leading-relaxed">
+                {blocked.message}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                {blocked.fixableByPublishing && canPublish && (
+                  <button
+                    onClick={publishAndRun}
+                    disabled={publishing}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    {publishing ? (
+                      <>
+                        <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                        Publishing…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-3.5 h-3.5" />
+                        Publish &amp; generate
+                      </>
+                    )}
+                  </button>
+                )}
+                <a
+                  href={`/dashboard/lesson-plans/${planId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-[11px] font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {blocked.fixableByPublishing && canPublish
+                    ? "Review plan first"
+                    : "Open plan"}
+                </a>
+              </div>
+              {blocked.fixableByPublishing && !canPublish && (
+                <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                  Your account cannot publish plans — ask an admin or the plan
+                  owner to publish it.
+                </p>
+              )}
+              {blocked.fixableByPublishing && canPublish && (
+                <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                  Publishing locks this week&apos;s syllabus as the source for
+                  everything generated from it.
+                </p>
+              )}
+            </div>
+          )}
+
+          {!running && !done && !error && !blocked && (
             <p className="text-xs text-muted-foreground leading-relaxed">
               Prepares one complete curriculum-grounded week: a{" "}
               <strong className="text-foreground font-bold">rich lesson</strong>
@@ -745,7 +1018,7 @@ export default function WeekAIGenerator({
             </p>
           )}
 
-          <div className="space-y-3">
+          <div className={`space-y-3 ${blocked ? "hidden" : ""}`}>
             <StepRow
               icon={BookOpenIcon}
               label="Full Lesson"
@@ -884,12 +1157,20 @@ export default function WeekAIGenerator({
         </div>
 
         <div className="px-6 pb-6 pt-4 border-t border-border flex gap-3">
-          {!running && !done && (
+          {!running && !done && !blocked && (
             <button
               onClick={run}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all duration-300 transform active:scale-95"
             >
               <SparklesIcon className="w-4 h-4" /> Generate Lesson Package
+            </button>
+          )}
+          {blocked && (
+            <button
+              onClick={onClose}
+              className="flex-1 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200"
+            >
+              Close
             </button>
           )}
           {running && (

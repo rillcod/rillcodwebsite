@@ -34,6 +34,13 @@ import {
   type SyllabusContent,
 } from "@/components/curriculum/SyllabusPreview";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
+import {
+  DEFAULT_AUTO_GENERATE_SETTINGS,
+  WEEK_CONTENT_TYPES,
+  describeAutoGenerateSettings,
+  parseAutoGenerateSettings,
+  type AutoGenerateSettings,
+} from "@/lib/academic/auto-generate-settings";
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import {
   buildAddLessonQueryFromCurriculum,
@@ -586,14 +593,11 @@ export default function LessonPlanDetailPage() {
     scopeLabel: string;
     preview: ProgressionPreview;
   } | null>(null);
-  const [lmsSettings, setLmsSettings] = useState<{
-    enabled: boolean;
-    types: ("lessons" | "assignments" | "projects")[];
-    maxWeeksPerBatch: number;
-  }>({
+  // Shape and defaults come from the same module the cron and the readiness
+  // automation read, so this panel cannot drift from what actually runs.
+  const [lmsSettings, setLmsSettings] = useState<AutoGenerateSettings>({
+    ...DEFAULT_AUTO_GENERATE_SETTINGS,
     enabled: false,
-    types: ["lessons", "assignments"],
-    maxWeeksPerBatch: 0,
   });
   const [savingLms, setSavingLms] = useState(false);
   const [previewLesson, setPreviewLesson] = useState<any | null>(null);
@@ -724,19 +728,9 @@ export default function LessonPlanDetailPage() {
           (a, b) => a.week - b.week
         )
       );
-      const ags = (p.metadata?.auto_generate_settings ?? {}) as {
-        enabled?: boolean;
-        types?: string[];
-        maxWeeksPerBatch?: number;
-      };
-      setLmsSettings({
-        enabled: ags.enabled ?? false,
-        types: ((ags.types ?? ["lessons", "assignments"]) as string[]).filter(
-          (t): t is "lessons" | "assignments" | "projects" =>
-            ["lessons", "assignments", "projects"].includes(t)
-        ),
-        maxWeeksPerBatch: ags.maxWeeksPerBatch ?? 0,
-      });
+      setLmsSettings(
+        parseAutoGenerateSettings(p.metadata?.auto_generate_settings)
+      );
       if (lessonsRes.ok) {
         const lj = await lessonsRes.json();
         setLinkedLessons(lj.data ?? []);
@@ -4141,13 +4135,7 @@ export default function LessonPlanDetailPage() {
                                 What to generate
                               </p>
                               <div className="flex flex-wrap gap-2">
-                                {(
-                                  [
-                                    "lessons",
-                                    "assignments",
-                                    "projects",
-                                  ] as const
-                                ).map((t) => {
+                                {WEEK_CONTENT_TYPES.map((t) => {
                                   const checked = lmsSettings.types.includes(t);
                                   return (
                                     <button
@@ -4208,6 +4196,56 @@ export default function LessonPlanDetailPage() {
                               </div>
                             </div>
 
+                            {/* The one setting that decides whether a learner
+                                ever sees unreviewed AI writing. */}
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">
+                                When a week is ready
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {[
+                                  {
+                                    value: false,
+                                    label: "Hold for my approval",
+                                    hint: "Waits on Approve AI Drafts",
+                                  },
+                                  {
+                                    value: true,
+                                    label: "Publish to students",
+                                    hint: "Goes live with no review",
+                                  },
+                                ].map(({ value, label, hint }) => (
+                                  <button
+                                    key={String(value)}
+                                    type="button"
+                                    onClick={() =>
+                                      setLmsSettings((s) => ({
+                                        ...s,
+                                        auto_publish: value,
+                                      }))
+                                    }
+                                    className={`px-3 py-2 text-xs font-black rounded-xl transition-all text-left ${
+                                      lmsSettings.auto_publish === value
+                                        ? value
+                                          ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40"
+                                          : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40"
+                                        : "bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10"
+                                    }`}
+                                  >
+                                    <span className="block">
+                                      {lmsSettings.auto_publish === value
+                                        ? "✓ "
+                                        : ""}
+                                      {label}
+                                    </span>
+                                    <span className="block text-[9px] font-bold opacity-70">
+                                      {hint}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
                             <div className="flex items-center gap-3 pt-2">
                               <button
                                 type="button"
@@ -4220,15 +4258,7 @@ export default function LessonPlanDetailPage() {
                                   : "Apply Learning Settings"}
                               </button>
                               <p className="text-[10px] text-card-foreground/40 leading-tight">
-                                {lmsSettings.enabled
-                                  ? `Currently auto-generating ${lmsSettings.types.join(
-                                      " and "
-                                    )} in ${
-                                      lmsSettings.maxWeeksPerBatch === 0
-                                        ? "Full Term"
-                                        : `${lmsSettings.maxWeeksPerBatch}-week`
-                                    } chunks.`
-                                  : "Auto-generation is currently disabled for this plan."}
+                                {describeAutoGenerateSettings(lmsSettings)}
                               </p>
                             </div>
                           </div>

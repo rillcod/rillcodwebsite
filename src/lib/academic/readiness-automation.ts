@@ -6,6 +6,7 @@ import {
   resolveOfficialDeliverySchedule,
 } from '@/lib/curriculum/official-direction';
 import { humanEntryPoint, humanTermLabel } from '@/lib/academic/labels';
+import { DEFAULT_AUTO_GENERATE_SETTINGS } from '@/lib/academic/auto-generate-settings';
 
 type DbClient = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -256,11 +257,11 @@ export async function runAcademicReadinessAutomation(
           metadata: {
             ...(currentMetadata as Record<string, unknown>),
             academic_automation: { prepared_at: new Date().toISOString(), source: 'official_direction' },
-            auto_generate_settings: (currentMetadata as any).auto_generate_settings ?? {
-              enabled: true,
-              types: ['lessons', 'assignments', 'projects'],
-              maxWeeksPerBatch: 1,
-            },
+            // Defaults come from auto-generate-settings, so seeding a plan and
+            // running one can never disagree about what a new class does.
+            auto_generate_settings:
+              (currentMetadata as any).auto_generate_settings ??
+              DEFAULT_AUTO_GENERATE_SETTINGS,
           },
           updated_at: new Date().toISOString(),
         }).eq('id', result.plan_id);

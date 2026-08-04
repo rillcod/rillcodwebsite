@@ -580,6 +580,14 @@ export default function DashboardNavigation() {
             href: "/dashboard/lesson-plans",
             icon: ClipboardDocumentListIcon,
           },
+          // AI-prepared weeks wait here until a teacher reads and releases them.
+          // Without a way in, content held back for approval is indistinguishable
+          // from content that was never generated.
+          {
+            name: "Approve AI Drafts",
+            href: "/dashboard/teaching/approvals",
+            icon: ClipboardDocumentCheckIcon,
+          },
           {
             name: "Learner Progress",
             href: "/dashboard/learner-progress",

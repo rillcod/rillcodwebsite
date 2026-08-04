@@ -141,7 +141,7 @@ export async function PATCH(
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
     .select(
-      "id, school_id, created_by, plan_data, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)"
+      "id, school_id, created_by, plan_data, metadata, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -172,9 +172,10 @@ export async function PATCH(
   if (!allowed)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const existingPlanData = asObject(
-    (existingPlan as Record<string, unknown>).plan_data
-  );
+  // Cast through unknown: the generated types predate `metadata` on
+  // lesson_plans, though the column is live and the automation writes to it.
+  const existingPlanRow = existingPlan as unknown as Record<string, unknown>;
+  const existingPlanData = asObject(existingPlanRow.plan_data);
   const patchBody: Record<string, unknown> = {};
   for (const key of [
     "plan_data",
@@ -186,6 +187,18 @@ export async function PATCH(
     "progression_term_status_update",
   ]) {
     if (key in body) patchBody[key] = body[key];
+  }
+
+  // `metadata` was absent from that list, so the plan page's automation panel
+  // PATCHed its settings, got a 200, showed "saved" — and nothing was written.
+  // Merged rather than replaced: the same object carries academic_automation
+  // and last_run_at, and a settings save must not erase the automation's own
+  // bookkeeping.
+  if ("metadata" in body) {
+    patchBody.metadata = {
+      ...asObject(existingPlanRow.metadata),
+      ...asObject(body.metadata),
+    };
   }
   let nextPlanData = existingPlanData;
 

@@ -63,7 +63,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     ? Math.floor(requestedWeek)
     : currentTermWeek(plan.term_start ?? null);
 
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin).replace(/\/$/, '');
+  // Own origin first: NEXT_PUBLIC_APP_URL names production wherever it is read,
+  // so preferring it sent a teacher's "generate this week" to a different
+  // deployment than the one holding their plan.
+  const baseUrl = (req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
   // Forward the caller's session so the generators apply their own checks too, rather than this
   // route borrowing cron privileges on a teacher's behalf.
   const outcome = await generatePlanWeek({

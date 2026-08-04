@@ -160,10 +160,51 @@ export async function freeModelCatalogue(
   return ids.map((id) => ({ id, contextTokens: 0, supportsJson: true }));
 }
 
+/**
+ * Every model id OpenRouter currently lists, free or paid.
+ *
+ * The free tier is asked for by name because free ids rot; paid ids rot in
+ * exactly the same way and were never checked. `google/gemini-2.0-flash-001`
+ * answers 404 "No endpoints found" and `deepseek/deepseek-chat-v3-5` answers
+ * 400 "not a valid model ID" — both sat at the end of the queue as the last
+ * resort, so when the free tier was rate-limited a generation walked the whole
+ * queue and failed with nothing left to try.
+ *
+ * An empty set means "could not tell", and callers must not filter on it.
+ */
+let cachedAllModelIds: { at: number; ids: Set<string> } | null = null;
+
+export async function catalogueModelIds(
+  signal?: AbortSignal
+): Promise<Set<string>> {
+  const fresh =
+    cachedAllModelIds && Date.now() - cachedAllModelIds.at < CATALOGUE_TTL_MS;
+  if (fresh) return cachedAllModelIds!.ids;
+
+  try {
+    const response = await fetch(MODELS_URL, { signal });
+    if (!response.ok) throw new Error(`catalogue ${response.status}`);
+    const body = await response.json();
+    const ids = new Set<string>(
+      (body?.data ?? [])
+        .map((model: any) => model?.id)
+        .filter((id: unknown): id is string => typeof id === "string")
+    );
+    if (!ids.size) throw new Error("catalogue listed no models");
+    cachedAllModelIds = { at: Date.now(), ids };
+    return ids;
+  } catch {
+    // Unknown, not empty: the caller keeps its preferences rather than
+    // discarding every model because the catalogue was briefly unreachable.
+    return cachedAllModelIds?.ids ?? new Set<string>();
+  }
+}
+
 /** Testing seam — clears the cached catalogue. */
 export function resetFreeModelCache(): void {
   cachedFreeModels = null;
   cachedCatalogue = null;
+  cachedAllModelIds = null;
 }
 
 export type FreeModelDrift = {

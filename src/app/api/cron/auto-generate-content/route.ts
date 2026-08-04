@@ -8,15 +8,17 @@ import {
   generatePlanWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
+import {
+  parseAutoGenerateSettings,
+  type AutoGenerateSettings,
+} from '@/lib/academic/auto-generate-settings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
 
-type AutoGenSettings = {
-  enabled?: boolean;
-  types?: string[];
-  maxWeeksPerBatch?: number;
-};
+// Shape, defaults and the publish rule all live in auto-generate-settings —
+// this route reads them, it does not restate them.
+type AutoGenSettings = AutoGenerateSettings;
 
 function adminClient() {
   return createClient(
@@ -45,7 +47,18 @@ async function handleRequest(req: NextRequest) {
   }
 
   const db = adminClient();
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  // The sweep calls this app's own generator routes, so it must call the
+  // deployment it is running in. NEXT_PUBLIC_APP_URL names production wherever
+  // it is read, so preview and local runs were reaching across to production,
+  // asking it to generate for plans it has never heard of and recording four
+  // 404s as "types failed". The request's own origin is the only value that is
+  // correct in every environment; the env var stays as a last resort for
+  // invocations that arrive without one.
+  const appBaseUrl = (
+    req.nextUrl?.origin ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
 
   const { data: plans, error } = await db
     .from('lesson_plans')
@@ -92,7 +105,7 @@ async function handleRequest(req: NextRequest) {
     if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
     try {
       const meta = plan.metadata as Record<string, unknown>;
-      const ags = meta.auto_generate_settings as AutoGenSettings;
+      const ags = parseAutoGenerateSettings(meta.auto_generate_settings);
       const currentWeek = currentTermWeek(plan.term_start ?? null);
 
       // Target THIS week specifically rather than "the next N weeks". The teacher's button and
@@ -104,6 +117,9 @@ async function handleRequest(req: NextRequest) {
         types: ags.types,
         baseUrl: appBaseUrl,
         cronSecret,
+        // Opt-in per plan. Left unset, the week is prepared for the teacher to
+        // read and release rather than published to students overnight.
+        autoPublish: ags.auto_publish,
       });
 
       // Tell the class teacher their week is waiting. Idempotent per plan+week, so a retry or a
@@ -117,10 +133,17 @@ async function handleRequest(req: NextRequest) {
 
       // Stamp last_run_at so this plan sinks to the back of the rotation queue
       // and the next scheduled run picks up the other plans.
+      //
+      // Merged over what is stored, not over the parsed copy: parsing fills in
+      // defaults, and writing those back would silently rewrite a teacher's own
+      // selection every night. The sweep records when it ran, nothing else.
       await db.from('lesson_plans').update({
         metadata: {
           ...meta,
-          auto_generate_settings: { ...ags, last_run_at: new Date().toISOString() },
+          auto_generate_settings: {
+            ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
+            last_run_at: new Date().toISOString(),
+          },
         },
       }).eq('id', plan.id);
 

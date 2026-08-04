@@ -51,16 +51,34 @@ describe('currentTermWeek', () => {
 });
 
 describe('normaliseTypes', () => {
-  it('defaults to all three content types', () => {
-    expect(normaliseTypes(undefined)).toEqual(['lessons', 'assignments', 'projects']);
+  it('defaults to every content type', () => {
+    expect(normaliseTypes(undefined)).toEqual(['lessons', 'slides', 'assignments', 'projects']);
   });
 
   it('drops anything not a real content type', () => {
-    expect(normaliseTypes(['lessons', 'sql-injection', 'projects'])).toEqual(['lessons', 'projects']);
+    expect(normaliseTypes(['lessons', 'sql-injection', 'projects']))
+      .toEqual(['lessons', 'slides', 'projects']);
   });
 
-  it('falls back to all three rather than generating nothing', () => {
-    expect(normaliseTypes(['nonsense'])).toEqual(['lessons', 'assignments', 'projects']);
-    expect(normaliseTypes([])).toEqual(['lessons', 'assignments', 'projects']);
+  it('falls back to everything rather than generating nothing', () => {
+    expect(normaliseTypes(['nonsense'])).toEqual(['lessons', 'slides', 'assignments', 'projects']);
+    expect(normaliseTypes([])).toEqual(['lessons', 'slides', 'assignments', 'projects']);
+  });
+
+  it('adds slides wherever lessons are asked for', () => {
+    // Every plan's stored settings predate slides existing in the pipeline, so
+    // without this those plans would keep producing lessons with no slides.
+    expect(normaliseTypes(['lessons', 'assignments', 'projects']))
+      .toEqual(['lessons', 'slides', 'assignments', 'projects']);
+  });
+
+  it('runs slides after the lesson they are rendered from', () => {
+    // Order is dependency order, not the order the caller happened to store.
+    expect(normaliseTypes(['projects', 'slides', 'lessons']))
+      .toEqual(['lessons', 'slides', 'projects']);
+  });
+
+  it('does not invent lessons for a caller that only wants assignments', () => {
+    expect(normaliseTypes(['assignments'])).toEqual(['assignments']);
   });
 });
