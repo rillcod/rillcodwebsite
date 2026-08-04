@@ -17,7 +17,7 @@ import { r2SignedUrl } from '@/lib/r2/client';
  *   (or session cookie)                              ← web
  *
  * Returns a 302 redirect to a short-lived R2 signed URL.
- * Files are served directly from R2 — no Vercel bandwidth used.
+ * Files are served directly from R2, which has zero egress fees — no origin bandwidth used.
  */
 
 async function resolveUser(req: NextRequest) {
@@ -82,7 +82,7 @@ export async function GET(
         return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // 302 redirect — R2 serves the file directly, no Vercel bandwidth used.
+    // 302 redirect — R2 serves the file directly, no origin bandwidth used.
     // Cache-Control tells mobile clients they can reuse this URL for 55 minutes.
     return NextResponse.redirect(signedUrl, {
         status: 302,

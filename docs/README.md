@@ -83,9 +83,10 @@ Welcome to the Rillcod Academy documentation. This folder contains all technical
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
 - **Payments**: Paystack
-- **Hosting**: Vercel
+- **Hosting**: Cloudflare Containers (Worker gateway → Node container) — see `docs/CLOUDFLARE_DEPLOY.md`
+- **File storage**: Cloudflare R2
 - **Edge Functions**: Supabase Edge Functions (Deno)
-- **Cron Jobs**: Vercel Cron
+- **Cron Jobs**: cron-job.org (external) — see `src/lib/operations/cron-registry.ts`
 
 ---
 

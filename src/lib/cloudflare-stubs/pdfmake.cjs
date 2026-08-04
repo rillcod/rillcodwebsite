@@ -1,6 +1,8 @@
 /**
  * Cloudflare Workers stubs for heavy Node PDF engines.
- * Certificates/PDF generation stay on Vercel; CF builds must stay under Worker size limits.
+ * Certificates/PDF generation run in the Cloudflare Container (full Node, real pdfmake).
+ * This stub only applies to the legacy OpenNext Workers build, which must stay under
+ * the 64 MiB Worker size limit.
  */
 module.exports = {
   createPdf: () => {

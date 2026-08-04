@@ -39,19 +39,12 @@ class_name = "NextAppContainer"
 tag = "v1-next-container"
 new_sqlite_classes = ["NextAppContainer"]
 
-# Crons — disable matching cron-job.org entries when this Worker is live.
-[triggers]
-crons = [
-  "0 7 * * *",   # invoice-reminders
-  "0 8 * * *",   # billing-reminders
-  "0 9 * * *",   # payment-reminders
-  "5 5 * * *",   # term-scheduler
-  "30 6 * * *",  # receipt-sweep
-  "0 10 * * *",  # school-report-readiness
-  "30 4 * * *",  # academic-readiness
-  "0 9 1 * *",   # weekly-summary
-  "0 3 * * *",   # integrity-sweep
-]
+# NO [triggers] BLOCK — this is deliberate, do not re-add one.
+# Every scheduled job is registered on cron-job.org, outside this repo. A [triggers]
+# block here does not replace that; the gateway's scheduled() handler would fire the
+# same routes a second time, double-sending the invoice, billing and payment reminders
+# that email parents. See the header of src/lib/operations/cron-registry.ts, which is
+# the single source of truth for what runs and how often.
 
 [vars]
 NEXT_PUBLIC_APP_URL = "https://www.rillcod.com"
@@ -59,14 +52,14 @@ NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-"
 NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = "pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d"
-NEXT_PUBLIC_LIVEKIT_URL = "[SENSITIVE]"
+NEXT_PUBLIC_LIVEKIT_URL = "wss://rillcod-s8ejx073.livekit.cloud"
 NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs"
 NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz"
 ENABLE_PAYMENTS = "true"
-LIVEKIT_URL = "[SENSITIVE]"
+LIVEKIT_URL = "wss://rillcod-s8ejx073.livekit.cloud"
 R2_ENDPOINT = "https://718b36de1443954931b052a9594d329d.r2.cloudflarestorage.com"
 R2_BUCKET_NAME = "rillcod-assests"
 R2_ACCESS_KEY_ID = "d2258442245e101cddd6e56b02ffe250"
-RESEND_FROM_EMAIL = "[SENSITIVE]"
+RESEND_FROM_EMAIL = "Rillcod Technologies | STEM, Robotics & AI <support@rillcod.com>"
 WHATSAPP_API_URL = "https://graph.facebook.com/v19.0/1165370629985726/messages"
 ADMIN_OPS_EMAIL = "rillcod@gmail.com"

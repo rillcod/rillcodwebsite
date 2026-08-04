@@ -1,5 +1,5 @@
 /**
- * Extract secret from Vercel Cron / manual triggers.
+ * Extract secret from the external scheduler / Worker gateway / manual triggers.
  * Supports `x-cron-secret` (preferred) or `Authorization: Bearer <secret>`.
  */
 export function extractCronSecret(req: { headers: Headers }): string {

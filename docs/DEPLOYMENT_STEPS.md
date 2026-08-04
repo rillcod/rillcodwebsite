@@ -11,7 +11,7 @@
 Before you start:
 - [ ] You have access to Supabase dashboard
 - [ ] You have access to your Git repository
-- [ ] You have access to Vercel/deployment platform
+- [ ] You have access to the Cloudflare dashboard (account `718b36de1443954931b052a9594d329d`)
 - [ ] You've reviewed the changes
 
 ---
@@ -52,14 +52,15 @@ git commit -m "feat: add WhatsApp compliance (opt-in/opt-out, rate limits, priva
 git push origin main
 ```
 
-**Vercel Auto-Deploy:**
-- Vercel will automatically deploy
-- Wait for deployment to complete (~2-3 minutes)
-- Check deployment logs for errors
+**Cloudflare Auto-Deploy:**
+- The **Deploy Cloudflare** GitHub Action builds the container and deploys it
+- Wait for the job to finish (~10–20 minutes)
+- Check the Actions log for errors: https://github.com/rillcod/rillcodwebsite/actions
 
 **Manual Deploy (if needed):**
 ```bash
-vercel --prod
+# Docker Desktop must be running
+npm run deploy
 ```
 
 ---
@@ -265,7 +266,7 @@ DROP COLUMN IF EXISTS whatsapp_opt_in;
 ## 📞 Support
 
 **Deployment Issues:**
-- Check deployment logs in Vercel
+- Check the Deploy Cloudflare GitHub Action log, then `npx wrangler tail rillcodwebsite`
 - Review error messages
 - Email: support@rillcod.com
 

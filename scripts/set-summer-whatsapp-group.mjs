@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Set NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP everywhere we manage.
+ * Set NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP everywhere we manage:
+ * wrangler.toml [vars] (what production reads) plus .env and .env.local.
+ *
  * Usage: node scripts/set-summer-whatsapp-group.mjs [url]
  */
-import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -47,49 +48,6 @@ function updateEnvFile(rel) {
   console.log(`Updated ${rel}`);
 }
 
-function vercelRm(envName) {
-  const r = spawnSync(
-    "npx",
-    ["vercel", "env", "rm", KEY, envName, "--yes"],
-    { cwd: ROOT, encoding: "utf8", shell: true, stdio: "inherit" }
-  );
-  return r.status === 0;
-}
-
-function vercelAdd(envName) {
-  const r = spawnSync(
-    "npx",
-    ["vercel", "env", "add", KEY, envName, "--value", groupUrl, "--yes"],
-    { cwd: ROOT, encoding: "utf8", shell: true, stdio: "inherit" }
-  );
-  if (r.status === 0) return true;
-  // Older CLI may not support --value; fall back to stdin
-  const r2 = spawnSync(
-    "npx",
-    ["vercel", "env", "add", KEY, envName],
-    {
-      cwd: ROOT,
-      encoding: "utf8",
-      shell: true,
-      input: `${groupUrl}\n`,
-      stdio: ["pipe", "inherit", "inherit"],
-    }
-  );
-  return r2.status === 0;
-}
-
-function syncVercel() {
-  for (const envName of ["production", "preview", "development"]) {
-    console.log(`Vercel ${envName}: removing old ${KEY} (if any)...`);
-    vercelRm(envName);
-    console.log(`Vercel ${envName}: adding ${KEY}...`);
-    if (!vercelAdd(envName)) {
-      console.error(`Failed to set Vercel ${envName}`);
-      process.exitCode = 1;
-    }
-  }
-}
-
 try {
   // eslint-disable-next-line no-new
   new globalThis.URL(groupUrl);
@@ -100,7 +58,10 @@ try {
 
 console.log("Setting", KEY, "→", groupUrl);
 updateToml();
-updateEnvFile(".env.vercel.local");
+// .env and .env.local are kept identical on purpose — update both.
+updateEnvFile(".env");
 updateEnvFile(".env.local");
-syncVercel();
-console.log("Done.");
+console.log(
+  "\nDone locally. This is a NEXT_PUBLIC_ var, so it is baked into the image at build time:\n" +
+    "  npm run deploy      (or push to main and let the Deploy Cloudflare action run)",
+);

@@ -10,7 +10,7 @@ const optionalUrl = z.preprocess((val) => {
     return parsed.success ? trimmed : undefined;
 }, z.string().url().optional());
 
-/** Empty strings from Cloudflare/Vercel become undefined for optional fields. */
+/** Empty strings from the Cloudflare env become undefined for optional fields. */
 function normalizeProcessEnv(
     raw: NodeJS.ProcessEnv
 ): Record<string, string | undefined> {
@@ -93,9 +93,10 @@ export type AppEnv = Omit<z.infer<typeof envSchema>, 'NEXT_PUBLIC_APP_URL'> & {
 };
 
 /**
- * Vercel injects project env during `next build`. Cloudflare Pages often does
- * not unless the same vars are set in the Pages project. Missing public vars
- * used to abort "Collecting page data" (e.g. /api/admin/billing-health).
+ * The build does not automatically see the deployed env: values must be set in
+ * wrangler.toml [vars] / the Docker build args, or `next build` runs without
+ * them. Missing public vars used to abort "Collecting page data"
+ * (e.g. /api/admin/billing-health).
  * During the Next production-build phase only, fill CI-style placeholders so
  * the OpenNext/Cloudflare compile can finish. Runtime still requires real vars.
  */

@@ -6,9 +6,10 @@ import { modelQueueFor } from '@/lib/ai/model-policy';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
 // AI generation is slow on long context (big prompt + dedup retries + model
-// fallback). Without this the function is killed at the ~60s platform default,
-// which surfaces in the browser as a generic "network error". 300s is the
-// Vercel Pro ceiling. Per-week calls stay well under it; this is the safety net.
+// fallback). On a serverless host this would be killed at the ~60s default and
+// surface in the browser as a generic "network error". Per-week calls stay well
+// under 300s; this is the safety net. Inert on Cloudflare Containers — the Node
+// server behind the Worker gateway has no per-route cap — but kept as intent.
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 

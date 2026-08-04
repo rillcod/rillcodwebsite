@@ -28,7 +28,7 @@ function adminClient() {
 }
 
 // Really runs every 30 minutes (verified against cron_run_history: 341 runs in 7 days, max gap
-// 30 minutes), not the daily schedule vercel.json declares.
+// 30 minutes), not the daily schedule the old host config declared.
 export async function GET(req: NextRequest) { return runMonitoredCron('receipt-sweep', cronInterval('receipt-sweep'), () => handle(req)); }
 export async function POST(req: NextRequest) { return runMonitoredCron('receipt-sweep', cronInterval('receipt-sweep'), () => handle(req)); }
 

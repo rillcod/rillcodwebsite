@@ -35,14 +35,17 @@ Use this checklist before deploying to production.
 - `20260501000024_optimize_at_risk_rpc.sql` - At-risk detection optimization
 - `20260501000025_performance_indexes.sql` - 80+ performance indexes
 
-### 3. Vercel Configuration ✅
+### 3. Cloudflare Configuration ✅
 
-- [ ] `vercel.json` includes all 7 cron jobs
-- [ ] Environment variables synced to Vercel
-- [ ] Cron secrets added to Vercel dashboard
-- [ ] Test deployment to preview environment
+- [ ] Every cron job has an entry on **cron-job.org** (`src/lib/operations/cron-registry.ts` is
+      the source of truth). `wrangler.toml` must have **no** `[triggers]` block — both would
+      double-fire the reminder emails that go to parents.
+- [ ] `npm run cf:env:check` passes — no placeholder values
+- [ ] `npm run cf:env` run, so `wrangler.toml [vars]` and Worker secrets match `.env`
+- [ ] `CRON_SECRET` / `BILLING_CRON_SECRET` uploaded as Worker secrets
+- [ ] Test deployment against `cf.rillcod.com` (staging domain)
 - [ ] Verify build completes successfully
-- [ ] Check function timeout limits (upgrade if needed)
+- [ ] `npm run cf:container:smoke` green
 
 ### 4. Supabase Edge Functions ✅
 
@@ -76,7 +79,7 @@ Use this checklist before deploying to production.
 - [ ] Caching implemented where needed
 - [ ] Pagination added to list endpoints
 - [ ] Image optimization enabled
-- [ ] CDN configured (Vercel handles automatically)
+- [ ] CDN configured (Cloudflare handles automatically; R2 assets have zero egress cost)
 
 ### 8. Testing ✅
 
@@ -115,7 +118,7 @@ Use this checklist before deploying to production.
 - [ ] Verify application loads correctly
 - [ ] Test user login/registration
 - [ ] Check error logs for issues
-- [ ] Verify cron jobs scheduled in Vercel
+- [ ] Verify cron jobs are firing (cron-job.org history + the Operations Health panel)
 - [ ] Test payment flow end-to-end
 - [ ] Check webhook receiving events
 
@@ -145,10 +148,12 @@ If issues occur after deployment:
 
 ### Quick Rollback (< 5 minutes)
 
-1. Revert to previous Vercel deployment:
+1. Roll back the Worker to the previous version:
    ```bash
-   vercel rollback
+   npx wrangler deployments list --name rillcodwebsite
+   npx wrangler rollback --name rillcodwebsite
    ```
+   (Or re-run the Deploy Cloudflare Action on the last known-good commit.)
 
 2. If database issues, restore from backup:
    ```bash
@@ -157,10 +162,9 @@ If issues occur after deployment:
 
 ### Partial Rollback
 
-1. Disable specific cron jobs in `vercel.json`
-2. Redeploy with updated config
-3. Fix issues in development
-4. Re-enable when ready
+1. Pause the specific job on cron-job.org (no redeploy needed)
+2. Fix issues in development
+3. Re-enable the job when ready
 
 ### Emergency Contacts
 
@@ -168,7 +172,7 @@ If issues occur after deployment:
 - **Database Admin:** [contact info]
 - **DevOps:** [contact info]
 - **Supabase Support:** support@supabase.com
-- **Vercel Support:** support@vercel.com
+- **Cloudflare Support:** https://dash.cloudflare.com/?to=/:account/support
 - **Paystack Support:** support@paystack.com
 
 ---
@@ -188,10 +192,12 @@ Expected performance after all optimizations:
 
 ## Known Limitations
 
-1. **Vercel Hobby Plan:**
-   - Function timeout: 10 seconds
-   - Cron jobs: Limited to 1 per day per path
-   - Upgrade to Pro if hitting limits
+1. **Cloudflare Workers Paid (current plan):**
+   - Cron triggers: 250 per account, standard cron syntax down to 1-minute granularity
+     (Free is 5). This is why the old serverless cron limits no longer apply — jobs sit on
+     cron-job.org for historical reasons, not platform ones.
+   - Scheduled invocation: 15 min wall clock; 30 s CPU under hourly, 15 min at hourly or longer
+   - Requests are served by the Node container, so there is no per-route function timeout
 
 2. **Supabase Free Tier:**
    - Database size: 500MB

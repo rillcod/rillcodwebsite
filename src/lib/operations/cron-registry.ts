@@ -2,10 +2,10 @@
  * Single source of truth for every scheduled job in the app.
  *
  * Before this file the schedule was described in five places that had all drifted apart:
- * `vercel.json`, `wrangler.toml`, the §12 table in docs/AUTOMATED_OFFICE_MASTER_PLAN.md,
- * the `CRON_PATHS` map in the operations-health route, and the hard-coded interval in each
- * route. Nothing reconciled them, so a job could lose its schedule (or never gain one) without
- * anything failing. Everything that needs to know about the schedule now reads this file, and
+ * the host config, the §12 table in docs/AUTOMATED_OFFICE_MASTER_PLAN.md, the `CRON_PATHS`
+ * map in the operations-health route, and the hard-coded interval in each route. Nothing
+ * reconciled them, so a job could lose its schedule (or never gain one) without anything
+ * failing. Everything that needs to know about the schedule now reads this file, and
  * `cron-registry.test.ts` fails the build if a route exists without an entry or vice versa.
  *
  * `intervalMinutes` is the health cadence, NOT the registration. It feeds `runMonitoredCron`,
@@ -18,13 +18,16 @@
  * contract it is expected to honour; `trigger: 'external'` entries are the ones that need an
  * entry there.
  *
- * NOTHING is scheduled by the host. `vercel.json` deliberately has no `crons` key and
- * `wrangler.toml` deliberately has no `[triggers]`, and neither should be given one. Both used to
- * list nine jobs that were never firing — verified against cron_run_history on 2026-07-31, where
- * academic-readiness ran twice in seven days rather than the seven its 04:30 daily entry implied,
- * and term-scheduler twice rather than seven. Re-adding them would not fix a schedule; it would
- * double-fire jobs that already run, including the invoice, billing and payment reminders that
- * email parents.
+ * NOTHING is scheduled by the host. `wrangler.toml` deliberately has no `[triggers]` block and
+ * must never be given one. It used to list nine jobs that were never firing — verified against
+ * cron_run_history on 2026-07-31, where academic-readiness ran twice in seven days rather than
+ * the seven its 04:30 daily entry implied, and term-scheduler twice rather than seven. Re-adding
+ * them would not fix a schedule; it would double-fire jobs that already run, including the
+ * invoice, billing and payment reminders that email parents.
+ *
+ * That block did survive the original cleanup and sat live in wrangler.toml until 2026-08-04,
+ * firing through the gateway's scheduled() handler alongside cron-job.org. If you are chasing
+ * duplicate parent emails dated before then, that is the cause.
  */
 
 export type CronTrigger =
@@ -118,7 +121,7 @@ export const CRON_REGISTRY = [
     name: 'academic-readiness',
     // Rides onboarding-sweep's existing daily-guarded fan-out — it deliberately does NOT get its
     // own scheduler entry. Observed: 2 runs 14.5 hours apart, at 09:30 and 00:00, which matches
-    // the fan-out and not the 04:30 entry vercel.json declares.
+    // the fan-out and not the 04:30 entry the old host config declared.
     label: 'Prepare classes for teaching',
     intervalMinutes: DAILY,
     trigger: 'fanout',
@@ -129,7 +132,7 @@ export const CRON_REGISTRY = [
   {
     name: 'term-scheduler',
     // Observed in cron_run_history 2026-07-31: 3 runs in 30 days, median gap 6.6 days. The
-    // registered entry is weekly, not the daily one vercel.json and the old docs claimed.
+    // registered entry is weekly, not the daily one the old host config and docs claimed.
     label: 'Prepare the next school term',
     intervalMinutes: WEEKLY,
     trigger: 'external',
@@ -139,7 +142,7 @@ export const CRON_REGISTRY = [
   {
     name: 'receipt-sweep',
     // Observed: 341 runs in 7 days, median AND max gap both 30 minutes. The daily entry in
-    // vercel.json is decorative; the real scheduler runs this every half hour.
+    // the old host config was decorative; the real scheduler runs this every half hour.
     label: 'Check payment receipts',
     intervalMinutes: 60,
     trigger: 'external',

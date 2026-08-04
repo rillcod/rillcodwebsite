@@ -63,44 +63,29 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ## Cron Jobs Setup
 
-### Vercel Cron Configuration
+### Where schedules live
 
-Create or update `vercel.json` in your project root:
+Jobs are **not** scheduled by the host. Each one is registered on **cron-job.org**, which calls
+the route over HTTPS with the `x-cron-secret` header.
 
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/billing-reminders",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/invoice-reminders",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/live-session-reminders",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/process-notifications",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/streak-reminder",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/cron/term-scheduler",
-      "schedule": "0 5 * * 1"
-    },
-    {
-      "path": "/api/cron/weekly-summary",
-      "schedule": "0 17 * * 5"
-    }
-  ]
-}
+`src/lib/operations/cron-registry.ts` is the single source of truth for what runs and how often —
+`cron-registry.test.ts` fails the build if a cron route exists without an entry, or vice versa.
+Print the current table with:
+
+```bash
+npm run cron:table
 ```
+
+Each job needs, on cron-job.org:
+
+- **URL:** `https://www.rillcod.com/api/cron/<job-name>`
+- **Header:** `x-cron-secret: <CRON_SECRET>` (billing jobs use `BILLING_CRON_SECRET`)
+- **Schedule:** whatever the registry says for that job
+
+> `wrangler.toml` must have **no** `[triggers]` block. The Worker gateway's `scheduled()` handler
+> calls the very same routes, so having both sends parents a second copy of every billing,
+> invoice and payment reminder. Cloudflare *can* own scheduling instead (Workers Paid allows 250
+> triggers at 1-minute granularity) — but disable the cron-job.org entries first.
 
 ### Cron Schedule Explanations
 
@@ -143,10 +128,11 @@ curl -X POST https://rillcod.com/api/cron/invoice-reminders \
 
 ### Cron Job Monitoring
 
-Check cron job logs in Vercel dashboard:
-1. Go to your project in Vercel
-2. Click "Logs" tab
-3. Filter by function name (e.g., `/api/cron/billing-reminders`)
+Three places, in order of usefulness:
+1. **Operations Health** panel in the dashboard — every run is recorded in `cron_run_history`,
+   and a job that misses its cadence is flagged Late
+2. **cron-job.org** execution history — shows whether the trigger fired at all
+3. `npx wrangler tail rillcodwebsite` — live Worker/container logs
 
 ---
 
@@ -259,15 +245,17 @@ npx supabase db push
 ## Verification Checklist
 
 ### Environment Variables
-- [ ] All required variables set in `.env.local`
+- [ ] All required variables set in **both** `.env` and `.env.local` (kept identical on purpose)
+- [ ] New keys added to `.env.example`
 - [ ] Secrets generated and configured
-- [ ] Vercel environment variables synced
+- [ ] `npm run cf:env:check` passes, then `npm run cf:env` to push to Cloudflare
 
 ### Cron Jobs
-- [ ] `vercel.json` configured with cron schedules
-- [ ] Cron secrets set in Vercel dashboard
+- [ ] Every job in `cron-registry.ts` has a matching cron-job.org entry
+- [ ] `wrangler.toml` has no `[triggers]` block
+- [ ] `CRON_SECRET` / `BILLING_CRON_SECRET` uploaded as Worker secrets
 - [ ] Test manual trigger for each cron job
-- [ ] Verify cron logs in Vercel dashboard
+- [ ] Operations Health shows every job green
 
 ### Edge Functions
 - [ ] Edge function deployed to Supabase
@@ -294,10 +282,10 @@ npx supabase db push
 
 ### Cron Jobs Not Running
 
-1. Check Vercel logs for errors
-2. Verify `CRON_SECRET` matches in both places
-3. Ensure cron schedule is valid (use crontab.guru)
-4. Check function timeout limits (max 10s on Hobby plan)
+1. Check the cron-job.org execution history — did the trigger fire at all?
+2. Verify `CRON_SECRET` matches between cron-job.org and the Worker secret
+3. Ensure the cron schedule is valid (use crontab.guru) and matches `cron-registry.ts`
+4. Check Operations Health and `npx wrangler tail rillcodwebsite` for the run itself
 
 ### Edge Function Errors
 

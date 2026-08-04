@@ -3,7 +3,7 @@
  * Attach cf.rillcod.com (or CF_STAGING_HOST) custom domain route to Worker rillcodwebsite.
  * Requires rillcod.com zone on the same Cloudflare account as wrangler login.
  *
- * If DNS is still on Vercel (ns1.vercel-dns.com), add the zone in Cloudflare first:
+ * If the zone is not on Cloudflare yet, add it first:
  *   https://dash.cloudflare.com/?to=/:account/domains/add
  * Then import/copy DNS records and point cf → Worker (this script does the Worker side).
  */
@@ -47,10 +47,10 @@ try {
     exitCode = 0;
   } else if (/already has externally managed DNS records/i.test(out)) {
     console.error(`
-Could not attach Worker custom domain — old DNS records still point to Vercel.
+Could not attach Worker custom domain — stale DNS records are still in the way.
 
 In Cloudflare Dashboard → rillcod.com → DNS → Records, DELETE:
-  • www   (CNAME or A — usually cname.vercel-dns.com)
+  • www   (CNAME or A pointing anywhere other than this Worker)
   • @     (A or CNAME for apex — if present)
 
 Keep cf.rillcod.com as-is. Then re-run: npm run cf:set-route
@@ -60,13 +60,13 @@ Keep cf.rillcod.com as-is. Then re-run: npm run cf:set-route
     console.error(`
 Could not set route — rillcod.com is not on this Cloudflare account yet.
 
-Your domain DNS is currently on Vercel (ns1.vercel-dns.com). To use ${stagingHost}:
+The zone is not on this Cloudflare account. To use ${stagingHost}:
 
   1. Add rillcod.com to Cloudflare (same account as wrangler login):
      https://dash.cloudflare.com/?to=/:account/domains/add
 
-  2. Import existing DNS records from Vercel, then change nameservers at your
-     registrar to the two Cloudflare nameservers (or wait until cutover).
+  2. Import the existing DNS records, then change nameservers at your
+     registrar to the two Cloudflare nameservers.
 
   3. Re-run: npm run cf:set-route
 

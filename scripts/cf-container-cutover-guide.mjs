@@ -21,9 +21,8 @@ Prerequisites
        Token: Edit Cloudflare Workers + Containers + Account DNS (zone)
 
 Deploy staging
-  1. Add rillcod.com to Cloudflare (required — DNS is currently on Vercel nameservers):
+  1. rillcod.com must be on this Cloudflare account (done — nameservers point at Cloudflare):
        https://dash.cloudflare.com/?to=/:account/domains/add
-     Import/copy Vercel DNS records before switching nameservers at your registrar.
   2. npm run cf:set-route          → attaches ${staging} custom domain to Worker
      (or full deploy: npm run cf:container:deploy)
   3. npm run cf:secrets
@@ -36,16 +35,19 @@ Production cutover (only after staging is green)
   2. Attach custom domain ${production} (+ www) to Worker rillcodwebsite
   3. npm run cf:secrets && npm run cf:container:deploy
   4. Smoke-test https://${production}
-  5. Keep Vercel as fallback until confident, then disable Vercel domain
+     (Cutover is DONE — Cloudflare is the only host; Vercel was removed 2026-08-04.)
 
 Cron
-  [triggers].crons is COMMENTED OUT in wrangler.toml on purpose: staging shares the production
-  Supabase project, so firing it here would send parents a second copy of every billing,
-  invoice and payment reminder already sent from www.
-  At cutover, in one change:
-    a. Ensure CRON_SECRET is uploaded via npm run cf:secrets.
-    b. Uncomment [triggers].crons in wrangler.toml and deploy.
-    c. Retire the matching cron-job.org entries — never run both.
-  Only 9 of the jobs are on this Worker; the rest are external or fanned out.
+  wrangler.toml has NO [triggers] block, deliberately. cron-job.org owns every schedule.
+  A block here does not replace that — the gateway's scheduled() handler calls the same
+  routes, so parents get a second copy of every billing, invoice and payment reminder.
+  (That is exactly what happened: a [triggers] block sat live from 2026-07-31 to 2026-08-04.)
+
+  Cloudflare CAN own scheduling if you want it to — Workers Paid allows 250 cron triggers at
+  1-minute granularity, far past the old serverless limits that pushed these jobs to
+  cron-job.org in the first place. To move them, in this order:
+    a. Ensure CRON_SECRET is uploaded via npm run cf:env.
+    b. DISABLE the matching cron-job.org entries first, and confirm they stopped.
+    c. Only then add [triggers].crons to wrangler.toml and deploy.
   src/lib/operations/cron-registry.ts lists every job and how it is triggered.
 `);

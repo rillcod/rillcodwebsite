@@ -21,8 +21,11 @@ function adminClient() {
 export const dynamic = "force-dynamic";
 // Online/bootcamp syllabi generate the whole course (16–24 weeks) in one large
 // call, which routinely ran past the old 2-min cap and surfaced as a browser
-// "network error". 300s is the Vercel Pro ceiling. (School/termly generation is
-// smaller and was unaffected.)
+// "network error". (School/termly generation is smaller and was unaffected.)
+//
+// NOTE: `maxDuration` is a serverless-host hint and is inert on Cloudflare
+// Containers, where this runs in the long-lived Node server behind the Worker
+// gateway. Kept as a record of how long this route legitimately needs.
 export const maxDuration = 300;
 
 const openRouter = new OpenAI({

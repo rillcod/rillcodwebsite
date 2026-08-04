@@ -5,11 +5,21 @@ import withPWAInit from "next-pwa";
 // @ts-ignore
 import runtimeCaching from "next-pwa/cache";
 
-/** Cloudflare Pages sets CF_PAGES=1; local OpenNext scripts set OPENNEXT_CLOUDFLARE=1. */
+/**
+ * Legacy OpenNext-on-Workers path. Cloudflare Pages sets CF_PAGES=1; the local
+ * OpenNext scripts set OPENNEXT_CLOUDFLARE=1. Not the production path — the app
+ * does not fit the 64 MiB Worker limit — but the stub aliases below are still
+ * needed whenever that build is attempted.
+ */
 const isCloudflareBuild =
   process.env.CF_PAGES === "1" || process.env.OPENNEXT_CLOUDFLARE === "1";
 
-/** Cloudflare Containers (Dockerfile.cf) — slim standalone bundle for registry push. */
+/**
+ * PRODUCTION PATH: Cloudflare Containers (Dockerfile.cf) — slim standalone
+ * bundle pushed to the Cloudflare registry, fronted by the Worker gateway in
+ * src/cloudflare/container-gateway.ts. Set by `npm run cf:container:deploy`
+ * and by .github/workflows/deploy-cloudflare.yml.
+ */
 const isContainerBuild = process.env.DOCKER_BUILD === "1";
 
 const withPWA = withPWAInit({
@@ -43,9 +53,10 @@ const nextConfig: NextConfig = {
   // Slim Docker image for Cloudflare Containers (~500 MB vs ~2.8 GB full node_modules).
   ...(isContainerBuild ? { output: "standalone" as const } : {}),
 
-  // Keep pdf engines out of the webpack bundle on Vercel so AFM/TTF paths resolve
-  // from node_modules. On Cloudflare, omit them so stubs replace the heavy packages
-  // instead of copying fonts into the Worker. `jose` stays external for workerd.
+  // Keep pdf engines out of the webpack bundle on the container build so AFM/TTF
+  // paths resolve from node_modules. On the Workers build, omit them so stubs
+  // replace the heavy packages instead of copying fonts into the Worker.
+  // `jose` stays external for workerd.
   serverExternalPackages: isCloudflareBuild
     ? ["jose"]
     : [
@@ -57,7 +68,7 @@ const nextConfig: NextConfig = {
         "jose",
       ],
 
-  // Ensure font metric / TTF files are traced into Vercel serverless functions.
+  // Ensure font metric / TTF files are traced into the standalone server output.
   outputFileTracingIncludes: isCloudflareBuild
     ? {}
     : {
@@ -75,7 +86,7 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   experimental: {
-    // Lower peak RAM on Vercel’s 8GB builders (large app + next-pwa webpack).
+    // Lower peak RAM on memory-capped CI builders (large app + next-pwa webpack).
     webpackMemoryOptimizations: true,
     cpus: 1,
     // Compile server / edge / client each in its own short-lived child process
@@ -110,12 +121,13 @@ const nextConfig: NextConfig = {
     // instrumentation.ts is enabled by default in Next.js 15
   },
 
-  // Avoid browser source maps on Vercel — they inflate compile RAM.
+  // Avoid browser source maps in CI — they inflate compile RAM.
   productionBrowserSourceMaps: false,
 
-  // next-pwa already injects webpack; disable persistent cache on Vercel to cut peak RAM.
+  // next-pwa already injects webpack; disable persistent cache in the container
+  // build to cut peak RAM (and to keep the Docker layer small).
   webpack: (config, { dev, isServer }) => {
-    if (!dev && (process.env.VERCEL || process.env.DOCKER_BUILD)) {
+    if (!dev && process.env.DOCKER_BUILD) {
       config.cache = false;
     }
     // Cloudflare Workers size limits: stub Node-only heavies so they never enter the Worker.

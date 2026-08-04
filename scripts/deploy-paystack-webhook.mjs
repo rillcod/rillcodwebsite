@@ -115,5 +115,5 @@ Paystack webhook URL:
 
 In Paystack Dashboard → Settings → Webhooks, use that URL (same secret key as PAYSTACK_SECRET_KEY).
 
-If you set PAYMENT_WEBHOOK_INTERNAL_SECRET above, add the same value to your Next host (.env / Vercel) for receipt callbacks from inline mode.
+If you set PAYMENT_WEBHOOK_INTERNAL_SECRET above, add the same value to .env / .env.local and run "npm run cf:env" for receipt callbacks from inline mode.
 `);

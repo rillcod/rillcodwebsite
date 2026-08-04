@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { RateLimitError } from '@/lib/errors';
+import { resolveUpstashConfig } from '@/lib/redis-config';
 
 // Memory store fallback for edge if Upstash Redis is not available
 // In Edge functions, memory might not be completely shared, but it works well enough
 const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
 let redisClient: Redis | null = null;
+let redisInitFailed = false;
 let warnedMemoryFallback = false;
 
 export function getClientIp(req: NextRequest): string {
@@ -19,18 +21,34 @@ export function getClientIp(req: NextRequest): string {
     return realIp || '127.0.0.1';
 }
 
+/**
+ * Never throws. A missing or malformed UPSTASH_REDIS_REST_URL must degrade to
+ * the in-memory limiter, not 500 the endpoint being rate-limited.
+ */
 function getRedisClient(): Redis | null {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) {
+    if (redisClient) return redisClient;
+    if (redisInitFailed) return null;
+
+    const config = resolveUpstashConfig(
+        process.env.UPSTASH_REDIS_REST_URL,
+        process.env.UPSTASH_REDIS_REST_TOKEN,
+        'rate-limit',
+    );
+    if (!config) {
+        redisInitFailed = true;
         if (!warnedMemoryFallback) {
             warnedMemoryFallback = true;
-            console.warn('Rate limiter using in-memory fallback (UPSTASH_REDIS_* env vars missing).');
+            console.warn('Rate limiter using in-memory fallback (UPSTASH_REDIS_* env vars missing or invalid).');
         }
         return null;
     }
-    if (!redisClient) {
-        redisClient = new Redis({ url, token });
+
+    try {
+        redisClient = new Redis(config);
+    } catch (err) {
+        redisInitFailed = true;
+        console.warn('Rate limiter using in-memory fallback (Upstash Redis init failed).', err);
+        return null;
     }
     return redisClient;
 }
@@ -63,11 +81,10 @@ export async function checkCustomRateLimit(config: RateLimitConfig): Promise<voi
             if (count === 1) await redis.expire(redisKey, windowSecs);
             if (count > max) {
                 const ttl = await redis.ttl(redisKey);
-                throw new RateLimitError(
-                    `Too many requests. Please wait before trying again.`,
-                );
+                const err = new RateLimitError('Too many requests. Please wait before trying again.');
                 // Attach retryAfter for the error handler to surface
-                Object.assign(new RateLimitError(), { retryAfter: ttl > 0 ? ttl : windowSecs });
+                (err as any).retryAfter = ttl > 0 ? ttl : windowSecs;
+                throw err;
             }
             return;
         } catch (err) {

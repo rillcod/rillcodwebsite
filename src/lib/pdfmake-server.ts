@@ -7,7 +7,7 @@
  *
  * Fonts: use real Roboto TTF files shipped with pdfmake (not Helvetica standard
  * fonts). Standard fonts need AFM files beside pdfkit; when Next bundles pdfkit
- * those paths become `.next/server/chunks/data/*.afm` and break on Vercel.
+ * those paths become `.next/server/chunks/data/*.afm` and break in the deployed bundle.
  */
 import { AppError } from '@/lib/errors';
 

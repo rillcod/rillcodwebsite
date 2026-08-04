@@ -3,7 +3,6 @@ node_modules
 .git
 .github
 .open-next
-.vercel
 .turbo
 android
 ios

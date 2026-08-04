@@ -32,7 +32,7 @@ export const maxDuration = 120;
 
 // Code-base cron jobs that aren't on the external scheduler — triggered once per day from this
 // sweep (daily guard below) so they run without a separate cron-job.org entry.
-// integrity-sweep already has its own Vercel schedule; auto-generate-content chains from
+// integrity-sweep already has its own scheduler entry; auto-generate-content chains from
 // academic-readiness so plans are prepared before content generation.
 // ai-model-drift rides here rather than taking a scheduler entry of its own: a
 // retired free model costs money quietly instead of breaking anything, because
@@ -50,7 +50,7 @@ const HOURLY_FANOUT = ['auto-generate-content', 'communication-followup'];
 const HOURLY_FANOUT_GUARD_KEY = 'cron_onboarding_sweep_hourly_fanout_hour';
 const HOURLY_FANOUT_RESULT_KEY = 'cron_onboarding_sweep_last_hourly_fanout';
 // NOTE: Do NOT fan out `weekly-summary` here. That job sends the monthly parent update
-// and must run at most once per month (see vercel.json). Fanning it from this 15-minute
+// and must run at most once per month (see cron-registry.ts). Fanning it from this 15-minute
 // sweep re-mailed parents every run whenever Redis fell back to in-memory.
 
 function adminClient() {

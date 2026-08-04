@@ -1,6 +1,6 @@
 /**
  * Load the brand logo for next/og ImageResponse.
- * Prefer the on-disk public file (Vercel/local); fall back to the live public URL
+ * Prefer the on-disk public file (container/local); fall back to the live public URL
  * (Cloudflare Workers have no reliable FS for public/). Same pic either way.
  */
 function toDataUrl(bytes: ArrayBuffer | Buffer | Uint8Array): string {
@@ -11,7 +11,7 @@ function toDataUrl(bytes: ArrayBuffer | Buffer | Uint8Array): string {
 }
 
 export async function loadBrandLogoDataUrl(): Promise<string | null> {
-  // 1) Node filesystem — used on Vercel and local builds
+  // 1) Node filesystem — used by the container build and locally
   try {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');

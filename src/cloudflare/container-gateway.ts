@@ -54,6 +54,8 @@ type GatewayEnv = {
   NEXT_APP: DurableObjectNamespace<NextAppContainer>;
   CRON_SECRET?: string;
   BILLING_CRON_SECRET?: string;
+  /** Must be exactly "true" before this Worker is allowed to fire any cron. */
+  CLOUDFLARE_OWNS_CRON?: string;
 } & Record<string, string | undefined>;
 
 function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
@@ -98,9 +100,21 @@ export class NextAppContainer extends Container {
   }
 }
 
-// Cron expression → container route. Inert until `[triggers]` is restored in wrangler.toml at
-// production cutover; see the note there for why staging must not fire these. Schedules and
-// cadences for every job are documented in src/lib/operations/cron-registry.ts.
+/**
+ * Cron expression → container route.
+ *
+ * These fire ONLY when `CLOUDFLARE_OWNS_CRON` is exactly "true" in wrangler.toml [vars].
+ * Without that flag `scheduled()` is a no-op, so restoring a `[triggers]` block cannot by
+ * itself start firing jobs.
+ *
+ * The flag exists because these routes are ALSO called by cron-job.org, which is the real
+ * scheduler (see src/lib/operations/cron-registry.ts). Running both sends parents a second
+ * copy of every invoice, billing and payment reminder — which is exactly what happened
+ * between 2026-07-31 and 2026-08-04, when a `[triggers]` block sat live in wrangler.toml.
+ *
+ * To hand scheduling to Cloudflare: disable the cron-job.org entries FIRST, confirm they have
+ * stopped, then add `[triggers]` and set CLOUDFLARE_OWNS_CRON = "true" in the same change.
+ */
 const CRON_PATHS: Record<string, string> = {
   "0 7 * * *": "/api/cron/invoice-reminders",
   "0 8 * * *": "/api/cron/billing-reminders",
@@ -123,6 +137,18 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: GatewayEnv): Promise<void> {
+    // Guard: cron-job.org owns scheduling unless this is explicitly flipped. Firing without it
+    // double-sends the reminder emails that go to parents. See CRON_PATHS above.
+    if (env.CLOUDFLARE_OWNS_CRON !== "true") {
+      console.warn(
+        "[gateway] ignoring cron",
+        controller.cron,
+        "— CLOUDFLARE_OWNS_CRON is not \"true\". cron-job.org is the scheduler; " +
+          "firing here as well would double-send parent emails.",
+      );
+      return;
+    }
+
     const path = CRON_PATHS[controller.cron];
     if (!path) {
       console.warn("[gateway] no route mapping for cron", controller.cron);

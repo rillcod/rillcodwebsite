@@ -85,9 +85,12 @@ export async function POST(req: NextRequest) {
     const { data: publicUrlData } = supabase.storage.from("portfolio-images").getPublicUrl(path);
     return NextResponse.json({ success: true, url: publicUrlData.publicUrl });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Upload failed";
+    // Public endpoint: log the detail, show parents something they can act on.
     console.error("Summer school receipt route error:", err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not upload your receipt. Please try again, or type your transfer reference instead." },
+      { status: 500 },
+    );
   }
 }
 
@@ -133,8 +136,10 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Delete failed";
     console.error("Summer school receipt delete error:", err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not remove the receipt. Please try again." },
+      { status: 500 },
+    );
   }
 }

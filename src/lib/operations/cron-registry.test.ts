@@ -87,3 +87,50 @@ describe('cron registry', () => {
     expect(Object.keys(cronPathMap()).sort()).toEqual(jobs.map((job) => job.name).sort());
   });
 });
+
+/**
+ * cron-job.org is the scheduler. The Worker gateway can call the very same routes from its
+ * `scheduled()` handler, so a `[triggers]` block in wrangler.toml does not move scheduling —
+ * it duplicates it, and parents get a second copy of every invoice, billing and payment
+ * reminder. That is not hypothetical: a `[triggers]` block sat live from 2026-07-31 to
+ * 2026-08-04 doing exactly this.
+ *
+ * Switching hosts is allowed, but it has to be deliberate and atomic: disable the cron-job.org
+ * entries first, then add `[triggers]` and `CLOUDFLARE_OWNS_CRON = "true"` in the same change.
+ * The gateway ignores every cron unless that flag is set, so these two checks agree.
+ */
+describe('wrangler cron triggers', () => {
+  const WRANGLER = path.resolve(__dirname, '../../../wrangler.toml');
+  const toml = readFileSync(WRANGLER, 'utf8');
+  const hasTriggers = /^\s*\[triggers\]/m.test(toml);
+  const ownsCron = /^\s*CLOUDFLARE_OWNS_CRON\s*=\s*"true"\s*$/m.test(toml);
+
+  it('does not schedule crons on the host without opting in', () => {
+    expect(
+      hasTriggers && !ownsCron,
+      'wrangler.toml has a [triggers] block but CLOUDFLARE_OWNS_CRON is not "true". ' +
+        'Both cron-job.org and this Worker would fire every job, double-sending parent emails. ' +
+        'Disable the cron-job.org entries first, then set CLOUDFLARE_OWNS_CRON = "true" in [vars].',
+    ).toBe(false);
+  });
+
+  it('does not claim to own cron without any triggers to fire', () => {
+    expect(
+      ownsCron && !hasTriggers,
+      'CLOUDFLARE_OWNS_CRON is "true" but wrangler.toml has no [triggers] block, so nothing ' +
+        'is scheduled at all. Either add the triggers or drop the flag.',
+    ).toBe(false);
+  });
+
+  it('keeps the gateway guard wired to the same flag', () => {
+    const gateway = readFileSync(
+      path.resolve(__dirname, '../../cloudflare/container-gateway.ts'),
+      'utf8',
+    );
+    expect(
+      gateway.includes('CLOUDFLARE_OWNS_CRON'),
+      'container-gateway.ts no longer checks CLOUDFLARE_OWNS_CRON — the runtime guard is gone, ' +
+        'so a restored [triggers] block would fire jobs immediately.',
+    ).toBe(true);
+  });
+});

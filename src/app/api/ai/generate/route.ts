@@ -22,9 +22,9 @@ import {
 } from "@/lib/ai/generate-core";
 
 export const dynamic = "force-dynamic";
-// Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
-// (honoured on Vercel Pro; Hobby still hard-caps at 60s — the client now detects a
-// cut-off stream and surfaces a retry instead of a hasty "success").
+// Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream.
+// Inert on Cloudflare Containers (no per-route cap there), but the client still
+// detects a cut-off stream and surfaces a retry instead of a hasty "success".
 export const maxDuration = 300;
 
 /**

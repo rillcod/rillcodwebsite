@@ -1,6 +1,6 @@
 /**
  * Automated Invoice Reminder Cron
- * Vercel Cron calls GET daily at 8:00 AM.
+ * The external scheduler (cron-job.org) calls GET daily at 8:00 AM.
  * Manual trigger: POST with x-cron-secret header.
  *
  * Logic (per unpaid invoice):

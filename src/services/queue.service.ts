@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import { env } from '@/config/env';
+import { resolveUpstashConfig } from '@/lib/redis-config';
 
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
 export interface NotificationJob {
@@ -12,12 +13,14 @@ export interface NotificationJob {
 }
 
 const redis = (() => {
-    if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
+    const config = resolveUpstashConfig(
+        env.UPSTASH_REDIS_REST_URL,
+        env.UPSTASH_REDIS_REST_TOKEN,
+        'queue',
+    );
+    if (!config) return null;
     try {
-        return new Redis({
-            url: env.UPSTASH_REDIS_REST_URL,
-            token: env.UPSTASH_REDIS_REST_TOKEN,
-        });
+        return new Redis(config);
     } catch (err) {
         console.warn('[queue] Upstash Redis init failed; queue disabled for this process.', err);
         return null;

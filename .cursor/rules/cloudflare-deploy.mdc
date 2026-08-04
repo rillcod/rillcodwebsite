@@ -1,11 +1,12 @@
 ---
-description: Cloudflare Containers is the primary production host — never treat Vercel/OpenNext Workers as production.
+description: Cloudflare Containers is the only production host — Vercel was fully removed 2026-08-04.
 alwaysApply: true
 ---
 
 # Cloudflare production deploy
 
-Production is **Cloudflare Containers**, not Vercel and not OpenNext Workers.
+Production is **Cloudflare Containers**, and it is the only host. Vercel was fully removed on
+2026-08-04 — do not reintroduce `vercel.json`, `.vercel/`, or any `vercel env pull` step.
 
 - Live: `https://www.rillcod.com`, `https://rillcod.com`, `https://cf.rillcod.com`
 - Auto-deploy: push to `main` → `.github/workflows/deploy-cloudflare.yml`
@@ -16,6 +17,9 @@ When changing deploy, DNS, crons, or hosting:
 
 1. Read `docs/CLOUDFLARE_DEPLOY.md` and `wrangler.toml` first.
 2. Keep Containers + `Dockerfile.cf` + `scripts/cf-container-deploy.mjs`.
-3. Do not switch production back to Vercel/Netlify/OpenNext Workers without an explicit user request.
+3. Do not switch production to another host without an explicit user request.
 4. Do not remove GitHub Actions deploy secrets docs or the workflow without replacing them.
-5. Crons in `wrangler.toml` must not double-fire with cron-job.org.
+5. `wrangler.toml` must have **no** `[triggers]` block — cron-job.org owns scheduling, and a
+   block here double-fires the reminder emails that go to parents.
+6. Never sync a placeholder value (`[SENSITIVE]`, `changeme`) to Cloudflare — `npm run cf:env`
+   rejects them, and bypassing that guard has already caused a production outage.

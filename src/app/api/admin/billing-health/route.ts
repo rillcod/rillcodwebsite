@@ -89,7 +89,7 @@ export async function GET() {
         active_courses_without_priced_programme: activeMissingPrice,
         hints: [
             'Set RESEND_API_KEY and RESEND_FROM_EMAIL in the live host environment. SendPulse credentials are an optional automatic fallback.',
-            'Set ADMIN_OPS_EMAIL in the host environment (e.g. Vercel) for registration payment alerts.',
+            'Set ADMIN_OPS_EMAIL in wrangler.toml [vars] for registration payment alerts.',
             'Set app_settings.default_registration_program_id via PUT /api/app-settings (admin) to a programme UUID with programs.price > 0.',
             'Enable programs.instalments_enabled only on programmes that truly offer instalments.',
             'After db push, migration 20260415140000_unpublish_courses_without_priced_program sets is_active=false on courses missing a priced programme.',

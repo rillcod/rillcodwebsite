@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 /**
- * Sync .env.vercel.local → Cloudflare Workers:
+ * Sync local env files → Cloudflare Workers:
  * - Public / build-time vars → wrangler.toml [vars]
  * - Secrets → wrangler secret put
  *
- * Usage: node scripts/sync-cloudflare-env-from-vercel.mjs
- * Optional: --vars-only | --secrets-only | --dry-run
+ * Sources, lowest precedence first: .env → .env.local → .env.production.local
+ *
+ * Usage: node scripts/sync-cloudflare-env.mjs
+ * Optional: --vars-only | --secrets-only | --dry-run | --allow-placeholders
+ *
+ * HISTORY — why the placeholder guard exists:
+ * This script used to read `.env.vercel.local` LAST, so it won whenever a key
+ * existed in more than one file. `vercel env pull` writes the literal string
+ * "[SENSITIVE]" for any var marked sensitive, so ten real credentials (Upstash,
+ * LiveKit, Resend, Firebase) were overwritten with that placeholder and uploaded
+ * to Cloudflare. Public receipt upload 500'd for as long as it took to notice.
+ * Nothing that looks like a placeholder may ever reach Cloudflare again.
  */
 import { spawnSync } from "child_process";
 import fs from "fs";
@@ -14,14 +24,17 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const PROJECT = process.env.CF_WORKER_NAME || process.env.CF_PAGES_PROJECT || "rillcodwebsite";
-const ENV_FILE = path.resolve(ROOT, process.env.CF_ENV_FILE || ".env.vercel.local");
+const PROJECT = process.env.CF_WORKER_NAME || "rillcodwebsite";
 const WRANGLER = path.join(ROOT, "wrangler.toml");
+
+/** Lowest precedence first — later files win. */
+const SOURCE_FILES = [".env", ".env.local", ".env.production.local"];
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
 const varsOnly = args.has("--vars-only");
 const secretsOnly = args.has("--secrets-only");
+const allowPlaceholders = args.has("--allow-placeholders");
 
 const PUBLIC_KEYS = [
   "NEXT_PUBLIC_APP_URL",
@@ -68,13 +81,16 @@ const SECRET_KEYS = [
   // it every unsigned webhook is rejected, so inbound WhatsApp goes dark.
   "WHATSAPP_APP_SECRET",
   // An account identifier rather than a credential, but it stays a secret so it
-  // does not land in wrangler.toml, which is committed to a public repo.
+  // does not land in wrangler.toml, which is committed.
   "WHATSAPP_PHONE_NUMBER_ID",
   // Jitsi-as-a-Service token minting (/api/live-sessions/jaas-token).
   "JAAS_APP_ID",
   "JAAS_KEY_ID",
   "JAAS_PRIVATE_KEY",
 ];
+
+/** Host-injected build metadata that must never be synced anywhere. */
+const IGNORED_KEY_PREFIXES = [/^VERCEL/, /^NX_/, /^TURBO_/, /^CF_PAGES/];
 
 function parseEnvFile(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
@@ -92,11 +108,28 @@ function parseEnvFile(filePath) {
     ) {
       value = value.slice(1, -1);
     }
-    // Vercel env pull may escape newlines as \n in JSON secrets
+    // Multi-line secrets (service-account JSON, PEM keys) are stored escaped
     value = value.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+    if (IGNORED_KEY_PREFIXES.some((re) => re.test(key))) continue;
     env[key] = value;
   }
   return env;
+}
+
+/**
+ * A value that is syntactically present but semantically empty. Uploading one
+ * is worse than uploading nothing: the app's "is it configured?" checks pass
+ * and the failure surfaces later, in production, as a confusing runtime error.
+ */
+function placeholderReason(key, value) {
+  if (/^\[.*\]$/.test(value)) return `looks like a placeholder (${value})`;
+  if (/^(undefined|null|changeme|todo|xxx+)$/i.test(value)) {
+    return `looks like a stub (${value})`;
+  }
+  if (key.endsWith("_URL") && !/^(https?|wss?):\/\//i.test(value)) {
+    return "is not a URL (expected https://, http:// or wss://)";
+  }
+  return null;
 }
 
 function tomlEscape(value) {
@@ -172,26 +205,47 @@ function uploadSecrets(env) {
   }
 }
 
-if (!fs.existsSync(ENV_FILE)) {
-  console.error(`Missing ${ENV_FILE}. Run: npx vercel env pull .env.vercel.local --environment=production`);
-  process.exit(1);
-}
+// ── Load ──────────────────────────────────────────────────────────────────────
 
-// Layer the local env files, lowest precedence first, so a key that only ever
-// lived in .env/.env.local still reaches Cloudflare. Reading ENV_FILE alone is
-// how WHATSAPP_APP_SECRET and the JAAS_* keys silently never got uploaded.
-// ENV_FILE is applied last: production values always win.
 const env = {};
-const sourceFiles = [".env", ".env.local", ENV_FILE];
-for (const candidate of sourceFiles) {
+let loadedAny = false;
+for (const candidate of SOURCE_FILES) {
   const resolved = path.resolve(ROOT, candidate);
   if (!fs.existsSync(resolved)) continue;
+  loadedAny = true;
   const parsed = parseEnvFile(resolved);
   for (const [key, value] of Object.entries(parsed)) {
     if (value !== undefined && value !== "") env[key] = value;
   }
-  console.log(`Loaded ${Object.keys(parsed).length} keys from ${path.basename(resolved)}`);
+  console.log(`Loaded ${Object.keys(parsed).length} keys from ${candidate}`);
 }
+
+if (!loadedAny) {
+  console.error(`No env file found. Expected one of: ${SOURCE_FILES.join(", ")}`);
+  process.exit(1);
+}
+
+// ── Guard ─────────────────────────────────────────────────────────────────────
+
+const bad = [];
+for (const key of [...PUBLIC_KEYS, ...SECRET_KEYS]) {
+  const value = env[key];
+  if (!value) continue;
+  const reason = placeholderReason(key, value);
+  if (reason) bad.push({ key, reason });
+}
+
+if (bad.length) {
+  console.error("\nRefusing to sync — these values are not real credentials:");
+  for (const { key, reason } of bad) console.error(`  ${key}: ${reason}`);
+  console.error(
+    "\nFetch the real value from the provider's console and put it in .env.local.\n" +
+      "Override with --allow-placeholders only if you truly mean to upload these."
+  );
+  if (!allowPlaceholders) process.exit(1);
+  console.error("--allow-placeholders set; continuing anyway.\n");
+}
+
 console.log(`Merged to ${Object.keys(env).length} keys`);
 console.log(`Cloudflare Workers project: ${PROJECT}`);
 
