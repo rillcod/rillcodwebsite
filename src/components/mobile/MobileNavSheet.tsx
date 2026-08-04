@@ -366,6 +366,13 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
             <button
               type="button"
               onClick={() => {
+                if (
+                  !window.confirm(
+                    'Sign out of Rillcod Academy? You will need to log in again.',
+                  )
+                ) {
+                  return;
+                }
                 onClose();
                 void signOut();
               }}

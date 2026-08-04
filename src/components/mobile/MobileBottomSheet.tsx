@@ -74,6 +74,9 @@ export default function MobileBottomSheet({
   const closingRef = useRef(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // Block taps for the open animation so the gesture that opened the sheet
+  // cannot land on footer actions (Sign out) — a common mobile click-through.
+  const [interactive, setInteractive] = useState(false);
 
   const openMs = reduceMotion ? 0.01 : 0.16;
   const closeMs = reduceMotion ? 0.01 : 0.12;
@@ -89,8 +92,19 @@ export default function MobileBottomSheet({
     if (!isOpen) return;
     closingRef.current = false;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
+    setInteractive(false);
     setRendered(true);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!rendered || !isOpen) {
+      setInteractive(false);
+      return;
+    }
+    const delayMs = reduceMotion ? 40 : Math.round(openMs * 1000) + 120;
+    const timer = window.setTimeout(() => setInteractive(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [rendered, isOpen, reduceMotion, openMs]);
 
   useLayoutEffect(() => {
     if (!rendered || !isOpen || closingRef.current) return;
@@ -195,9 +209,9 @@ export default function MobileBottomSheet({
         type="button"
         aria-label="Dismiss"
         style={{ opacity: backdropOpacity }}
-        className="absolute inset-0 h-full w-full bg-black/32 dark:bg-black/50"
+        className={`absolute inset-0 h-full w-full bg-black/32 dark:bg-black/50 ${interactive ? '' : 'pointer-events-none'}`}
         onClick={() => {
-          if (dismissible) void finishClose();
+          if (dismissible && interactive) void finishClose();
         }}
       />
 
@@ -215,7 +229,7 @@ export default function MobileBottomSheet({
         dragElastic={{ top: 0, bottom: 0.06 }}
         dragMomentum={false}
         onDragEnd={onDragEnd}
-        className={`absolute bottom-0 left-0 right-0 flex max-h-[min(92dvh,100%)] flex-col overflow-hidden rounded-t-[1.75rem] border-t border-border bg-card shadow-[0_-8px_32px_rgba(15,23,42,0.12)] outline-none ${className}`}
+        className={`absolute bottom-0 left-0 right-0 flex max-h-[min(92dvh,100%)] flex-col overflow-hidden rounded-t-[1.75rem] border-t border-border bg-card shadow-[0_-8px_32px_rgba(15,23,42,0.12)] outline-none ${interactive ? '' : 'pointer-events-none'} ${className}`}
       >
         <div
           className="flex shrink-0 flex-col items-center"

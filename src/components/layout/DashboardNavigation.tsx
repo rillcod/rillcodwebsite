@@ -1256,11 +1256,6 @@ export default function DashboardNavigation() {
           <NotificationDropdown />
           <button
             type="button"
-            onPointerDown={(event) => {
-              if (event.button !== 0) return;
-              event.preventDefault();
-              setMobileOpen(true);
-            }}
             onClick={() => setMobileOpen(true)}
             className="flex min-h-11 min-w-11 items-center justify-center rounded-full active:bg-muted"
             aria-label="Open account and app menu"
@@ -1443,11 +1438,6 @@ export default function DashboardNavigation() {
 
         <button
           type="button"
-          onPointerDown={(event) => {
-            if (event.button !== 0) return;
-            event.preventDefault();
-            setMobileOpen(true);
-          }}
           onClick={() => setMobileOpen(true)}
           aria-expanded={mobileOpen}
           aria-label="Open app menu"
