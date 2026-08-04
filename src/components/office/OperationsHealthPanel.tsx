@@ -44,6 +44,14 @@ type FinanceFailure = {
   error: string | null;
   created_at: string;
 };
+type GenerationIncident = {
+  planId: string;
+  className: string | null;
+  courseTitle: string | null;
+  type: string;
+  failures: number;
+  generatedAt: string | null;
+};
 
 // Labels live in the cron registry alongside the schedule, so a new job is named once.
 const friendlyJob = cronLabel;
@@ -71,6 +79,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [financeFailures, setFinanceFailures] = useState<FinanceFailure[]>([]);
+  const [generationIncidents, setGenerationIncidents] = useState<GenerationIncident[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -84,6 +93,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       setDeadLetters(json.deadLetters ?? []);
       setHistory(json.history ?? []);
       setFinanceFailures(json.financeFailures ?? []);
+      setGenerationIncidents(json.generationIncidents ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load operations health.');
     } finally {
@@ -266,6 +276,42 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                     Mark checked
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="border-b border-border p-5">
+          <h2 className="font-black">Generation incidents</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Plans with recorded generation failures by content type. Use Check now above, then
+            open the plan to retry the affected week.
+          </p>
+        </div>
+        {generationIncidents.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">No generation incidents recorded.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {generationIncidents.map((row) => (
+              <div key={`${row.planId}:${row.type}`} className="p-4">
+                <p className="text-sm font-bold">
+                  {row.className ?? "Unknown class"} | {row.courseTitle ?? "Unknown course"} |{" "}
+                  {row.type}
+                </p>
+                <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                  {row.failures} failure{row.failures === 1 ? "" : "s"} recorded
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {row.generatedAt ? new Date(row.generatedAt).toLocaleString() : "Unknown time"} |{" "}
+                  <a
+                    className="underline hover:text-foreground"
+                    href={`/dashboard/lesson-plans/${row.planId}`}
+                  >
+                    Open plan
+                  </a>
+                </p>
               </div>
             ))}
           </div>

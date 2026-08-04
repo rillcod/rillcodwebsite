@@ -41,6 +41,7 @@ describe('parseAutoGenerateSettings', () => {
     expect(parseAutoGenerateSettings(stored).types).toEqual([
       'lessons',
       'slides',
+      'flashcards',
       'assignments',
       'projects',
     ]);
@@ -80,7 +81,7 @@ describe('DEFAULT_AUTO_GENERATE_SETTINGS', () => {
 describe('describeAutoGenerateSettings', () => {
   it('says plainly when nothing will happen', () => {
     const s = parseAutoGenerateSettings({ enabled: false });
-    expect(describeAutoGenerateSettings(s)).toMatch(/disabled/i);
+    expect(describeAutoGenerateSettings(s)).toMatch(/turned off|disabled/i);
   });
 
   it('distinguishes held from published', () => {
@@ -94,7 +95,7 @@ describe('describeAutoGenerateSettings', () => {
 describe('normaliseTypes', () => {
   it('drops anything not a real content type', () => {
     expect(normaliseTypes(['lessons', 'sql-injection', 'projects']))
-      .toEqual(['lessons', 'slides', 'projects']);
+      .toEqual(['lessons', 'slides', 'flashcards', 'projects']);
   });
 
   it('falls back to everything rather than generating nothing', () => {
@@ -104,7 +105,7 @@ describe('normaliseTypes', () => {
 
   it('sorts into dependency order, not the order it was stored in', () => {
     expect(normaliseTypes(['projects', 'slides', 'lessons']))
-      .toEqual(['lessons', 'slides', 'projects']);
+      .toEqual(['lessons', 'slides', 'flashcards', 'projects']);
   });
 
   it('does not invent lessons for a caller that only wants assignments', () => {

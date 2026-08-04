@@ -1,5 +1,5 @@
 /**
- * One week of teaching content for one class plan: the lesson, the assignment and the project.
+ * One week of teaching content for one class plan: lesson package + slides + flashcards + tasks.
  *
  * Both entry points share this so they cannot drift: the weekly sweep
  * (/api/cron/auto-generate-content) and the teacher's "Generate next week now" button
@@ -82,16 +82,15 @@ export async function generatePlanWeek(input: {
       if (input.cronSecret) headers['x-cron-secret'] = input.cronSecret;
       if (input.cookie) headers.cookie = input.cookie;
 
-      // Slides is a single-week endpoint that answers with JSON; the other
-      // three are multi-week and stream their progress. Same pipeline, two
-      // shapes — sending the streaming body to slides asks it for week NaN.
-      const isSlides = type === 'slides';
+      // Slides and flashcards are single-week endpoints that answer with JSON;
+      // the other routes are multi-week and stream progress.
+      const isJsonEndpoint = type === 'slides' || type === 'flashcards';
 
       const res = await fetch(`${input.baseUrl}/api/lesson-plans/${input.planId}/generate-${type}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(
-          isSlides
+          isJsonEndpoint
             ? { week: input.week }
             : { only_weeks: [input.week], max_weeks: 1, auto_publish: autoPublish },
         ),
@@ -115,7 +114,7 @@ export async function generatePlanWeek(input: {
 
       let generated = 0;
       let skipped = 0;
-      if (isSlides) {
+      if (isJsonEndpoint) {
         const body = await res.json().catch(() => ({}));
         generated = Number(body?.generated) || 0;
         skipped = Number(body?.skipped) || 0;

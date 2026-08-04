@@ -37,6 +37,7 @@ import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
 import {
   DEFAULT_AUTO_GENERATE_SETTINGS,
   WEEK_CONTENT_TYPES,
+  WEEK_CONTENT_TYPE_LABELS,
   describeAutoGenerateSettings,
   parseAutoGenerateSettings,
   type AutoGenerateSettings,
@@ -1333,9 +1334,9 @@ export default function LessonPlanDetailPage() {
         }),
       });
       if (!res.ok) throw new Error("Save failed");
-      toast.success("LMS settings saved");
+      toast.success("Week prep settings saved");
     } catch {
-      toast.error("Failed to save LMS settings");
+      toast.error("Couldn’t save week prep settings");
     } finally {
       setSavingLms(false);
     }
@@ -2654,6 +2655,7 @@ export default function LessonPlanDetailPage() {
           week={aiWeek}
           planId={id}
           courseId={plan?.course_id}
+          classId={plan?.class_id}
           existing={{
             lessonId: linkedLessons.find((l) =>
               metadataMatchesWeek(l.metadata, aiWeek)
@@ -2709,7 +2711,7 @@ export default function LessonPlanDetailPage() {
             }
             load(); // Reload the whole plan data to grab newly generated records
             toast.success(
-              "AI package complete — lesson, flashcards, assignment & project ready!"
+              "This week is ready — lesson, practice cards, homework & project are waiting for you."
             );
           }}
           onClose={() => setAiWeek(null)}
@@ -4031,12 +4033,12 @@ export default function LessonPlanDetailPage() {
                               Step 5
                             </p>
                             <h4 className="text-base font-black text-card-foreground mt-1">
-                              Bulk generate week-by-week content
+                              Prepare several weeks at once
                             </h4>
                             <p className="text-xs text-card-foreground/60 mt-2">
-                              Create lessons, assignments, and projects from the
-                              same plan. Use LMS settings to control batch size
-                              and auto-generation.
+                              Build lessons, homework, and projects from this
+                              plan. Use week prep settings to choose how many
+                              weeks and what to include.
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2 items-start">
@@ -4087,7 +4089,7 @@ export default function LessonPlanDetailPage() {
                                   : "bg-transparent border-white/[0.12] text-card-foreground/60 hover:text-card-foreground hover:border-white/20"
                               }`}
                             >
-                              <BoltIcon className="w-4 h-4" /> LMS Settings
+                              <BoltIcon className="w-4 h-4" /> Week prep settings
                             </button>
                           </div>
                         </div>
@@ -4097,11 +4099,12 @@ export default function LessonPlanDetailPage() {
                             <div className="flex items-center justify-between flex-wrap gap-3">
                               <div>
                                 <p className="text-sm font-black text-card-foreground">
-                                  Continuous Learning Stream
+                                  Prepare weeks automatically
                                 </p>
                                 <p className="text-xs text-card-foreground/55 mt-0.5">
-                                  When enabled, the system automatically builds
-                                  next week's content as the term progresses.
+                                  Overnight, we quietly draft this week&apos;s
+                                  materials for you. You still choose when
+                                  students see them.
                                 </p>
                               </div>
                               <button
@@ -4132,7 +4135,7 @@ export default function LessonPlanDetailPage() {
 
                             <div className="space-y-3">
                               <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">
-                                What to generate
+                                What to prepare
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {WEEK_CONTENT_TYPES.map((t) => {
@@ -4149,14 +4152,14 @@ export default function LessonPlanDetailPage() {
                                             : [...s.types, t],
                                         }))
                                       }
-                                      className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all capitalize ${
+                                      className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all ${
                                         checked
                                           ? "bg-primary/20 text-violet-700 dark:text-violet-300 border border-primary/40"
                                           : "bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10"
                                       }`}
                                     >
                                       {checked ? "✓ " : ""}
-                                      {t}
+                                      {WEEK_CONTENT_TYPE_LABELS[t]}
                                     </button>
                                   );
                                 })}
@@ -4165,15 +4168,20 @@ export default function LessonPlanDetailPage() {
 
                             <div className="space-y-3">
                               <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">
-                                Processing Mode
+                                When you prepare several weeks yourself
+                              </p>
+                              <p className="text-[10px] text-card-foreground/50">
+                                The overnight run always covers the current week.
+                                Use this when you press prepare for more than one
+                                week at once.
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {[
-                                  { n: 0, label: "Full Term" },
-                                  { n: 1, label: "One Week" },
-                                  { n: 3, label: "Quick Batch (3)" },
-                                  { n: 5, label: "Large Batch (5)" },
-                                  { n: 10, label: "Max (10)" },
+                                  { n: 0, label: "Whole term" },
+                                  { n: 1, label: "Just one week" },
+                                  { n: 3, label: "3 weeks" },
+                                  { n: 5, label: "5 weeks" },
+                                  { n: 10, label: "Up to 10" },
                                 ].map(({ n, label }) => (
                                   <button
                                     key={n}
@@ -4207,11 +4215,11 @@ export default function LessonPlanDetailPage() {
                                   {
                                     value: false,
                                     label: "Hold for my approval",
-                                    hint: "Waits on Approve AI Drafts",
+                                    hint: "You review first, then release",
                                   },
                                   {
                                     value: true,
-                                    label: "Publish to students",
+                                    label: "Show students straight away",
                                     hint: "Goes live with no review",
                                   },
                                 ].map(({ value, label, hint }) => (
@@ -4255,7 +4263,7 @@ export default function LessonPlanDetailPage() {
                               >
                                 {savingLms
                                   ? "Saving…"
-                                  : "Apply Learning Settings"}
+                                  : "Save week prep settings"}
                               </button>
                               <p className="text-[10px] text-card-foreground/40 leading-tight">
                                 {describeAutoGenerateSettings(lmsSettings)}

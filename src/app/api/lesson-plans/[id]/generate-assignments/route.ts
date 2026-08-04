@@ -291,6 +291,7 @@ export async function POST(
               is_active: assignmentActive,
               metadata: {
                 ...(d.metadata as Record<string, unknown> | undefined),
+                generated_from: "progression_assignment_route",
                 lesson_plan_id: plan.id,
                 week: week.week,
                 week_number: week.week,
@@ -358,11 +359,22 @@ export async function POST(
       }
 
       if (failures.length > 0) {
+        const currentMetadata =
+          (plan as any)?.metadata && typeof (plan as any).metadata === "object"
+            ? ((plan as any).metadata as Record<string, unknown>)
+            : {};
+        const existingErrors =
+          currentMetadata.last_generation_errors &&
+          typeof currentMetadata.last_generation_errors === "object"
+            ? (currentMetadata.last_generation_errors as Record<string, unknown>)
+            : {};
         await supabase
           .from("lesson_plans")
           .update({
             metadata: {
+              ...currentMetadata,
               last_generation_errors: {
+                ...existingErrors,
                 assignments: failures,
                 generated_at: new Date().toISOString(),
               },

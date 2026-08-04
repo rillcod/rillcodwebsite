@@ -49,20 +49,42 @@ export async function GET() {
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
-  const [health, deadLetters, history, financeFailures] = await Promise.all([
+  const [health, deadLetters, history, financeFailures, generationIncidents] = await Promise.all([
     actor.db.from('cron_job_health').select('*').order('job_name'),
     actor.db.from('notification_dead_letters').select('*').in('status', ['pending', 'retrying']).order('created_at', { ascending: false }).limit(100),
     actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(100),
     actor.db.from('finance_automation_log').select('id,stream,action,entity_id,channel,error,created_at').eq('status', 'failed').order('created_at', { ascending: false }).limit(25),
+    actor.db
+      .from('lesson_plans')
+      .select('id,metadata,classes!lesson_plans_class_id_fkey(name),courses(title)')
+      .not('metadata->last_generation_errors', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(50),
   ]);
 
-  const firstError = health.error || deadLetters.error || history.error || financeFailures.error;
+  const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error;
   if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
+  const incidents = (generationIncidents.data ?? []).flatMap((row: any) => {
+    const errors = row?.metadata?.last_generation_errors;
+    if (!errors || typeof errors !== 'object') return [];
+    const generatedAt = typeof errors.generated_at === 'string' ? errors.generated_at : null;
+    return ['lessons', 'slides', 'flashcards', 'assignments', 'projects']
+      .filter((key) => Array.isArray((errors as Record<string, unknown>)[key]))
+      .map((key) => ({
+        planId: row.id,
+        className: row?.classes?.name ?? null,
+        courseTitle: row?.courses?.title ?? null,
+        type: key,
+        failures: ((errors as Record<string, unknown>)[key] as unknown[]).length,
+        generatedAt,
+      }));
+  });
   return NextResponse.json({
     health: withNeverRunJobs(health.data ?? []),
     deadLetters: deadLetters.data ?? [],
     history: history.data ?? [],
     financeFailures: financeFailures.data ?? [],
+    generationIncidents: incidents,
     cronPaths: CRON_PATHS,
     generatedAt: new Date().toISOString(),
   });

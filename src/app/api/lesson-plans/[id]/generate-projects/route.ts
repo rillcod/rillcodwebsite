@@ -386,11 +386,22 @@ export async function POST(
       }
 
       if (failures.length > 0) {
+        const currentMetadata =
+          (plan as any)?.metadata && typeof (plan as any).metadata === "object"
+            ? ((plan as any).metadata as Record<string, unknown>)
+            : {};
+        const existingErrors =
+          currentMetadata.last_generation_errors &&
+          typeof currentMetadata.last_generation_errors === "object"
+            ? (currentMetadata.last_generation_errors as Record<string, unknown>)
+            : {};
         await supabase
           .from("lesson_plans")
           .update({
             metadata: {
+              ...currentMetadata,
               last_generation_errors: {
+                ...existingErrors,
                 projects: failures,
                 generated_at: new Date().toISOString(),
               },

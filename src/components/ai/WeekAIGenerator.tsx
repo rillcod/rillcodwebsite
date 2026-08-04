@@ -111,6 +111,14 @@ interface Result {
 
 // ── Helper ───────────────────────────────────────────────────────────────────
 
+function humanStepState(state: StepState): string {
+  if (state === "done") return "Ready";
+  if (state === "active") return "Working…";
+  if (state === "error") return "Needs a retry";
+  if (state === "skipped") return "Already there";
+  return "Waiting";
+}
+
 function StepRow({
   icon: Icon,
   label,
@@ -128,14 +136,14 @@ function StepRow({
     <div
       className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all duration-300 ${
         state === "done"
-          ? "bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]"
+          ? "bg-emerald-500/10 border-emerald-500/20"
           : state === "active"
-          ? "bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(139,92,246,0.1)] animate-[pulse_2s_infinite]"
+          ? "bg-primary/10 border-primary/30 ring-2 ring-primary/20"
           : state === "error"
-          ? "bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.05)]"
+          ? "bg-rose-500/10 border-rose-500/20"
           : state === "skipped"
-          ? "bg-muted/20 border-border opacity-60"
-          : "bg-muted/30 border-border hover:border-primary/30"
+          ? "bg-muted/20 border-border opacity-70"
+          : "bg-muted/30 border-border"
       }`}
     >
       <div
@@ -157,27 +165,78 @@ function StepRow({
         >
           {label}
         </p>
-        <p className="text-[10px] text-muted-foreground/80">{sub}</p>
+        <p className="text-[10px] text-muted-foreground/80">
+          {state === "active" ? "In progress right now" : sub}
+        </p>
       </div>
-      <div className="shrink-0">
+      <div className="shrink-0 text-right">
         {state === "done" && (
-          <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircleIcon className="ml-auto w-5 h-5 text-emerald-600 dark:text-emerald-400" />
         )}
         {state === "active" && (
-          <ArrowPathIcon className="w-4 h-4 text-primary animate-spin" />
+          <ArrowPathIcon className="ml-auto w-4 h-4 text-primary animate-spin" />
         )}
         {state === "error" && (
-          <XMarkIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+          <XMarkIcon className="ml-auto w-4 h-4 text-rose-600 dark:text-rose-400" />
         )}
-        {state === "skipped" && (
-          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">
-            Exists
+        {(state === "skipped" || state === "pending") && (
+          <span className="text-[9px] font-bold text-muted-foreground">
+            {humanStepState(state)}
           </span>
         )}
-        {state === "pending" && (
-          <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-        )}
       </div>
+    </div>
+  );
+}
+
+function LiveEventFeed({
+  events,
+  liveMessage,
+  progress,
+}: {
+  events: string[];
+  liveMessage: string | null;
+  progress: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-fuchsia-500/5 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+          Live progress
+        </p>
+        <p className="text-[10px] font-bold text-muted-foreground">
+          {Math.round(progress)}% done
+        </p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted/50">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-violet-500 via-primary to-fuchsia-500 transition-all duration-500"
+          style={{ width: `${Math.max(4, Math.min(100, progress))}%` }}
+        />
+      </div>
+      {liveMessage && (
+        <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-background/70 px-3 py-2.5">
+          <span className="relative mt-1 flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+          </span>
+          <p className="text-xs font-semibold leading-5 text-foreground">
+            {liveMessage}
+          </p>
+        </div>
+      )}
+      {events.length > 0 && (
+        <div className="max-h-40 space-y-1.5 overflow-y-auto custom-scrollbar">
+          {[...events].reverse().map((event, i) => (
+            <p
+              key={`${events.length - i}-${event.slice(0, 24)}`}
+              className="rounded-lg bg-background/50 px-2.5 py-1.5 text-[11px] leading-4 text-muted-foreground"
+            >
+              {event}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -497,6 +556,7 @@ export default function WeekAIGenerator({
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [result, setResult] = useState<Result>({ skipped: [] });
   /** Set when the plan itself blocks generation — the teacher's call, not a failure. */
   const [blocked, setBlocked] = useState<{
@@ -511,9 +571,21 @@ export default function WeekAIGenerator({
   const { profile } = useAuth();
   const canPublish = profile?.role === "admin" || profile?.role === "teacher";
 
-  const addLog = (msg: string) => setLog((p) => [...p, msg]);
+  const addLog = (msg: string) => {
+    setLiveMessage(msg);
+    setLog((p) => [...p, msg]);
+  };
   const setStep = (k: keyof StepStatus, v: StepState) =>
     setStatus((p) => ({ ...p, [k]: v }));
+
+  const stepProgress = (() => {
+    const values = Object.values(status);
+    const finished = values.filter(
+      (s) => s === "done" || s === "skipped" || s === "error"
+    ).length;
+    const activeBoost = values.some((s) => s === "active") ? 0.35 : 0;
+    return ((finished + activeBoost) / values.length) * 100;
+  })();
 
   /** Publish the plan, then run — the teacher chooses to continue, explicitly. */
   async function publishAndRun() {
@@ -536,6 +608,7 @@ export default function WeekAIGenerator({
     setError(null);
     setBlocked(null);
     setLog([]);
+    setLiveMessage("Getting ready for this week…");
     setResult({ skipped: [] });
     setStatus({
       lesson: "pending",
@@ -555,6 +628,7 @@ export default function WeekAIGenerator({
         fixableByPublishing: readiness.fixableByPublishing,
       });
       setRunning(false);
+      setLiveMessage(null);
       return;
     }
 
@@ -569,7 +643,7 @@ export default function WeekAIGenerator({
       // STEP 1 — LESSON (grounded plan generator, single week)
       // ─────────────────────────────────────────────────────────────────────
       setStep("lesson", "active");
-      addLog("🔍 Checking for existing lesson…");
+      addLog("Looking for a lesson you already have for this week…");
 
       const existingLessonId =
         lessonId ?? (await checkExistingLesson(planId, week.week));
@@ -578,15 +652,15 @@ export default function WeekAIGenerator({
         res.lessonId = existingLessonId;
         setStep("lesson", "skipped");
         res.skipped.push("lesson");
-        addLog("⏭  Lesson already exists — skipped");
+        addLog("Lesson is already ready — keeping your existing one.");
       } else {
-        addLog("🤖 Generating lesson from the official curriculum…");
+        addLog("Writing the lesson from this week’s curriculum…");
 
         try {
           // The route grounds the prompt in this week's syllabus from the
           // plan's protected edition and writes the lesson server-side.
           await runPlanGenerator(planId, "generate-lessons", week.week, (s) =>
-            addLog(`   ↳ ${s}`)
+            addLog(s)
           );
 
           const saved = await fetchLesson(planId, week.week);
@@ -599,7 +673,7 @@ export default function WeekAIGenerator({
 
           res.lessonId = saved.id;
           res.lessonTitle = saved.title;
-          addLog(`✅ Lesson saved: "${saved.title}"`);
+          addLog(`Lesson ready: “${saved.title}”`);
           setStep("lesson", "done");
 
           // Auto-create assignment from assignment-block (mirrors lesson add page behaviour)
@@ -645,25 +719,25 @@ export default function WeekAIGenerator({
               res.assignmentTitle = aj.data.title;
               assignmentId = aj.data.id;
               addLog(
-                `✅ Assignment auto-created from lesson block: "${aj.data.title}"`
+                `Homework pulled from the lesson: “${aj.data.title}”`
               );
             }
           }
         } catch (e: any) {
           setStep("lesson", "error");
-          addLog(`⚠️  Lesson: ${e.message}`);
+          addLog(`Couldn’t finish the lesson: ${e.message}`);
           // Don't abort — continue to flashcards
         }
       }
 
       // STEP 2 - LEARNING SLIDES (grounded in the saved rich lesson)
       setStep("slides", "active");
-      addLog("Checking for existing learning slides...");
+      addLog("Checking if slides are already prepared…");
       if (existing?.slideDeckId) {
         res.slideDeckId = existing.slideDeckId;
         setStep("slides", "skipped");
         res.skipped.push("slides");
-        addLog("Learning slides already exist - skipped");
+        addLog("Slides are already ready — keeping them.");
       } else {
         try {
           const slideRes = await fetch(
@@ -682,14 +756,14 @@ export default function WeekAIGenerator({
           if (slideJson.already_exists || Number(slideJson.skipped) > 0) {
             setStep("slides", "skipped");
             res.skipped.push("slides");
-            addLog("Learning slides already exist - skipped");
+            addLog("Slides are already ready — keeping them.");
           } else {
             setStep("slides", "done");
-            addLog("Learning slides generated and linked to the lesson");
+            addLog("Slides are ready and linked to the lesson.");
           }
         } catch (e: any) {
           setStep("slides", "error");
-          addLog(`Slides: ${e.message}`);
+          addLog(`Couldn’t finish the slides: ${e.message}`);
         }
       }
 
@@ -697,7 +771,7 @@ export default function WeekAIGenerator({
       // STEP 3 — FLASHCARDS (create deck + call /decks/[id]/generate)
       // ─────────────────────────────────────────────────────────────────────
       setStep("flashcard", "active");
-      addLog("🔍 Checking for existing flashcard deck…");
+      addLog("Checking for a flashcard pack you already have…");
 
       // Simple check: does a deck for this week/plan exist already?
       // We don't have a pre-loaded deck list so we skip the API check and
@@ -706,9 +780,9 @@ export default function WeekAIGenerator({
         res.deckId = existing.deckId;
         setStep("flashcard", "skipped");
         res.skipped.push("flashcards");
-        addLog("⏭  Flashcard deck already exists — skipped");
+        addLog("Flashcards are already ready — keeping them.");
       } else {
-        addLog("🃏 Creating flashcard deck…");
+        addLog("Starting a flashcard pack for this week…");
         try {
           const deckBody: Record<string, unknown> = {
             title: `Week ${week.week}: ${week.topic}`,
@@ -738,9 +812,9 @@ export default function WeekAIGenerator({
           if (dj.deduped) {
             setStep("flashcard", "skipped");
             res.skipped.push("flashcards");
-            addLog("⏭  Flashcard deck already exists — skipped");
+            addLog("Flashcards are already ready — keeping them.");
           } else {
-            addLog(`🤖 Deck created — generating 15 AI cards…`);
+            addLog("Writing about 15 practice cards…");
 
             // Use the dedicated generate endpoint (same as flashcard page)
             const genRes = await fetch(
@@ -778,12 +852,12 @@ export default function WeekAIGenerator({
             const cardCount = Array.isArray(gj.data)
               ? gj.data.length
               : gj.count ?? "?";
-            addLog(`✅ ${cardCount} flashcards generated and saved to deck`);
+            addLog(`${cardCount} practice cards are ready.`);
             setStep("flashcard", "done");
           }
         } catch (e: any) {
           setStep("flashcard", "error");
-          addLog(`⚠️  Flashcards: ${e.message}`);
+          addLog(`Couldn’t finish the flashcards: ${e.message}`);
         }
       }
 
@@ -791,7 +865,7 @@ export default function WeekAIGenerator({
       // STEP 4 — ASSIGNMENT (from lesson block, else plan generator)
       // ─────────────────────────────────────────────────────────────────────
       setStep("assignment", "active");
-      addLog("🔍 Checking for existing assignment…");
+      addLog("Checking for homework you already have…");
 
       const existingAsnId =
         assignmentId ??
@@ -802,31 +876,31 @@ export default function WeekAIGenerator({
         if (!res.assignmentId) {
           res.assignmentId = existingAsnId;
           res.skipped.push("assignment");
-          addLog("⏭  Assignment already exists — skipped");
+          addLog("Homework is already ready — keeping it.");
         } else {
-          addLog("✅ Assignment already created from lesson block");
+          addLog("Homework from the lesson is already set.");
         }
         setStep("assignment", "done");
       } else {
         // No assignment block came out of the lesson, so generate one from the
         // official curriculum rather than from the week topic alone.
-        addLog("🤖 Generating assignment from the official curriculum…");
+        addLog("Writing homework from this week’s curriculum…");
         try {
           await runPlanGenerator(
             planId,
             "generate-assignments",
             week.week,
-            (s) => addLog(`   ↳ ${s}`)
+            (s) => addLog(s)
           );
           const saved = await checkExistingAssignment(planId, week.week);
           if (!saved)
             throw new Error("Assignment was not created for this week");
           res.assignmentId = saved;
-          addLog("✅ Assignment saved");
+          addLog("Homework is ready.");
           setStep("assignment", "done");
         } catch (e: any) {
           setStep("assignment", "error");
-          addLog(`⚠️  Assignment: ${e.message}`);
+          addLog(`Couldn’t finish the homework: ${e.message}`);
         }
       }
 
@@ -834,7 +908,7 @@ export default function WeekAIGenerator({
       // STEP 5 — CAPSTONE PROJECT (plan generator)
       // ─────────────────────────────────────────────────────────────────────
       setStep("project", "active");
-      addLog("🔍 Checking for existing project…");
+      addLog("Checking for a project you already have…");
 
       const existingProjId =
         existing?.projectId ?? (await checkExistingProject(planId, week.week));
@@ -843,29 +917,31 @@ export default function WeekAIGenerator({
         res.projectId = existingProjId;
         setStep("project", "skipped");
         res.skipped.push("project");
-        addLog("⏭  Project already exists — skipped");
+        addLog("Project is already ready — keeping it.");
       } else {
-        addLog("🤖 Generating Capstone Project from the official curriculum…");
+        addLog("Designing this week’s project…");
         try {
           await runPlanGenerator(planId, "generate-projects", week.week, (s) =>
-            addLog(`   ↳ ${s}`)
+            addLog(s)
           );
           const saved = await checkExistingProject(planId, week.week);
           if (!saved) throw new Error("Project was not created for this week");
           res.projectId = saved;
-          addLog("✅ Capstone Project saved");
+          addLog("Project is ready.");
           setStep("project", "done");
         } catch (e: any) {
           setStep("project", "error");
-          addLog(`⚠️  Project: ${e.message}`);
+          addLog(`Couldn’t finish the project: ${e.message}`);
         }
       }
 
       // Nothing is offered as a link until it has been confirmed to exist.
-      addLog("🔎 Confirming what was actually saved…");
+      addLog("Double-checking everything saved correctly…");
       const { verified, dropped } = await verifyArtifacts(planId, res);
       if (dropped.length > 0) {
-        addLog(`⚠️  Not saved, so not linked: ${dropped.join(", ")}`);
+        addLog(
+          `These didn’t save properly, so they won’t open yet: ${dropped.join(", ")}`
+        );
         // Keep the step badges honest too — a dropped artifact is not "done".
         const stepFor: Record<string, keyof StepStatus> = {
           lesson: "lesson",
@@ -879,11 +955,12 @@ export default function WeekAIGenerator({
           if (step) setStep(step, "error");
         }
       } else {
-        addLog("✅ Every generated item confirmed present");
+        addLog("All set — everything for this week is ready for you to review.");
       }
 
       setResult(verified);
       setDone(true);
+      setLiveMessage("This week’s package is ready.");
       onDone?.({
         lessonId: verified.lessonId,
         slideDeckId: verified.slideDeckId,
@@ -893,7 +970,7 @@ export default function WeekAIGenerator({
       });
     } catch (e: any) {
       setError(e.message);
-      addLog(`❌ Fatal: ${e.message}`);
+      addLog(`Something went wrong: ${e.message}`);
     } finally {
       setRunning(false);
     }
@@ -923,7 +1000,11 @@ export default function WeekAIGenerator({
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">
-                AI Lesson Package
+                {running
+                  ? "Preparing this week"
+                  : done
+                  ? "Ready to review"
+                  : "Prepare this week"}
               </p>
               <p className="text-sm font-black text-foreground truncate max-w-[220px]">
                 Week {week.week}: {week.topic}
@@ -948,7 +1029,7 @@ export default function WeekAIGenerator({
                   {blocked.status ?? "Draft"} plan
                 </span>
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                  Not ready to generate
+                  One quick step first
                 </p>
               </div>
               <p className="text-xs text-foreground/80 leading-relaxed">
@@ -969,7 +1050,7 @@ export default function WeekAIGenerator({
                     ) : (
                       <>
                         <CheckCircleIcon className="w-3.5 h-3.5" />
-                        Publish &amp; generate
+                        Publish &amp; prepare week
                       </>
                     )}
                   </button>
@@ -994,7 +1075,7 @@ export default function WeekAIGenerator({
               {blocked.fixableByPublishing && canPublish && (
                 <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
                   Publishing locks this week&apos;s syllabus as the source for
-                  everything generated from it.
+                  everything prepared from it.
                 </p>
               )}
             </div>
@@ -1002,78 +1083,74 @@ export default function WeekAIGenerator({
 
           {!running && !done && !error && !blocked && (
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Prepares one complete curriculum-grounded week: a{" "}
-              <strong className="text-foreground font-bold">rich lesson</strong>
+              Builds a full week for your class: a{" "}
+              <strong className="text-foreground font-bold">lesson</strong>,{" "}
+              <strong className="text-foreground font-bold">slides</strong>,{" "}
+              <strong className="text-foreground font-bold">practice cards</strong>
               ,{" "}
-              <strong className="text-foreground font-bold">
-                learning slides
-              </strong>
-              ,{" "}
-              <strong className="text-foreground font-bold">flashcards</strong>,
-              an{" "}
-              <strong className="text-foreground font-bold">assignment</strong>,
-              and a{" "}
+              <strong className="text-foreground font-bold">homework</strong>, and a{" "}
               <strong className="text-foreground font-bold">project</strong>.
-              Existing items are checked and reused.
+              Anything you already have is kept as-is. Students only see it after
+              you release it.
             </p>
+          )}
+
+          {(running || done || log.length > 0) && !blocked && (
+            <LiveEventFeed
+              events={log}
+              liveMessage={
+                done
+                  ? "This week’s package is ready for you to review."
+                  : liveMessage
+              }
+              progress={done ? 100 : stepProgress}
+            />
           )}
 
           <div className={`space-y-3 ${blocked ? "hidden" : ""}`}>
             <StepRow
               icon={BookOpenIcon}
-              label="Full Lesson"
-              sub="Streaming AI · CS visualizer · 12+ blocks + notes"
+              label="Lesson"
+              sub="The teaching guide for this week"
               state={status.lesson}
               color="bg-primary"
             />
             <StepRow
               icon={PresentationChartLineIcon}
-              label="Learning Slides"
-              sub="Seven concise slides grounded in the saved lesson"
+              label="Slides"
+              sub="Class-ready slides from the lesson"
               state={status.slides}
               color="bg-cyan-600"
             />
             <StepRow
               icon={BoltIcon}
-              label="Flashcard Deck"
-              sub="15 AI cards · saved to Flashcards module"
+              label="Practice cards"
+              sub="Quick recall flashcards for students"
               state={status.flashcard}
               color="bg-amber-500"
             />
             <StepRow
               icon={ClipboardDocumentListIcon}
-              label="Assignment"
-              sub="From lesson block, else official curriculum"
+              label="Homework"
+              sub="A short assignment for after class"
               state={status.assignment}
               color="bg-emerald-600"
             />
             <StepRow
               icon={RocketLaunchIcon}
-              label="Capstone Project"
-              sub="Creative STEM project handbook & rubric"
+              label="Project"
+              sub="A hands-on project with a clear brief"
               state={status.project}
               color="bg-purple-600"
             />
           </div>
 
-          {log.length > 0 && (
-            <div className="bg-muted/40 border border-border rounded-2xl p-4 max-h-36 overflow-y-auto space-y-1 font-mono text-[10px] text-primary/80 custom-scrollbar shadow-inner">
-              {log.map((l, i) => (
-                <p
-                  key={i}
-                  className="leading-relaxed border-l-2 border-primary/20 pl-2"
-                >
-                  {l}
-                </p>
-              ))}
-            </div>
-          )}
-
           {done && hasResult && (
             <div className="space-y-2 pt-2 border-t border-border">
               {result.skipped.length > 0 && (
                 <p className="text-[10px] text-muted-foreground italic">
-                  Skipped (already existed): {result.skipped.join(", ")}
+                  Already had these, so they were left alone:{" "}
+                  {result.skipped.join(", ")}
                 </p>
               )}
               {result.lessonId && (
@@ -1098,7 +1175,7 @@ export default function WeekAIGenerator({
                 >
                   <span className="flex items-center gap-2">
                     <PresentationChartLineIcon className="w-4 h-4" /> Open
-                    Learning Slides
+                    Slides
                   </span>
                   <span>→</span>
                 </a>
@@ -1112,7 +1189,7 @@ export default function WeekAIGenerator({
                 >
                   <span className="flex items-center gap-2">
                     <BoltIcon className="w-4 h-4 animate-pulse" /> Open
-                    Flashcards
+                    Practice Cards
                   </span>
                   <span>→</span>
                 </a>
@@ -1126,7 +1203,7 @@ export default function WeekAIGenerator({
                 >
                   <span className="flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-4 h-4" /> Open
-                    Assignment
+                    Homework
                   </span>
                   <span>→</span>
                 </a>
@@ -1148,8 +1225,8 @@ export default function WeekAIGenerator({
           )}
 
           {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3.5 shadow-[0_0_15px_rgba(244,63,94,0.05)]">
-              <p className="text-xs text-rose-600 dark:text-rose-400 font-black tracking-wide">
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3.5">
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold leading-5">
                 {error}
               </p>
             </div>
@@ -1162,7 +1239,7 @@ export default function WeekAIGenerator({
               onClick={run}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all duration-300 transform active:scale-95"
             >
-              <SparklesIcon className="w-4 h-4" /> Generate Lesson Package
+              <SparklesIcon className="w-4 h-4" /> Prepare this week
             </button>
           )}
           {blocked && (
@@ -1175,8 +1252,7 @@ export default function WeekAIGenerator({
           )}
           {running && (
             <div className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest rounded-2xl cursor-not-allowed select-none shadow-md">
-              <ArrowPathIcon className="w-4 h-4 animate-spin" /> AI packaging
-              details…
+              <ArrowPathIcon className="w-4 h-4 animate-spin" /> Working on it…
             </div>
           )}
           {(done || error) && (
@@ -1186,7 +1262,7 @@ export default function WeekAIGenerator({
                   onClick={run}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200"
                 >
-                  <ArrowPathIcon className="w-4 h-4" /> Retry
+                  <ArrowPathIcon className="w-4 h-4" /> Try again
                 </button>
               )}
               <button

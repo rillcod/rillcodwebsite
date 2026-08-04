@@ -22,6 +22,7 @@
 export const WEEK_CONTENT_TYPES = [
   'lessons',
   'slides',
+  'flashcards',
   'assignments',
   'projects',
 ] as const;
@@ -66,10 +67,12 @@ export function normaliseTypes(raw: unknown): WeekContentType[] {
   if (!picked.size) return [...WEEK_CONTENT_TYPES];
 
   // Slides came into the pipeline after these settings were written, so every
-  // existing plan asks for lessons without them. A lesson without its slides is
-  // an incomplete week, and slides are derived from the lesson rather than
-  // being a separate decision — so wanting the lesson is taken as wanting them.
-  if (picked.has('lessons')) picked.add('slides');
+  // existing plan asks for lessons without them. A lesson week is incomplete
+  // without slides and recall cards, so requesting lessons implies both.
+  if (picked.has('lessons')) {
+    picked.add('slides');
+    picked.add('flashcards');
+  }
 
   return WEEK_CONTENT_TYPES.filter((t) => picked.has(t));
 }
@@ -92,15 +95,28 @@ export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
   };
 }
 
+export const WEEK_CONTENT_TYPE_LABELS: Record<WeekContentType, string> = {
+  lessons: 'Lessons',
+  slides: 'Slides',
+  flashcards: 'Practice cards',
+  assignments: 'Homework',
+  projects: 'Projects',
+};
+
 /** One sentence a teacher can check at a glance. */
 export function describeAutoGenerateSettings(s: AutoGenerateSettings): string {
-  if (!s.enabled) return 'Auto-generation is currently disabled for this plan.';
+  if (!s.enabled) return 'Automatic week prep is turned off for this plan.';
   const scope =
-    s.maxWeeksPerBatch === 0 ? 'Full Term' : `${s.maxWeeksPerBatch}-week`;
+    s.maxWeeksPerBatch === 0
+      ? 'the whole term'
+      : s.maxWeeksPerBatch === 1
+        ? 'one week at a time'
+        : `${s.maxWeeksPerBatch} weeks at a time`;
+  const typeList = s.types
+    .map((t) => WEEK_CONTENT_TYPE_LABELS[t] ?? t)
+    .join(', ');
   const release = s.auto_publish
     ? 'published straight to students'
     : 'held for your approval';
-  return `Currently auto-generating ${s.types.join(
-    ', ',
-  )} in ${scope} chunks, ${release}.`;
+  return `Preparing ${typeList}, ${scope}, ${release}.`;
 }

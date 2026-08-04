@@ -131,42 +131,98 @@ export async function POST(req: NextRequest) {
   if (!staff) return NextResponse.json({ error: "Staff access required" }, { status: 403 });
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
-  const planId = String(body.planId ?? "");
-  const week = Number(body.week);
-  if (!planId || !Number.isFinite(week)) {
-    return NextResponse.json({ error: "planId and week are required" }, { status: 400 });
+  const singlePlanId = String(body.planId ?? "");
+  const singleWeek = Number(body.week);
+  const batchInput = Array.isArray(body.releases) ? body.releases : null;
+  const targets = batchInput?.length
+    ? batchInput
+        .map((row) => ({
+          planId: String((row as Record<string, unknown>)?.planId ?? ""),
+          week: Number((row as Record<string, unknown>)?.week),
+        }))
+        .filter((row) => row.planId && Number.isFinite(row.week))
+    : singlePlanId && Number.isFinite(singleWeek)
+      ? [{ planId: singlePlanId, week: singleWeek }]
+      : [];
+  if (!targets.length) {
+    return NextResponse.json(
+      { error: "Provide planId/week or releases[] with planId/week entries" },
+      { status: 400 }
+    );
   }
 
   const db = createAdminClient();
   // Re-checked here rather than trusted from the list call: the queue is a view,
   // this is a write.
   const plans = await visiblePlans(db, staff);
-  if (!plans.some((p: any) => p.id === planId)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const visiblePlanIds = new Set((plans ?? []).map((p: any) => String(p.id)));
+  const now = new Date().toISOString();
+  const results: Array<{
+    planId: string;
+    week: number;
+    lessons_released: number;
+    assignments_released: number;
+    error?: string;
+  }> = [];
+
+  for (const target of targets) {
+    if (!visiblePlanIds.has(target.planId)) {
+      results.push({
+        planId: target.planId,
+        week: target.week,
+        lessons_released: 0,
+        assignments_released: 0,
+        error: "Forbidden",
+      });
+      continue;
+    }
+
+    const { data: released, error: lessonError } = await db
+      .from("lessons")
+      .update({ status: "active", updated_at: now })
+      .eq("lesson_plan_id", target.planId)
+      .eq("curriculum_week_number", target.week)
+      .eq("status", "draft")
+      .select("id");
+
+    if (lessonError) {
+      results.push({
+        planId: target.planId,
+        week: target.week,
+        lessons_released: 0,
+        assignments_released: 0,
+        error: lessonError.message,
+      });
+      continue;
+    }
+
+    const { data: activated, error: assignmentError } = await db
+      .from("assignments")
+      .update({ is_active: true, updated_at: now })
+      .eq("lesson_plan_id", target.planId)
+      .eq("curriculum_week_number", target.week)
+      .eq("is_active", false)
+      .select("id");
+
+    results.push({
+      planId: target.planId,
+      week: target.week,
+      lessons_released: released?.length ?? 0,
+      assignments_released: assignmentError ? 0 : activated?.length ?? 0,
+      ...(assignmentError ? { error: assignmentError.message } : {}),
+    });
   }
 
-  const { data: released } = await db
-    .from("lessons")
-    .update({ status: "active", updated_at: new Date().toISOString() })
-    .eq("lesson_plan_id", planId)
-    .eq("curriculum_week_number", week)
-    .eq("status", "draft")
-    .select("id");
-
-  const { data: activated } = await db
-    .from("assignments")
-    .update({ is_active: true, updated_at: new Date().toISOString() })
-    .eq("lesson_plan_id", planId)
-    .eq("curriculum_week_number", week)
-    .eq("is_active", false)
-    .select("id");
-
-  return NextResponse.json({
-    data: {
-      planId,
-      week,
-      lessons_released: released?.length ?? 0,
-      assignments_released: activated?.length ?? 0,
+  const failures = results.filter((r) => r.error);
+  return NextResponse.json(
+    {
+      data: {
+        count: results.length,
+        released: results.filter((r) => !r.error).length,
+        failed: failures.length,
+        results,
+      },
     },
-  });
+    { status: failures.length ? 207 : 200 }
+  );
 }
