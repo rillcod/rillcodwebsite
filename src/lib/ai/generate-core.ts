@@ -147,6 +147,7 @@ export type GenerateType =
   | "lesson-hook"
   | "custom"
   | "curriculum"
+  | "programme-curriculum"
   | "flashcard"
   | "slides";
 
@@ -223,6 +224,19 @@ export interface GenerateRequest {
   notes?: string;
   /** Extracted text from a teacher's PDF — grounds generation in their real material. */
   sourceMaterial?: string;
+
+  // Duration-programme curriculum, taken from the published programme page so
+  // what gets taught cannot drift from what was advertised to parents.
+  programme_title?: string;
+  /** The track's advertised topic list. Every one must appear in the syllabus. */
+  topics?: string[];
+  /** The page's own week spine: [{ num, tag, title, desc }]. */
+  programme_weeks?: Array<Record<string, unknown>>;
+  week_count?: number;
+  ages_label?: string;
+  duration_label?: string;
+  hero_blurb?: string;
+  track_desc?: string;
 }
 
 type CbtGenerationPlan = {
@@ -1490,6 +1504,80 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
 - Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")`;
     }
 
+    case "programme-curriculum": {
+      // A holiday programme or short course runs once, straight through. The
+      // school `curriculum` type above hard-codes three terms with assessments
+      // fixed at weeks 3, 6 and 8 — a shape that means nothing here, and the
+      // reason a special programme could never have its curriculum generated
+      // without being bent onto the school spine.
+      //
+      // Grounded in the published programme page rather than invented from a
+      // course title, so what is taught cannot drift from what was advertised.
+      const weeks = Number(req.weeks_per_term ?? req.week_count ?? 7);
+      const topics = Array.isArray(req.topics) ? req.topics : [];
+      const spine = Array.isArray(req.programme_weeks) ? req.programme_weeks : [];
+
+      return `You are designing a ready-to-teach curriculum for Rillcod Technologies.
+
+This is a DURATION PROGRAMME — a holiday programme or short course. It runs
+once, continuously, for ${weeks} weeks. It has NO academic terms, NO term
+breaks, and NO end-of-term examination.
+
+Programme: "${req.programme_title ?? req.topic}"
+Track / Course: "${req.course_name ?? req.courseName ?? req.topic}"
+Learners: ${req.ages_label ?? req.gradeLevel ?? "mixed ages"}
+Duration: ${req.duration_label ?? `${weeks} weeks`}
+${req.hero_blurb ? `Programme promise: ${req.hero_blurb}` : ""}
+${req.track_desc ? `Track promise: ${req.track_desc}` : ""}
+
+━━━ THE ADVERTISED TOPICS — COVER ALL OF THEM ━━━
+These were published to parents on the programme page. Every one must appear.
+${topics.map((t: unknown, i: number) => `${i + 1}. ${String(t)}`).join("\n")}
+
+${spine.length ? `━━━ THE PUBLISHED WEEK SPINE ━━━\n${spine
+        .map((w: any) => `${w.num ?? ""}: ${w.title ?? ""}${w.desc ? ` — ${w.desc}` : ""}`)
+        .join("\n")}` : ""}
+
+━━━ SHAPE ━━━
+- Exactly ${weeks} weeks, numbered 1 to ${weeks}, in ONE continuous run.
+- Put the advertised topics in the order given; expand them across the weeks
+  rather than compressing or renaming them.
+- A project-based checkpoint every third week (type: "project"), because a
+  holiday programme is judged on what learners made, not on what they recalled.
+- The final week is a showcase of the learner's own work (type: "project"),
+  never an examination.
+- Practical and screen-based throughout; these learners chose this programme.
+
+━━━ RETURN EXACTLY THIS SHAPE ━━━
+One term object holding every week, because the programme is one continuous run.
+{
+  "course_title": "string",
+  "description": "string — what a parent would read",
+  "overview": "string — what the learner will be able to do by the end",
+  "learning_outcomes": ["string"],
+  "materials_required": ["string"],
+  "recommended_tools": ["string"],
+  "assessment_strategy": "string — how progress is judged without an exam",
+  "terms": [
+    {
+      "term": 1,
+      "title": "string — the programme run, not a school term",
+      "weeks": [
+        {
+          "week": 1,
+          "type": "lesson" | "project",
+          "topic": "string",
+          "subtopics": ["string"],
+          "objectives": "string",
+          "activities": "string",
+          "notes": "string — what the teacher should know before the session"
+        }
+      ]
+    }
+  ]
+}`;
+    }
+
     case "slides": {
       const count = Math.min(8, Math.max(5, Number(req.slideCount) || 7));
       return `Create a teacher-ready ${count}-slide learning deck for Rillcod Academy.
@@ -1624,6 +1712,7 @@ export const VALID_GENERATE_TYPES: GenerateType[] = [
   "lesson-hook",
   "custom",
   "curriculum",
+  "programme-curriculum",
   "flashcard",
   "slides",
 ];
@@ -1836,6 +1925,7 @@ export async function resolveGenerationPlan(
       break;
 
     case "curriculum":
+    case "programme-curriculum":
       modelQueue = [
         "google/gemini-2.5-flash", // Gemini 2.5 Flash (stable, cheaper)
         "deepseek/deepseek-r1:free", // Free reasoning model
@@ -2010,7 +2100,7 @@ export async function generateAIContent(
   for (const modelId of plan.modelQueue) {
     try {
       const controller = new AbortController();
-      const timeoutMs = ["lesson", "lesson-notes", "curriculum"].includes(type)
+      const timeoutMs = ["lesson", "lesson-notes", "curriculum", "programme-curriculum"].includes(type)
         ? 55000
         : 30000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
