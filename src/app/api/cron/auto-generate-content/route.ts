@@ -4,7 +4,7 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 import {
-  currentTermWeek,
+  currentDeliveryWeek,
   generatePlanWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
@@ -60,9 +60,13 @@ async function handleRequest(req: NextRequest) {
     'http://localhost:3000'
   ).replace(/\/$/, '');
 
+  // The delivery period comes along so a duration programme can be advanced.
+  // Counting a holiday programme from term_start gave week 1 forever, because
+  // it has no term and no term_start — the sweep would have rebuilt week 1
+  // every night instead of moving through the programme.
   const { data: plans, error } = await db
     .from('lesson_plans')
-    .select('id, term_start, class_id, metadata')
+    .select('id, term_start, class_id, metadata, academic_offering_periods:offering_period_id(starts_on)')
     .eq('status', 'published')
     .not('metadata', 'is', null);
 
@@ -106,7 +110,13 @@ async function handleRequest(req: NextRequest) {
     try {
       const meta = plan.metadata as Record<string, unknown>;
       const ags = parseAutoGenerateSettings(meta.auto_generate_settings);
-      const currentWeek = currentTermWeek(plan.term_start ?? null);
+      const period = Array.isArray((plan as any).academic_offering_periods)
+        ? (plan as any).academic_offering_periods[0]
+        : (plan as any).academic_offering_periods;
+      const currentWeek = currentDeliveryWeek({
+        termStart: plan.term_start ?? null,
+        periodStart: period?.starts_on ?? null,
+      });
 
       // Target THIS week specifically rather than "the next N weeks". The teacher's button and
       // this sweep now run the identical path, so whichever fires first the other finds the work

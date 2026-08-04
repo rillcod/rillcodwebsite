@@ -33,6 +33,22 @@ export function currentTermWeek(termStart: string | null): number {
   return Math.max(1, Math.ceil(elapsed / MS_PER_WEEK));
 }
 
+/**
+ * Which teaching week a plan is in, whichever spine it runs on.
+ *
+ * A school plan counts from term_start. A duration programme has no term and no
+ * term_start, so counting from it returned week 1 forever — the sweep would
+ * have regenerated week 1 every night for a holiday programme instead of
+ * advancing through it. Duration plans count from their delivery period's
+ * start date instead.
+ */
+export function currentDeliveryWeek(input: {
+  termStart?: string | null;
+  periodStart?: string | null;
+}): number {
+  return currentTermWeek(input.termStart ?? input.periodStart ?? null);
+}
+
 export type WeekGenerationOutcome = {
   week: number;
   generated: number;

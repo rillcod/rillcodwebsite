@@ -18,7 +18,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   canGenerateForClass,
-  currentTermWeek,
+  currentDeliveryWeek,
   generatePlanWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   const { data: plan } = await db
     .from('lesson_plans')
-    .select('id, class_id, term_start, status, metadata')
+    .select('id, class_id, term_start, status, metadata, academic_offering_periods:offering_period_id(starts_on)')
     .eq('id', planId)
     .maybeSingle();
   if (!plan) return NextResponse.json({ error: 'Teaching plan not found.' }, { status: 404 });
@@ -66,7 +66,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const requestedWeek = Number((body as any).week);
   const week = Number.isFinite(requestedWeek) && requestedWeek > 0
     ? Math.floor(requestedWeek)
-    : currentTermWeek(plan.term_start ?? null);
+    : currentDeliveryWeek({
+        termStart: plan.term_start ?? null,
+        // A duration programme counts from its delivery window, not a term.
+        periodStart:
+          (Array.isArray((plan as any).academic_offering_periods)
+            ? (plan as any).academic_offering_periods[0]
+            : (plan as any).academic_offering_periods)?.starts_on ?? null,
+      });
 
   const settings = parseAutoGenerateSettings(
     (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings
