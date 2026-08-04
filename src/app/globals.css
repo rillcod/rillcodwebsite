@@ -287,6 +287,13 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* In-call LiveKit overlay is portaled above chrome; hide docks so controls stay reachable. */
+  html[data-live-meeting="1"] .app-mobile-bottom-nav,
+  html[data-live-meeting="1"] .app-mobile-header {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   .app-page-main {
     /* Opacity only — a lingering transform here traps every position:fixed
        descendant inside the scroll shell (modals open at the bottom of the page). */

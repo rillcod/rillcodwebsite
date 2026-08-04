@@ -87,7 +87,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
     <>
       {/* Toast */}
       {toast && (
-        <div className="fixed left-1/2 top-16 z-[80] -translate-x-1/2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-bold text-foreground shadow-lg backdrop-blur">
+        <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[130] -translate-x-1/2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-bold text-foreground shadow-lg backdrop-blur">
           {toast}
         </div>
       )}
@@ -138,7 +138,7 @@ export default function HostControls({ sessionId }: { sessionId: string }) {
           <div className="absolute inset-0 bg-black/40" />
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111] p-4 sm:mx-auto sm:mb-4 sm:max-w-md sm:rounded-2xl sm:border"
+            className="relative max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:mx-auto sm:mb-4 sm:max-w-md sm:rounded-2xl sm:border sm:pb-4"
           >
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-widest text-foreground">Participants · {remotes.length}</p>

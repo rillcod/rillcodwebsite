@@ -59,7 +59,18 @@
       "Bash(git --no-pager diff --stat)",
       "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && sed -n '256,300p' 'src/app/api/lesson-plans/[id]/generate-assignments/route.ts' && echo \"===PROJECTS===\" && sed -n '268,300p' 'src/app/api/lesson-plans/[id]/generate-projects/route.ts' && echo \"===EXTRAHEADERS===\" && rg -n \"extraHeaders\" src/app/api/lesson-plans -r '$0')",
       "Read(//c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/**)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(awk '/^      lesson_plans: \\\\{/,/^      lesson_progress|^      lessons: \\\\{/' src/types/supabase.ts)",
+      "Bash(echo \"TSC=$?\")",
+      "Bash(npx tsx *)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && grep -iE \"error|failed to compile\" /tmp/dev2.log | head -5)",
+      "Bash(awk 'NR==39{print \"len=\"length\\($0\\); print \"exact_match=\"\\($0==\"UPSTASH_REDIS_REST_URL=\\\\\"[SENSITIVE]\\\\\"\"\\)}' .env.vercel.local)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('--- deps with vercel:'\\); console.log\\(Object.keys\\({...p.dependencies,...p.devDependencies}\\).filter\\(d=>/vercel/i.test\\(d\\)\\).join\\('\\\\n'\\)||'\\(none\\)'\\)\")",
+      "Bash(mkdir -p __TRACKED_VAR__/vercel-backup)",
+      "Bash(cp .env.vercel.local __TRACKED_VAR__/vercel-backup/)",
+      "Bash(cp vercel.json __TRACKED_VAR__/vercel-backup/)",
+      "Bash(cp -r .vercel __TRACKED_VAR__/vercel-backup/dot-vercel)"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",

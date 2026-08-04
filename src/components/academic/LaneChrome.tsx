@@ -54,11 +54,10 @@ export function LaneChrome({
   const displayIndex = isOverviewHome ? -1 : activeIndex;
 
   return (
-    // The scrollport starts at the top of the viewport on mobile and is padded
-    // down by the header's height, so `top-0` pinned this strip underneath the
-    // fixed app header — z-30 against its z-50 — and the stage stepper vanished
-    // as soon as you scrolled. Offset it by the same header height on mobile.
-    <div className="sticky top-[var(--app-header-height)] z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 md:top-0 lg:px-8">
+    // Stay in document flow on mobile/PWA — sticky under the fixed header ate
+    // the first screen of content and competed with page chrome for the
+    // scrollport. Desktop can keep a light sticky strip.
+    <div className="border-b border-border bg-background/95 px-4 py-3 sm:px-6 md:sticky md:top-0 md:z-30 md:backdrop-blur lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-sm font-black text-foreground">

@@ -79,6 +79,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Only execute Supabase auth checks for paths that require them (/dashboard, /login)
+  // to avoid concurrent token refresh race conditions from parallel background API or asset requests.
+  const requiresAuthCheck = pathname.startsWith('/dashboard') || pathname === '/login';
+
+  if (!requiresAuthCheck) {
+    const res = NextResponse.next();
+    if (rateLimitHeaders) {
+      Object.entries(rateLimitHeaders).forEach(([k, v]) => res.headers.set(k, v));
+    }
+    return res;
+  }
+
   const { supabase, getResponse } = createMiddlewareSupabase(request);
 
   const {

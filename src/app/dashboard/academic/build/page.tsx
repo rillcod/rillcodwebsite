@@ -3646,7 +3646,7 @@ export default function CurriculumPage() {
   // ── Learner / School read-only layout ───────────────────────────────────
   if (learnerMode || isSchool) {
     return (
-      <div className="flex flex-col min-h-screen bg-background text-foreground mobile-page-root">
+      <div className="flex flex-col bg-background text-foreground mobile-page-root">
         <div className="shrink-0 border-b border-border bg-card px-4 py-3">
           <p className="text-sm font-black text-foreground">Curriculum</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -3923,7 +3923,10 @@ export default function CurriculumPage() {
         </div>
       )}
 
-      <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden mobile-page-root">
+      {/* No min-h-screen / nested overflow on mobile — DashboardShell (.app-shell-scroll)
+          is the only scrollport (PWA + browser). Nested overflow-y-auto + min-h-screen
+          traps touch scroll and hides the page under sticky chrome. */}
+      <div className="flex flex-col bg-background text-foreground print:hidden mobile-page-root md:min-h-0">
         {/* Header — wraps gracefully on mobile */}
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
@@ -4053,13 +4056,11 @@ export default function CurriculumPage() {
 
         {/* View Mode 3: Traditional Builder & Generator View */}
         {(curriculumViewMode === "builder" || !["admin", "teacher", "school"].includes(profile?.role || "")) && (
-          <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
-          {/* ── Mobile scope bar — sticky, shows current Program › Course and
-             gives one-tap access to Browse, Preview-as-role, Publish toggle.
-             The intent is that the teacher never loses context of what they
-             are editing even as the syllabus scrolls past the viewport on
-             a small screen. ── */}
-          <div className="md:hidden sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full">
+          {/* ── Mobile scope bar — not sticky. Sticky top-0 pinned under the fixed
+             app header (and fought LaneChrome), so the curriculum title looked
+             “cut off” and touch scroll felt stuck in the PWA. ── */}
+          <div className="md:hidden border-b border-border bg-card">
             <div className="flex items-center justify-between gap-2 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 {selectedProgram ? (
@@ -4100,7 +4101,8 @@ export default function CurriculumPage() {
         ${mobileSidebarOpen ? "flex" : "hidden"} md:flex
         flex-col w-full md:w-64 lg:w-72 shrink-0
         border-b md:border-b-0 md:border-r border-border
-        bg-card overflow-y-auto md:h-screen outline-none
+        bg-card md:overflow-y-auto md:h-[calc(100dvh-var(--app-header-height,0px))] outline-none
+        ${mobileSidebarOpen ? "max-h-[min(70dvh,28rem)] overflow-y-auto" : ""}
       `}
           >
             <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
@@ -4308,8 +4310,8 @@ export default function CurriculumPage() {
             </div>
           </aside>
 
-          {/* ── Main Content ── */}
-          <main className="flex-1 overflow-y-auto flex flex-col">
+          {/* ── Main Content — shell scrolls on mobile; desktop keeps pane scroll ── */}
+          <main className="flex flex-1 flex-col md:min-h-0 md:overflow-y-auto">
             {/* Syllabus (always shown) */}
             {
               <motion.div

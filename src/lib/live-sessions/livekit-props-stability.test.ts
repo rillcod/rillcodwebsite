@@ -175,7 +175,7 @@ describe('LiveKitMeeting reconnect invariants', () => {
 
   it('leaves the Close button reachable after the host ends the session', () => {
     // exitedRef also gates handleClose. Setting it from the host-ended poll made
-    // the ended overlay's Close button inert — a full-screen z-[60] dead end.
+    // the ended overlay's Close button inert — a full-screen z-[120] dead end.
     const poll = src.slice(src.indexOf('// Host-ended poll'), src.indexOf('// Auto-rejoin'));
     expect(poll).toMatch(/setPhase\('ended'\)/);
     expect(poll, 'host-ended poll must not latch exitedRef').not.toMatch(/exitedRef\.current\s*=/);

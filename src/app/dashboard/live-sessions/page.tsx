@@ -12,14 +12,17 @@ import ClassReplays from '@/components/live-session/ClassReplays';
 import RecurrenceFields, { blankRecurrence, type RecurrenceForm, type TermOption } from '@/components/live-session/RecurrenceFields';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import BodyPortal from '@/components/ui/BodyPortal';
 
 // Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
 const LiveKitMeeting = dynamic(
   () => import('@/components/live-session/LiveKitMeeting'),
   { ssr: false, loading: () => (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a]">
-      <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-    </div>
+    <BodyPortal>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0a0a0a]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      </div>
+    </BodyPortal>
   )},
 );
 import {
@@ -1429,7 +1432,7 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 80, opacity: 0 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] w-full max-w-md"
+      className="fixed bottom-[calc(var(--app-bottom-nav-height)+1rem)] left-1/2 z-[70] w-full max-w-md -translate-x-1/2 md:bottom-6"
     >
       <div className="bg-[#0a0a0a] border border-emerald-500/40 shadow-2xl shadow-emerald-900/40 p-5 flex items-center gap-4">
         {/* Pulse dot */}
@@ -1498,7 +1501,7 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LiveSessionsPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const searchParams = useSearchParams();
   const [sessions, setSessions]     = useState<LiveSession[]>([]);
   const [schools, setSchools]       = useState<School[]>([]);
@@ -1573,7 +1576,12 @@ export default function LiveSessionsPage() {
 
   // ── Realtime subscription ───────────────────────────────────────────────────
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || profileLoading) return;
+    if (!profile) {
+      // Avoid an eternal spinner if auth finished with no profile (PWA resume / soft logout).
+      setLoading(false);
+      return;
+    }
     loadData();
 
     const db = createClient();
@@ -1618,7 +1626,7 @@ export default function LiveSessionsPage() {
       .subscribe();
 
     return () => { db.removeChannel(sub); };
-  }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, profileLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filtered list ───────────────────────────────────────────────────────────
   const filtered = sessions.filter(s => {
@@ -1826,9 +1834,9 @@ export default function LiveSessionsPage() {
   }
 
   // ── Loading state ───────────────────────────────────────────────────────────
-  if (authLoading || loading) {
+  if (authLoading || profileLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
+      <div className="flex min-h-[40vh] items-center justify-center bg-background mobile-page-root">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -1845,7 +1853,7 @@ export default function LiveSessionsPage() {
   ];
 
   return (
-    <div className={`min-h-screen bg-background text-foreground selection:bg-primary/30 ${MOBILE_PAGE_BOTTOM}`}>
+    <div className={`bg-background text-foreground selection:bg-primary/30 mobile-page-root ${MOBILE_PAGE_BOTTOM}`}>
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 lg:px-8 lg:py-8">
 
         <MobilePageHero
@@ -1899,7 +1907,7 @@ export default function LiveSessionsPage() {
         )}
 
         {/* ── Filter Tabs ── */}
-        <div className="flex items-center gap-1 bg-muted/50 dark:bg-white/[0.02] border border-border p-1.5 w-fit rounded-xl">
+        <div className="flex items-center gap-1 bg-muted/50 dark:bg-white/[0.02] border border-border p-1.5 w-fit max-w-full overflow-x-auto rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
           {TABS.map(t => (
             <button
               key={t.key}

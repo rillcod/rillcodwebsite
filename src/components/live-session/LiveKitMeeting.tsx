@@ -11,6 +11,7 @@ import type { RoomOptions, RoomConnectOptions } from 'livekit-client';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 import HostControls from './HostControls';
+import BodyPortal, { useOverlayScrollLock } from '@/components/ui/BodyPortal';
 import {
   CONNECT_DEADLINE_MS,
   MAX_AUTO_REJOIN,
@@ -57,15 +58,27 @@ const ROOM_STYLE: React.CSSProperties = { height: '100%' };
 
 const HIDDEN_LEAVE_MS = 3 * 60_000;
 
+/** Portal + z-sheet so controls aren't trapped under the app dock / header. */
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#0a0a0a] gap-4 px-6 text-center">
-      {children}
-    </div>
+    <BodyPortal>
+      <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center">
+        {children}
+      </div>
+    </BodyPortal>
   );
 }
 
 function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProps) {
+  useOverlayScrollLock(true);
+  useEffect(() => {
+    // Hide the fixed mobile chrome while in-call so mic/camera/leave aren't covered.
+    document.documentElement.dataset.liveMeeting = '1';
+    return () => {
+      delete document.documentElement.dataset.liveMeeting;
+    };
+  }, []);
+
   const [token, setToken] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [isModerator, setIsModerator] = useState(false);
@@ -505,10 +518,21 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0a]" data-lk-theme="default">
-      <style>{`.lk-disconnect-button{display:none !important}`}</style>
+    <BodyPortal>
+    <div
+      className="fixed inset-0 z-[120] flex flex-col bg-[#0a0a0a] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      data-lk-theme="default"
+    >
+      <style>{`
+        .lk-disconnect-button{display:none !important}
+        [data-lk-theme="default"] .lk-control-bar{
+          padding-bottom:max(0.75rem, env(safe-area-inset-bottom, 0px)) !important;
+          padding-left:max(0.5rem, env(safe-area-inset-left, 0px));
+          padding-right:max(0.5rem, env(safe-area-inset-right, 0px));
+        }
+      `}</style>
 
-      <div className="flex items-center justify-between px-4 py-2 bg-black/80 border-b border-white/10 shrink-0">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-black/80 px-4 py-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="relative flex w-2 h-2 shrink-0">
             <span className="absolute inset-0 rounded-full bg-emerald-500 opacity-75 animate-ping" />
@@ -584,6 +608,7 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
         </LiveKitRoom>
       </div>
     </div>
+    </BodyPortal>
   );
 }
 
