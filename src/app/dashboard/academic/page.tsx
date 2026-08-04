@@ -466,7 +466,10 @@ export default function AcademicSpinePage() {
             )}
 
           {/* The two lanes — the real structure, without repeating the metrics. */}
-          <section className="grid gap-4 lg:grid-cols-2">
+          {/* Anchored: page order — next action, then the curriculum lanes,
+              then supporting tools, then exceptions — is asserted in
+              teacher-workspace-ux.test.ts. */}
+          <section id="curriculum-lanes" className="grid gap-4 lg:grid-cols-2">
             {(
               [
                 ["asset", assetStages] as const,
@@ -642,7 +645,11 @@ export default function AcademicSpinePage() {
             </section>
           )}
 
-          <section className="space-y-3">
+          {/* Anchored: the page's order — next action, then curriculum, then
+              supporting tools, then exceptions — is asserted in
+              teacher-workspace-ux.test.ts, and it needs a stable handle for the
+              tools block. */}
+          <section id="supporting-tools" className="space-y-3">
             <button
               type="button"
               onClick={() => setShowTools((v) => !v)}

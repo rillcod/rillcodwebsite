@@ -32,11 +32,9 @@ import {
   StarIcon,
   EyeIcon,
   MagnifyingGlassIcon,
-  Squares2X2Icon,
   PlusIcon,
   CalendarDaysIcon,
   TrashIcon,
-  PresentationChartLineIcon,
   BuildingOfficeIcon,
   LockClosedIcon,
   ArrowDownTrayIcon,
@@ -70,8 +68,6 @@ import {
   type OfficialRelease,
   type OfficialAdoption,
 } from "@/components/curriculum/OfficialDirectionStatus";
-import PlanningBreadcrumb from "@/components/pipeline/PlanningBreadcrumb";
-import { extractLessonPlanOperationWeeks } from "@/lib/progression/lessonPlanOperation";
 import { extractPdfText } from "@/lib/pdf/extract-text";
 import {
   liveAcademicSession,
@@ -100,22 +96,6 @@ const PROGRAMME_TERM_THEME: Record<number, string> = {
   2: "Application",
   3: "Innovation",
 };
-
-function getLessonPlanOperationStats(planData: unknown): {
-  totalWeeks: number;
-  completedWeeks: number;
-  progressPct: number;
-} {
-  const weeks = extractLessonPlanOperationWeeks(planData);
-  const completedWeeks = weeks.filter((week) => week.completed === true).length;
-  const totalWeeks = weeks.length;
-  return {
-    totalWeeks,
-    completedWeeks,
-    progressPct:
-      totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0,
-  };
-}
 
 function getCurrentTerm(): number {
   return parseInt(termNumberFromLabel(liveAcademicSession().termLabel), 10);
@@ -662,9 +642,6 @@ export default function CurriculumPage() {
   // Optional QA week spine: show DB template + class rotation preview before apply
   const [qaSpineOpen, setQaSpineOpen] = useState(false);
   const [implementationList, setImplementationList] = useState<any[]>([]);
-  const [globalImplementationList, setGlobalImplementationList] = useState<
-    any[]
-  >([]);
   const [printMode, setPrintMode] = useState<"week" | "overview">("week");
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintSectionOptions>(
@@ -1487,13 +1464,6 @@ export default function CurriculumPage() {
         .then((j) => setImplementationList(j.data || []))
         .catch(() => setImplementationList([]));
     }
-    // Also load global list for the landing page
-    if (!selectedCourse) {
-      fetch("/api/lesson-plans?limit=6")
-        .then((r) => r.json())
-        .then((j) => setGlobalImplementationList(j.data || []))
-        .catch(() => setGlobalImplementationList([]));
-    }
   }, [selectedCourse, curriculum?.id]);
 
   const deleteImplementation = useCallback(
@@ -1513,9 +1483,6 @@ export default function CurriculumPage() {
         });
         if (res.ok) {
           setImplementationList((prev) => prev.filter((p) => p.id !== id));
-          setGlobalImplementationList((prev) =>
-            prev.filter((p) => p.id !== id)
-          );
           toast.success("Implementation deleted");
         } else {
           const j = await res.json().catch(() => ({}));
@@ -3680,12 +3647,12 @@ export default function CurriculumPage() {
   if (learnerMode || isSchool) {
     return (
       <div className="flex flex-col min-h-screen bg-background text-foreground mobile-page-root">
-        <div className="shrink-0 border-b border-border bg-card px-4 py-3 space-y-2">
-          <PlanningBreadcrumb current="syllabus" />
-          <p className="text-xs text-muted-foreground">
+        <div className="shrink-0 border-b border-border bg-card px-4 py-3">
+          <p className="text-sm font-black text-foreground">Curriculum</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {selectedCourse
               ? selectedCourse.title
-              : "Select a course to view its curriculum"}
+              : "Select a course to view"}
           </p>
         </div>
 
@@ -3960,44 +3927,47 @@ export default function CurriculumPage() {
         {/* Header — wraps gracefully on mobile */}
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
-            <PlanningBreadcrumb current="syllabus" />
+            <p className="text-sm font-black text-foreground">Curriculum</p>
+            <p className="hidden text-xs text-muted-foreground md:block">
+              Write the week plan here. Publish on Rollout. Teach from Classes.
+            </p>
             <div className="flex-1 hidden md:block" />
 
-            {/* Plain-English Mode Switcher Tabs for Staff */}
             {["admin", "teacher", "school"].includes(profile?.role || "") && (
-              <div className="flex max-w-full flex-row-reverse items-center gap-1 overflow-x-auto rounded-xl border border-border bg-background p-1 my-1 md:my-0">
-                <button
-                  type="button"
-                  onClick={() => setCurriculumViewMode("roster")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
-                    curriculumViewMode === "roster"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  Manage ({allCurricula.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurriculumViewMode("inspector")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
-                    curriculumViewMode === "inspector"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  Coverage map
-                </button>
+              <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-background p-1 my-1 md:my-0">
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("builder")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
                     curriculumViewMode === "builder"
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  Build curriculum
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurriculumViewMode("roster")}
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
+                    curriculumViewMode === "roster"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  All ({allCurricula.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurriculumViewMode("inspector")}
+                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
+                    curriculumViewMode === "inspector"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  }`}
+                  title="Structure map — rarely needed"
+                >
+                  Structure
                 </button>
               </div>
             )}
@@ -4017,46 +3987,19 @@ export default function CurriculumPage() {
           </div>
         </div>
 
-        {/* How it works guide */}
         {showHelp && (
-          <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-4">
-            <div className="max-w-[1800px] mx-auto space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">
-                How to use this page
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
-                  <p className="font-black text-foreground">
-                    Step 1 — Build the curriculum source
-                  </p>
-                  <p className="text-muted-foreground">
-                    Pick a course and build the reusable week-by-week direction.
-                    This source is shared safely; it is not a class delivery
-                    record.
-                  </p>
-                </div>
-                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
-                  <p className="font-black text-foreground">
-                    Step 2 — Make it official
-                  </p>
-                  <p className="text-muted-foreground">
-                    The Academic Office certifies the edition and makes it
-                    available to eligible school, online or special-programme
-                    pathways.
-                  </p>
-                </div>
-                <div className="bg-card border border-border p-3 space-y-1 rounded-xl">
-                  <p className="font-black text-foreground">
-                    Step 3 — Teach from the class
-                  </p>
-                  <p className="text-muted-foreground">
-                    Open the class. Its teaching plan inherits the official
-                    source and correct delivery period. Mark lessons taught
-                    there so progress, reports and parents stay in sync.
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-3">
+            <p className="mx-auto max-w-[1800px] text-sm text-muted-foreground">
+              Build the weeks here → publish on{" "}
+              <Link href="/dashboard/academic/rollout" className="font-bold text-primary hover:underline">
+                Rollout
+              </Link>{" "}
+              → teach from{" "}
+              <Link href="/dashboard/classes" className="font-bold text-primary hover:underline">
+                Classes
+              </Link>
+              .
+            </p>
           </div>
         )}
 
@@ -4379,221 +4322,100 @@ export default function CurriculumPage() {
                 {!selectedCourse ? (
                   /* Empty state */
                   <div className="h-full min-h-[60vh] px-4 py-8">
-                    <div className="max-w-5xl mx-auto space-y-5">
-                      {/* Resume Planning — High-impact Hero Card */}
-                      {lastVisited && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 text-primary">
-                            <RocketLaunchIcon className="w-5 h-5 animate-pulse" />
-                            <span className="text-[11px] font-black uppercase tracking-[0.3em]">
-                              Continue Session
-                            </span>
-                          </div>
-                          <div className="group relative overflow-hidden bg-card border border-border p-8 flex flex-col sm:flex-row sm:items-center gap-8 shadow-2xl transition-all hover:border-primary/40 duration-500 rounded-2xl">
-                            <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-all" />
-                            <div className="flex-1 min-w-0 relative z-10">
-                              <div className="flex items-center gap-3 mb-4">
-                                <span className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
-                                  Last Visited
-                                </span>
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-                                  {lastVisited.progName}
-                                </span>
-                              </div>
-                              <h3 className="text-3xl font-black text-foreground tracking-tighter mb-2 group-hover:text-primary transition-colors">
-                                {lastVisited.courseTitle}
-                              </h3>
-                              <p className="text-sm text-muted-foreground font-medium max-w-md">
-                                Pick up exactly where you left off in your
-                                syllabus.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const prog = programs.find(
-                                  (p) => p.id === lastVisited.progId
-                                );
-                                const course = prog?.courses?.find(
-                                  (c) => c.id === lastVisited.courseId
-                                );
-                                if (prog && course) {
-                                  selectCourse(prog, course);
-                                  return;
-                                }
-                                setSelectedCourse({
-                                  id: lastVisited.courseId,
-                                  title: lastVisited.courseTitle,
-                                  is_active: true,
-                                });
-                                loadCurriculum(lastVisited.courseId);
-                              }}
-                              className="relative z-10 shrink-0 flex items-center justify-center gap-3 px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 rounded-xl"
-                            >
-                              <ArrowRightIcon className="w-4 h-4" /> Open
-                              Blueprint
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {!lastVisited && (
-                        <div className="py-10 px-6">
-                          <div className="max-w-xl mx-auto text-center space-y-6">
-                            <div className="space-y-2">
-                              <h2 className="text-2xl font-black text-foreground tracking-tight">
-                                Start with a course
-                              </h2>
-                              <p className="text-muted-foreground text-sm leading-relaxed">
-                                Choose a course on the left, then build week 1. Keep it simple — one course at a time.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                document.getElementById("curriculum-course-picker")?.scrollIntoView({
-                                  behavior: "smooth",
-                                  block: "start",
-                                });
-                                document.getElementById("curriculum-course-picker")?.focus?.();
-                              }}
-                              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/20"
-                            >
-                              <BookOpenIcon className="w-4 h-4" />
-                              Pick a course
-                            </button>
-                            <p className="text-[11px] text-muted-foreground">
-                              After that: build → make official on Rollout → teach from Classes.
+                    <div className="mx-auto max-w-3xl space-y-8">
+                      {lastVisited ? (
+                        <div className="space-y-3 rounded-2xl border border-border bg-card p-6">
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            Continue
+                          </p>
+                          <div>
+                            <p className="text-lg font-black text-foreground">
+                              {lastVisited.courseTitle}
                             </p>
+                            {lastVisited.progName && (
+                              <p className="mt-0.5 text-sm text-muted-foreground">
+                                {lastVisited.progName}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      )}
-                      {globalImplementationList.length > 0 && !lastVisited && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 text-primary">
-                            <PresentationChartLineIcon className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                              Active Class Plans
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {globalImplementationList.map((plan) => {
-                              const {
-                                totalWeeks,
-                                completedWeeks,
-                                progressPct,
-                              } = getLessonPlanOperationStats(plan.plan_data);
-
-                              return (
-                                <Link
-                                  key={plan.id}
-                                  href={
-                                    plan.class_id
-                                      ? buildClassTeachingHref({
-                                          classId: plan.class_id,
-                                          courseId: plan.course_id,
-                                        })
-                                      : "/dashboard/classes"
-                                  }
-                                  className="group bg-card border border-border hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
-                                >
-                                  <div>
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                      <div className="min-w-0">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
-                                          {plan.classes?.name ||
-                                            "Unnamed Class"}
-                                        </p>
-                                        <h5 className="text-sm font-black text-foreground group-hover:text-primary transition-colors truncate">
-                                          {plan.courses?.title ||
-                                            "Unknown Course"}
-                                        </h5>
-                                      </div>
-                                      <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded shrink-0">
-                                        {plan.term || "Term 1"}
-                                      </span>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                      <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground">
-                                        <span className="uppercase tracking-widest">
-                                          Progress
-                                        </span>
-                                        <span>
-                                          {completedWeeks} / {totalWeeks} Weeks
-                                        </span>
-                                      </div>
-                                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden border border-border">
-                                        <div
-                                          className="h-full bg-primary rounded-full transition-all duration-500"
-                                          style={{ width: `${progressPct}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="pt-3 border-t border-border flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 group-hover:opacity-100 transition-opacity">
-                                      Open Lesson Plan →
-                                    </span>
-                                    <span className="text-[9px] font-medium text-muted-foreground flex items-center gap-1">
-                                      <CheckCircleIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />{" "}
-                                      Active Plan
-                                    </span>
-                                  </div>
-                                </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prog = programs.find(
+                                (p) => p.id === lastVisited.progId
                               );
-                            })}
-                          </div>
+                              const course = prog?.courses?.find(
+                                (c) => c.id === lastVisited.courseId
+                              );
+                              if (prog && course) {
+                                selectCourse(prog, course);
+                                return;
+                              }
+                              setSelectedCourse({
+                                id: lastVisited.courseId,
+                                title: lastVisited.courseTitle,
+                                is_active: true,
+                              });
+                              loadCurriculum(lastVisited.courseId);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground"
+                          >
+                            Open course
+                            <ArrowRightIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 text-center">
+                          <h2 className="text-2xl font-black tracking-tight text-foreground">
+                            Start with a course
+                          </h2>
+                          <p className="text-sm leading-relaxed text-muted-foreground">
+                            Choose a course below, then build week 1. One course at a time.
+                          </p>
                         </div>
                       )}
-                      <div className="space-y-6">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-primary">
-                            <Squares2X2Icon className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                              Course Catalog
-                            </span>
-                          </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <h3 className="text-sm font-black text-foreground">Courses</h3>
                           {(isTeacher || isSchool) && (
-                            <p className="text-[11px] text-muted-foreground font-medium">
-                              Showing courses linked to your assigned school
-                              classes.
+                            <p className="text-xs text-muted-foreground">
+                              Linked to your assigned classes
                             </p>
                           )}
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {quickChooserCourses.map(({ prog, course }) => (
                             <button
                               key={course.id}
                               type="button"
                               onClick={() => selectCourse(prog, course)}
-                              className="group text-left bg-card border border-border hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
+                              className="rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40"
                             >
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                                  {prog.name}
-                                </p>
-                                <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5em]">
-                                  {course.title}
-                                </h3>
-                              </div>
-                              <div className="pt-2 flex items-center justify-between border-t border-border">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                  Select Course →
-                                </span>
-                                <div className="p-1 rounded bg-muted">
-                                  <ChevronRightIcon className="w-3 h-3 text-muted-foreground" />
-                                </div>
-                              </div>
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                {prog.name}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-sm font-black text-foreground">
+                                {course.title}
+                              </p>
                             </button>
                           ))}
                         </div>
                         {quickChooserCourses.length === 0 && (
-                          <p className="text-[11px] text-muted-foreground mt-3">
-                            No courses found for current school scope yet.
-                            Add/assign classes first, or use the full sidebar
-                            catalog.
+                          <p className="text-sm text-muted-foreground">
+                            No courses in this scope yet. Add or assign classes first, or use the sidebar.
                           </p>
                         )}
+                        <p className="text-sm text-muted-foreground">
+                          Teaching happens in{" "}
+                          <Link
+                            href="/dashboard/classes"
+                            className="font-bold text-primary hover:underline"
+                          >
+                            Classes
+                          </Link>
+                          .
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -5077,19 +4899,6 @@ export default function CurriculumPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* ── Curriculum header — mobile-first ── */}
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-                      <p className="text-xs font-black text-foreground">
-                        What this page controls
-                      </p>
-                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                        This is the reusable course direction. Teachers deliver
-                        it from a class, where enrollment type and delivery
-                        period choose the correct teaching plan. Changes here do
-                        not overwrite scores, attendance or delivered lessons.
-                      </p>
-                    </div>
 
                     <div className="pb-4 sm:pb-5 border-b border-border space-y-3 sm:space-y-4 relative">
                       <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -5617,7 +5426,7 @@ export default function CurriculumPage() {
                             className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
-                            {officialStatus.release ? "Manage rollout" : "Review & publish"}
+                            {officialStatus.release ? "Manage rollout" : "Publish"}
                           </Link>
                         )}
                         {/* More overflow menu */}

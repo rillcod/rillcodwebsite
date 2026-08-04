@@ -545,10 +545,9 @@ function RolloutWorkspace() {
   return (
     <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8 mobile-page-root">
       <header className="mb-6">
-        <p className="text-xs font-black uppercase tracking-widest text-primary">Academic Office</p>
-        <h1 className="mt-2 text-3xl font-black">Rollout</h1>
+        <h1 className="text-3xl font-black">Rollout</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Choose a curriculum, check it once, and publish it to eligible schools. Existing class plans stay protected.
+          Check this curriculum, then publish it to schools. Live class plans stay as they are.
         </p>
       </header>
 
@@ -599,8 +598,8 @@ function RolloutWorkspace() {
             <div className="mb-4 flex items-start gap-3">
               <ShieldCheckIcon className="h-7 w-7 shrink-0 text-primary" />
               <div>
-                <h2 className="text-lg font-black">1 · Review and publish</h2>
-                <p className="text-sm text-muted-foreground">A quality review runs first; publishing then certifies the edition and assigns it to schools.</p>
+                <h2 className="text-lg font-black">1 · Check and publish</h2>
+                <p className="text-sm text-muted-foreground">Check quality first. Publishing makes it live and assigns it to schools.</p>
               </div>
             </div>
 
@@ -608,9 +607,9 @@ function RolloutWorkspace() {
               <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-800 dark:text-emerald-200">
                 <CheckCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-sm font-black">This edition is live</p>
+                  <p className="text-sm font-black">Already live</p>
                   <p className="mt-1 text-xs leading-5">
-                    {liveDirection.title || 'The selected curriculum'} is already protected and assigned. Repeating the action refreshes school coverage safely; it does not create a duplicate edition.
+                    {liveDirection.title || 'This curriculum'} is already with schools. Publishing again only refreshes coverage — it does not create a duplicate.
                   </p>
                 </div>
               </div>
@@ -770,25 +769,31 @@ function RolloutWorkspace() {
 
           {/* 2 — Where it went, and anything left behind on a dead edition. */}
           <section id="schools" className={SECTION}>
-            <div className="mb-4 flex items-start gap-3">
+            <div className="mb-3 flex items-start gap-3">
               <CheckCircleIcon className="h-7 w-7 shrink-0 text-primary" />
               <div>
-                <h2 className="text-lg font-black">2 · School coverage</h2>
-                <p className="text-sm text-muted-foreground">Publishing assigns automatically. Anything left on a retired edition is listed here.</p>
+                <h2 className="text-lg font-black">2 · After publish</h2>
+                <p className="text-sm text-muted-foreground">
+                  {publishedForCourse.length > 0
+                    ? 'Assign waiting classes, check school reach, or clear old editions.'
+                    : 'Publish above first — then assign classes here.'}
+                </p>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              {publishedForCourse.length > 0
-                ? `This course has ${publishedForCourse.length} live edition${publishedForCourse.length === 1 ? '' : 's'} in circulation.`
-                : 'This course has no live edition assigned yet — publish above.'}
-            </p>
-
+            {publishedForCourse.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing to do here until this course is live.</p>
+            ) : (
+            <details className="rounded-2xl border border-border bg-muted/10 p-4">
+              <summary className="cursor-pointer text-sm font-black text-foreground">
+                Classes, schools &amp; old editions
+              </summary>
+              <div className="mt-4 space-y-4">
             {/* Publishing reaches the schools, but a class only picks the edition up once this
                 course is set on it. Where a programme offers several courses nothing can infer
                 which one a class teaches, so without this they sit unassigned indefinitely. */}
-            {isAdmin && selected && publishedForCourse.length > 0 && (
-              <div className="mt-4 rounded-2xl border border-border bg-muted/20 p-4">
+            {isAdmin && selected && (
+              <div className="rounded-2xl border border-border bg-muted/20 p-4">
                 <p className="text-sm font-black text-foreground">Classes teaching this course</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   A class only follows this edition once it is set to teach{' '}
@@ -854,22 +859,20 @@ function RolloutWorkspace() {
               </div>
             )}
 
-            {publishedForCourse.length > 0 && (
-              <button
+            <button
                 type="button"
                 onClick={() => void checkImpact((liveDirection ?? publishedForCourse[0]).id)}
                 disabled={previewing}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2 text-xs font-black text-primary disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2 text-xs font-black text-primary disabled:opacity-50"
               >
                 {previewing ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : null}
-                {previewing ? 'Checking…' : 'Check which schools this reaches'}
+                {previewing ? 'Checking…' : 'See which schools it reaches'}
               </button>
-            )}
 
             {preview && (
-              <div className="mt-4 rounded-xl border border-primary/25 bg-primary/5 p-4">
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
                 <p className="text-sm font-black text-foreground">
-                  {preview.summary.eligible} ready · {preview.summary.skipped} paused/not selected · {preview.summary.conflict} need attention · {preview.summary.protected_active_plans} current plans protected
+                  {preview.summary.eligible} ready · {preview.summary.skipped} skipped · {preview.summary.conflict} need attention · {preview.summary.protected_active_plans} class plans unchanged
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {preview.schools.map((school) => (
@@ -892,7 +895,7 @@ function RolloutWorkspace() {
             )}
 
             {stranded && stranded.groups.length > 0 && (
-              <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
                 <div className="flex items-start gap-2">
                   <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
                   <p className="text-sm font-black text-foreground">
@@ -931,12 +934,12 @@ function RolloutWorkspace() {
                             {group.resolvable && (
                               <button onClick={() => void fixStranded(group.courseId, 'move')} disabled={busy}
                                 className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">
-                                {busy ? 'Working…' : `Move to edition #${group.liveEdition?.release_number ?? ''}`}
+                                {busy ? 'Working…' : `Move to live edition #${group.liveEdition?.release_number ?? ''}`}
                               </button>
                             )}
                             <button onClick={() => void fixStranded(group.courseId, 'clear')} disabled={busy}
                               className="rounded-xl border border-rose-500/40 px-4 py-2 text-xs font-black text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 disabled:opacity-50">
-                              {busy ? 'Working…' : 'Unadopt and clear'}
+                              {busy ? 'Working…' : 'Clear old assignment'}
                             </button>
                           </div>
                         )}
@@ -945,6 +948,9 @@ function RolloutWorkspace() {
                   })}
                 </div>
               </div>
+            )}
+              </div>
+            </details>
             )}
           </section>
 
@@ -963,11 +969,11 @@ function RolloutWorkspace() {
                 <CalendarDaysIcon className="h-7 w-7 shrink-0 text-primary" />
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-lg font-black">School timing exceptions</span>
+                    <span className="text-lg font-black">3 · Timing</span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Optional</span>
                   </span>
                   <span className="mt-1 block text-sm text-muted-foreground">
-                    Standard rollout needs no change. Open this only when a school joins mid-programme or uses a different pace.
+                    Most schools need nothing here. Open only if a school starts mid-programme or at a different pace.
                   </span>
                 </span>
               </span>

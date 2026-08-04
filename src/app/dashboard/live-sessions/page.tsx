@@ -1865,7 +1865,7 @@ export default function LiveSessionsPage() {
             canCreateSession ? (
               <button
                 type="button"
-                onClick={openCreate}
+                onClick={() => openCreate()}
                 className={`${MOBILE_TOUCH_BTN} bg-primary px-5 text-primary-foreground shadow-lg shadow-primary/20`}
               >
                 <PlusIcon className="h-4 w-4" />
@@ -1922,7 +1922,7 @@ export default function LiveSessionsPage() {
 
         {/* ── Session Grid ── */}
         {filtered.length === 0 ? (
-          <EmptyState tab={filter} canManage={canCreateSession} onAdd={openCreate} />
+          <EmptyState tab={filter} canManage={canCreateSession} onAdd={() => openCreate()} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>

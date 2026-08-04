@@ -27,6 +27,20 @@ import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 
+/**
+ * Assignment kinds this generator is allowed to write.
+ *
+ * "project" is deliberately absent: projects are a separate week asset with
+ * their own generator, and a project written here is invisible to the dedup
+ * check below, which excludes projects by design.
+ */
+const HOMEWORK_TYPES = ["homework", "quiz", "coding", "presentation", "exam"];
+
+function assignmentTypeFor(raw: unknown): string {
+  const value = String(raw ?? "").toLowerCase();
+  return HOMEWORK_TYPES.includes(value) ? value : "homework";
+}
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -285,7 +299,13 @@ export async function POST(
               title: (d.title || `${week.topic} Assignment`) as string,
               description: (d.description || "") as string,
               instructions: (d.instructions || "") as string,
-              assignment_type: (d.assignment_type || "homework") as string,
+              // The route decides this, not the model. Asked for homework, the
+              // model sometimes answered "project" — which stored a project,
+              // left the week with two projects and no homework, and then hid
+              // the row from this generator's own dedup check (it excludes
+              // projects). The sweep therefore produced another one every
+              // night, without limit.
+              assignment_type: assignmentTypeFor(d.assignment_type),
               due_date: dueDate.toISOString(),
               max_points: 100,
               is_active: assignmentActive,

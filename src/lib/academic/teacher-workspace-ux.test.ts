@@ -36,12 +36,20 @@ describe('central teacher workspace UX', () => {
     expect(teachingTools).not.toContain('Step {step.number}');
   });
 
+  // The order of the page is the point: what to do next, then the curriculum
+  // lanes that carry the work, then optional tools, and only then the admin-only
+  // exceptions. Anchored on ids rather than visible copy — the headings were
+  // rewritten once already and took this guard down with them without any of
+  // the ordering it protects actually changing.
   it('keeps exceptions after the main academic direction and tools', () => {
     const nextAction = academicOffice.indexOf('<NextActionCard');
-    const curriculum = academicOffice.indexOf('Curriculum certification');
+    const curriculum = academicOffice.indexOf('id="curriculum-lanes"');
     const tools = academicOffice.indexOf('id="supporting-tools"');
     const exceptions = academicOffice.lastIndexOf('<AcademicExceptionsWorkspace');
     expect(nextAction).toBeGreaterThan(-1);
+    expect(curriculum).toBeGreaterThan(-1);
+    expect(tools).toBeGreaterThan(-1);
+    expect(exceptions).toBeGreaterThan(-1);
     expect(nextAction).toBeLessThan(curriculum);
     expect(curriculum).toBeLessThan(tools);
     expect(tools).toBeLessThan(exceptions);

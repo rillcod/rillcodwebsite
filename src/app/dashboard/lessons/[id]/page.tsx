@@ -965,6 +965,30 @@ function MermaidRenderer({ code }: { code: string }) {
       const mermaid = (window as any).mermaid;
       if (!mermaid) return;
 
+      // Guarantee initialization before rendering
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: "dark",
+        themeVariables: {
+          background: "#0d0d1a",
+          mainBkg: "#1a1a2e",
+          nodeBorder: "#4f46e5",
+          clusterBkg: "#16213e",
+          titleColor: "#e2e8f0",
+          edgeLabelBackground: "#1a1a2e",
+          primaryColor: "#312e81",
+          primaryTextColor: "#e2e8f0",
+          primaryBorderColor: "#4f46e5",
+          lineColor: "#6366f1",
+          secondaryColor: "#164e63",
+          tertiaryColor: "#1e293b",
+          fontFamily: "Inter, sans-serif",
+          fontSize: "13px",
+        },
+        securityLevel: "loose",
+        flowchart: { htmlLabels: true, useMaxWidth: true, curve: "basis" },
+      });
+
       try {
         let processedCode = code.trim();
 
@@ -989,46 +1013,50 @@ function MermaidRenderer({ code }: { code: string }) {
         if (/^graph\s+/i.test(processedCode))
           processedCode = processedCode.replace(/^graph\s+/i, "flowchart ");
 
-        // Auto-repair unquoted shape labels that contain parenthesis or colons that break Mermaid
-        processedCode = processedCode.replace(
-          /([a-zA-Z0-9_-]+)\s*\[([^"\]\n]+)\]/g,
-          (m, id, text) => {
-            if (text.startsWith('"') && text.endsWith('"')) return m;
-            return `${id}["${text
-              .replace(/"/g, "'")
-              .replace(/<[^>]*>/g, "")}"]`;
-          }
-        );
-        processedCode = processedCode.replace(
-          /([a-zA-Z0-9_-]+)\s*\(([^"\)\n]+)\)/g,
-          (m, id, text) => {
-            if (text.startsWith('"') && text.endsWith('"')) return m;
-            return `${id}("${text
-              .replace(/"/g, "'")
-              .replace(/<[^>]*>/g, "")}")`;
-          }
-        );
-        processedCode = processedCode.replace(
-          /([a-zA-Z0-9_-]+)\s*\{\{([^"\}\n]+)\}\}/g,
-          (m, id, text) => {
-            if (text.startsWith('"') && text.endsWith('"')) return m;
-            return `${id}{{"${text
-              .replace(/"/g, "'")
-              .replace(/<[^>]*>/g, "")}"}}`;
-          }
-        );
-        processedCode = processedCode.replace(
-          /([a-zA-Z0-9_-]+)\s*\{([^"\}\n]+)\}/g,
-          (m, id, text) => {
-            if (text.startsWith('"') && text.endsWith('"')) return m;
-            return `${id}{"${text
-              .replace(/"/g, "'")
-              .replace(/<[^>]*>/g, "")}"}`;
-          }
-        );
+        const isFlowchart = /^flowchart/i.test(processedCode);
 
-        // Strip HTML tags like <br> which break Mermaid v10 parsing
-        processedCode = processedCode.replace(/<[^>]*>/g, "");
+        if (isFlowchart) {
+          // Auto-repair unquoted shape labels that contain parenthesis or colons that break Mermaid
+          processedCode = processedCode.replace(
+            /([a-zA-Z0-9_-]+)\s*\[([^"\]\n]+)\]/g,
+            (m, id, text) => {
+              if (text.startsWith('"') && text.endsWith('"')) return m;
+              return `${id}["${text
+                .replace(/"/g, "'")
+                .replace(/<(?!br\s*\/?>)[^>]*>/gi, "")}"]`;
+            }
+          );
+          processedCode = processedCode.replace(
+            /([a-zA-Z0-9_-]+)\s*\(([^"\)\n]+)\)/g,
+            (m, id, text) => {
+              if (text.startsWith('"') && text.endsWith('"')) return m;
+              return `${id}("${text
+                .replace(/"/g, "'")
+                .replace(/<(?!br\s*\/?>)[^>]*>/gi, "")}")`;
+            }
+          );
+          processedCode = processedCode.replace(
+            /([a-zA-Z0-9_-]+)\s*\{\{([^"\}\n]+)\}\}/g,
+            (m, id, text) => {
+              if (text.startsWith('"') && text.endsWith('"')) return m;
+              return `${id}{{"${text
+                .replace(/"/g, "'")
+                .replace(/<(?!br\s*\/?>)[^>]*>/gi, "")}"}}`;
+            }
+          );
+          processedCode = processedCode.replace(
+            /([a-zA-Z0-9_-]+)\s*\{([^"\}\n]+)\}/g,
+            (m, id, text) => {
+              if (text.startsWith('"') && text.endsWith('"')) return m;
+              return `${id}{"${text
+                .replace(/"/g, "'")
+                .replace(/<(?!br\s*\/?>)[^>]*>/gi, "")}"}`;
+            }
+          );
+        }
+
+        // Strip HTML tags like <style> which break Mermaid v10 parsing (keep <br> tags)
+        processedCode = processedCode.replace(/<(?!br\s*\/?>)[^>]*>/gi, "");
 
         // Strip unsupported node shapes AI likes to invent
         processedCode = processedCode.replace(/\{\{\{([^}]+)\}\}\}/g, "[$1]");

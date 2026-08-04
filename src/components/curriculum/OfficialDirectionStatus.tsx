@@ -34,7 +34,7 @@ interface OfficialDirectionStatusProps {
   adoption: OfficialAdoption | null;
   isSchoolScoped: boolean;
   assignHref?: string;
-  /** Admin-only: when set, offers a direct "Publish this course" link from the draft-only state. */
+  /** Admin-only: when set, offers a direct publish link from the draft-only state. */
   publishHref?: string;
 }
 
@@ -59,10 +59,7 @@ function releaseMeta(release: OfficialRelease) {
 }
 
 /**
- * Shows where a course's teaching content stands against the official
- * curriculum engine (course_curricula draft -> academic_curriculum_releases
- * -> school adoption). Reusable anywhere a course/release/adoption triple
- * needs to be surfaced, not just the Curriculum Guide page.
+ * One quiet status line for a course: draft, published, or needs attention.
  */
 export function OfficialDirectionStatus({
   loading,
@@ -74,30 +71,26 @@ export function OfficialDirectionStatus({
 }: OfficialDirectionStatusProps) {
   if (loading) {
     return (
-      <div className="animate-pulse rounded-2xl border border-border bg-card p-4 h-16" />
+      <div className="h-12 animate-pulse rounded-xl border border-border bg-card" />
     );
   }
 
   if (!release) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3">
-        <ShieldCheckIcon className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5 opacity-50" />
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-            Draft only
-          </p>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            This course has no published official edition yet. Teaching plans
-            can&apos;t be created for it until the Academic Office publishes
-            one.
+          <p className="text-sm font-bold text-foreground">Draft · not published yet</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Classes cannot teach this until you publish it on Rollout.
           </p>
         </div>
         {publishHref && (
           <Link
             href={publishHref}
-            className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70 transition-colors"
+            className="shrink-0 text-xs font-bold text-primary hover:underline"
           >
-            Review &amp; certify &rarr;
+            Publish →
           </Link>
         )}
       </div>
@@ -111,17 +104,14 @@ export function OfficialDirectionStatus({
 
   if (assigned) {
     return (
-      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex items-start gap-3">
-        <ShieldCheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3">
+        <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-            Official curriculum source &middot; available to this school
+          <p className="text-sm font-bold text-foreground">
+            Published · available to this school
           </p>
-          <p className="text-sm font-bold text-foreground mt-0.5 truncate">
-            {release.title}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Source edition: {releaseMeta(release)}
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {releaseMeta(release)}
           </p>
         </div>
       </div>
@@ -130,18 +120,14 @@ export function OfficialDirectionStatus({
 
   if (stale) {
     return (
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
+        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-            Newer official edition published
+          <p className="text-sm font-bold text-foreground">
+            Newer edition published
           </p>
-          <p className="text-sm font-bold text-foreground mt-0.5 truncate">
-            {release.title}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {releaseMeta(release)} — your school is still assigned to an earlier
-            edition. Ask the Academic Office to update it.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {releaseMeta(release)} — this school is still on an older one.
           </p>
         </div>
       </div>
@@ -150,45 +136,40 @@ export function OfficialDirectionStatus({
 
   if (unassigned) {
     return (
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-            Curriculum source published &middot; not yet available to this
-            school
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
+        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-foreground">
+            Published · not yet with this school
           </p>
-          <p className="text-sm font-bold text-foreground mt-0.5 truncate">
-            {release.title}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {releaseMeta(release)} — deploying to a class will be blocked until
-            the Academic Office assigns this edition to your school.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {releaseMeta(release)}
           </p>
         </div>
+        <Link
+          href={assignHref}
+          className="shrink-0 text-xs font-bold text-primary hover:underline"
+        >
+          Open rollout →
+        </Link>
       </div>
     );
   }
 
-  // Admin / no single school in scope — informational only, no assignment claim.
   return (
-    <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-4 flex items-start gap-3">
-      <ShieldCheckIcon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-black uppercase tracking-widest text-primary">
-          Official curriculum source published
-        </p>
-        <p className="text-sm font-bold text-foreground mt-0.5 truncate">
-          {release.title}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Source edition: {releaseMeta(release)}
+        <p className="text-sm font-bold text-foreground">Published</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {releaseMeta(release)}
         </p>
       </div>
       <Link
         href={assignHref}
-        className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70 transition-colors"
+        className="shrink-0 text-xs font-bold text-primary hover:underline"
       >
-        Check schools &rarr;
+        Schools →
       </Link>
     </div>
   );

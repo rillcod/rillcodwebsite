@@ -64,7 +64,7 @@ export async function POST(
   const { data: plan, error: planErr } = await (db as any)
     .from("lesson_plans")
     .select(
-      "*, courses(title), classes!lesson_plans_class_id_fkey(name), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content), curriculum:course_curricula(content, version)"
+      "*, courses(title), classes!lesson_plans_class_id_fkey(name,teacher_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content), curriculum:course_curricula(content, version)"
     )
     .eq("id", id)
     .single();
@@ -130,6 +130,29 @@ export async function POST(
   // DB default is also false; setting it here keeps auto_publish honest.
   const isPublic = body.auto_publish === true;
   const title = `Week ${week}: ${(weekMeta.topic || "Flashcards").toString()}`;
+
+  // flashcard_decks.created_by is NOT NULL, while lessons and assignments
+  // tolerate a null creator. So a plan whose creator was never recorded
+  // generated four of the five parts and failed the fifth on a raw Postgres
+  // constraint. The class teacher owns the week either way, so they are the
+  // honest owner of its cards.
+  const planClass = Array.isArray((plan as any).classes)
+    ? (plan as any).classes[0]
+    : (plan as any).classes;
+  const deckOwner = isCron
+    ? (plan as any).created_by ?? planClass?.teacher_id ?? null
+    : staff.id;
+  if (!deckOwner) {
+    return NextResponse.json(
+      {
+        error:
+          "This plan has no recorded owner, so its flashcards cannot be attributed.",
+        detail:
+          "Set a class teacher on the class, or regenerate from the plan page while signed in.",
+      },
+      { status: 422 }
+    );
+  }
   const { data: deck, error: deckError } = await (db as any)
     .from("flashcard_decks")
     .insert({
@@ -140,7 +163,7 @@ export async function POST(
       lesson_plan_id: id,
       curriculum_week_number: week,
       is_public: isPublic,
-      created_by: isCron ? (plan as any).created_by : staff.id,
+      created_by: deckOwner,
       school_id: (plan as any).school_id ?? null,
       term_id: (plan as any).term_id ?? null,
       academic_offering_id: (plan as any).academic_offering_id ?? null,
