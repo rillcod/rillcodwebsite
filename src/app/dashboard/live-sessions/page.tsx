@@ -235,17 +235,17 @@ function PollsModal({ session, canManage, userId, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <ChartBarIcon className="w-5 h-5 text-primary" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-foreground uppercase tracking-widest">Session Polls</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
+          <button onClick={onClose} className="min-h-11 p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -370,7 +370,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                 <button
                   onClick={createPoll}
                   disabled={!!submitting}
-                  className="flex-1 py-2.5 text-xs font-black bg-primary hover:bg-primary text-white transition-all disabled:opacity-50"
+                  className="min-h-11 flex-1 py-2.5 text-xs font-black bg-primary hover:bg-primary text-white transition-all disabled:opacity-50"
                 >
                   {submitting === 'create' ? 'Creating…' : 'Create Poll'}
                 </button>
@@ -446,17 +446,17 @@ function RoomsModal({ session, canManage, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <UsersIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-foreground uppercase tracking-widest">Breakout Rooms</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
+          <button onClick={onClose} className="min-h-11 p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -519,7 +519,7 @@ function RoomsModal({ session, canManage, onClose }: {
                 <button
                   onClick={createRoom}
                   disabled={saving}
-                  className="flex-1 py-2.5 text-xs font-black bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50"
+                  className="min-h-11 flex-1 py-2.5 text-xs font-black bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50"
                 >
                   {saving ? 'Creating…' : 'Create Room'}
                 </button>
@@ -562,17 +562,17 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
   }, [session.id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <EyeIcon className="w-5 h-5 text-primary" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-foreground uppercase tracking-widest">Attendance</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
+          <button onClick={onClose} className="min-h-11 p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -712,18 +712,18 @@ function QAModal({ session, canManage, userId, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <ChatBubbleLeftEllipsisIcon className="w-5 h-5 text-primary" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-foreground uppercase tracking-widest">Live Q&A</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[260px]">{session.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
+          <button onClick={onClose} className="min-h-11 p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -829,7 +829,7 @@ function QAModal({ session, canManage, userId, onClose }: {
             <button
               onClick={submit}
               disabled={sending || !input.trim()}
-              className="px-5 py-3 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+              className="min-h-11 px-5 py-3 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
             >
               {sending ? '…' : 'Send'}
             </button>
@@ -850,17 +850,17 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
   const vmId = type === 'vimeo' ? getVimeoId(url) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-3xl flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <FilmIcon className="w-5 h-5 text-primary" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-foreground uppercase tracking-widest">Recording</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[400px]">{session.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{session.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
+          <button onClick={onClose} className="min-h-11 p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all">
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
@@ -1017,7 +1017,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onStopSerie
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-border pt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-2 border-t border-border pt-5">
           <div className="flex items-center gap-3 text-muted-foreground group/meta">
             <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
               <CalendarDaysIcon className="w-4 h-4 text-primary flex-shrink-0" />
@@ -1149,7 +1149,7 @@ function SessionModal({ initial, isEdit, schools, programs, terms, canGlobal, sa
   const labelCls = "block text-[9px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
       <div className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-primary w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
         <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-white/[0.015] flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -1387,7 +1387,7 @@ function SessionModal({ initial, isEdit, schools, programs, terms, canGlobal, sa
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onClose} disabled={saving}
-              className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white transition-colors disabled:opacity-50">
+              className="min-h-11 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white transition-colors disabled:opacity-50">
               Cancel
             </button>
           </div>
@@ -1449,13 +1449,13 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={onJoin}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+            className="min-h-11 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
           >
             Join Now
           </button>
           <button
             onClick={onDismiss}
-            className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
+            className="min-h-11 p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -1486,7 +1486,7 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
       {canManage && (
         <button
           onClick={onAdd}
-          className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all"
+          className="min-h-11 flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all"
         >
           <PlusIcon className="w-4 h-4" /> Schedule Session
         </button>
