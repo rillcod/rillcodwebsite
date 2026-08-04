@@ -59,6 +59,8 @@ import MobileScrollStrip from "@/components/mobile/MobileScrollStrip";
 import { MOBILE_TOUCH_BTN } from "@/components/mobile/mobile-styles";
 import VideoPlayer from "@/components/media/VideoPlayer";
 import SlideViewer from "@/components/learning/SlideViewer";
+import LessonSlideStrip from "@/components/learning/LessonSlideStrip";
+import { PresentationChartLineIcon } from "@/lib/icons";
 import SlideDeckManager from "@/components/learning/SlideDeckManager";
 import Editor from "@monaco-editor/react";
 import * as d3 from "d3";
@@ -5289,42 +5291,10 @@ export default function LessonDetailPage() {
             <div className="min-h-[50vh]">
               {activeTab === "content" && (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-16 sm:space-y-24">
-                  {/* Slides callout — surfaces a view-only deck so students don't miss it */}
-                  {(() => {
-                    const deckMat = materials.find(
-                      (m: any) => m.file_type === "slide-deck"
-                    );
-                    if (!deckMat) return null;
-                    const deck = parseDeck(deckMat.file_url);
-                    const hasContent =
-                      !!deck.pdf || (deck.slides?.length ?? 0) > 0;
-                    if (!hasContent) return null;
-                    return (
-                      <button
-                        onClick={() =>
-                          setViewerDeck({
-                            slides: deck.slides,
-                            pdf: deck.pdf,
-                            title: deckMat.title,
-                          })
-                        }
-                        className="w-full flex items-center gap-4 p-5 bg-violet-500/10 border border-violet-500/25 rounded-2xl hover:bg-violet-500/15 transition-all text-left group"
-                      >
-                        <span className="text-3xl">📊</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-violet-700/70 dark:text-violet-300/70">
-                            Learning Slides
-                          </p>
-                          <p className="text-base font-black text-foreground truncate">
-                            {deckMat.title}
-                          </p>
-                        </div>
-                        <span className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-violet-600 group-hover:bg-violet-500 rounded-xl transition-all shrink-0">
-                          View Slides
-                        </span>
-                      </button>
-                    );
-                  })()}
+                  {/* The slide deck used to sit here, above the hook, as a
+                      banner that opened a fullscreen viewer. A recap belongs
+                      after the material it recaps, so it now renders inline as
+                      STAGE 5, below the study notes. */}
 
                   {/* ── STAGE 1: HOOK — cinematic opener ────────────────── */}
                   <AnimatePresence>
@@ -5572,6 +5542,62 @@ export default function LessonDetailPage() {
                       </p>
                     )}
                   </div>
+
+                  {/* ── STAGE 5: SLIDE RECAP — the deck, in the lesson ───── */}
+                  {(() => {
+                    const deckMat = materials.find(
+                      (m: any) => m.file_type === "slide-deck"
+                    );
+                    if (!deckMat) return null;
+                    const deck = parseDeck(deckMat.file_url);
+                    const imageSlides = deck.slides ?? [];
+
+                    // An image deck turns in place. A PDF cannot be paginated
+                    // inline without shipping a renderer into the lesson page,
+                    // so that one still opens the fullscreen viewer.
+                    if (imageSlides.length > 0) {
+                      return (
+                        <LessonSlideStrip
+                          slides={imageSlides}
+                          title={deckMat.title}
+                          lessonId={lesson.id}
+                          onOpenFullscreen={() =>
+                            setViewerDeck({
+                              slides: deck.slides,
+                              pdf: deck.pdf,
+                              title: deckMat.title,
+                            })
+                          }
+                        />
+                      );
+                    }
+                    if (!deck.pdf) return null;
+                    return (
+                      <button
+                        onClick={() =>
+                          setViewerDeck({
+                            slides: deck.slides,
+                            pdf: deck.pdf,
+                            title: deckMat.title,
+                          })
+                        }
+                        className="w-full flex items-center gap-4 p-5 bg-cyan-500/10 border border-cyan-500/25 rounded-2xl hover:bg-cyan-500/15 transition-all text-left group"
+                      >
+                        <PresentationChartLineIcon className="w-7 h-7 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-cyan-700/70 dark:text-cyan-300/70">
+                            Slide Recap
+                          </p>
+                          <p className="text-base font-black text-foreground truncate">
+                            {deckMat.title}
+                          </p>
+                        </div>
+                        <span className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-cyan-600 group-hover:bg-cyan-500 rounded-xl transition-all shrink-0">
+                          Open
+                        </span>
+                      </button>
+                    );
+                  })()}
 
                   {/* Logic: Interaction Progress Check */}
                   <div className="mt-24 sm:mt-40 pt-24 border-t border-border space-y-12">
