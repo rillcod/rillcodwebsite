@@ -131,6 +131,34 @@ interface StrandedGroup {
 
 const SECTION = 'rounded-3xl border border-border bg-card p-5 sm:p-6';
 const TERM_LABELS: Record<number, string> = { 1: 'First Term', 2: 'Second Term', 3: 'Third Term' };
+/**
+ * The audience every edition is published to unless a narrower one is chosen.
+ *
+ * This string is identity, not decoration: it is written into the release title
+ * and into the key that matches a draft to its live edition, so it has to be
+ * chosen from a list rather than typed. Its wording is also frozen for that
+ * reason — every live edition already carries this exact text, and rewording it
+ * would leave those editions unmatched and invite a duplicate alongside them.
+ * The screen shows friendlier wording; the stored value stays as it is.
+ */
+const DEFAULT_AUDIENCE_LABEL = 'All assigned learner levels';
+
+/**
+ * Audiences an edition can be published to, in the level vocabulary this
+ * school actually uses — Nursery, KG, Basic, JSS, SS — rather than invented
+ * groupings. `value` is what gets stored and matched; `label` is what a person
+ * reads.
+ */
+const AUDIENCE_CHOICES: Array<{ value: string; label: string }> = [
+  { value: DEFAULT_AUDIENCE_LABEL, label: 'Every level this course is assigned to' },
+  { value: 'Nursery 1-3', label: 'Nursery 1–3' },
+  { value: 'KG 1-3', label: 'KG 1–3' },
+  { value: 'Basic 1-3', label: 'Basic 1–3 (lower primary)' },
+  { value: 'Basic 4-6', label: 'Basic 4–6 (upper primary)' },
+  { value: 'Basic 1-6', label: 'Basic 1–6 (all primary)' },
+  { value: 'JSS 1-3', label: 'JSS 1–3 (junior secondary)' },
+  { value: 'SS 1-3', label: 'SS 1–3 (senior secondary)' },
+];
 
 /** useSearchParams needs a Suspense boundary or static generation fails at build. */
 export default function RolloutPage() {
@@ -167,8 +195,13 @@ function RolloutWorkspace() {
     assign: Array<{ id: string; name: string | null }>;
     refused: Array<{ id: string; name: string | null; reason: string }>;
   } | null>(null);
-  const [session, setSession] = useState('2026/2027');
-  const [audience, setAudience] = useState('All assigned learner levels');
+  // Empty until the configured academic year loads. It used to start on a
+  // hardcoded '2026/2027': the prefill below is fire-and-forget, so whenever it
+  // failed the page silently published every edition under a future session
+  // that no current class binds to — and looked completely normal doing it.
+  const [session, setSession] = useState('');
+  const [sessionError, setSessionError] = useState(false);
+  const [audience, setAudience] = useState(DEFAULT_AUDIENCE_LABEL);
   const [termNumber, setTermNumber] = useState(1);
 
   // Step 2 — where it landed
@@ -227,6 +260,30 @@ function RolloutWorkspace() {
     () => assignments.filter((assignment) => assignment.course_id === selected?.course_id),
     [assignments, selected?.course_id],
   );
+  /**
+   * Selectable audiences: the canonical label plus any already in use.
+   *
+   * Editions published before this was a fixed choice keep their exact label,
+   * so the match key still finds them — dropping a label here would orphan a
+   * live edition rather than tidy anything up.
+   */
+  const audienceOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [...AUDIENCE_CHOICES];
+    const known = new Set(options.map((option) => option.value));
+    // Anything a live edition already uses stays selectable even if it is not
+    // in the list above — removing it would leave that edition unmatchable.
+    for (const direction of directions) {
+      const value = String(direction.audience_label ?? '').trim();
+      if (value && !known.has(value)) {
+        options.push({ value, label: `${value} (in use)` });
+        known.add(value);
+      }
+    }
+    if (audience.trim() && !known.has(audience.trim())) {
+      options.push({ value: audience.trim(), label: audience.trim() });
+    }
+    return options;
+  }, [audience, directions]);
 
   const load = useCallback(async () => {
     setError('');
@@ -265,11 +322,20 @@ function RolloutWorkspace() {
       if (strandedRes.ok) setStranded(await strandedRes.json());
 
       // Prefill the session from the configured academic year. Publishing under a
-      // hardcoded year would stamp every edition with the wrong session.
+      // hardcoded year would stamp every edition with the wrong session, so a
+      // failure here is surfaced rather than swallowed — the publish controls
+      // stay disabled until we actually know which session we are publishing to.
       fetch('/api/settings/academic-year')
         .then((response) => (response.ok ? response.json() : null))
-        .then((payload) => { if (payload?.effective) setSession(String(payload.effective)); })
-        .catch(() => undefined);
+        .then((payload) => {
+          if (payload?.effective) {
+            setSession(String(payload.effective));
+            setSessionError(false);
+          } else {
+            setSessionError(true);
+          }
+        })
+        .catch(() => setSessionError(true));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not open the rollout workspace.');
     } finally {
@@ -297,6 +363,10 @@ function RolloutWorkspace() {
 
   async function runReview() {
     if (!curriculumId) return;
+    if (!session) {
+      setError('The academic year has not loaded yet, so readiness cannot be judged against a session.');
+      return;
+    }
     setChecking(true); setError(''); setReport(null);
     try {
       const response = await fetch('/api/curriculum-governance/academic-quality', {
@@ -406,6 +476,12 @@ function RolloutWorkspace() {
   /** Publishing certifies AND assigns to every eligible school in one action. */
   async function publish() {
     if (!curriculumId) return;
+    // Enforced here as well as on the button: the session is stamped onto the
+    // edition, and an edition published under a guessed year binds to nothing.
+    if (!session) {
+      setError('The academic year has not loaded yet, so there is no session to publish to.');
+      return;
+    }
     setPublishing(true); setError(''); setMessage('');
     try {
       const response = await fetch('/api/curriculum-studio/official-directions', {
@@ -617,10 +693,35 @@ function RolloutWorkspace() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="text-xs font-bold">Academic session
-                <input value={session} onChange={(e) => { setSession(e.target.value); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
+                <input
+                  value={session}
+                  readOnly
+                  aria-describedby="session-note"
+                  placeholder={sessionError ? 'Unavailable' : 'Loading…'}
+                  className="mt-1 w-full rounded-lg border border-border bg-muted/40 p-2 text-sm text-muted-foreground"
+                />
+                <span id="session-note" className={`mt-1 block text-[10px] font-medium ${sessionError ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
+                  {sessionError
+                    ? 'Could not read the academic year — set it in Settings before publishing.'
+                    : 'From the platform academic year.'}
+                </span>
               </label>
+              {/* A fixed choice, not free text. The audience is part of an
+                  edition's identity — it goes into the release title and into
+                  the key that matches a draft to its live edition. Typed by
+                  hand, "All learner levels" would not match "All assigned
+                  learner levels", so the page would report no live edition and
+                  publishing would mint a second one alongside it. */}
               <label className="text-xs font-bold">Audience
-                <input value={audience} onChange={(e) => { setAudience(e.target.value); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" />
+                <select
+                  value={audience}
+                  onChange={(e) => { setAudience(e.target.value); setReport(null); }}
+                  className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm"
+                >
+                  {audienceOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </label>
               <label className="text-xs font-bold">Starts in
                 <select value={termNumber} onChange={(e) => { setTermNumber(Number(e.target.value)); setReport(null); }} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm">
@@ -630,7 +731,11 @@ function RolloutWorkspace() {
             </div>
 
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <button onClick={() => void runReview()} disabled={checking || !curriculumId}
+              {/* Both actions stamp the session onto an edition, so neither may
+                  run before we know which session that is. Publishing with a
+                  guessed year produces a live edition no current class binds to,
+                  and nothing about the result looks wrong. */}
+              <button onClick={() => void runReview()} disabled={checking || !curriculumId || !session}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-black text-primary disabled:opacity-50">
                 {checking ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShieldCheckIcon className="h-4 w-4" />}
                 {checking ? 'Checking…' : liveDirection ? 'Recheck quality' : 'Check readiness'}
@@ -638,7 +743,7 @@ function RolloutWorkspace() {
               {isAdmin && (
                 <button
                   onClick={() => void publish()}
-                  disabled={publishing || !curriculumId || (!liveDirection && (!report || report.readiness === 'not_ready'))}
+                  disabled={publishing || !curriculumId || !session || (!liveDirection && (!report || report.readiness === 'not_ready'))}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {publishing ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
