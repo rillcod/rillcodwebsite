@@ -130,17 +130,28 @@ export async function POST(req: NextRequest) {
   const staff = await requireStaffUser(sessionClient);
   if (!staff) return NextResponse.json({ error: "Staff access required" }, { status: 403 });
 
-  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  // Cast the JSON body up front — req.json() is `any`, and chaining .map/.filter
+  // on an `any[]` reintroduces implicit-any params that fail the production build.
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const singlePlanId = String(body.planId ?? "");
   const singleWeek = Number(body.week);
-  const batchInput = Array.isArray(body.releases) ? body.releases : null;
-  const targets = batchInput?.length
+  const batchInput: unknown[] | null = Array.isArray(body.releases)
+    ? body.releases
+    : null;
+  type ReleaseTarget = { planId: string; week: number };
+  const targets: ReleaseTarget[] = batchInput?.length
     ? batchInput
-        .map((row) => ({
-          planId: String((row as Record<string, unknown>)?.planId ?? ""),
-          week: Number((row as Record<string, unknown>)?.week),
-        }))
-        .filter((row) => row.planId && Number.isFinite(row.week))
+        .map((row): ReleaseTarget => {
+          const entry = (row ?? {}) as Record<string, unknown>;
+          return {
+            planId: String(entry.planId ?? ""),
+            week: Number(entry.week),
+          };
+        })
+        .filter(
+          (row): row is ReleaseTarget =>
+            Boolean(row.planId) && Number.isFinite(row.week)
+        )
     : singlePlanId && Number.isFinite(singleWeek)
       ? [{ planId: singlePlanId, week: singleWeek }]
       : [];

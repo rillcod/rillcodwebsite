@@ -99,7 +99,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (lessonIds.length > 0) {
     const { error } = await (supabase as any)
       .from('lessons')
-      .update({ status: 'published', published_at: new Date().toISOString() })
+      .update({ status: 'active', updated_at: new Date().toISOString() })
       .in('id', lessonIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
