@@ -93,9 +93,14 @@ export async function middleware(request: NextRequest) {
 
   const { supabase, getResponse } = createMiddlewareSupabase(request);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    // Network blip on mobile/PWA — do not force login for a transient failure.
+    return getResponse();
+  }
 
   // App / PWA cold start lands on /login — send signed-in users straight to dashboard
   // (skip when explicitly clearing session via ?clear=1).
@@ -111,9 +116,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // Preserve the exact private destination across an expired or missing session.
-  // This avoids rendering a half-loaded dashboard and gives every role a seamless
-  // return after signing in, including native Android cold starts and deep links.
+  // Soft-pass when sb-* cookies still exist: a parallel client refresh often wins
+  // the refresh-token rotation race and getUser() briefly returns null on mobile.
   if (!user && pathname.startsWith('/dashboard')) {
+    const hasSupabaseAuthCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith('sb-') && Boolean(c.value));
+    if (hasSupabaseAuthCookie) {
+      return getResponse();
+    }
+
     const url = request.nextUrl.clone();
     const requestedDestination = `${pathname}${request.nextUrl.search}`;
     url.pathname = '/login';

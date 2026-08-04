@@ -249,6 +249,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // a late TOKEN_REFRESHED / INITIAL_SESSION can restore the session UI.
         if (signingOutRef.current) return;
 
+        // Mobile/PWA: a parallel middleware cookie refresh can rotate the refresh
+        // token and briefly emit TOKEN_REFRESHED with a null session. Clearing the
+        // user here is what made the app "kick you to login" mid-use.
+        if (!s?.user && event === 'TOKEN_REFRESHED') {
+          return;
+        }
+
         setSession(s);
         setUser(s?.user ?? null);
 
@@ -293,7 +300,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfileLoading(false);
           }
         } else {
-          // Signed out
           setProfile(null);
           setProfileLoading(false);
           profileFetchStartedRef.current = false;

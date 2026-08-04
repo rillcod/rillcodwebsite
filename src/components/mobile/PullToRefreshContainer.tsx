@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowPathIcon } from "@/lib/icons";
-import { useRouter } from "next/navigation";
 
 interface PullToRefreshContainerProps {
   children: ReactNode;
@@ -18,7 +17,6 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
   const startX = useRef(0);
   const isPulling = useRef(false);
   const maxPull = 80;
-  const router = useRouter();
 
   useEffect(() => {
     pullDistanceRef.current = pullDistance;
@@ -67,8 +65,11 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
         setPullDistance(50);
         pullDistanceRef.current = 50;
         try {
-          if (onRefresh) await onRefresh();
-          else router.refresh();
+          if (onRefresh) {
+            await onRefresh();
+          }
+          // Do not call router.refresh() by default — on mobile/PWA that remounts
+          // the dashboard, races middleware cookie refresh, and bounces users to login.
         } catch (error) {
           console.error("Pull to refresh error:", error);
         } finally {
@@ -93,7 +94,7 @@ export default function PullToRefreshContainer({ children, onRefresh }: PullToRe
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [refreshing, onRefresh, router]);
+  }, [refreshing, onRefresh]);
 
   return (
     <div ref={containerRef} className="relative flex min-h-0 w-full flex-1 flex-col">
