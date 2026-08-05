@@ -327,14 +327,20 @@ async function ensureDraftWeekContentDirectly(
     .maybeSingle();
 
   if (!existingLesson) {
+    const lessonDesc = typeof weekMeta.objectives === 'string' && weekMeta.objectives.trim()
+      ? weekMeta.objectives
+      : Array.isArray(weekMeta.objectives) && weekMeta.objectives.length > 0
+      ? weekMeta.objectives.join(' · ')
+      : typeof weekMeta.desc === 'string' && weekMeta.desc.trim()
+      ? weekMeta.desc
+      : `Curriculum Lesson: ${weekMeta.topic || `Week ${input.week}`}`;
+
     const { error: lErr } = await db.from('lessons').insert({
       lesson_plan_id: input.planId,
       course_id: planRow.course_id,
       school_id: planRow.school_id,
       title: weekMeta.topic || `Week ${input.week} Lesson`,
-      description: typeof weekMeta.objectives === 'string'
-        ? weekMeta.objectives
-        : (Array.isArray(weekMeta.objectives) ? weekMeta.objectives.join(' · ') : 'Curriculum lesson'),
+      description: lessonDesc,
       status: 'draft',
       duration_minutes: 60,
       curriculum_week_number: input.week,
@@ -365,14 +371,20 @@ async function ensureDraftWeekContentDirectly(
       ? (typeof weekMeta.assignment === 'string' ? weekMeta.assignment : (weekMeta.assignment.title || `Assignment: Week ${input.week}`))
       : `Assignment: ${weekMeta.topic || `Week ${input.week}`}`;
 
+    const assignmentDesc = typeof weekMeta.assignment === 'string' && weekMeta.assignment.trim()
+      ? weekMeta.assignment
+      : typeof weekMeta.assignment === 'object' && weekMeta.assignment?.description
+      ? String(weekMeta.assignment.description)
+      : typeof weekMeta.assignment === 'object' && weekMeta.assignment?.instructions
+      ? String(weekMeta.assignment.instructions)
+      : `Practical Homework Task: Review and complete exercises based on "${weekMeta.topic || `Week ${input.week}`}". Apply key concepts learned in class.`;
+
     const { error: aErr } = await db.from('assignments').insert({
       lesson_plan_id: input.planId,
       course_id: planRow.course_id,
       school_id: planRow.school_id,
       title: assignmentTitle,
-      description: typeof weekMeta.assignment === 'string'
-        ? weekMeta.assignment
-        : JSON.stringify(weekMeta.assignment || {}),
+      description: assignmentDesc,
       is_active: false,
       assignment_type: 'homework',
       curriculum_week_number: input.week,

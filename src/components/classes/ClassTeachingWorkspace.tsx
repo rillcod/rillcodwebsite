@@ -444,6 +444,12 @@ export function ClassTeachingWorkspace({
         .filter((term): term is number => term !== null)
     ),
   ].sort((a, b) => a - b);
+  const offering = data?.class?.academic_offerings;
+  const isSpecialProgram = Boolean(
+    (offering?.enrollment_type && offering.enrollment_type !== "school") ||
+    (!data?.class?.term_id && data?.class?.academic_offering_id)
+  );
+
   const visibleWeekRows = weekRows.filter((row) => {
     const matchesStatus =
       weekFilter === "todo"
@@ -451,7 +457,8 @@ export function ClassTeachingWorkspace({
         : weekFilter === "taught"
         ? row.taught
         : true;
-    const matchesTerm = termFilter === 0 || row.term === termFilter;
+    const matchesTerm =
+      isSpecialProgram || termFilter === 0 || row.term === null || row.term === termFilter;
     return matchesStatus && matchesTerm;
   });
   // The first week that still needs prepare or release — where work resumes.
@@ -476,7 +483,7 @@ export function ClassTeachingWorkspace({
         />
       )}
 
-      {data?.class?.academic_offerings ? (
+      {isSpecialProgram && data?.class?.academic_offerings ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 text-lg">

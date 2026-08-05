@@ -93,8 +93,12 @@ export async function GET() {
       }) ?? weeks.find((w) => Number(w.week) === week);
       const klass = Array.isArray(plan?.classes) ? plan.classes[0] : plan?.classes;
       const offering = klass?.academic_offerings || null;
-      const enrollmentType = offering?.enrollment_type || (klass?.academic_offering_id || plan?.academic_offering_id ? 'special' : 'school');
-      const isSpecial = enrollmentType === 'special' || enrollmentType === 'online' || enrollmentType === 'in_person' || Boolean(klass?.academic_offering_id || plan?.academic_offering_id);
+      const enrollmentType = offering?.enrollment_type ?? (klass?.term_id ? 'school' : 'special');
+      const isSpecial = Boolean(
+        (enrollmentType && enrollmentType !== 'school') ||
+        offering?.special_program_page_id ||
+        (!klass?.term_id && (klass?.academic_offering_id || plan?.academic_offering_id))
+      );
       const sessionLabel =
         sessionNum != null ? ` · Class ${sessionNum}` : "";
       row = {
