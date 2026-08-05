@@ -84,10 +84,25 @@ describe('teaching-period evidence scope', () => {
     ).toBe(false);
   });
 
-  it('blocks live-term fallback for offering-backed work', () => {
-    expect(allowLiveTermFallback({ academic_offering_id: 'off-1' })).toBe(false);
+  it('blocks live-term fallback for duration programmes only', () => {
     expect(allowLiveTermFallback({ academic_model: 'duration_programme' })).toBe(false);
     expect(allowLiveTermFallback({ academic_model: 'termly_school' })).toBe(true);
+    expect(allowLiveTermFallback({ academic_offering_id: 'off-1' })).toBe(true);
+  });
+
+  it('keeps school submissions that already have a matching term_id even with an offering stamp', () => {
+    expect(
+      evidenceBelongsToSchoolTerm(
+        {
+          assignments: {
+            term_id: 'term-1',
+            academic_offering_id: 'off-school',
+          },
+          graded_at: '2026-02-01T00:00:00Z',
+        },
+        range,
+      ),
+    ).toBe(true);
   });
 });
 

@@ -25,10 +25,10 @@ export function isDurationProgramme(
 
 /**
  * Whether live-term fallback is allowed when resolving assignment term_id.
- * Duration / offering-backed work must never stamp the live school term.
+ * Only duration programmes must skip the live school term. Termly school
+ * offerings still use the live calendar when the class has no term yet.
  */
 export function allowLiveTermFallback(ctx: TeachingPeriodContext): boolean {
-  if (ctx.academic_offering_id) return false;
   if (isDurationProgramme(ctx.academic_model)) return false;
   return true;
 }
@@ -90,8 +90,8 @@ function rowTermId(row: EvidenceRow): string | null {
 
 /**
  * School-term reports: match explicit term_id, or date-window for untagged
- * school work. Duration / offering-backed rows without a matching term are
- * excluded so holiday programmes never bleed into school gradebooks.
+ * school work. Null-term rows that only carry an offering/period stamp are
+ * treated as duration evidence and stay out of the school term window.
  */
 export function evidenceBelongsToSchoolTerm(
   row: EvidenceRow,
@@ -102,8 +102,9 @@ export function evidenceBelongsToSchoolTerm(
     return termId === range.academicTermId;
   }
 
-  // Offering-backed / duration work without a school term stamp stays out.
-  if (rowOfferingId(row) || rowPeriodId(row)) {
+  // Duration work is usually term_id = null + offering/period stamp.
+  // Termly school work that already has a term_id was handled above.
+  if (!termId && (rowOfferingId(row) || rowPeriodId(row))) {
     if (range.offeringPeriodId && rowPeriodId(row) === range.offeringPeriodId) {
       return true;
     }

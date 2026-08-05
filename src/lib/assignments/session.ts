@@ -6,6 +6,7 @@
 import { liveAcademicSession } from '@/lib/reports/academic-period';
 import {
   allowLiveTermFallback,
+  isDurationProgramme,
   type TeachingPeriodContext,
 } from '@/lib/academic/teaching-period';
 
@@ -37,6 +38,23 @@ export async function loadTeachingPeriodFromClass(
   if (cls.offering_period_id && !period.offering_period_id) {
     period.offering_period_id = String(cls.offering_period_id);
   }
+
+  // Regular school classes also sit on academic_offerings. Only duration
+  // programmes must skip school term_id — load the model so we do not wipe
+  // termly school gradebook stamps.
+  const offeringId = period.academic_offering_id
+    ? String(period.academic_offering_id)
+    : '';
+  if (offeringId && !period.academic_model) {
+    const { data: offering } = await db
+      .from('academic_offerings')
+      .select('academic_model')
+      .eq('id', offeringId)
+      .maybeSingle();
+    if (offering?.academic_model) {
+      period.academic_model = String(offering.academic_model);
+    }
+  }
   return period;
 }
 
@@ -53,19 +71,36 @@ export async function resolveAssignmentTermId(
   } = {},
 ): Promise<string | null> {
   const classId = String(opts.classId ?? opts.period?.class_id ?? '').trim();
-  const period = classId
+  let period = classId
     ? await loadTeachingPeriodFromClass(db, classId, opts.period ?? {})
     : { ...(opts.period ?? {}) };
+
+  // Generators often pass offering ids from the plan without academic_model.
+  if (period.academic_offering_id && !period.academic_model) {
+    const { data: offering } = await db
+      .from('academic_offerings')
+      .select('academic_model')
+      .eq('id', String(period.academic_offering_id))
+      .maybeSingle();
+    if (offering?.academic_model) {
+      period = {
+        ...period,
+        academic_model: String(offering.academic_model),
+      };
+    }
+  }
 
   const explicit = String(opts.termId ?? '').trim();
   if (explicit) return explicit;
 
-  // Duration / offering cohorts may still carry a school term_id on the class
-  // row — never stamp that onto holiday programme assignments.
-  const offeringBacked = Boolean(period.academic_offering_id);
-  if (!offeringBacked && period.term_id) {
+  // Holiday / duration cohorts may still carry a school term_id on the class
+  // row. Termly school classes also have academic_offering_id — do not treat
+  // every offering as duration.
+  const duration = isDurationProgramme(period.academic_model);
+  if (!duration && period.term_id) {
     return String(period.term_id);
   }
+  if (duration) return null;
 
   let mayFallback = true;
   if (opts.fallbackLive === false) mayFallback = false;
