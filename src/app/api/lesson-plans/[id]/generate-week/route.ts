@@ -75,6 +75,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             : (plan as any).academic_offering_periods)?.starts_on ?? null,
       });
 
+  const requestedSession = Number((body as any).session ?? (body as any).only_session);
+  const session =
+    Number.isFinite(requestedSession) && requestedSession > 0
+      ? Math.floor(requestedSession)
+      : null;
+
   const settings = parseAutoGenerateSettings(
     (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings
   );
@@ -86,6 +92,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const outcome = await generatePlanWeek({
     planId,
     week,
+    session,
     types: (body as any).types ?? settings.types,
     baseUrl,
     cookie: req.headers.get('cookie') ?? undefined,
@@ -106,6 +113,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       success: !allFailed,
       planId,
       week,
+      session,
       generated: outcome.generated,
       skipped: outcome.skipped,
       byType: outcome.byType,

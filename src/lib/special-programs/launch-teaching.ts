@@ -1,9 +1,9 @@
 /**
- * Special-programme launch pipeline (option 2 — simple gated flow):
+ * Special-programme launch pipeline:
  *
- * Publish page → bridge curriculum from write-up → start week-1 lesson pack.
- * Everything stays hold-for-approval (auto_publish: false). No separate
- * curriculum-approval gate before lessons begin.
+ * Publish page → bridge curriculum from write-up → prepare Week 1 · Class 1 only
+ * (fast, AI-context safe). Remaining class meetings and later weeks continue
+ * via the nightly sweep and the teacher's Prepare button — one meeting at a time.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseAutoGenerateSettings, weeksToGenerateForPlan } from '@/lib/academic/auto-generate-settings';
@@ -194,48 +194,35 @@ export async function launchSpecialProgramTeaching(input: {
       (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings,
     );
 
-    // Launch preps the anchor week plus one ahead so week 2 starts flowing
-    // into approvals after week 1 — still never auto-publishes.
-    const planWeekNumbers = (
-      extractLessonPlanOperationWeeks(plan.plan_data) as Array<{ week?: number }>
-    )
-      .map((w) => Number(w.week))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    const targetWeeks = weeksToGenerateForPlan({
-      planWeekNumbers,
-      deliveryWeek: week,
-      prepAheadWeeks: Math.max(1, ags.prep_ahead_weeks || 1),
-      maxWeeksPerBatch: Math.max(2, ags.maxWeeksPerBatch || 2),
-      allowEarlyPrep: true,
+    // Fast launch: one class meeting only (Week N · Class 1). The rest of the
+    // week and later weeks keep flowing via cron / teacher AI — one meeting at
+    // a time so the model does not run out of context.
+    const outcome = await generatePlanWeek({
+      planId,
+      week,
+      session: 1,
+      types: ags.types,
+      baseUrl,
+      cookie: input.cookie,
+      cronSecret: input.cronSecret,
+      autoPublish: false,
     });
 
-    for (const targetWeek of targetWeeks.length ? targetWeeks : [week]) {
-      const outcome = await generatePlanWeek({
-        planId,
-        week: targetWeek,
-        types: ags.types,
-        baseUrl,
-        cookie: input.cookie,
-        cronSecret: input.cronSecret,
-        autoPublish: false,
-      });
+    await notifyWeekReady(db, {
+      planId,
+      classId: plan.class_id ?? null,
+      week,
+      outcome,
+      autoPublish: false,
+    });
 
-      await notifyWeekReady(db, {
-        planId,
-        classId: plan.class_id ?? null,
-        week: targetWeek,
-        outcome,
-        autoPublish: false,
-      });
-
-      weeksStarted.push({
-        planId,
-        week: targetWeek,
-        generated: outcome.generated,
-        skipped: outcome.skipped,
-        failedTypes: outcome.failedTypes,
-      });
-    }
+    weeksStarted.push({
+      planId,
+      week,
+      generated: outcome.generated,
+      skipped: outcome.skipped,
+      failedTypes: outcome.failedTypes,
+    });
   }
 
   const result: LaunchTeachingResult = {

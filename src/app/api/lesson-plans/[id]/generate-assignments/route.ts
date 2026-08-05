@@ -14,6 +14,7 @@ import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   extractLessonPlanOperationWeeks,
+  filterPlanOperationWeeks,
   getMetadataWeekCompositeKey,
   getPlanWeekSession,
   getWeekCompositeKey,
@@ -122,6 +123,11 @@ export async function POST(
           .map((w) => Number(w))
           .filter((w) => Number.isFinite(w))
       : null;
+    const onlySessionRaw = Number((body as any).only_session ?? body.session);
+    const onlySession =
+      Number.isFinite(onlySessionRaw) && onlySessionRaw > 0
+        ? Math.floor(onlySessionRaw)
+        : null;
     // Opt-in publish: anything other than an explicit true is held for approval.
     // Matches auto-generate-settings and generate-projects — missing must not go live.
     const assignmentActive = body.auto_publish === true;
@@ -136,10 +142,10 @@ export async function POST(
         week_number?: number;
       };
     }>;
-    const targetWeeks =
-      onlyWeeks && onlyWeeks.length
-        ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
-        : weeks;
+    const targetWeeks = filterPlanOperationWeeks(
+      weeks as unknown as Array<Record<string, unknown>>,
+      { onlyWeeks, onlySession }
+    ) as typeof weeks;
 
     const [existingResult, linkedLessonResult] = await Promise.all([
       supabase

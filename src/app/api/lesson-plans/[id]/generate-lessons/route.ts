@@ -14,6 +14,7 @@ import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   extractLessonPlanOperationWeeks,
+  filterPlanOperationWeeks,
   getMetadataWeekCompositeKey,
   getWeekCompositeKey,
   parseWeekTermRefs,
@@ -125,6 +126,11 @@ export async function POST(
           .map((w) => Number(w))
           .filter((w) => Number.isFinite(w))
       : null;
+    const onlySessionRaw = Number((body as any).only_session ?? body.session);
+    const onlySession =
+      Number.isFinite(onlySessionRaw) && onlySessionRaw > 0
+        ? Math.floor(onlySessionRaw)
+        : null;
     // Auto-publish generated lessons by default (visible to students immediately).
     // Opt-in publish: anything other than an explicit true stays draft for review.
     const lessonStatus = body.auto_publish === true ? "active" : "draft";
@@ -139,10 +145,10 @@ export async function POST(
         week_number?: number;
       };
     }>;
-    const targetWeeks =
-      onlyWeeks && onlyWeeks.length
-        ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
-        : weeks;
+    const targetWeeks = filterPlanOperationWeeks(
+      weeks as unknown as Array<Record<string, unknown>>,
+      { onlyWeeks, onlySession }
+    ) as typeof weeks;
 
     const planCourseId = plan!.course_id as string;
     const planSchoolId = plan!.school_id as string;

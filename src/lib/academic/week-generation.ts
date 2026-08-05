@@ -67,6 +67,11 @@ export type WeekGenerationOutcome = {
 export async function generatePlanWeek(input: {
   planId: string;
   week: number;
+  /**
+   * Optional class meeting within the week (1-based). Special-programme launch
+   * uses session 1 only so AI stays within context; teachers prep the rest.
+   */
+  session?: number | null;
   types?: unknown;
   baseUrl: string;
   /** Cron secret for unattended runs; omit and pass `cookie` for a signed-in teacher. */
@@ -84,6 +89,11 @@ export async function generatePlanWeek(input: {
 }): Promise<WeekGenerationOutcome> {
   const autoPublish = input.autoPublish === true;
   const types = normaliseTypes(input.types);
+  const sessionRaw = Number(input.session);
+  const session =
+    Number.isFinite(sessionRaw) && sessionRaw > 0
+      ? Math.floor(sessionRaw)
+      : null;
   const outcome: WeekGenerationOutcome = {
     week: input.week,
     generated: 0,
@@ -107,8 +117,17 @@ export async function generatePlanWeek(input: {
         headers,
         body: JSON.stringify(
           isJsonEndpoint
-            ? { week: input.week, auto_publish: autoPublish }
-            : { only_weeks: [input.week], max_weeks: 1, auto_publish: autoPublish },
+            ? {
+                week: input.week,
+                auto_publish: autoPublish,
+                ...(session != null ? { session } : {}),
+              }
+            : {
+                only_weeks: [input.week],
+                max_weeks: 1,
+                auto_publish: autoPublish,
+                ...(session != null ? { only_session: session } : {}),
+              },
         ),
         cache: 'no-store',
       });

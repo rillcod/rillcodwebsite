@@ -3,6 +3,8 @@ import {
   DEFAULT_AUTO_GENERATE_SETTINGS,
   WEEK_CONTENT_TYPES,
   describeAutoGenerateSettings,
+  listPlanMeetings,
+  nextMeetingsToGenerate,
   normaliseTypes,
   parseAutoGenerateSettings,
   weeksToGenerateForPlan,
@@ -146,6 +148,47 @@ describe('weeksToGenerateForPlan', () => {
         prepAheadWeeks: 1,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('nextMeetingsToGenerate', () => {
+  it('prepares Class 2 after Class 1 is done, then the next week', () => {
+    const meetings = listPlanMeetings([
+      { week: 1, session: 1 },
+      { week: 1, session: 2 },
+      { week: 2, session: 1 },
+      { week: 2, session: 2 },
+    ]);
+    expect(
+      nextMeetingsToGenerate({
+        meetings,
+        completedKeys: ['1:s1'],
+        eligibleWeeks: [1, 2],
+        maxMeetingsPerBatch: 1,
+      }),
+    ).toEqual([{ week: 1, session: 2 }]);
+    expect(
+      nextMeetingsToGenerate({
+        meetings,
+        completedKeys: ['1:s1', '1:s2'],
+        eligibleWeeks: [1, 2],
+        maxMeetingsPerBatch: 1,
+      }),
+    ).toEqual([{ week: 2, session: 1 }]);
+  });
+
+  it('treats an untagged legacy lesson as Class 1 complete', () => {
+    expect(
+      nextMeetingsToGenerate({
+        meetings: listPlanMeetings([
+          { week: 1, session: 1 },
+          { week: 1, session: 2 },
+        ]),
+        completedKeys: ['1'],
+        eligibleWeeks: [1],
+        maxMeetingsPerBatch: 1,
+      }),
+    ).toEqual([{ week: 1, session: 2 }]);
   });
 });
 

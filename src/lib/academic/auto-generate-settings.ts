@@ -152,6 +152,77 @@ export function weeksToGenerateForPlan(input: {
   return withAhead.slice(0, cap);
 }
 
+/** One class meeting on the teaching plan (calendar week + class number). */
+export type PlanMeeting = {
+  week: number;
+  session: number;
+};
+
+export function planMeetingKey(meeting: PlanMeeting): string {
+  return `${meeting.week}:s${meeting.session}`;
+}
+
+/** Flatten plan rows into ordered class meetings. Untagged rows = Class 1. */
+export function listPlanMeetings(
+  planWeeks: Array<Record<string, unknown>>,
+): PlanMeeting[] {
+  const out: PlanMeeting[] = [];
+  for (const row of planWeeks) {
+    const week = Number(row.week ?? row.week_number ?? 0);
+    if (!Number.isFinite(week) || week < 1) continue;
+    const raw = Number(row.session ?? row.session_number ?? 0);
+    const session =
+      Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1;
+    out.push({ week: Math.floor(week), session });
+  }
+  out.sort((a, b) => a.week - b.week || a.session - b.session);
+  // De-dupe identical meetings
+  const seen = new Set<string>();
+  return out.filter((m) => {
+    const key = planMeetingKey(m);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Next class meetings to prepare — one meeting at a time so AI stays in context.
+ * Skips meetings that already have a lesson pack; stays inside eligible weeks.
+ */
+export function nextMeetingsToGenerate(input: {
+  meetings: PlanMeeting[];
+  /** Keys like "1:s1" for meetings that already have content. */
+  completedKeys?: Iterable<string>;
+  eligibleWeeks: number[];
+  maxMeetingsPerBatch?: number;
+}): PlanMeeting[] {
+  const eligible = new Set(
+    input.eligibleWeeks.filter((n) => Number.isFinite(n) && n > 0),
+  );
+  if (!eligible.size) return [];
+  const done = new Set(
+    [...(input.completedKeys ?? [])].map(String).filter(Boolean),
+  );
+  const cap = Math.max(
+    1,
+    Math.min(10, Math.floor(Number(input.maxMeetingsPerBatch) || 1)),
+  );
+  const next: PlanMeeting[] = [];
+  for (const meeting of input.meetings) {
+    if (!eligible.has(meeting.week)) continue;
+    const key = planMeetingKey(meeting);
+    // Legacy single-meeting weeks may be stored without a session tag.
+    const legacyKey = `${meeting.week}`;
+    if (done.has(key) || (meeting.session === 1 && done.has(legacyKey))) {
+      continue;
+    }
+    next.push(meeting);
+    if (next.length >= cap) break;
+  }
+  return next;
+}
+
 export const WEEK_CONTENT_TYPE_LABELS: Record<WeekContentType, string> = {
   lessons: 'Lessons',
   slides: 'Slides',

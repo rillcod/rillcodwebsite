@@ -131,6 +131,34 @@ export function extractLessonPlanOperationWeeks(
   );
 }
 
+/**
+ * Narrow plan rows to specific calendar weeks and/or one class meeting.
+ * Untagged legacy rows count as Class 1.
+ */
+export function filterPlanOperationWeeks(
+  weeks: Array<Record<string, unknown>>,
+  input: {
+    onlyWeeks?: number[] | null;
+    onlySession?: number | null;
+  },
+): Array<Record<string, unknown>> {
+  let rows = weeks;
+  if (input.onlyWeeks?.length) {
+    const set = new Set(input.onlyWeeks.map(Number));
+    rows = rows.filter((w) => set.has(Number(w.week)));
+  }
+  const onlySession = Number(input.onlySession);
+  if (Number.isFinite(onlySession) && onlySession > 0) {
+    const want = Math.floor(onlySession);
+    rows = rows.filter((w) => {
+      const session = getPlanWeekSession(w);
+      if (session > 0) return session === want;
+      return want === 1;
+    });
+  }
+  return rows;
+}
+
 export function parseWeekTermRefs(
   week: { syllabus_ref?: { year_number?: number; term_number?: number } },
   planTermNum: number,

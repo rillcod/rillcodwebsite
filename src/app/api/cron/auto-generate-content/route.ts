@@ -11,6 +11,9 @@ import {
 import {
   parseAutoGenerateSettings,
   weeksToGenerateForPlan,
+  listPlanMeetings,
+  nextMeetingsToGenerate,
+  planMeetingKey,
   type AutoGenerateSettings,
 } from '@/lib/academic/auto-generate-settings';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
@@ -122,23 +125,24 @@ async function handleRequest(req: NextRequest) {
         periodStart,
       });
 
-      const planWeekNumbers = (
-        extractLessonPlanOperationWeeks(plan.plan_data) as Array<{ week?: number }>
-      )
+      const planRows = extractLessonPlanOperationWeeks(plan.plan_data) as Array<
+        Record<string, unknown>
+      >;
+      const planWeekNumbers = planRows
         .map((w) => Number(w.week))
         .filter((n) => Number.isFinite(n) && n > 0);
 
       // Special-programme mid-modules (weeks 4–5) must not be forced to generate
       // calendar week 1. Prep ahead keeps the next in-plan week flowing after
       // the first is ready — still hold-for-approval unless opted in.
-      const targetWeeks = weeksToGenerateForPlan({
+      const eligibleWeeks = weeksToGenerateForPlan({
         planWeekNumbers,
         deliveryWeek: currentWeek,
         prepAheadWeeks: ags.prep_ahead_weeks,
         maxWeeksPerBatch: ags.maxWeeksPerBatch || Math.max(1, ags.prep_ahead_weeks + 1),
       });
 
-      if (!targetWeeks.length) {
+      if (!eligibleWeeks.length) {
         await db.from('lesson_plans').update({
           metadata: {
             ...meta,
@@ -160,16 +164,73 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
+      // Which class meetings already have a lesson — skip those, prep the next.
+      const { data: existingLessons } = await db
+        .from('lessons')
+        .select('id,curriculum_week_number,metadata')
+        .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`);
+      const completedKeys = new Set<string>();
+      for (const lesson of existingLessons ?? []) {
+        const week = Number(
+          lesson.curriculum_week_number ??
+            (lesson.metadata as any)?.week ??
+            (lesson.metadata as any)?.week_number ??
+            0,
+        );
+        if (!Number.isFinite(week) || week < 1) continue;
+        const session = Number(
+          (lesson.metadata as any)?.session ??
+            (lesson.metadata as any)?.session_number ??
+            0,
+        );
+        if (Number.isFinite(session) && session > 0) {
+          completedKeys.add(planMeetingKey({ week, session: Math.floor(session) }));
+        } else {
+          completedKeys.add(String(week));
+          completedKeys.add(planMeetingKey({ week, session: 1 }));
+        }
+      }
+
+      const targetMeetings = nextMeetingsToGenerate({
+        meetings: listPlanMeetings(planRows),
+        completedKeys,
+        eligibleWeeks,
+        // One meeting per plan per sweep — continuous and AI-context safe.
+        maxMeetingsPerBatch: 1,
+      });
+
+      if (!targetMeetings.length) {
+        await db.from('lesson_plans').update({
+          metadata: {
+            ...meta,
+            auto_generate_settings: {
+              ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
+              last_run_at: new Date().toISOString(),
+            },
+          },
+        }).eq('id', plan.id);
+        results.push({
+          planId: plan.id,
+          status: 'skipped',
+          currentWeek,
+          weeks: eligibleWeeks,
+          error: 'All due class meetings already prepared',
+        });
+        continue;
+      }
+
       let generated = 0;
       let skipped = 0;
       const failedTypes = new Set<string>();
       let notified: string | undefined;
+      const targetWeeks = [...new Set(targetMeetings.map((m) => m.week))];
 
-      for (const week of targetWeeks) {
+      for (const meeting of targetMeetings) {
         if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
         const outcome = await generatePlanWeek({
           planId: plan.id,
-          week,
+          week: meeting.week,
+          session: meeting.session,
           types: ags.types,
           baseUrl: appBaseUrl,
           cronSecret,
@@ -182,7 +243,7 @@ async function handleRequest(req: NextRequest) {
         const note = await notifyWeekReady(db, {
           planId: plan.id,
           classId: plan.class_id ?? null,
-          week,
+          week: meeting.week,
           outcome,
           autoPublish: ags.auto_publish,
         });

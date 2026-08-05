@@ -451,8 +451,8 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       toast.success(
         j.teaching_message ||
           (opts?.forceRebuild
-            ? 'Started fresh from this page. New lessons are under Teaching Approvals.'
-            : 'Teaching prep finished. New lessons are under Teaching Approvals.'),
+            ? 'Started fresh. Week 1 · Class 1 is ready for review; the rest keeps preparing automatically.'
+            : 'Week 1 · Class 1 prepared for review. Class 2 and later weeks continue automatically.'),
       );
     } catch (e: any) {
       toast.error(e.message || 'Could not prepare teaching');
@@ -921,7 +921,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  When you first publish, we prepare teaching materials from what is written on this page. Teachers review them under Teaching Approvals before students see anything. If a module needs more weeks later, widen its week range, save, then press Prepare teaching again.
+                  Prepare teaching makes the full plan from this page, then prepares only the first class meeting (Week 1 · Class 1) so AI stays sharp. Class 2 and later weeks keep preparing automatically overnight, or a teacher can prepare the next meeting from the class workspace. Everything waits under Teaching Approvals first.
                 </p>
                 {teachingStatus ? (
                   <p
