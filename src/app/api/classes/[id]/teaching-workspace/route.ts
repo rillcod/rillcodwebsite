@@ -9,6 +9,7 @@ import {
   resolveOfficialDeliverySchedule,
 } from "@/lib/curriculum/official-direction";
 import { diagnoseDirection } from "@/lib/academic/status";
+import { parseRequestSession } from "@/lib/academic/session-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -645,11 +646,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const sessionRaw = Number(body.session ?? body.session_number);
-    const session =
-      Number.isFinite(sessionRaw) && sessionRaw > 0
-        ? Math.floor(sessionRaw)
-        : null;
+    const session = parseRequestSession(body as Record<string, unknown>);
     const { releasePreparedWeek } = await import(
       "@/lib/academic/release-week-content"
     );

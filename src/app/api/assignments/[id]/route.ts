@@ -153,7 +153,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id, is_active, term_id, class_id')
+    .select('created_by, school_id, is_active, term_id, class_id, academic_offering_id, offering_period_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -193,9 +193,17 @@ export async function PATCH(
   }
   const targetClassId = (body.metadata as any)?.target_class_id || body.class_id || existing.class_id;
   if (!('term_id' in body) && !existing.term_id) {
-    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const { resolveAssignmentTermId, loadTeachingPeriodFromClass } = await import('@/lib/assignments/session');
+    const period = await loadTeachingPeriodFromClass(admin, targetClassId ?? null, {
+      class_id: targetClassId ?? null,
+      school_id: existing.school_id ?? null,
+      academic_offering_id: existing.academic_offering_id ?? null,
+      offering_period_id: existing.offering_period_id ?? null,
+      term_id: existing.term_id ?? null,
+    });
     allowed.term_id = await resolveAssignmentTermId(admin, {
       classId: targetClassId ?? null,
+      period,
     });
   }
   if (caller.role === 'teacher' && targetClassId) {

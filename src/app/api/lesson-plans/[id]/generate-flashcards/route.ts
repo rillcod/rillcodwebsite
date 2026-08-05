@@ -5,6 +5,7 @@ import { requireStaffUser, canAccessLessonScope } from "@/app/api/lesson-plans/a
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { parseRequestSession, assetMeetingSession } from "@/lib/academic/session-identity";
 import { geminiGenerateText } from "@/lib/gemini/client";
 
 export const dynamic = "force-dynamic";
@@ -96,11 +97,7 @@ export async function POST(
   if (!Number.isInteger(week) || week < 1) {
     return NextResponse.json({ error: "week must be a positive integer" }, { status: 400 });
   }
-  const onlySessionRaw = Number(body.session);
-  const onlySession =
-    Number.isInteger(onlySessionRaw) && onlySessionRaw > 0
-      ? onlySessionRaw
-      : null;
+  const onlySession = parseRequestSession(body);
 
   const allWeekRows: Array<{ week?: number; session?: number; topic?: string }> =
     Array.isArray((plan as any)?.plan_data?.weeks)
@@ -167,9 +164,7 @@ export async function POST(
     const lesson =
       (weekLessons ?? []).find((row: any) => {
         if (session == null) return true;
-        const meta = row.metadata as Record<string, unknown> | null;
-        const got = Number(meta?.session ?? meta?.session_number ?? 0);
-        return Number.isFinite(got) && Math.floor(got) === session;
+        return assetMeetingSession(row) === session;
       }) ?? (session == null ? (weekLessons ?? [])[0] : null);
 
     if (lesson?.id) {

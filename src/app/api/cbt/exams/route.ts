@@ -227,10 +227,24 @@ export async function POST(request: NextRequest) {
       baseMeta.visibility = 'class';
     }
     if (!baseMeta.term_id) {
-      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const { resolveAssignmentTermId, loadTeachingPeriodFromClass } = await import('@/lib/assignments/session');
+      const classId =
+        typeof examFields.class_id === 'string' ? examFields.class_id : null;
+      const period = await loadTeachingPeriodFromClass(admin as any, classId, {
+        class_id: classId,
+        academic_offering_id:
+          typeof examFields.academic_offering_id === 'string'
+            ? examFields.academic_offering_id
+            : null,
+        offering_period_id:
+          typeof examFields.offering_period_id === 'string'
+            ? examFields.offering_period_id
+            : null,
+      });
       const termId = await resolveAssignmentTermId(admin as any, {
         termId: typeof examFields.term_id === 'string' ? examFields.term_id : null,
-        classId: typeof examFields.class_id === 'string' ? examFields.class_id : null,
+        classId,
+        period,
       });
       if (termId) {
         baseMeta.term_id = termId;

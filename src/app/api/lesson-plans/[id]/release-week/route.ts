@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { releasePreparedWeek } from '@/lib/academic/release-week-content';
+import { parseRequestSession } from '@/lib/academic/session-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,11 +33,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const weekNumber = Number(week_number);
   const yearNumber = Number(year_number ?? 0);
   const termNumber = Number(term_number ?? 0);
-  const sessionRaw = Number(session);
-  const sessionNumber =
-    Number.isFinite(sessionRaw) && sessionRaw > 0
-      ? Math.floor(sessionRaw)
-      : null;
+  const sessionNumber = parseRequestSession({ session });
   if (!Number.isFinite(weekNumber) || weekNumber <= 0) {
     return NextResponse.json({ error: 'week_number must be a positive number', field: 'week_number' }, { status: 400 });
   }

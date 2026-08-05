@@ -12,6 +12,7 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
@@ -135,11 +136,7 @@ export async function POST(
           .map((w) => Number(w))
           .filter((w) => Number.isFinite(w))
       : null;
-    const onlySessionRaw = Number((body as any).only_session ?? body.session);
-    const onlySession =
-      Number.isFinite(onlySessionRaw) && onlySessionRaw > 0
-        ? Math.floor(onlySessionRaw)
-        : null;
+    const onlySession = parseRequestSession(body as Record<string, unknown>);
     // Opt-in publish: anything other than an explicit true is held for approval.
     // Matches auto-generate-settings and generate-projects — missing must not go live.
     const assignmentActive = body.auto_publish === true;

@@ -400,15 +400,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Stamp academic session so gradebook / reports stay year+term isolated.
-    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const { resolveAssignmentTermId, loadTeachingPeriodFromClass } = await import('@/lib/assignments/session');
     const classIdForTerm =
       (payload.class_id as string | null | undefined)
       || ((payload.metadata as any)?.target_class_id as string | null | undefined)
       || null;
     if (!payload.term_id) {
+      const period = await loadTeachingPeriodFromClass(admin, classIdForTerm, {
+        class_id: classIdForTerm,
+        school_id: (payload.school_id as string | null) ?? resolvedSchoolId ?? null,
+        academic_offering_id:
+          (payload.academic_offering_id as string | null | undefined) ?? null,
+        offering_period_id:
+          (payload.offering_period_id as string | null | undefined) ?? null,
+        term_id: (payload.term_id as string | null | undefined) ?? null,
+      });
       payload.term_id = await resolveAssignmentTermId(admin, {
         termId: body.term_id ?? null,
         classId: classIdForTerm,
+        period,
       });
     }
 

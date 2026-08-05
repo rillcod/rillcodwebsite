@@ -14,6 +14,11 @@ import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readines
 import { launchSpecialProgramTeaching } from '@/lib/special-programs/launch-teaching';
 import type { LaunchTeachingResult } from '@/lib/special-programs/launch-teaching';
 import type { TeachingReadiness } from '@/lib/special-programs/teaching-readiness';
+import { buildTeachingReadiness } from '@/lib/special-programs/teaching-readiness';
+import {
+  loadOfferingClasses,
+  pickPrimaryCohort,
+} from '@/lib/special-programs/ensure-cohort-class';
 
 export type PreparePathway = 'special' | 'school';
 
@@ -173,6 +178,48 @@ export async function prepareTeaching(
           };
         }
       }
+    }
+
+    const { data: pageRow } = await db
+      .from('special_program_pages')
+      .select('program_id,is_published,starts_on,academic_offering_id')
+      .eq('id', input.pageId)
+      .maybeSingle();
+    let schoolId: string | null = null;
+    const pageOfferingId = pageRow?.academic_offering_id
+      ? String(pageRow.academic_offering_id)
+      : offeringId;
+    if (pageOfferingId) {
+      const { data: offeringRow } = await db
+        .from('academic_offerings')
+        .select('school_id')
+        .eq('id', pageOfferingId)
+        .maybeSingle();
+      schoolId = offeringRow?.school_id ? String(offeringRow.school_id) : null;
+    }
+    const cohortClass = pageOfferingId
+      ? pickPrimaryCohort(await loadOfferingClasses(db, pageOfferingId))
+      : null;
+    const readiness = buildTeachingReadiness({
+      programId: pageRow?.program_id ? String(pageRow.program_id) : null,
+      schoolId,
+      isPublished: Boolean(pageRow?.is_published),
+      startsOn: pageRow?.starts_on ? String(pageRow.starts_on) : null,
+      cohortClass,
+    });
+    if (!readiness.can_prepare) {
+      const detail = formatSpecialPrepBlock(readiness);
+      return {
+        pathway: 'special',
+        pageId: input.pageId,
+        offeringId: pageOfferingId,
+        bridge: null,
+        weeksStarted: [],
+        ok: false,
+        blocked: true,
+        error: detail,
+        detail,
+      };
     }
 
     const result = await launchSpecialProgramTeaching({

@@ -13,6 +13,33 @@ type AnyDb = {
   from: (table: string) => any;
 };
 
+/** Load school / offering / term anchors from a class row for assignment writes. */
+export async function loadTeachingPeriodFromClass(
+  db: AnyDb,
+  classId?: string | null,
+  seed?: Partial<TeachingPeriodContext>,
+): Promise<TeachingPeriodContext> {
+  const period: TeachingPeriodContext = { ...(seed ?? {}) };
+  const id = String(classId ?? period.class_id ?? '').trim();
+  if (!id) return period;
+  period.class_id = id;
+  const { data: cls } = await db
+    .from('classes')
+    .select('school_id,term_id,academic_offering_id,offering_period_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (!cls) return period;
+  if (cls.school_id && !period.school_id) period.school_id = String(cls.school_id);
+  if (cls.term_id && !period.term_id) period.term_id = String(cls.term_id);
+  if (cls.academic_offering_id && !period.academic_offering_id) {
+    period.academic_offering_id = String(cls.academic_offering_id);
+  }
+  if (cls.offering_period_id && !period.offering_period_id) {
+    period.offering_period_id = String(cls.offering_period_id);
+  }
+  return period;
+}
+
 /** Resolve canonical academic_terms.id for an assignment write. */
 export async function resolveAssignmentTermId(
   db: AnyDb,
@@ -25,25 +52,24 @@ export async function resolveAssignmentTermId(
     period?: TeachingPeriodContext | null;
   } = {},
 ): Promise<string | null> {
-  const explicit = String(opts.termId ?? opts.period?.term_id ?? '').trim();
+  const classId = String(opts.classId ?? opts.period?.class_id ?? '').trim();
+  const period = classId
+    ? await loadTeachingPeriodFromClass(db, classId, opts.period ?? {})
+    : { ...(opts.period ?? {}) };
+
+  const explicit = String(opts.termId ?? '').trim();
   if (explicit) return explicit;
 
-  const classId = String(opts.classId ?? opts.period?.class_id ?? '').trim();
-  if (classId) {
-    const { data: cls } = await db
-      .from('classes')
-      .select('term_id')
-      .eq('id', classId)
-      .maybeSingle();
-    if ((cls as { term_id?: string | null } | null)?.term_id) {
-      return String((cls as { term_id: string }).term_id);
-    }
+  // Duration / offering cohorts may still carry a school term_id on the class
+  // row — never stamp that onto holiday programme assignments.
+  const offeringBacked = Boolean(period.academic_offering_id);
+  if (!offeringBacked && period.term_id) {
+    return String(period.term_id);
   }
 
-  const period = opts.period;
   let mayFallback = true;
   if (opts.fallbackLive === false) mayFallback = false;
-  else if (period) mayFallback = allowLiveTermFallback(period);
+  else mayFallback = allowLiveTermFallback(period);
   if (!mayFallback) return null;
 
   const live = liveAcademicSession();

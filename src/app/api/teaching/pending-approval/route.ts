@@ -17,7 +17,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffUser } from "@/app/api/lesson-plans/authz";
 import { releasePreparedWeek } from "@/lib/academic/release-week-content";
-import { assetMeetingSession, normalizeMeetingSession } from "@/lib/academic/session-identity";
+import { assetMeetingSession, normalizeMeetingSession, parseRequestSession } from "@/lib/academic/session-identity";
 import {
   pendingWeekKey,
   type PendingWeek,
@@ -175,24 +175,16 @@ export async function POST(req: NextRequest) {
   const batchInput: unknown[] | null = Array.isArray(body.releases)
     ? body.releases
     : null;
-  const singleSessionRaw = Number(body.session);
-  const singleSession =
-    Number.isFinite(singleSessionRaw) && singleSessionRaw > 0
-      ? Math.floor(singleSessionRaw)
-      : null;
+  const singleSession = parseRequestSession(body);
   type ReleaseTarget = { planId: string; week: number; session: number | null };
   const targets: ReleaseTarget[] = batchInput?.length
     ? batchInput
         .map((row): ReleaseTarget => {
           const entry = (row ?? {}) as Record<string, unknown>;
-          const sessionRaw = Number(entry.session);
           return {
             planId: String(entry.planId ?? ""),
             week: Number(entry.week),
-            session:
-              Number.isFinite(sessionRaw) && sessionRaw > 0
-                ? Math.floor(sessionRaw)
-                : null,
+            session: parseRequestSession(entry),
           };
         })
         .filter(
