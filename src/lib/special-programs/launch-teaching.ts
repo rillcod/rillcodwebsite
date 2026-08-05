@@ -315,6 +315,7 @@ async function ensureDraftWeekContentDirectly(
   const weeks = Array.isArray(planRow.plan_data?.weeks) ? planRow.plan_data.weeks : [];
   const weekMeta = weeks.find((w: any) => Number(w.week) === input.week) || weeks[0];
   if (!weekMeta) return { generated: 0 };
+  const targetWeek = Number(weekMeta.week) || input.week || 1;
 
   let generated = 0;
 
@@ -323,7 +324,7 @@ async function ensureDraftWeekContentDirectly(
     .from('lessons')
     .select('id')
     .eq('lesson_plan_id', input.planId)
-    .eq('curriculum_week_number', input.week)
+    .eq('curriculum_week_number', targetWeek)
     .maybeSingle();
 
   if (!existingLesson) {
@@ -333,17 +334,17 @@ async function ensureDraftWeekContentDirectly(
       ? weekMeta.objectives.join(' · ')
       : typeof weekMeta.desc === 'string' && weekMeta.desc.trim()
       ? weekMeta.desc
-      : `Curriculum Lesson: ${weekMeta.topic || `Week ${input.week}`}`;
+      : `Curriculum Lesson: ${weekMeta.topic || `Week ${targetWeek}`}`;
 
     const { error: lErr } = await db.from('lessons').insert({
       lesson_plan_id: input.planId,
       course_id: planRow.course_id,
       school_id: planRow.school_id,
-      title: weekMeta.topic || `Week ${input.week} Lesson`,
+      title: weekMeta.topic || `Week ${targetWeek} Lesson`,
       description: lessonDesc,
       status: 'draft',
       duration_minutes: 60,
-      curriculum_week_number: input.week,
+      curriculum_week_number: targetWeek,
       order_index: 1,
       metadata: {
         generated_by: 'special_program_launcher',
@@ -363,13 +364,13 @@ async function ensureDraftWeekContentDirectly(
     .from('assignments')
     .select('id')
     .eq('lesson_plan_id', input.planId)
-    .eq('curriculum_week_number', input.week)
+    .eq('curriculum_week_number', targetWeek)
     .maybeSingle();
 
   if (!existingAssignment) {
     const assignmentTitle = weekMeta.assignment
-      ? (typeof weekMeta.assignment === 'string' ? weekMeta.assignment : (weekMeta.assignment.title || `Assignment: Week ${input.week}`))
-      : `Assignment: ${weekMeta.topic || `Week ${input.week}`}`;
+      ? (typeof weekMeta.assignment === 'string' ? weekMeta.assignment : (weekMeta.assignment.title || `Assignment: Week ${targetWeek}`))
+      : `Assignment: ${weekMeta.topic || `Week ${targetWeek}`}`;
 
     const assignmentDesc = typeof weekMeta.assignment === 'string' && weekMeta.assignment.trim()
       ? weekMeta.assignment
@@ -377,7 +378,7 @@ async function ensureDraftWeekContentDirectly(
       ? String(weekMeta.assignment.description)
       : typeof weekMeta.assignment === 'object' && weekMeta.assignment?.instructions
       ? String(weekMeta.assignment.instructions)
-      : `Practical Homework Task: Review and complete exercises based on "${weekMeta.topic || `Week ${input.week}`}". Apply key concepts learned in class.`;
+      : `Practical Homework Task: Review and complete exercises based on "${weekMeta.topic || `Week ${targetWeek}`}". Apply key concepts learned in class.`;
 
     const { error: aErr } = await db.from('assignments').insert({
       lesson_plan_id: input.planId,
@@ -387,7 +388,7 @@ async function ensureDraftWeekContentDirectly(
       description: assignmentDesc,
       is_active: false,
       assignment_type: 'homework',
-      curriculum_week_number: input.week,
+      curriculum_week_number: targetWeek,
       metadata: {
         generated_by: 'special_program_launcher',
         topic: weekMeta.topic,
