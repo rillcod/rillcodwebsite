@@ -11,12 +11,19 @@ export type PendingApprovalItem = {
 
 export type PendingWeek = {
   planId: string;
+  classId?: string | null;
   className: string | null;
   courseTitle: string | null;
   week: number;
   /** Class meeting within the week (1-based); null for unscoped school weeks. */
   session: number | null;
+  enrollmentType?: string | null;
+  isSpecial?: boolean;
   topic: string;
+  objectives?: string | string[] | null;
+  activities?: string | string[] | null;
+  classwork?: string | null;
+  assignmentBrief?: string | null;
   items: PendingApprovalItem[];
 };
 

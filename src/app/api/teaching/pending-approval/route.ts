@@ -35,8 +35,8 @@ async function visiblePlans(
   const { data: plans } = await db
     .from("lesson_plans")
     .select(
-      "id,school_id,created_by,status,plan_data,course_id,class_id," +
-        "courses(title),classes!lesson_plans_class_id_fkey(id,name,teacher_id,school_id)"
+      "id,school_id,created_by,status,plan_data,course_id,class_id,academic_offering_id," +
+        "courses(title),classes!lesson_plans_class_id_fkey(id,name,teacher_id,school_id,academic_offering_id,academic_offerings(id,title,enrollment_type,pathway))"
     )
     .eq("status", "published");
 
@@ -92,17 +92,27 @@ export async function GET() {
         return Number(w.session ?? w.session_number ?? 0) === sessionNum;
       }) ?? weeks.find((w) => Number(w.week) === week);
       const klass = Array.isArray(plan?.classes) ? plan.classes[0] : plan?.classes;
+      const offering = klass?.academic_offerings || null;
+      const enrollmentType = offering?.enrollment_type || (klass?.academic_offering_id || plan?.academic_offering_id ? 'special' : 'school');
+      const isSpecial = enrollmentType === 'special' || enrollmentType === 'online' || enrollmentType === 'in_person' || Boolean(klass?.academic_offering_id || plan?.academic_offering_id);
       const sessionLabel =
         sessionNum != null ? ` · Class ${sessionNum}` : "";
       row = {
         planId,
+        classId: klass?.id ?? null,
         className: klass?.name ?? null,
         courseTitle: plan?.courses?.title ?? null,
         week,
         session: sessionNum,
+        enrollmentType,
+        isSpecial,
         topic: meta?.topic
           ? String(meta.topic)
           : `Week ${week}${sessionLabel}`,
+        objectives: meta?.objectives || meta?.learning_objectives || null,
+        activities: meta?.student_activities || meta?.activities || null,
+        classwork: meta?.classwork?.title || (typeof meta?.classwork === 'string' ? meta.classwork : null) || meta?.guided_practice || null,
+        assignmentBrief: meta?.assignment?.brief || meta?.assignment?.title || (typeof meta?.assignment === 'string' ? meta.assignment : null) || null,
         items: [],
       };
       byWeek.set(key, row);

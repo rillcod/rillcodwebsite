@@ -476,6 +476,37 @@ export function ClassTeachingWorkspace({
         />
       )}
 
+      {data?.class?.academic_offerings ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 text-lg">
+              ✨
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                  Special Programme Cohort Workspace
+                </span>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200">
+                  {data.class.academic_offerings.enrollment_type || 'Special'}
+                </span>
+              </div>
+              <p className="text-sm font-black text-foreground mt-0.5">
+                {data.class.academic_offerings.title || data.class.name}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/special-programs"
+              className="text-xs font-bold text-amber-800 dark:text-amber-200 hover:underline px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10"
+            >
+              Special Programmes Manager ↗
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           {/* The same evidence-backed picker used at class creation, so the course a class
