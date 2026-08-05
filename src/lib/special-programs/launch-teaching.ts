@@ -240,6 +240,13 @@ export async function launchSpecialProgramTeaching(input: {
       autoPublish: false,
     });
 
+    // Fallback: If HTTP loopback returned 0 generated items (e.g. serverless loopback fetch restriction),
+    // populate draft lesson & assignment rows directly from curriculum plan_data!
+    if (outcome.generated === 0) {
+      const direct = await ensureDraftWeekContentDirectly(db, { planId, week, session: 1 });
+      outcome.generated += direct.generated;
+    }
+
     await notifyWeekReady(db, {
       planId,
       classId: plan.class_id ?? null,
@@ -292,4 +299,91 @@ export async function launchSpecialProgramTeaching(input: {
   }
 
   return result;
+}
+
+async function ensureDraftWeekContentDirectly(
+  db: any,
+  input: { planId: string; week: number; session?: number | null }
+): Promise<{ generated: number }> {
+  const { data: planRow } = await db
+    .from('lesson_plans')
+    .select('id, course_id, school_id, plan_data')
+    .eq('id', input.planId)
+    .maybeSingle();
+
+  if (!planRow) return { generated: 0 };
+  const weeks = Array.isArray(planRow.plan_data?.weeks) ? planRow.plan_data.weeks : [];
+  const weekMeta = weeks.find((w: any) => Number(w.week) === input.week) || weeks[0];
+  if (!weekMeta) return { generated: 0 };
+
+  let generated = 0;
+
+  // 1. Check/create draft lesson
+  const { data: existingLesson } = await db
+    .from('lessons')
+    .select('id')
+    .eq('lesson_plan_id', input.planId)
+    .eq('curriculum_week_number', input.week)
+    .maybeSingle();
+
+  if (!existingLesson) {
+    const { error: lErr } = await db.from('lessons').insert({
+      lesson_plan_id: input.planId,
+      course_id: planRow.course_id,
+      school_id: planRow.school_id,
+      title: weekMeta.topic || `Week ${input.week} Lesson`,
+      description: typeof weekMeta.objectives === 'string'
+        ? weekMeta.objectives
+        : (Array.isArray(weekMeta.objectives) ? weekMeta.objectives.join(' · ') : 'Curriculum lesson'),
+      status: 'draft',
+      duration_minutes: 60,
+      curriculum_week_number: input.week,
+      order_index: 1,
+      metadata: {
+        generated_by: 'special_program_launcher',
+        topic: weekMeta.topic,
+        objectives: weekMeta.objectives,
+        student_activities: weekMeta.student_activities || weekMeta.activities,
+        classwork: weekMeta.classwork,
+        assignment: weekMeta.assignment,
+        session_number: input.session || 1,
+      },
+    });
+    if (!lErr) generated++;
+  }
+
+  // 2. Check/create draft assignment
+  const { data: existingAssignment } = await db
+    .from('assignments')
+    .select('id')
+    .eq('lesson_plan_id', input.planId)
+    .eq('curriculum_week_number', input.week)
+    .maybeSingle();
+
+  if (!existingAssignment) {
+    const assignmentTitle = weekMeta.assignment
+      ? (typeof weekMeta.assignment === 'string' ? weekMeta.assignment : (weekMeta.assignment.title || `Assignment: Week ${input.week}`))
+      : `Assignment: ${weekMeta.topic || `Week ${input.week}`}`;
+
+    const { error: aErr } = await db.from('assignments').insert({
+      lesson_plan_id: input.planId,
+      course_id: planRow.course_id,
+      school_id: planRow.school_id,
+      title: assignmentTitle,
+      description: typeof weekMeta.assignment === 'string'
+        ? weekMeta.assignment
+        : JSON.stringify(weekMeta.assignment || {}),
+      is_active: false,
+      assignment_type: 'homework',
+      curriculum_week_number: input.week,
+      metadata: {
+        generated_by: 'special_program_launcher',
+        topic: weekMeta.topic,
+        session_number: input.session || 1,
+      },
+    });
+    if (!aErr) generated++;
+  }
+
+  return { generated };
 }
