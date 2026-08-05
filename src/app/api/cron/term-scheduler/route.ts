@@ -102,6 +102,12 @@ async function handleRequest(req: NextRequest) {
               ? Math.floor(meetingSession)
               : null,
         });
+        // A multi-meeting week the plan row cannot name stays with the teacher
+        // rather than failing the sweep or skipping a meeting.
+        if (release.needs_session) {
+          held++;
+          continue;
+        }
         if (release.error) throw new Error(release.error);
         released++;
       } else {

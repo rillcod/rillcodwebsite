@@ -64,6 +64,47 @@ describe("resolveEffectiveReleaseSession", () => {
   });
 });
 
+describe("ambiguous multi-meeting weeks", () => {
+  /**
+   * Mirrors the guard in releasePreparedWeek: two stamped meetings and nothing
+   * unscoped means a release with no session would touch nothing, so the caller
+   * must be told rather than shown a successful no-op.
+   */
+  function ambiguityCheck(rows: Array<{ metadata?: any; title?: string }>) {
+    const session = resolveEffectiveReleaseSession(rows, null);
+    if (session != null) return null;
+    const stamped = [
+      ...new Set(rows.map((r) => releaseAssetSession(r)).filter((s) => s > 0)),
+    ].sort((a, b) => a - b);
+    const hasUnscoped = rows.some((r) => releaseAssetSession(r) < 1);
+    return stamped.length >= 2 && !hasUnscoped ? stamped : null;
+  }
+
+  it("flags a week holding Class 1 and Class 2 with no session given", () => {
+    expect(
+      ambiguityCheck([
+        { metadata: { session: 1 } },
+        { metadata: { session: 2 } },
+      ]),
+    ).toEqual([1, 2]);
+  });
+
+  it("does not flag school weeks or single-meeting weeks", () => {
+    expect(ambiguityCheck([{ title: "Homework" }])).toBeNull();
+    expect(ambiguityCheck([{ metadata: { session: 1 } }])).toBeNull();
+  });
+
+  it("does not flag when unscoped school assets are also held", () => {
+    expect(
+      ambiguityCheck([
+        { metadata: { session: 1 } },
+        { metadata: { session: 2 } },
+        { title: "School homework" },
+      ]),
+    ).toBeNull();
+  });
+});
+
 describe("matchesReleaseSession", () => {
   it("with explicit session only matches that class meeting", () => {
     expect(matchesReleaseSession({ metadata: { session: 1 } }, 1)).toBe(true);

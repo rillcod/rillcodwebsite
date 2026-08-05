@@ -56,6 +56,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     week: weekNumber,
     session: sessionNumber,
   });
+  if (result.needs_session) {
+    return NextResponse.json(
+      { error: result.error, available_sessions: result.available_sessions },
+      { status: 409 },
+    );
+  }
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 500 });
   }

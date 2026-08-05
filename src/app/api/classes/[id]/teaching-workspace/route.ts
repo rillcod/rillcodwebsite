@@ -656,7 +656,13 @@ export async function POST(
       session,
     });
     if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: result.error,
+          available_sessions: result.available_sessions,
+        },
+        { status: 400 }
+      );
     }
     return NextResponse.json({ data: result });
   }

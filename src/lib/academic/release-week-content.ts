@@ -21,6 +21,10 @@ export type WeekReleaseResult = {
   assignments_released: number;
   flashcards_released: number;
   error?: string;
+  /** Multiple class meetings are held and the caller must name one. */
+  needs_session?: boolean;
+  /** Class meetings available to release when needs_session is true. */
+  available_sessions?: number[];
 };
 
 type SessionRow = SessionBearing;
@@ -148,6 +152,25 @@ export async function releasePreparedWeek(input: {
   ];
 
   const session = resolveEffectiveReleaseSession(probeRows, input.session);
+
+  // Two or more class meetings are held and nothing is unscoped: releasing now
+  // would touch nothing at all. Say so instead of reporting a silent success.
+  if (session == null) {
+    const stamped = [
+      ...new Set(
+        probeRows.map((row) => assetMeetingSession(row)).filter((s) => s > 0),
+      ),
+    ].sort((a, b) => a - b);
+    const hasUnscoped = probeRows.some((row) => assetMeetingSession(row) < 1);
+    if (stamped.length >= 2 && !hasUnscoped) {
+      return {
+        ...empty(null),
+        needs_session: true,
+        available_sessions: stamped,
+        error: `Week ${week} has ${stamped.length} class meetings held for review. Choose which class meeting to release (Class ${stamped.join(', Class ')}).`,
+      };
+    }
+  }
 
   const lessonIds = (draftLessons ?? [])
     .filter((row: any) =>
