@@ -70,6 +70,7 @@ export function ClassTeachingWorkspace({
   const [aiBusy, setAiBusy] = useState(false);
   const [aiWeek, setAiWeek] = useState<{
     week: number;
+    session?: number | null;
     topic: string;
     objectives?: string;
     activities?: string;
@@ -1064,6 +1065,7 @@ export function ClassTeachingWorkspace({
                                 action: "release_week",
                                 lesson_plan_id: plan.id,
                                 week_number: week,
+                                ...(session != null ? { session } : {}),
                               })
                             }
                             className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-50"
@@ -1088,6 +1090,7 @@ export function ClassTeachingWorkspace({
                             onClick={() =>
                               setAiWeek({
                                 week,
+                                session,
                                 topic,
                                 objectives,
                                 activities,
@@ -1347,13 +1350,18 @@ export function ClassTeachingWorkspace({
           planId={plan.id}
           courseId={courseId}
           classId={classId}
-          existing={{
-            lessonId: lessonsByWeek.get(aiWeek.week)?.id,
-            slideDeckId: slidesByWeek.get(aiWeek.week)?.id,
-            deckId: flashcardsByWeek.get(aiWeek.week)?.id,
-            assignmentId: assignmentsByWeek.get(aiWeek.week)?.id,
-            projectId: projectsByWeek.get(aiWeek.week)?.id,
-          }}
+          existing={(() => {
+            // Same key the week rows use, so a multi-meeting week reuses the
+            // assets of the meeting being generated rather than meeting one's.
+            const key = weekSessionLookupKey(aiWeek.week, aiWeek.session ?? null);
+            return {
+              lessonId: lessonsByWeek.get(key)?.id,
+              slideDeckId: slidesByWeek.get(key)?.id,
+              deckId: flashcardsByWeek.get(key)?.id,
+              assignmentId: assignmentsByWeek.get(key)?.id,
+              projectId: projectsByWeek.get(key)?.id,
+            };
+          })()}
           onClose={() => setAiWeek(null)}
           onDone={() => {
             setAiWeek(null);

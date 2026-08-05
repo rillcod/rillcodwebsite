@@ -86,9 +86,21 @@ async function handleRequest(req: NextRequest) {
 
       // Same publish rule as auto-generate-content / generatePlanWeek.
       if (settings.auto_publish) {
+        const meetingSession = Number(
+          (weekData as { session?: number; session_number?: number })?.session ??
+            (weekData as { session_number?: number })?.session_number ??
+            0,
+        );
+        const calendarWeek = Number(
+          (weekData as { week?: number })?.week ?? currentWeek,
+        );
         const release = await releasePreparedWeek({
           planId: schedule.lesson_plan_id,
-          week: currentWeek,
+          week: Number.isFinite(calendarWeek) && calendarWeek > 0 ? calendarWeek : currentWeek,
+          session:
+            Number.isFinite(meetingSession) && meetingSession > 0
+              ? Math.floor(meetingSession)
+              : null,
         });
         if (release.error) throw new Error(release.error);
         released++;

@@ -17,6 +17,7 @@ import {
   notifyAdminTeachingLaunch,
   writeTeachingLaunchStatus,
 } from '@/lib/special-programs/teaching-launch-status';
+import { ensureCohortClass } from '@/lib/special-programs/ensure-cohort-class';
 
 export type LaunchTeachingResult = {
   pageId: string;
@@ -127,6 +128,15 @@ export async function launchSpecialProgramTeaching(input: {
     force_rebuild: input.forceRebuild === true,
   });
 
+  // Teaching without a cohort class leaves Approvals and the classroom empty.
+  // Create it here rather than failing, so every entry point (publish, Prepare,
+  // featured, cron) lands ready instead of half-built. Doing it before the
+  // bridge lets the new plans attach to the class as they are written.
+  let cohort = await ensureCohortClass(db, {
+    pageId: input.pageId,
+    actorId: input.createdBy,
+  });
+
   const bridge = await bridgeOfferingFromPage(db, {
     offeringId,
     createdBy: input.createdBy,
@@ -165,6 +175,20 @@ export async function launchSpecialProgramTeaching(input: {
     return failed;
   }
 
+  // The bridge stamps the school and programme onto the offering, so a cohort
+  // that failed for want of those anchors can succeed on the second pass.
+  if (!cohort.cohort) {
+    cohort = await ensureCohortClass(db, {
+      pageId: input.pageId,
+      actorId: input.createdBy,
+    });
+  }
+  const cohortWarning = cohort.error
+    ? cohort.cohort
+      ? `Cohort class ready, but: ${cohort.error}`
+      : `${cohort.error} Teachers will not see this in Approvals until a cohort class exists.`
+    : undefined;
+
   const planIds = [
     ...new Set(
       bridge.results
@@ -178,20 +202,28 @@ export async function launchSpecialProgramTeaching(input: {
   let missingClass = false;
 
   for (const planId of planIds) {
-    const { data: plan } = await db
+    const { data: planRow } = await db
       .from('lesson_plans')
       .select('id,class_id,plan_data,metadata,academic_offering_periods:offering_period_id(starts_on)')
       .eq('id', planId)
       .maybeSingle();
+    // Cast around generated Supabase types that reject metadata on lesson_plans.
+    const plan = planRow as {
+      id: string;
+      class_id: string | null;
+      plan_data: unknown;
+      metadata: Record<string, unknown> | null;
+      academic_offering_periods?: { starts_on?: string | null } | Array<{ starts_on?: string | null }> | null;
+    } | null;
     if (!plan) continue;
     if (!plan.class_id) missingClass = true;
 
-    const period = Array.isArray((plan as any).academic_offering_periods)
-      ? (plan as any).academic_offering_periods[0]
-      : (plan as any).academic_offering_periods;
+    const period = Array.isArray(plan.academic_offering_periods)
+      ? plan.academic_offering_periods[0]
+      : plan.academic_offering_periods;
     const week = firstPlanWeekNumber(plan.plan_data, period?.starts_on ?? null);
     const ags = parseAutoGenerateSettings(
-      (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings,
+      plan.metadata?.auto_generate_settings,
     );
 
     // Fast launch: one class meeting only (Week N · Class 1). The rest of the
@@ -230,9 +262,13 @@ export async function launchSpecialProgramTeaching(input: {
     offeringId,
     bridge,
     weeksStarted,
-    warning: missingClass
-      ? 'Plans were prepared, but this programme has no cohort class yet. Create a class on the offering so teachers get Approvals and workspace access.'
-      : undefined,
+    warning:
+      cohortWarning ??
+      (missingClass
+        ? 'Plans were prepared, but some of them are not attached to the cohort class yet. Open the class workspace to link them.'
+        : cohort.created
+          ? `Cohort class "${cohort.cohort?.name}" was created automatically for teachers.`
+          : undefined),
   };
 
   await writeTeachingLaunchStatus(db, offeringId, {

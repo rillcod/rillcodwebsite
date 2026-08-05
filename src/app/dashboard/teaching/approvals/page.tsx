@@ -8,6 +8,9 @@
  * assignment sat inactive, and the only way to release them was to open each
  * one and publish it by hand. This is the one screen that says what is waiting
  * and lets a teacher release a whole week after reading it.
+ *
+ * Special programmes with multiple class meetings per week release one meeting
+ * at a time (Week N · Class M) so Class 2 homework never goes live with Class 1.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,24 +27,18 @@ import {
   ArrowPathIcon,
   SparklesIcon,
 } from "@/lib/icons";
+import {
+  pendingWeekKey,
+  type PendingApprovalItem,
+  type PendingWeek,
+} from "@/lib/academic/pending-approval";
 
-type PendingItem = {
-  kind: "lesson" | "slides" | "assignment" | "project" | "flashcards";
-  id: string;
-  title: string;
-};
-
-type PendingWeek = {
-  planId: string;
-  className: string | null;
-  courseTitle: string | null;
-  week: number;
-  topic: string;
-  items: PendingItem[];
-};
+function pendingKey(row: { planId: string; week: number; session?: number | null }) {
+  return pendingWeekKey(row);
+}
 
 const ITEM_META: Record<
-  PendingItem["kind"],
+  PendingApprovalItem["kind"],
   { label: string; icon: React.ElementType; cls: string; href: (id: string) => string | null }
 > = {
   lesson: {
@@ -106,13 +103,17 @@ export default function ContentApprovalsPage() {
   }, [authLoading, profile, load]);
 
   async function release(row: PendingWeek) {
-    const key = `${row.planId}:${row.week}`;
+    const key = pendingKey(row);
     setReleasing(key);
     try {
       const res = await fetch("/api/teaching/pending-approval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: row.planId, week: row.week }),
+        body: JSON.stringify({
+          planId: row.planId,
+          week: row.week,
+          ...(row.session != null && row.session > 0 ? { session: row.session } : {}),
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not release this week");
@@ -121,10 +122,12 @@ export default function ContentApprovalsPage() {
         (result?.lessons_released ?? 0) +
         (result?.assignments_released ?? 0) +
         (result?.flashcards_released ?? 0);
-      toast.success(`Week ${row.week} released — ${n} item${n === 1 ? "" : "s"} now live`);
-      setWeeks((prev) =>
-        prev.filter((w) => !(w.planId === row.planId && w.week === row.week))
-      );
+      const meeting =
+        row.session != null && row.session > 0
+          ? `Week ${row.week} · Class ${row.session}`
+          : `Week ${row.week}`;
+      toast.success(`${meeting} released — ${n} item${n === 1 ? "" : "s"} now live`);
+      setWeeks((prev) => prev.filter((w) => pendingKey(w) !== key));
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -137,12 +140,16 @@ export default function ContentApprovalsPage() {
     setBulkBusy(true);
     try {
       const selectedSet = new Set(selected);
-      const picks = weeks.filter((w) => selectedSet.has(`${w.planId}:${w.week}`));
+      const picks = weeks.filter((w) => selectedSet.has(pendingKey(w)));
       const res = await fetch("/api/teaching/pending-approval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          releases: picks.map((w) => ({ planId: w.planId, week: w.week })),
+          releases: picks.map((w) => ({
+            planId: w.planId,
+            week: w.week,
+            ...(w.session != null && w.session > 0 ? { session: w.session } : {}),
+          })),
         }),
       });
       const json = await res.json();
@@ -152,6 +159,7 @@ export default function ContentApprovalsPage() {
       const rows = (json.data?.results ?? []) as Array<{
         planId: string;
         week: number;
+        session?: number | null;
         lessons_released: number;
         assignments_released: number;
         error?: string;
@@ -159,14 +167,14 @@ export default function ContentApprovalsPage() {
       const ok = rows.filter((r) => !r.error);
       const failed = rows.filter((r) => r.error);
       if (ok.length) {
-        const okSet = new Set(ok.map((r) => `${r.planId}:${r.week}`));
-        setWeeks((prev) => prev.filter((w) => !okSet.has(`${w.planId}:${w.week}`)));
+        const okSet = new Set(ok.map((r) => pendingKey(r)));
+        setWeeks((prev) => prev.filter((w) => !okSet.has(pendingKey(w))));
       }
       setSelected([]);
-      if (ok.length) toast.success(`Released ${ok.length} week${ok.length === 1 ? "" : "s"}`);
+      if (ok.length) toast.success(`Released ${ok.length} meeting${ok.length === 1 ? "" : "s"}`);
       if (failed.length) {
         toast.error(
-          `${failed.length} week${failed.length === 1 ? "" : "s"} failed to release`
+          `${failed.length} meeting${failed.length === 1 ? "" : "s"} failed to release`
         );
       }
     } catch (e: any) {
@@ -211,8 +219,9 @@ export default function ContentApprovalsPage() {
             This week&apos;s drafts
           </h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-            We prepare materials overnight and hold them here. Read a week, then
-            release it — students see nothing until you do.
+            We prepare materials overnight and hold them here. Read a class meeting,
+            then release it — students see nothing until you do. When a week has more
+            than one class, each meeting releases on its own.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +272,7 @@ export default function ContentApprovalsPage() {
       ) : (
         <div className="space-y-3">
           {weeks.map((row) => {
-            const key = `${row.planId}:${row.week}`;
+            const key = pendingKey(row);
             const busy = releasing === key;
             return (
               <div
@@ -283,12 +292,15 @@ export default function ContentApprovalsPage() {
                         )
                       }
                       className="mt-1 h-4 w-4 rounded border-border"
-                      aria-label={`Select week ${row.week}`}
+                      aria-label={`Select week ${row.week}${row.session ? ` class ${row.session}` : ""}`}
                     />
                     <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
                         Week {row.week}
+                        {row.session != null && row.session > 0
+                          ? ` · Class ${row.session}`
+                          : ""}
                       </span>
                       {row.className && (
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -320,7 +332,10 @@ export default function ContentApprovalsPage() {
                     ) : (
                       <>
                         <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Release week
+                        Release
+                        {row.session != null && row.session > 0
+                          ? " class"
+                          : " week"}
                       </>
                     )}
                   </button>

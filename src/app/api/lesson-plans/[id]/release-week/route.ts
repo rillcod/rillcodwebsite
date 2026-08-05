@@ -28,10 +28,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { week_number, year_number, term_number } = await req.json().catch(() => ({}));
+  const { week_number, year_number, term_number, session } = await req.json().catch(() => ({}));
   const weekNumber = Number(week_number);
   const yearNumber = Number(year_number ?? 0);
   const termNumber = Number(term_number ?? 0);
+  const sessionRaw = Number(session);
+  const sessionNumber =
+    Number.isFinite(sessionRaw) && sessionRaw > 0
+      ? Math.floor(sessionRaw)
+      : null;
   if (!Number.isFinite(weekNumber) || weekNumber <= 0) {
     return NextResponse.json({ error: 'week_number must be a positive number', field: 'week_number' }, { status: 400 });
   }
@@ -49,7 +54,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  const result = await releasePreparedWeek({ planId: id, week: weekNumber });
+  const result = await releasePreparedWeek({
+    planId: id,
+    week: weekNumber,
+    session: sessionNumber,
+  });
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 500 });
   }
@@ -59,7 +68,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     lessonsReleased: result.lessons_released,
     assignmentsReleased: result.assignments_released,
     flashcardsReleased: result.flashcards_released,
+    lessons_released: result.lessons_released,
+    assignments_released: result.assignments_released,
+    flashcards_released: result.flashcards_released,
     week_number: weekNumber,
+    session: result.session,
     year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
     term_number: Number.isFinite(termNumber) && termNumber > 0 ? termNumber : null,
   });

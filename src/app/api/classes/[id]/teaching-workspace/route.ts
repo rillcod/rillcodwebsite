@@ -645,12 +645,18 @@ export async function POST(
         { status: 400 }
       );
     }
+    const sessionRaw = Number(body.session ?? body.session_number);
+    const session =
+      Number.isFinite(sessionRaw) && sessionRaw > 0
+        ? Math.floor(sessionRaw)
+        : null;
     const { releasePreparedWeek } = await import(
       "@/lib/academic/release-week-content"
     );
     const result = await releasePreparedWeek({
       planId: String(body.lesson_plan_id),
       week,
+      session,
     });
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });

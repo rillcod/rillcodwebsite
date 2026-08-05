@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import {
   getSpecialProgramById,
@@ -7,11 +7,25 @@ import {
 } from '@/lib/special-programs/queries';
 import { mapSpecialProgramRow, slugifySpecialProgram } from '@/lib/special-programs/types';
 import { shouldLaunchTeachingOnPublish } from '@/lib/special-programs/bridge-offering';
-import { launchSpecialProgramTeaching } from '@/lib/special-programs/launch-teaching';
+import {
+  formatSpecialPrepBlock,
+  launchContextFromRequest,
+  prepareTeaching,
+  queuePrepareTeaching,
+  specialPrepBlockers,
+} from '@/lib/academic/prepare-teaching';
 import {
   readTeachingLaunchStatus,
   summariseLaunchResult,
 } from '@/lib/special-programs/teaching-launch-status';
+import { buildTeachingReadiness } from '@/lib/special-programs/teaching-readiness';
+import {
+  ensureCohortClass,
+  loadLinkableSchoolClasses,
+  loadOfferingClasses,
+  pickPrimaryCohort,
+  syncOfferingLinks,
+} from '@/lib/special-programs/ensure-cohort-class';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -27,68 +41,6 @@ async function requireAdmin() {
     .single();
   if (!caller || caller.role !== 'admin') return null;
   return caller;
-}
-
-function launchContext(request: NextRequest) {
-  const baseUrl = (
-    request.nextUrl?.origin ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
-  ).replace(/\/$/, '');
-  const cookie = request.headers.get('cookie') ?? undefined;
-  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || undefined;
-  return { baseUrl, cookie, cronSecret };
-}
-
-function queueTeachingLaunch(input: {
-  pageId: string;
-  createdBy: string;
-  request: NextRequest;
-  forceRebuild?: boolean;
-}) {
-  const ctx = launchContext(input.request);
-  after(async () => {
-    try {
-      const result = await launchSpecialProgramTeaching({
-        pageId: input.pageId,
-        createdBy: input.createdBy,
-        ...ctx,
-        forceRebuild: input.forceRebuild === true,
-        notifyAdminId: input.createdBy,
-      });
-      if (result.error) {
-        console.error('[special-program launch]', input.pageId, result.error, result.detail);
-      } else {
-        console.info(
-          '[special-program launch]',
-          input.pageId,
-          `bridge built=${result.bridge?.built} skipped=${result.bridge?.skipped} weeks=${result.weeksStarted.length}`,
-        );
-      }
-    } catch (err) {
-      console.error('[special-program launch] failed', input.pageId, err);
-    }
-  });
-}
-
-async function applySchoolToOffering(
-  sb: ReturnType<typeof specialProgramsAdminClient>,
-  pageId: string,
-  schoolId: string | null,
-) {
-  const { data: page } = await sb
-    .from('special_program_pages')
-    .select('academic_offering_id')
-    .eq('id', pageId)
-    .maybeSingle();
-  if (!page?.academic_offering_id) return;
-  await sb
-    .from('academic_offerings')
-    .update({
-      school_id: schoolId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', page.academic_offering_id);
 }
 
 async function enrichPageForAdmin(page: ReturnType<typeof mapSpecialProgramRow> | null) {
@@ -110,11 +62,31 @@ async function enrichPageForAdmin(page: ReturnType<typeof mapSpecialProgramRow> 
     schoolId = offering?.school_id ? String(offering.school_id) : null;
   }
   const teaching_launch = await readTeachingLaunchStatus(sb, offeringId);
+  const offering_classes = offeringId ? await loadOfferingClasses(sb, offeringId) : [];
+  const cohort_class = pickPrimaryCohort(offering_classes);
+  const linkable_classes =
+    schoolId && offeringId ? await loadLinkableSchoolClasses(sb, schoolId, offeringId) : [];
+  const readiness = buildTeachingReadiness({
+    programId: page.program_id,
+    schoolId,
+    isPublished: page.is_published,
+    startsOn: page.starts_on,
+    cohortClass: cohort_class,
+  });
   return {
     ...page,
     academic_offering_id: offeringId,
     school_id: schoolId,
     teaching_launch,
+    cohort_class,
+    offering_classes,
+    linkable_classes,
+    teaching_readiness: {
+      ready: readiness.ready,
+      can_prepare: readiness.can_prepare,
+      missing: readiness.missing,
+      steps: readiness.steps,
+    },
   };
 }
 
@@ -146,6 +118,29 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     const body = await request.json();
     const sb = specialProgramsAdminClient();
 
+    if (body.ensure_cohort_class === true || body.link_cohort_class_id) {
+      const result = await ensureCohortClass(sb, {
+        pageId: id,
+        actorId: admin.id,
+        linkClassId:
+          typeof body.link_cohort_class_id === 'string' && body.link_cohort_class_id
+            ? body.link_cohort_class_id
+            : null,
+      });
+      const page = await enrichPageForAdmin(await getSpecialProgramById(id));
+      if (result.error && !result.cohort) {
+        return NextResponse.json(
+          { data: page, error: result.error, cohort_action: 'error' },
+          { status: 422 },
+        );
+      }
+      return NextResponse.json({
+        data: page,
+        cohort_action: result.created ? 'created' : 'linked',
+        cohort_warning: result.error,
+      });
+    }
+
     if (body.set_featured === true) {
       const { data: beforeFeature } = await sb
         .from('special_program_pages')
@@ -167,7 +162,22 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
               'Link a programme before publishing, so teaching materials know which courses to use.',
           });
         }
-        queueTeachingLaunch({ pageId: id, createdBy: admin.id, request });
+        if (page?.teaching_readiness && !page.teaching_readiness.can_prepare) {
+          return NextResponse.json({
+            data: page,
+            teaching_launch: 'blocked',
+            teaching_error: `Featured, but teaching was not started — finish: ${
+              specialPrepBlockers(page.teaching_readiness).join(', ') ||
+              page.teaching_readiness.missing.join(', ')
+            }.`,
+          });
+        }
+        queuePrepareTeaching({
+          pathway: 'special',
+          pageId: id,
+          actorId: admin.id,
+          request,
+        });
       }
       return NextResponse.json({
         data: page,
@@ -222,8 +232,24 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    if (body.school_id !== undefined) {
-      await applySchoolToOffering(sb, id, body.school_id || null);
+    {
+      const { data: pageRow } = await sb
+        .from('special_program_pages')
+        .select('academic_offering_id')
+        .eq('id', id)
+        .maybeSingle();
+      await syncOfferingLinks(sb, {
+        pageId: id,
+        offeringId: pageRow?.academic_offering_id ? String(pageRow.academic_offering_id) : null,
+        schoolId:
+          body.school_id !== undefined
+            ? body.school_id || null
+            : undefined,
+        programmeId:
+          body.program_id !== undefined
+            ? body.program_id || null
+            : data.program_id || null,
+      });
     }
 
     const mapped = mapSpecialProgramRow(data);
@@ -233,11 +259,13 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     });
     const manualLaunch = body.launch_teaching === true && Boolean(data.is_published);
     const programId = data.program_id || before?.program_id;
+    const enrichedBeforeLaunch = await enrichPageForAdmin(mapped);
+    const readiness = enrichedBeforeLaunch?.teaching_readiness;
 
     if ((willPublishLaunch || manualLaunch) && !programId) {
       return NextResponse.json(
         {
-          data: await enrichPageForAdmin(mapped),
+          data: enrichedBeforeLaunch,
           teaching_launch: 'blocked',
           error:
             'Link a programme before preparing teaching. Choose it under Basics, save, then try again.',
@@ -246,22 +274,39 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       );
     }
 
+    if (manualLaunch && readiness && !readiness.can_prepare) {
+      const detail = formatSpecialPrepBlock(readiness);
+      return NextResponse.json(
+        {
+          data: enrichedBeforeLaunch,
+          teaching_launch: 'blocked',
+          teaching_error: detail,
+          error: detail,
+        },
+        { status: 422 },
+      );
+    }
+
     // Manual Prepare teaching waits for the result so the admin sees success or failure.
     if (manualLaunch) {
-      const result = await launchSpecialProgramTeaching({
+      const result = await prepareTeaching({
+        pathway: 'special',
         pageId: id,
-        createdBy: admin.id,
-        ...launchContext(request),
+        actorId: admin.id,
+        ...launchContextFromRequest(request),
         forceRebuild: body.force_rebuild === true,
         notifyAdminId: admin.id,
       });
       const enriched = await enrichPageForAdmin(mapped);
-      if (result.error) {
+      if (result.pathway !== 'special' || result.error) {
         return NextResponse.json(
           {
             data: enriched,
             teaching_launch: 'error',
-            teaching_error: summariseLaunchResult(result),
+            teaching_error:
+              result.pathway === 'special'
+                ? summariseLaunchResult(result)
+                : result.error || 'Preparation failed',
             teaching_result: result,
           },
           { status: 422 },
@@ -277,9 +322,17 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     }
 
     if (willPublishLaunch) {
-      queueTeachingLaunch({
+      if (readiness && !readiness.can_prepare) {
+        return NextResponse.json({
+          data: enrichedBeforeLaunch,
+          teaching_launch: 'blocked',
+          teaching_error: formatSpecialPrepBlock(readiness, { published: true }),
+        });
+      }
+      queuePrepareTeaching({
+        pathway: 'special',
         pageId: id,
-        createdBy: admin.id,
+        actorId: admin.id,
         request,
         forceRebuild: body.force_rebuild === true,
       });

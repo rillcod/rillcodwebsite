@@ -1493,12 +1493,17 @@ export default function LessonPlanDetailPage() {
           week_number: progressionWeek,
           year_number: progressionYear,
           term_number: progressionTerm,
+          ...(Number(progressionSession) > 0
+            ? { session: Number(progressionSession) }
+            : {}),
         }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || "Failed to release week");
       toast.success(
-        `Released week ${progressionWeek} lessons and assignments.`
+        Number(progressionSession) > 0
+          ? `Released Week ${progressionWeek} · Class ${progressionSession}.`
+          : `Released week ${progressionWeek} lessons and assignments.`,
       );
       load();
     } catch (err: unknown) {

@@ -11,6 +11,10 @@
  * Everything here is pure so the plan page can import it without dragging the
  * generation stack (Gemini, OpenRouter, R2) into the browser bundle.
  */
+import {
+  planMeetingLookupKey,
+  planRowMeetingSession,
+} from "@/lib/academic/session-identity";
 
 /**
  * Listed in dependency order, and run in it.
@@ -159,7 +163,7 @@ export type PlanMeeting = {
 };
 
 export function planMeetingKey(meeting: PlanMeeting): string {
-  return `${meeting.week}:s${meeting.session}`;
+  return planMeetingLookupKey(meeting.week, meeting.session);
 }
 
 /** Flatten plan rows into ordered class meetings. Untagged rows = Class 1. */
@@ -170,9 +174,7 @@ export function listPlanMeetings(
   for (const row of planWeeks) {
     const week = Number(row.week ?? row.week_number ?? 0);
     if (!Number.isFinite(week) || week < 1) continue;
-    const raw = Number(row.session ?? row.session_number ?? 0);
-    const session =
-      Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1;
+    const session = planRowMeetingSession(row) || 1;
     out.push({ week: Math.floor(week), session });
   }
   out.sort((a, b) => a.week - b.week || a.session - b.session);

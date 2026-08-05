@@ -39,6 +39,9 @@ import {
 
 interface Week {
   week: number;
+  /** Class meeting within the week — set for programmes that meet more than once. */
+  session?: number | null;
+  session_number?: number | null;
   topic: string;
   objectives?: string;
   activities?: string;

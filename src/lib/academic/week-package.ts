@@ -5,6 +5,10 @@
  * counted as "Ready", so the class looked finished while students saw nothing.
  * Visibility (held vs live) is now first-class next to presence.
  */
+import {
+  assetMeetingSession,
+  meetingLookupKey,
+} from "@/lib/academic/session-identity";
 
 export const WEEK_PACKAGE_ASSETS = [
   "lesson",
@@ -19,6 +23,7 @@ export type WeekPackageAsset = (typeof WEEK_PACKAGE_ASSETS)[number];
 export type WeekLinkedAsset = {
   curriculum_week_number?: unknown;
   metadata?: Record<string, unknown> | null;
+  title?: string | null;
 };
 
 export type AssetVisibility = "missing" | "held" | "live";
@@ -66,13 +71,8 @@ export function indexFirstByWeekSession<T extends WeekLinkedAsset>(
   for (const row of rows ?? []) {
     const week = academicWeekNumber(row);
     if (week === null) continue;
-    const session = Number(
-      row.metadata?.session ?? row.metadata?.session_number ?? 0,
-    );
-    const key =
-      Number.isFinite(session) && session > 0
-        ? `${week}:s${Math.floor(session)}`
-        : `${week}`;
+    const session = assetMeetingSession(row);
+    const key = meetingLookupKey(week, session > 0 ? session : null);
     if (!index.has(key)) index.set(key, row);
   }
   return index;
@@ -82,8 +82,7 @@ export function weekSessionLookupKey(
   week: number,
   session?: number | null,
 ): string {
-  const s = Number(session);
-  return Number.isFinite(s) && s > 0 ? `${week}:s${Math.floor(s)}` : `${week}`;
+  return meetingLookupKey(week, session);
 }
 
 export type WeekPackagePresence = Record<WeekPackageAsset, boolean>;

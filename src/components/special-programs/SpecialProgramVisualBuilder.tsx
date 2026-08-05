@@ -35,6 +35,7 @@ import {
   formatModuleWeekLabel,
   parseTrackWeekRange,
 } from '@/lib/academic/programme-bridge';
+import { buildTeachingReadiness, type CohortClassSummary } from '@/lib/special-programs/teaching-readiness';
 
 const fieldCls =
   'mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm font-semibold normal-case tracking-normal text-foreground';
@@ -224,6 +225,14 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
   const [teachingStatus, setTeachingStatus] = useState<SpecialProgramPage['teaching_launch']>(
     editing?.teaching_launch ?? null,
   );
+  const [cohortClass, setCohortClass] = useState<CohortClassSummary | null>(
+    editing?.cohort_class ?? null,
+  );
+  const [linkableClasses, setLinkableClasses] = useState<CohortClassSummary[]>(
+    editing?.linkable_classes ?? [],
+  );
+  const [linkClassId, setLinkClassId] = useState('');
+  const [cohortBusy, setCohortBusy] = useState(false);
   const [aiBrief, setAiBrief] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiMode, setAiMode] = useState<AiApplyMode>(editing ? 'fill_empty' : 'replace');
@@ -281,7 +290,39 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
 
   useEffect(() => {
     setTeachingStatus(editing?.teaching_launch ?? null);
-  }, [editing?.id, editing?.teaching_launch]);
+    setCohortClass(editing?.cohort_class ?? null);
+    setLinkableClasses(editing?.linkable_classes ?? []);
+  }, [
+    editing?.id,
+    editing?.teaching_launch,
+    editing?.cohort_class,
+    editing?.linkable_classes,
+  ]);
+
+  const applyEnrichedPage = (data: SpecialProgramPage | null | undefined) => {
+    if (!data) return;
+    if (data.school_id) {
+      setForm((f) => ({ ...f, school_id: data.school_id || f.school_id }));
+    }
+    if (data.program_id) {
+      setForm((f) => ({ ...f, program_id: data.program_id || f.program_id }));
+    }
+    if (data.teaching_launch) setTeachingStatus(data.teaching_launch);
+    setCohortClass(data.cohort_class ?? null);
+    setLinkableClasses(data.linkable_classes ?? []);
+  };
+
+  const liveReadiness = useMemo(
+    () =>
+      buildTeachingReadiness({
+        programId: form.program_id || null,
+        schoolId: form.school_id || null,
+        isPublished: form.is_published,
+        startsOn: form.starts_on || null,
+        cohortClass,
+      }),
+    [form.program_id, form.school_id, form.is_published, form.starts_on, cohortClass],
+  );
 
   const patchContent = (patch: Partial<SpecialProgramContent>) => {
     setForm((f) => ({ ...f, content: { ...f.content, ...patch } }));
@@ -389,10 +430,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || j.teaching_error || 'Save failed');
-      if (j.data?.school_id) {
-        setForm((f) => ({ ...f, school_id: j.data.school_id || f.school_id }));
-      }
-      if (j.data?.teaching_launch) setTeachingStatus(j.data.teaching_launch);
+      applyEnrichedPage(j.data);
       if (j.teaching_launch === 'queued') {
         toast.success(
           'Published — preparing teaching in the background. You will get a notification when it finishes (or if it fails).',
@@ -407,6 +445,59 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       toast.error(e.message || 'Save failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const ensureCohort = async (opts?: { linkClassId?: string }) => {
+    if (!editing?.id) {
+      toast.error('Save the page first');
+      return;
+    }
+    if (!form.program_id || !form.school_id) {
+      toast.error('Choose programme and school under Basics, save, then create the cohort class');
+      setSelection('basics');
+      return;
+    }
+    setCohortBusy(true);
+    try {
+      // Persist programme/school first so the offering is linked.
+      const saveRes = await fetch(`/api/special-programs/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: form.program_id || null,
+          school_id: form.school_id || null,
+          starts_on: form.starts_on || null,
+          ends_on: form.ends_on || null,
+        }),
+      });
+      const saveJson = await saveRes.json();
+      if (!saveRes.ok) throw new Error(saveJson.error || 'Could not save programme/school');
+      applyEnrichedPage(saveJson.data);
+
+      const res = await fetch(`/api/special-programs/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ensure_cohort_class: true,
+          ...(opts?.linkClassId ? { link_cohort_class_id: opts.linkClassId } : {}),
+        }),
+      });
+      const j = await res.json();
+      applyEnrichedPage(j.data);
+      if (!res.ok) throw new Error(j.error || 'Could not set up cohort class');
+      if (j.cohort_warning) toast.message(j.cohort_warning);
+      toast.success(
+        j.cohort_action === 'created'
+          ? 'Cohort class created and linked to this programme'
+          : 'Cohort class linked to this programme',
+      );
+      setLinkClassId('');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || 'Could not set up cohort class');
+    } finally {
+      setCohortBusy(false);
     }
   };
 
@@ -443,7 +534,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
         }),
       });
       const j = await res.json();
-      if (j.data?.teaching_launch) setTeachingStatus(j.data.teaching_launch);
+      applyEnrichedPage(j.data);
       if (!res.ok) {
         throw new Error(j.teaching_error || j.error || 'Could not prepare teaching');
       }
@@ -454,6 +545,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
             ? 'Started fresh. Week 1 · Class 1 is ready for review; the rest keeps preparing automatically.'
             : 'Week 1 · Class 1 prepared for review. Class 2 and later weeks continue automatically.'),
       );
+      onSaved();
     } catch (e: any) {
       toast.error(e.message || 'Could not prepare teaching');
     } finally {
@@ -920,6 +1012,107 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                     Featured (homepage)
                   </label>
                 </div>
+
+                <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Teaching readiness
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                      Close every step so prepare teaching, Approvals, and the classroom workspace stay connected.
+                    </p>
+                  </div>
+                  <ul className="space-y-2">
+                    {liveReadiness.steps.map((step) => (
+                      <li key={step.id} className="flex gap-2 text-[11px] leading-snug">
+                        <span
+                          className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-black ${
+                            step.ok
+                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-amber-500/15 text-amber-800 dark:text-amber-200'
+                          }`}
+                          aria-hidden
+                        >
+                          {step.ok ? '✓' : '!'}
+                        </span>
+                        <span>
+                          <span className="font-bold text-foreground">{step.label}</span>
+                          <span className="block text-muted-foreground">{step.detail}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {editing?.id && form.program_id && form.school_id ? (
+                    <div className="space-y-2 border-t border-border/60 pt-3">
+                      {cohortClass?.status === 'active' ? (
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={`/dashboard/classes/${cohortClass.id}`}
+                            className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted"
+                          >
+                            Open classroom
+                          </a>
+                          <a
+                            href="/dashboard/teaching/approvals"
+                            className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted"
+                          >
+                            Teaching Approvals
+                          </a>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={saving || cohortBusy}
+                            onClick={() => void ensureCohort()}
+                            className="w-full rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:opacity-50"
+                          >
+                            {cohortBusy ? 'Setting up…' : 'Create cohort class'}
+                          </button>
+                          {linkableClasses.length > 0 ? (
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Or link an existing class
+                              </p>
+                              <select
+                                value={linkClassId}
+                                onChange={(e) => setLinkClassId(e.target.value)}
+                                className={fieldCls}
+                              >
+                                <option value="">Select class…</option>
+                                {linkableClasses.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name}
+                                    {c.teacher_name ? ` · ${c.teacher_name}` : ''}
+                                    {c.status !== 'active' ? ` (${c.status})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                disabled={!linkClassId || saving || cohortBusy}
+                                onClick={() => void ensureCohort({ linkClassId })}
+                                className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted disabled:opacity-50"
+                              >
+                                Link selected class
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : editing?.id ? (
+                    <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                      Choose programme and school above, then save, to unlock the cohort class step.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Save this page first, then set up the cohort class and prepare teaching here.
+                    </p>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Prepare teaching makes the full plan from this page, then prepares only the first class meeting (Week 1 · Class 1) so AI stays sharp. Class 2 and later weeks keep preparing automatically overnight, or a teacher can prepare the next meeting from the class workspace. Everything waits under Teaching Approvals first.
                 </p>
@@ -948,15 +1141,22 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={saving}
+                      disabled={saving || !liveReadiness.can_prepare}
                       onClick={() => void launchTeaching()}
                       className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted disabled:opacity-50"
+                      title={
+                        !liveReadiness.can_prepare
+                          ? `Still needed: ${liveReadiness.missing
+                              .filter((m) => m !== 'Start date set')
+                              .join(', ') || liveReadiness.missing.join(', ')}`
+                          : undefined
+                      }
                     >
                       Prepare teaching
                     </button>
                     <button
                       type="button"
-                      disabled={saving}
+                      disabled={saving || !liveReadiness.can_prepare}
                       onClick={() => {
                         if (
                           !confirm(
@@ -972,6 +1172,12 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       Start fresh from page
                     </button>
                   </div>
+                ) : null}
+                {editing?.id && form.is_published && (!cohortClass || cohortClass.status !== 'active') ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    No cohort class yet — preparing teaching will create one and assign a teacher.
+                    Create it above first if you want to choose the teacher yourself.
+                  </p>
                 ) : null}
               </>
             )}

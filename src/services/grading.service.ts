@@ -5,7 +5,13 @@ import { questionService } from './question.service';
 import { notificationsService } from './notifications.service';
 import { templatesService } from './templates.service';
 import { queueService } from './queue.service';
+import { isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
 
+/**
+ * Legacy exams / exam_attempts grading.
+ * Objective matching uses the same answer rules as CBT so school and special
+ * evaluations do not diverge. Prefer CBT for new evaluations.
+ */
 export class GradingService {
     async submitExam(attemptId: string, userId: string, finalAnswers: any) {
         const supabase = await createClient();
@@ -41,15 +47,22 @@ export class GradingService {
             const userAnswer = finalAnswers[q.id];
             let questionScore = 0;
 
-            if (['essay', 'short_answer'].includes(q.question_type || '')) {
+            if (isManualCbtQuestion(q.question_type) || ['short_answer'].includes(q.question_type || '')) {
                 needsManualGrading = true;
-                // Partial credit or placeholder if we have it, otherwise wait for teacher
-            } else {
-                // Simple string/json matching for objective
-                if (JSON.stringify(userAnswer) === JSON.stringify(q.correct_answer)) {
-                    questionScore = qPoints;
-                    score += qPoints;
-                }
+            } else if (
+                isCbtAnswerCorrect(
+                    {
+                        id: String(q.id),
+                        question_type: q.question_type,
+                        options: (q as { options?: unknown }).options,
+                        correct_answer: q.correct_answer as string | null,
+                        points: qPoints,
+                    },
+                    userAnswer,
+                )
+            ) {
+                questionScore = qPoints;
+                score += qPoints;
             }
 
             return {

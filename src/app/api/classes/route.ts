@@ -1,4 +1,4 @@
-import { after, NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -15,10 +15,10 @@ function adminClient() {
   );
 }
 
-import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
+import { queuePrepareTeaching } from '@/lib/academic/prepare-teaching';
 
 function prepareAcademicClass(classId: string) {
-  after(() => runClassAcademicReadiness(classId));
+  queuePrepareTeaching({ pathway: 'school', classId });
 }
 
 type Caller = { role: string; id: string; school_id: string | null };

@@ -93,6 +93,16 @@ export async function POST(
     );
     const assignmentTermId = await resolveAssignmentTermId(supabase as any, {
       classId: (plan as { class_id?: string | null }).class_id ?? null,
+      period: {
+        class_id: (plan as { class_id?: string | null }).class_id ?? null,
+        school_id: planSchoolId,
+        academic_offering_id:
+          (plan as { academic_offering_id?: string | null })
+            .academic_offering_id ?? null,
+        offering_period_id:
+          (plan as { offering_period_id?: string | null }).offering_period_id ??
+          null,
+      },
     });
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));

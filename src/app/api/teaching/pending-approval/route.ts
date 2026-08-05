@@ -17,23 +17,15 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffUser } from "@/app/api/lesson-plans/authz";
 import { releasePreparedWeek } from "@/lib/academic/release-week-content";
+import { assetMeetingSession, normalizeMeetingSession } from "@/lib/academic/session-identity";
+import {
+  pendingWeekKey,
+  type PendingWeek,
+} from "@/lib/academic/pending-approval";
 
 export const dynamic = "force-dynamic";
 
-type PendingItem = {
-  kind: "lesson" | "slides" | "assignment" | "project" | "flashcards";
-  id: string;
-  title: string;
-};
-
-export type PendingWeek = {
-  planId: string;
-  className: string | null;
-  courseTitle: string | null;
-  week: number;
-  topic: string;
-  items: PendingItem[];
-};
+export type { PendingWeek } from "@/lib/academic/pending-approval";
 
 /** Plans this staff member may approve — class teacher or creator, or admin. */
 async function visiblePlans(
@@ -88,28 +80,26 @@ export async function GET() {
   const planById = new Map(plans.map((p: any) => [p.id, p]));
 
   const bucket = (planId: string, week: number, session?: number | null): PendingWeek => {
-    const sessionPart =
-      session != null && Number.isFinite(session) && session > 0
-        ? `:s${Math.floor(session)}`
-        : "";
-    const key = `${planId}:${week}${sessionPart}`;
+    const sessionNum = normalizeMeetingSession(session);
+    const key = pendingWeekKey({ planId, week, session: sessionNum });
     let row = byWeek.get(key);
     if (!row) {
       const plan: any = planById.get(planId);
       const weeks: any[] = Array.isArray(plan?.plan_data?.weeks) ? plan.plan_data.weeks : [];
       const meta = weeks.find((w) => {
         if (Number(w.week) !== week) return false;
-        if (session == null || session < 1) return true;
-        return Number(w.session ?? w.session_number ?? 0) === session;
+        if (sessionNum == null) return true;
+        return Number(w.session ?? w.session_number ?? 0) === sessionNum;
       }) ?? weeks.find((w) => Number(w.week) === week);
       const klass = Array.isArray(plan?.classes) ? plan.classes[0] : plan?.classes;
       const sessionLabel =
-        session != null && session > 0 ? ` · Class ${Math.floor(session)}` : "";
+        sessionNum != null ? ` · Class ${sessionNum}` : "";
       row = {
         planId,
         className: klass?.name ?? null,
         courseTitle: plan?.courses?.title ?? null,
         week,
+        session: sessionNum,
         topic: meta?.topic
           ? String(meta.topic)
           : `Week ${week}${sessionLabel}`,
@@ -123,13 +113,11 @@ export async function GET() {
   for (const l of lessons ?? []) {
     const week = Number((l as any).curriculum_week_number);
     if (!Number.isFinite(week)) continue;
-    // Prefer one card per class meeting when lessons carry session metadata.
-    const meta = (l as any).metadata as Record<string, unknown> | null;
-    const session = Number(meta?.session ?? meta?.session_number ?? 0);
+    const session = assetMeetingSession(l as any);
     const row = bucket(
       (l as any).lesson_plan_id,
       week,
-      Number.isFinite(session) && session > 0 ? session : null,
+      session > 0 ? session : null,
     );
     row.items.push({ kind: "lesson", id: (l as any).id, title: (l as any).title });
     const deck = slidesByLesson.get((l as any).id);
@@ -138,12 +126,11 @@ export async function GET() {
   for (const a of assignments ?? []) {
     const week = Number((a as any).curriculum_week_number);
     if (!Number.isFinite(week)) continue;
-    const meta = (a as any).metadata as Record<string, unknown> | null;
-    const session = Number(meta?.session ?? meta?.session_number ?? 0);
+    const session = assetMeetingSession(a as any);
     const row = bucket(
       (a as any).lesson_plan_id,
       week,
-      Number.isFinite(session) && session > 0 ? session : null,
+      session > 0 ? session : null,
     );
     row.items.push({
       kind: (a as any).assignment_type === "project" ? "project" : "assignment",
@@ -154,15 +141,11 @@ export async function GET() {
   for (const d of decks ?? []) {
     const week = Number((d as any).curriculum_week_number);
     if (!Number.isFinite(week)) continue;
-    // Flashcards often lack session metadata — attach to matching lesson week card
-    // when possible via title "Week N · Session M", else whole week.
-    const title = String((d as any).title || "");
-    const sessionMatch = title.match(/Session\s+(\d+)/i);
-    const session = sessionMatch ? Number(sessionMatch[1]) : 0;
+    const session = assetMeetingSession(d as any);
     const row = bucket(
       (d as any).lesson_plan_id,
       week,
-      Number.isFinite(session) && session > 0 ? session : null,
+      session > 0 ? session : null,
     );
     row.items.push({
       kind: "flashcards",
@@ -175,6 +158,7 @@ export async function GET() {
     (a, b) =>
       (a.className ?? "").localeCompare(b.className ?? "") ||
       a.week - b.week ||
+      (a.session ?? 0) - (b.session ?? 0) ||
       a.topic.localeCompare(b.topic)
   );
   return NextResponse.json({ data });
@@ -191,14 +175,24 @@ export async function POST(req: NextRequest) {
   const batchInput: unknown[] | null = Array.isArray(body.releases)
     ? body.releases
     : null;
-  type ReleaseTarget = { planId: string; week: number };
+  const singleSessionRaw = Number(body.session);
+  const singleSession =
+    Number.isFinite(singleSessionRaw) && singleSessionRaw > 0
+      ? Math.floor(singleSessionRaw)
+      : null;
+  type ReleaseTarget = { planId: string; week: number; session: number | null };
   const targets: ReleaseTarget[] = batchInput?.length
     ? batchInput
         .map((row): ReleaseTarget => {
           const entry = (row ?? {}) as Record<string, unknown>;
+          const sessionRaw = Number(entry.session);
           return {
             planId: String(entry.planId ?? ""),
             week: Number(entry.week),
+            session:
+              Number.isFinite(sessionRaw) && sessionRaw > 0
+                ? Math.floor(sessionRaw)
+                : null,
           };
         })
         .filter(
@@ -206,7 +200,7 @@ export async function POST(req: NextRequest) {
             Boolean(row.planId) && Number.isFinite(row.week)
         )
     : singlePlanId && Number.isFinite(singleWeek)
-      ? [{ planId: singlePlanId, week: singleWeek }]
+      ? [{ planId: singlePlanId, week: singleWeek, session: singleSession }]
       : [];
   if (!targets.length) {
     return NextResponse.json(
@@ -226,6 +220,7 @@ export async function POST(req: NextRequest) {
       results.push({
         planId: target.planId,
         week: target.week,
+        session: target.session,
         lessons_released: 0,
         assignments_released: 0,
         flashcards_released: 0,
@@ -234,7 +229,14 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    results.push(await releasePreparedWeek({ planId: target.planId, week: target.week, now }));
+    results.push(
+      await releasePreparedWeek({
+        planId: target.planId,
+        week: target.week,
+        session: target.session,
+        now,
+      }),
+    );
   }
 
   const failures = results.filter((r) => r.error);

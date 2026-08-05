@@ -159,6 +159,42 @@ export type SpecialProgramPage = {
     failed?: number;
     weeks_started?: number;
   } | null;
+  /** Active (or best) cohort class on the linked offering. */
+  cohort_class?: {
+    id: string;
+    name: string;
+    status: string;
+    teacher_id: string | null;
+    teacher_name: string | null;
+  } | null;
+  /** Classes already on this offering. */
+  offering_classes?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    teacher_id: string | null;
+    teacher_name: string | null;
+  }>;
+  /** School classes that can be linked as the cohort. */
+  linkable_classes?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    teacher_id: string | null;
+    teacher_name: string | null;
+  }>;
+  /** Checklist for prepare-teaching / Approvals. */
+  teaching_readiness?: {
+    ready: boolean;
+    can_prepare: boolean;
+    missing: string[];
+    steps: Array<{
+      id: string;
+      label: string;
+      ok: boolean;
+      detail: string;
+    }>;
+  };
   slug: string;
   title: string;
   button_label: string;

@@ -12,6 +12,10 @@ import {
   normaliseGeneratedSlides,
   renderGeneratedSlideSvg,
 } from "@/lib/slides/generated-deck";
+import {
+  assetMeetingSession,
+  parseRequestSession,
+} from "@/lib/academic/session-identity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,8 +73,8 @@ function sessionMatches(
   session: number | null,
 ): boolean {
   if (session == null || session < 1) return true;
-  const got = Number(metadata?.session ?? metadata?.session_number ?? 0);
-  return Number.isFinite(got) && Math.floor(got) === session;
+  const got = assetMeetingSession({ metadata });
+  return got === session;
 }
 
 async function findWeekLesson(
@@ -177,11 +181,7 @@ export async function POST(
   const week = Number(body.week);
   /** Opt-in: replace an existing deck instead of reporting it already exists. */
   const regenerate = body.regenerate === true;
-  const onlySessionRaw = Number(body.session);
-  const onlySession =
-    Number.isInteger(onlySessionRaw) && onlySessionRaw > 0
-      ? onlySessionRaw
-      : null;
+  const onlySession = parseRequestSession(body);
   if (!Number.isInteger(week) || week < 1) {
     return NextResponse.json(
       { error: "Choose a valid teaching week" },

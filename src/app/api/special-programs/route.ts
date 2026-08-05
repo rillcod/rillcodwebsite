@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import {
   listSpecialProgramsAdmin,
@@ -6,7 +6,7 @@ import {
 } from '@/lib/special-programs/queries';
 import { slugifySpecialProgram } from '@/lib/special-programs/types';
 import { shouldLaunchTeachingOnPublish } from '@/lib/special-programs/bridge-offering';
-import { launchSpecialProgramTeaching } from '@/lib/special-programs/launch-teaching';
+import { queuePrepareTeaching } from '@/lib/academic/prepare-teaching';
 
 async function requireAdmin() {
   const supabase = await createServerClient();
@@ -19,38 +19,6 @@ async function requireAdmin() {
     .single();
   if (!caller || caller.role !== 'admin') return null;
   return caller;
-}
-
-function queueTeachingLaunch(input: {
-  pageId: string;
-  createdBy: string;
-  request: NextRequest;
-}) {
-  const baseUrl = (
-    input.request.nextUrl?.origin ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
-  ).replace(/\/$/, '');
-  const cookie = input.request.headers.get('cookie') ?? undefined;
-  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || undefined;
-
-  after(async () => {
-    try {
-      const result = await launchSpecialProgramTeaching({
-        pageId: input.pageId,
-        createdBy: input.createdBy,
-        baseUrl,
-        cookie,
-        cronSecret,
-        notifyAdminId: input.createdBy,
-      });
-      if (result.error) {
-        console.error('[special-program launch]', input.pageId, result.error, result.detail);
-      }
-    } catch (err) {
-      console.error('[special-program launch] failed', input.pageId, err);
-    }
-  });
 }
 
 /** GET /api/special-programs — admin: all; ?featured=1 public featured; ?slug= for published */
@@ -171,8 +139,24 @@ export async function POST(request: NextRequest) {
         { status: 201 },
       );
     }
+    if (launch && !body.school_id) {
+      return NextResponse.json(
+        {
+          data,
+          teaching_launch: 'blocked',
+          teaching_error:
+            'Page saved, but teaching was not started — link a school, then press Prepare teaching.',
+        },
+        { status: 201 },
+      );
+    }
     if (launch) {
-      queueTeachingLaunch({ pageId: data.id, createdBy: admin.id, request });
+      queuePrepareTeaching({
+        pathway: 'special',
+        pageId: data.id,
+        actorId: admin.id,
+        request,
+      });
     }
 
     return NextResponse.json(

@@ -4,6 +4,10 @@
  */
 
 import { liveAcademicSession } from '@/lib/reports/academic-period';
+import {
+  allowLiveTermFallback,
+  type TeachingPeriodContext,
+} from '@/lib/academic/teaching-period';
 
 type AnyDb = {
   from: (table: string) => any;
@@ -17,12 +21,14 @@ export async function resolveAssignmentTermId(
     classId?: string | null;
     /** When true (default), fall back to live calendar session. */
     fallbackLive?: boolean;
+    /** Preferred: pass full teaching period so duration work never stamps live term. */
+    period?: TeachingPeriodContext | null;
   } = {},
 ): Promise<string | null> {
-  const explicit = String(opts.termId ?? '').trim();
+  const explicit = String(opts.termId ?? opts.period?.term_id ?? '').trim();
   if (explicit) return explicit;
 
-  const classId = String(opts.classId ?? '').trim();
+  const classId = String(opts.classId ?? opts.period?.class_id ?? '').trim();
   if (classId) {
     const { data: cls } = await db
       .from('classes')
@@ -34,7 +40,11 @@ export async function resolveAssignmentTermId(
     }
   }
 
-  if (opts.fallbackLive === false) return null;
+  const period = opts.period;
+  let mayFallback = true;
+  if (opts.fallbackLive === false) mayFallback = false;
+  else if (period) mayFallback = allowLiveTermFallback(period);
+  if (!mayFallback) return null;
 
   const live = liveAcademicSession();
   const { data: term } = await db
