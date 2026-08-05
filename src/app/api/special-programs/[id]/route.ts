@@ -177,6 +177,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
           pageId: id,
           actorId: admin.id,
           request,
+          schoolId: page?.school_id || null,
         });
       }
       return NextResponse.json({
@@ -296,6 +297,10 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         ...launchContextFromRequest(request),
         forceRebuild: body.force_rebuild === true,
         notifyAdminId: admin.id,
+        schoolId:
+          body.school_id ||
+          enrichedBeforeLaunch?.school_id ||
+          null,
       });
       const enriched = await enrichPageForAdmin(mapped);
       if (result.pathway !== 'special' || result.error) {
@@ -335,6 +340,10 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         actorId: admin.id,
         request,
         forceRebuild: body.force_rebuild === true,
+        schoolId:
+          body.school_id ||
+          enrichedBeforeLaunch?.school_id ||
+          null,
       });
     }
 

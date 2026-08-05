@@ -18,6 +18,7 @@ import { buildTeachingReadiness } from '@/lib/special-programs/teaching-readines
 import {
   loadOfferingClasses,
   pickPrimaryCohort,
+  syncOfferingLinks,
 } from '@/lib/special-programs/ensure-cohort-class';
 
 export type PreparePathway = 'special' | 'school';
@@ -109,6 +110,8 @@ export async function prepareTeaching(
         cronSecret?: string;
         forceRebuild?: boolean;
         notifyAdminId?: string;
+        /** School chosen on create/save — stamp the offering if the trigger raced. */
+        schoolId?: string | null;
       }
     | {
         pathway: 'school';
@@ -145,20 +148,39 @@ export async function prepareTeaching(
 
   runningKeys.add(key);
   try {
-    // Soft DB lock via offering status when available
     const db = createAdminClient();
-    const { data: page } = await db
-      .from('special_program_pages')
-      .select('academic_offering_id')
-      .eq('id', input.pageId)
-      .maybeSingle();
-    const offeringId = page?.academic_offering_id
-      ? String(page.academic_offering_id)
-      : null;
+
+    // Create+publish races the offering-link trigger. Wait briefly so readiness
+    // does not false-block on a missing offering or school stamp.
+    let offeringId: string | null = null;
+    for (let attempt = 0; attempt < 4 && !offeringId; attempt += 1) {
+      const { data: page } = await db
+        .from('special_program_pages')
+        .select('academic_offering_id')
+        .eq('id', input.pageId)
+        .maybeSingle();
+      offeringId = page?.academic_offering_id
+        ? String(page.academic_offering_id)
+        : null;
+      if (!offeringId) {
+        const { data: byPage } = await db
+          .from('academic_offerings')
+          .select('id')
+          .eq('special_program_page_id', input.pageId)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        offeringId = byPage?.id ? String(byPage.id) : null;
+      }
+      if (!offeringId) {
+        await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+      }
+    }
+
     if (offeringId) {
       const { data: offering } = await db
         .from('academic_offerings')
-        .select('settings')
+        .select('settings,school_id')
         .eq('id', offeringId)
         .maybeSingle();
       const settings = (offering?.settings ?? {}) as Record<string, unknown>;
@@ -178,6 +200,15 @@ export async function prepareTeaching(
           };
         }
       }
+
+      const hintedSchool = input.schoolId ? String(input.schoolId) : null;
+      if (hintedSchool && !offering?.school_id) {
+        await syncOfferingLinks(db, {
+          pageId: input.pageId,
+          offeringId,
+          schoolId: hintedSchool,
+        });
+      }
     }
 
     const { data: pageRow } = await db
@@ -185,17 +216,17 @@ export async function prepareTeaching(
       .select('program_id,is_published,starts_on,academic_offering_id')
       .eq('id', input.pageId)
       .maybeSingle();
-    let schoolId: string | null = null;
     const pageOfferingId = pageRow?.academic_offering_id
       ? String(pageRow.academic_offering_id)
       : offeringId;
+    let schoolId: string | null = input.schoolId ? String(input.schoolId) : null;
     if (pageOfferingId) {
       const { data: offeringRow } = await db
         .from('academic_offerings')
         .select('school_id')
         .eq('id', pageOfferingId)
         .maybeSingle();
-      schoolId = offeringRow?.school_id ? String(offeringRow.school_id) : null;
+      if (offeringRow?.school_id) schoolId = String(offeringRow.school_id);
     }
     const cohortClass = pageOfferingId
       ? pickPrimaryCohort(await loadOfferingClasses(db, pageOfferingId))
@@ -248,6 +279,7 @@ export function queuePrepareTeaching(input: {
   actorId: string;
   request: NextRequest;
   forceRebuild?: boolean;
+  schoolId?: string | null;
 }): void;
 export function queuePrepareTeaching(input: {
   pathway: 'school';
@@ -261,6 +293,7 @@ export function queuePrepareTeaching(
         actorId: string;
         request: NextRequest;
         forceRebuild?: boolean;
+        schoolId?: string | null;
       }
     | { pathway: 'school'; classId: string },
 ): void {
@@ -279,6 +312,7 @@ export function queuePrepareTeaching(
         ...ctx,
         forceRebuild: input.forceRebuild === true,
         notifyAdminId: input.actorId,
+        schoolId: input.schoolId,
       });
       if (result.pathway === 'special' && result.error) {
         console.error(

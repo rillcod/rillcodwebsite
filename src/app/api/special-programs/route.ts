@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
         pageId: data.id,
         actorId: admin.id,
         request,
+        schoolId: body.school_id || null,
       });
     }
 
