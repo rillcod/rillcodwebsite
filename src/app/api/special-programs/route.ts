@@ -43,8 +43,10 @@ export async function GET(request: NextRequest) {
 
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { enrichPageForAdmin } = await import('@/lib/special-programs/enrich-page');
     const rows = await listSpecialProgramsAdmin();
-    return NextResponse.json({ data: rows });
+    const enrichedRows = await Promise.all(rows.map((r) => enrichPageForAdmin(r)));
+    return NextResponse.json({ data: enrichedRows.filter(Boolean) });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load' }, { status: 500 });
   }

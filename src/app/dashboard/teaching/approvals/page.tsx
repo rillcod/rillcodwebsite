@@ -26,6 +26,8 @@ import {
   RocketLaunchIcon,
   ArrowPathIcon,
   SparklesIcon,
+  EyeIcon,
+  XMarkIcon,
 } from "@/lib/icons";
 import {
   pendingWeekKey,
@@ -51,7 +53,6 @@ const ITEM_META: Record<
     label: "Slides",
     icon: PresentationChartLineIcon,
     cls: "text-cyan-600 dark:text-cyan-400",
-    // id is the lesson id — opens the materials / slides tab
     href: (id) => `/dashboard/lessons/${id}?tab=materials#learning-slides`,
   },
   flashcards: {
@@ -82,6 +83,7 @@ export default function ContentApprovalsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [previewWeek, setPreviewWeek] = useState<PendingWeek | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,6 +103,14 @@ export default function ContentApprovalsPage() {
   useEffect(() => {
     if (!authLoading && profile) void load();
   }, [authLoading, profile, load]);
+
+  const toggleSelectAll = () => {
+    if (selected.length === weeks.length) {
+      setSelected([]);
+    } else {
+      setSelected(weeks.map(pendingKey));
+    }
+  };
 
   async function release(row: PendingWeek) {
     const key = pendingKey(row);
@@ -128,6 +138,9 @@ export default function ContentApprovalsPage() {
           : `Week ${row.week}`;
       toast.success(`${meeting} released — ${n} item${n === 1 ? "" : "s"} now live`);
       setWeeks((prev) => prev.filter((w) => pendingKey(w) !== key));
+      if (previewWeek && pendingKey(previewWeek) === key) {
+        setPreviewWeek(null);
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -135,12 +148,10 @@ export default function ContentApprovalsPage() {
     }
   }
 
-  async function releaseSelected() {
-    if (!selected.length) return;
+  async function releasePicks(picks: PendingWeek[]) {
+    if (!picks.length) return;
     setBulkBusy(true);
     try {
-      const selectedSet = new Set(selected);
-      const picks = weeks.filter((w) => selectedSet.has(pendingKey(w)));
       const res = await fetch("/api/teaching/pending-approval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -171,7 +182,7 @@ export default function ContentApprovalsPage() {
         setWeeks((prev) => prev.filter((w) => !okSet.has(pendingKey(w))));
       }
       setSelected([]);
-      if (ok.length) toast.success(`Released ${ok.length} meeting${ok.length === 1 ? "" : "s"}`);
+      if (ok.length) toast.success(`Released ${ok.length} meeting${ok.length === 1 ? "" : "s"} to class`);
       if (failed.length) {
         toast.error(
           `${failed.length} meeting${failed.length === 1 ? "" : "s"} failed to release`
@@ -182,6 +193,17 @@ export default function ContentApprovalsPage() {
     } finally {
       setBulkBusy(false);
     }
+  }
+
+  async function releaseSelected() {
+    const selectedSet = new Set(selected);
+    const picks = weeks.filter((w) => selectedSet.has(pendingKey(w)));
+    await releasePicks(picks);
+  }
+
+  async function releaseAll() {
+    if (!confirm(`Release all ${weeks.length} pending draft meetings live to students?`)) return;
+    await releasePicks(weeks);
   }
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
@@ -209,26 +231,34 @@ export default function ContentApprovalsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-8">
+      {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
             <SparklesIcon className="h-3.5 w-3.5" />
-            Prepared for you
+            Teaching Engine & Approval Hub
           </p>
           <h1 className="mt-1 text-2xl font-black text-foreground">
-            This week&apos;s drafts
+            This week&apos;s AI teaching drafts
           </h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-            We prepare materials overnight and hold them here. Read a class meeting,
-            then release it — students see nothing until you do. When a week has more
-            than one class, each meeting releases on its own.
+            Materials prepare automatically overnight and wait here. Review a meeting, preview its classwork & assignments, then release live to your classroom.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {weeks.length > 0 && (
+            <button
+              onClick={() => void releaseAll()}
+              disabled={loading || bulkBusy}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-50"
+            >
+              🚀 Release All ({weeks.length})
+            </button>
+          )}
           <button
             onClick={() => void releaseSelected()}
             disabled={loading || bulkBusy || selected.length === 0}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-600 px-3 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
           >
             {bulkBusy ? (
               <>
@@ -236,7 +266,7 @@ export default function ContentApprovalsPage() {
                 Releasing…
               </>
             ) : (
-              <>Release to class ({selected.length})</>
+              <>Release selected ({selected.length})</>
             )}
           </button>
           <button
@@ -249,6 +279,31 @@ export default function ContentApprovalsPage() {
           </button>
         </div>
       </header>
+
+      {/* Automated Teaching Engine Banner */}
+      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-400">
+            <SparklesIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-bold text-foreground">Automated Nightly Prep Pipeline Active</p>
+            <p className="text-[11px] text-muted-foreground">
+              Lessons, slides, flashcards, and homework assignments are drafted ahead of time. You hold full approval control.
+            </p>
+          </div>
+        </div>
+        {weeks.length > 0 && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={toggleSelectAll}
+              className="text-[11px] font-bold text-primary hover:underline"
+            >
+              {selected.length === weeks.length ? "Deselect All" : `Select All (${weeks.length})`}
+            </button>
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
@@ -263,10 +318,10 @@ export default function ContentApprovalsPage() {
       ) : weeks.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-10 text-center">
           <ClipboardDocumentCheckIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <p className="mt-3 text-sm font-black text-foreground">Nothing waiting</p>
+          <p className="mt-3 text-sm font-black text-foreground">All teaching drafts are live!</p>
           <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
-            Every prepared week has been released. New drafts appear here after the
-            overnight run, or as soon as you generate a week yourself.
+            Every prepared week has been released. New drafts will appear here after the
+            nightly run, or whenever you click &quot;Prepare Teaching&quot; on a Special Programme page.
           </p>
         </div>
       ) : (
@@ -277,7 +332,7 @@ export default function ContentApprovalsPage() {
             return (
               <div
                 key={key}
-                className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30"
+                className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30 space-y-3"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex items-start gap-3">
@@ -295,53 +350,65 @@ export default function ContentApprovalsPage() {
                       aria-label={`Select week ${row.week}${row.session ? ` class ${row.session}` : ""}`}
                     />
                     <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
-                        Week {row.week}
-                        {row.session != null && row.session > 0
-                          ? ` · Class ${row.session}`
-                          : ""}
-                      </span>
-                      {row.className && (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                          {row.className}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
+                          Week {row.week}
+                          {row.session != null && row.session > 0
+                            ? ` · Class ${row.session}`
+                            : ""}
                         </span>
-                      )}
-                      {row.courseTitle && (
-                        <span className="text-[10px] text-muted-foreground/70">
-                          {row.courseTitle}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 truncate text-sm font-black text-foreground">
-                      {row.topic}
-                    </p>
+                        {row.className && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {row.className}
+                          </span>
+                        )}
+                        {row.courseTitle && (
+                          <span className="text-[10px] text-muted-foreground/70">
+                            {row.courseTitle}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 truncate text-sm font-black text-foreground">
+                        {row.topic}
+                      </p>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => void release(row)}
-                    disabled={busy}
-                    className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    {busy ? (
-                      <>
-                        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                        Releasing…
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Release
-                        {row.session != null && row.session > 0
-                          ? " class"
-                          : " week"}
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewWeek(previewWeek === row ? null : row)}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 text-[11px] font-bold hover:bg-muted"
+                    >
+                      <EyeIcon className="h-3.5 w-3.5" />
+                      {previewWeek === row ? "Hide details" : "Quick preview"}
+                    </button>
+
+                    <button
+                      onClick={() => void release(row)}
+                      disabled={busy}
+                      className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 shadow-sm"
+                    >
+                      {busy ? (
+                        <>
+                          <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                          Releasing…
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="h-3.5 w-3.5" />
+                          Release
+                          {row.session != null && row.session > 0
+                            ? " class"
+                            : " week"}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                {/* Items strip */}
+                <div className="flex flex-wrap gap-2 border-t border-border/60 pt-3">
                   {row.items.map((item) => {
                     const meta = ITEM_META[item.kind];
                     const Icon = meta.icon;
@@ -376,6 +443,39 @@ export default function ContentApprovalsPage() {
                     );
                   })}
                 </div>
+
+                {/* Quick Preview Expanded Drawer */}
+                {previewWeek === row && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3 text-xs mt-2 animate-fadeIn">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                      <h4 className="font-bold text-foreground flex items-center gap-2">
+                        <EyeIcon className="h-4 w-4 text-primary" />
+                        Meeting Outline & Learning Pack Preview
+                      </h4>
+                      <button
+                        onClick={() => setPreviewWeek(null)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p><span className="font-bold text-foreground">Topic:</span> {row.topic}</p>
+                      <p><span className="font-bold text-foreground">Classroom:</span> {row.className || "Cohort Class"}</p>
+                      <p><span className="font-bold text-foreground">Course:</span> {row.courseTitle || "Default Syllabus"}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex flex-wrap gap-2">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block w-full">Included Deliverables:</span>
+                      {row.items.map((it) => (
+                        <div key={it.id} className="bg-card border border-border px-3 py-1.5 rounded-lg text-xs font-semibold">
+                          {ITEM_META[it.kind]?.label}: {it.title}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
