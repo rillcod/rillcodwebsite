@@ -222,11 +222,20 @@ export async function releasePreparedWeek(input: {
     };
   }
 
+  // Prefer session match. Only follow a released lesson when the deck itself
+  // is unscoped or already matches the meeting — otherwise Class 2 decks that
+  // share a lesson_id would go live with Class 1.
   const releasedLessonSet = new Set(lessonIds);
   const deckIds = heldDecks
     .filter((row) => {
       if (matchesReleaseSession({ title: row.title }, session)) return true;
-      if (row.lesson_id && releasedLessonSet.has(String(row.lesson_id))) return true;
+      if (
+        row.lesson_id &&
+        releasedLessonSet.has(String(row.lesson_id)) &&
+        assetMeetingSession({ title: row.title }) < 1
+      ) {
+        return true;
+      }
       return false;
     })
     .map((row) => String(row.id));

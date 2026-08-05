@@ -601,18 +601,13 @@ export default function WeekAIGenerator({
       setStep("assignment", "active");
       setStep("project", "active");
 
+      const sessionVal = Number((week as any)?.session ?? (week as any)?.session_number ?? 0);
       const genRes = await fetch(`/api/lesson-plans/${planId}/generate-week`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           week: week.week,
-          ...(Number(week.session ?? week.session_number) > 0
-            ? {
-                session: Math.floor(
-                  Number(week.session ?? week.session_number),
-                ),
-              }
-            : {}),
+          ...(sessionVal > 0 ? { session: Math.floor(sessionVal) } : {}),
         }),
       });
       const genJson = await genRes.json().catch(() => ({}));

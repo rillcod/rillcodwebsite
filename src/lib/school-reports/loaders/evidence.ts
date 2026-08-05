@@ -5,6 +5,7 @@ import { attendanceInReportTerm, submissionInReportTerm } from '../term-evidence
 import type { LoaderResult, SchoolReportRange } from './types';
 import { fetchAllReportRows } from '../paginated-query';
 import { progressReportDedupeKey } from '../progress-report';
+import { evidenceBelongsToSchoolTerm } from '@/lib/academic/teaching-period';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -83,7 +84,7 @@ export async function loadSchoolReportEvidence(
       fetchAllReportRows((from, to) => admin
         .from('assignment_submissions')
         .select(
-          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(title,max_points,course_id,program_id,term_id,courses(title,programs(name)))',
+          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(title,max_points,course_id,program_id,term_id,academic_offering_id,offering_period_id,courses(title,programs(name)))',
         )
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
         .range(from, to)),
@@ -127,7 +128,10 @@ export async function loadSchoolReportEvidence(
 
   if (classIds.length) {
     const { data, error: assignmentError } = await fetchAllReportRows((from, to) => {
-      let query = admin.from('assignments').select('id,term_id,created_at').in('class_id', classIds);
+      let query = admin
+        .from('assignments')
+        .select('id,term_id,created_at,academic_offering_id,offering_period_id')
+        .in('class_id', classIds);
       if (range.academicTermId) {
         query = query.or(`term_id.eq.${range.academicTermId},and(term_id.is.null,created_at.gte.${isoStart(range.startDate)},created_at.lte.${isoEnd(range.endDate)})`) as typeof query;
       } else {
@@ -135,7 +139,15 @@ export async function loadSchoolReportEvidence(
       }
       return query.range(from, to);
     });
-    assignments = data ?? [];
+    // Duration / offering work with no school term must not enter the school
+    // report assignment list via the null-term date window.
+    assignments = ((data ?? []) as any[]).filter((row) =>
+      evidenceBelongsToSchoolTerm(row, {
+        academicTermId: range.academicTermId,
+        startDate: range.startDate,
+        endDate: range.endDate,
+      }),
+    );
     dataSources.push(recordSource('assignments', { error: assignmentError, rows: assignments, checkedAt }));
   } else {
     dataSources.push(recordSource('assignments', { rows: [], checkedAt }));

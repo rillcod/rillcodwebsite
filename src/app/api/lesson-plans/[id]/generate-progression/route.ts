@@ -1272,6 +1272,16 @@ export async function POST(
     );
     const assignmentTermId = await resolveAssignmentTermId(supabase as any, {
       classId: (plan as { class_id?: string | null }).class_id ?? null,
+      period: {
+        class_id: (plan as { class_id?: string | null }).class_id ?? null,
+        school_id: (plan as { school_id?: string | null }).school_id ?? null,
+        academic_offering_id:
+          (plan as { academic_offering_id?: string | null })
+            .academic_offering_id ?? null,
+        offering_period_id:
+          (plan as { offering_period_id?: string | null }).offering_period_id ??
+          null,
+      },
     });
     const inserts = desiredWorkItems
       .filter((w) => !existingWorkByMarker.has(w.marker))
@@ -1358,6 +1368,16 @@ export async function POST(
     );
     const deckTermId = await resolveAssignmentTermId(flashcardSupabase as any, {
       classId: (plan as { class_id?: string | null }).class_id ?? null,
+      period: {
+        class_id: (plan as { class_id?: string | null }).class_id ?? null,
+        school_id: (plan as { school_id?: string | null }).school_id ?? null,
+        academic_offering_id:
+          (plan as { academic_offering_id?: string | null })
+            .academic_offering_id ?? null,
+        offering_period_id:
+          (plan as { offering_period_id?: string | null }).offering_period_id ??
+          null,
+      },
     });
     const existingByMarker = new Map<string, { id: string }>();
     for (const deck of existingDecks ?? []) {

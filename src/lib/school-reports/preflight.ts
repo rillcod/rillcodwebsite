@@ -146,7 +146,7 @@ export async function runReportPreflight(
     const [submissionResult, attendanceResult, progressResult] = await Promise.all([
       admin
         .from('assignment_submissions')
-        .select('portal_user_id,user_id,graded_at,submitted_at,assignments(term_id)')
+        .select('portal_user_id,user_id,graded_at,submitted_at,assignments(term_id,academic_offering_id,offering_period_id)')
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
         .limit(10000),
       admin

@@ -72,6 +72,16 @@ describe('teaching-period evidence scope', () => {
         range,
       ),
     ).toBe(false);
+    expect(
+      evidenceBelongsToSchoolTerm(
+        {
+          academic_offering_id: 'off-1',
+          term_id: null,
+          created_at: '2026-02-01T00:00:00Z',
+        },
+        range,
+      ),
+    ).toBe(false);
   });
 
   it('blocks live-term fallback for offering-backed work', () => {
