@@ -5,6 +5,7 @@ import {
   describeAutoGenerateSettings,
   normaliseTypes,
   parseAutoGenerateSettings,
+  weeksToGenerateForPlan,
 } from './auto-generate-settings';
 
 describe('WEEK_CONTENT_TYPES', () => {
@@ -89,6 +90,62 @@ describe('describeAutoGenerateSettings', () => {
     const live = parseAutoGenerateSettings({ enabled: true, auto_publish: true });
     expect(describeAutoGenerateSettings(held)).toMatch(/held for your approval/i);
     expect(describeAutoGenerateSettings(live)).toMatch(/published straight to students/i);
+  });
+});
+
+describe('weeksToGenerateForPlan', () => {
+  it('preps the delivery week and the next in-plan week when ahead is on', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [1, 2],
+        deliveryWeek: 1,
+        prepAheadWeeks: 1,
+        maxWeeksPerBatch: 2,
+      }),
+    ).toEqual([1, 2]);
+  });
+
+  it('does not force mid-cohort modules to generate week 1 on the cron path', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [4, 5],
+        deliveryWeek: 1,
+        prepAheadWeeks: 1,
+        maxWeeksPerBatch: 2,
+      }),
+    ).toEqual([]);
+  });
+
+  it('allows launch to stage a mid-cohort module early', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [4, 5],
+        deliveryWeek: 1,
+        prepAheadWeeks: 1,
+        maxWeeksPerBatch: 2,
+        allowEarlyPrep: true,
+      }),
+    ).toEqual([4, 5]);
+  });
+
+  it('waits between module windows instead of bleeding', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [4, 5],
+        deliveryWeek: 3,
+        prepAheadWeeks: 1,
+      }),
+    ).toEqual([]);
+  });
+
+  it('stops when the delivery week is past the module', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [1, 2],
+        deliveryWeek: 5,
+        prepAheadWeeks: 1,
+      }),
+    ).toEqual([]);
   });
 });
 

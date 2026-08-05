@@ -233,6 +233,10 @@ export interface GenerateRequest {
   /** The page's own week spine: [{ num, tag, title, desc }]. */
   programme_weeks?: Array<Record<string, unknown>>;
   week_count?: number;
+  /** Absolute programme-calendar week numbers for this module (e.g. [4, 5]). */
+  week_numbers?: number[];
+  /** Track marketing label, e.g. "Module 1 · Weeks 1–2". */
+  track_week_label?: string;
   ages_label?: string;
   duration_label?: string;
   hero_blurb?: string;
@@ -1513,43 +1517,55 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
       //
       // Grounded in the published programme page rather than invented from a
       // course title, so what is taught cannot drift from what was advertised.
+      // Each track/module only covers its own window (e.g. Generative Art =
+      // Weeks 1–2), never the whole cohort calendar.
       const weeks = Number(req.weeks_per_term ?? req.week_count ?? 7);
       const topics = Array.isArray(req.topics) ? req.topics : [];
       const spine = Array.isArray(req.programme_weeks) ? req.programme_weeks : [];
+      const weekNumbers = Array.isArray(req.week_numbers) && req.week_numbers.length
+        ? req.week_numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+        : Array.from({ length: weeks }, (_, i) => i + 1);
+      const shortModule = weekNumbers.length <= 3;
+      const numberingLine = weekNumbers.join(", ");
 
       return `You are designing a ready-to-teach curriculum for Rillcod Technologies.
 
-This is a DURATION PROGRAMME — a holiday programme or short course. It runs
-once, continuously, for ${weeks} weeks. It has NO academic terms, NO term
-breaks, and NO end-of-term examination.
+This is a DURATION PROGRAMME MODULE — one track inside a holiday programme or
+short course. Generate ONLY this track's teaching weeks. Do NOT invent content
+from other modules (no Python, web apps, games, or graduation filler unless
+those topics are listed below for THIS track).
 
 Programme: "${req.programme_title ?? req.topic}"
 Track / Course: "${req.course_name ?? req.courseName ?? req.topic}"
+${req.track_week_label ? `Module window on the published page: ${req.track_week_label}` : ""}
 Learners: ${req.ages_label ?? req.gradeLevel ?? "mixed ages"}
 Duration: ${req.duration_label ?? `${weeks} weeks`}
 ${req.hero_blurb ? `Programme promise: ${req.hero_blurb}` : ""}
 ${req.track_desc ? `Track promise: ${req.track_desc}` : ""}
 
 ━━━ THE ADVERTISED TOPICS — COVER ALL OF THEM ━━━
-These were published to parents on the programme page. Every one must appear.
-${topics.map((t: unknown, i: number) => `${i + 1}. ${String(t)}`).join("\n")}
+These were published to parents on the programme page for THIS track only.
+Every one must appear. Do not add topics from other tracks.
+${topics.map((t: unknown, i: number) => `${i + 1}. ${String(t)}`).join("\n") || "(none listed — stay inside the week spine below)"}
 
-${spine.length ? `━━━ THE PUBLISHED WEEK SPINE ━━━\n${spine
+${spine.length ? `━━━ THIS MODULE'S PUBLISHED WEEK SPINE ━━━\n${spine
         .map((w: any) => `${w.num ?? ""}: ${w.title ?? ""}${w.desc ? ` — ${w.desc}` : ""}`)
         .join("\n")}` : ""}
 
 ━━━ SHAPE ━━━
-- Exactly ${weeks} weeks, numbered 1 to ${weeks}, in ONE continuous run.
-- Put the advertised topics in the order given; expand them across the weeks
-  rather than compressing or renaming them.
-- A project-based checkpoint every third week (type: "project"), because a
-  holiday programme is judged on what learners made, not on what they recalled.
-- The final week is a showcase of the learner's own work (type: "project"),
-  never an examination.
+- Exactly ${weekNumbers.length} weeks, numbered ${numberingLine} (programme calendar numbers).
+- Put the advertised topics in the order given; expand them across THESE weeks
+  only — do not stretch the module across the rest of the cohort.
+- Stay inside THIS track's promise and topics only; never pad with unrelated
+  modules from the rest of the cohort.
+${shortModule
+  ? `- Short module: the final week is a project showcase (type: "project"); earlier weeks are lessons.`
+  : `- A project-based checkpoint every third week (type: "project").
+- The final week is a showcase of the learner's own work (type: "project"), never an examination.`}
 - Practical and screen-based throughout; these learners chose this programme.
 
 ━━━ RETURN EXACTLY THIS SHAPE ━━━
-One term object holding every week, because the programme is one continuous run.
+One term object holding every week, because the module is one continuous run.
 {
   "course_title": "string",
   "description": "string — what a parent would read",
@@ -1561,10 +1577,10 @@ One term object holding every week, because the programme is one continuous run.
   "terms": [
     {
       "term": 1,
-      "title": "string — the programme run, not a school term",
+      "title": "string — this module run, not a school term",
       "weeks": [
         {
-          "week": 1,
+          "week": ${weekNumbers[0] ?? 1},
           "type": "lesson" | "project",
           "topic": "string",
           "subtopics": ["string"],

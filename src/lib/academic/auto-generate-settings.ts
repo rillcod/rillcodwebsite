@@ -34,6 +34,12 @@ export type AutoGenerateSettings = {
   /** 0 means the whole term; otherwise the cap per sweep. */
   maxWeeksPerBatch: number;
   /**
+   * How many upcoming in-plan weeks to prep beyond the delivery week.
+   * 0 = only the current delivery week (when it is on the plan).
+   * 1 = current + next (so after week 1, week 2 starts flowing into approvals).
+   */
+  prep_ahead_weeks: number;
+  /**
    * Publish generated content straight to students.
    *
    * False by default, and deliberately: nobody has read it yet. A prepared week
@@ -48,6 +54,7 @@ export const DEFAULT_AUTO_GENERATE_SETTINGS: AutoGenerateSettings = {
   enabled: true,
   types: [...WEEK_CONTENT_TYPES],
   maxWeeksPerBatch: 1,
+  prep_ahead_weeks: 0,
   auto_publish: false,
 };
 
@@ -81,11 +88,14 @@ export function normaliseTypes(raw: unknown): WeekContentType[] {
 export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
   const source = (raw ?? {}) as Record<string, unknown>;
   const batch = Number(source.maxWeeksPerBatch);
+  const ahead = Number(source.prep_ahead_weeks);
   return {
     enabled: source.enabled === true,
     types: normaliseTypes(source.types),
     maxWeeksPerBatch:
       Number.isFinite(batch) && batch > 0 ? Math.min(10, Math.floor(batch)) : 0,
+    prep_ahead_weeks:
+      Number.isFinite(ahead) && ahead > 0 ? Math.min(4, Math.floor(ahead)) : 0,
     // Anything other than an explicit true holds for approval. An absent flag
     // must never be read as permission to publish to learners.
     auto_publish: source.auto_publish === true,
@@ -93,6 +103,53 @@ export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
       ? { last_run_at: source.last_run_at }
       : {}),
   };
+}
+
+/**
+ * Which plan weeks the sweep / launch should prepare now.
+ *
+ * Never invents weeks outside the plan. Cron waits until delivery enters the
+ * module window (no mid-cohort bleed). Launch may set allowEarlyPrep so a
+ * module can be staged before its calendar week arrives.
+ */
+export function weeksToGenerateForPlan(input: {
+  planWeekNumbers: number[];
+  deliveryWeek: number;
+  prepAheadWeeks?: number;
+  maxWeeksPerBatch?: number;
+  /** When true, prep the module's first week even if delivery is still earlier. */
+  allowEarlyPrep?: boolean;
+}): number[] {
+  const plan = [...new Set(
+    input.planWeekNumbers.filter((n) => Number.isFinite(n) && n > 0),
+  )].sort((a, b) => a - b);
+  if (!plan.length) return [];
+
+  const delivery = Math.max(1, Math.floor(Number(input.deliveryWeek) || 1));
+  const ahead = Math.max(0, Math.floor(Number(input.prepAheadWeeks) || 0));
+  const batchCap = Number(input.maxWeeksPerBatch);
+  const cap =
+    Number.isFinite(batchCap) && batchCap > 0
+      ? Math.min(10, Math.floor(batchCap))
+      : Math.max(1, ahead + 1);
+
+  let anchor: number | null = null;
+  if (plan.includes(delivery)) {
+    anchor = delivery;
+  } else if (delivery < plan[0]) {
+    anchor = input.allowEarlyPrep ? plan[0] : null;
+  } else if (delivery > plan[plan.length - 1]) {
+    return [];
+  } else {
+    // Between sparse plan weeks — wait rather than jump ahead.
+    return [];
+  }
+
+  if (anchor == null) return [];
+
+  const fromAnchor = plan.filter((w) => w >= anchor!);
+  const withAhead = fromAnchor.slice(0, Math.max(1, ahead + 1));
+  return withAhead.slice(0, cap);
 }
 
 export const WEEK_CONTENT_TYPE_LABELS: Record<WeekContentType, string> = {
@@ -112,11 +169,15 @@ export function describeAutoGenerateSettings(s: AutoGenerateSettings): string {
       : s.maxWeeksPerBatch === 1
         ? 'one week at a time'
         : `${s.maxWeeksPerBatch} weeks at a time`;
+  const ahead =
+    s.prep_ahead_weeks > 0
+      ? `, keeping ${s.prep_ahead_weeks} week${s.prep_ahead_weeks === 1 ? '' : 's'} ahead`
+      : '';
   const typeList = s.types
     .map((t) => WEEK_CONTENT_TYPE_LABELS[t] ?? t)
     .join(', ');
   const release = s.auto_publish
     ? 'published straight to students'
     : 'held for your approval';
-  return `Preparing ${typeList}, ${scope}, ${release}.`;
+  return `Preparing ${typeList}, ${scope}${ahead}, ${release}.`;
 }

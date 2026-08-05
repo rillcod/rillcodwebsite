@@ -10,8 +10,10 @@ import {
 } from '@/lib/academic/week-generation';
 import {
   parseAutoGenerateSettings,
+  weeksToGenerateForPlan,
   type AutoGenerateSettings,
 } from '@/lib/academic/auto-generate-settings';
+import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -66,7 +68,7 @@ async function handleRequest(req: NextRequest) {
   // every night instead of moving through the programme.
   const { data: plans, error } = await db
     .from('lesson_plans')
-    .select('id, term_start, class_id, metadata, academic_offering_periods:offering_period_id(starts_on)')
+    .select('id, term_start, class_id, metadata, plan_data, academic_offering_periods:offering_period_id(starts_on)')
     .eq('status', 'published')
     .not('metadata', 'is', null);
 
@@ -96,8 +98,9 @@ async function handleRequest(req: NextRequest) {
 
   const results: Array<{
     planId: string;
-    status: 'ok' | 'error';
+    status: 'ok' | 'error' | 'skipped';
     currentWeek?: number;
+    weeks?: number[];
     generated?: number;
     skipped?: number;
     notified?: string;
@@ -113,41 +116,79 @@ async function handleRequest(req: NextRequest) {
       const period = Array.isArray((plan as any).academic_offering_periods)
         ? (plan as any).academic_offering_periods[0]
         : (plan as any).academic_offering_periods;
+      const periodStart = period?.starts_on ?? null;
       const currentWeek = currentDeliveryWeek({
         termStart: plan.term_start ?? null,
-        periodStart: period?.starts_on ?? null,
+        periodStart,
       });
 
-      // Target THIS week specifically rather than "the next N weeks". The teacher's button and
-      // this sweep now run the identical path, so whichever fires first the other finds the work
-      // already done and skips it.
-      const outcome = await generatePlanWeek({
-        planId: plan.id,
-        week: currentWeek,
-        types: ags.types,
-        baseUrl: appBaseUrl,
-        cronSecret,
-        // Opt-in per plan. Left unset, the week is prepared for the teacher to
-        // read and release rather than published to students overnight.
-        autoPublish: ags.auto_publish,
+      const planWeekNumbers = (
+        extractLessonPlanOperationWeeks(plan.plan_data) as Array<{ week?: number }>
+      )
+        .map((w) => Number(w.week))
+        .filter((n) => Number.isFinite(n) && n > 0);
+
+      // Special-programme mid-modules (weeks 4–5) must not be forced to generate
+      // calendar week 1. Prep ahead keeps the next in-plan week flowing after
+      // the first is ready — still hold-for-approval unless opted in.
+      const targetWeeks = weeksToGenerateForPlan({
+        planWeekNumbers,
+        deliveryWeek: currentWeek,
+        prepAheadWeeks: ags.prep_ahead_weeks,
+        maxWeeksPerBatch: ags.maxWeeksPerBatch || Math.max(1, ags.prep_ahead_weeks + 1),
       });
 
-      // Tell the class teacher their week is waiting. Idempotent per plan+week, so a retry or a
-      // teacher pressing the button afterwards does not notify twice.
-      const notified = await notifyWeekReady(db, {
-        planId: plan.id,
-        classId: plan.class_id ?? null,
-        week: currentWeek,
-        outcome,
-        autoPublish: ags.auto_publish,
-      });
+      if (!targetWeeks.length) {
+        await db.from('lesson_plans').update({
+          metadata: {
+            ...meta,
+            auto_generate_settings: {
+              ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
+              last_run_at: new Date().toISOString(),
+            },
+          },
+        }).eq('id', plan.id);
+        results.push({
+          planId: plan.id,
+          status: 'skipped',
+          currentWeek,
+          weeks: [],
+          error: periodStart
+            ? 'No in-plan week due for this delivery window'
+            : 'Delivery period has no starts_on — set programme dates so weeks can advance',
+        });
+        continue;
+      }
 
-      // Stamp last_run_at so this plan sinks to the back of the rotation queue
-      // and the next scheduled run picks up the other plans.
-      //
-      // Merged over what is stored, not over the parsed copy: parsing fills in
-      // defaults, and writing those back would silently rewrite a teacher's own
-      // selection every night. The sweep records when it ran, nothing else.
+      let generated = 0;
+      let skipped = 0;
+      const failedTypes = new Set<string>();
+      let notified: string | undefined;
+
+      for (const week of targetWeeks) {
+        if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
+        const outcome = await generatePlanWeek({
+          planId: plan.id,
+          week,
+          types: ags.types,
+          baseUrl: appBaseUrl,
+          cronSecret,
+          autoPublish: ags.auto_publish,
+        });
+        generated += outcome.generated;
+        skipped += outcome.skipped;
+        outcome.failedTypes.forEach((t) => failedTypes.add(t));
+
+        const note = await notifyWeekReady(db, {
+          planId: plan.id,
+          classId: plan.class_id ?? null,
+          week,
+          outcome,
+          autoPublish: ags.auto_publish,
+        });
+        if (note === 'sent') notified = note;
+      }
+
       await db.from('lesson_plans').update({
         metadata: {
           ...meta,
@@ -160,12 +201,13 @@ async function handleRequest(req: NextRequest) {
 
       results.push({
         planId: plan.id,
-        status: outcome.failedTypes.length && !outcome.generated && !outcome.skipped ? 'error' : 'ok',
+        status: failedTypes.size && !generated && !skipped ? 'error' : 'ok',
         currentWeek,
-        generated: outcome.generated,
-        skipped: outcome.skipped,
+        weeks: targetWeeks,
+        generated,
+        skipped,
         notified,
-        ...(outcome.failedTypes.length ? { error: `types failed: ${outcome.failedTypes.join(', ')}` } : {}),
+        ...(failedTypes.size ? { error: `types failed: ${[...failedTypes].join(', ')}` } : {}),
       });
     } catch (err) {
       console.error(`Auto-gen error for plan ${plan.id}:`, err);
@@ -180,6 +222,7 @@ async function handleRequest(req: NextRequest) {
   return NextResponse.json({
     processed: results.filter((r) => r.status === 'ok').length,
     failed: results.filter((r) => r.status === 'error').length,
+    skipped: results.filter((r) => r.status === 'skipped').length,
     batch: batch.length,
     total_enabled: enabledPlans.length,
     stopped_early: stoppedEarly,

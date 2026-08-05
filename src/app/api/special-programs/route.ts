@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import {
   listSpecialProgramsAdmin,
   specialProgramsAdminClient,
 } from '@/lib/special-programs/queries';
 import { slugifySpecialProgram } from '@/lib/special-programs/types';
+import { shouldLaunchTeachingOnPublish } from '@/lib/special-programs/bridge-offering';
+import { launchSpecialProgramTeaching } from '@/lib/special-programs/launch-teaching';
 
 async function requireAdmin() {
   const supabase = await createServerClient();
@@ -19,10 +21,41 @@ async function requireAdmin() {
   return caller;
 }
 
+function queueTeachingLaunch(input: {
+  pageId: string;
+  createdBy: string;
+  request: NextRequest;
+}) {
+  const baseUrl = (
+    input.request.nextUrl?.origin ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
+  const cookie = input.request.headers.get('cookie') ?? undefined;
+  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || undefined;
+
+  after(async () => {
+    try {
+      const result = await launchSpecialProgramTeaching({
+        pageId: input.pageId,
+        createdBy: input.createdBy,
+        baseUrl,
+        cookie,
+        cronSecret,
+      });
+      if (result.error) {
+        console.error('[special-program launch]', input.pageId, result.error, result.detail);
+      }
+    } catch (err) {
+      console.error('[special-program launch] failed', input.pageId, err);
+    }
+  });
+}
+
 /** GET /api/special-programs — admin: all; ?featured=1 public featured; ?slug= for published */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = new URL(request.url).searchParams;
     const featured = searchParams.get('featured') === '1' || searchParams.get('featured') === 'true';
     const slug = searchParams.get('slug')?.trim();
 
@@ -80,7 +113,10 @@ export async function POST(request: NextRequest) {
     };
 
     if (payload.is_featured) {
-      await sb.from('special_program_pages').update({ is_featured: false, updated_at: new Date().toISOString() }).eq('is_featured', true);
+      await sb
+        .from('special_program_pages')
+        .update({ is_featured: false, updated_at: new Date().toISOString() })
+        .eq('is_featured', true);
       payload.is_published = true;
     }
 
@@ -97,7 +133,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    const launch = shouldLaunchTeachingOnPublish({
+      wasPublished: false,
+      nowPublished: Boolean(data.is_published),
+    });
+    if (launch) {
+      queueTeachingLaunch({ pageId: data.id, createdBy: admin.id, request });
+    }
+
+    return NextResponse.json(
+      { data, teaching_launch: launch ? 'queued' : undefined },
+      { status: 201 },
+    );
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to create' }, { status: 500 });
   }

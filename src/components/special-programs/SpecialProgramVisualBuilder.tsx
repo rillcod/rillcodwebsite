@@ -31,6 +31,10 @@ import {
   type SpecialProgramFormState,
 } from '@/lib/special-programs/apply-ai-draft';
 import { brandContact } from '@/config/brand';
+import {
+  formatModuleWeekLabel,
+  parseTrackWeekRange,
+} from '@/lib/academic/programme-bridge';
 
 const fieldCls =
   'mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm font-semibold normal-case tracking-normal text-foreground';
@@ -332,10 +336,50 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Save failed');
-      toast.success(editing ? 'Page updated' : 'Page created');
+      if (j.teaching_launch === 'queued') {
+        toast.success(
+          'Published — building curriculum and first-week lessons for approval',
+        );
+      } else {
+        toast.success(editing ? 'Page updated' : 'Page created');
+      }
       onSaved();
     } catch (e: any) {
       toast.error(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const launchTeaching = async (opts?: { forceRebuild?: boolean }) => {
+    if (!editing?.id) {
+      toast.error('Save the page first');
+      return;
+    }
+    if (!form.is_published) {
+      toast.error('Publish the page first, then launch teaching');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/special-programs/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          launch_teaching: true,
+          is_published: true,
+          force_rebuild: opts?.forceRebuild === true,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Launch failed');
+      toast.success(
+        opts?.forceRebuild
+          ? 'Full rebuild queued — each module rebuilt from the page, week 1 held for approval'
+          : 'Teaching launch queued — expanded week windows are captured; content held for approval',
+      );
+    } catch (e: any) {
+      toast.error(e.message || 'Launch failed');
     } finally {
       setSaving(false);
     }
@@ -764,6 +808,38 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                     Featured (homepage)
                   </label>
                 </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  First publish builds each module from its week window on this page, then starts week-1 lessons — both wait on Teaching Approvals. Expand a module (e.g. Weeks 1–2 → 1–3), save, then launch again to capture the new window.
+                </p>
+                {editing?.id && form.is_published ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => void launchTeaching()}
+                      className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted disabled:opacity-50"
+                    >
+                      Launch teaching now
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => {
+                        if (
+                          !confirm(
+                            'Rebuild every module from the page write-up? Existing teaching plans for this programme will be archived.',
+                          )
+                        ) {
+                          return;
+                        }
+                        void launchTeaching({ forceRebuild: true });
+                      }}
+                      className="rounded-xl border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+                    >
+                      Force full rebuild
+                    </button>
+                  </div>
+                ) : null}
               </>
             )}
 
@@ -871,6 +947,54 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                         Icon (emoji)
                         <input value={t.icon} onChange={(e) => update({ icon: e.target.value })} className={fieldCls} />
                       </label>
+                      <label className={labelCls}>
+                        Teaching weeks (expandable)
+                        <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
+                          Change 1–2 to 1–3 when this module needs more time. Save, then Launch teaching — the new window is captured.
+                        </span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className={labelCls}>
+                          From week
+                          <input
+                            type="number"
+                            min={1}
+                            value={parseTrackWeekRange(t.week)?.start ?? ''}
+                            onChange={(e) => {
+                              const start = Math.max(1, Number(e.target.value) || 1);
+                              const end = Math.max(start, parseTrackWeekRange(t.week)?.end ?? start);
+                              update({
+                                week: formatModuleWeekLabel({
+                                  moduleIndex: idx + 1,
+                                  start,
+                                  end,
+                                }),
+                              });
+                            }}
+                            className={fieldCls}
+                          />
+                        </label>
+                        <label className={labelCls}>
+                          To week
+                          <input
+                            type="number"
+                            min={1}
+                            value={parseTrackWeekRange(t.week)?.end ?? ''}
+                            onChange={(e) => {
+                              const end = Math.max(1, Number(e.target.value) || 1);
+                              const start = Math.min(end, parseTrackWeekRange(t.week)?.start ?? 1);
+                              update({
+                                week: formatModuleWeekLabel({
+                                  moduleIndex: idx + 1,
+                                  start,
+                                  end,
+                                }),
+                              });
+                            }}
+                            className={fieldCls}
+                          />
+                        </label>
+                      </div>
                       <label className={labelCls}>
                         Week / module label
                         <input value={t.week} onChange={(e) => update({ week: e.target.value })} className={fieldCls} />
