@@ -25,6 +25,8 @@ export type ProgrammeTrack = {
   /** Marketing label, e.g. "Module 1 · Weeks 1–2". Scopes generation to that window. */
   week?: string;
   topics?: string[];
+  /** Override page default — class meetings in each calendar week. */
+  sessions_per_week?: number;
 };
 
 export type ProgrammeWeek = {
@@ -40,6 +42,8 @@ export type PageContent = {
   hero_blurb?: string;
   ages_label?: string;
   duration_label?: string;
+  /** Default class meetings per calendar week. */
+  sessions_per_week?: number;
 };
 
 export type WeekRange = { start: number; end: number };
@@ -214,11 +218,16 @@ export function resolveTrackTeachingWindow(
 }
 
 /** Stable key for the teaching window — used to detect 1–2 → 1–3 expansions. */
-export function moduleWindowFingerprint(weekNumbers: number[]): string {
-  return [...weekNumbers]
+export function moduleWindowFingerprint(
+  weekNumbers: number[],
+  sessionsPerWeek = 1,
+): string {
+  const weeks = [...weekNumbers]
     .filter((n) => Number.isFinite(n) && n > 0)
     .sort((a, b) => a - b)
     .join(',');
+  const spw = Math.max(1, Math.min(7, Math.floor(Number(sessionsPerWeek) || 1)));
+  return `${weeks}@${spw}`;
 }
 
 /** Builds the marketing label the page and bridge both understand. */
@@ -240,8 +249,26 @@ export function formatModuleWeekLabel(input: {
 export function windowsMatch(
   a: number[] | null | undefined,
   b: number[] | null | undefined,
+  sessionsA = 1,
+  sessionsB = 1,
 ): boolean {
-  return moduleWindowFingerprint(a ?? []) === moduleWindowFingerprint(b ?? []);
+  return (
+    moduleWindowFingerprint(a ?? [], sessionsA) ===
+    moduleWindowFingerprint(b ?? [], sessionsB)
+  );
+}
+
+export function resolveTrackSessionsPerWeek(
+  track: ProgrammeTrack,
+  page: PageContent,
+): number {
+  const raw =
+    track.sessions_per_week != null
+      ? track.sessions_per_week
+      : page.sessions_per_week;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(7, Math.floor(n)));
 }
 
 export type BridgeOutcome = {
@@ -291,48 +318,118 @@ export function matchTrackToCourse(
   return best?.course ?? null;
 }
 
-/** Flattens the generated curriculum into the week rows a plan carries. */
-export function planWeeksFromCurriculum(content: any): Array<Record<string, unknown>> {
+/** Flattens the generated curriculum into the week/session rows a plan carries. */
+export function planWeeksFromCurriculum(
+  content: any,
+  sessionsPerWeek = 1,
+): Array<Record<string, unknown>> {
   const terms = Array.isArray(content?.terms) ? content.terms : [];
   const weeks = terms.flatMap((t: any) => (Array.isArray(t?.weeks) ? t.weeks : []));
-  return weeks
-    .map((w: any, i: number) => ({
-      week: Number(w?.week) || i + 1,
-      topic: String(w?.topic ?? `Week ${i + 1}`),
-      subtopics: Array.isArray(w?.subtopics) ? w.subtopics : [],
-      objectives: String(w?.objectives ?? ''),
-      activities: String(w?.activities ?? ''),
-      notes: String(w?.notes ?? ''),
-      type: w?.type === 'project' ? 'project' : 'lesson',
-    }))
-    .sort((a: any, b: any) => a.week - b.week);
+  const spw = Math.max(1, Math.min(7, Math.floor(Number(sessionsPerWeek) || 1)));
+  const rows: Array<Record<string, unknown>> = [];
+
+  weeks.forEach((w: any, i: number) => {
+    const calendarWeek = Number(w?.week) || i + 1;
+    const nested = Array.isArray(w?.sessions) ? w.sessions : null;
+    if (nested?.length) {
+      nested.forEach((s: any, si: number) => {
+        const session = Number(s?.session) || si + 1;
+        rows.push({
+          week: calendarWeek,
+          session,
+          topic: String(s?.topic ?? w?.topic ?? `Week ${calendarWeek} · Session ${session}`),
+          subtopics: Array.isArray(s?.subtopics)
+            ? s.subtopics
+            : Array.isArray(w?.subtopics)
+              ? w.subtopics
+              : [],
+          objectives: String(s?.objectives ?? w?.objectives ?? ''),
+          activities: String(s?.activities ?? w?.activities ?? ''),
+          notes: String(s?.notes ?? w?.notes ?? ''),
+          type: s?.type === 'project' || w?.type === 'project' ? 'project' : 'lesson',
+        });
+      });
+      return;
+    }
+
+    const session = Number(w?.session);
+    if (Number.isFinite(session) && session > 0) {
+      rows.push({
+        week: calendarWeek,
+        session: Math.floor(session),
+        topic: String(w?.topic ?? `Week ${calendarWeek} · Session ${session}`),
+        subtopics: Array.isArray(w?.subtopics) ? w.subtopics : [],
+        objectives: String(w?.objectives ?? ''),
+        activities: String(w?.activities ?? ''),
+        notes: String(w?.notes ?? ''),
+        type: w?.type === 'project' ? 'project' : 'lesson',
+      });
+      return;
+    }
+
+    // Model returned one row per calendar week — expand to N session slots.
+    for (let s = 1; s <= spw; s += 1) {
+      rows.push({
+        week: calendarWeek,
+        session: s,
+        topic:
+          spw === 1
+            ? String(w?.topic ?? `Week ${calendarWeek}`)
+            : `${String(w?.topic ?? `Week ${calendarWeek}`)} · Session ${s}`,
+        subtopics: Array.isArray(w?.subtopics) ? w.subtopics : [],
+        objectives: String(w?.objectives ?? ''),
+        activities: String(w?.activities ?? ''),
+        notes: String(w?.notes ?? ''),
+        type:
+          w?.type === 'project' && s === spw
+            ? 'project'
+            : w?.type === 'project'
+              ? 'lesson'
+              : 'lesson',
+      });
+    }
+  });
+
+  return rows.sort((a: any, b: any) => {
+    const dw = Number(a.week) - Number(b.week);
+    if (dw !== 0) return dw;
+    return Number(a.session ?? 1) - Number(b.session ?? 1);
+  });
 }
 
 /**
  * If the model returned local 1..N weeks for a mid-cohort module (e.g. Weeks 4–5),
- * rewrite them onto the published programme calendar numbers.
+ * rewrite calendar week numbers onto the published programme calendar.
+ * Session numbers inside each week are preserved.
  */
 export function alignPlanWeeksToWindow(
   planWeeks: Array<Record<string, unknown>>,
   weekNumbers: number[],
 ): Array<Record<string, unknown>> {
   if (!planWeeks.length || !weekNumbers.length) return planWeeks;
-  if (planWeeks.length !== weekNumbers.length) return planWeeks;
 
-  const sorted = [...planWeeks].sort(
-    (a, b) => Number(a.week) - Number(b.week),
+  const sorted = [...planWeeks].sort((a, b) => {
+    const dw = Number(a.week) - Number(b.week);
+    if (dw !== 0) return dw;
+    return Number(a.session ?? 1) - Number(b.session ?? 1);
+  });
+
+  const uniqueCalendar = [...new Set(sorted.map((w) => Number(w.week)))].sort(
+    (a, b) => a - b,
   );
-  const alreadyAligned = sorted.every(
-    (w, i) => Number(w.week) === weekNumbers[i],
-  );
+  if (uniqueCalendar.length !== weekNumbers.length) return sorted;
+
+  const alreadyAligned = uniqueCalendar.every((w, i) => w === weekNumbers[i]);
   if (alreadyAligned) return sorted;
 
-  const looksLocal = sorted.every(
-    (w, i) => Number(w.week) === i + 1,
-  );
+  const looksLocal = uniqueCalendar.every((w, i) => w === i + 1);
   if (!looksLocal) return sorted;
 
-  return sorted.map((w, i) => ({ ...w, week: weekNumbers[i] }));
+  const map = new Map(uniqueCalendar.map((w, i) => [w, weekNumbers[i]]));
+  return sorted.map((w) => ({
+    ...w,
+    week: map.get(Number(w.week)) ?? w.week,
+  }));
 }
 
 /**
@@ -364,7 +461,11 @@ export async function bridgeTrack(
   const course = title ? matchTrackToCourse(title, input.courses) : null;
   const rebuildOnWindowChange = input.rebuildOnWindowChange !== false;
   const window = resolveTrackTeachingWindow(input.track, input.page);
-  const desiredFingerprint = moduleWindowFingerprint(window.weekNumbers);
+  const sessionsPerWeek = resolveTrackSessionsPerWeek(input.track, input.page);
+  const desiredFingerprint = moduleWindowFingerprint(
+    window.weekNumbers,
+    sessionsPerWeek,
+  );
 
   if (!course) {
     return {
@@ -377,7 +478,7 @@ export async function bridgeTrack(
 
   const { data: existingPlan } = await db
     .from('lesson_plans')
-    .select('id, metadata, plan_data')
+    .select('id, metadata, plan_data, sessions_per_week')
     .eq('course_id', course.id)
     .eq('academic_offering_id', input.offeringId)
     .neq('status', 'archived')
@@ -391,7 +492,15 @@ export async function bridgeTrack(
     const storedNumbers = Array.isArray(bridgeMeta.week_numbers)
       ? (bridgeMeta.week_numbers as unknown[]).map(Number).filter((n) => Number.isFinite(n) && n > 0)
       : extractWeekNumbersFromPlanData(existingPlan.plan_data);
-    const sameWindow = windowsMatch(storedNumbers, window.weekNumbers);
+    const storedSessions = Number(
+      bridgeMeta.sessions_per_week ?? existingPlan.sessions_per_week ?? 1,
+    );
+    const sameWindow = windowsMatch(
+      storedNumbers,
+      window.weekNumbers,
+      storedSessions,
+      sessionsPerWeek,
+    );
     const mustRebuild = input.forceRebuild === true || (rebuildOnWindowChange && !sameWindow);
 
     if (!mustRebuild) {
@@ -415,8 +524,9 @@ export async function bridgeTrack(
             at: new Date().toISOString(),
             reason: input.forceRebuild
               ? 'force_rebuild'
-              : `window_changed:${moduleWindowFingerprint(storedNumbers)}→${desiredFingerprint}`,
+              : `window_changed:${moduleWindowFingerprint(storedNumbers, storedSessions)}→${desiredFingerprint}`,
             previous_week_numbers: storedNumbers,
+            previous_sessions_per_week: storedSessions,
           },
         },
       })
@@ -435,8 +545,8 @@ export async function bridgeTrack(
   const topics = (input.track.topics ?? []).map(String).filter(Boolean);
   const weekCount = window.weekCount;
   const moduleDuration = window.range
-    ? `Module · Weeks ${window.range.start}–${window.range.end} (${weekCount} teaching weeks)`
-    : `Module · ${weekCount} teaching weeks`;
+    ? `Module · Weeks ${window.range.start}–${window.range.end} (${weekCount} teaching weeks · ${sessionsPerWeek} session${sessionsPerWeek === 1 ? '' : 's'}/week)`
+    : `Module · ${weekCount} teaching weeks · ${sessionsPerWeek} session${sessionsPerWeek === 1 ? '' : 's'}/week`;
 
   let generated: any;
   try {
@@ -450,10 +560,9 @@ export async function bridgeTrack(
       week_count: weekCount,
       weeks_per_term: weekCount,
       week_numbers: window.weekNumbers,
+      sessions_per_week: sessionsPerWeek,
       track_week_label: input.track.week,
       ages_label: input.page.ages_label,
-      // Module length, not the full cohort label — otherwise the model pads
-      // Generative Art across the whole 7-week Python-to-graduation calendar.
       duration_label: moduleDuration,
       hero_blurb: input.page.hero_blurb,
       track_desc: input.track.desc,
@@ -469,7 +578,7 @@ export async function bridgeTrack(
   }
 
   const planWeeks = alignPlanWeeksToWindow(
-    planWeeksFromCurriculum(generated),
+    planWeeksFromCurriculum(generated, sessionsPerWeek),
     window.weekNumbers,
   );
   if (!planWeeks.length) {
@@ -566,10 +675,12 @@ export async function bridgeTrack(
       status: 'published',
       version: 1,
       created_by: input.createdBy,
+      sessions_per_week: sessionsPerWeek,
       plan_data: {
         weeks: planWeeks,
         source: 'programme_page_bridge',
         module_window: desiredFingerprint,
+        sessions_per_week: sessionsPerWeek,
       },
       metadata: {
         auto_generate_settings: {
@@ -585,6 +696,7 @@ export async function bridgeTrack(
           track: title,
           track_week_label: input.track.week ?? null,
           week_numbers: window.weekNumbers,
+          sessions_per_week: sessionsPerWeek,
           window_fingerprint: desiredFingerprint,
         },
       },
@@ -607,7 +719,7 @@ export async function bridgeTrack(
     track: title,
     courseId: course.id,
     status: 'built',
-    detail: `Curriculum and plan created for ${planWeeks.length} weeks (${desiredFingerprint || 'unscoped'}).`,
+    detail: `Curriculum and plan created for ${planWeeks.length} session(s) across ${window.weekNumbers.length} week(s) (${desiredFingerprint}).`,
     releaseId: release.id,
     planId: plan.id,
     weeks: planWeeks.length,

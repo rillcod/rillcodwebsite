@@ -241,6 +241,8 @@ export interface GenerateRequest {
   duration_label?: string;
   hero_blurb?: string;
   track_desc?: string;
+  /** Class meetings per calendar week (1–7) for duration programmes. */
+  sessions_per_week?: number;
 }
 
 type CbtGenerationPlan = {
@@ -1525,8 +1527,13 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
       const weekNumbers = Array.isArray(req.week_numbers) && req.week_numbers.length
         ? req.week_numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
         : Array.from({ length: weeks }, (_, i) => i + 1);
+      const sessionsPerWeek = Math.max(
+        1,
+        Math.min(7, Math.floor(Number(req.sessions_per_week) || 1)),
+      );
       const shortModule = weekNumbers.length <= 3;
       const numberingLine = weekNumbers.join(", ");
+      const multiSession = sessionsPerWeek > 1;
 
       return `You are designing a ready-to-teach curriculum for Rillcod Technologies.
 
@@ -1540,6 +1547,7 @@ Track / Course: "${req.course_name ?? req.courseName ?? req.topic}"
 ${req.track_week_label ? `Module window on the published page: ${req.track_week_label}` : ""}
 Learners: ${req.ages_label ?? req.gradeLevel ?? "mixed ages"}
 Duration: ${req.duration_label ?? `${weeks} weeks`}
+Sessions per calendar week: ${sessionsPerWeek}
 ${req.hero_blurb ? `Programme promise: ${req.hero_blurb}` : ""}
 ${req.track_desc ? `Track promise: ${req.track_desc}` : ""}
 
@@ -1553,15 +1561,20 @@ ${spine.length ? `━━━ THIS MODULE'S PUBLISHED WEEK SPINE ━━━\n${spin
         .join("\n")}` : ""}
 
 ━━━ SHAPE ━━━
-- Exactly ${weekNumbers.length} weeks, numbered ${numberingLine} (programme calendar numbers).
+- Exactly ${weekNumbers.length} calendar weeks, numbered ${numberingLine} (programme calendar numbers).
+${multiSession
+  ? `- Each calendar week has exactly ${sessionsPerWeek} class sessions (session 1..${sessionsPerWeek}).
+- Put a nested "sessions" array on every week object — one entry per class meeting.
+- Spread the advertised topics across sessions in order; each session is its own teachable unit.`
+  : `- One teachable unit per calendar week (session 1 implied).`}
 - Put the advertised topics in the order given; expand them across THESE weeks
   only — do not stretch the module across the rest of the cohort.
 - Stay inside THIS track's promise and topics only; never pad with unrelated
   modules from the rest of the cohort.
 ${shortModule
-  ? `- Short module: the final week is a project showcase (type: "project"); earlier weeks are lessons.`
-  : `- A project-based checkpoint every third week (type: "project").
-- The final week is a showcase of the learner's own work (type: "project"), never an examination.`}
+  ? `- Short module: the final week's last session is a project showcase (type: "project"); earlier sessions are lessons.`
+  : `- A project-based checkpoint every third week (type: "project" on that week's last session).
+- The final week's last session is a showcase of the learner's own work (type: "project"), never an examination.`}
 - Practical and screen-based throughout; these learners chose this programme.
 
 ━━━ RETURN EXACTLY THIS SHAPE ━━━
@@ -1582,11 +1595,23 @@ One term object holding every week, because the module is one continuous run.
         {
           "week": ${weekNumbers[0] ?? 1},
           "type": "lesson" | "project",
-          "topic": "string",
-          "subtopics": ["string"],
+          "topic": "string — week theme",
+${multiSession
+  ? `          "sessions": [
+            {
+              "session": 1,
+              "type": "lesson" | "project",
+              "topic": "string — this class meeting",
+              "subtopics": ["string"],
+              "objectives": "string",
+              "activities": "string",
+              "notes": "string — what the teacher should know before the session"
+            }
+          ]`
+  : `          "subtopics": ["string"],
           "objectives": "string",
           "activities": "string",
-          "notes": "string — what the teacher should know before the session"
+          "notes": "string — what the teacher should know before the session"`}
         }
       ]
     }

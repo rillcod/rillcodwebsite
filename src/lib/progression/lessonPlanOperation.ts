@@ -36,9 +36,27 @@ export function getWeekCompositeKey(
   fallbackTerm?: number | null,
 ): string {
   const weekNumber = getWeekNumber(week);
+  const session = Number(week.session ?? week.session_number ?? 0);
+  const sessionPart =
+    Number.isFinite(session) && session > 0 ? `s${Math.floor(session)}` : '';
   const { year, term } = getYearTermFromWeek(week, fallbackYear, fallbackTerm);
-  if (year && term) return `y${year}t${term}w${weekNumber}`;
-  return `legacy:w${weekNumber}`;
+  if (year && term) return `y${year}t${term}w${weekNumber}${sessionPart}`;
+  return `legacy:w${weekNumber}${sessionPart}`;
+}
+
+/** Session index on a plan row (1-based). Missing → 0 (legacy single-unit week). */
+export function getPlanWeekSession(week: Record<string, unknown>): number {
+  const session = Number(week.session ?? week.session_number ?? 0);
+  return Number.isFinite(session) && session > 0 ? Math.floor(session) : 0;
+}
+
+/** Metadata fields that keep multi-session weeks distinct in generators. */
+export function planWeekSessionMetadata(
+  week: Record<string, unknown>,
+): { session?: number; session_number?: number } {
+  const session = getPlanWeekSession(week);
+  if (session < 1) return {};
+  return { session, session_number: session };
 }
 
 export function getMetadataWeekCompositeKey(
@@ -49,6 +67,7 @@ export function getMetadataWeekCompositeKey(
   const m = asObject(metadata);
   return getWeekCompositeKey({
     week: Number(m.week_number ?? m.week ?? -1),
+    session: Number(m.session ?? m.session_number ?? 0),
     syllabus_ref: {
       year_number: Number(m.year_number ?? fallbackYear ?? 0),
       term_number: Number(m.term_number ?? fallbackTerm ?? 0),
@@ -100,11 +119,16 @@ export function extractLessonPlanOperationWeeks(
       const bRef = getYearTermFromWeek(b);
       return (aRef.year ?? 0) - (bRef.year ?? 0)
         || (aRef.term ?? 0) - (bRef.term ?? 0)
-        || getWeekNumber(a) - getWeekNumber(b);
+        || getWeekNumber(a) - getWeekNumber(b)
+        || getPlanWeekSession(a) - getPlanWeekSession(b);
     });
   }
 
-  return asWeekArray(root.weeks).sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
+  return asWeekArray(root.weeks).sort(
+    (a, b) =>
+      getWeekNumber(a) - getWeekNumber(b) ||
+      getPlanWeekSession(a) - getPlanWeekSession(b),
+  );
 }
 
 export function parseWeekTermRefs(

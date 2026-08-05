@@ -50,6 +50,7 @@ export const EMPTY_SPECIAL_CONTENT: SpecialProgramContent = {
   age_min: 8,
   age_max: 99,
   duration_label: '',
+  sessions_per_week: 1,
   curriculum_heading: 'Curriculum',
   curriculum_intro: '',
   tracks: [],
@@ -861,14 +862,35 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   Hero blurb
                   <textarea value={content.hero_blurb || ''} onChange={(e) => patchContent({ hero_blurb: e.target.value })} className={textareaCls} rows={3} />
                 </label>
-                <label className={labelCls}>
-                  Duration label
-                  <input value={content.duration_label || ''} onChange={(e) => patchContent({ duration_label: e.target.value })} className={fieldCls} />
-                </label>
-                <label className={labelCls}>
-                  Ages label
-                  <input value={content.ages_label || ''} onChange={(e) => patchContent({ ages_label: e.target.value })} className={fieldCls} />
-                </label>
+                  <label className={labelCls}>
+                    Duration label
+                    <input value={content.duration_label || ''} onChange={(e) => patchContent({ duration_label: e.target.value })} className={fieldCls} />
+                  </label>
+                  <label className={labelCls}>
+                    Classes per week
+                    <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
+                      How many times learners meet each week (for example 1 = once a week, 2 = twice a week). We prepare a full set of teaching materials for every meeting.
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={7}
+                      value={content.sessions_per_week ?? 1}
+                      onChange={(e) =>
+                        patchContent({
+                          sessions_per_week: Math.max(
+                            1,
+                            Math.min(7, parseInt(e.target.value, 10) || 1),
+                          ),
+                        })
+                      }
+                      className={fieldCls}
+                    />
+                  </label>
+                  <label className={labelCls}>
+                    Ages label
+                    <input value={content.ages_label || ''} onChange={(e) => patchContent({ ages_label: e.target.value })} className={fieldCls} />
+                  </label>
                 <div className="grid grid-cols-2 gap-3">
                   <label className={labelCls}>
                     Age min
@@ -998,6 +1020,33 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       <label className={labelCls}>
                         Week / module label
                         <input value={t.week} onChange={(e) => update({ week: e.target.value })} className={fieldCls} />
+                      </label>
+                      <label className={labelCls}>
+                        Classes per week for this module
+                        <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
+                          Optional. Leave blank to use the programme setting above ({content.sessions_per_week ?? 1}). Only change this if this module meets more or less often than the rest.
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={7}
+                          placeholder={String(content.sessions_per_week ?? 1)}
+                          value={t.sessions_per_week ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.trim();
+                            if (!raw) {
+                              update({ sessions_per_week: undefined });
+                              return;
+                            }
+                            update({
+                              sessions_per_week: Math.max(
+                                1,
+                                Math.min(7, parseInt(raw, 10) || 1),
+                              ),
+                            });
+                          }}
+                          className={fieldCls}
+                        />
                       </label>
                       <label className={labelCls}>
                         Title

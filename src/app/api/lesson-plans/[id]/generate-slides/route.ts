@@ -19,6 +19,7 @@ export const maxDuration = 300;
 
 type PlanWeek = {
   week?: number;
+  session?: number;
   topic?: string;
   objectives?: string;
   activities?: string;
@@ -63,12 +64,22 @@ function lessonSummary(lesson: Record<string, unknown>): string {
     .slice(0, 7000);
 }
 
+function sessionMatches(
+  metadata: Record<string, unknown> | null | undefined,
+  session: number | null,
+): boolean {
+  if (session == null || session < 1) return true;
+  const got = Number(metadata?.session ?? metadata?.session_number ?? 0);
+  return Number.isFinite(got) && Math.floor(got) === session;
+}
+
 async function findWeekLesson(
   db: ReturnType<typeof createAdminClient>,
   plan: Record<string, any>,
-  week: number
+  week: number,
+  session: number | null = null,
 ) {
-  const { data: canonical } = await db
+  const { data: candidates } = await db
     .from("lessons")
     .select(
       "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number"
@@ -76,8 +87,11 @@ async function findWeekLesson(
     .eq("lesson_plan_id", plan.id)
     .eq("curriculum_week_number", week)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
+
+  const canonical = (candidates ?? []).find((lesson) =>
+    sessionMatches(lesson.metadata as Record<string, unknown> | null, session),
+  );
   if (canonical) return canonical;
 
   const { data: legacy } = await db
@@ -94,7 +108,8 @@ async function findWeekLesson(
       const metadata = lesson.metadata as Record<string, unknown> | null;
       return (
         metadata?.lesson_plan_id === plan.id &&
-        Number(metadata?.week ?? metadata?.week_number) === week
+        Number(metadata?.week ?? metadata?.week_number) === week &&
+        sessionMatches(metadata, session)
       );
     }) ?? null
   );
@@ -162,6 +177,11 @@ export async function POST(
   const week = Number(body.week);
   /** Opt-in: replace an existing deck instead of reporting it already exists. */
   const regenerate = body.regenerate === true;
+  const onlySessionRaw = Number(body.session);
+  const onlySession =
+    Number.isInteger(onlySessionRaw) && onlySessionRaw > 0
+      ? onlySessionRaw
+      : null;
   if (!Number.isInteger(week) || week < 1) {
     return NextResponse.json(
       { error: "Choose a valid teaching week" },
@@ -174,141 +194,172 @@ export async function POST(
   )
     ? (plan.plan_data as { weeks: PlanWeek[] }).weeks
     : [];
-  const planWeek = weeks.find((row) => Number(row.week) === week);
-  if (!planWeek) {
+  const planWeeks = weeks.filter((row) => {
+    if (Number(row.week) !== week) return false;
+    if (onlySession == null) return true;
+    const s = Number(row.session ?? 0);
+    return Number.isFinite(s) && s > 0
+      ? Math.floor(s) === onlySession
+      : onlySession === 1;
+  });
+  if (!planWeeks.length) {
     return NextResponse.json(
       { error: `Week ${week} is not in this teaching plan` },
       { status: 400 }
     );
   }
 
-  const lesson = await findWeekLesson(db, plan as Record<string, any>, week);
-  if (!lesson) {
-    return NextResponse.json(
-      { error: "Generate or add the lesson before creating its slides" },
-      { status: 409 }
-    );
-  }
-
-  const { data: existing } = await db
-    .from("lesson_materials")
-    .select("id,title,lesson_id,file_url")
-    .eq("lesson_id", lesson.id)
-    .eq("file_type", "slide-deck")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  // Re-rolling is the teacher's call, never automatic: regenerating costs a
-  // model call and replaces slides they may already have taught from. Without
-  // it a deck could never be replaced at all, so a deck rendered by an older
-  // template stayed wrong for the life of the lesson.
-  if (existing && !regenerate) {
-    return NextResponse.json({
-      data: existing,
-      generated: 0,
-      skipped: 1,
-      already_exists: true,
-      can_regenerate: true,
-    });
-  }
-  if (existing && regenerate) {
-    // Drop the old images first — orphaned SVGs in R2 are invisible and
-    // permanent, and this is the only moment their keys are still known.
-    try {
-      const parsed = JSON.parse(String(existing.file_url ?? "{}"));
-      const oldKeys: string[] = Array.isArray(parsed?.slides)
-        ? parsed.slides
-        : [];
-      await Promise.all(oldKeys.map((key) => r2Delete(key).catch(() => {})));
-    } catch {
-      /* unreadable payload — the row still goes, the objects are unreachable anyway */
-    }
-    await db.from("lesson_materials").delete().eq("id", existing.id);
-  }
-
   const course = Array.isArray(plan.courses) ? plan.courses[0] : plan.courses;
-  let aiData: { success: true; data: unknown };
-  try {
-    aiData = await fetchAIGenerate({
-      type: "slides",
-      topic: lesson.title || planWeek.topic || `Week ${week}`,
-      className: klass?.name || "Basic 1 to SS3",
-      gradeLevel: klass?.name || "Basic 1 to SS3",
-      courseName: course?.title || "STEM & Technology",
-      planWeekObjectives: planWeek.objectives || "",
-      planWeekActivities: planWeek.activities || "",
-      syllabusReference: planWeek.notes || "",
-      lessonSummary: lessonSummary(lesson as Record<string, unknown>),
-      slideCount: 7,
-    });
-  } catch (error) {
-    const reason =
-      error instanceof AIFetchError ? error.reason : "Slide generation failed";
-    return NextResponse.json({ error: reason }, { status: 502 });
-  }
+  let generated = 0;
+  let skipped = 0;
+  const results: unknown[] = [];
+  let lastError: string | null = null;
 
-  const slides = normaliseGeneratedSlides(aiData.data);
-  if (slides.length < 5) {
-    return NextResponse.json(
-      { error: "The AI returned an incomplete slide deck. Please try again." },
-      { status: 502 }
+  for (const planWeek of planWeeks) {
+    const sessionRaw = Number(planWeek.session ?? 0);
+    const session =
+      Number.isFinite(sessionRaw) && sessionRaw > 0
+        ? Math.floor(sessionRaw)
+        : null;
+    const lesson = await findWeekLesson(
+      db,
+      plan as Record<string, any>,
+      week,
+      session,
     );
-  }
-
-  const uploadedKeys: string[] = [];
-  try {
-    for (let index = 0; index < slides.length; index += 1) {
-      const key = `${plan.school_id || "global"}/lesson-slides/${
-        lesson.id
-      }/${randomUUID()}.svg`;
-      const svg = renderGeneratedSlideSvg(slides[index], {
-        index,
-        total: slides.length,
-        courseTitle: course?.title || "Rillcod Academy",
-        week,
-      });
-      await r2Upload(
-        key,
-        Buffer.from(svg, "utf8"),
-        "image/svg+xml; charset=utf-8"
-      );
-      uploadedKeys.push(key);
+    if (!lesson) {
+      lastError = "Generate or add the lesson before creating its slides";
+      skipped += 1;
+      continue;
     }
 
-    const { data: material, error } = await db
+    const { data: existing } = await db
       .from("lesson_materials")
-      .insert({
-        lesson_id: lesson.id,
-        lesson_plan_id: plan.id,
-        class_id: plan.class_id,
-        curriculum_release_id: plan.curriculum_release_id,
-        academic_offering_id: plan.academic_offering_id,
-        offering_period_id: plan.offering_period_id,
-        curriculum_week_number: week,
-        title: `${
-          lesson.title || planWeek.topic || `Week ${week}`
-        } - Learning Slides`,
-        file_type: "slide-deck",
-        file_url: JSON.stringify({
-          slides: uploadedKeys,
-          source: "ai-generated",
-        }),
-        is_public: true,
-      })
-      .select()
-      .single();
+      .select("id,title,lesson_id,file_url")
+      .eq("lesson_id", lesson.id)
+      .eq("file_type", "slide-deck")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing && !regenerate) {
+      results.push(existing);
+      skipped += 1;
+      continue;
+    }
+    if (existing && regenerate) {
+      try {
+        const parsed = JSON.parse(String(existing.file_url ?? "{}"));
+        const oldKeys: string[] = Array.isArray(parsed?.slides)
+          ? parsed.slides
+          : [];
+        await Promise.all(oldKeys.map((key) => r2Delete(key).catch(() => {})));
+      } catch {
+        /* unreadable payload */
+      }
+      await db.from("lesson_materials").delete().eq("id", existing.id);
+    }
 
-    if (error) throw error;
-    return NextResponse.json(
-      { data: material, generated: 1, skipped: 0 },
-      { status: 201 }
-    );
-  } catch (error) {
-    await Promise.all(
-      uploadedKeys.map((key) => r2Delete(key).catch(() => undefined))
-    );
-    const message =
-      error instanceof Error ? error.message : "Could not save the slide deck";
-    return NextResponse.json({ error: message }, { status: 500 });
+    let aiData: { success: true; data: unknown };
+    try {
+      aiData = await fetchAIGenerate({
+        type: "slides",
+        topic: lesson.title || planWeek.topic || `Week ${week}`,
+        className: klass?.name || "Basic 1 to SS3",
+        gradeLevel: klass?.name || "Basic 1 to SS3",
+        courseName: course?.title || "STEM & Technology",
+        planWeekObjectives: planWeek.objectives || "",
+        planWeekActivities: planWeek.activities || "",
+        syllabusReference: planWeek.notes || "",
+        lessonSummary: lessonSummary(lesson as Record<string, unknown>),
+        slideCount: 7,
+      });
+    } catch (error) {
+      lastError =
+        error instanceof AIFetchError ? error.reason : "Slide generation failed";
+      skipped += 1;
+      continue;
+    }
+
+    const slides = normaliseGeneratedSlides(aiData.data);
+    if (slides.length < 5) {
+      lastError = "The AI returned an incomplete slide deck. Please try again.";
+      skipped += 1;
+      continue;
+    }
+
+    const uploadedKeys: string[] = [];
+    try {
+      for (let index = 0; index < slides.length; index += 1) {
+        const key = `${plan.school_id || "global"}/lesson-slides/${
+          lesson.id
+        }/${randomUUID()}.svg`;
+        const svg = renderGeneratedSlideSvg(slides[index], {
+          index,
+          total: slides.length,
+          courseTitle: course?.title || "Rillcod Academy",
+          week,
+        });
+        await r2Upload(
+          key,
+          Buffer.from(svg, "utf8"),
+          "image/svg+xml; charset=utf-8"
+        );
+        uploadedKeys.push(key);
+      }
+
+      const sessionLabel =
+        session != null && session > 0 ? ` · Session ${session}` : "";
+      const { data: material, error } = await db
+        .from("lesson_materials")
+        .insert({
+          lesson_id: lesson.id,
+          lesson_plan_id: plan.id,
+          class_id: plan.class_id,
+          curriculum_release_id: plan.curriculum_release_id,
+          academic_offering_id: plan.academic_offering_id,
+          offering_period_id: plan.offering_period_id,
+          curriculum_week_number: week,
+          title: `${
+            lesson.title || planWeek.topic || `Week ${week}`
+          }${sessionLabel} - Learning Slides`,
+          file_type: "slide-deck",
+          file_url: JSON.stringify({
+            slides: uploadedKeys,
+            source: "ai-generated",
+            ...(session != null ? { session } : {}),
+          }),
+          is_public: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      results.push(material);
+      generated += 1;
+    } catch (error) {
+      await Promise.all(
+        uploadedKeys.map((key) => r2Delete(key).catch(() => undefined))
+      );
+      lastError =
+        error instanceof Error ? error.message : "Could not save the slide deck";
+      skipped += 1;
+    }
   }
+
+  if (generated === 0 && results.length === 0) {
+    return NextResponse.json(
+      { error: lastError || "Could not generate slides for this week" },
+      { status: lastError?.includes("lesson") ? 409 : 502 }
+    );
+  }
+
+  return NextResponse.json(
+    {
+      data: results.length === 1 ? results[0] : results,
+      generated,
+      skipped,
+      ...(generated === 0 ? { already_exists: true, can_regenerate: true } : {}),
+    },
+    { status: generated > 0 ? 201 : 200 }
+  );
 }

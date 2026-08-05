@@ -17,6 +17,7 @@ import {
   getMetadataWeekCompositeKey,
   getWeekCompositeKey,
   parseWeekTermRefs,
+  planWeekSessionMetadata,
 } from "@/lib/progression/lessonPlanOperation";
 import {
   canAccessLessonScope,
@@ -334,6 +335,9 @@ export async function POST(
                 lesson_plan_id: id,
                 week: week.week,
                 week_number: week.week,
+                ...planWeekSessionMetadata(
+                  week as unknown as Record<string, unknown>
+                ),
                 year_number:
                   Number.isFinite(yearNumber) && yearNumber > 0
                     ? yearNumber

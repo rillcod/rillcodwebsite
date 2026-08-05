@@ -7,6 +7,8 @@ export type SpecialProgramTrack = {
   title: string;
   desc: string;
   topics: string[];
+  /** Override page default — how many class sessions run in each calendar week. */
+  sessions_per_week?: number;
 };
 
 export type SpecialProgramWeek = {
@@ -45,6 +47,8 @@ export type SpecialProgramContent = {
   age_min?: number;
   age_max?: number;
   duration_label?: string;
+  /** Default class meetings per calendar week (1–7). Tracks may override. */
+  sessions_per_week?: number;
   curriculum_heading?: string;
   curriculum_intro?: string;
   tracks?: SpecialProgramTrack[];
@@ -59,6 +63,24 @@ export type SpecialProgramContent = {
   next_path_heading?: string;
   next_path_intro?: string;
 };
+
+/** Clamp sessions/week to a teachable range. */
+export function clampSessionsPerWeek(raw: unknown, fallback = 1): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(7, Math.floor(n)));
+}
+
+/** Track override wins; otherwise page default; otherwise 1. */
+export function resolveSessionsPerWeek(
+  track: { sessions_per_week?: number } | null | undefined,
+  page: { sessions_per_week?: number } | null | undefined,
+): number {
+  if (track?.sessions_per_week != null) {
+    return clampSessionsPerWeek(track.sessions_per_week, 1);
+  }
+  return clampSessionsPerWeek(page?.sessions_per_week, 1);
+}
 
 /** Hardcoded fallbacks used when content fields are missing (legacy pages). */
 export const DEFAULT_SPECIAL_BONUS: Required<Pick<SpecialProgramBonus, 'enabled' | 'badge' | 'icon' | 'title' | 'desc'>> & {

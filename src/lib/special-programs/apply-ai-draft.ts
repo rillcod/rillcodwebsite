@@ -61,6 +61,12 @@ export function applySpecialProgramAiDraft(
       curriculum_intro: fill(next.content.curriculum_intro, data.curriculum_intro),
       ages_label: fill(next.content.ages_label, data.ages_label),
       duration_label: fill(next.content.duration_label, data.duration_label),
+      sessions_per_week:
+        typeof data.sessions_per_week === 'number'
+          ? mode === 'replace' || !next.content.sessions_per_week
+            ? Math.max(1, Math.min(7, Math.floor(data.sessions_per_week)))
+            : next.content.sessions_per_week
+          : next.content.sessions_per_week,
           weeks_heading: fill(next.content.weeks_heading, data.weeks_heading),
           weeks_intro: fill(next.content.weeks_intro, data.weeks_intro),
           register_heading: fill(next.content.register_heading, data.register_heading),
@@ -84,6 +90,14 @@ export function applySpecialProgramAiDraft(
         title: String(t.title || ''),
         desc: String(t.desc || ''),
         topics: Array.isArray(t.topics) && t.topics.length ? t.topics.map(String) : [''],
+        ...(typeof t.sessions_per_week === 'number'
+          ? {
+              sessions_per_week: Math.max(
+                1,
+                Math.min(7, Math.floor(t.sessions_per_week)),
+              ),
+            }
+          : {}),
       }));
       next.content = {
         ...next.content,

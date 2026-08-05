@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   academicWeekNumber,
   indexFirstByWeek,
+  indexFirstByWeekSession,
+  weekSessionLookupKey,
   weekPackagePrimaryAction,
   weekPackageStatus,
   buildWeekVisibility,
@@ -41,6 +43,26 @@ describe("indexFirstByWeek", () => {
     const index = indexFirstByWeek(rows);
     expect(index.get(2)?.id).toBe("newest");
     expect(index.get(3)?.id).toBe("week-three");
+  });
+});
+
+describe("indexFirstByWeekSession", () => {
+  it("keeps two sessions in the same calendar week distinct", () => {
+    const rows = [
+      {
+        id: "s1",
+        curriculum_week_number: 1,
+        metadata: { session: 1 },
+      },
+      {
+        id: "s2",
+        curriculum_week_number: 1,
+        metadata: { session: 2 },
+      },
+    ];
+    const index = indexFirstByWeekSession(rows);
+    expect(index.get(weekSessionLookupKey(1, 1))?.id).toBe("s1");
+    expect(index.get(weekSessionLookupKey(1, 2))?.id).toBe("s2");
   });
 });
 

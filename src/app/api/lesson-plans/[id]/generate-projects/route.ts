@@ -15,14 +15,19 @@ import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   extractLessonPlanOperationWeeks,
   getMetadataWeekCompositeKey,
+  getPlanWeekSession,
   getWeekCompositeKey,
   parseWeekTermRefs,
+  planWeekSessionMetadata,
 } from "@/lib/progression/lessonPlanOperation";
 import {
   canAccessLessonScope,
   requireStaffUser,
 } from "@/app/api/lesson-plans/authz";
-import { indexFirstByWeek } from "@/lib/academic/week-package";
+import {
+  indexFirstByWeekSession,
+  weekSessionLookupKey,
+} from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
@@ -148,7 +153,9 @@ export async function POST(
         .order("created_at", { ascending: false }),
     ]);
     const existingProjects = existingResult.data ?? [];
-    const lessonsByWeek = indexFirstByWeek<any>(linkedLessonResult.data ?? []);
+    const lessonsByWeek = indexFirstByWeekSession<any>(
+      linkedLessonResult.data ?? []
+    );
 
     const existingWeekSet = new Set<string>(
       (existingProjects ?? [])
@@ -296,7 +303,15 @@ export async function POST(
             .from("assignments")
             .insert({
               course_id: planCourseId,
-              lesson_id: lessonsByWeek.get(Number(week.week))?.id ?? null,
+              lesson_id:
+                lessonsByWeek.get(
+                  weekSessionLookupKey(
+                    Number(week.week),
+                    getPlanWeekSession(
+                      week as unknown as Record<string, unknown>
+                    )
+                  )
+                )?.id ?? null,
               class_id: plan.class_id,
               created_by: isCron ? plan.created_by : staff.id,
               school_id: planSchoolId,
@@ -325,6 +340,9 @@ export async function POST(
                 lesson_plan_id: plan.id,
                 week: week.week,
                 week_number: week.week,
+                ...planWeekSessionMetadata(
+                  week as unknown as Record<string, unknown>
+                ),
                 year_number:
                   Number.isFinite(yearNumber) && yearNumber > 0
                     ? yearNumber

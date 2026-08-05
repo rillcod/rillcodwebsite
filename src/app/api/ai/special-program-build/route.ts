@@ -29,6 +29,7 @@ Return this exact shape:
   "age_min": 8,
   "age_max": 99,
   "duration_label": "N Weeks Cohort",
+  "sessions_per_week": 1,
   "curriculum_heading": "Section heading",
   "curriculum_intro": "1-2 sentences about the curriculum approach",
   "tracks": [
@@ -38,7 +39,8 @@ Return this exact shape:
       "week": "Module N · Weeks A–B",
       "title": "Module title",
       "desc": "1-2 sentence description",
-      "topics": ["topic 1", "topic 2", "topic 3", "topic 4", "Project: ..."]
+      "topics": ["topic 1", "topic 2", "topic 3", "topic 4", "Project: ..."],
+      "sessions_per_week": 1
     }
   ],
   "weeks_heading": "Weekly Curriculum",
@@ -80,6 +82,7 @@ Rules:
 - British English. Practical, Nigeria-relevant examples (Lagos, Benin City, fintech, farming, schools).
 - Christian-friendly tone without heavy preaching.
 - tracks: 3–5 modules; weeks: match duration_weeks (default 6–8); outcomes: 4–6 items; bonus items: 3.
+- sessions_per_week: integer 1–7 for how many class meetings run each calendar week (default 1). Tracks may override.
 - Each module ends with a Project topic.
 - Fees are NGN integers; keep suggestions realistic for Nigerian families unless the brief says otherwise.
 - If mode is "online" lean lighter fees; if "onsite" higher; if "both" keep both suggestions.

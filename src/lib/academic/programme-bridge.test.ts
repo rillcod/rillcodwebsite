@@ -141,10 +141,17 @@ describe('resolveTrackTeachingWindow — true bearing from the write-up', () => 
 
 describe('module window expansion is capturable', () => {
   it('fingerprints Weeks 1–2 differently from Weeks 1–3', () => {
-    expect(moduleWindowFingerprint([1, 2])).toBe('1,2');
-    expect(moduleWindowFingerprint([1, 2, 3])).toBe('1,2,3');
+    expect(moduleWindowFingerprint([1, 2])).toBe('1,2@1');
+    expect(moduleWindowFingerprint([1, 2, 3])).toBe('1,2,3@1');
     expect(windowsMatch([1, 2], [1, 2, 3])).toBe(false);
     expect(windowsMatch([1, 3, 2], [1, 2, 3])).toBe(true);
+  });
+
+  it('fingerprints sessions-per-week changes as a rebuild trigger', () => {
+    expect(moduleWindowFingerprint([1, 2], 1)).toBe('1,2@1');
+    expect(moduleWindowFingerprint([1, 2], 2)).toBe('1,2@2');
+    expect(windowsMatch([1, 2], [1, 2], 1, 2)).toBe(false);
+    expect(windowsMatch([1, 2], [1, 2], 2, 2)).toBe(true);
   });
 
   it('formats expandable module labels the bridge can parse', () => {
@@ -190,6 +197,24 @@ describe('alignPlanWeeksToWindow', () => {
     expect(aligned[1].topic).toBe('Chatbot project');
   });
 
+  it('preserves session numbers when remapping calendar weeks', () => {
+    const aligned = alignPlanWeeksToWindow(
+      [
+        { week: 1, session: 1, topic: 'A' },
+        { week: 1, session: 2, topic: 'B' },
+        { week: 2, session: 1, topic: 'C' },
+        { week: 2, session: 2, topic: 'D' },
+      ],
+      [4, 5],
+    );
+    expect(aligned.map((w) => [w.week, w.session])).toEqual([
+      [4, 1],
+      [4, 2],
+      [5, 1],
+      [5, 2],
+    ]);
+  });
+
   it('leaves already-correct programme week numbers alone', () => {
     const weeks = [
       { week: 1, topic: 'Prompts' },
@@ -216,6 +241,7 @@ describe('planWeeksFromCurriculum', () => {
   it('flattens one continuous run into ordered plan weeks', () => {
     const weeks = planWeeksFromCurriculum(curriculum);
     expect(weeks.map((w) => w.week)).toEqual([1, 2, 3]);
+    expect(weeks.map((w) => w.session)).toEqual([1, 1, 1]);
     expect(weeks[0].topic).toBe('Intro to generative AI');
   });
 
@@ -230,6 +256,54 @@ describe('planWeeksFromCurriculum', () => {
       terms: [{ weeks: [{ topic: 'One' }, { topic: 'Two' }] }],
     });
     expect(weeks.map((w) => w.week)).toEqual([1, 2]);
+  });
+
+  it('expands one row per week into N session slots', () => {
+    const weeks = planWeeksFromCurriculum(
+      {
+        terms: [
+          {
+            weeks: [
+              { week: 1, topic: 'Prompts', type: 'lesson' },
+              { week: 2, topic: 'Portfolio', type: 'project' },
+            ],
+          },
+        ],
+      },
+      2,
+    );
+    expect(weeks.map((w) => [w.week, w.session, w.type])).toEqual([
+      [1, 1, 'lesson'],
+      [1, 2, 'lesson'],
+      [2, 1, 'lesson'],
+      [2, 2, 'project'],
+    ]);
+  });
+
+  it('keeps nested sessions from the model', () => {
+    const weeks = planWeeksFromCurriculum(
+      {
+        terms: [
+          {
+            weeks: [
+              {
+                week: 1,
+                topic: 'Week theme',
+                sessions: [
+                  { session: 1, topic: 'Morning prompts', type: 'lesson' },
+                  { session: 2, topic: 'Afternoon collage', type: 'lesson' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      2,
+    );
+    expect(weeks.map((w) => w.topic)).toEqual([
+      'Morning prompts',
+      'Afternoon collage',
+    ]);
   });
 
   it('returns nothing rather than a broken plan when there is no syllabus', () => {

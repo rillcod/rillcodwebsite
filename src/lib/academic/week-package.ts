@@ -55,6 +55,37 @@ export function indexFirstByWeek<T extends WeekLinkedAsset>(
   return index;
 }
 
+/**
+ * Index by calendar week + session so multi-session plans do not collapse
+ * onto the first lesson of the week.
+ */
+export function indexFirstByWeekSession<T extends WeekLinkedAsset>(
+  rows: T[] | null | undefined
+): Map<string, T> {
+  const index = new Map<string, T>();
+  for (const row of rows ?? []) {
+    const week = academicWeekNumber(row);
+    if (week === null) continue;
+    const session = Number(
+      row.metadata?.session ?? row.metadata?.session_number ?? 0,
+    );
+    const key =
+      Number.isFinite(session) && session > 0
+        ? `${week}:s${Math.floor(session)}`
+        : `${week}`;
+    if (!index.has(key)) index.set(key, row);
+  }
+  return index;
+}
+
+export function weekSessionLookupKey(
+  week: number,
+  session?: number | null,
+): string {
+  const s = Number(session);
+  return Number.isFinite(s) && s > 0 ? `${week}:s${Math.floor(s)}` : `${week}`;
+}
+
 export type WeekPackagePresence = Record<WeekPackageAsset, boolean>;
 
 export type WeekPackageVisibility = Record<WeekPackageAsset, AssetVisibility>;

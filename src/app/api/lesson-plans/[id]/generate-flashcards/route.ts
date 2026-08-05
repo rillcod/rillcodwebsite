@@ -96,40 +96,31 @@ export async function POST(
   if (!Number.isInteger(week) || week < 1) {
     return NextResponse.json({ error: "week must be a positive integer" }, { status: 400 });
   }
+  const onlySessionRaw = Number(body.session);
+  const onlySession =
+    Number.isInteger(onlySessionRaw) && onlySessionRaw > 0
+      ? onlySessionRaw
+      : null;
 
-  const weekMeta = Array.isArray((plan as any)?.plan_data?.weeks)
-    ? (plan as any).plan_data.weeks.find((w: any) => Number(w.week) === week)
-    : null;
-  if (!weekMeta) {
+  const allWeekRows: Array<{ week?: number; session?: number; topic?: string }> =
+    Array.isArray((plan as any)?.plan_data?.weeks)
+      ? (plan as any).plan_data.weeks
+      : [];
+  const weekMetas = allWeekRows.filter((w) => {
+    if (Number(w.week) !== week) return false;
+    if (onlySession == null) return true;
+    const s = Number(w.session ?? 0);
+    return Number.isFinite(s) && s > 0
+      ? Math.floor(s) === onlySession
+      : onlySession === 1;
+  });
+  if (!weekMetas.length) {
     return NextResponse.json({ error: "That week is not in this teaching plan" }, { status: 422 });
   }
-
-  const { data: existingDeck } = await (db as any)
-    .from("flashcard_decks")
-    .select("id,title")
-    .eq("lesson_plan_id", id)
-    .eq("curriculum_week_number", week)
-    .eq("class_id", (plan as any).class_id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (existingDeck?.id) {
-    return NextResponse.json({ data: existingDeck, generated: 0, skipped: 1, already_exists: true });
-  }
-
-  const { data: lesson } = await (db as any)
-    .from("lessons")
-    .select("id,title,content_layout")
-    .eq("lesson_plan_id", id)
-    .eq("curriculum_week_number", week)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
   // Hold for approval unless the caller explicitly asked to publish live.
   // DB default is also false; setting it here keeps auto_publish honest.
   const isPublic = body.auto_publish === true;
-  const title = `Week ${week}: ${(weekMeta.topic || "Flashcards").toString()}`;
 
   // flashcard_decks.created_by is NOT NULL, while lessons and assignments
   // tolerate a null creator. So a plan whose creator was never recorded
@@ -153,74 +144,166 @@ export async function POST(
       { status: 422 }
     );
   }
-  const { data: deck, error: deckError } = await (db as any)
-    .from("flashcard_decks")
-    .insert({
-      title,
-      lesson_id: lesson?.id ?? null,
-      course_id: (plan as any).course_id ?? null,
-      class_id: (plan as any).class_id ?? null,
-      lesson_plan_id: id,
-      curriculum_week_number: week,
-      is_public: isPublic,
-      created_by: deckOwner,
-      school_id: (plan as any).school_id ?? null,
-      term_id: (plan as any).term_id ?? null,
-      academic_offering_id: (plan as any).academic_offering_id ?? null,
-      offering_period_id: (plan as any).offering_period_id ?? null,
-      curriculum_release_id: (plan as any).curriculum_release_id ?? null,
-    })
-    .select("id,title")
-    .single();
-  if (deckError || !deck?.id) {
-    return NextResponse.json({ error: deckError?.message || "Deck creation failed" }, { status: 500 });
+
+  const { data: weekLessons } = await (db as any)
+    .from("lessons")
+    .select("id,title,content_layout,metadata")
+    .eq("lesson_plan_id", id)
+    .eq("curriculum_week_number", week)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  let generated = 0;
+  let skipped = 0;
+  const results: Array<{ id: string; title: string }> = [];
+  let lastError: string | null = null;
+
+  for (const weekMeta of weekMetas) {
+    const sessionRaw = Number(weekMeta.session ?? 0);
+    const session =
+      Number.isFinite(sessionRaw) && sessionRaw > 0
+        ? Math.floor(sessionRaw)
+        : null;
+    const lesson =
+      (weekLessons ?? []).find((row: any) => {
+        if (session == null) return true;
+        const meta = row.metadata as Record<string, unknown> | null;
+        const got = Number(meta?.session ?? meta?.session_number ?? 0);
+        return Number.isFinite(got) && Math.floor(got) === session;
+      }) ?? (session == null ? (weekLessons ?? [])[0] : null);
+
+    if (lesson?.id) {
+      const { data: existingForLesson } = await (db as any)
+        .from("flashcard_decks")
+        .select("id,title")
+        .eq("lesson_plan_id", id)
+        .eq("lesson_id", lesson.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingForLesson?.id) {
+        results.push(existingForLesson);
+        skipped += 1;
+        continue;
+      }
+    } else if (session == null) {
+      const { data: existingDeck } = await (db as any)
+        .from("flashcard_decks")
+        .select("id,title")
+        .eq("lesson_plan_id", id)
+        .eq("curriculum_week_number", week)
+        .eq("class_id", (plan as any).class_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingDeck?.id) {
+        results.push(existingDeck);
+        skipped += 1;
+        continue;
+      }
+    }
+
+    const sessionLabel =
+      session != null && session > 0 ? ` · Session ${session}` : "";
+    const title = `Week ${week}${sessionLabel}: ${(weekMeta.topic || "Flashcards").toString()}`;
+
+    const { data: deck, error: deckError } = await (db as any)
+      .from("flashcard_decks")
+      .insert({
+        title,
+        lesson_id: lesson?.id ?? null,
+        course_id: (plan as any).course_id ?? null,
+        class_id: (plan as any).class_id ?? null,
+        lesson_plan_id: id,
+        curriculum_week_number: week,
+        is_public: isPublic,
+        created_by: deckOwner,
+        school_id: (plan as any).school_id ?? null,
+        term_id: (plan as any).term_id ?? null,
+        academic_offering_id: (plan as any).academic_offering_id ?? null,
+        offering_period_id: (plan as any).offering_period_id ?? null,
+        curriculum_release_id: (plan as any).curriculum_release_id ?? null,
+      })
+      .select("id,title")
+      .single();
+    if (deckError || !deck?.id) {
+      lastError = deckError?.message || "Deck creation failed";
+      skipped += 1;
+      continue;
+    }
+
+    const contextText = Array.isArray(lesson?.content_layout)
+      ? lesson.content_layout
+          .map((b: any) => b?.content || b?.title || "")
+          .filter(Boolean)
+          .join("\n")
+      : "";
+    const prompt = buildFlashcardPrompt(
+      String(weekMeta.topic || "This week"),
+      15,
+      contextText,
+    );
+    const aiResult = await geminiGenerateText(FLASHCARD_SYSTEM_PROMPT, prompt, true);
+    if (!aiResult?.text) {
+      lastError = "AI returned empty response";
+      skipped += 1;
+      continue;
+    }
+    let parsed: { cards?: AiGeneratedCard[] };
+    try {
+      const clean = aiResult.text
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      lastError = "AI returned invalid JSON for flashcards";
+      skipped += 1;
+      continue;
+    }
+    const cards = Array.isArray(parsed.cards) ? parsed.cards : [];
+    const cardsToInsert = cards
+      .map((card, index) => ({
+        deck_id: deck.id,
+        front: card.front?.trim() || "",
+        back: card.back?.trim() || "",
+        tags: Array.isArray(card.tags) ? card.tags : [],
+        difficulty_level: card.difficulty || "medium",
+        template: "classic",
+        position: index + 1,
+      }))
+      .filter((card) => card.front && card.back);
+    if (!cardsToInsert.length) {
+      lastError = "No valid flashcards generated";
+      skipped += 1;
+      continue;
+    }
+
+    const { data: inserted, error: insertError } = await (db as any)
+      .from("flashcard_cards")
+      .insert(cardsToInsert)
+      .select("id");
+    if (insertError) {
+      lastError = insertError.message;
+      skipped += 1;
+      continue;
+    }
+
+    results.push({ id: deck.id, title: deck.title });
+    generated += inserted?.length ?? cardsToInsert.length;
   }
 
-  const contextText = Array.isArray(lesson?.content_layout)
-    ? lesson.content_layout
-        .map((b: any) => b?.content || b?.title || "")
-        .filter(Boolean)
-        .join("\n")
-    : "";
-  const prompt = buildFlashcardPrompt(String(weekMeta.topic || "This week"), 15, contextText);
-  const aiResult = await geminiGenerateText(FLASHCARD_SYSTEM_PROMPT, prompt, true);
-  if (!aiResult?.text) {
-    return NextResponse.json({ error: "AI returned empty response" }, { status: 502 });
-  }
-  let parsed: { cards?: AiGeneratedCard[] };
-  try {
-    const clean = aiResult.text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-    parsed = JSON.parse(clean);
-  } catch {
-    return NextResponse.json({ error: "AI returned invalid JSON for flashcards" }, { status: 502 });
-  }
-  const cards = Array.isArray(parsed.cards) ? parsed.cards : [];
-  const cardsToInsert = cards
-    .map((card, index) => ({
-      deck_id: deck.id,
-      front: card.front?.trim() || "",
-      back: card.back?.trim() || "",
-      tags: Array.isArray(card.tags) ? card.tags : [],
-      difficulty_level: card.difficulty || "medium",
-      template: "classic",
-      position: index + 1,
-    }))
-    .filter((card) => card.front && card.back);
-  if (!cardsToInsert.length) {
-    return NextResponse.json({ error: "No valid flashcards generated" }, { status: 502 });
-  }
-
-  const { data: inserted, error: insertError } = await (db as any)
-    .from("flashcard_cards")
-    .insert(cardsToInsert)
-    .select("id");
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (generated === 0 && results.length === 0) {
+    return NextResponse.json(
+      { error: lastError || "Flashcard generation failed" },
+      { status: 502 },
+    );
   }
 
   return NextResponse.json({
-    data: { id: deck.id, title: deck.title },
-    generated: inserted?.length ?? cardsToInsert.length,
-    skipped: 0,
+    data: results.length === 1 ? results[0] : results,
+    generated,
+    skipped,
+    ...(generated === 0 ? { already_exists: true } : {}),
   });
 }
