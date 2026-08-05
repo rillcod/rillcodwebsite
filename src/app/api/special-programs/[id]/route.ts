@@ -259,6 +259,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
           null,
       });
       const enriched = await enrichPageForAdmin(mapped);
+      const cohortClassId = enriched?.cohort_class?.id ?? null;
       if (result.pathway !== 'special' || result.error) {
         return NextResponse.json(
           {
@@ -279,6 +280,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         teaching_message: summariseLaunchResult(result),
         teaching_warning: result.warning,
         teaching_result: result,
+        cohort_class_id: cohortClassId,
       });
     }
 

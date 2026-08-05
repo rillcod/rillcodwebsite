@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
@@ -15,6 +16,7 @@ import SpecialProgramVisualBuilder, {
 } from '@/components/special-programs/SpecialProgramVisualBuilder';
 
 export default function SpecialProgramsAdminPage() {
+  const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<SpecialProgramPage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +24,7 @@ export default function SpecialProgramsAdminPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderKey, setBuilderKey] = useState(0);
   const [preparingId, setPreparingId] = useState<string | null>(null);
+  const [lastLaunchResult, setLastLaunchResult] = useState<{ classId?: string | null; weeksStarted?: number; warning?: string } | null>(null);
 
   const isAdmin = profile?.role === 'admin';
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : brandContact.siteUrl;
@@ -101,13 +104,49 @@ export default function SpecialProgramsAdminPage() {
       if (!res.ok) {
         throw new Error(j.teaching_error || j.error || 'Could not prepare teaching');
       }
-      toast.success(
-        j.teaching_message ||
-          (opts?.forceRebuild
-            ? 'Curriculum completely rebuilt! Week 1 lesson plan, classwork & homework refreshed.'
-            : 'Week 1 lesson plan, classwork & homework prepared! Check Teaching Approvals.'),
-      );
+
+      const result = j.teaching_result;
+      const weeksStarted: number = result?.weeksStarted?.length ?? 0;
+      const cohortClassId: string | null =
+        j.cohort_class_id ??
+        j.data?.cohort_class?.id ??
+        null;
+      const msg = j.teaching_message;
+
+      // If bridge ran but produced no new weeks — warn, don't celebrate
+      const nothingGenerated = weeksStarted === 0 && !result?.bridge?.built;
+      if (nothingGenerated) {
+        toast.warning(
+          msg || 'Teaching prep finished, but no new curriculum was created. Check that module titles match courses in the linked programme.',
+          { duration: 8000 }
+        );
+      } else {
+        toast.success(
+          msg ||
+            (opts?.forceRebuild
+              ? `Curriculum rebuilt! ${weeksStarted} week pack(s) refreshed — check Teaching Approvals.`
+              : `${weeksStarted} week pack(s) prepared and waiting in Teaching Approvals.`),
+          { duration: 6000 }
+        );
+      }
+
+      if (j.teaching_warning) {
+        toast.warning(j.teaching_warning, { duration: 7000 });
+      }
+
+      setLastLaunchResult({ classId: cohortClassId, weeksStarted, warning: j.teaching_warning });
       load();
+
+      // Navigate: to class workspace if we have it, else to Teaching Approvals
+      if (!nothingGenerated) {
+        setTimeout(() => {
+          if (cohortClassId) {
+            router.push(`/dashboard/classes/${cohortClassId}`);
+          } else {
+            router.push('/dashboard/teaching/approvals');
+          }
+        }, 1500);
+      }
     } catch (e: any) {
       toast.error(e.message || 'Could not prepare teaching');
     } finally {
