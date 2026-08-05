@@ -97,7 +97,15 @@ export function ClassTeachingWorkspace({
         if (!r.ok)
           throw new Error(j.error || "Unable to load teaching workspace");
         setData(j.data);
-        setCourseId(j.data.selected_course_id || "");
+        const resolvedId = j.data.selected_course_id || "";
+        setCourseId(resolvedId);
+        if (resolvedId && typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          if (url.searchParams.get("course_id") !== resolvedId) {
+            url.searchParams.set("course_id", resolvedId);
+            window.history.replaceState(null, "", url.toString());
+          }
+        }
       } catch (e: any) {
         if (seq === loadSeq.current) setError(e.message);
       } finally {
@@ -145,6 +153,11 @@ export function ClassTeachingWorkspace({
   );
   async function chooseCourse(id: string) {
     setCourseId(id);
+    if (id && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("course_id", id);
+      window.history.replaceState(null, "", url.toString());
+    }
     await onCourseChange?.(id || null);
     await load(id || undefined);
   }

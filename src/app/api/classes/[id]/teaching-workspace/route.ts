@@ -66,7 +66,7 @@ export async function GET(
       { status: scoped.status }
     );
   const klass = scoped.klass;
-  const courseId =
+  let courseId =
     new URL(req.url).searchParams.get("course_id") ||
     klass.current_course_id ||
     null;
@@ -80,6 +80,20 @@ export async function GET(
         .eq("is_active", true)
         .order("level_order")
     : { data: [] };
+  // Fallback: If no courseId was provided or set on class, pick the course that
+  // already has a lesson plan, or default to courses[0].
+  if (!courseId && (courses || []).length > 0) {
+    const { data: existingPlanRow } = await db
+      .from("lesson_plans")
+      .select("course_id")
+      .eq("class_id", id)
+      .neq("status", "archived")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    courseId = existingPlanRow?.course_id || courses[0].id;
+  }
+
   if (
     courseId &&
     !(courses || []).some((course: any) => course.id === courseId)
@@ -103,19 +117,32 @@ export async function GET(
   let deliveries: any[] = [];
   let progress: any = null;
   let direction: any = null;
-  // Scheduled by an academic term (school pathways) or a delivery period
-  // (bootcamps and short courses) — either identifies the plan.
-  if (courseId && (klass.term_id || klass.offering_period_id)) {
-    const planQuery = db
+
+  const hasTerm = Boolean(klass.term_id && klass.academic_terms);
+  const hasPeriod = Boolean(klass.offering_period_id);
+  const hasOffering = Boolean(klass.academic_offering_id);
+
+  // Scheduled by an academic term (school pathways), delivery period, or academic offering
+  if (courseId && (hasTerm || hasPeriod || hasOffering)) {
+    let planQuery = db
       .from("lesson_plans")
       .select("*")
       .eq("class_id", id)
       .eq("course_id", courseId)
       .neq("status", "archived");
-    const { data: foundPlan } = await (klass.term_id
-      ? planQuery.eq("term_id", klass.term_id)
-      : planQuery.eq("offering_period_id", klass.offering_period_id)
-    ).maybeSingle();
+
+    if (hasTerm) {
+      planQuery = planQuery.eq("term_id", klass.term_id);
+    } else if (hasPeriod) {
+      planQuery = planQuery.eq("offering_period_id", klass.offering_period_id);
+    } else if (hasOffering) {
+      planQuery = planQuery.eq("academic_offering_id", klass.academic_offering_id);
+    }
+
+    const { data: foundPlan } = await planQuery
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     plan = foundPlan;
     direction = await resolveOfficialCurriculumDirection(db, {
       schoolId: klass.school_id,
@@ -305,15 +332,15 @@ export async function POST(
   const body = await req.json();
 
   if (body.action === "ensure_plan") {
-    // A school class is scheduled by an academic term; a bootcamp or short
-    // course by a delivery period. Either is a valid basis for a plan.
     const hasTerm = !!klass.term_id && !!klass.academic_terms;
     const hasPeriod = !!klass.offering_period_id;
-    if (!hasTerm && !hasPeriod)
+    const hasOffering = !!klass.academic_offering_id;
+
+    if (!hasTerm && !hasPeriod && !hasOffering)
       return NextResponse.json(
         {
           error:
-            "This class has neither an academic term nor a delivery period. Give it a term for school pathways, or a delivery period for bootcamps and short courses.",
+            "This class has neither an academic term, delivery period, nor academic offering.",
         },
         { status: 400 }
       );
@@ -334,16 +361,25 @@ export async function POST(
         { status: 400 }
       );
     }
-    const existingQuery = db
+    let existingQuery = db
       .from("lesson_plans")
       .select("id,curriculum_release_id,plan_data")
       .eq("class_id", id)
       .eq("course_id", courseId)
       .neq("status", "archived");
-    const { data: existing } = await (hasTerm
-      ? existingQuery.eq("term_id", klass.term_id)
-      : existingQuery.eq("offering_period_id", klass.offering_period_id)
-    ).maybeSingle();
+
+    if (hasTerm) {
+      existingQuery = existingQuery.eq("term_id", klass.term_id);
+    } else if (hasPeriod) {
+      existingQuery = existingQuery.eq("offering_period_id", klass.offering_period_id);
+    } else if (hasOffering) {
+      existingQuery = existingQuery.eq("academic_offering_id", klass.academic_offering_id);
+    }
+
+    const { data: existing } = await existingQuery
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     const direction = await resolveOfficialCurriculumDirection(db, {
       schoolId: klass.school_id,
       offeringId: klass.academic_offering_id,
