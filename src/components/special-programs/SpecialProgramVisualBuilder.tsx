@@ -358,7 +358,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       return;
     }
     if (!form.is_published) {
-      toast.error('Publish the page first, then launch teaching');
+      toast.error('Publish the page first, then prepare teaching');
       return;
     }
     setSaving(true);
@@ -373,14 +373,14 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
         }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Launch failed');
+      if (!res.ok) throw new Error(j.error || 'Could not prepare teaching');
       toast.success(
         opts?.forceRebuild
-          ? 'Full rebuild queued — each module rebuilt from the page, week 1 held for approval'
-          : 'Teaching launch queued — expanded week windows are captured; content held for approval',
+          ? 'Started fresh from this page. New lessons will appear under Teaching Approvals for review.'
+          : 'Teaching prep started. New lessons will appear under Teaching Approvals for review.',
       );
     } catch (e: any) {
-      toast.error(e.message || 'Launch failed');
+      toast.error(e.message || 'Could not prepare teaching');
     } finally {
       setSaving(false);
     }
@@ -810,7 +810,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  First publish builds each module from its week window on this page, then starts week-1 lessons — both wait on Teaching Approvals. Expand a module (e.g. Weeks 1–2 → 1–3), save, then launch again to capture the new window.
+                  When you first publish, we prepare teaching materials from what is written on this page. Teachers review them under Teaching Approvals before students see anything. If a module needs more weeks later, widen its week range, save, then press Prepare teaching again.
                 </p>
                 {editing?.id && form.is_published ? (
                   <div className="flex flex-wrap gap-2">
@@ -820,7 +820,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       onClick={() => void launchTeaching()}
                       className="rounded-xl border border-border px-3 py-2 text-xs font-bold hover:bg-muted disabled:opacity-50"
                     >
-                      Launch teaching now
+                      Prepare teaching
                     </button>
                     <button
                       type="button"
@@ -828,7 +828,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       onClick={() => {
                         if (
                           !confirm(
-                            'Rebuild every module from the page write-up? Existing teaching plans for this programme will be archived.',
+                            'Start again from this page write-up? Old teaching plans for this programme will be put aside, and new ones will be prepared for review.',
                           )
                         ) {
                           return;
@@ -837,7 +837,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       }}
                       className="rounded-xl border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
                     >
-                      Force full rebuild
+                      Start fresh from page
                     </button>
                   </div>
                 ) : null}
@@ -970,9 +970,9 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                         <input value={t.icon} onChange={(e) => update({ icon: e.target.value })} className={fieldCls} />
                       </label>
                       <label className={labelCls}>
-                        Teaching weeks (expandable)
+                        Which weeks this module covers
                         <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
-                          Change 1–2 to 1–3 when this module needs more time. Save, then Launch teaching — the new window is captured.
+                          Example: Weeks 1–2. If the module needs more time later, change it to Weeks 1–3, save, then press Prepare teaching.
                         </span>
                       </label>
                       <div className="grid grid-cols-2 gap-2">

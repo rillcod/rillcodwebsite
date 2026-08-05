@@ -1239,7 +1239,7 @@ function LessonPlansPageInner() {
                       </div>
                       <div>
                         <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">
-                          Sessions / wk
+                          Classes / week
                         </p>
                         <p className="font-semibold text-foreground/80">
                           {plan.sessions_per_week ?? "—"}
@@ -1545,7 +1545,7 @@ function LessonPlansPageInner() {
                   Edit Plan
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Update status and sessions per week
+                  Update status and classes per week
                 </p>
               </div>
               <button
@@ -1582,7 +1582,7 @@ function LessonPlansPageInner() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Sessions per week
+                  Classes per week
                 </label>
                 <div className="flex items-center gap-4 bg-background border border-border p-4 rounded-xl">
                   <input

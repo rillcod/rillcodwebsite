@@ -1986,7 +1986,7 @@ export default function LessonPlanDetailPage() {
             ["Lessons", contentSummary.lessons],
             ["Assignments", contentSummary.assignments],
             ["Projects", contentSummary.projects],
-            ["Sessions/wk", plan.sessions_per_week ?? "-"],
+            ["Classes / week", plan.sessions_per_week ?? "-"],
           ].map(([label, value]) => (
             <div
               key={label}
