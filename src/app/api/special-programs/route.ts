@@ -42,6 +42,7 @@ function queueTeachingLaunch(input: {
         baseUrl,
         cookie,
         cronSecret,
+        notifyAdminId: input.createdBy,
       });
       if (result.error) {
         console.error('[special-program launch]', input.pageId, result.error, result.detail);
@@ -133,10 +134,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    if (body.school_id) {
+      // Offering is created by trigger; attach school so teaching can build.
+      for (let i = 0; i < 4; i += 1) {
+        const { data: page } = await sb
+          .from('special_program_pages')
+          .select('academic_offering_id')
+          .eq('id', data.id)
+          .maybeSingle();
+        if (page?.academic_offering_id) {
+          await sb
+            .from('academic_offerings')
+            .update({
+              school_id: body.school_id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', page.academic_offering_id);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 200 * (i + 1)));
+      }
+    }
+
     const launch = shouldLaunchTeachingOnPublish({
       wasPublished: false,
       nowPublished: Boolean(data.is_published),
     });
+    if (launch && !payload.program_id) {
+      return NextResponse.json(
+        {
+          data,
+          teaching_launch: 'blocked',
+          teaching_error:
+            'Page saved, but teaching was not started — link a programme first.',
+        },
+        { status: 201 },
+      );
+    }
     if (launch) {
       queueTeachingLaunch({ pageId: data.id, createdBy: admin.id, request });
     }

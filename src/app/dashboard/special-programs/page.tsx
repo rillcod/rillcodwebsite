@@ -49,10 +49,20 @@ export default function SpecialProgramsAdminPage() {
     setShowBuilder(true);
   };
 
-  const openEdit = (p: SpecialProgramPage) => {
+  const openEdit = async (p: SpecialProgramPage) => {
     setEditing(p);
     setBuilderKey((k) => k + 1);
     setShowBuilder(true);
+    try {
+      const res = await fetch(`/api/special-programs/${p.id}`, { cache: 'no-store' });
+      const j = await res.json();
+      if (res.ok && j.data) {
+        setEditing(j.data);
+        setBuilderKey((k) => k + 1);
+      }
+    } catch {
+      /* list row is enough to start editing; school may be blank until reload */
+    }
   };
 
   const copyUrl = (slug: string) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Sparkles } from 'lucide-react';
 import {
@@ -99,6 +99,8 @@ export function toSpecialForm(p?: SpecialProgramPage | null): SpecialProgramForm
       online_fee: '50000',
       onsite_fee: '40000',
       deposit_percent: '50',
+      program_id: '',
+      school_id: '',
       content: {
         ...EMPTY_SPECIAL_CONTENT,
         tracks: [],
@@ -121,6 +123,8 @@ export function toSpecialForm(p?: SpecialProgramPage | null): SpecialProgramForm
     online_fee: String(p.online_fee),
     onsite_fee: String(p.onsite_fee),
     deposit_percent: String(p.deposit_percent),
+    program_id: p.program_id || '',
+    school_id: p.school_id || '',
     content: {
       ...c,
       tracks: Array.isArray(c.tracks)
@@ -215,6 +219,11 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
   const [form, setForm] = useState<SpecialProgramFormState>(initialForm);
   const [selection, setSelection] = useState<Selection>('hero');
   const [saving, setSaving] = useState(false);
+  const [programs, setPrograms] = useState<Array<{ id: string; name: string }>>([]);
+  const [schools, setSchools] = useState<Array<{ id: string; name: string }>>([]);
+  const [teachingStatus, setTeachingStatus] = useState<SpecialProgramPage['teaching_launch']>(
+    editing?.teaching_launch ?? null,
+  );
   const [aiBrief, setAiBrief] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiMode, setAiMode] = useState<AiApplyMode>(editing ? 'fill_empty' : 'replace');
@@ -242,6 +251,37 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
     }),
     [form],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch('/api/programs?is_active=true').then((r) => r.json()),
+      fetch('/api/schools').then((r) => r.json()),
+    ])
+      .then(([prog, sch]) => {
+        if (cancelled) return;
+        setPrograms(
+          Array.isArray(prog?.data)
+            ? prog.data.map((p: any) => ({ id: String(p.id), name: String(p.name || p.title || 'Programme') }))
+            : [],
+        );
+        setSchools(
+          Array.isArray(sch?.data)
+            ? sch.data.map((s: any) => ({ id: String(s.id), name: String(s.name || 'School') }))
+            : [],
+        );
+      })
+      .catch(() => {
+        /* pickers stay empty — save still works once IDs are known */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setTeachingStatus(editing?.teaching_launch ?? null);
+  }, [editing?.id, editing?.teaching_launch]);
 
   const patchContent = (patch: Partial<SpecialProgramContent>) => {
     setForm((f) => ({ ...f, content: { ...f.content, ...patch } }));
@@ -307,6 +347,16 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       setSelection('basics');
       return;
     }
+    if (form.is_published && !form.program_id) {
+      toast.error('Choose a programme before publishing — teaching needs it to match modules to courses');
+      setSelection('basics');
+      return;
+    }
+    if (form.is_published && !form.school_id) {
+      toast.error('Choose a school before publishing — teaching plans sit on that school');
+      setSelection('basics');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -321,6 +371,8 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
         online_fee: Number(form.online_fee) || 0,
         onsite_fee: Number(form.onsite_fee) || 0,
         deposit_percent: Number(form.deposit_percent) || 50,
+        program_id: form.program_id || null,
+        school_id: form.school_id || null,
         content: {
           ...form.content,
           tracks: (form.content.tracks || []).map((t) => ({
@@ -336,11 +388,17 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
         body: JSON.stringify(payload),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Save failed');
+      if (!res.ok) throw new Error(j.error || j.teaching_error || 'Save failed');
+      if (j.data?.school_id) {
+        setForm((f) => ({ ...f, school_id: j.data.school_id || f.school_id }));
+      }
+      if (j.data?.teaching_launch) setTeachingStatus(j.data.teaching_launch);
       if (j.teaching_launch === 'queued') {
         toast.success(
-          'Published — building curriculum and first-week lessons for approval',
+          'Published — preparing teaching in the background. You will get a notification when it finishes (or if it fails).',
         );
+      } else if (j.teaching_launch === 'blocked') {
+        toast.error(j.teaching_error || 'Teaching was not started — link programme and school first');
       } else {
         toast.success(editing ? 'Page updated' : 'Page created');
       }
@@ -361,6 +419,16 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       toast.error('Publish the page first, then prepare teaching');
       return;
     }
+    if (!form.program_id) {
+      toast.error('Choose a programme under Basics first');
+      setSelection('basics');
+      return;
+    }
+    if (!form.school_id) {
+      toast.error('Choose a school under Basics first');
+      setSelection('basics');
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/special-programs/${editing.id}`, {
@@ -370,14 +438,21 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
           launch_teaching: true,
           is_published: true,
           force_rebuild: opts?.forceRebuild === true,
+          program_id: form.program_id || null,
+          school_id: form.school_id || null,
         }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Could not prepare teaching');
+      if (j.data?.teaching_launch) setTeachingStatus(j.data.teaching_launch);
+      if (!res.ok) {
+        throw new Error(j.teaching_error || j.error || 'Could not prepare teaching');
+      }
+      if (j.teaching_warning) toast.message(j.teaching_warning);
       toast.success(
-        opts?.forceRebuild
-          ? 'Started fresh from this page. New lessons will appear under Teaching Approvals for review.'
-          : 'Teaching prep started. New lessons will appear under Teaching Approvals for review.',
+        j.teaching_message ||
+          (opts?.forceRebuild
+            ? 'Started fresh from this page. New lessons are under Teaching Approvals.'
+            : 'Teaching prep finished. New lessons are under Teaching Approvals.'),
       );
     } catch (e: any) {
       toast.error(e.message || 'Could not prepare teaching');
@@ -799,6 +874,42 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                   Deposit %
                   <input type="number" min={1} max={100} value={form.deposit_percent} onChange={(e) => setForm((f) => ({ ...f, deposit_percent: e.target.value }))} className={fieldCls} />
                 </label>
+                <label className={labelCls}>
+                  Programme (required for teaching)
+                  <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
+                    The academic programme whose courses match these modules (e.g. Generative Art course titles).
+                  </span>
+                  <select
+                    value={form.program_id}
+                    onChange={(e) => setForm((f) => ({ ...f, program_id: e.target.value }))}
+                    className={fieldCls}
+                  >
+                    <option value="">Select programme…</option>
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={labelCls}>
+                  School (required for teaching)
+                  <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
+                    Where teaching plans and the cohort class sit.
+                  </span>
+                  <select
+                    value={form.school_id}
+                    onChange={(e) => setForm((f) => ({ ...f, school_id: e.target.value }))}
+                    className={fieldCls}
+                  >
+                    <option value="">Select school…</option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="flex flex-wrap gap-4 pt-1">
                   <label className="flex items-center gap-2 text-xs font-bold">
                     <input type="checkbox" checked={form.is_published} onChange={(e) => setForm((f) => ({ ...f, is_published: e.target.checked }))} />
@@ -812,6 +923,27 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   When you first publish, we prepare teaching materials from what is written on this page. Teachers review them under Teaching Approvals before students see anything. If a module needs more weeks later, widen its week range, save, then press Prepare teaching again.
                 </p>
+                {teachingStatus ? (
+                  <p
+                    className={`text-[11px] leading-relaxed rounded-lg px-3 py-2 ${
+                      teachingStatus.status === 'error'
+                        ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                        : teachingStatus.status === 'running'
+                          ? 'bg-amber-500/10 text-amber-800 dark:text-amber-200'
+                          : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                    }`}
+                  >
+                    {teachingStatus.status === 'running'
+                      ? 'Teaching prep is still running…'
+                      : teachingStatus.status === 'error'
+                        ? `Last prep failed: ${[teachingStatus.error, teachingStatus.detail].filter(Boolean).join(' — ')}`
+                        : `Last prep OK${teachingStatus.built != null ? ` · ${teachingStatus.built} module(s)` : ''}${
+                            teachingStatus.weeks_started != null
+                              ? ` · ${teachingStatus.weeks_started} week pack(s)`
+                              : ''
+                          }${teachingStatus.detail ? ` · ${teachingStatus.detail}` : ''}`}
+                  </p>
+                ) : null}
                 {editing?.id && form.is_published ? (
                   <div className="flex flex-wrap gap-2">
                     <button

@@ -17,6 +17,10 @@ export type SpecialProgramFormState = {
   online_fee: string;
   onsite_fee: string;
   deposit_percent: string;
+  /** Academic programme whose courses match the page modules. */
+  program_id: string;
+  /** School the offering (and teaching plans) sit on. */
+  school_id: string;
   content: SpecialProgramContent;
 };
 

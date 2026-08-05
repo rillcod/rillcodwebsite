@@ -24,7 +24,8 @@ import {
   buildResultsHref,
 } from "@/lib/curriculum/href";
 import {
-  indexFirstByWeek,
+  indexFirstByWeekSession,
+  weekSessionLookupKey,
   weekPackageStatus,
   buildWeekVisibility,
   weekVisibilitySummary,
@@ -260,12 +261,12 @@ export function ClassTeachingWorkspace({
   const officialDirection = data?.academic_direction?.available
     ? data.academic_direction.title
     : null;
-  const lessonsByWeek = indexFirstByWeek<any>(data?.lessons);
-  const assignmentsByWeek = indexFirstByWeek<any>(data?.assignments);
-  const projectsByWeek = indexFirstByWeek<any>(data?.projects);
-  const slidesByWeek = indexFirstByWeek<any>(data?.slide_decks);
-  const flashcardsByWeek = indexFirstByWeek<any>(data?.flashcard_decks);
-  const examsByWeek = indexFirstByWeek<any>(data?.exams);
+  const lessonsByWeek = indexFirstByWeekSession<any>(data?.lessons);
+  const assignmentsByWeek = indexFirstByWeekSession<any>(data?.assignments);
+  const projectsByWeek = indexFirstByWeekSession<any>(data?.projects);
+  const slidesByWeek = indexFirstByWeekSession<any>(data?.slide_decks);
+  const flashcardsByWeek = indexFirstByWeekSession<any>(data?.flashcard_decks);
+  const examsByWeek = indexFirstByWeekSession<any>(data?.exams);
   const selectedCourse = (data?.courses || []).find(
     (course: any) => course.id === courseId
   );
@@ -278,18 +279,24 @@ export function ClassTeachingWorkspace({
     const week = Number(
       weekMeta.week || weekMeta.curriculum_week_number || i + 1
     );
-    const lesson = lessonsByWeek.get(week);
-    const assignment = assignmentsByWeek.get(week);
-    const project = projectsByWeek.get(week);
+    const sessionRaw = Number(weekMeta.session ?? weekMeta.session_number ?? 0);
+    const session =
+      Number.isFinite(sessionRaw) && sessionRaw > 0
+        ? Math.floor(sessionRaw)
+        : null;
+    const lookupKey = weekSessionLookupKey(week, session);
+    const lesson = lessonsByWeek.get(lookupKey);
+    const assignment = assignmentsByWeek.get(lookupKey);
+    const project = projectsByWeek.get(lookupKey);
     const slideDeck =
-      slidesByWeek.get(week) ||
+      slidesByWeek.get(lookupKey) ||
       (lesson
         ? (data?.slide_decks || []).find(
             (deck: any) => deck.lesson_id === lesson.id
           )
         : null);
     const flashcardDeck =
-      flashcardsByWeek.get(week) ||
+      flashcardsByWeek.get(lookupKey) ||
       (lesson
         ? (data?.flashcard_decks || []).find(
             (deck: any) => deck.lesson_id === lesson.id
@@ -299,11 +306,14 @@ export function ClassTeachingWorkspace({
     // deliberately outside the five-asset package, which is what
     // the AI generator produces and what "Ready" measures.
     const evaluation =
-      examsByWeek.get(week) ||
+      examsByWeek.get(lookupKey) ||
       (lesson
         ? (data?.exams || []).find((exam: any) => exam.lesson_id === lesson.id)
         : null);
-    const topic = weekMeta.topic || lesson?.title || `Week ${week}`;
+    const sessionLabel =
+      session != null && session > 0 ? ` · Class ${session}` : "";
+    const topic =
+      weekMeta.topic || lesson?.title || `Week ${week}${sessionLabel}`;
     const objectives: string =
       typeof weekMeta.objectives === "string"
         ? weekMeta.objectives
@@ -382,6 +392,8 @@ export function ClassTeachingWorkspace({
     return {
       weekMeta,
       week,
+      session,
+      rowKey: lookupKey,
       // The term this week actually belongs to, as recorded when the plan was
       // built from the official edition. Never inferred from the week number:
       // weeks per term is configurable and the generator's own prompt allows a
@@ -901,6 +913,7 @@ export function ClassTeachingWorkspace({
                 const {
                   weekMeta,
                   week,
+                  session,
                   lesson,
                   assignment,
                   project,
@@ -934,7 +947,7 @@ export function ClassTeachingWorkspace({
 
                 return (
                   <article
-                    key={week}
+                    key={row.rowKey}
                     className="overflow-hidden rounded-2xl border border-border bg-card"
                   >
                     <div className="p-3 sm:p-4">
@@ -943,7 +956,9 @@ export function ClassTeachingWorkspace({
                           <label className="flex shrink-0 items-center pt-1">
                             <input
                               type="checkbox"
-                              aria-label={`Select week ${week}`}
+                              aria-label={`Select week ${week}${
+                                session ? ` class ${session}` : ""
+                              }`}
                               checked={picked.has(week)}
                               onChange={(event) =>
                                 setPicked((previous) => {
@@ -961,6 +976,9 @@ export function ClassTeachingWorkspace({
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                               Week {week}
+                              {session != null && session > 0
+                                ? ` · Class ${session}`
+                                : ""}
                             </p>
                             {/* Where this week sits in the curriculum. Without it
                                 a bare "Week 14" reads as being dropped into the

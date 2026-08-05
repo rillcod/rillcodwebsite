@@ -41,7 +41,7 @@ export async function relinkTeachingWeekAssets(
       TeachingWeekScopeInput,
       "lessonPlanId" | "curriculumWeekNumber" | "lessonId"
     >
-  >
+  > & { session?: number | null }
 ): Promise<{ linked: number; errors: string[] }> {
   const scope = teachingWeekAssetScope(input);
   if (
@@ -52,21 +52,41 @@ export async function relinkTeachingWeekAssets(
     return { linked: 0, errors: [] };
   }
 
+  const session =
+    input.session != null && Number(input.session) > 0
+      ? Math.floor(Number(input.session))
+      : null;
+
+  // Only attach orphans that belong to this class meeting. Without the session
+  // filter, creating Week 1 Class 1 would steal Week 1 Class 2's homework.
   const tables = [
     "assignments",
     "flashcard_decks",
     "lesson_materials",
   ] as const;
   const results = await Promise.all(
-    tables.map((table) =>
-      db
+    tables.map(async (table) => {
+      let query = db
         .from(table)
         .update({ lesson_id: scope.lesson_id })
         .eq("lesson_plan_id", scope.lesson_plan_id)
         .eq("curriculum_week_number", scope.curriculum_week_number)
-        .is("lesson_id", null)
-        .select("id")
-    )
+        .is("lesson_id", null);
+      if (session != null) {
+        // Prefer explicit session metadata; also allow untagged legacy orphans
+        // only when this is session 1 (the historical single-meeting case).
+        if (session === 1) {
+          query = query.or(
+            `metadata->>session.eq.${session},metadata->>session_number.eq.${session},metadata->>session.is.null,metadata.is.null`,
+          );
+        } else {
+          query = query.or(
+            `metadata->>session.eq.${session},metadata->>session_number.eq.${session}`,
+          );
+        }
+      }
+      return query.select("id");
+    }),
   );
 
   const errors: string[] = [];

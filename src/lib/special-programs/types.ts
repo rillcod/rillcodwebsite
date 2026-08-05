@@ -144,6 +144,21 @@ export function resolveSpecialOutcomes(content: SpecialProgramContent | null | u
 export type SpecialProgramPage = {
   id: string;
   program_id: string | null;
+  /** Linked offering — set by sync after save. */
+  academic_offering_id?: string | null;
+  /** School on the linked offering (where teaching sits). */
+  school_id?: string | null;
+  /** Last teaching prep result for admins. */
+  teaching_launch?: {
+    status: 'running' | 'ok' | 'error';
+    at: string;
+    error?: string;
+    detail?: string;
+    built?: number;
+    skipped?: number;
+    failed?: number;
+    weeks_started?: number;
+  } | null;
   slug: string;
   title: string;
   button_label: string;

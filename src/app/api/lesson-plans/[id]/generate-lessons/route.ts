@@ -375,6 +375,11 @@ export async function POST(
             lessonPlanId: id,
             curriculumWeekNumber: week.week,
             lessonId: savedLesson.id,
+            session: Number(
+              (week as { session?: number }).session ??
+                (week as { session_number?: number }).session_number ??
+                0
+            ) || null,
           });
 
           titlesThisRun.push((d.title || week.topic) as string);

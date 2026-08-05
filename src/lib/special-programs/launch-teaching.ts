@@ -13,6 +13,10 @@ import {
 } from '@/lib/special-programs/bridge-offering';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { currentDeliveryWeek, generatePlanWeek, notifyWeekReady } from '@/lib/academic/week-generation';
+import {
+  notifyAdminTeachingLaunch,
+  writeTeachingLaunchStatus,
+} from '@/lib/special-programs/teaching-launch-status';
 
 export type LaunchTeachingResult = {
   pageId: string;
@@ -25,6 +29,7 @@ export type LaunchTeachingResult = {
     skipped: number;
     failedTypes: string[];
   }>;
+  warning?: string;
   error?: string;
   detail?: string;
 };
@@ -58,6 +63,8 @@ export async function launchSpecialProgramTeaching(input: {
   cronSecret?: string;
   /** Always rebuild every track from the current page write-up. */
   forceRebuild?: boolean;
+  /** Notify this admin when prep finishes (success or failure). */
+  notifyAdminId?: string;
 }): Promise<LaunchTeachingResult> {
   const db = createAdminClient();
   const empty: LaunchTeachingResult = {
@@ -67,12 +74,31 @@ export async function launchSpecialProgramTeaching(input: {
     weeksStarted: [],
   };
 
+  const { data: pageMeta } = await db
+    .from('special_program_pages')
+    .select('id,title,program_id,is_published,academic_offering_id')
+    .eq('id', input.pageId)
+    .maybeSingle();
+
+  if (!pageMeta?.is_published) {
+    return { ...empty, error: 'Publish the page before preparing teaching.' };
+  }
+  if (!pageMeta.program_id) {
+    return {
+      ...empty,
+      error: 'Link a programme on this page first.',
+      detail: 'Open Basics, choose the programme these modules belong to, save, then prepare teaching again.',
+    };
+  }
+
   // Re-read after publish — the offering-link trigger runs in a follow-up UPDATE.
-  let offeringId: string | null = null;
+  let offeringId: string | null = pageMeta.academic_offering_id
+    ? String(pageMeta.academic_offering_id)
+    : null;
   for (let attempt = 0; attempt < 4 && !offeringId; attempt += 1) {
     const { data: page } = await db
       .from('special_program_pages')
-      .select('id,academic_offering_id,is_published,content')
+      .select('id,academic_offering_id,is_published')
       .eq('id', input.pageId)
       .maybeSingle();
     if (!page?.is_published) {
@@ -91,9 +117,15 @@ export async function launchSpecialProgramTeaching(input: {
     return {
       ...empty,
       error: 'No academic offering is linked to this page yet.',
-      detail: 'Publish again once the offering sync has finished, or link the page manually.',
+      detail: 'Save the page with a start date and linked programme, then try Prepare teaching again.',
     };
   }
+
+  await writeTeachingLaunchStatus(db, offeringId, {
+    status: 'running',
+    at: new Date().toISOString(),
+    force_rebuild: input.forceRebuild === true,
+  });
 
   const bridge = await bridgeOfferingFromPage(db, {
     offeringId,
@@ -104,7 +136,7 @@ export async function launchSpecialProgramTeaching(input: {
   });
 
   if (bridge.error) {
-    return {
+    const failed: LaunchTeachingResult = {
       pageId: input.pageId,
       offeringId,
       bridge,
@@ -112,6 +144,25 @@ export async function launchSpecialProgramTeaching(input: {
       error: bridge.error,
       detail: bridge.detail,
     };
+    await writeTeachingLaunchStatus(db, offeringId, {
+      status: 'error',
+      at: new Date().toISOString(),
+      error: bridge.error,
+      detail: bridge.detail,
+      built: bridge.built,
+      skipped: bridge.skipped,
+      failed: bridge.failed,
+      force_rebuild: input.forceRebuild === true,
+    });
+    if (input.notifyAdminId) {
+      await notifyAdminTeachingLaunch(db, {
+        adminId: input.notifyAdminId,
+        pageTitle: String(pageMeta.title || 'Special programme'),
+        pageId: input.pageId,
+        result: failed,
+      });
+    }
+    return failed;
   }
 
   const planIds = [
@@ -124,6 +175,7 @@ export async function launchSpecialProgramTeaching(input: {
 
   const weeksStarted: LaunchTeachingResult['weeksStarted'] = [];
   const baseUrl = input.baseUrl.replace(/\/$/, '');
+  let missingClass = false;
 
   for (const planId of planIds) {
     const { data: plan } = await db
@@ -132,6 +184,7 @@ export async function launchSpecialProgramTeaching(input: {
       .eq('id', planId)
       .maybeSingle();
     if (!plan) continue;
+    if (!plan.class_id) missingClass = true;
 
     const period = Array.isArray((plan as any).academic_offering_periods)
       ? (plan as any).academic_offering_periods[0]
@@ -185,10 +238,35 @@ export async function launchSpecialProgramTeaching(input: {
     }
   }
 
-  return {
+  const result: LaunchTeachingResult = {
     pageId: input.pageId,
     offeringId,
     bridge,
     weeksStarted,
+    warning: missingClass
+      ? 'Plans were prepared, but this programme has no cohort class yet. Create a class on the offering so teachers get Approvals and workspace access.'
+      : undefined,
   };
+
+  await writeTeachingLaunchStatus(db, offeringId, {
+    status: 'ok',
+    at: new Date().toISOString(),
+    built: bridge.built,
+    skipped: bridge.skipped,
+    failed: bridge.failed,
+    weeks_started: weeksStarted.length,
+    detail: result.warning,
+    force_rebuild: input.forceRebuild === true,
+  });
+
+  if (input.notifyAdminId) {
+    await notifyAdminTeachingLaunch(db, {
+      adminId: input.notifyAdminId,
+      pageTitle: String(pageMeta.title || 'Special programme'),
+      pageId: input.pageId,
+      result,
+    });
+  }
+
+  return result;
 }
