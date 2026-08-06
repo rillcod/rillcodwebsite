@@ -14,6 +14,10 @@ import { archivePortalCredential } from '@/lib/credentials/archive-registration-
 import { finalizeStudentOnboard } from '@/lib/students/finalize-student-onboard';
 import { ensureParentPortalForStudent } from '@/lib/parents/ensure-parent-portal-account';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import {
+  LEGACY_SUMMER_CLASS_NAME as LEGACY_SUMMER_CLASS,
+  registeredProgrammeName,
+} from '@/lib/registration/programme-label';
 
 type AdminClient = { from: (table: string) => any; auth: { admin: any } };
 
@@ -203,16 +207,26 @@ export async function onboardPaidRegistrationStudent(
     }
   }
 
+  // Class hints, strongest first. The learner's own programme leads; the 2026
+  // literal stays last so students already placed in that cohort keep
+  // resolving, without it being the only name this code knows.
+  const programmeHint = registeredProgrammeName({
+    notes: (student as { notes?: string | null }).notes,
+    courseInterest: student.course_interest,
+    className: student.current_class,
+    fallback: null,
+  });
+
   const resolvedClassId = await resolveStudentClassId(
     admin,
     resolvedSchoolId,
     resolvedSchoolName,
     [
-      ...(isSummerStudent ? ['Summer School 2026'] : []),
+      ...(isSummerStudent ? [programmeHint, LEGACY_SUMMER_CLASS] : []),
       student.current_class,
       student.section,
     ],
-    isSummerStudent ? 'AI Summer School' : (student.course_interest ?? null),
+    student.course_interest ?? programmeHint,
     specificGrade,
   );
 
@@ -221,7 +235,7 @@ export async function onboardPaidRegistrationStudent(
     const { data: cls } = await admin.from('classes').select('name').eq('id', resolvedClassId).maybeSingle();
     resolvedClassName = (cls as { name?: string } | null)?.name ?? null;
   }
-  if (!resolvedClassName && isSummerStudent) resolvedClassName = 'Summer School 2026';
+  if (!resolvedClassName && isSummerStudent) resolvedClassName = programmeHint || LEGACY_SUMMER_CLASS;
 
   let finalSchoolId = resolvedSchoolId;
   let finalClassId = resolvedClassId;
@@ -236,14 +250,14 @@ export async function onboardPaidRegistrationStudent(
       schoolName: finalSchoolName,
       classId: finalClassId,
       classHints: [
-        ...(isSummerStudent ? ['Summer School 2026'] : []),
+        ...(isSummerStudent ? [programmeHint, LEGACY_SUMMER_CLASS] : []),
         student.current_class,
         student.section,
         student.course_interest,
         finalClassName,
       ],
       grade: specificGrade,
-      programme: isSummerStudent ? 'AI Summer School' : (student.course_interest ?? null),
+      programme: programmeHint ?? (student.course_interest ?? null),
       wantActive: true,
       autoCreateClass: true,
     });

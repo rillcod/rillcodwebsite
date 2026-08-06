@@ -6,6 +6,7 @@ import { getSummerBalanceDueFromTotal, resolveLockedTuitionTotal } from '@/lib/s
 import { Database } from '@/types/supabase';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { isSpecialEnrollment, SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
+import { registeredProgrammeName } from '@/lib/registration/programme-label';
 
 const bodySchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     // 3. Fetch student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, enrollment_type')
+      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, enrollment_type, course_interest, current_class')
       .eq('id', studentId)
       .single();
 
@@ -154,9 +155,17 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
     const balanceLink = `${baseUrl}${SPECIAL_BALANCE_PATH}?email=${encodeURIComponent(parentEmail)}`;
 
+    // Name the programme they owe on, not whichever cohort was live when this
+    // template was written.
+    const programmeLabel = registeredProgrammeName({
+      courseInterest: (student as { course_interest?: string | null }).course_interest,
+      className: (student as { current_class?: string | null }).current_class,
+      fallback: 'Rillcod Technologies',
+    });
+
     const bodyHtml = `
       <p style="margin:0 0 12px;font-size:14px;color:#ffffff;line-height:1.6;">Dear ${student.parent_name || 'Parent/Guardian'},</p>
-      <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;line-height:1.6;">This is a friendly reminder that there is an outstanding tuition balance of <strong>₦${balanceDue.toLocaleString()}</strong> for <strong>${student.full_name || student.name}</strong>'s enrolment in the Rillcod AI Summer School 2026.</p>
+      <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;line-height:1.6;">This is a friendly reminder that there is an outstanding tuition balance of <strong>₦${balanceDue.toLocaleString()}</strong> for <strong>${student.full_name || student.name}</strong>'s enrolment in ${programmeLabel}.</p>
       
       <div style="margin:20px 0;padding:15px;background-color:#141618;border:1px solid #2a2d33;border-radius:8px;">
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:13px;">
@@ -188,7 +197,7 @@ export async function POST(req: NextRequest) {
       bodyHtml,
       summaryRows: [
         { label: 'Student', value: student.full_name || student.name },
-        { label: 'Programme', value: 'AI Summer School 2026' },
+        { label: 'Programme', value: programmeLabel },
         { label: 'Balance Due', value: `₦${balanceDue.toLocaleString()}` }
       ],
       footerNote: 'Rillcod Technologies Limited • Accounts & Finance'
@@ -196,7 +205,7 @@ export async function POST(req: NextRequest) {
 
     await notificationsService.sendExternalEmail({
       to: parentEmail,
-      subject: `Outstanding Balance Reminder: AI Summer School 2026`,
+      subject: `Outstanding Balance Reminder: ${programmeLabel}`,
       html,
       fromName: 'Rillcod Technologies',
       fromEmail: SMTP_FROM_EMAIL

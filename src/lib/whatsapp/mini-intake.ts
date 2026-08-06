@@ -1,6 +1,7 @@
 /** WhatsApp mini-intake: shared keys + helpers for the floating conversion widget. */
 
 import { formatWhatsApp } from '@/lib/form-helpers';
+import { GENERIC_PROGRAMME_TITLE } from '@/lib/registration/programme-label';
 
 export const WA_DISMISS_KEY = 'rillcod-wa-dismissed';
 export const WA_INTAKE_DRAFT_KEY = 'rillcod-wa-intake-draft';
@@ -78,7 +79,7 @@ export function buildWaBrief(
   if (draft.intent === 'summer') {
     const track =
       SUMMER_TRACK_OPTIONS.find((t) => t.value === draft.track)?.label || draft.track;
-    lines.push(`Programme: ${opts.programmeTitle || 'AI Summer School'}`);
+    lines.push(`Programme: ${opts.programmeTitle || GENERIC_PROGRAMME_TITLE}`);
     if (track) lines.push(`Track interest: ${track}`);
   }
   if (opts.pagePath) lines.push(`From page: ${opts.pagePath}`);

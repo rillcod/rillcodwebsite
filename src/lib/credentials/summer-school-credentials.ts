@@ -3,6 +3,7 @@ import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-crede
 import { buildReceiptEmailExtras, buildSummerWhatsAppBlock } from '@/lib/credentials/receipt-email-blocks';
 import { portalAppUrl } from '@/lib/credentials/app-url';
 import type { SummerOnboardResult } from '@/lib/summer-school/onboard';
+import { registeredProgrammeName } from '@/lib/registration/programme-label';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -11,6 +12,9 @@ type ProspectLike = {
   email?: string | null;
   parent_name?: string | null;
   full_name?: string | null;
+  /** Carries the [Programme: <title>] tag, so the email can name what they bought. */
+  notes?: string | null;
+  course_interest?: string | null;
 };
 
 function buildSummerNextStepsHtml(firstName: string, appUrl: string, whatsappStep: string): string {
@@ -62,6 +66,13 @@ export async function deliverSummerSchoolCredentials(
 ): Promise<{ email: boolean; whatsapp: boolean; alreadySent?: boolean }> {
   const to = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
   if (!to) return { email: false, whatsapp: false };
+
+  // The programme the parent actually registered for — never a fixed cohort.
+  const programmeLabel = registeredProgrammeName({
+    notes: prospect.notes,
+    courseInterest: prospect.course_interest,
+    fallback: 'Rillcod Technologies',
+  });
 
   const prospectId = opts.prospectId?.trim() || null;
   const externalId = prospectId ? `special_activation:${prospectId}` : null;
@@ -126,11 +137,11 @@ export async function deliverSummerSchoolCredentials(
     showParentEmailAlways: activation && hasParentAccount,
     emailChannel: 'external',
     emailSubject: activation
-      ? `You're activated — Rillcod Summer School 2026 (${prospect.full_name || 'Your Child'})`
-      : `Welcome to Rillcod Summer School 2026 — ${prospect.full_name || 'Your Child'}'s Login Details`,
+      ? `You're activated — ${programmeLabel} (${prospect.full_name || 'Your Child'})`
+      : `Welcome to ${programmeLabel} — ${prospect.full_name || 'Your Child'}'s Login Details`,
     title: activation
-      ? 'Your Rillcod Summer School account is active! 🚀'
-      : 'Welcome to Rillcod Summer School 2026! 🚀',
+      ? `Your ${programmeLabel} account is active! 🚀`
+      : `Welcome to ${programmeLabel}! 🚀`,
     bodyIntro: activation
       ? `Dear ${parentName}, payment is confirmed and ${firstName}'s portal access is ready. Use the login details below — temporary passwords are included for accounts that have not signed in yet.`
       : `Dear ${parentName}, ${firstName} is enrolled! Below are the portal login details.`,

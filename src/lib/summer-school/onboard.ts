@@ -8,6 +8,7 @@ import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
 import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
+import { LEGACY_SUMMER_CLASS_NAME } from '@/lib/registration/programme-label';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -75,7 +76,8 @@ function parseFlag(notes: string | null | undefined, label: RegExp): string | nu
   return m ? m[1].trim() : null;
 }
 
-const SUMMER_CLASS_NAME = 'Summer School 2026';
+/** Legacy cohort name, defined once in programme-label.ts. */
+const SUMMER_CLASS_NAME = LEGACY_SUMMER_CLASS_NAME;
 
 /**
  * Ensure the school has a "Summer School 2026" class so students are operational

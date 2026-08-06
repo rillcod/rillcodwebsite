@@ -20,6 +20,7 @@ import {
     TERM_REGISTRATION_BALANCE_PAYMENT_TYPE,
 } from '@/lib/registration/enrollment-types';
 import { logAudit } from '@/lib/audit/log';
+import { GENERIC_PROGRAMME_TITLE } from '@/lib/registration/programme-label';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -410,7 +411,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     .maybeSingle();
 
                 const displayName = String(prospect?.full_name || gatewayResponse?.student_name || 'Student');
-                const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
+                const programTitle = String(gatewayResponse?.program_title || GENERIC_PROGRAMME_TITLE);
                 const rawRef = String(transaction.transaction_reference || transaction.id);
                 const invoiceNumber = `INV-BAL-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
 
@@ -498,7 +499,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
             if (!existingSumInv) {
                 const displayName = String(record?.full_name || gatewayResponse?.student_name || 'Student');
-                const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
+                const programTitle = String(gatewayResponse?.program_title || GENERIC_PROGRAMME_TITLE);
                 const rawRef = String(transaction.transaction_reference || transaction.id);
                 const isInstallment = gatewayResponse?.payment_plan === 'installment';
                 const invoiceNumber = `INV-SUM-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
@@ -642,7 +643,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
         if ((isRegistrationPayment || isSummerPayment) && isValidEmail(parentEmail)) {
             const studName = String(gatewayResponse?.student_name || 'Student');
-            const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
+            const programTitle = String(gatewayResponse?.program_title || GENERIC_PROGRAMME_TITLE);
             const parentHtml = buildPaymentConfirmationEmail({
                 recipientName: studName,
                 amount: Number(transaction.amount),

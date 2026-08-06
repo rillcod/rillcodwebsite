@@ -18,6 +18,7 @@ import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 import { resolveApprovedTemplate } from '@/lib/communication/template-registry';
 import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { registeredProgrammeName } from '@/lib/registration/programme-label';
 import { cronInterval } from '@/lib/operations/cron-registry';
 
 export const dynamic = 'force-dynamic';
@@ -125,7 +126,7 @@ async function handle(req: NextRequest) {
   // prospects sink to the back and each run advances to fresh ones (resumable batching).
   const { data: prospects } = await admin
     .from('prospective_students')
-    .select('id, full_name, parent_name, parent_email, email, parent_phone, notes, preferred_schedule')
+    .select('id, full_name, parent_name, parent_email, email, parent_phone, notes, preferred_schedule, course_interest')
     .eq('status', 'partially_paid')
     .eq('is_active', true)
     .order('updated_at', { ascending: true })
@@ -199,25 +200,32 @@ async function handle(req: NextRequest) {
         dedupe: true,
         metadata: { balance_due: balanceDue, settings_updated_at: cfg.updated_at, cadence_days: everyDays, max_reminders: maxReminders },
         deliver: async () => {
+          // Whichever programme this parent actually registered for — the
+          // reminder used to thank every one of them for a summer cohort.
+          const programmeLabel = registeredProgrammeName({
+            notes: p.notes,
+            courseInterest: (p as { course_interest?: string | null }).course_interest,
+            fallback: 'your Rillcod programme',
+          });
           const html = buildRillcodTransactionalEmailHtml({
-            eyebrow: 'Summer School',
+            eyebrow: programmeLabel,
             title: 'A quick reminder about your balance',
             bodyHtml: governedEmail
               ? `<p style="margin:0 0 16px;">${escapeHtml(governedEmail.body)}</p>`
-              : `<p style="margin:0 0 10px;">Dear ${escapeHtml(parentName)}, thank you for enrolling <strong>${escapeHtml(p.full_name)}</strong> in the Rillcod AI Summer School 2026.</p>
+              : `<p style="margin:0 0 10px;">Dear ${escapeHtml(parentName)}, thank you for enrolling <strong>${escapeHtml(p.full_name)}</strong> in ${escapeHtml(programmeLabel)}.</p>
           <p style="margin:0 0 16px;">This is a friendly reminder that <strong>${amountStr}</strong> remains on your installment plan. Clearing it keeps your child's seat and access uninterrupted.</p>
           <div style="text-align:center;margin:0 0 8px;"><a href="${payLink}" style="display:inline-block;padding:13px 28px;background:#7c3aed;color:#fff;font-size:14px;font-weight:800;text-decoration:none;border-radius:8px;">Pay Balance Online →</a></div>`,
             summaryRows: [
               { label: 'Student', value: p.full_name },
               { label: 'Outstanding', value: amountStr },
               { label: 'Total tuition', value: `₦${totalTuition.toLocaleString()}` },
-              { label: 'Programme', value: 'AI Summer School 2026' },
+              { label: 'Programme', value: programmeLabel },
             ],
-            footerNote: 'rillcod technologies limited • summer school admissions',
+            footerNote: 'rillcod technologies limited • admissions',
           });
           await notificationsService.sendExternalEmail({
             to,
-            subject: governedEmail?.subject || `Reminder: Summer School balance for ${p.full_name}`,
+            subject: governedEmail?.subject || `Reminder: ${programmeLabel} balance for ${p.full_name}`,
             html,
             fromName: 'Rillcod Technologies',
             fromEmail: SMTP_FROM_EMAIL,

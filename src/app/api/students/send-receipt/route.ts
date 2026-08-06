@@ -6,6 +6,7 @@ import { Database } from '@/types/supabase';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { registeredProgrammeName } from '@/lib/registration/programme-label';
 
 const bodySchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     // 3. Fetch student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, registration_paystack_reference, user_id')
+      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, registration_paystack_reference, user_id, course_interest, current_class')
       .eq('id', studentId)
       .single();
 
@@ -178,6 +179,13 @@ export async function POST(req: NextRequest) {
       } else warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.');
     } catch { warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.'); }
 
+    // The programme this learner actually paid for, not a fixed cohort name.
+    const programmeLabel = registeredProgrammeName({
+      courseInterest: (student as { course_interest?: string | null }).course_interest,
+      className: (student as { current_class?: string | null }).current_class,
+      fallback: 'Rillcod Technologies',
+    });
+
     const receiptHtml = buildReceiptHTML({
       docRef,
       dateStr: fmt(null),
@@ -186,7 +194,7 @@ export async function POST(req: NextRequest) {
       payerType: 'student',
       paymentMethod: tx.payment_method || 'online',
       receivedBy: 'Rillcod Technologies',
-      items: [{ description: `Summer School 2026 Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
+      items: [{ description: `${programmeLabel} Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
       totalAmount: amt,
       payToAcc: null,
       notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
@@ -196,7 +204,7 @@ export async function POST(req: NextRequest) {
 
     await notificationsService.sendExternalEmail({
       to: emailNorm,
-      subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
+      subject: `Payment Receipt — ${programmeLabel} | Rillcod Technologies`,
       html: receiptHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: SMTP_FROM_EMAIL,

@@ -12,6 +12,7 @@ import { cleanGrade } from '@/lib/classes/naming';
 import { resolveClassForStudent } from '@/lib/classes/resolve-or-create';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { LEGACY_SUMMER_CLASS_NAME, registeredProgrammeName } from '@/lib/registration/programme-label';
 import { Database as GenDatabase } from '@/types/supabase';
 import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
@@ -311,7 +312,18 @@ export async function POST(req: NextRequest) {
       resolvedSchoolId,
       classId ?? studentClassId ?? null,
       [
-        ...(isSpecialEnrollment(student.enrollment_type) ? ['Summer School 2026'] : []),
+        // The learner's own programme first; the legacy cohort name stays as a
+        // last-resort hint for students placed before pages existed.
+        ...(isSpecialEnrollment(student.enrollment_type)
+          ? [
+              registeredProgrammeName({
+                courseInterest: (student as { course_interest?: string | null }).course_interest,
+                className: student.current_class,
+                fallback: null,
+              }),
+              LEGACY_SUMMER_CLASS_NAME,
+            ]
+          : []),
         student.current_class,
         student.section,
         student.grade_level,
