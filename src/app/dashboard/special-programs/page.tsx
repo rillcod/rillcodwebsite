@@ -438,6 +438,14 @@ export default function SpecialProgramsAdminPage() {
                       </button>
                     )}
 
+                    {/* Whole-programme curriculum on one week spine */}
+                    <Link
+                      href={`/dashboard/special-programs/${p.id}/curriculum`}
+                      className="px-3.5 py-2 text-xs font-bold border border-border rounded-xl hover:bg-muted transition-colors flex items-center gap-1.5"
+                    >
+                      📖 Full Curriculum (Week 1 →)
+                    </Link>
+
                     {/* Direct Teaching Approvals Button */}
                     <Link
                       href="/dashboard/teaching/approvals"

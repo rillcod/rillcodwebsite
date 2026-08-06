@@ -43,6 +43,8 @@ type SpineWeek = {
     lesson_status: string | null;
     has_assignment: boolean;
     has_flashcards: boolean;
+    /** Locked weeks are no longer rewritten when the spine changes. */
+    locked: boolean;
   }>;
 };
 
@@ -98,7 +100,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
     const planIds = plans.map((p) => p.id);
     const { data: lessonRows } = planIds.length
-      ? await sb.from('lessons').select('lesson_plan_id,curriculum_week_number,status').in('lesson_plan_id', planIds)
+      ? await sb
+          .from('lessons')
+          .select('lesson_plan_id,curriculum_week_number,status,content_locked_at')
+          .in('lesson_plan_id', planIds)
       : { data: [] as any[] };
     const { data: asgRows } = planIds.length
       ? await sb.from('assignments').select('lesson_plan_id,curriculum_week_number').in('lesson_plan_id', planIds)
@@ -109,9 +114,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
     const key = (planId: string, week: number) => `${planId}:${week}`;
     const lessonState = new Map<string, string>();
+    const lockedSet = new Set<string>();
     for (const l of (lessonRows ?? []) as any[]) {
       if (l.lesson_plan_id && l.curriculum_week_number != null) {
-        lessonState.set(key(l.lesson_plan_id, Number(l.curriculum_week_number)), String(l.status || 'draft'));
+        const k = key(l.lesson_plan_id, Number(l.curriculum_week_number));
+        lessonState.set(k, String(l.status || 'draft'));
+        if (l.content_locked_at) lockedSet.add(k);
       }
     }
     const asgSet = new Set((asgRows ?? []).map((a: any) => key(a.lesson_plan_id, Number(a.curriculum_week_number))));
@@ -170,6 +178,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
           lesson_status: plan ? lessonState.get(key(plan.id, num)) ?? null : null,
           has_assignment: plan ? asgSet.has(key(plan.id, num)) : false,
           has_flashcards: plan ? deckSet.has(key(plan.id, num)) : false,
+          locked: plan ? lockedSet.has(key(plan.id, num)) : false,
         });
       }
 
