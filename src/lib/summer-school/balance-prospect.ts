@@ -39,19 +39,85 @@ export function isSpecialProgramProspect(row: Pick<BalanceProspectRow, 'course_i
   return false;
 }
 
-/** Same programme scope as registration duplicate guard (page id / title / legacy summer). */
+/**
+ * The page id a registration was tagged with, when it carries one.
+ *
+ * Deliberately not UUID-strict: this value is only ever compared against a
+ * known page id, never used to build a query, so accepting whatever sits in
+ * the tag is both safe and more honest about what is stored there.
+ * (getSpecialPageTuition below stays strict — that one does hit the database.)
+ */
+export function taggedSpecialPageId(notes: string | null | undefined): string | null {
+  const m = String(notes ?? '').match(/\[SpecialPage:\s*([^\]]+)\]/);
+  const id = m?.[1]?.trim();
+  return id ? id.toLowerCase() : null;
+}
+
+const TITLE_NOISE = new Set(['the', 'and', 'for', 'with', 'programme', 'program']);
+
+function significantTokens(text: string): string[] {
+  return [...new Set(
+    text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+      .filter((w) => w.length > 2 && !TITLE_NOISE.has(w)),
+  )];
+}
+
+/**
+ * Legacy rows carry no page tag, only free text like "JSS3 Summer School 2026".
+ *
+ * Raw substring matching could not see those at all: the page is titled "AI
+ * Summer School 2026", and "JSS3 Summer School 2026" does not contain it. Six
+ * paid registrations were invisible to the duplicate guard as a result, four of
+ * them still owing a balance — so a parent re-registering would have been given
+ * a second row and a second payment link.
+ *
+ * Tokens instead of substrings, with the year decisive when the title carries
+ * one. That recognises a differently-prefixed cohort while still refusing to
+ * merge this year's programme with last year's.
+ */
+function legacyTitleMatches(interest: string, pageTitle: string): boolean {
+  const pageTokens = significantTokens(pageTitle);
+  if (!pageTokens.length) return false;
+  const rowTokens = new Set(significantTokens(interest));
+  if (!rowTokens.size) return false;
+
+  const pageYear = pageTokens.find((t) => /^(19|20)\d{2}$/.test(t));
+  if (pageYear) {
+    const rowYear = [...rowTokens].find((t) => /^(19|20)\d{2}$/.test(t));
+    // A different cohort year is a different programme, whatever else matches.
+    if (rowYear && rowYear !== pageYear) return false;
+    if (!rowYear) return false;
+  }
+
+  const shared = pageTokens.filter((t) => rowTokens.has(t));
+  return shared.length >= 2;
+}
+
+/**
+ * Is this registration for the same programme?
+ *
+ * The [SpecialPage: <uuid>] tag is authoritative in BOTH directions — a row
+ * tagged for another programme is not this one, however similar the titles
+ * read. Titles are only consulted for untagged legacy rows, where there is
+ * nothing better.
+ */
 export function isSameSpecialProgramRegistration(
   row: Pick<BalanceProspectRow, 'course_interest' | 'notes'>,
   specialPage: { id: string; title: string } | null,
 ): boolean {
   const interest = String(row.course_interest || '');
-  const notes = String(row.notes || '');
-  if (specialPage) {
-    const samePage = notes.includes(`[SpecialPage: ${specialPage.id}]`);
-    const sameTitle = interest.toLowerCase().includes(specialPage.title.toLowerCase());
-    return samePage || sameTitle;
+  const taggedId = taggedSpecialPageId(row.notes);
+
+  if (!specialPage) {
+    // The legacy summer flow, which predates pages entirely.
+    return /summer/i.test(interest) && !taggedId;
   }
-  return /summer/i.test(interest) && !/\[SpecialPage:/i.test(notes);
+
+  // Previously a title substring could override the tag, so a row belonging to
+  // one programme could be claimed by another whose title was a prefix of it.
+  if (taggedId) return taggedId === specialPage.id.toLowerCase();
+
+  return legacyTitleMatches(interest, specialPage.title);
 }
 
 export async function sumCompletedProspectPayments(prospectId: string): Promise<number> {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
 import { findProspectForBalancePayment } from "@/lib/summer-school/balance-prospect";
-import { checkCustomRateLimit } from "@/proxies/rateLimit.proxy";
+import { checkCustomRateLimit, getClientIp } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
 import { validateEmail } from "@/lib/validation";
 import { SPECIAL_BALANCE_PATH, SPECIAL_BALANCE_PAYMENT_TYPE } from "@/lib/registration/enrollment-types";
@@ -16,11 +16,45 @@ import {
   resolveBalancePaymentCharge,
 } from "@/lib/summer-school/registration-intake";
 
+/**
+ * Enough for a parent to recognise their own child, not enough to harvest.
+ *
+ * This endpoint takes an unauthenticated email and answers with who is
+ * registered — so it doubles as a lookup table for anyone working through a
+ * list of addresses. A parent only needs to confirm they are paying for the
+ * right child, and a first name plus an initial does that.
+ */
+function maskLearnerName(fullName: string | null | undefined): string {
+  const parts = String(fullName ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Your child';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
 /** GET /api/summer-school/balance?email=parent@example.com */
 export async function GET(req: NextRequest) {
   const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();
   if (!email || !validateEmail(email)) {
     return NextResponse.json({ error: "Valid parent email is required" }, { status: 400 });
+  }
+
+  // POST was rate limited and GET was not, which left the cheaper, more
+  // useful call — the one that answers "is this address a customer, and what
+  // is the child called" — completely open.
+  const ip = getClientIp(req);
+  try {
+    if (ip !== '127.0.0.1') {
+      await checkCustomRateLimit({ key: `ss-balance-lookup-ip:${ip}`, max: 12, window: 600 });
+    }
+    await checkCustomRateLimit({ key: `ss-balance-lookup:${email}`, max: 5, window: 600 });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: "Too many lookups. Please wait a moment and try again." },
+        { status: 429 },
+      );
+    }
+    throw err;
   }
 
   const match = await findProspectForBalancePayment(email);
@@ -38,7 +72,7 @@ export async function GET(req: NextRequest) {
 
   if (balanceDue <= 0) {
     return NextResponse.json({
-      studentName: prospect.full_name,
+      studentName: maskLearnerName(prospect.full_name),
       status: "paid",
       totalTuition,
       amountPaid,
@@ -47,7 +81,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    studentName: prospect.full_name,
+    studentName: maskLearnerName(prospect.full_name),
     status: "partially_paid",
     totalTuition,
     amountPaid,

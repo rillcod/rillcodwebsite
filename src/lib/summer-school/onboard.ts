@@ -475,6 +475,19 @@ export async function onboardSummerStudent(
   }
   const cohortName = placement?.className ?? SUMMER_CLASS_NAME;
 
+  // What this learner actually bought, in their own programme's words.
+  //
+  // Registration stamps [Programme: <title>] into the notes, so this is known
+  // for every pathway. It used to be hardcoded to "AI Summer School 2026" —
+  // which meant a parent enrolling in a bootcamp received an invoice line and
+  // an archived credential batch naming a summer programme they never bought.
+  // A special programme is by definition the thing that changes; nothing
+  // customer-facing should carry one cohort's name.
+  const programmeLabel =
+    parseFlag(prospect.notes, /\[Programme:\s*([^\]]+)\]/i)
+    || placement?.className
+    || SUMMER_CLASS_NAME;
+
   // ── 2. Parent account (only if we have a parent email) ──
   let parent: OnboardedAccount | null = null;
   if (normalizedParentEmail) {
@@ -595,7 +608,7 @@ export async function onboardSummerStudent(
     section: cohortName,
     school_id: school.id,
     school_name: school.name,
-    course_interest: prospect.course_interest || 'Summer School 2026',
+    course_interest: prospect.course_interest || programmeLabel,
     preferred_schedule: prospect.preferred_schedule ?? null,
     enrollment_type: 'special',
     status: 'approved',
@@ -677,7 +690,7 @@ export async function onboardSummerStudent(
   }
   // ── 7. Archive credentials for staff resend (only when freshly created) ──
   try {
-    const batchLabel = 'Summer School 2026 — Auto-Onboard';
+    const batchLabel = `${programmeLabel} — Auto-Onboard`;
     if (studentCreated && studentPw) {
       await archivePortalCredential(admin, {
         schoolId: school.id,
@@ -734,7 +747,7 @@ export async function onboardSummerStudent(
           portalUserId: studentPortalId,
           schoolId: school.id,
           items: [{
-            description: `AI Summer School 2026 Tuition — ${prospect.full_name}`,
+            description: `${programmeLabel} Tuition — ${prospect.full_name}`,
             quantity: 1,
             unit_price: amount,
             total: amount,
