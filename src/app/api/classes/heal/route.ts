@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
-import { cleanStudentName, nameNeedsCleaning, duplicateNameKey, namesAreNearDuplicate } from '@/lib/students/clean-name';
+import { cleanStudentName, nameNeedsCleaning, duplicateNameKey, namesAreNearDuplicate, nameLooksIncomplete } from '@/lib/students/clean-name';
 import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 
 function adminClient() {
@@ -911,7 +911,34 @@ export async function POST(req: NextRequest) {
       .eq('portal_users.is_deleted', true);
     const registryDesync = (phantomRows ?? []).length;
 
-    return NextResponse.json({ scanned: all.length, cleanups, duplicates, fuzzyDuplicates: fuzzy, registryDesync });
+    // Half a name — a first name with no surname, or the reverse.
+    //
+    // These had no surface anywhere: the duplicate scan compares names against
+    // each other and a lone half-name matches nothing, while cleaning only
+    // strips junk and cannot invent the missing half. So real children, most of
+    // them already carrying report cards, stayed invisible. Only the school can
+    // complete these, so they are reported for follow-up, never auto-changed.
+    const incompleteNames = all
+      .filter((s: any) => nameLooksIncomplete(s.full_name))
+      .map((s: any) => ({
+        id: s.id,
+        full_name: s.full_name,
+        email: s.email,
+        class_id: s.class_id,
+        school_name: s.school_name,
+        reports: repCount[s.id] ?? 0,
+        published: pubCount[s.id] ?? 0,
+      }))
+      .sort((a: any, b: any) => b.reports - a.reports || String(a.full_name).localeCompare(String(b.full_name)));
+
+    return NextResponse.json({
+      scanned: all.length,
+      cleanups,
+      duplicates,
+      fuzzyDuplicates: fuzzy,
+      registryDesync,
+      incompleteNames,
+    });
   }
 
   // Resync the students registry to portal_users deletions — clears phantom duplicates that

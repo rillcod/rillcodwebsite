@@ -5,12 +5,23 @@ import { useState } from 'react';
 type Member = { id: string; full_name: string; email: string; class_id: string | null; reports: number; published: number };
 type DupGroup = { kind: 'exact' | 'fuzzy'; school_name: string | null; suggestedSurvivorId: string; needsReview: boolean; members: Member[] };
 type Cleanup = { id: string; from: string; to: string; school_name: string | null };
+/** A child whose record holds only half a name. Optional so an older API still renders. */
+type IncompleteName = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  school_name: string | null;
+  reports: number;
+  published: number;
+};
+
 type ScanResult = {
   scanned: number;
   cleanups: Cleanup[];
   duplicates: DupGroup[];
   fuzzyDuplicates: DupGroup[];
   registryDesync: number;
+  incompleteNames?: IncompleteName[];
 };
 
 async function heal(body: Record<string, unknown>) {
@@ -125,6 +136,7 @@ export default function NameHealthPanel() {
               { label: 'Scanned', value: scan.scanned },
               { label: 'Dirty names', value: scan.cleanups.length },
               { label: 'Duplicate groups', value: scan.duplicates.length + scan.fuzzyDuplicates.length },
+              { label: 'Half names', value: scan.incompleteNames?.length ?? 0 },
               { label: 'Phantom rows', value: scan.registryDesync },
             ].map((t) => (
               <div key={t.label} className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
@@ -145,6 +157,33 @@ export default function NameHealthPanel() {
               {busy === 'resync' ? 'Resyncing…' : `Resync ${scan.registryDesync} phantom row(s)`}
             </button>
           </div>
+
+          {/* Half names — reported, never auto-changed: only the school knows the rest. */}
+          {(scan.incompleteNames?.length ?? 0) > 0 && (
+            <details className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+              <summary className="text-xs font-bold text-amber-700 dark:text-amber-400 cursor-pointer">
+                Missing a first name or surname ({scan.incompleteNames!.length}) — ask the school
+              </summary>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                These are real children, most with report cards already. Only the school can supply
+                the missing half, so nothing here is changed automatically.
+              </p>
+              <ul className="mt-2 space-y-1 max-h-56 overflow-y-auto">
+                {scan.incompleteNames!.map((s) => (
+                  <li key={s.id} className="text-xs text-muted-foreground flex flex-wrap gap-x-2">
+                    <span className="font-bold text-foreground">{s.full_name || '(no name)'}</span>
+                    <span>· {s.school_name || 'no school'}</span>
+                    {s.reports > 0 && (
+                      <span className="text-emerald-700 dark:text-emerald-300">
+                        · {s.reports} report{s.reports === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    <span className="opacity-60">· {s.email || 'no email'}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           {/* Name cleanup preview */}
           {scan.cleanups.length > 0 && (

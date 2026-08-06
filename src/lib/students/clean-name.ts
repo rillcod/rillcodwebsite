@@ -135,3 +135,28 @@ export function duplicateNameKey(raw: string | null | undefined): string {
     .sort()
     .join(' ');
 }
+
+/**
+ * A name carrying only one word — a first name with no surname, or a surname
+ * with no first name.
+ *
+ * These are real children, usually with report cards already, whose record was
+ * created from a roster line that only held one word. Nothing in the platform
+ * flagged them, so they sat unnoticed: the duplicate scan groups names against
+ * each other and a lone half-name matches nothing, and cleaning only strips
+ * junk, it cannot invent the missing half.
+ *
+ * Only the school can supply the rest, so this reports rather than repairs.
+ * Numeric disambiguators added by bulk register ("Joseph 3") are dropped first,
+ * because they are not a surname.
+ */
+export function nameLooksIncomplete(raw: string | null | undefined): boolean {
+  const words = cleanStudentName(raw)
+    .split(/\s+/)
+    .filter((t) => t && !/^\d+$/.test(t));
+  if (words.length === 0) return true;
+  if (words.length > 1) return false;
+  // A single hyphenated or apostrophed token is a compound surname, not half a
+  // name: "Franco-Emeni" and "O'Brien" are complete as written.
+  return !/[-'’]/.test(words[0]);
+}
