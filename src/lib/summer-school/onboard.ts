@@ -535,10 +535,30 @@ export async function onboardSummerStudent(
   let priorRowId: string | null = null;
   const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
 
-  if (normalizedParentEmail && fullNameTrimmed) {
-    // Reuse a prior row for this parent+child so re-runs never duplicate. Match the
-    // name in JS with whitespace/case normalisation — a stored trailing space made the
-    // old `.ilike('full_name', trimmed)` miss, so a 15-min cron minted a new account
+  // The prospect's own id is the only stable handle on its student. Names and
+  // emails both change: renaming a child on 2026-08-06 broke the name match
+  // below, so this cron saw a paid prospect with no account, minted a second
+  // one, emailed the parent, and moved three payments onto the duplicate.
+  {
+    const { data: byProspect } = await admin
+      .from('students')
+      .select('id, user_id, student_email, full_name')
+      .eq('prospect_id', prospect.id)
+      .eq('is_deleted', false)
+      .maybeSingle();
+    if (byProspect) {
+      priorRowId = byProspect.id;
+      if (byProspect.user_id) {
+        studentPortalId = byProspect.user_id;
+        studentEmail = (byProspect.student_email || '').trim().toLowerCase();
+      }
+    }
+  }
+
+  if (!priorRowId && normalizedParentEmail && fullNameTrimmed) {
+    // Fallback for rows created before prospect_id existed. Match the name in JS
+    // with whitespace/case normalisation — a stored trailing space made the old
+    // `.ilike('full_name', trimmed)` miss, so a 15-min cron minted a new account
     // every run. Fetch this parent's rows (oldest first) and pick the matching child.
     const { data } = await admin
       .from('students')
@@ -594,6 +614,9 @@ export async function onboardSummerStudent(
 
   // ── 4. students row ──
   const studentPayload: Record<string, unknown> = {
+    // Written on every run, so a row that predates the column gets its link the
+    // next time it is touched rather than waiting on a backfill.
+    prospect_id: prospect.id,
     full_name: prospect.full_name,
     name: prospect.full_name,
     email: studentEmail,
