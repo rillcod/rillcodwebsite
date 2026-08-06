@@ -738,6 +738,22 @@ export async function onboardSummerStudent(
         .eq('id', transaction.id);
       if (ownerLinkError) throw new Error(`Could not link tuition payment to learner: ${ownerLinkError.message}`);
 
+      // An invoice raised before the learner existed has nobody on it. Linking
+      // the transaction alone left it that way permanently: the money showed as
+      // paid, but the invoice belonged to no learner and no school, so finance
+      // reporting keyed on either could not see it. Two settled invoices worth
+      // ₦70,000 were stranded that way before this backfill existed.
+      if (transaction.invoice_id) {
+        const { error: invoiceLinkError } = await admin
+          .from('invoices')
+          .update({ portal_user_id: studentPortalId, school_id: school.id, updated_at: new Date().toISOString() })
+          .eq('id', transaction.invoice_id)
+          .is('portal_user_id', null);
+        if (invoiceLinkError) {
+          console.error('[onboardSummerStudent] could not attribute existing invoice:', invoiceLinkError.message);
+        }
+      }
+
       if (['completed', 'success', 'paid'].includes(String(transaction.payment_status || '').toLowerCase()) && !transaction.invoice_id) {
         const amount = Number(transaction.amount) || 0;
         const rawReference = String(transaction.transaction_reference || transaction.id);
