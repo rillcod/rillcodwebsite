@@ -1,8 +1,7 @@
 // Script to create prospective_students table in Supabase
 // Run with: node scripts/create-prospective-students.mjs
 
-const SUPABASE_URL = 'https://akaorqukdoawacvxsdij.supabase.co';
-const SERVICE_ROLE_KEY = 'sb_secret_Vdui5JfPYV553qZwmCHPbw_JWXmcfvW';
+import { runSql } from './_credentials.mjs';
 
 const sql = `
 CREATE TABLE IF NOT EXISTS public.prospective_students (
@@ -67,32 +66,17 @@ CREATE INDEX IF NOT EXISTS idx_prospective_students_email  ON public.prospective
 CREATE INDEX IF NOT EXISTS idx_prospective_students_status ON public.prospective_students(status);
 `;
 
-const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'apikey': SERVICE_ROLE_KEY,
-        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({ sql }),
-});
+// This used to POST to /rest/v1/rpc/exec_sql and then /pg/query. Neither
+// endpoint exists — the comment beside the second call said as much — so the
+// script could only ever print the SQL and ask for it to be pasted in by hand.
+// It runs through the Management API now, the same path migrate.mjs uses.
+const { ok, status, body } = await runSql(sql);
 
-// Supabase doesn't expose a raw SQL endpoint via REST — use pg endpoint instead
-const pgRes = await fetch(`${SUPABASE_URL}/pg/query`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'apikey': SERVICE_ROLE_KEY,
-        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({ query: sql }),
-});
-
-if (pgRes.ok) {
+if (ok) {
     console.log('✅ Table created successfully!');
 } else {
-    const text = await pgRes.text();
-    console.error('❌ Error:', pgRes.status, text);
-    console.log('\n📋 Please run this SQL manually in Supabase Dashboard → SQL Editor:\n');
+    console.error('❌ Error:', status, body);
+    console.log('\n📋 Or run this SQL manually in Supabase Dashboard → SQL Editor:\n');
     console.log(sql);
+    process.exit(1);
 }

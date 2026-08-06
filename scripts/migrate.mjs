@@ -1,8 +1,7 @@
 // Run: node scripts/migrate.mjs
 // Creates the prospective_students table via Supabase Management API
 
-const PROJECT_REF = 'akaorqukdoawacvxsdij';
-const SERVICE_ROLE_KEY = 'sb_secret_Vdui5JfPYV553qZwmCHPbw_JWXmcfvW';
+import { runSql } from './_credentials.mjs';
 
 const sql = `
 CREATE TABLE IF NOT EXISTS public.prospective_students (
@@ -47,22 +46,11 @@ CREATE INDEX IF NOT EXISTS idx_prospective_students_email  ON public.prospective
 CREATE INDEX IF NOT EXISTS idx_prospective_students_status ON public.prospective_students(status);
 `;
 
-const res = await fetch(
-    `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-    {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ query: sql }),
-    }
-);
+const { ok, status, body } = await runSql(sql);
 
-const body = await res.text();
-
-if (res.ok) {
+if (ok) {
     console.log('✅ prospective_students table created successfully!');
 } else {
-    console.error('❌ Failed:', res.status, body);
+    console.error('❌ Failed:', status, body);
+    process.exit(1);
 }

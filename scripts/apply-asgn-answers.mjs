@@ -1,5 +1,4 @@
-const PROJECT_REF = 'akaorqukdoawacvxsdij';
-const SERVICE_ROLE_KEY = 'sb_secret_Vdui5JfPYV553qZwmCHPbw_JWXmcfvW';
+import { runSql } from './_credentials.mjs';
 
 const sql = `
 ALTER TABLE IF EXISTS public.assignment_submissions 
@@ -10,25 +9,13 @@ console.log('Applying SQL migration...');
 
 async function apply() {
     try {
-        const res = await fetch(
-            `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                },
-                body: JSON.stringify({ query: sql }),
-            }
-        );
+        const { ok, status, body } = await runSql(sql);
 
-        const body = await res.text();
-
-        if (res.ok) {
+        if (ok) {
             console.log('✅ assignment_submissions.answers column added successfully!');
             console.log('Response:', body);
         } else {
-            console.error('❌ Failed:', res.status, body);
+            console.error('❌ Failed:', status, body);
             console.log('Trying alternative approach...');
             // Maybe it's a different endpoint or there's some other problem.
             process.exit(1);
