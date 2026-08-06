@@ -29,6 +29,14 @@ import {
 } from '@/lib/assignments/grading';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 
+/** One file handed in with a submission. Mirrors assignment_submissions.attachments. */
+type SubmissionAttachment = {
+    url: string;
+    name: string;
+    type?: string | null;
+    size?: number | null;
+};
+
 function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     const [copied, setCopied] = useState(false);
     const copy = () => {
@@ -950,6 +958,8 @@ export default function AssignmentDetailPage() {
     const [codeAnswer, setCodeAnswer] = useState('');
     const [codeOutput, setCodeOutput] = useState('');
     const [attachedFile, setAttachedFile] = useState<File | null>(null);
+    /** Every file handed in with this submission, in order; [0] mirrors file_url. */
+    const [attachments, setAttachments] = useState<SubmissionAttachment[]>([]);
     const [uploadingFile, setUploadingFile] = useState(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
@@ -1033,29 +1043,82 @@ export default function AssignmentDetailPage() {
         img.src = url;
     });
 
-    const handleFileChange = async (file: File | null) => {
-        setAttachedFile(file);
-        setFileUrl(null);
+    /**
+     * Upload one or more files and ADD them to the submission.
+     *
+     * Practical work is rarely one file — a screenshot of the running app, the
+     * code, and a short write-up are three. This used to take
+     * `e.target.files?.[0]` into a single `fileUrl`, so every new upload
+     * silently replaced the last and a learner could only hand in one piece of
+     * what they had built.
+     *
+     * `attachments` is the real list; `fileUrl` stays pointed at the first entry
+     * because the preview, the submit-enabled check and eight server routes all
+     * still read it.
+     */
+    const handleFilesChange = async (files: FileList | File[] | null) => {
+        const incoming = Array.from(files ?? []);
         setFileError(null);
-        if (!file || !profile) return;
-        if (file.size > 10 * 1024 * 1024) { setFileError('File too large (max 10 MB)'); return; }
+        if (!incoming.length || !profile) return;
+
+        const tooBig = incoming.find((f) => f.size > 10 * 1024 * 1024);
+        if (tooBig) { setFileError(`"${tooBig.name}" is too large (max 10 MB each)`); return; }
+        if (attachments.length + incoming.length > 10) {
+            setFileError('You can attach up to 10 files.');
+            return;
+        }
+
         setUploadingFile(true);
+        const uploaded: SubmissionAttachment[] = [];
         try {
-            // Compress images before upload — phone photos can be 10+ MB
-            const toUpload = await compressImage(file);
-            const formData = new FormData();
-            formData.append('file', toUpload);
-            const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload.error ?? 'Upload failed');
-            // public_url is the stable /api/media/... proxy URL stored in the files record
-            setFileUrl(payload.data.public_url);
+            for (const file of incoming) {
+                // Compress images before upload — phone photos can be 10+ MB
+                const toUpload = await compressImage(file);
+                const formData = new FormData();
+                formData.append('file', toUpload);
+                const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+                const payload = await res.json();
+                if (!res.ok) throw new Error(payload.error ?? `Could not upload "${file.name}"`);
+                uploaded.push({
+                    url: payload.data.public_url,
+                    name: file.name,
+                    type: file.type || null,
+                    size: file.size,
+                });
+            }
+            setAttachments((prev) => {
+                const next = [...prev, ...uploaded];
+                setFileUrl(next[0]?.url ?? null);
+                return next;
+            });
+            if (!attachedFile) setAttachedFile(incoming[0]);
         } catch (e: any) {
             setFileError(e.message ?? 'Upload failed');
-            setAttachedFile(null);
+            // Keep whatever already uploaded successfully rather than losing it.
+            if (uploaded.length) {
+                setAttachments((prev) => {
+                    const next = [...prev, ...uploaded];
+                    setFileUrl(next[0]?.url ?? null);
+                    return next;
+                });
+            }
         } finally {
             setUploadingFile(false);
         }
+    };
+
+    /** Drop one attachment; the first remaining becomes the primary file_url. */
+    const removeAttachment = (url: string) => {
+        setAttachments((prev) => {
+            const next = prev.filter((a) => a.url !== url);
+            setFileUrl(next[0]?.url ?? null);
+            if (!next.length) setAttachedFile(null);
+            return next;
+        });
+    };
+
+    const handleFileChange = async (file: File | null) => {
+        await handleFilesChange(file ? [file] : null);
     };
 
     // Multi-step submissions — add a work snapshot (compress + upload, then track url + caption).
@@ -1102,6 +1165,7 @@ export default function AssignmentDetailPage() {
                     submission_text: submissionText,
                     answers: Object.keys(answers).length > 0 ? answers : null,
                     file_url: fileUrl ?? undefined,
+                    attachments,
                     snapshots: snapshots.length > 0 ? snapshots : undefined,
                 }),
             });
@@ -1966,20 +2030,29 @@ export default function AssignmentDetailPage() {
                                 {/* File attachment */}
                                 <div>
                                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                        Attach a File <span className="normal-case font-normal text-muted-foreground">(optional — photo or PDF · max 10 MB)</span>
+                                        Attach Files <span className="normal-case font-normal text-muted-foreground">(optional — photos, PDFs or code · up to 10 files, max 10 MB each)</span>
                                     </label>
-                                    {fileUrl ? (
-                                        <SubmissionAttachmentCard
-                                            url={fileUrl}
-                                            name={attachedFile?.name}
-                                            onRemove={() => { setAttachedFile(null); setFileUrl(null); }}
-                                            onOpenPreview={
-                                                attachedFile?.type.startsWith('image/') || isSubmissionImageUrl(fileUrl)
-                                                    ? () => setLightboxUrl(fileUrl)
-                                                    : undefined
-                                            }
-                                        />
-                                    ) : (
+                                    {/* Every attached file, with the uploaders still available below so
+                                        more can be added. Previously one card replaced the uploader, so
+                                        a second file could only ever overwrite the first. */}
+                                    {attachments.length > 0 && (
+                                        <div className="space-y-2 mb-2">
+                                            {attachments.map((att) => (
+                                                <SubmissionAttachmentCard
+                                                    key={att.url}
+                                                    url={att.url}
+                                                    name={att.name}
+                                                    onRemove={() => removeAttachment(att.url)}
+                                                    onOpenPreview={
+                                                        (att.type?.startsWith('image/') || isSubmissionImageUrl(att.url))
+                                                            ? () => setLightboxUrl(att.url)
+                                                            : undefined
+                                                    }
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    {(
                                         <div className="space-y-2">
                                             <div className="grid grid-cols-2 gap-2">
                                                 <label className={`flex flex-col items-center justify-center gap-2.5 px-4 py-5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
@@ -1991,7 +2064,8 @@ export default function AssignmentDetailPage() {
                                                     <input type="file" className="hidden"
                                                         accept="image/jpeg,image/png,image/webp"
                                                         capture="environment"
-                                                        onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+                                                        multiple
+                                                        onChange={e => { void handleFilesChange(e.target.files); e.currentTarget.value = ''; }} />
                                                 </label>
                                                 <label className={`flex flex-col items-center justify-center gap-2.5 px-4 py-5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
                                                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
@@ -2001,7 +2075,8 @@ export default function AssignmentDetailPage() {
                                                     <span className="text-[10px] text-muted-foreground">JPEG, PNG, WebP, PDF</span>
                                                     <input type="file" className="hidden"
                                                         accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.jpg,.jpeg,.png,.webp"
-                                                        onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+                                                        multiple
+                                                        onChange={e => { void handleFilesChange(e.target.files); e.currentTarget.value = ''; }} />
                                                 </label>
                                             </div>
                                             {uploadingFile && (

@@ -578,10 +578,12 @@ export default function ApprovalsPage() {
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>
+                                            {/* Labelled, not a bare icon: sitting unlabelled beside solid
+                                                Approve/Reject buttons, this read as "there is no delete". */}
                                             <button onClick={() => removeEntry('students', s.id, s.full_name ?? 'this student')} disabled={removing === s.id}
                                                 title="Remove a duplicate / failed / unwanted entry"
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
-                                                {removing === s.id ? '…' : '🗑'}
+                                                {removing === s.id ? 'Removing…' : '🗑 Remove'}
                                             </button>
                                         </div>
                                     </div>
@@ -646,7 +648,7 @@ export default function ApprovalsPage() {
                                             <button onClick={() => removeEntry('schools', s.id, s.name ?? 'this school')} disabled={removing === s.id}
                                                 title="Remove a duplicate / failed / unwanted entry"
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
-                                                {removing === s.id ? '…' : '🗑'}
+                                                {removing === s.id ? 'Removing…' : '🗑 Remove'}
                                             </button>
                                         </div>
                                     </div>

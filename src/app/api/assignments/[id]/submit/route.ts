@@ -63,7 +63,7 @@ export async function POST(
 
     const { id: assignment_id } = await context.params;
     const body = await request.json();
-    const { portal_user_id, submission_text, file_url, answers } = body;
+    const { portal_user_id, submission_text, file_url, answers, attachments } = body;
 
     // Free-form work snapshots (multi-step submissions). Stored inside the JSON
     // `answers` column under `snapshots` — no migration needed, and the auto-grader
@@ -190,6 +190,26 @@ export async function POST(
     };
     if (submission_text !== undefined) upsertData.submission_text = submission_text || null;
     if (file_url        !== undefined) upsertData.file_url        = file_url        || null;
+    // A submission can carry several files. Only entries with a url are kept —
+    // the sync_submission_attachments trigger rejects the rest and mirrors the
+    // first into file_url, so the older single-file readers keep working.
+    if (Array.isArray(attachments)) {
+        upsertData.attachments = attachments
+            .filter((a: unknown): a is { url: string } =>
+                !!a && typeof a === 'object' && typeof (a as { url?: unknown }).url === 'string'
+                && (a as { url: string }).url.trim() !== '')
+            .slice(0, 10)
+            .map((a) => {
+                const raw = a as { url: string; name?: unknown; type?: unknown; size?: unknown };
+                return {
+                    url: raw.url,
+                    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'Submission',
+                    type: typeof raw.type === 'string' ? raw.type : null,
+                    size: typeof raw.size === 'number' ? raw.size : null,
+                    uploaded_at: new Date().toISOString(),
+                };
+            });
+    }
     // Merge snapshots into answers without clobbering quiz answers.
     if (snapshots && snapshots.length > 0) {
       const base = answers && typeof answers === 'object' && !Array.isArray(answers) ? answers : {};
