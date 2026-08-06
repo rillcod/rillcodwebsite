@@ -20,6 +20,7 @@ import {
     SubmissionAttachmentCard,
     isSubmissionImageUrl,
 } from '@/components/submissions/SubmissionAttachmentCard';
+import UniversalFilePreviewModal from '@/components/submissions/UniversalFilePreviewModal';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
