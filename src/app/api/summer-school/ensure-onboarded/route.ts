@@ -102,16 +102,46 @@ export async function POST(req: NextRequest) {
     }
 
     if (isSpecialProgramBalancePaymentType(paymentType)) {
+      // A balance payment does not mean the balance is settled.
+      //
+      // resolveBalanceTransferSettlement deliberately accepts any amount from
+      // the minimum up to the outstanding balance, so paying part of a balance
+      // is a supported, ordinary thing to do. This branch nevertheless wrote
+      // status 'paid' unconditionally — and it runs immediately after
+      // processSuccessfulPayment, which had just computed the correct status,
+      // so it clobbered a right answer with a wrong one. A learner who paid
+      // ₦20,000 of a ₦30,000 balance was marked fully paid, which also removed
+      // them from every balance reminder: the remainder became uncollectable in
+      // practice because nothing knew it was still owed.
+      const { computeBalanceSnapshot } = await import('@/lib/summer-school/balance-prospect');
+      const { data: balProspect } = await supabase
+        .from('prospective_students')
+        .select('id, full_name, parent_email, preferred_schedule, status, notes, course_interest')
+        .eq('id', prospectId)
+        .maybeSingle();
+
+      let balanceStatus: 'paid' | 'partially_paid' = 'paid';
+      let outstanding = 0;
+      if (balProspect) {
+        const snapshot = await computeBalanceSnapshot(balProspect as any);
+        outstanding = snapshot.balanceDue;
+        balanceStatus = outstanding > 0 ? 'partially_paid' : 'paid';
+      }
+
       await supabase.from('prospective_students').update({
-        status: 'paid',
+        status: balanceStatus,
         is_active: true,
         updated_at: new Date().toISOString(),
       }).eq('id', prospectId);
 
       return NextResponse.json({
         onboarded: false,
-        balanceSettled: true,
-        message: 'Summer School balance payment confirmed',
+        balanceSettled: outstanding <= 0,
+        balanceDue: outstanding,
+        status: balanceStatus,
+        message: outstanding > 0
+          ? `Payment received. ₦${outstanding.toLocaleString()} remains on this tuition.`
+          : 'Balance payment confirmed — tuition fully settled.',
       });
     }
 

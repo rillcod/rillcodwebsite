@@ -200,6 +200,8 @@ export async function launchSpecialProgramTeaching(input: {
   const weeksStarted: LaunchTeachingResult['weeksStarted'] = [];
   const baseUrl = input.baseUrl.replace(/\/$/, '');
   let missingClass = false;
+  /** Weeks the engine returned nothing for — reported, never faked. */
+  const emptyWeeks: number[] = [];
 
   for (const planId of planIds) {
     const { data: planRow } = await db
@@ -240,11 +242,24 @@ export async function launchSpecialProgramTeaching(input: {
       autoPublish: false,
     });
 
-    // Fallback: If HTTP loopback returned 0 generated items (e.g. serverless loopback fetch restriction),
-    // populate draft lesson & assignment rows directly from curriculum plan_data!
-    if (outcome.generated === 0) {
-      const direct = await ensureDraftWeekContentDirectly(db, { planId, week, session: 1 });
-      outcome.generated += direct.generated;
+    // When the engine produces nothing, leave the week to the AI week generator
+    // rather than writing a placeholder.
+    //
+    // There used to be a fallback here that inserted a bare lesson and
+    // assignment straight from plan_data — the only direct lesson insert in the
+    // codebase. Everything else (the cron sweep, the teacher's generate-week
+    // route, the entire school pathway) goes through generatePlanWeek, so this
+    // was a private, weaker copy of the shared engine reachable only by special
+    // programmes. It produced lessons with no body, no slides, no practice
+    // cards and no project, and tagged them metadata.generated_by while the
+    // uniqueness index keyed on metadata.generated_from — which is precisely
+    // how one track accumulated four copies of its Week 1 lesson, one per click
+    // of Prepare teaching.
+    //
+    // The sweep already covers these plans (auto_generate_settings.enabled), so
+    // an empty result is a "not yet", not a reason to invent content.
+    if (outcome.generated === 0 && outcome.skipped === 0) {
+      emptyWeeks.push(week);
     }
 
     await notifyWeekReady(db, {
@@ -273,9 +288,15 @@ export async function launchSpecialProgramTeaching(input: {
       cohortWarning ??
       (missingClass
         ? 'Plans were prepared, but some of them are not attached to the cohort class yet. Open the class workspace to link them.'
-        : cohort.created
-          ? `Cohort class "${cohort.cohort?.name}" was created automatically for teachers.`
-          : undefined),
+        : emptyWeeks.length
+          ? `Curriculum is ready, but the content engine returned nothing for week${
+              emptyWeeks.length === 1 ? '' : 's'
+            } ${[...new Set(emptyWeeks)].sort((a, b) => a - b).join(', ')}. The nightly week generator will pick ${
+              emptyWeeks.length === 1 ? 'it' : 'them'
+            } up, or press Prepare teaching again.`
+          : cohort.created
+            ? `Cohort class "${cohort.cohort?.name}" was created automatically for teachers.`
+            : undefined),
   };
 
   await writeTeachingLaunchStatus(db, offeringId, {
@@ -299,110 +320,4 @@ export async function launchSpecialProgramTeaching(input: {
   }
 
   return result;
-}
-
-async function ensureDraftWeekContentDirectly(
-  db: any,
-  input: { planId: string; week: number; session?: number | null }
-): Promise<{ generated: number }> {
-  const { data: planRow } = await db
-    .from('lesson_plans')
-    .select('id, course_id, school_id, plan_data')
-    .eq('id', input.planId)
-    .maybeSingle();
-
-  if (!planRow) return { generated: 0 };
-  const weeks = Array.isArray(planRow.plan_data?.weeks) ? planRow.plan_data.weeks : [];
-  const weekMeta = weeks.find((w: any) => Number(w.week) === input.week) || weeks[0];
-  if (!weekMeta) return { generated: 0 };
-  const targetWeek = Number(weekMeta.week) || input.week || 1;
-
-  let generated = 0;
-
-  // 1. Check/create draft lesson
-  // .limit(1) is load-bearing: maybeSingle() ERRORS when the filter matches more
-  // than one row, and that error is not read here — so a plan that already had
-  // two lessons for the week looked like a plan with none, and every launch or
-  // Prepare-teaching click added one more. One track reached four copies that way.
-  const { data: existingLesson } = await db
-    .from('lessons')
-    .select('id')
-    .eq('lesson_plan_id', input.planId)
-    .eq('curriculum_week_number', targetWeek)
-    .limit(1)
-    .maybeSingle();
-
-  if (!existingLesson) {
-    const lessonDesc = typeof weekMeta.objectives === 'string' && weekMeta.objectives.trim()
-      ? weekMeta.objectives
-      : Array.isArray(weekMeta.objectives) && weekMeta.objectives.length > 0
-      ? weekMeta.objectives.join(' · ')
-      : typeof weekMeta.desc === 'string' && weekMeta.desc.trim()
-      ? weekMeta.desc
-      : `Curriculum Lesson: ${weekMeta.topic || `Week ${targetWeek}`}`;
-
-    const { error: lErr } = await db.from('lessons').insert({
-      lesson_plan_id: input.planId,
-      course_id: planRow.course_id,
-      school_id: planRow.school_id,
-      title: weekMeta.topic || `Week ${targetWeek} Lesson`,
-      description: lessonDesc,
-      status: 'draft',
-      duration_minutes: 60,
-      curriculum_week_number: targetWeek,
-      order_index: 1,
-      metadata: {
-        generated_by: 'special_program_launcher',
-        topic: weekMeta.topic,
-        objectives: weekMeta.objectives,
-        student_activities: weekMeta.student_activities || weekMeta.activities,
-        classwork: weekMeta.classwork,
-        assignment: weekMeta.assignment,
-        session_number: input.session || 1,
-      },
-    });
-    if (!lErr) generated++;
-  }
-
-  // 2. Check/create draft assignment
-  const { data: existingAssignment } = await db
-    .from('assignments')
-    .select('id')
-    .eq('lesson_plan_id', input.planId)
-    .eq('curriculum_week_number', targetWeek)
-    .limit(1)
-    .maybeSingle();
-
-  if (!existingAssignment) {
-    const assignmentTitle = weekMeta.assignment
-      ? (typeof weekMeta.assignment === 'string' ? weekMeta.assignment : (weekMeta.assignment.title || `Assignment: Week ${targetWeek}`))
-      : `Assignment: ${weekMeta.topic || `Week ${targetWeek}`}`;
-
-    const assignmentDesc = typeof weekMeta.assignment === 'string' && weekMeta.assignment.trim()
-      ? weekMeta.assignment
-      : typeof weekMeta.assignment === 'object' && weekMeta.assignment?.description
-      ? String(weekMeta.assignment.description)
-      : typeof weekMeta.assignment === 'object' && weekMeta.assignment?.instructions
-      ? String(weekMeta.assignment.instructions)
-      : `Practical Homework Task: Review and complete exercises based on "${weekMeta.topic || `Week ${targetWeek}`}". Apply key concepts learned in class.`;
-
-    const { error: aErr } = await db.from('assignments').insert({
-      lesson_plan_id: input.planId,
-      course_id: planRow.course_id,
-      school_id: planRow.school_id,
-      title: assignmentTitle,
-      description: assignmentDesc,
-      is_active: false,
-      assignment_type: 'homework',
-      curriculum_week_number: targetWeek,
-      metadata: {
-        generated_by: 'special_program_launcher',
-        topic: weekMeta.topic,
-        session_number: input.session || 1,
-      },
-    });
-    if (!aErr) generated++;
-  }
-
-  return { generated };
 }
