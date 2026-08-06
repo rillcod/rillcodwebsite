@@ -737,28 +737,58 @@ export async function POST(request: Request) {
     }
 
     // Auto-enroll into programme if one was selected
-    if (programId) {
+    {
       const successIds = results
         .filter((r) => r.status === 'created' || r.status === 'updated' || r.status === 'reinstated')
         .filter((r) => r.userId)
         .map((r) => r.userId as string);
 
-      if (successIds.length > 0) {
-        const enrollments = successIds.map((userId) => ({
+      // Fall back to the programme the student's own class names.
+      //
+      // This block used to be wrapped in `if (programId)`, so an upload that did
+      // not carry a programme created the account, the school link and the class
+      // placement — and then skipped enrolment in silence. No warning, no error,
+      // nothing recorded. The accounts worked; the learners simply landed on an
+      // empty dashboard, and it clustered by upload batch (26 at one school).
+      //
+      // The programme was never actually unknown: rosterAssignments already holds
+      // it per class, and the roster write below has used cls.programId all along.
+      const programByStudent = new Map<string, string>();
+      for (const [, assignment] of rosterAssignments) {
+        if (!assignment.cls.programId) continue;
+        for (const studentId of assignment.studentIds) {
+          programByStudent.set(studentId, assignment.cls.programId);
+        }
+      }
+
+      const enrollments = successIds
+        .map((userId) => ({
           user_id: userId,
-          program_id: programId,
+          program_id: programId ?? programByStudent.get(userId) ?? null,
           status: 'active',
           role: 'student',
-        }));
+        }))
+        .filter((e): e is { user_id: string; program_id: string; status: string; role: string } =>
+          e.program_id !== null);
 
-        // Insert only those not already enrolled
+      if (enrollments.length > 0) {
+
+        // Insert only those not already enrolled. Keyed on user AND programme,
+        // because students in one batch can now land on different programmes —
+        // a mixed-grade import writes Young Innovators and Teen Developers rows
+        // side by side, and a single program_id filter would have compared them
+        // all against whichever programme happened to be first.
         const { data: alreadyEnrolled } = await supabaseAdmin
           .from('enrollments')
-          .select('user_id')
-          .eq('program_id', programId)
+          .select('user_id, program_id')
+          .in('program_id', [...new Set(enrollments.map((e) => e.program_id))])
           .in('user_id', successIds);
-        const enrolledSet = new Set((alreadyEnrolled ?? []).map((e: any) => e.user_id));
-        const toInsert = enrollments.filter((e) => !enrolledSet.has(e.user_id));
+        const enrolledSet = new Set(
+          (alreadyEnrolled ?? []).map((e: any) => `${e.user_id}:${e.program_id}`),
+        );
+        const toInsert = enrollments.filter(
+          (e) => !enrolledSet.has(`${e.user_id}:${e.program_id}`),
+        );
         if (toInsert.length > 0) {
           const { error: enrollmentErr } = await supabaseAdmin.from('enrollments').insert(toInsert);
           if (enrollmentErr) {
