@@ -137,7 +137,27 @@ export async function onboardStudentFromProspect(
   let priorSchoolId: string | null = null;
   let priorSchoolName: string | null = null;
   let priorClassId: string | null = null;
-  if (normalizedParentEmail && fullNameTrimmed) {
+  // The prospect's id is the only handle that survives a rename. Matching on
+  // name alone let a renamed child look like a brand-new one, so this path
+  // would provision a second account for someone who already had one.
+  {
+    const { data: byProspect } = await admin
+      .from('students')
+      .select('id, user_id, student_email, school_id, school_name')
+      .eq('prospect_id', prospect.id)
+      .eq('is_deleted', false)
+      .maybeSingle();
+    if (byProspect) {
+      priorRowId = byProspect.id;
+      priorUserId = byProspect.user_id ?? null;
+      priorStudentEmail = (byProspect.student_email || '').trim().toLowerCase();
+      priorSchoolId = byProspect.school_id ?? null;
+      priorSchoolName = byProspect.school_name ?? null;
+    }
+  }
+
+  if (!priorRowId && normalizedParentEmail && fullNameTrimmed) {
+    // Fallback for rows created before prospect_id existed.
     // NOTE: the students table has NO class_id column — class lives on portal_users.
     const { data } = await admin
       .from('students')
@@ -294,6 +314,9 @@ export async function onboardStudentFromProspect(
 
   // students row.
   const studentPayload: Record<string, unknown> = {
+    // Written every run so rows predating the column pick the link up as they
+    // are touched, rather than waiting on another backfill.
+    prospect_id: prospect.id,
     full_name: effectiveName,
     name: effectiveName,
     email: studentEmail,

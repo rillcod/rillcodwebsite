@@ -213,15 +213,39 @@ export async function cascadeDeleteProspect(admin: AnySupabase, prospectId: stri
     const fullName = norm(prospect.full_name);
     const parentEmail = norm(prospect.parent_email) || norm(prospect.email);
 
-    // Find the student row this prospect produced (same name + parent email).
+    // Find the student row this prospect produced.
+    //
+    // prospect_id is exact. The name+email fallback below is not: it used to
+    // take the first row of an unbounded result and hard-delete that account,
+    // so two children of one parent with similar names could see the wrong one
+    // destroyed. A deletion may only proceed on an unambiguous match — if the
+    // fallback finds more than one candidate it now deletes nothing and leaves
+    // the prospect for a human, which is the safe direction to fail.
     let studentRow: StudentRefRow | null = null;
-    if (fullName && parentEmail) {
+
+    const { data: byProspect } = await admin
+      .from('students')
+      .select('id, user_id, full_name, parent_email')
+      .eq('prospect_id', prospectId)
+      .eq('is_deleted', false)
+      .maybeSingle();
+    if (byProspect) studentRow = byProspect as StudentRefRow;
+
+    if (!studentRow && fullName && parentEmail) {
       const { data: srows } = await admin
         .from('students')
         .select('id, user_id, full_name, parent_email')
         .ilike('parent_email', parentEmail)
         .ilike('full_name', prospect.full_name ?? '');
-      studentRow = ((srows ?? []) as StudentRefRow[])[0] ?? null;
+      const candidates = (srows ?? []) as StudentRefRow[];
+      if (candidates.length === 1) {
+        studentRow = candidates[0];
+      } else if (candidates.length > 1) {
+        console.warn(
+          `[cascade-delete] ${candidates.length} students match "${prospect.full_name}" for ${parentEmail}; `
+          + 'refusing to guess which account to delete.',
+        );
+      }
     }
     if (studentRow?.user_id) {
       // Capture parent links before deleting the student so we can orphan-check the parent.
