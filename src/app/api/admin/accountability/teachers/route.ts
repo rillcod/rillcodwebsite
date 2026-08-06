@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { auditContent, contentVerdict, type ContentAuditInput } from '@/lib/academic/content-inventory';
+import type { WeekPackageAsset } from '@/lib/academic/week-package';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,10 +26,27 @@ async function assertAdmin() {
   return null;
 }
 
+/** What a teacher has prepared to teach, and how much of it students can see. */
+export type ContentAccountability = {
+  /** How many of the five week-package assets exist at all (0-5). */
+  prepared: number;
+  /** How many of the five have at least one item visible to students (0-5). */
+  released: number;
+  prepared_pct: number;
+  released_pct: number;
+  missing: WeekPackageAsset[];
+  held_back: WeekPackageAsset[];
+  weeks_touched: number;
+  /** Work exists but not one item of it reaches a student. */
+  prepared_but_invisible: boolean;
+  verdict: string;
+};
+
 export type TeacherClassDetail = {
   class_id: string;
   class_name: string;
   school_name: string | null;
+  content: ContentAccountability;
   true_students: number;
   reports_total: number;
   published: number;
@@ -63,6 +82,13 @@ export type TeacherWorkloadCard = {
   all_classes_complete: boolean;
   all_published: boolean;
   has_true_students: boolean;
+  /** Classes with no teaching content prepared at all. */
+  classes_without_content: number;
+  /** Classes holding prepared content that no student can see. */
+  classes_withholding_content: number;
+  /** Mean of the five-asset preparation score across the teacher's classes. */
+  content_prepared_pct: number;
+  content_released_pct: number;
   status: 'complete' | 'drafts' | 'incomplete' | 'no_students' | 'no_classes';
   courses: string[];
   classes: TeacherClassDetail[];
@@ -122,6 +148,38 @@ export async function GET() {
     return status !== 'archived' && status !== 'deleted' && status !== 'inactive';
   });
   const classIds = classList.map((c) => c.id);
+
+  // Week-package content for those classes. Reports alone said nothing about
+  // whether a teacher had actually prepared anything to teach, or whether what
+  // they prepared ever reached a student — the platform held 10 lessons, all
+  // draft, and 8 flashcard decks, all withheld, while looking "ready".
+  type ContentBucket = { [K in keyof ContentAuditInput]-?: NonNullable<ContentAuditInput[K]>[number][] };
+  const contentByClass = new Map<string, ContentBucket>();
+  const bucket = (classId: string | null | undefined): ContentBucket | null => {
+    if (!classId) return null;
+    let entry = contentByClass.get(classId);
+    if (!entry) {
+      entry = { lessons: [], slides: [], flashcards: [], assignments: [] };
+      contentByClass.set(classId, entry);
+    }
+    return entry;
+  };
+
+  if (classIds.length > 0) {
+    for (let i = 0; i < classIds.length; i += 100) {
+      const chunk = classIds.slice(i, i + 100);
+      const [lessons, slides, flashcards, assignments] = await Promise.all([
+        db.from('lessons').select('class_id, status, curriculum_week_number, metadata').in('class_id', chunk),
+        db.from('lesson_materials').select('class_id, curriculum_week_number').in('class_id', chunk),
+        db.from('flashcard_decks').select('class_id, is_public, curriculum_week_number').in('class_id', chunk),
+        db.from('assignments').select('class_id, assignment_type, is_active, curriculum_week_number, metadata').in('class_id', chunk),
+      ]);
+      for (const row of lessons.data ?? []) bucket(row.class_id)?.lessons.push(row as never);
+      for (const row of slides.data ?? []) bucket(row.class_id)?.slides.push(row as never);
+      for (const row of flashcards.data ?? []) bucket(row.class_id)?.flashcards.push(row as never);
+      for (const row of assignments.data ?? []) bucket(row.class_id)?.assignments.push(row as never);
+    }
+  }
 
   // Active-term roster for those classes
   let rosterRows: Array<{ class_id: string; student_id: string; status: string | null }> = [];
@@ -282,10 +340,23 @@ export async function GET() {
       else if (missing === 0 && drafts > 0) status = 'drafts';
       else status = 'incomplete';
 
+      const audit = auditContent(contentByClass.get(klass.id) ?? {});
+
       return {
         class_id: klass.id,
         class_name: klass.name,
         school_name: schoolName,
+        content: {
+          prepared: audit.preparedCount,
+          released: audit.releasedCount,
+          prepared_pct: audit.preparedPct,
+          released_pct: audit.releasedPct,
+          missing: audit.missing,
+          held_back: audit.heldBack,
+          weeks_touched: audit.weeksTouched,
+          prepared_but_invisible: audit.preparedButInvisible,
+          verdict: contentVerdict(audit),
+        },
         true_students,
         reports_total,
         published,
@@ -341,6 +412,14 @@ export async function GET() {
       all_classes_complete: all_classes_complete && all_published,
       all_published,
       has_true_students,
+      classes_without_content: classDetails.filter((c) => c.content.prepared === 0).length,
+      classes_withholding_content: classDetails.filter((c) => c.content.prepared_but_invisible).length,
+      content_prepared_pct: classDetails.length
+        ? Math.round(classDetails.reduce((s, c) => s + c.content.prepared_pct, 0) / classDetails.length)
+        : 0,
+      content_released_pct: classDetails.length
+        ? Math.round(classDetails.reduce((s, c) => s + c.content.released_pct, 0) / classDetails.length)
+        : 0,
       status,
       courses,
       classes: classDetails,
@@ -361,6 +440,7 @@ export async function GET() {
     return (a.full_name || '').localeCompare(b.full_name || '');
   });
 
+  const allClassDetails = cards.flatMap((c) => c.classes);
   const summary = {
     teachers: cards.length,
     complete: cards.filter((c) => c.status === 'complete').length,
@@ -368,6 +448,16 @@ export async function GET() {
     incomplete: cards.filter((c) => c.status === 'incomplete').length,
     no_students: cards.filter((c) => c.status === 'no_students').length,
     no_classes: cards.filter((c) => c.status === 'no_classes').length,
+    // Content accountability, so a teacher who files reports but prepares
+    // nothing — or prepares everything and releases none of it — is visible
+    // without opening each card.
+    classes_total: allClassDetails.length,
+    classes_without_content: allClassDetails.filter((c) => c.content.prepared === 0).length,
+    classes_withholding_content: allClassDetails.filter((c) => c.content.prepared_but_invisible).length,
+    classes_fully_released: allClassDetails.filter((c) => c.content.released === 5).length,
+    teachers_without_any_content: cards.filter(
+      (c) => c.classes.length > 0 && c.classes.every((k) => k.content.prepared === 0),
+    ).length,
   };
 
   return NextResponse.json({

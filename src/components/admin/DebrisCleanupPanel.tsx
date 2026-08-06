@@ -29,6 +29,11 @@ interface DebrisCategory {
 interface DebrisData {
   orphaned_lessons: DebrisCategory;
   orphaned_assignments: DebrisCategory;
+  // Projects, slides and flashcard decks are the other three week-package
+  // assets. Optional so an older API response still renders.
+  orphaned_projects?: DebrisCategory;
+  orphaned_slides?: DebrisCategory;
+  orphaned_flashcards?: DebrisCategory;
   deleted_accounts: DebrisCategory;
   hollow_accounts?: { count: number; items: Array<DebrisItem & { role?: string; reason?: string; created_at?: string }> };
   empty_classes: DebrisCategory;
@@ -41,6 +46,9 @@ interface DebrisData {
 interface PurgeCounts {
   orphaned_lessons: number;
   orphaned_assignments: number;
+  orphaned_projects?: number;
+  orphaned_slides?: number;
+  orphaned_flashcards?: number;
   deleted_accounts: number;
   hollow_accounts?: number;
   disconnected_links: number;
@@ -175,6 +183,9 @@ export default function DebrisCleanupPanel() {
   const purgeable = data?.purgeable_count ?? (
     (data?.orphaned_lessons.count ?? 0) +
     (data?.orphaned_assignments.count ?? 0) +
+    (data?.orphaned_projects?.count ?? 0) +
+    (data?.orphaned_slides?.count ?? 0) +
+    (data?.orphaned_flashcards?.count ?? 0) +
     (data?.deleted_accounts.count ?? 0) +
     (data?.disconnected_links?.count ?? 0) +
     (data?.hollow_accounts?.count ?? 0) +
@@ -292,6 +303,9 @@ export default function DebrisCleanupPanel() {
               ['Broken links', dryRunResult.would_purge.disconnected_links],
               ['Orphan lessons', dryRunResult.would_purge.orphaned_lessons],
               ['Orphan assignments', dryRunResult.would_purge.orphaned_assignments],
+              ['Orphan projects', dryRunResult.would_purge.orphaned_projects ?? 0],
+              ['Orphan slides', dryRunResult.would_purge.orphaned_slides ?? 0],
+              ['Orphan flashcards', dryRunResult.would_purge.orphaned_flashcards ?? 0],
               ['Empty classes', dryRunResult.would_purge.empty_classes],
             ] as const).map(([label, n]) => (
               <div key={label} className="bg-background/80 rounded-xl p-3 border border-emerald-500/20">
@@ -308,7 +322,19 @@ export default function DebrisCleanupPanel() {
         <MetricCard label="Soft-deleted accounts" count={data?.deleted_accounts.count ?? 0} hint="Already marked deleted" Icon={UserIcon} accent="text-orange-600 dark:text-orange-400" />
         <MetricCard label="Stale unpaid regs" count={data?.stale_unpaid_students?.count ?? 0} hint="Pending · unpaid · 14+ days" Icon={DocumentTextIcon} accent="text-amber-600 dark:text-amber-400" />
         <MetricCard label="Broken parent links" count={data?.disconnected_links?.count ?? 0} hint="Parent or student gone" Icon={UserGroupIcon} accent="text-orange-600 dark:text-orange-400" />
-        <MetricCard label="Orphaned content" count={(data?.orphaned_lessons.count ?? 0) + (data?.orphaned_assignments.count ?? 0)} hint="Missing lesson plans" Icon={DocumentTextIcon} accent="text-violet-600 dark:text-violet-400" />
+        <MetricCard
+          label="Orphaned content"
+          count={
+            (data?.orphaned_lessons.count ?? 0) +
+            (data?.orphaned_assignments.count ?? 0) +
+            (data?.orphaned_projects?.count ?? 0) +
+            (data?.orphaned_slides?.count ?? 0) +
+            (data?.orphaned_flashcards?.count ?? 0)
+          }
+          hint="Lessons · slides · flashcards · assignments · projects"
+          Icon={DocumentTextIcon}
+          accent="text-violet-600 dark:text-violet-400"
+        />
         <MetricCard label="Empty classes" count={data?.empty_classes.count ?? 0} hint={purgeEmptyClasses ? 'Will purge if enabled' : 'Listed only'} Icon={UserGroupIcon} accent="text-teal-600 dark:text-teal-400" />
       </div>
 
@@ -388,6 +414,42 @@ export default function DebrisCleanupPanel() {
                   id: l.id,
                   primary: l.title || 'Untitled lesson',
                   secondary: `ID: ${l.id}`,
+                  badge: 'Orphan',
+                }))}
+              />
+            )}
+            {(data?.orphaned_projects?.count ?? 0) > 0 && (
+              <DebrisList
+                title="Orphaned projects"
+                tone="text-sky-600 dark:text-sky-400"
+                items={(data?.orphaned_projects?.items ?? []).map((p) => ({
+                  id: p.id,
+                  primary: p.title || 'Untitled project',
+                  secondary: `ID: ${p.id}`,
+                  badge: 'Orphan',
+                }))}
+              />
+            )}
+            {(data?.orphaned_slides?.count ?? 0) > 0 && (
+              <DebrisList
+                title="Orphaned slides"
+                tone="text-teal-600 dark:text-teal-400"
+                items={(data?.orphaned_slides?.items ?? []).map((s) => ({
+                  id: s.id,
+                  primary: s.title || 'Untitled slide deck',
+                  secondary: `ID: ${s.id}`,
+                  badge: 'Orphan',
+                }))}
+              />
+            )}
+            {(data?.orphaned_flashcards?.count ?? 0) > 0 && (
+              <DebrisList
+                title="Orphaned flashcard decks"
+                tone="text-fuchsia-600 dark:text-fuchsia-400"
+                items={(data?.orphaned_flashcards?.items ?? []).map((f) => ({
+                  id: f.id,
+                  primary: f.title || 'Untitled deck',
+                  secondary: `ID: ${f.id}`,
                   badge: 'Orphan',
                 }))}
               />

@@ -241,25 +241,19 @@ function LoginContent() {
           created_at:   new Date().toISOString(),
         });
 
-        // 2. Update metadata with login stats (total count and last active platform)
-        const currentMeta = (profileData.metadata as Record<string, any>) || {};
+        // 2. Update metadata with login stats (total count and last active platform).
+        // Merged in the database, not here: spreading a client snapshot of metadata
+        // and writing it whole let DashboardAccessGuard's later write of the same
+        // column erase these keys on every single login.
         const loginPlatform = isNative ? 'Android App' : 'Web Browser';
-        const updatedMeta = {
-          ...currentMeta,
-          last_login_platform: loginPlatform,
-          last_login_at: new Date().toISOString(),
-          app_login_count: isNative 
-            ? (Number(currentMeta.app_login_count || 0) + 1) 
-            : Number(currentMeta.app_login_count || 0),
-          web_login_count: !isNative 
-            ? (Number(currentMeta.web_login_count || 0) + 1) 
-            : Number(currentMeta.web_login_count || 0),
-        };
-
-        await supabase
-          .from('portal_users')
-          .update({ metadata: updatedMeta })
-          .eq('id', authData.user.id);
+        await supabase.rpc('merge_my_metadata' as never, {
+          patch: {
+            last_login_platform: loginPlatform,
+            last_login_at: new Date().toISOString(),
+          },
+          increment_keys: [isNative ? 'app_login_count' : 'web_login_count'],
+          stamp_login: true,
+        } as never);
 
       } catch (crmErr) {
         console.error('Failed to log native app login audit:', crmErr);

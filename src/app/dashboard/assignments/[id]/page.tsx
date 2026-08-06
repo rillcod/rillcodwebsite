@@ -253,51 +253,9 @@ function SmartImage({ src, alt, className, onClick }: {
     );
 }
 
-// ── EnhancedLightbox: keyboard nav, zoom, download ────────────────────────
+// ── EnhancedLightbox: uses international UniversalFilePreviewModal ─────────────
 function EnhancedLightbox({ url, onClose }: { url: string; onClose: () => void }) {
-    const [zoom, setZoom] = useState(1);
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-            if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.25, 3));
-            if (e.key === '-') setZoom(z => Math.max(z - 0.25, 0.5));
-            if (e.key === '0') setZoom(1);
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [onClose]);
-
-    return (
-        <div className="fixed inset-0 z-[70] bg-black/97 flex flex-col" onClick={onClose}>
-            {/* Toolbar */}
-            <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 bg-black/60 backdrop-blur-sm border-b border-white/10" onClick={e => e.stopPropagation()}>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex-1">Photo Preview</span>
-                <button onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))}
-                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-foreground text-sm font-bold transition-colors">−</button>
-                <span className="text-xs font-bold text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(z => Math.min(z + 0.25, 3))}
-                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-foreground text-sm font-bold transition-colors">+</button>
-                <button onClick={() => setZoom(1)}
-                    className="px-3 h-8 bg-white/10 hover:bg-white/20 rounded-lg text-muted-foreground text-xs font-bold transition-colors">Reset</button>
-                <a href={url} download target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                    className="flex items-center gap-1.5 px-3 h-8 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-xs font-bold rounded-lg transition-colors">
-                    <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
-                </a>
-                <button onClick={onClose}
-                    className="flex items-center gap-1.5 px-3 h-8 bg-white/10 hover:bg-white/20 border border-white/10 text-foreground text-xs font-bold rounded-lg transition-colors">
-                    <XMarkIcon className="w-4 h-4" /> Close <span className="text-muted-foreground hidden sm:inline">· Esc</span>
-                </button>
-            </div>
-            {/* Image */}
-            <div className="flex-1 overflow-auto flex items-center justify-center p-6" onClick={onClose}>
-                <div onClick={e => e.stopPropagation()} style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.2s ease' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="Submission photo" className="max-w-[80vw] max-h-[75vh] object-contain rounded-xl shadow-2xl select-none" draggable={false} />
-                </div>
-            </div>
-            <p className="text-center text-[10px] text-muted-foreground pb-3">Scroll or pinch to zoom · + / − keys · Click outside to close</p>
-        </div>
-    );
+    return <UniversalFilePreviewModal url={url} onClose={onClose} />;
 }
 
 function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {

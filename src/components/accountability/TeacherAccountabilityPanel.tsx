@@ -19,10 +19,24 @@ type StudentRow = {
   published_at: string | null;
 };
 
+/** The five week-package assets a class needs, and how many reach students. */
+type ContentAccountability = {
+  prepared: number;
+  released: number;
+  prepared_pct: number;
+  released_pct: number;
+  missing: string[];
+  held_back: string[];
+  weeks_touched: number;
+  prepared_but_invisible: boolean;
+  verdict: string;
+};
+
 type ClassDetail = {
   class_id: string;
   class_name: string;
   school_name: string | null;
+  content?: ContentAccountability;
   true_students: number;
   reports_total: number;
   published: number;
@@ -51,6 +65,10 @@ export type TeacherWorkloadCard = {
   all_classes_complete: boolean;
   all_published: boolean;
   has_true_students: boolean;
+  classes_without_content?: number;
+  classes_withholding_content?: number;
+  content_prepared_pct?: number;
+  content_released_pct?: number;
   status: 'complete' | 'drafts' | 'incomplete' | 'no_students' | 'no_classes';
   courses: string[];
   classes: ClassDetail[];
@@ -233,6 +251,44 @@ function TeacherCard({
           </div>
           <p className={`text-[11px] ${meta.tone}`}>{meta.hint}</p>
         </div>
+
+        {/* Teaching content is separate from results: a teacher can publish
+            every report and still have prepared nothing for students to open. */}
+        {teacher.class_count > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-border/60">
+            <div className="flex justify-between text-[11px] font-bold">
+              <span className="text-muted-foreground">Teaching content</span>
+              <span className={
+                (teacher.content_released_pct ?? 0) > 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : (teacher.content_prepared_pct ?? 0) > 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-rose-600 dark:text-rose-400'
+              }>
+                {teacher.content_prepared_pct ?? 0}% prepared · {teacher.content_released_pct ?? 0}% released
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
+              {(teacher.classes_without_content ?? 0) > 0 && (
+                <span className="text-rose-600 dark:text-rose-400 font-bold">
+                  {teacher.classes_without_content} class{(teacher.classes_without_content ?? 0) === 1 ? '' : 'es'} with nothing prepared
+                </span>
+              )}
+              {(teacher.classes_withholding_content ?? 0) > 0 && (
+                <span className="text-amber-600 dark:text-amber-400 font-bold">
+                  {teacher.classes_withholding_content} prepared but never released
+                </span>
+              )}
+              {(teacher.classes_without_content ?? 0) === 0
+                && (teacher.classes_withholding_content ?? 0) === 0
+                && (teacher.content_prepared_pct ?? 0) > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  Every class has content students can open
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </button>
 
       {expanded && (
@@ -259,6 +315,17 @@ function TeacherCard({
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {klass.school_name || '—'} · {klass.true_students} true student{klass.true_students === 1 ? '' : 's'}
                       </p>
+                      {klass.content && (
+                        <p className={`text-[11px] mt-0.5 font-semibold ${
+                          klass.content.released === 5
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : klass.content.prepared === 0
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {klass.content.verdict}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 min-w-[10rem] flex-1 sm:flex-none sm:w-56">
                       <div className="flex-1 space-y-1">

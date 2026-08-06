@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { wipePortalUserCascade, prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails } from '@/lib/students/permanent-wipe';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
+import { assignmentAssetKind, findOrphanedAssets, findOrphanedLessonChildren } from '@/lib/academic/content-inventory';
 
 export type HollowAccount = {
   id: string;
@@ -23,6 +24,9 @@ export type HollowAccount = {
 export type DebrisSnapshot = {
   orphaned_lessons: { count: number; items: any[] };
   orphaned_assignments: { count: number; items: any[] };
+  orphaned_projects: { count: number; items: any[] };
+  orphaned_slides: { count: number; items: any[] };
+  orphaned_flashcards: { count: number; items: any[] };
   deleted_accounts: { count: number; items: any[] };
   hollow_accounts: { count: number; items: HollowAccount[] };
   empty_classes: { count: number; items: any[] };
@@ -35,6 +39,9 @@ export type DebrisSnapshot = {
 export type PurgeCounts = {
   orphaned_lessons: number;
   orphaned_assignments: number;
+  orphaned_projects: number;
+  orphaned_slides: number;
+  orphaned_flashcards: number;
   deleted_accounts: number;
   hollow_accounts: number;
   disconnected_links: number;
@@ -61,33 +68,60 @@ function resolveHollowAgeDays(requested?: number): number {
   return Math.max(MIN_HOLLOW_AGE_DAYS, n);
 }
 
+/**
+ * Orphaned week-package content, across all four tables that hold it.
+ *
+ * This used to look at lessons and assignments only, and only at rows whose
+ * `metadata` carried the plan link. That missed two ways at once: rows written
+ * by the current flow put the link in a real `lesson_plan_id` column, and
+ * slides (`lesson_materials`) and flashcard decks have no `metadata` column at
+ * all — so two of the five assets could never appear here, however broken.
+ * The orphan rule itself now lives in lib/academic/content-inventory beside the
+ * week-package contract, so the sweep and the accountability engine agree.
+ */
 async function collectOrphans(db: SupabaseClient) {
-  const { data: plans } = await db.from('lesson_plans').select('id');
-  const planIds = new Set((plans ?? []).map((p: { id: string }) => p.id));
+  const { data: plans } = await fetchAllSupabaseRows<{ id: string }>((from, to) =>
+    db.from('lesson_plans').select('id').range(from, to));
+  const planIds = new Set((plans ?? []).map((p) => p.id));
 
-  const { data: lessons } = await db
-    .from('lessons')
-    .select('id, title, metadata, created_at')
-    .not('metadata', 'is', null)
-    .filter('metadata->>lesson_plan_id', 'neq', '');
+  const [lessons, assignments, slides, flashcards] = await Promise.all([
+    fetchAllSupabaseRows<any>((from, to) =>
+      db.from('lessons').select('id, title, lesson_plan_id, metadata, created_at').range(from, to)),
+    fetchAllSupabaseRows<any>((from, to) =>
+      db.from('assignments').select('id, title, assignment_type, lesson_plan_id, metadata, created_at').range(from, to)),
+    fetchAllSupabaseRows<any>((from, to) =>
+      db.from('lesson_materials').select('id, title, lesson_id, lesson_plan_id, created_at').range(from, to)),
+    fetchAllSupabaseRows<any>((from, to) =>
+      db.from('flashcard_decks').select('id, title, lesson_id, lesson_plan_id, created_at').range(from, to)),
+  ]);
 
-  const orphanedLessons = (lessons ?? []).filter((l: any) => {
-    const lpId = l.metadata?.lesson_plan_id as string | undefined;
-    return lpId && !planIds.has(lpId);
-  });
+  const orphanedLessons = findOrphanedAssets(lessons.data ?? [], planIds);
 
-  const { data: assignments } = await db
-    .from('assignments')
-    .select('id, title, metadata, created_at')
-    .not('metadata', 'is', null)
-    .filter('metadata->>lesson_plan_id', 'neq', '');
+  // Projects and homework share the `assignments` table. Reported as one bucket
+  // a missing project is invisible behind healthy homework, which is exactly how
+  // "only lessons are being checked" felt from the outside — so they are split
+  // here by the same rule the week package uses.
+  const orphanedAssignmentRows = findOrphanedAssets(assignments.data ?? [], planIds);
+  const orphanedProjects = orphanedAssignmentRows.filter((a) => assignmentAssetKind(a) === 'project');
+  const orphanedAssignments = orphanedAssignmentRows.filter((a) => assignmentAssetKind(a) === 'assignment');
 
-  const orphanedAssignments = (assignments ?? []).filter((a: any) => {
-    const lpId = a.metadata?.lesson_plan_id as string | undefined;
-    return lpId && !planIds.has(lpId);
-  });
+  // Slides and decks are generated inside a lesson and stay bound to it. They
+  // are judged against the lessons that SURVIVE this sweep, so a live lesson
+  // never loses its deck, and a deck whose lesson is going is not left behind.
+  const doomedLessonIds = new Set(orphanedLessons.map((l) => l.id as string));
+  const survivingLessonIds = new Set(
+    (lessons.data ?? [])
+      .map((l: any) => l.id as string)
+      .filter((id) => !doomedLessonIds.has(id)),
+  );
 
-  return { orphanedLessons, orphanedAssignments };
+  return {
+    orphanedLessons,
+    orphanedAssignments,
+    orphanedProjects,
+    orphanedSlides: findOrphanedLessonChildren(slides.data ?? [], planIds, survivingLessonIds),
+    orphanedFlashcards: findOrphanedLessonChildren(flashcards.data ?? [], planIds, survivingLessonIds),
+  };
 }
 
 async function collectDisconnectedLinks(db: SupabaseClient) {
@@ -272,7 +306,7 @@ export async function inspectDebris(
   db: SupabaseClient,
   opts: { minAgeDays?: number } = {},
 ): Promise<DebrisSnapshot> {
-  const { orphanedLessons, orphanedAssignments } = await collectOrphans(db);
+  const { orphanedLessons, orphanedAssignments, orphanedProjects, orphanedSlides, orphanedFlashcards } = await collectOrphans(db);
 
   const { data: deletedUsers } = await db
     .from('portal_users')
@@ -290,6 +324,9 @@ export async function inspectDebris(
   const purgeable =
     orphanedLessons.length +
     orphanedAssignments.length +
+    orphanedProjects.length +
+    orphanedSlides.length +
+    orphanedFlashcards.length +
     deleted.length +
     disconnectedLinks.length +
     hollowAccounts.length +
@@ -298,6 +335,9 @@ export async function inspectDebris(
   return {
     orphaned_lessons: { count: orphanedLessons.length, items: orphanedLessons },
     orphaned_assignments: { count: orphanedAssignments.length, items: orphanedAssignments },
+    orphaned_projects: { count: orphanedProjects.length, items: orphanedProjects },
+    orphaned_slides: { count: orphanedSlides.length, items: orphanedSlides },
+    orphaned_flashcards: { count: orphanedFlashcards.length, items: orphanedFlashcards },
     deleted_accounts: { count: deleted.length, items: deleted },
     hollow_accounts: { count: hollowAccounts.length, items: hollowAccounts },
     empty_classes: { count: emptyClasses.length, items: emptyClasses },
@@ -384,9 +424,12 @@ export async function runPurge(
   } = {},
 ): Promise<{ dry_run: boolean; would_purge: PurgeCounts; purged: PurgeCounts }> {
   const purgeHollow = opts.purgeHollowAccounts !== false;
-  const { orphanedLessons, orphanedAssignments } = await collectOrphans(db);
+  const { orphanedLessons, orphanedAssignments, orphanedProjects, orphanedSlides, orphanedFlashcards } = await collectOrphans(db);
   const orphanedLessonIds = orphanedLessons.map((l) => l.id);
   const orphanedAssignmentIds = orphanedAssignments.map((a) => a.id);
+  const orphanedProjectIds = orphanedProjects.map((p) => p.id);
+  const orphanedSlideIds = orphanedSlides.map((s) => s.id);
+  const orphanedFlashcardIds = orphanedFlashcards.map((f) => f.id);
 
   const { data: deletedUsers } = await db
     .from('portal_users')
@@ -410,6 +453,9 @@ export async function runPurge(
   const would_purge: PurgeCounts = {
     orphaned_lessons: orphanedLessonIds.length,
     orphaned_assignments: orphanedAssignmentIds.length,
+    orphaned_projects: orphanedProjectIds.length,
+    orphaned_slides: orphanedSlideIds.length,
+    orphaned_flashcards: orphanedFlashcardIds.length,
     deleted_accounts: deletedUserIds.length,
     hollow_accounts: hollowIds.length,
     disconnected_links: disconnectedLinkIds.length,
@@ -420,6 +466,9 @@ export async function runPurge(
   const zeroed: PurgeCounts = {
     orphaned_lessons: 0,
     orphaned_assignments: 0,
+    orphaned_projects: 0,
+    orphaned_slides: 0,
+    orphaned_flashcards: 0,
     deleted_accounts: 0,
     hollow_accounts: 0,
     disconnected_links: 0,
@@ -449,6 +498,26 @@ export async function runPurge(
     await chunk(orphanedAssignmentIds, async (batch) => {
       const { error } = await db.from('assignments').delete().in('id', batch);
       if (!error) purged.orphaned_assignments += batch.length;
+    });
+  }
+  if (orphanedProjectIds.length) {
+    await chunk(orphanedProjectIds, async (batch) => {
+      const { error } = await db.from('assignments').delete().in('id', batch);
+      if (!error) purged.orphaned_projects += batch.length;
+    });
+  }
+  // Lesson children go before their lessons, so a failed lesson delete cannot
+  // leave a deck pointing at a lesson that is about to disappear.
+  if (orphanedSlideIds.length) {
+    await chunk(orphanedSlideIds, async (batch) => {
+      const { error } = await db.from('lesson_materials').delete().in('id', batch);
+      if (!error) purged.orphaned_slides += batch.length;
+    });
+  }
+  if (orphanedFlashcardIds.length) {
+    await chunk(orphanedFlashcardIds, async (batch) => {
+      const { error } = await db.from('flashcard_decks').delete().in('id', batch);
+      if (!error) purged.orphaned_flashcards += batch.length;
     });
   }
   if (disconnectedLinkIds.length) {
@@ -488,6 +557,9 @@ export function sumCounts(c: PurgeCounts): number {
   return (
     c.orphaned_lessons +
     c.orphaned_assignments +
+    c.orphaned_projects +
+    c.orphaned_slides +
+    c.orphaned_flashcards +
     c.deleted_accounts +
     c.hollow_accounts +
     c.disconnected_links +

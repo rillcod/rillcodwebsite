@@ -52,25 +52,17 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
           created_at:   new Date().toISOString(),
         });
 
-        // 2. Update user profile metadata
-        const currentMeta = (profile.metadata as Record<string, any>) || {};
+        // 2. Update user profile metadata. Merged in the database rather than
+        // read-modify-written from `profile`, whose metadata snapshot predates the
+        // login page's write — spreading it here wiped the login keys every time.
         const activePlatform = isNative ? 'Android App' : 'Web Browser';
-        const updatedMeta = {
-          ...currentMeta,
-          last_active_platform: activePlatform,
-          last_active_at: new Date().toISOString(),
-          app_session_count: isNative
-            ? (Number(currentMeta.app_session_count || 0) + 1)
-            : Number(currentMeta.app_session_count || 0),
-          web_session_count: !isNative
-            ? (Number(currentMeta.web_session_count || 0) + 1)
-            : Number(currentMeta.web_session_count || 0),
-        };
-
-        await supabase
-          .from('portal_users')
-          .update({ metadata: updatedMeta })
-          .eq('id', profile.id);
+        await supabase.rpc('merge_my_metadata' as never, {
+          patch: {
+            last_active_platform: activePlatform,
+            last_active_at: new Date().toISOString(),
+          },
+          increment_keys: [isNative ? 'app_session_count' : 'web_session_count'],
+        } as never);
 
       } catch (err) {
         console.error('Failed to log active session audit:', err);
