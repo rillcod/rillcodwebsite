@@ -20,6 +20,7 @@ const KIND_LABEL: Record<string, string> = {
   balance_mismatch: 'Invoice balance mismatch',
   unmatched_payment: 'Unmatched payment',
   refund_needs_attention: 'Refund needs attention',
+  abandoned_attempt: 'Unfinished payment attempt',
 };
 
 /**
@@ -78,7 +79,9 @@ export function ReconciliationFindingsPanel() {
       ? 'repair_allocation'
       : finding.kind === 'balance_mismatch'
         ? 'recompute_invoice_balance'
-        : null;
+        : finding.kind === 'abandoned_attempt'
+          ? 'clear_abandoned'
+          : null;
 
   const findingKey = (f: Finding) => `${f.kind}:${f.entity_id || ''}`;
 
@@ -98,6 +101,30 @@ export function ReconciliationFindingsPanel() {
 
   async function repair(finding: Finding): Promise<boolean> {
     if (!finding.entity_id) return false;
+
+    // An unfinished attempt is removed, not repaired — no money moved, so there
+    // is nothing to reconcile. The server re-checks every protection rule, so a
+    // parent who paid between this screen loading and the click is still safe.
+    if (finding.kind === 'abandoned_attempt') {
+      const who = String(finding.meta?.payer ?? 'this payer');
+      if (!window.confirm(
+        `Delete the unfinished payment attempt for ${who}?\n\n`
+        + 'No money moved, so nothing is lost. This cannot be undone.',
+      )) return false;
+      const res = await fetch('/api/finance/reconciliation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear_abandoned', ids: [finding.entity_id] }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not clear the attempt');
+      if (!json.deleted) {
+        const why = json.skipped?.[0]?.reason || 'it is protected';
+        throw new Error(`Kept instead of deleted — ${why}.`);
+      }
+      return true;
+    }
+
     if (finding.kind === 'refund_needs_attention') {
       const accountNumber = window.prompt('Enter the customer 10-digit refund account number:')?.trim();
       if (!accountNumber) return false;
@@ -259,9 +286,19 @@ export function ReconciliationFindingsPanel() {
                     type="button"
                     disabled={repairing === f.entity_id || repairAllBusy}
                     onClick={() => void repair(f).then((ok) => { if (ok) load(); })}
-                    className="min-h-10 rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
+                    className={`min-h-10 rounded-lg px-3 py-2 text-xs font-black disabled:opacity-50 ${
+                      f.kind === 'abandoned_attempt'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-primary text-primary-foreground'
+                    }`}
                   >
-                    {repairing === f.entity_id ? 'Repairing…' : f.kind === 'refund_needs_attention' ? 'Fix refund' : 'Repair'}
+                    {repairing === f.entity_id
+                      ? (f.kind === 'abandoned_attempt' ? 'Deleting…' : 'Repairing…')
+                      : f.kind === 'abandoned_attempt'
+                        ? 'Delete'
+                        : f.kind === 'refund_needs_attention'
+                          ? 'Fix refund'
+                          : 'Repair'}
                   </button>
                 )}
                 <button

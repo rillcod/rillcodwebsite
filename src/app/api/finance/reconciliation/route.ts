@@ -187,6 +187,32 @@ export async function POST(request: NextRequest) {
     if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '');
+
+    // Bulk actions act on a set, not one row, so they run before the
+    // single-entity guard below.
+    if (action === 'preview_abandoned' || action === 'clear_abandoned') {
+      const { previewAbandonedAttempts, clearAbandonedAttempts } =
+        await import('@/lib/finance/clear-abandoned-attempts');
+      const graceDays = Number.isFinite(Number(body.grace_days)) ? Number(body.grace_days) : undefined;
+
+      if (action === 'preview_abandoned') {
+        const plan = await previewAbandonedAttempts(admin as any, { graceDays });
+        return NextResponse.json({ success: true, action, ...plan });
+      }
+
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+      if (!ids.length) return NextResponse.json({ error: 'Select at least one attempt to clear' }, { status: 400 });
+      const outcome = await clearAbandonedAttempts(admin as any, { ids, graceDays });
+      await logAudit(admin as any, {
+        action: 'finance_cleared_abandoned_attempts',
+        actorId: user.id,
+        resourceType: 'payment_transaction',
+        resourceId: ids[0],
+        newValues: { requested: ids.length, deleted: outcome.deleted, skipped: outcome.skipped },
+      });
+      return NextResponse.json({ success: true, action, ...outcome });
+    }
+
     const entityId = String(body.entity_id || '');
     if (!action || !entityId) return NextResponse.json({ error: 'action and entity_id are required' }, { status: 400 });
 

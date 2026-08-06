@@ -10,6 +10,7 @@ import { createPendingPayment } from "@/lib/payments/pending-transaction";
 import { parseBankTransferReference } from "@/lib/summer-school/receipt-upload";
 import { sendRegistrationPaymentEmail } from "@/lib/registration/payment-link-email";
 import { notifySpecialProgramAdminOps } from "@/lib/summer-school/admin-ops-notify";
+import { supersedePendingAttempts } from "@/lib/finance/supersede-pending";
 import {
   bankTransferProofMatches,
   buildBalancePaymentGatewayMeta,
@@ -275,13 +276,14 @@ export async function POST(req: NextRequest) {
     // their balance changed, those links were for an amount they no longer
     // owed. Nothing consumes a pending row, but they misread as money in
     // flight and they cannot be paid.
-    const { error: supersedeError } = await supabase
-      .from("payment_transactions")
-      .update({ payment_status: "failed", updated_at: new Date().toISOString() })
-      .eq("payment_status", "pending")
-      .contains("payment_gateway_response", { prospect_id: prospect.id, balance_payment: true });
-    if (supersedeError) {
-      console.error("[summer-school/balance] could not retire earlier attempts:", supersedeError);
+    // Stamped as superseded rather than plain 'failed', so reporting can tell a
+    // replaced attempt from a genuine gateway failure.
+    const superseded = await supersedePendingAttempts(supabase, {
+      match: { prospect_id: prospect.id, balance_payment: true },
+      replacedByReference: reference,
+    });
+    if (superseded.error) {
+      console.error("[summer-school/balance] could not retire earlier attempts:", superseded.error);
     }
 
     const { data: tx, error: txErr } = await supabase

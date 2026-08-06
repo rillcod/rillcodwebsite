@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertDbOk } from '@/lib/finance/write-result';
+import { classifyRetiredAttempt } from '@/lib/finance/supersede-pending';
 
 export type ReconciliationFinding = {
   kind:
@@ -8,7 +9,8 @@ export type ReconciliationFinding = {
     | 'under_allocated'
     | 'over_allocated'
     | 'balance_mismatch'
-    | 'refund_needs_attention';
+    | 'refund_needs_attention'
+    | 'abandoned_attempt';
   severity: 'info' | 'warning' | 'error';
   entity_type: 'payment_transaction' | 'invoice';
   entity_id: string;
@@ -211,6 +213,50 @@ export async function runReconciliationRules(opts?: {
         });
       }
     }
+  }
+
+  // Checkout attempts nobody ever finished.
+  //
+  // These had no surface at all: they sit as payment_status = 'failed' with no
+  // marker, alongside genuine failures and admin voids, so they read as "money
+  // that failed" in every count while actually being parents who walked away.
+  // Superseded and voided attempts are excluded — those were retired on purpose
+  // and are already explained by their own stamps.
+  const { data: retired, error: retiredError } = await db
+    .from('payment_transactions')
+    .select('id, amount, currency, school_id, created_at, payment_status, payment_gateway_response')
+    .eq('payment_status', 'failed')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  assertDbOk(retiredError, 'reconciliation abandoned attempts');
+  for (const row of retired ?? []) {
+    if (opts?.schoolId && row.school_id !== opts.schoolId) continue;
+    const meta = row.payment_gateway_response && typeof row.payment_gateway_response === 'object'
+      && !Array.isArray(row.payment_gateway_response)
+      ? row.payment_gateway_response as Record<string, any> : {};
+    if (classifyRetiredAttempt(meta) !== 'abandoned') continue;
+
+    const days = row.created_at
+      ? Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86_400_000)
+      : null;
+    const who = meta.student_name || meta.parent_email || 'Unknown payer';
+    findings.push({
+      kind: 'abandoned_attempt',
+      severity: 'info',
+      entity_type: 'payment_transaction',
+      entity_id: row.id,
+      message: `${who} started a ${row.currency || 'NGN'} ${Number(row.amount ?? 0).toLocaleString()} payment and never finished it${days === null ? '' : ` — ${days} days ago`}.`,
+      meta: {
+        payer: who,
+        parent_email: meta.parent_email ?? null,
+        prospect_id: meta.prospect_id ?? null,
+        student_id: meta.student_id ?? null,
+        payment_type: meta.payment_type ?? null,
+        amount: Number(row.amount ?? 0),
+        age_days: days,
+        fix: 'No money moved. Safe to clear once you are sure the parent is not still trying to pay.',
+      },
+    });
   }
 
   const summary: Record<string, number> = {};

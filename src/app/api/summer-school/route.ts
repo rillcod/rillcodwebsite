@@ -34,6 +34,7 @@ import {
   resolveRegistrationCharge,
 } from '@/lib/summer-school/registration-intake';
 import { notifySpecialProgramAdminOps } from '@/lib/summer-school/admin-ops-notify';
+import { supersedePendingAttempts } from '@/lib/finance/supersede-pending';
 
 export async function POST(req: NextRequest) {
   try {
@@ -321,13 +322,13 @@ export async function POST(req: NextRequest) {
       charge: { chargeAmount, balanceDue, effectivePaymentPlan, totalTuition },
     });
 
-    const { error: supersedeError } = await supabase
-      .from('payment_transactions')
-      .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
-      .eq('payment_status', 'pending')
-      .contains('payment_gateway_response', { prospect_id: prospect.id });
-    if (supersedeError) {
-      console.error('Failed to retire earlier special-programme payment links:', supersedeError);
+    // Stamped as superseded rather than plain 'failed', so reporting can tell a
+    // replaced attempt from a genuine gateway failure.
+    const superseded = await supersedePendingAttempts(supabase, {
+      match: { prospect_id: prospect.id },
+    });
+    if (superseded.error) {
+      console.error('Failed to retire earlier special-programme payment links:', superseded.error);
     }
 
     if (payment_method === 'bank_transfer') {

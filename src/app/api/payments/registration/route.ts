@@ -17,6 +17,7 @@ import {
 } from '@/lib/registration/schedules';
 import { parseBankTransferReference } from '@/lib/summer-school/receipt-upload';
 import { notifySpecialProgramAdminOps } from '@/lib/summer-school/admin-ops-notify';
+import { supersedePendingAttempts } from '@/lib/finance/supersede-pending';
 import {
   bankTransferProofMatches,
   buildTermRegistrationGatewayMeta,
@@ -479,13 +480,13 @@ export async function POST(req: Request) {
             console.error('CRM sync warning (non-fatal):', crmErr);
         }
 
-        const { error: supersedeError } = await supabase
-            .from('payment_transactions')
-            .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
-            .eq('payment_status', 'pending')
-            .contains('payment_gateway_response', { student_id: student.id });
-        if (supersedeError) {
-            console.error('Failed to retire earlier registration payment links:', supersedeError);
+        // Stamped as superseded rather than plain 'failed', so reporting can tell
+        // a replaced attempt from a genuine gateway failure.
+        const superseded = await supersedePendingAttempts(supabase, {
+            match: { student_id: student.id },
+        });
+        if (superseded.error) {
+            console.error('Failed to retire earlier registration payment links:', superseded.error);
         }
 
 
