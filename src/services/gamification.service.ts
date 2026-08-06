@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
 
@@ -29,7 +30,20 @@ export class GamificationService {
         referenceId?: string,
         description?: string,
     ): Promise<{ awarded: boolean; totalPoints: number; newLevel: string; streak: number }> {
-        const supabase = await createClient();
+        // Awarding points is a system act, not a user act, so it runs with the
+        // admin client.
+        //
+        // It used to use the caller's session. `point_transactions` has RLS on
+        // and no policy at all, and `user_points` has only a SELECT policy, so
+        // both writes were refused and every award — lesson complete, quiz pass,
+        // assignment submit, discussion post — silently did nothing. The whole
+        // table holds one row.
+        //
+        // The fix is deliberately not "open the table to authenticated users":
+        // a learner who can insert into point_transactions can award themselves
+        // any score. Writes stay server-side; the SELECT policy added alongside
+        // this lets a learner read their own history and nothing more.
+        const supabase = createAdminClient();
         const points = POINTS_CONFIG[activityType];
 
         // 1. Idempotent insert — ON CONFLICT (portal_user_id, activity_type, reference_id) DO NOTHING

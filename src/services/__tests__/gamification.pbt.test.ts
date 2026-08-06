@@ -2,10 +2,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
 import { gamificationService, ActivityType } from '../gamification.service';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
+// Awarding points writes with the service role, not the caller's session:
+// point_transactions denies all writes by policy so a learner cannot award
+// themselves any. Mocking only the session client left the real admin client in
+// place, and the test tried to reach Supabase over the network.
 vi.mock('@/lib/supabase/server', () => ({
     createClient: vi.fn(),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+    createAdminClient: vi.fn(),
 }));
 
 describe('GamificationService Property-Based Tests', () => {
@@ -28,7 +36,7 @@ describe('GamificationService Property-Based Tests', () => {
                         upsert: vi.fn(),
                     };
 
-                    (createClient as any).mockResolvedValue(mockSupabase);
+                    (createAdminClient as any).mockReturnValue(mockSupabase);
 
                     // First call: Successful insert
                     mockSupabase.insert.mockResolvedValueOnce({ count: 1, error: null });
