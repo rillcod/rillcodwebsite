@@ -269,6 +269,21 @@ export async function POST(req: NextRequest) {
     const reference = `SUM-BAL-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.rillcod.com";
 
+    // Retire earlier unfinished attempts, the way registration already does.
+    // Without this every abandoned checkout stayed 'pending' forever, so a
+    // parent who tried twice left two live-looking links behind — and once
+    // their balance changed, those links were for an amount they no longer
+    // owed. Nothing consumes a pending row, but they misread as money in
+    // flight and they cannot be paid.
+    const { error: supersedeError } = await supabase
+      .from("payment_transactions")
+      .update({ payment_status: "failed", updated_at: new Date().toISOString() })
+      .eq("payment_status", "pending")
+      .contains("payment_gateway_response", { prospect_id: prospect.id, balance_payment: true });
+    if (supersedeError) {
+      console.error("[summer-school/balance] could not retire earlier attempts:", supersedeError);
+    }
+
     const { data: tx, error: txErr } = await supabase
       .from("payment_transactions")
       .insert({
