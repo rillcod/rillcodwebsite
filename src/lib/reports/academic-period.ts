@@ -182,8 +182,65 @@ export function isStaleAcademicSession(
 }
 
 /**
+ * True when a saved session sits a whole academic year AHEAD of the live one.
+ *
+ * The mirror of isStaleAcademicSession, which by design only looks backwards.
+ * That left one direction unwatched: the report builder offers five academic
+ * years, and choosing the row below the right one files into NEXT session with
+ * the same term label — so the screen reads correctly and only the year is
+ * wrong. 76 reports drifted that way, 60 of them filed six months before their
+ * session opened and already published to parents.
+ *
+ * A later term within the SAME year is not counted: writing up Third Term while
+ * the calendar still says Second is ordinary end-of-term work.
+ */
+export function isFutureAcademicSession(
+  savedTerm: string | null | undefined,
+  savedPeriod: string | null | undefined,
+  currentTerm: string = getCurrentTermLabel(),
+  currentPeriod: string = getCurrentAcademicYear(),
+): boolean {
+  const saved = toSession({ report_term: savedTerm, report_period: savedPeriod });
+  const live = toSession({ termLabel: currentTerm, periodLabel: currentPeriod });
+  if (!saved.termLabel || !saved.periodLabel) return false;
+
+  const savedY = academicYearStart(saved.periodLabel);
+  const liveY = academicYearStart(live.periodLabel);
+  const savedR = termRank(saved.termLabel);
+  const liveR = termRank(live.termLabel);
+  if (savedY <= 0 || liveY <= 0 || savedR <= 0 || liveR <= 0) return false;
+
+  // Sessions laid end to end: three terms per academic year.
+  const ahead = (savedY * 3 + savedR) - (liveY * 3 + liveR);
+
+  // ONE session ahead is ordinary and deliberately allowed — preparing next
+  // year's First Term during the current Third is normal school practice, and
+  // resolveSessionForWrite has always let it through.
+  //
+  // Two or more is the drift: the year dropdown offers five options, and the
+  // row below the right one yields the SAME term label in the next session —
+  // Second Term next year is two ahead, Third Term next year is three. Every
+  // one of the 76 misfiled reports sat at two or three, never at one.
+  return ahead >= 2;
+}
+
+/** Where a session sits relative to the live calendar. */
+export function academicSessionDrift(
+  savedTerm: string | null | undefined,
+  savedPeriod: string | null | undefined,
+  currentTerm: string = getCurrentTermLabel(),
+  currentPeriod: string = getCurrentAcademicYear(),
+): 'behind' | 'live' | 'ahead' {
+  if (isStaleAcademicSession(savedTerm, savedPeriod, currentTerm, currentPeriod)) return 'behind';
+  if (isFutureAcademicSession(savedTerm, savedPeriod, currentTerm, currentPeriod)) return 'ahead';
+  return 'live';
+}
+
+/**
  * Resolve what session a write should land on.
- * - Default: roll stale prior sessions up to live (Samuel fix).
+ * - Default: roll stale prior sessions up to live (Samuel fix), and pull a
+ *   session that is a year ahead back DOWN to live for the same reason — a
+ *   write cannot belong to a session that has not started.
  * - allowBackfill: keep the requested prior session (intentional unlock).
  * Never invent a hybrid identity (e.g. Third Term + previous year).
  */
@@ -204,6 +261,11 @@ export function resolveSessionForWrite(
     };
   }
   if (isStaleAcademicSession(requested.termLabel, requested.periodLabel, live.termLabel, live.periodLabel)) {
+    return { session: { ...live }, rolled: true };
+  }
+  // A year ahead is corrected the same way. allowBackfill deliberately does not
+  // cover this: backfilling means recording the PAST, never the future.
+  if (isFutureAcademicSession(requested.termLabel, requested.periodLabel, live.termLabel, live.periodLabel)) {
     return { session: { ...live }, rolled: true };
   }
   return {

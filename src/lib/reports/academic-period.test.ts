@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareSessions,
+  academicSessionDrift,
+  isFutureAcademicSession,
   isStaleAcademicSession,
   liveAcademicSession,
   nextAcademicSession,
@@ -95,5 +97,66 @@ describe('academic session identity isolation', () => {
     });
     expect(schoolSessionDisplay('2025', '3')).toBe('2025/2026 · Third Term');
     expect(schoolSessionDisplay('2026/2027', '1')).toBe('2026/2027 · First Term');
+  });
+});
+
+describe('forward session drift (the direction nothing watched)', () => {
+  const LIVE_TERM = 'Third Term';
+  const LIVE_YEAR = '2025/2026';
+
+  it('detects a session a whole year ahead', () => {
+    // The real shape: same term label, next academic year, so the screen looked right.
+    expect(isFutureAcademicSession('Third Term', '2026/2027', LIVE_TERM, LIVE_YEAR)).toBe(true);
+    expect(isFutureAcademicSession('Second Term', '2026/2027', LIVE_TERM, LIVE_YEAR)).toBe(true);
+  });
+
+  it('does not treat a later term in the SAME year as future', () => {
+    // Writing up Third Term while the calendar says Second is ordinary work.
+    expect(isFutureAcademicSession('Third Term', '2025/2026', 'Second Term', LIVE_YEAR)).toBe(false);
+  });
+
+  it('does not treat the live or a past session as future', () => {
+    expect(isFutureAcademicSession(LIVE_TERM, LIVE_YEAR, LIVE_TERM, LIVE_YEAR)).toBe(false);
+    expect(isFutureAcademicSession('Third Term', '2024/2025', LIVE_TERM, LIVE_YEAR)).toBe(false);
+  });
+
+  it('reports drift direction in one call', () => {
+    expect(academicSessionDrift('Third Term', '2026/2027', LIVE_TERM, LIVE_YEAR)).toBe('ahead');
+    expect(academicSessionDrift('First Term', '2024/2025', LIVE_TERM, LIVE_YEAR)).toBe('behind');
+    expect(academicSessionDrift(LIVE_TERM, LIVE_YEAR, LIVE_TERM, LIVE_YEAR)).toBe('live');
+  });
+
+  it('pulls a future session back to live on write', () => {
+    const out = resolveSessionForWrite('Third Term', '2026/2027', {
+      live: { termLabel: LIVE_TERM, periodLabel: LIVE_YEAR },
+    });
+    expect(out.rolled).toBe(true);
+    expect(out.session.periodLabel).toBe(LIVE_YEAR);
+  });
+
+  it('backfill unlocks the past but never the future', () => {
+    // allowBackfill means "record history", so it must not wave a future year through.
+    const past = resolveSessionForWrite('First Term', '2024/2025', {
+      allowBackfill: true, live: { termLabel: LIVE_TERM, periodLabel: LIVE_YEAR },
+    });
+    expect(past.session.periodLabel).toBe('2024/2025');
+  });
+});
+
+describe('one session ahead stays legitimate', () => {
+  const LIVE = { termLabel: 'Third Term', periodLabel: '2025/2026' };
+
+  it('allows next year First Term — preparing the coming session', () => {
+    expect(isFutureAcademicSession('First Term', '2026/2027', LIVE.termLabel, LIVE.periodLabel)).toBe(false);
+    const out = resolveSessionForWrite('First Term', '2026/2027', { live: LIVE });
+    expect(out.rolled).toBe(false);
+    expect(out.session).toEqual({ termLabel: 'First Term', periodLabel: '2026/2027' });
+  });
+
+  it('rejects two or more sessions ahead — the shape that actually drifted', () => {
+    // 60 reports landed on Second Term next year (two ahead), 16 on Third (three).
+    expect(isFutureAcademicSession('Second Term', '2026/2027', LIVE.termLabel, LIVE.periodLabel)).toBe(true);
+    expect(isFutureAcademicSession('Third Term', '2026/2027', LIVE.termLabel, LIVE.periodLabel)).toBe(true);
+    expect(resolveSessionForWrite('Second Term', '2026/2027', { live: LIVE }).rolled).toBe(true);
   });
 });
