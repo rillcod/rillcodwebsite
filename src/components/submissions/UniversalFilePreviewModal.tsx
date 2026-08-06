@@ -127,6 +127,9 @@ export default function UniversalFilePreviewModal({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${label}: ${fileName}`}
       className="fixed inset-0 z-[100] flex flex-col bg-background/95 backdrop-blur-xl text-foreground animate-in fade-in duration-200"
       onClick={onClose}
     >
