@@ -320,11 +320,16 @@ async function ensureDraftWeekContentDirectly(
   let generated = 0;
 
   // 1. Check/create draft lesson
+  // .limit(1) is load-bearing: maybeSingle() ERRORS when the filter matches more
+  // than one row, and that error is not read here — so a plan that already had
+  // two lessons for the week looked like a plan with none, and every launch or
+  // Prepare-teaching click added one more. One track reached four copies that way.
   const { data: existingLesson } = await db
     .from('lessons')
     .select('id')
     .eq('lesson_plan_id', input.planId)
     .eq('curriculum_week_number', targetWeek)
+    .limit(1)
     .maybeSingle();
 
   if (!existingLesson) {
@@ -365,6 +370,7 @@ async function ensureDraftWeekContentDirectly(
     .select('id')
     .eq('lesson_plan_id', input.planId)
     .eq('curriculum_week_number', targetWeek)
+    .limit(1)
     .maybeSingle();
 
   if (!existingAssignment) {

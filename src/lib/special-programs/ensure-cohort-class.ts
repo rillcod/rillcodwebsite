@@ -206,12 +206,28 @@ export async function ensureCohortClass(
     return { cohort: null, created: false, error: 'Link a programme under Basics first.' };
   }
 
-  // Keep pathway RPC happy when the page is already live but offering stayed draft.
+  // Keep pathway RPC happy when the page is already live but offering stayed
+  // draft. Stamp the owner in the same write: a duration offering may only be
+  // active while it names both its programme and its school
+  // (zz_duration_offering_needs_its_owner), and the status trigger reads those
+  // two columns to decide whether the offering is allowed to go live at all.
   if (page.is_published && offering.status !== 'active') {
-    await db
+    const { error: activateError } = await db
       .from('academic_offerings')
-      .update({ status: 'active', updated_at: new Date().toISOString() })
+      .update({
+        status: 'active',
+        school_id: schoolId,
+        programme_id: programmeId,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', offeringId);
+    if (activateError) {
+      return {
+        cohort: null,
+        created: false,
+        error: `Could not activate this programme's offering: ${activateError.message}`,
+      };
+    }
   }
 
   const existing = await loadOfferingClasses(db, offeringId!);

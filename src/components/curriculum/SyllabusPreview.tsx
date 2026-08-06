@@ -91,9 +91,26 @@ export interface SyllabusContent {
 
 export type SyllabusPreviewRole = 'student' | 'parent' | 'school';
 
+/**
+ * What a block of weeks is called in this pathway.
+ *
+ * A termly school runs Terms. A duration programme (bootcamp, holiday
+ * programme, short course) runs Modules — its own page already says
+ * "Module 1 · Weeks 1–2", so printing "Term 1" over the same weeks read as a
+ * different system's screen. Same structure, the pathway's own word for it.
+ */
+export type SyllabusVocabulary = 'term' | 'module';
+
+const VOCABULARY_LABEL: Record<SyllabusVocabulary, string> = {
+  term: 'Term',
+  module: 'Module',
+};
+
 export interface SyllabusPreviewProps {
   content: SyllabusContent;
   courseTitle?: string;
+  /** Defaults to 'term' so every existing school caller is unchanged. */
+  vocabulary?: SyllabusVocabulary;
   /**
    * When provided, renders a ribbon indicating which audience this preview
    * is emulating. Staff-only UX.
@@ -151,11 +168,13 @@ const ROLE_LABEL: Record<SyllabusPreviewRole, string> = {
 export function SyllabusPreview({
   content,
   courseTitle,
+  vocabulary = 'term',
   previewRole,
   audienceIsLearner = false,
   topBanner,
   hideCourseHeader = false,
 }: SyllabusPreviewProps) {
+  const blockLabel = VOCABULARY_LABEL[vocabulary] ?? VOCABULARY_LABEL.term;
   const [activeTerm, setActiveTerm] = useState<number>(() => content.terms?.[0]?.term ?? 1);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
 
@@ -241,7 +260,7 @@ export function SyllabusPreview({
                     : 'bg-muted/20 border-border text-muted-foreground hover:bg-muted/40'
                 }`}
               >
-                Term {t.term}
+                {blockLabel} {t.term}
               </button>
             );
           })}
@@ -252,10 +271,18 @@ export function SyllabusPreview({
       {currentTerm && (
         <section className="space-y-4">
           <div className="rounded-lg border border-border bg-background/40 p-4 sm:p-5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Term {currentTerm.term}
-            </p>
-            <h2 className="text-base sm:text-lg font-black mt-0.5">{currentTerm.title}</h2>
+            {/* A single block has no number worth printing. Every duration
+                programme stores one block per course, all numbered 1, so the
+                eyebrow read "Module 1" on all five tracks — a label that told
+                the reader nothing and contradicted the module the page names. */}
+            {terms.length > 1 && (
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {blockLabel} {currentTerm.term}
+              </p>
+            )}
+            <h2 className={`text-base sm:text-lg font-black ${terms.length > 1 ? 'mt-0.5' : ''}`}>
+              {currentTerm.title}
+            </h2>
             {currentTerm.objectives && currentTerm.objectives.length > 0 && (
               <ul className="mt-3 space-y-1.5 text-sm">
                 {currentTerm.objectives.map((o, i) => (

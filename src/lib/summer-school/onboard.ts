@@ -373,6 +373,77 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
   return classId;
 }
 
+export type SpecialCohortPlacement = {
+  classId: string;
+  className: string;
+  schoolId: string;
+  schoolName: string;
+  offeringId: string;
+};
+
+/**
+ * Where a special-programme learner actually belongs: the cohort class on the
+ * offering of the page they registered through.
+ *
+ * The registration stamps `[SpecialPage: <uuid>]` into the prospect's notes,
+ * and `launchSpecialProgramTeaching` builds every plan, lesson and assignment
+ * onto that page's cohort class. Onboarding used to ignore both and drop every
+ * learner into one hardcoded "Summer School 2026" class instead — so a parent
+ * who paid for a bootcamp got a child sitting in a class named after a summer
+ * programme, with the bootcamp's curriculum in a class that had no roster.
+ *
+ * Returns null when the prospect predates the tag or the cohort class does not
+ * exist yet; the caller then falls back to the legacy summer class.
+ */
+export async function resolveSpecialCohortPlacement(
+  admin: AnySupabase,
+  notes: string | null | undefined,
+): Promise<SpecialCohortPlacement | null> {
+  const tagged = String(notes || '').match(/\[SpecialPage:\s*([0-9a-f-]{36})\]/i);
+  if (!tagged?.[1]) return null;
+
+  const { data: page } = await admin
+    .from('special_program_pages')
+    .select('academic_offering_id')
+    .eq('id', tagged[1])
+    .maybeSingle();
+  const offeringId = page?.academic_offering_id ? String(page.academic_offering_id) : null;
+  if (!offeringId) return null;
+
+  // The learner's school has to be the school teaching sits on, or the
+  // guard_portal_student_class_pathway trigger rejects the placement.
+  const { data: offering } = await admin
+    .from('academic_offerings')
+    .select('id, school_id')
+    .eq('id', offeringId)
+    .maybeSingle();
+  const schoolId = offering?.school_id ? String(offering.school_id) : null;
+  if (!schoolId) return null;
+
+  const { data: classes } = await admin
+    .from('classes')
+    .select('id, name, status, created_at')
+    .eq('academic_offering_id', offeringId)
+    .order('created_at', { ascending: false });
+  const rows = (classes ?? []) as Array<{ id: string; name: string | null; status: string | null }>;
+  const cohort = rows.find((c) => c.status === 'active') ?? rows[0];
+  if (!cohort?.id) return null;
+
+  const { data: school } = await admin
+    .from('schools')
+    .select('name')
+    .eq('id', schoolId)
+    .maybeSingle();
+
+  return {
+    classId: String(cohort.id),
+    className: String(cohort.name || 'Special programme cohort'),
+    schoolId,
+    schoolName: String((school as { name?: string } | null)?.name || ''),
+    offeringId,
+  };
+}
+
 export async function onboardSummerStudent(
   admin: AnySupabase,
   prospect: ProspectLike,
@@ -385,14 +456,24 @@ export async function onboardSummerStudent(
   const parentName = prospect.parent_name || 'Parent/Guardian';
   const normalizedParentEmail = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
 
-  // ── 1. School ──
-  const school = await resolveOnlineSchool(admin, { id: prospect.school_id, name: prospect.school_name });
+  // ── 1. School + class — the cohort the learner actually paid to join ──
+  //
+  // Prefer the cohort class on the registration page's own offering: that is
+  // where the curriculum, lessons and assignments for this programme were
+  // built. Only when the prospect carries no page tag (legacy rows) do we fall
+  // back to the shared summer class.
+  const placement = await resolveSpecialCohortPlacement(admin, prospect.notes);
 
-  // ── 1b. Class + tutor — so the student is operational for attendance/timetable/roster ──
-  const classId = await ensureSummerClassWithTutor(admin, school.id, school.name);
+  const school = placement
+    ? await resolveOnlineSchool(admin, { id: placement.schoolId, name: placement.schoolName })
+    : await resolveOnlineSchool(admin, { id: prospect.school_id, name: prospect.school_name });
+
+  const classId = placement?.classId
+    ?? (await ensureSummerClassWithTutor(admin, school.id, school.name));
   if (!classId) {
-    throw new Error('Could not create or resolve the Summer School class for this student.');
+    throw new Error('Could not create or resolve the cohort class for this student.');
   }
+  const cohortName = placement?.className ?? SUMMER_CLASS_NAME;
 
   // ── 2. Parent account (only if we have a parent email) ──
   let parent: OnboardedAccount | null = null;
@@ -478,7 +559,7 @@ export async function onboardSummerStudent(
     schoolId: school.id,
     schoolName: school.name,
     classId,
-    sectionClass: SUMMER_CLASS_NAME,
+    sectionClass: cohortName,
     grade: prospect.grade || null,
     passwordPolicy: studentPortalId ? 'keep' : 'set',
     existingUserId: studentPortalId,
@@ -510,8 +591,8 @@ export async function onboardSummerStudent(
     gender: prospect.gender ?? null,
     grade: prospect.grade ?? null,
     grade_level: prospect.grade ?? null,
-    current_class: SUMMER_CLASS_NAME,
-    section: SUMMER_CLASS_NAME,
+    current_class: cohortName,
+    section: cohortName,
     school_id: school.id,
     school_name: school.name,
     course_interest: prospect.course_interest || 'Summer School 2026',
