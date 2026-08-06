@@ -12,9 +12,9 @@ describe("releaseAssetSession", () => {
     ).toBe(2);
   });
 
-  it("falls back to Session N in the title", () => {
+  it("ignores Session N in titles (release uses metadata only)", () => {
     expect(releaseAssetSession({ title: "Week 1 · Session 3: Flashcards" })).toBe(
-      3,
+      0,
     );
   });
 
@@ -54,6 +54,15 @@ describe("resolveEffectiveReleaseSession", () => {
     ).toBeNull();
   });
 
+  it("ignores Session N in titles when inferring scope", () => {
+    expect(
+      resolveEffectiveReleaseSession(
+        [{ title: "Lesson · Session 2" }, { title: "Homework" }],
+        null,
+      ),
+    ).toBeNull();
+  });
+
   it("always honours an explicit session", () => {
     expect(
       resolveEffectiveReleaseSession(
@@ -76,8 +85,7 @@ describe("ambiguous multi-meeting weeks", () => {
     const stamped = [
       ...new Set(rows.map((r) => releaseAssetSession(r)).filter((s) => s > 0)),
     ].sort((a, b) => a - b);
-    const hasUnscoped = rows.some((r) => releaseAssetSession(r) < 1);
-    return stamped.length >= 2 && !hasUnscoped ? stamped : null;
+    return stamped.length >= 2 ? stamped : null;
   }
 
   it("flags a week holding Class 1 and Class 2 with no session given", () => {
@@ -94,14 +102,14 @@ describe("ambiguous multi-meeting weeks", () => {
     expect(ambiguityCheck([{ metadata: { session: 1 } }])).toBeNull();
   });
 
-  it("does not flag when unscoped school assets are also held", () => {
+  it("flags even when unscoped school assets are also held", () => {
     expect(
       ambiguityCheck([
         { metadata: { session: 1 } },
         { metadata: { session: 2 } },
         { title: "School homework" },
       ]),
-    ).toBeNull();
+    ).toEqual([1, 2]);
   });
 });
 
@@ -116,9 +124,18 @@ describe("matchesReleaseSession", () => {
     expect(matchesReleaseSession({ title: "Homework" }, 2)).toBe(false);
   });
 
-  it("without session releases school assets only — never Class 2+", () => {
+  it("without session releases the whole school week including title-only Session N", () => {
     expect(matchesReleaseSession({ title: "School homework" }, null)).toBe(true);
-    expect(matchesReleaseSession({ metadata: { session: 1 } }, null)).toBe(false);
-    expect(matchesReleaseSession({ metadata: { session: 2 } }, null)).toBe(false);
+    expect(matchesReleaseSession({ title: "Week 1 · Session 2: Lab" }, null)).toBe(
+      true,
+    );
+  });
+
+  it("with inferred session only matches that metadata-stamped meeting", () => {
+    expect(matchesReleaseSession({ metadata: { session: 1 } }, 1)).toBe(true);
+    expect(matchesReleaseSession({ metadata: { session: 2 } }, 1)).toBe(false);
+    expect(matchesReleaseSession({ title: "Week 1 · Session 2: Lab" }, 1)).toBe(
+      true,
+    );
   });
 });

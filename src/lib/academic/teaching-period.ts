@@ -56,6 +56,9 @@ export type EvidenceWindow = {
   offeringPeriodId?: string | null;
 };
 
+/** How to pick a date stamp for null-term school rows in a term window. */
+export type EvidenceDateStamp = 'graded_submitted' | 'include_created';
+
 const isoStart = (date: string) => `${date}T00:00:00.000Z`;
 const isoEnd = (date: string) => `${date}T23:59:59.999Z`;
 
@@ -96,6 +99,7 @@ function rowTermId(row: EvidenceRow): string | null {
 export function evidenceBelongsToSchoolTerm(
   row: EvidenceRow,
   range: EvidenceWindow,
+  opts?: { dateStamp?: EvidenceDateStamp },
 ): boolean {
   const termId = rowTermId(row);
   if (range.academicTermId && termId) {
@@ -111,7 +115,10 @@ export function evidenceBelongsToSchoolTerm(
     return false;
   }
 
-  const stamp = row.graded_at || row.submitted_at || row.created_at;
+  const stamp =
+    opts?.dateStamp === 'graded_submitted'
+      ? row.graded_at || row.submitted_at
+      : row.graded_at || row.submitted_at || row.created_at;
   return inDateWindow(stamp, range);
 }
 

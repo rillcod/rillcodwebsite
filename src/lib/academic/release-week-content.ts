@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  assetMeetingSession,
+  assetStampedMeetingSession,
   normalizeMeetingSession,
   type SessionBearing,
 } from "@/lib/academic/session-identity";
@@ -29,9 +29,9 @@ export type WeekReleaseResult = {
 
 type SessionRow = SessionBearing;
 
-/** @deprecated Prefer assetMeetingSession — kept as a stable release alias. */
+/** @deprecated Prefer assetStampedMeetingSession for release — kept as alias. */
 export function releaseAssetSession(row: SessionRow): number {
-  return assetMeetingSession(row);
+  return assetStampedMeetingSession(row);
 }
 
 /** @deprecated Prefer normalizeMeetingSession. */
@@ -58,7 +58,7 @@ export function resolveEffectiveReleaseSession(
 
   const sessions = new Set<number>();
   for (const row of heldRows) {
-    const s = assetMeetingSession(row);
+    const s = assetStampedMeetingSession(row);
     if (s > 0) sessions.add(s);
   }
   if (sessions.size === 1) return [...sessions][0] ?? null;
@@ -69,19 +69,19 @@ export function resolveEffectiveReleaseSession(
  * Decide if a held row belongs to this release.
  *
  * - Explicit / inferred session: that meeting only (unscoped ≡ session 1).
- * - No session (school or ambiguous multi-class): only unscoped rows.
+ * - No session (school week): every held row — titles with "Session N" are ignored.
  */
 export function matchesReleaseSession(
   row: SessionRow,
   session: number | null | undefined,
 ): boolean {
-  const got = assetMeetingSession(row);
+  const got = assetStampedMeetingSession(row);
   const want = normalizeMeetingSession(session);
   if (want != null) {
     if (got < 1) return want === 1;
     return got === want;
   }
-  return got < 1;
+  return true;
 }
 
 export async function releasePreparedWeek(input: {
@@ -153,16 +153,15 @@ export async function releasePreparedWeek(input: {
 
   const session = resolveEffectiveReleaseSession(probeRows, input.session);
 
-  // Two or more class meetings are held and nothing is unscoped: releasing now
-  // would touch nothing at all. Say so instead of reporting a silent success.
-  if (session == null) {
+  // Two or more metadata-stamped meetings and no explicit session: the caller
+  // must pick a class meeting instead of releasing nothing or a random subset.
+  if (session == null && normalizeReleaseSession(input.session) == null) {
     const stamped = [
       ...new Set(
-        probeRows.map((row) => assetMeetingSession(row)).filter((s) => s > 0),
+        probeRows.map((row) => assetStampedMeetingSession(row)).filter((s) => s > 0),
       ),
     ].sort((a, b) => a - b);
-    const hasUnscoped = probeRows.some((row) => assetMeetingSession(row) < 1);
-    if (stamped.length >= 2 && !hasUnscoped) {
+    if (stamped.length >= 2) {
       return {
         ...empty(null),
         needs_session: true,
@@ -255,7 +254,7 @@ export async function releasePreparedWeek(input: {
       if (
         row.lesson_id &&
         releasedLessonSet.has(String(row.lesson_id)) &&
-        assetMeetingSession({ title: row.title }) < 1
+        assetStampedMeetingSession({ title: row.title }) < 1
       ) {
         return true;
       }

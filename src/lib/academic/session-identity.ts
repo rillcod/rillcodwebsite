@@ -23,10 +23,11 @@ export function normalizeMeetingSession(
 }
 
 /**
- * Session stamped on a generated asset (metadata preferred, then title).
- * Returns 0 when the asset is unscoped (typical school week).
+ * Session stamped on metadata or row fields only — never parsed from titles.
+ * Release and multi-meeting inference use this so school weeks are not hijacked
+ * by incidental "Session N" text in lesson or assignment titles.
  */
-export function assetMeetingSession(row: SessionBearing): number {
+export function assetStampedMeetingSession(row: SessionBearing): number {
   const meta = row.metadata;
   if (meta) {
     const fromMeta = normalizeMeetingSession(meta.session ?? meta.session_number);
@@ -34,6 +35,16 @@ export function assetMeetingSession(row: SessionBearing): number {
   }
   const fromFields = normalizeMeetingSession(row.session ?? row.session_number);
   if (fromFields != null) return fromFields;
+  return 0;
+}
+
+/**
+ * Session stamped on a generated asset (metadata preferred, then title).
+ * Returns 0 when the asset is unscoped (typical school week).
+ */
+export function assetMeetingSession(row: SessionBearing): number {
+  const stamped = assetStampedMeetingSession(row);
+  if (stamped > 0) return stamped;
   const title = String(row.title || '');
   const m = title.match(/Session\s+(\d+)/i);
   if (m) {

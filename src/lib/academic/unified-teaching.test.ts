@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assetMeetingSession,
+  assetStampedMeetingSession,
   meetingLookupKey,
   normalizeMeetingSession,
   parseRequestSession,
@@ -21,6 +22,7 @@ describe('session-identity', () => {
     expect(assetMeetingSession({ session: 3 })).toBe(3);
     expect(assetMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(4);
     expect(assetMeetingSession({ title: 'Week 1 homework' })).toBe(0);
+    expect(assetStampedMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(0);
   });
 
   it('parses request bodies consistently', () => {
@@ -58,6 +60,23 @@ describe('teaching-period evidence scope', () => {
       evidenceBelongsToSchoolTerm(
         { graded_at: '2026-02-01T00:00:00Z' },
         range,
+      ),
+    ).toBe(true);
+  });
+
+  it('does not count in-progress submissions from created_at alone', () => {
+    expect(
+      evidenceBelongsToSchoolTerm(
+        { created_at: '2026-02-01T00:00:00Z' },
+        range,
+        { dateStamp: 'graded_submitted' },
+      ),
+    ).toBe(false);
+    expect(
+      evidenceBelongsToSchoolTerm(
+        { submitted_at: '2026-02-01T00:00:00Z' },
+        range,
+        { dateStamp: 'graded_submitted' },
       ),
     ).toBe(true);
   });
