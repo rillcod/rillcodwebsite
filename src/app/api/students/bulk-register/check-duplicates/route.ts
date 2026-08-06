@@ -7,6 +7,7 @@ import {
   findNameDuplicate,
   findSchoolNameKeyConflicts,
   loadSchoolStudentsForNameCheck,
+  type NameDuplicateKind,
 } from '@/lib/students/duplicate-name-barricade';
 
 /**
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
     const nameConflicts: Array<{
       full_name: string;
-      kind: 'exact' | 'swap' | 'key';
+      kind: NameDuplicateKind;
       existing_full_name: string;
       existing_email: string;
       name_key: string;

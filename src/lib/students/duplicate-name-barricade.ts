@@ -1,5 +1,39 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { duplicateNameKey } from '@/lib/students/clean-name';
+import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
+
+/**
+ * True when one name's words are wholly contained in the other's, sharing at
+ * least two — the same child written once with a middle name and once without
+ * ("Ebenyi Excel Munachi" / "Excel Ebenyi").
+ *
+ * Deliberately EXACT token containment rather than the fuzzy
+ * namesAreNearDuplicate. Fuzzy matching also reports "Ariella Smith" against
+ * "Ariel Smith", and blocking a school from registering twins is a worse
+ * failure than the duplicate this is meant to prevent. Containment cannot do
+ * that: neither twin's words are a subset of the other's. Two shared words are
+ * required, so siblings sharing only a surname stay separate.
+ */
+function nameTokenSet(s: string): Set<string> {
+  return new Set(
+    cleanStudentName(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      .split(/\s+/).filter((t) => t.length > 1 && !/^\d+$/.test(t)),
+  );
+}
+
+function nameIsSubsetDuplicate(a: string, b: string): boolean {
+  const A = nameTokenSet(a);
+  const B = nameTokenSet(b);
+  if (A.size < 2 || B.size < 2) return false;
+  const [small, large] = A.size <= B.size ? [A, B] : [B, A];
+  for (const t of small) if (!large.has(t)) return false;
+  return small.size >= 2;
+}
+
+// Sibling / twin confirmation is NOT handled here. The heal route already owns
+// that end of the problem — scan_name_health finds related names, and
+// dismiss_duplicate records "these are different children" in
+// dismissed_duplicate_pairs so the pair stops being raised. Adding a second
+// reviewer here would mean two engines disagreeing about the same two names.
 
 export type ExistingNameHit = {
   id: string;
@@ -11,6 +45,17 @@ export type NameLookupMaps = {
   byName: Map<string, ExistingNameHit>;
   byReversedName: Map<string, ExistingNameHit>;
   byKey: Map<string, ExistingNameHit>;
+  /**
+   * Every candidate, for the near-duplicate scan.
+   *
+   * The three maps above are all keyed on the WHOLE name, so each requires the
+   * two names to carry the same number of words. That misses the commonest real
+   * shape: the same child entered once with a middle name and once without
+   * ("Ebenyi Excel Munachi" / "Excel Ebenyi"). Ten of fifteen duplicates found
+   * at Greenville and Franej were exactly that, created two days apart by two
+   * imports, and every one passed the barricade in silence.
+   */
+  list: ExistingNameHit[];
 };
 
 const PAGE = 1000;
@@ -117,6 +162,7 @@ export function buildNameLookupMaps(
   const byName = new Map<string, ExistingNameHit>();
   const byReversedName = new Map<string, ExistingNameHit>();
   const byKey = new Map<string, ExistingNameHit>();
+  const list: ExistingNameHit[] = [];
 
   for (const s of students) {
     if (!s.full_name?.trim()) continue;
@@ -129,9 +175,10 @@ export function buildNameLookupMaps(
     }
     const key = duplicateNameKey(s.full_name);
     if (key) byKey.set(key, hit);
+    list.push(hit);
   }
 
-  return { byName, byReversedName, byKey };
+  return { byName, byReversedName, byKey, list };
 }
 
 export function registerCreatedNameInMaps(
@@ -147,9 +194,12 @@ export function registerCreatedNameInMaps(
   }
   const key = duplicateNameKey(fullName);
   if (key) maps.byKey.set(key, hit);
+  // Also visible to the near-duplicate scan, so two variants of the same child
+  // inside ONE batch collide with each other and not just with existing rows.
+  maps.list = [...(maps.list ?? []), hit];
 }
 
-export type NameDuplicateKind = 'exact' | 'swap' | 'key';
+export type NameDuplicateKind = 'exact' | 'swap' | 'key' | 'near';
 
 export function findNameDuplicate(
   maps: NameLookupMaps,
@@ -167,12 +217,25 @@ export function findNameDuplicate(
     const keyHit = maps.byKey.get(key);
     if (keyHit) return { kind: 'key', hit: keyHit };
   }
+
+  // Last, and only after the three O(1) lookups miss: the same child written
+  // with a middle name added or dropped. namesAreNearDuplicate requires at
+  // least two matching tokens, so siblings sharing only a surname are not
+  // collapsed. Scoped to one school's roster, so the scan is bounded.
+  for (const hit of maps.list ?? []) {
+    if (nameIsSubsetDuplicate(fullName, hit.full_name)) {
+      return { kind: 'near', hit };
+    }
+  }
   return null;
 }
 
 export function duplicateBlockMessage(kind: NameDuplicateKind, fullName: string, hit: ExistingNameHit): string {
   if (kind === 'swap') {
     return `Possible duplicate: "${fullName}" looks like "${hit.full_name}" with first and last name swapped (existing login: ${hit.email}). Duplicate names cannot be created through bulk registration.`;
+  }
+  if (kind === 'near') {
+    return `Possible duplicate: "${fullName}" looks like the same learner as "${hit.full_name}" with a middle name added or dropped (existing login: ${hit.email}). If they are different children, add a distinguishing name; otherwise use the existing record.`;
   }
   return `Already registered at this school as "${hit.full_name}" (login: ${hit.email}). Duplicate names cannot be created through bulk registration.`;
 }
