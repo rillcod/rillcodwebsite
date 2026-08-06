@@ -7,6 +7,12 @@
 // zero-width + bidirectional control marks (LRM/RLM/ZWSP/ZWNJ/ZWJ/BOM/word-joiner …)
 const INVISIBLE = /[​-‏‪-‮⁠﻿]/g;
 const INDEX_PREFIX = /^\s*\d+\s*[.)\-]\s*/; // "34. ", "7) ", "3 - "
+// Leading table/list punctuation. A pipe-delimited or markdown table pasted into
+// a bulk import carries its column separator into the first cell, so a whole
+// intake arrives as "| Alvin Osemeahon". No real name begins with any of these,
+// and because the value was copied faithfully into every table, the pipe reached
+// the learner's printed report card. Bullets and dashes come from pasted lists.
+const LEADING_JUNK = /^[\s|•·●*#>+_=~–—-]+/;
 
 /** Title-case one name token, keeping hyphens and apostrophes ("Mary-Jane", "O'Brien"). */
 function titleCaseToken(token: string): string {
@@ -29,6 +35,8 @@ function titleCaseToken(token: string): string {
 export function cleanStudentName(raw: string | null | undefined): string {
   let s = String(raw ?? '');
   s = s.replace(INVISIBLE, '');
+  // Before the index prefix, so "| 3. Alvin" loses both.
+  s = s.replace(LEADING_JUNK, '');
   s = s.replace(INDEX_PREFIX, '');
   s = s.replace(/\s+/g, ' ').trim();
   // Trailing standalone disambiguator number appended by bulk register when a name
