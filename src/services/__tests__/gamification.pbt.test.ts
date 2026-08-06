@@ -21,7 +21,10 @@ describe('GamificationService Property-Based Tests', () => {
         await fc.assert(
             fc.asyncProperty(
                 fc.uuid(),
-                fc.constantFrom('lesson_complete', 'assignment_submit', 'quiz_pass', 'discussion_post', 'daily_login' as ActivityType),
+                // 'daily_login' is gone: it paid 10 points for opening the app,
+                // was never awarded by any code path, and rewarded attendance
+                // rather than learning.
+                fc.constantFrom('lesson_complete', 'assignment_submit', 'quiz_pass', 'discussion_post' as ActivityType),
                 fc.uuid(),
                 async (userId, activityType, referenceId) => {
                     const mockSupabase = {
@@ -34,6 +37,9 @@ describe('GamificationService Property-Based Tests', () => {
                         range: vi.fn(),
                         single: vi.fn(),
                         upsert: vi.fn(),
+                        // Discussion posts check how many were already paid for
+                        // today before awarding, so the chain ends on gte().
+                        gte: vi.fn().mockResolvedValue({ count: 0, error: null }),
                     };
 
                     (createAdminClient as any).mockReturnValue(mockSupabase);

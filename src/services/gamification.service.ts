@@ -1,17 +1,20 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
+import {
+    POINTS,
+    levelFor,
+    nextStreak,
+    pointsForActivity,
+    type ActivityType,
+} from '@/lib/engagement/progress';
 import { notificationsService } from './notifications.service';
 
-export type ActivityType = 'lesson_complete' | 'assignment_submit' | 'quiz_pass' | 'discussion_post' | 'daily_login';
-
-const POINTS_CONFIG: Record<ActivityType, number> = {
-    lesson_complete: 10,
-    assignment_submit: 25,
-    quiz_pass: 50,
-    discussion_post: 5,
-    daily_login: 10
-};
+// The earn rules, the ladder and the wording all live in lib/engagement so the
+// service, the API and the UI cannot drift into three different answers about
+// what a learner has earned.
+export type { ActivityType } from '@/lib/engagement/progress';
+const POINTS_CONFIG = POINTS;
 
 export class GamificationService {
     /**
@@ -44,7 +47,22 @@ export class GamificationService {
         // any score. Writes stay server-side; the SELECT policy added alongside
         // this lets a learner read their own history and nothing more.
         const supabase = createAdminClient();
-        const points = POINTS_CONFIG[activityType];
+
+        // Discussion posts each carry their own reference id, so idempotency
+        // does not stop a hundred one-word replies being farmed. Past the daily
+        // cap the post still stands, it just stops paying.
+        let alreadyToday = 0;
+        if (activityType === 'discussion_post') {
+            const dayStart = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+            const { count } = await supabase
+                .from('point_transactions')
+                .select('id', { count: 'exact', head: true })
+                .eq('portal_user_id', userId)
+                .eq('activity_type', 'discussion_post')
+                .gte('created_at', dayStart);
+            alreadyToday = count ?? 0;
+        }
+        const points = pointsForActivity(activityType, { alreadyToday });
 
         // 1. Idempotent insert — ON CONFLICT (portal_user_id, activity_type, reference_id) DO NOTHING
         const { error: insertError, count } = await supabase
@@ -87,31 +105,13 @@ export class GamificationService {
             .single();
 
         const today = new Date().toISOString().split('T')[0];
-        let streak = currentPoints?.current_streak || 0;
-        const lastActivity = currentPoints?.last_activity_date;
+        const streak = nextStreak(
+            currentPoints?.current_streak || 0,
+            currentPoints?.last_activity_date,
+            today,
+        );
 
-        // Only update streak if this is a NEW day of activity
-        if (lastActivity) {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-            
-            if (lastActivity === yesterdayStr) {
-                // Consecutive day - increment streak
-                streak += 1;
-            } else if (lastActivity === today) {
-                // Same day - keep current streak, don't increment
-                // This prevents multiple activities on same day from inflating streak
-            } else {
-                // Gap in activity - reset to 1
-                streak = 1;
-            }
-        } else {
-            // First activity ever
-            streak = 1;
-        }
-
-        const newLevel = this.calculateLevel(totalPoints);
+        const newLevel = levelFor(totalPoints);
 
         const { error: upsertError } = await supabase.from('user_points').upsert({
             portal_user_id: userId,
@@ -138,12 +138,11 @@ export class GamificationService {
         return { awarded, totalPoints, newLevel, streak };
     }
 
-    private calculateLevel(points: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
-        if (points >= 5000) return 'Platinum';
-        if (points >= 2000) return 'Gold';
-        if (points >= 500) return 'Silver';
-        return 'Bronze';
-    }
+    // calculateLevel lived here with thresholds of 500 / 2000 / 5000. Silver
+    // alone was fifty lessons, so every learner stayed Bronze — the live table
+    // had one row and it said Bronze. The ladder now lives in
+    // lib/engagement/progress with reachable thresholds, and levelFor is the
+    // single answer to "what level is this".
 
     async getLeaderboard(courseId?: string, period: 'weekly' | 'monthly' | 'all' = 'all') {
         const supabase = await createClient();
