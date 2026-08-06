@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -15,6 +15,19 @@ import { describe, expect, it } from "vitest";
  * own list of model ids and call them.
  */
 const ROOT = process.cwd();
+
+/**
+ * Repo-relative, forward-slashed, on every platform.
+ *
+ * This used to be `file.replace(ROOT + "\\", "")` — a Windows separator, hard
+ * coded. On Linux it matched nothing, so every path stayed absolute: ALLOWED
+ * never excluded anything, and `join(ROOT, rel)` on an already-absolute path
+ * produced a doubled path that could not be opened. The suite passed on a
+ * Windows machine and failed every CI run on ubuntu-latest.
+ */
+function repoRelative(file: string): string {
+  return relative(ROOT, file).split(sep).join("/");
+}
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -53,14 +66,14 @@ const MODEL_ID =
 function sourcesThatCallOpenRouter(): string[] {
   return walk(join(ROOT, "src"))
     .filter((file) => {
-      const rel = file.replace(ROOT + "\\", "").replace(/\\/g, "/");
+      const rel = repoRelative(file);
       if (ALLOWED.includes(rel)) return false;
       if (rel.endsWith(".test.ts")) return false;
       const src = readFileSync(file, "utf8");
       return src.includes("openrouter.ai/api/v1/chat/completions") ||
         /baseURL:\s*["'`]https:\/\/openrouter\.ai/.test(src);
     })
-    .map((file) => file.replace(ROOT + "\\", "").replace(/\\/g, "/"));
+    .map(repoRelative);
 }
 
 describe("model choice stays central", () => {
@@ -88,7 +101,7 @@ describe("model choice stays central", () => {
         const src = readFileSync(file, "utf8");
         return src.includes("endsWith(\":free\")") || src.includes("endsWith(':free')");
       })
-      .map((file) => file.replace(ROOT + "\\", "").replace(/\\/g, "/"));
+      .map(repoRelative);
 
     expect(rankers).toEqual([]);
   });
