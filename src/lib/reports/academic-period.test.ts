@@ -40,9 +40,12 @@ describe('academic session identity isolation', () => {
     expect(rolled.rolled).toBe(true);
     expect(rolled.session).toEqual(live);
 
+    // Next year's First Term used to pass through untouched. It no longer may:
+    // a score cannot belong to a term that has not started, and the database
+    // refuses it, so the write path corrects it to live rather than erroring.
     const future = resolveSessionForWrite('First Term', '2026/2027', { live });
-    expect(future.rolled).toBe(false);
-    expect(future.session).toEqual({ termLabel: 'First Term', periodLabel: '2026/2027' });
+    expect(future.rolled).toBe(true);
+    expect(future.session).toEqual(live);
   });
 
   it('detects in-place rewrite across session identity', () => {
@@ -110,9 +113,11 @@ describe('forward session drift (the direction nothing watched)', () => {
     expect(isFutureAcademicSession('Second Term', '2026/2027', LIVE_TERM, LIVE_YEAR)).toBe(true);
   });
 
-  it('does not treat a later term in the SAME year as future', () => {
-    // Writing up Third Term while the calendar says Second is ordinary work.
-    expect(isFutureAcademicSession('Third Term', '2025/2026', 'Second Term', LIVE_YEAR)).toBe(false);
+  it('treats a later term in the SAME year as future too', () => {
+    // Third Term while the calendar still says Second means Third has not
+    // started, so a score cannot belong to it — the same rule the database
+    // enforces, not a special case for crossing a year boundary.
+    expect(isFutureAcademicSession('Third Term', '2025/2026', 'Second Term', LIVE_YEAR)).toBe(true);
   });
 
   it('does not treat the live or a past session as future', () => {
@@ -146,11 +151,11 @@ describe('forward session drift (the direction nothing watched)', () => {
 describe('one session ahead stays legitimate', () => {
   const LIVE = { termLabel: 'Third Term', periodLabel: '2025/2026' };
 
-  it('allows next year First Term — preparing the coming session', () => {
-    expect(isFutureAcademicSession('First Term', '2026/2027', LIVE.termLabel, LIVE.periodLabel)).toBe(false);
+  it('refuses next year First Term — that term has not started', () => {
+    expect(isFutureAcademicSession('First Term', '2026/2027', LIVE.termLabel, LIVE.periodLabel)).toBe(true);
     const out = resolveSessionForWrite('First Term', '2026/2027', { live: LIVE });
-    expect(out.rolled).toBe(false);
-    expect(out.session).toEqual({ termLabel: 'First Term', periodLabel: '2026/2027' });
+    expect(out.rolled).toBe(true);
+    expect(out.session).toEqual(LIVE);
   });
 
   it('rejects two or more sessions ahead — the shape that actually drifted', () => {

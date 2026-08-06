@@ -213,15 +213,16 @@ export function isFutureAcademicSession(
   // Sessions laid end to end: three terms per academic year.
   const ahead = (savedY * 3 + savedR) - (liveY * 3 + liveR);
 
-  // ONE session ahead is ordinary and deliberately allowed — preparing next
-  // year's First Term during the current Third is normal school practice, and
-  // resolveSessionForWrite has always let it through.
+  // ANY session ahead of live counts, including the very next one.
   //
-  // Two or more is the drift: the year dropdown offers five options, and the
-  // row below the right one yields the SAME term label in the next session —
-  // Second Term next year is two ahead, Third Term next year is three. Every
-  // one of the 76 misfiled reports sat at two or three, never at one.
-  return ahead >= 2;
+  // This began at `>= 2`, to keep preparing next year's First Term during the
+  // current Third — which resolveSessionForWrite had always permitted. That
+  // allowance is now gone: a score cannot belong to a term nobody has taught
+  // yet, and the database refuses it outright
+  // (guard_report_session_not_far_future). Leaving one session ahead legal here
+  // would only mean the app waved a write through for Postgres to reject with a
+  // raw error, instead of quietly correcting it to the live session.
+  return ahead >= 1;
 }
 
 /** Where a session sits relative to the live calendar. */

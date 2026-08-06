@@ -16,6 +16,7 @@ import {
   isStaleAcademicSession,
   liveAcademicSession,
   ACADEMIC_TERM_OPTIONS,
+  academicSessionDrift,
   getCurrentTermLabel,
   getCurrentAcademicYear,
   academicYearOptions,
@@ -313,19 +314,43 @@ function TermYearFields({ term, period, set, prominent = false }: {
 }) {
     const cls = prominent ? PROMINENT_INPUT : INPUT;
     const star = prominent ? ' *' : '';
+    // Recomputed per render, not at module load, so a tab left open across a
+    // session boundary does not keep offering yesterday's "current".
+    const live = liveAcademicSession();
+    const drift = academicSessionDrift(term, period, live.termLabel, live.periodLabel);
     return (
         <>
             <Field label={`Term${star}`}>
                 <select value={term} onChange={e => set(s => ({ ...s, report_term: e.target.value }))} className={cls}>
-                    {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    {TERM_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}{t === live.termLabel ? ' — current' : ''}</option>
+                    ))}
                 </select>
             </Field>
             <Field label={`Academic Year${star}`}>
+                {/* Five near-identical years sat here unlabelled, and the row below
+                    the right one yields the SAME term in the next session — so the
+                    screen still read correctly. 76 reports were filed a year out
+                    before anyone noticed. Naming the live one makes the right
+                    choice visible instead of merely recoverable. */}
                 <select value={period} onChange={e => set(s => ({ ...s, report_period: e.target.value }))} className={cls}>
                     {period && !ACADEMIC_YEAR_OPTIONS.includes(period) && <option value={period}>{period}</option>}
-                    {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                    {ACADEMIC_YEAR_OPTIONS.map(y => (
+                        <option key={y} value={y}>{y}{y === live.periodLabel ? ' — current' : ''}</option>
+                    ))}
                 </select>
             </Field>
+            {drift === 'ahead' && (
+                <p className="col-span-full text-xs font-bold text-amber-600 dark:text-amber-400">
+                    ⚠️ {term} {period} has not started yet. The live session is {live.termLabel} {live.periodLabel} —
+                    this report will be saved there instead.
+                </p>
+            )}
+            {drift === 'behind' && (
+                <p className="col-span-full text-xs text-muted-foreground">
+                    Recording an earlier session ({term} {period}). The live session is {live.termLabel} {live.periodLabel}.
+                </p>
+            )}
         </>
     );
 }
