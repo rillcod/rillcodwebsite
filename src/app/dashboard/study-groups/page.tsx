@@ -14,6 +14,7 @@ import {
 } from '@/lib/icons';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import Modal from '@/components/ui/Modal';
 
 interface StudyGroup {
   id: string;
@@ -147,46 +148,40 @@ export default function StudyGroupsPage() {
           </button>
         </div>
 
-        {/* Create modal */}
-        {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="bg-card border border-border rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <SparklesIcon className="w-4 h-4" />
-                  </div>
-                  <h2 className="font-black text-foreground text-base">New Peer Study Group</h2>
-                </div>
-                <button onClick={() => setShowCreate(false)} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground">
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Group Title *</label>
-                <input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="e.g. Python & AI Study Squad"
-                  className="w-full bg-background border border-input text-foreground px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm font-bold"
-                  onKeyDown={e => e.key === 'Enter' && createGroup()}
-                />
-              </div>
-
-              {error && <p className="text-destructive text-xs font-bold bg-destructive/10 border border-destructive/20 rounded-xl p-3">{error}</p>}
-
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowCreate(false)} className="flex-1 py-3 bg-muted text-foreground font-black uppercase tracking-widest rounded-xl hover:bg-secondary text-xs transition-colors">
-                  Cancel
-                </button>
-                <button onClick={createGroup} disabled={!name.trim() || creating} className="flex-[2] py-3 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-xl text-xs hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2">
-                  {creating ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : 'Create Group'}
-                </button>
-              </div>
+        {/* Create modal — the shared dialog rather than a hand-rolled overlay, so
+            it announces itself as a dialog, closes on Escape, locks the page
+            behind it, and keeps Create Group pinned while the body scrolls. */}
+        <Modal
+          isOpen={showCreate}
+          onClose={() => setShowCreate(false)}
+          title="New Peer Study Group"
+          size="sm"
+          footer={
+            <>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 bg-muted text-foreground font-black uppercase tracking-widest rounded-xl hover:bg-secondary text-xs transition-colors">
+                Cancel
+              </button>
+              <button onClick={createGroup} disabled={!name.trim() || creating} className="flex-[2] py-3 bg-primary text-primary-foreground font-black uppercase tracking-widest rounded-xl text-xs hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2">
+                {creating ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : 'Create Group'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Group Title *</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Python & AI Study Squad"
+                className="w-full bg-background border border-input text-foreground px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm font-bold"
+                onKeyDown={e => e.key === 'Enter' && createGroup()}
+              />
             </div>
+
+            {error && <p className="text-destructive text-xs font-bold bg-destructive/10 border border-destructive/20 rounded-xl p-3">{error}</p>}
           </div>
-        )}
+        </Modal>
 
         {/* Groups list */}
         {loading ? (

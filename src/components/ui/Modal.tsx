@@ -12,6 +12,8 @@ interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closeOnBackdrop?: boolean;
   showCloseButton?: boolean;
+  /** Actions pinned below the scrolling body — a submit button belongs here, not in children. */
+  footer?: React.ReactNode;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -22,6 +24,7 @@ const Modal: React.FC<ModalProps> = ({
   size = 'md',
   closeOnBackdrop = true,
   showCloseButton = true,
+  footer,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -123,9 +126,20 @@ const Modal: React.FC<ModalProps> = ({
               </div>
             )}
 
-            <div className="overflow-y-auto overscroll-contain p-4 pb-[max(1rem,var(--safe-area-bottom))] sm:p-6">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 ${footer ? '' : 'pb-[max(1rem,var(--safe-area-bottom))]'}`}>
               {children}
             </div>
+
+            {/* Actions stay put while the body scrolls.
+                Without this every dialog with a form put its own submit button
+                inside the scroll area, so on a phone a long form buried the one
+                control the user opened it to reach. Callers that pass no footer
+                are unaffected and keep the safe-area padding on the body. */}
+            {footer && (
+              <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-border p-4 pb-[max(1rem,var(--safe-area-bottom))] sm:p-6">
+                {footer}
+              </div>
+            )}
           </div>
         </div>
       </div>
