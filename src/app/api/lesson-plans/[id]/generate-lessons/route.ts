@@ -13,6 +13,7 @@ import {
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { parseRequestSession } from "@/lib/academic/session-identity";
+import { buildCopy, decideReuse } from "@/lib/academic/content-reuse";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
@@ -252,6 +253,73 @@ export async function POST(
             });
             skipped++;
             continue;
+          }
+
+          // Before asking the AI, look for this week already written for this
+          // curriculum by another class.
+          //
+          // 26 classes across 14 schools adopted the same release, so without
+          // this the same Week 3 lesson is generated 26 times — identical
+          // teaching, 26 sets of minutes and quota, against a free tier already
+          // returning 429. Copying costs a single insert.
+          //
+          // Nothing is shared: the copy belongs to this plan and this class
+          // exactly as a generated lesson would, so visibility, editing and
+          // locking behave as they always have. If anything about the source
+          // looks wrong, decideReuse says generate and the AI path below runs
+          // unchanged — which is why this cannot half-break.
+          const planReleaseId = (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null;
+          if (planReleaseId) {
+            // Cast: lessons.curriculum_release_id was added by migration 41 and
+            // the generated Supabase types have not been regenerated since, so
+            // the column is real but the type does not know it yet.
+            const { data: reuseCandidates } = await (supabase as any)
+              .from("lessons")
+              .select("id, curriculum_release_id, curriculum_week_number, lesson_plan_id, metadata, created_at")
+              .eq("curriculum_release_id", planReleaseId)
+              .eq("curriculum_week_number", week.week)
+              .neq("lesson_plan_id", id)
+              .order("created_at", { ascending: true })
+              .limit(20);
+
+            const decision = decideReuse(reuseCandidates as never, {
+              releaseId: planReleaseId,
+              week: week.week,
+              targetPlanId: id,
+            });
+
+            if (decision.action === "copy") {
+              const { data: sourceRow } = await supabase
+                .from("lessons")
+                .select("*")
+                .eq("id", decision.sourceId)
+                .maybeSingle();
+
+              if (sourceRow) {
+                const { error: copyError } = await supabase
+                  .from("lessons")
+                  .insert(
+                    buildCopy(sourceRow as Record<string, unknown>, {
+                      planId: id,
+                      classId: (plan as { class_id?: string | null })?.class_id ?? null,
+                      sourceId: decision.sourceId,
+                    }) as never
+                  );
+
+                if (!copyError) {
+                  generated++;
+                  emit({
+                    generated,
+                    total,
+                    current: week.week,
+                    status: `Week ${week.week} copied from this curriculum (no AI needed)`,
+                  });
+                  continue;
+                }
+                // A failed copy is not a failed week. Fall through and generate.
+                console.warn("[generate-lessons] copy failed, generating instead", copyError.message);
+              }
+            }
           }
 
           const siblingLessons = allCurriculumTopics.filter(
