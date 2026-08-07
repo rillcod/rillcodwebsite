@@ -55,7 +55,16 @@ async function handleRequest(req: Request) {
     }
 
     let failed = 0;
+    // The three sweeps above each survive their own failure; this loop did not,
+    // and it is the only one that depends on Redis. When the Upstash database
+    // behind UPSTASH_REDIS_REST_URL stopped resolving, popNotification threw
+    // out of the whole handler — so newsletters, the WhatsApp outbox and the
+    // follow-up runner all did their work and the job was still recorded as a
+    // failure, leaving last_success_at 150 hours old and this route 500ing.
+    // A queue that cannot be reached is a degraded run, not a failed one.
+    let queueUnavailable: string | null = null;
 
+    try {
     for (let i = 0; i < batchSize; i++) {
         const job = await queueService.popNotification();
         if (!job) break;
@@ -89,6 +98,22 @@ async function handleRequest(req: Request) {
             }
         }
     }
+    } catch (err) {
+        // Named rather than swallowed: "queueUnavailable: fetch failed" points at
+        // the Redis credentials, where a bare success would hide that email
+        // delivery has stopped entirely.
+        queueUnavailable = err instanceof Error ? err.message : String(err);
+        console.error('[process-notifications] notification queue unreachable:', err);
+    }
+
+    let remaining: number | null = null;
+    try {
+        remaining = await queueService.getQueueLength();
+    } catch {
+        // Same store, same outage — asking again cannot succeed, and this call
+        // sat outside the loop where it would have thrown past the catch above.
+        remaining = null;
+    }
 
     return NextResponse.json({
         success: true,
@@ -97,7 +122,8 @@ async function handleRequest(req: Request) {
         newslettersPublished,
         whatsapp,
         communicationFollowup,
-        remaining: await queueService.getQueueLength()
+        queueUnavailable,
+        remaining,
     });
 }
 
