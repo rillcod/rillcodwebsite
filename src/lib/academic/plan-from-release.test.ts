@@ -105,3 +105,53 @@ describe('the row that gets written', () => {
     expect(buildPlanRow({ ...good, sessionsPerWeek: 0 })!.sessions_per_week).toBe(1);
   });
 });
+
+describe('fine-tuning: mergePlanWithRelease and customisePlanWeek', () => {
+  it('marks a week as customized and preserves original topic', async () => {
+    const { customisePlanWeek } = await import('./plan-from-release');
+    const initialPlan = { weeks: [{ week: 1, topic: 'Standard Intro' }, { week: 2, topic: 'Standard Variables' }] };
+
+    const customized = customisePlanWeek(initialPlan, 1, { topic: 'Custom Intro with Robots' });
+    expect(customized.weeks[0].topic).toBe('Custom Intro with Robots');
+    expect(customized.weeks[0].is_customized).toBe(true);
+    expect(customized.weeks[0].original_topic).toBe('Standard Intro');
+    expect(customized.weeks[1].is_customized).toBeUndefined();
+  });
+
+  it('preserves teacher customized weeks when merging with an updated release', async () => {
+    const { customisePlanWeek, mergePlanWithRelease } = await import('./plan-from-release');
+    const initialPlan = { weeks: [{ week: 1, topic: 'Old Week 1' }, { week: 2, topic: 'Old Week 2' }] };
+    const customizedPlan = customisePlanWeek(initialPlan, 1, { topic: 'Teacher Fine-Tuned Week 1' });
+
+    const newReleaseContent = {
+      terms: [
+        {
+          term: 1,
+          weeks: [
+            { week: 1, topic: 'Updated Release Week 1' },
+            { week: 2, topic: 'Updated Release Week 2' },
+            { week: 3, topic: 'Brand New Release Week 3' },
+          ],
+        },
+      ],
+    };
+
+    const merged = mergePlanWithRelease({
+      existingPlanData: customizedPlan,
+      releaseContent: newReleaseContent,
+      termLabel: 'First Term',
+    });
+
+    expect(merged?.weeks).toHaveLength(3);
+    // Week 1 was customized by teacher -> preserved!
+    expect(merged?.weeks[0].topic).toBe('Teacher Fine-Tuned Week 1');
+    expect(merged?.weeks[0].is_customized).toBe(true);
+    // Week 2 was NOT customized -> updated to new release version!
+    expect(merged?.weeks[1].topic).toBe('Updated Release Week 2');
+    // Week 3 is brand new from release -> added!
+    expect(merged?.weeks[2].topic).toBe('Brand New Release Week 3');
+  });
+});
+
+
+

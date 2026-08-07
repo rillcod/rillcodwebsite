@@ -42,12 +42,21 @@ export type PlanData = {
 
 /** Term numbers as the curriculum writes them. */
 export function termNumberFrom(termLabel: string | null | undefined): number | null {
-  const text = String(termLabel ?? '').toLowerCase();
-  if (text.includes('first') || text.includes('1')) return 1;
-  if (text.includes('second') || text.includes('2')) return 2;
-  if (text.includes('third') || text.includes('3')) return 3;
+  if (!termLabel) return null;
+  const text = String(termLabel).trim().toLowerCase();
+  if (!text) return null;
+
+  if (text.includes('first') || /\b1st\b/.test(text) || /\bterm\s*1\b/.test(text) || /\bt1\b/.test(text)) return 1;
+  if (text.includes('second') || /\b2nd\b/.test(text) || /\bterm\s*2\b/.test(text) || /\bt2\b/.test(text)) return 2;
+  if (text.includes('third') || /\b3rd\b/.test(text) || /\bterm\s*3\b/.test(text) || /\bt3\b/.test(text)) return 3;
+  if (text.includes('fourth') || /\b4th\b/.test(text) || /\bterm\s*4\b/.test(text) || /\bt4\b/.test(text)) return 4;
+
+  const match = text.match(/\bterm\s*([1-4])\b/) || text.match(/\b([1-4])(?:st|nd|rd|th)?\s*term\b/);
+  if (match?.[1]) return Number(match[1]);
+
   return null;
 }
+
 
 /**
  * The weeks a class should teach this term.
@@ -143,3 +152,147 @@ export function buildPlanRow(input: {
     sessions_per_week: input.sessionsPerWeek && input.sessionsPerWeek > 0 ? input.sessionsPerWeek : 1,
   };
 }
+
+export type FineTunedWeek = ReleaseWeek & {
+
+  is_customized?: boolean;
+  customized_at?: string;
+  original_topic?: string;
+};
+
+/**
+ * Intelligently merge an existing class plan with an updated curriculum release.
+ *
+ * Preserves all weeks that teachers have fine-tuned or customized (is_customized === true),
+ * while updating non-customized weeks to match the latest master release content.
+ */
+export function mergePlanWithRelease(input: {
+  existingPlanData: PlanData | null | undefined;
+  releaseContent: ReleaseContent | null | undefined;
+  termLabel: string | null | undefined;
+}): PlanData | null {
+  const freshData = planDataForTerm(input.releaseContent, input.termLabel);
+  if (!freshData) return input.existingPlanData ?? null;
+  if (!input.existingPlanData || !Array.isArray(input.existingPlanData.weeks)) {
+    return freshData;
+  }
+
+  const existingWeeksMap = new Map<number, FineTunedWeek>();
+  for (const w of input.existingPlanData.weeks as FineTunedWeek[]) {
+    const num = Number(w.week);
+    if (Number.isFinite(num) && num > 0) {
+      existingWeeksMap.set(num, w);
+    }
+  }
+
+  const mergedWeeks: FineTunedWeek[] = freshData.weeks.map((freshWeek) => {
+    const num = Number(freshWeek.week);
+    const existing = existingWeeksMap.get(num);
+    if (existing && existing.is_customized) {
+      return existing;
+    }
+    return freshWeek;
+  });
+
+  const maxFreshWeek = Math.max(...freshData.weeks.map((w) => Number(w.week) || 0), 0);
+  for (const [num, existingWeek] of existingWeeksMap.entries()) {
+    if (num > maxFreshWeek && existingWeek.is_customized) {
+      mergedWeeks.push(existingWeek);
+    }
+  }
+
+  mergedWeeks.sort((a, b) => (Number(a.week) || 0) - (Number(b.week) || 0));
+
+  return {
+    ...freshData,
+    weeks: mergedWeeks,
+  };
+}
+
+/**
+ * Mark and update a specific week in a plan as fine-tuned by a teacher/school.
+ */
+export function customisePlanWeek(
+  planData: PlanData,
+  weekNumber: number,
+  updates: Partial<ReleaseWeek>,
+): PlanData {
+  const weeks = Array.isArray(planData.weeks) ? [...planData.weeks] : [];
+  const idx = weeks.findIndex((w) => Number(w.week) === weekNumber);
+
+  if (idx >= 0) {
+    const target = weeks[idx] as FineTunedWeek;
+    weeks[idx] = {
+      ...target,
+      ...updates,
+      week: weekNumber,
+      is_customized: true,
+      customized_at: new Date().toISOString(),
+      original_topic: target.original_topic ?? String(target.topic ?? ''),
+    };
+  }
+
+  return {
+    ...planData,
+    weeks,
+  };
+}
+
+/**
+ * Write path: Syncs adopted curriculum releases into class lesson_plans rows.
+ *
+ * Plugs directly into the central academic readiness automation pipeline
+ * (runAcademicReadinessAutomation), ensuring class teacher assignment, official
+ * direction resolution, RPC safety, auto-generate settings, and teacher notifications
+ * are preserved without regression.
+ */
+export async function instantiatePlansFromAdoptions(
+  dbClient?: any,
+  options?: { classIds?: string[]; courseId?: string; offeringId?: string; limit?: number; forceRefresh?: boolean },
+): Promise<{
+  scanned: number;
+  created: number;
+  skipped: number;
+  errors: Array<{ classId: string; className: string; error: string }>;
+}> {
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const { runAcademicReadinessAutomation } = await import('@/lib/academic/readiness-automation');
+
+  const db = dbClient ?? createAdminClient();
+
+  const report = {
+    scanned: 0,
+    created: 0,
+    skipped: 0,
+    errors: [] as Array<{ classId: string; className: string; error: string }>,
+  };
+
+  try {
+    const automationReport = await runAcademicReadinessAutomation(db, {
+      classIds: options?.classIds,
+      courseId: options?.courseId,
+      offeringId: options?.offeringId,
+      limit: options?.limit,
+    });
+
+    report.scanned = automationReport.scanned;
+    report.created = automationReport.plansCreated + automationReport.plansRefreshed;
+    report.skipped = Math.max(0, automationReport.scanned - report.created - automationReport.issues.length);
+
+    for (const issue of automationReport.issues) {
+      report.errors.push({
+        classId: issue.classId,
+        className: issue.className,
+        error: `[${issue.code}] ${issue.message}`,
+      });
+    }
+  } catch (error: any) {
+    throw new Error(`Central academic plan sync failed: ${error.message ?? String(error)}`);
+  }
+
+  return report;
+}
+
+
+
+

@@ -285,6 +285,22 @@ export async function applyCurriculumRollout(input: {
         (offeringAppliedByPathway[pathway] ?? 0) + 1;
     }
   }
+
+  // ── Intelligent Real-Time Auto-Instantiation ──────────────────────────────
+  // Immediately trigger academic readiness across all classes adopting this course
+  // so teaching plans are instantiated in real-time without requiring manual clicks.
+  let readinessReport: unknown = null;
+  try {
+    const { runAcademicReadinessAutomation } = await import(
+      "@/lib/academic/readiness-automation"
+    );
+    readinessReport = await runAcademicReadinessAutomation(db, {
+      courseId: release.course_id,
+    });
+  } catch (err) {
+    console.error("[applyCurriculumRollout] Real-time plan instantiation warning:", err);
+  }
+
   return {
     ...preview,
     applied_count: applied.length,
@@ -292,5 +308,7 @@ export async function applyCurriculumRollout(input: {
     offering_applied_by_pathway: offeringAppliedByPathway,
     independent_pathways_preserved: independentPathwaysPreserved,
     total_applied_count: applied.length + offeringAppliedCount,
+    readiness_report: readinessReport,
   };
 }
+

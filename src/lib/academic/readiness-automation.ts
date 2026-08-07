@@ -223,18 +223,31 @@ export async function runAcademicReadinessAutomation(
       const currentPlanData = existing?.plan_data && typeof existing.plan_data === 'object' ? existing.plan_data : {};
       const currentMetadata = existing?.metadata && typeof existing.metadata === 'object' ? existing.metadata : {};
       const alreadyHasWeeks = Array.isArray((currentPlanData as any).weeks) && (currentPlanData as any).weeks.length > 0;
-      if (result.created || !alreadyHasWeeks || !existing?.curriculum_release_id) {
+      if (result.created || !alreadyHasWeeks || !existing?.curriculum_release_id || existing.curriculum_release_id !== direction.id) {
         const calendarTerm = klass.term_id
           ? Number(term?.term_number) || 1
           : Number(schedule.entry_term_number) || 1;
         const currentSession = klass.term_id ? term?.academic_year ?? null : direction.academic_session;
-        const weeks = mapOfficialCurriculumToCalendarWeeks({
+        const mappedWeeks = mapOfficialCurriculumToCalendarWeeks({
           content: direction.content,
           directionAcademicSession: direction.academic_session,
           currentAcademicSession: currentSession,
           calendarTerm,
           schedule,
         });
+
+        const termLabel = klass.term_id
+          ? humanTermLabel(Number(term?.term_number) || 1)
+          : period?.label ?? 'Delivery period';
+
+        const { mergePlanWithRelease } = await import('@/lib/academic/plan-from-release');
+        const mergedData = mergePlanWithRelease({
+          existingPlanData: currentPlanData as any,
+          releaseContent: direction.content as any,
+          termLabel,
+        });
+        const weeks = mergedData?.weeks ?? mappedWeeks;
+
         const { error: planUpdateError } = await db.from('lesson_plans').update({
           curriculum_release_id: direction.id,
           curriculum_version_id: direction.source_curriculum_id,
@@ -247,12 +260,10 @@ export async function runAcademicReadinessAutomation(
                 termNumber: Number(schedule.entry_term_number) || 1,
                 weekNumber: Number(schedule.entry_week_number) || 1,
               }),
-              current_term: klass.term_id
-                ? humanTermLabel(Number(term?.term_number) || 1)
-                : period?.label ?? 'Delivery period',
+              current_term: termLabel,
             },
             starts_at_week: Number(schedule.entry_week_number) || 1,
-            ...(alreadyHasWeeks ? {} : { weeks }),
+            weeks,
           },
           metadata: {
             ...(currentMetadata as Record<string, unknown>),
@@ -269,6 +280,7 @@ export async function runAcademicReadinessAutomation(
         if (result.created) report.plansCreated += 1;
         else report.plansRefreshed += 1;
       }
+
 
       if (result.created && teacherId) {
         const { error: notificationError } = await db.from('notifications').insert({
