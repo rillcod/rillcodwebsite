@@ -125,7 +125,12 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ? `Share to Parents: ${title}` : 'Share to Parents'}
+      className="fixed inset-0 z-[200] bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+    >
       <div className="w-full sm:max-w-lg bg-background border border-border shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[85vh]">
 
         {/* Header */}

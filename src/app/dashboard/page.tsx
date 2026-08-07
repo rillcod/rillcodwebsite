@@ -43,9 +43,6 @@ const QUICK_ACTIONS = {
   ],
   student: [
     { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs & lessons' },
-    { name: 'Path Progress', href: '/dashboard/path-progress', icon: ChartBarIcon, desc: 'See your current path and week' },
-    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit homework' },
-    { name: 'My Report Card', href: '/dashboard/results', icon: TrophyIcon, desc: 'Track grades & achievements' },
   ],
   school: [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled school students' },

@@ -89,7 +89,12 @@ export function ProofReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Payment Evidence Review for Invoice ${invoiceNumber}`}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm"
+    >
       <div className="bg-background border border-border w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
           <div>

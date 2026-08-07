@@ -63,28 +63,11 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
       </div>
 
 
-      {/* Main Grid: Quick Actions + Activity + Sidebar */}
+      {/* Main Grid: Activity + Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-        {/* Left: Quick Actions + Recent Activity */}
+        {/* Left: Recent Activity */}
         <div className="xl:col-span-2 space-y-6">
-          <div className="bg-card/90 backdrop-blur-xl border border-border/80 rounded-3xl p-6 shadow-lg">
-            <h2 className="text-lg font-black text-foreground uppercase tracking-tight mb-5">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {quickActions.map(({ name, href, icon: Icon, desc }) => (
-                <Link key={name} href={href}
-                  className="group flex items-start gap-4 p-4.5 rounded-2xl border border-border/70 hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98] transition-all shadow-sm hover:shadow-md">
-                  <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-all shadow-md shadow-primary/10">
-                    <Icon className="h-5.5 w-5.5 text-primary group-hover:text-white transition-colors" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{desc}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
 
           <div className="bg-background border border-border rounded-xl p-6 sm:p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-8">

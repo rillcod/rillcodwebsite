@@ -259,38 +259,14 @@ export default function StudentDashboard() {
 
       {/* CTA */}
       <Link href="/dashboard/learning"
-        className="flex flex-col gap-4 p-6 bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group">
-        <div className="px-2.5 py-1 bg-primary text-primary-foreground text-[8px] font-black uppercase tracking-widest w-fit">Learning Center</div>
-        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">View available lessons</h3>
-        <p className="text-[10px] text-muted-foreground font-medium">Enrollment is managed by your school. You can still browse lessons and open Support if you need help.</p>
-        <div className="flex items-center gap-2 text-primary text-[9px] font-black uppercase tracking-widest mt-auto">
+        className="flex flex-col gap-4 p-6 rounded-2xl bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group shadow-sm">
+        <div className="px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest w-fit">Learning Center</div>
+        <h3 className="text-base font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">View available lessons &amp; coursework</h3>
+        <p className="text-xs text-muted-foreground font-medium">Enrollment is managed by your school or administrator. Open the Learning Center to browse available coursework, or use the menu for quick access to your assignments and reports.</p>
+        <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider mt-auto">
           <RocketLaunchIcon className="w-4 h-4" /> Open Learning Center →
         </div>
       </Link>
-
-      {/* Quick Nav — Learning Center is the CTA directly above, so it is not
-          repeated here, and the Student Hub banner that used to follow this
-          grid was the same destination as its own tile. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {[
-          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
-          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/support', icon: ChatBubbleLeftRightIcon, label: 'Support', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
-          ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
-            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-          ] : []),
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
-        ].map(({ href, icon: Icon, label, color }) => (
-          <Link key={href} href={href}
-            className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
-            <Icon className="w-6 h-6" />
-            <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">{label}</span>
-          </Link>
-        ))}
-      </div>
-
     </div>
   );
 
