@@ -628,6 +628,17 @@ export default function DashboardNavigation() {
             href: "/dashboard/lesson-plans",
             icon: ClipboardDocumentListIcon,
           },
+          // A plan is a draft until someone publishes it, and only then can its
+          // class generate anything. That gate had no screen — it was a small
+          // button at the foot of each plan's own page, so approving thirty-two
+          // plans meant thirty-two visits. "Approve AI Drafts" below is a
+          // different gate on a different object (week content, not the plan),
+          // which made this one harder to find rather than easier.
+          {
+            name: "Approve Teaching Plans",
+            href: "/dashboard/lesson-plans/approvals",
+            icon: ClipboardDocumentCheckIcon,
+          },
           // AI-prepared weeks wait here until a teacher reads and releases them.
           // Without a way in, content held back for approval is indistinguishable
           // from content that was never generated.
