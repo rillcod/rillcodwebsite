@@ -7,7 +7,8 @@ import { requireStaffUser } from "@/app/api/lesson-plans/authz";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
-import { r2Delete, r2Upload } from "@/lib/r2/client";
+import { r2Copy, r2Delete, r2Upload } from "@/lib/r2/client";
+import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import {
   normaliseGeneratedSlides,
   renderGeneratedSlideSvg,
@@ -257,6 +258,71 @@ export async function POST(
         /* unreadable payload */
       }
       await db.from("lesson_materials").delete().eq("id", existing.id);
+    }
+
+    // Copy this week's deck from a class that already rendered it.
+    //
+    // Slides are the second AI call of every week — the lesson is copied for
+    // free and then this paid the model again for slides of the very same
+    // lesson. Matched on file_type so it can only ever copy a generated deck,
+    // never a PDF or link a teacher uploaded to their own lesson.
+    //
+    // The storage objects are duplicated rather than shared. Two rows pointing
+    // at one set of keys looks fine until the source class regenerates: that
+    // path deletes the old keys, and every class that copied from it is left
+    // with a healthy-looking row whose slides no longer exist.
+    const slideReuse = await reuseWeekContent({
+      db: db as never,
+      table: "lesson_materials",
+      releaseId: (plan as Record<string, any>).curriculum_release_id ?? null,
+      week,
+      targetPlanId: plan.id,
+      classId: (plan as Record<string, any>).class_id ?? null,
+      match: { file_type: "slide-deck" },
+      scope: {
+        schoolId: (plan as Record<string, any>).school_id ?? null,
+        termId: (plan as Record<string, any>).term_id ?? null,
+        courseId: course?.id ?? null,
+        lessonId: lesson.id,
+        offeringId: (plan as Record<string, any>).academic_offering_id ?? null,
+        periodId: (plan as Record<string, any>).offering_period_id ?? null,
+      },
+      transform: async (source) => {
+        const parsed = JSON.parse(String(source.file_url ?? "{}"));
+        const sourceKeys: string[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
+        if (!sourceKeys.length) throw new Error("source deck has no slides");
+
+        const copied: string[] = [];
+        try {
+          for (const sourceKey of sourceKeys) {
+            copied.push(
+              await r2Copy(
+                sourceKey,
+                `${plan.school_id || "global"}/lesson-slides/${lesson.id}/${randomUUID()}.svg`
+              )
+            );
+          }
+        } catch (error) {
+          // Half a deck is not a deck. Take the orphans back out before giving
+          // up, or every failed copy leaves paid-for storage nothing points at.
+          await Promise.all(copied.map((key) => r2Delete(key).catch(() => {})));
+          throw error;
+        }
+
+        return {
+          file_url: JSON.stringify({
+            ...parsed,
+            slides: copied,
+            ...(session != null ? { session } : {}),
+          }),
+        };
+      },
+    });
+
+    if (slideReuse.copied) {
+      results.push({ id: slideReuse.id, lesson_id: lesson.id });
+      generated += 1;
+      continue;
     }
 
     let aiData: { success: true; data: unknown };

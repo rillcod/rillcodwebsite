@@ -12,6 +12,7 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
   extractLessonPlanOperationWeeks,
@@ -258,6 +259,58 @@ export async function POST(
 
           const dueDate = new Date(termStart);
           dueDate.setDate(dueDate.getDate() + week.week * cadenceDays);
+
+          // Copy this week's assignment from a class that already has it,
+          // rather than paying the AI for the same homework once per class.
+          //
+          // Matched on the generated_from marker, not assignment_type: both
+          // this route and generate-projects write to `assignments`, and
+          // copying a project over homework would leave the week with two
+          // projects and no exercise — the exact failure assignmentTypeFor
+          // above exists to prevent.
+          //
+          // due_date is the copying class's own, because the source class's
+          // term started on a different day.
+          const reuse = await reuseWeekContent({
+            db: supabase as never,
+            table: "assignments",
+            releaseId: (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null,
+            week: week.week,
+            targetPlanId: plan.id,
+            classId: plan.class_id ?? null,
+            match: { "metadata->>generated_from": "progression_assignment_route" },
+            scope: {
+              schoolId: planSchoolId,
+              schoolName: null,
+              termId: assignmentTermId,
+              courseId: planCourseId,
+              createdBy: (isCron ? plan.created_by : staff.id) as string | null,
+              lessonId:
+                lessonsByWeek.get(
+                  weekSessionLookupKey(
+                    Number(week.week),
+                    getPlanWeekSession(week as unknown as Record<string, unknown>)
+                  )
+                )?.id ?? null,
+              offeringId: (plan as any).academic_offering_id ?? null,
+              periodId: (plan as any).offering_period_id ?? null,
+            },
+            overrides: {
+              due_date: dueDate.toISOString(),
+              is_active: assignmentActive,
+            },
+          });
+
+          if (reuse.copied) {
+            generated++;
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Week ${week.week} assignment copied from this curriculum (no AI needed)`,
+            });
+            continue;
+          }
 
           const { yearNumber, effectiveTermNum } = parseWeekTermRefs(
             week,

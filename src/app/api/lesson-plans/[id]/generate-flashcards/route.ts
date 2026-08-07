@@ -7,6 +7,7 @@ import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { parseRequestSession, assetMeetingSession } from "@/lib/academic/session-identity";
 import { geminiGenerateText } from "@/lib/gemini/client";
+import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 
 export const dynamic = "force-dynamic";
 
@@ -201,6 +202,57 @@ export async function POST(
     const sessionLabel =
       session != null && session > 0 ? ` · Session ${session}` : "";
     const title = `Week ${week}${sessionLabel}: ${(weekMeta.topic || "Flashcards").toString()}`;
+
+    // Copy this week's deck from a class that already generated it.
+    //
+    // A deck is nothing without its cards, so they are copied in afterCopy —
+    // and if that fails the deck row is removed rather than left behind. An
+    // empty deck would satisfy the "already exists" checks above and this week
+    // would never be generated again, leaving the class with no recall practice
+    // and no way to notice.
+    const reuse = await reuseWeekContent({
+      db: db as never,
+      table: "flashcard_decks",
+      releaseId: (plan as any).curriculum_release_id ?? null,
+      week,
+      targetPlanId: id,
+      classId: (plan as any).class_id ?? null,
+      scope: {
+        schoolId: (plan as any).school_id ?? null,
+        termId: (plan as any).term_id ?? null,
+        courseId: (plan as any).course_id ?? null,
+        createdBy: deckOwner,
+        lessonId: lesson?.id ?? null,
+        offeringId: (plan as any).academic_offering_id ?? null,
+        periodId: (plan as any).offering_period_id ?? null,
+      },
+      overrides: { title, is_public: isPublic },
+      afterCopy: async (copy, sourceId) => {
+        const { data: sourceCards, error: readError } = await (db as any)
+          .from("flashcard_cards")
+          .select("front,back,tags,difficulty_level,template,position")
+          .eq("deck_id", sourceId)
+          .order("position", { ascending: true });
+        if (readError) throw new Error(readError.message);
+        if (!sourceCards?.length) throw new Error("source deck has no cards");
+
+        const { error: writeError } = await (db as any)
+          .from("flashcard_cards")
+          .insert(
+            sourceCards.map((card: Record<string, unknown>) => ({
+              ...card,
+              deck_id: copy.id,
+            })),
+          );
+        if (writeError) throw new Error(writeError.message);
+      },
+    });
+
+    if (reuse.copied) {
+      results.push({ id: reuse.id, title });
+      generated += 1;
+      continue;
+    }
 
     const { data: deck, error: deckError } = await (db as any)
       .from("flashcard_decks")

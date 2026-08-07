@@ -3,6 +3,7 @@ import {
     PutObjectCommand,
     GetObjectCommand,
     DeleteObjectCommand,
+    CopyObjectCommand,
     HeadObjectCommand,
     PutBucketCorsCommand,
     HeadBucketCommand,
@@ -75,6 +76,32 @@ export async function r2SignedUrl(
 export async function r2Delete(key: string): Promise<void> {
     const client = getR2Client();
     await client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+}
+
+/**
+ * Duplicate an object inside the bucket, server-side.
+ *
+ * Added for slide decks. When one class copies another's generated week, the
+ * slides must become the copying class's own files rather than a second row
+ * pointing at the first class's keys: regenerating slides DELETES the old keys
+ * (see the regenerate path in generate-slides), so a shared key means one
+ * school regenerating silently blanks the slides of every school that copied
+ * from it — with a row that still looks perfectly healthy.
+ *
+ * The bytes never travel through this process; R2 copies them internally.
+ */
+export async function r2Copy(sourceKey: string, targetKey: string): Promise<string> {
+    const client = getR2Client();
+    await client.send(
+        new CopyObjectCommand({
+            Bucket: R2_BUCKET,
+            // CopySource is bucket-qualified and must be URI-encoded — keys
+            // contain slashes and UUIDs, and an unencoded one 404s here.
+            CopySource: `${R2_BUCKET}/${encodeURIComponent(sourceKey)}`,
+            Key: targetKey,
+        })
+    );
+    return targetKey;
 }
 
 const APP_ORIGINS = [

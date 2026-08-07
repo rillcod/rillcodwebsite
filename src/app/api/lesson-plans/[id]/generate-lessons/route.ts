@@ -13,7 +13,7 @@ import {
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { parseRequestSession } from "@/lib/academic/session-identity";
-import { buildCopy, decideReuse } from "@/lib/academic/content-reuse";
+import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
@@ -269,57 +269,39 @@ export async function POST(
           // looks wrong, decideReuse says generate and the AI path below runs
           // unchanged — which is why this cannot half-break.
           const planReleaseId = (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null;
-          if (planReleaseId) {
+          const reuse = await reuseWeekContent({
             // Cast: lessons.curriculum_release_id was added by migration 41 and
             // the generated Supabase types have not been regenerated since, so
             // the column is real but the type does not know it yet.
-            const { data: reuseCandidates } = await (supabase as any)
-              .from("lessons")
-              .select("id, curriculum_release_id, curriculum_week_number, lesson_plan_id, metadata, created_at")
-              .eq("curriculum_release_id", planReleaseId)
-              .eq("curriculum_week_number", week.week)
-              .neq("lesson_plan_id", id)
-              .order("created_at", { ascending: true })
-              .limit(20);
+            db: supabase as never,
+            table: "lessons",
+            releaseId: planReleaseId,
+            week: week.week,
+            targetPlanId: id,
+            classId: (plan as { class_id?: string | null })?.class_id ?? null,
+            // Exactly the identity the AI path below writes, so a copied week
+            // and a generated one are indistinguishable to every other surface.
+            // school_name stays null because the generated path never sets it.
+            scope: {
+              schoolId: planSchoolId,
+              schoolName: null,
+              termId: (plan!.term_id as string | null) ?? null,
+              courseId: planCourseId,
+              createdBy: (isCron ? plan!.created_by : staff.id) as string | null,
+              offeringId: (plan!.academic_offering_id as string | null) ?? null,
+              periodId: (plan!.offering_period_id as string | null) ?? null,
+            },
+          });
 
-            const decision = decideReuse(reuseCandidates as never, {
-              releaseId: planReleaseId,
-              week: week.week,
-              targetPlanId: id,
+          if (reuse.copied) {
+            generated++;
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Week ${week.week} copied from this curriculum (no AI needed)`,
             });
-
-            if (decision.action === "copy") {
-              const { data: sourceRow } = await supabase
-                .from("lessons")
-                .select("*")
-                .eq("id", decision.sourceId)
-                .maybeSingle();
-
-              if (sourceRow) {
-                const { error: copyError } = await supabase
-                  .from("lessons")
-                  .insert(
-                    buildCopy(sourceRow as Record<string, unknown>, {
-                      planId: id,
-                      classId: (plan as { class_id?: string | null })?.class_id ?? null,
-                      sourceId: decision.sourceId,
-                    }) as never
-                  );
-
-                if (!copyError) {
-                  generated++;
-                  emit({
-                    generated,
-                    total,
-                    current: week.week,
-                    status: `Week ${week.week} copied from this curriculum (no AI needed)`,
-                  });
-                  continue;
-                }
-                // A failed copy is not a failed week. Fall through and generate.
-                console.warn("[generate-lessons] copy failed, generating instead", copyError.message);
-              }
-            }
+            continue;
           }
 
           const siblingLessons = allCurriculumTopics.filter(

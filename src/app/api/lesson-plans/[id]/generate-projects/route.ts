@@ -12,6 +12,7 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
   extractLessonPlanOperationWeeks,
@@ -256,6 +257,50 @@ export async function POST(
 
           const dueDate = new Date(termStart);
           dueDate.setDate(dueDate.getDate() + week.week * cadenceDays + 7);
+
+          // Copy this week's project from a class that already has it. Matched
+          // on the project marker so this can only ever copy a project — the
+          // assignments route shares this table and generates homework into it.
+          const reuse = await reuseWeekContent({
+            db: supabase as never,
+            table: "assignments",
+            releaseId: (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null,
+            week: week.week,
+            targetPlanId: plan.id,
+            classId: plan.class_id ?? null,
+            match: { "metadata->>generated_from": "progression_project_route" },
+            scope: {
+              schoolId: planSchoolId,
+              schoolName: null,
+              termId: assignmentTermId,
+              courseId: planCourseId,
+              createdBy: (isCron ? plan.created_by : staff.id) as string | null,
+              lessonId:
+                lessonsByWeek.get(
+                  weekSessionLookupKey(
+                    Number(week.week),
+                    getPlanWeekSession(week as unknown as Record<string, unknown>)
+                  )
+                )?.id ?? null,
+              offeringId: (plan as any).academic_offering_id ?? null,
+              periodId: (plan as any).offering_period_id ?? null,
+            },
+            overrides: {
+              due_date: dueDate.toISOString(),
+              is_active: projectActive,
+            },
+          });
+
+          if (reuse.copied) {
+            generated++;
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Week ${week.week} project copied from this curriculum (no AI needed)`,
+            });
+            continue;
+          }
 
           const { yearNumber, effectiveTermNum } = parseWeekTermRefs(
             week,
