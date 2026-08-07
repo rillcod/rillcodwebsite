@@ -89,7 +89,13 @@ async function handleRequest(req: NextRequest) {
   // least-recently-generated plans and stops before the serverless cap, so
   // successive scheduled runs rotate through every plan without ever timing out.
   // maxDuration=300 above is honoured on Pro; on Hobby the 50s budget guards it.
-  const MAX_PLANS_PER_RUN = Number(process.env.AUTO_GEN_PLANS_PER_RUN) || 3;
+  // Raised from 3 now that a week is mostly copied rather than generated. Three
+  // was sized for five AI calls per plan; the first class on a release still
+  // pays that, but every class after it copies, which is inserts and a storage
+  // duplication. The cap was never the real guard — DEADLINE below is, and it
+  // stops the loop mid-batch whatever this says. A cap sized for the slow path
+  // simply left the fast path idling for fifty seconds.
+  const MAX_PLANS_PER_RUN = Number(process.env.AUTO_GEN_PLANS_PER_RUN) || 12;
   const DEADLINE = Date.now() + 50_000; // ~10s headroom under the 60s Hobby cap
   const lastRunAt = (p: any): number => {
     const t = (p.metadata?.auto_generate_settings as AutoGenSettings & { last_run_at?: string })?.last_run_at;
