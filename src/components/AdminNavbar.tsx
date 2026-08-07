@@ -123,7 +123,9 @@ export default function AdminNavbar() {
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-card">
+        {/* Scrolls: a full-height drawer with more nav items than a short phone
+            can show would otherwise put the last few out of reach entirely. */}
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col overflow-y-auto overscroll-contain bg-card">
           <div className="flex h-16 items-center justify-between px-4 border-b border-border">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 flex items-center justify-center rounded-lg overflow-hidden dark:bg-white shrink-0">

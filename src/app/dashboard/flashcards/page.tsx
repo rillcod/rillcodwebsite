@@ -416,7 +416,7 @@ export default function FlashcardsPage() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-6"
+                className="bg-card border border-border rounded-xl w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain p-6 space-y-6"
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-foreground">Create New Deck</h2>

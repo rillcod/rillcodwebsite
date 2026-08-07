@@ -41,6 +41,31 @@ const eslintConfig = [
       "react-hooks/exhaustive-deps": "warn",
       "@next/next/no-img-element": "warn",
 
+      /**
+       * Hand-rolled modals.
+       *
+       * components/ui/Modal.tsx already handles role="dialog", aria-modal,
+       * Escape, a max height in dvh and safe-area padding — and nothing
+       * imported it, while 103 files wrote their own `fixed inset-0` overlay.
+       * Of those, 95 announced no dialog role, 74 ignored the Escape key, and
+       * two dozen gave the panel no height limit, so on a phone anything taller
+       * than the screen ran off the bottom with the submit button.
+       *
+       * Warn, not error, because the existing ones are still there: this is to
+       * stop the next one being written, not to block work on the old ones.
+       * Decorative full-bleed layers are unaffected — the pattern only matches
+       * an overlay that centres a panel, which is what a dialog does.
+       */
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector:
+            "JSXAttribute[name.name='className'] Literal[value=/fixed inset-0[^\"]*items-center[^\"]*justify-center/]",
+          message:
+            "This looks like a hand-rolled modal. Use <Modal> from '@/components/ui/Modal' — it gives you role=dialog, Escape to close, and a panel that scrolls instead of running off the bottom of a phone.",
+        },
+      ],
+
       // Real bugs — keep as errors
       "prefer-const": "error",
       "react-hooks/rules-of-hooks": "error",
