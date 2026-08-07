@@ -38,6 +38,7 @@ type ClassDetail = {
   school_name: string | null;
   content?: ContentAccountability;
   true_students: number;
+  withdrawn?: number;
   reports_total: number;
   published: number;
   drafts: number;
@@ -56,6 +57,7 @@ export type TeacherWorkloadCard = {
   school_name: string | null;
   class_count: number;
   true_students: number;
+  withdrawn?: number;
   reports_total: number;
   published: number;
   drafts: number;
@@ -224,6 +226,13 @@ function TeacherCard({
           <div className="rounded-xl bg-sky-500/5 border border-sky-500/20 px-3 py-2">
             <div className={LABEL}>True students</div>
             <div className="text-xl font-black tabular-nums text-sky-600 dark:text-sky-400 mt-0.5">{teacher.true_students}</div>
+            {/* Shown, not dropped: otherwise a teacher's percentage improves as
+                learners leave, which is the opposite of accountability. */}
+            {(teacher.withdrawn ?? 0) > 0 && (
+              <div className="text-[10px] font-bold text-orange-600 dark:text-orange-400 mt-0.5">
+                +{teacher.withdrawn} withdrawn
+              </div>
+            )}
           </div>
           <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 px-3 py-2">
             <div className={LABEL}>Published</div>

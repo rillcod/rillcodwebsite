@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { buildEngagementSnapshot, levelFor } from '@/lib/engagement/snapshot';
 
 async function getUser() {
   const supabase = await createClient();
@@ -52,15 +53,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: page, nextCursor });
   }
 
+  // A learner may see their own full picture; staff may see anyone's. Without
+  // this a pupil could read another pupil's skills and history by changing
+  // user_id in the URL, since this route reads with the service role.
+  const isStaff = ['admin', 'teacher', 'school'].includes(String(user.role));
+  if (userId !== user.id && !isStaff) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   // Individual user points + transaction history
-  const [pointsRes, txRes] = await Promise.all([
-    db.from('user_points').select('*').eq('portal_user_id', userId).single(),
+  const [pointsRes, txRes, snapshot] = await Promise.all([
+    db.from('user_points').select('*').eq('portal_user_id', userId).maybeSingle(),
     db.from('point_transactions').select('*').eq('portal_user_id', userId).order('created_at', { ascending: false }).limit(20),
+    buildEngagementSnapshot(db as any, userId),
   ]);
 
   return NextResponse.json({
     points: pointsRes.data,
     transactions: txRes.data ?? [],
+    // Level, next step, skills and milestones — all from lib/engagement, so this
+    // route never decides any of it for itself.
+    engagement: snapshot,
   });
 }
 
@@ -85,7 +98,10 @@ export async function POST(request: Request) {
   const { data: current } = await db.from('user_points').select('total_points').eq('portal_user_id', portal_user_id).single();
   const newTotal = (current?.total_points ?? 0) + points;
 
-  const achievement_level = newTotal >= 5000 ? 'Platinum' : newTotal >= 2000 ? 'Gold' : newTotal >= 500 ? 'Silver' : 'Bronze';
+  // This was a fourth hand-rolled copy of the thresholds, still on the old
+  // 500/2000/5000, so an admin award set a different level than the service
+  // would have for the same total.
+  const achievement_level = levelFor(newTotal);
 
   await db.from('user_points').upsert({
     portal_user_id,

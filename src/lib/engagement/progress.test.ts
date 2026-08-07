@@ -47,6 +47,15 @@ describe('the ladder is reachable', () => {
     expect(silver.at).toBeLessThanOrEqual(POINTS.quiz_pass * 2);
   });
 
+  it('carries the school titles on the one ladder, not a rival one', () => {
+    // The dashboard kept these names in a second table with its own thresholds,
+    // so one screen showed two level names and two bars for the same work.
+    expect(LEVELS.map((l) => l.title)).toEqual([
+      'Nehemiah Builder', 'Gideon Scout', 'Joshua Commander', 'Solomon Sage',
+    ]);
+    for (const level of LEVELS) expect(level.icon).toBeTruthy();
+  });
+
   it('rises and never repeats a threshold', () => {
     for (let i = 1; i < LEVELS.length; i++) {
       expect(LEVELS[i].at).toBeGreaterThan(LEVELS[i - 1].at);
@@ -94,19 +103,21 @@ describe('progress tells you where you stand', () => {
 });
 
 describe('next step is an instruction, not a number', () => {
+  // Targets are named with the school's own titles, not the stored tier, so the
+  // learner reads one vocabulary rather than two.
   it('names one quiz when one quiz would do it', () => {
-    expect(nextStep(60)).toBe('Pass one quiz to reach Silver.');
+    expect(nextStep(60)).toBe('Pass one quiz to become Gideon Scout.');
   });
 
   it('names lessons when the gap is small', () => {
-    expect(nextStep(80)).toMatch(/Finish 2 more lessons to reach Silver\./);
+    expect(nextStep(80)).toMatch(/Finish 2 more lessons to become Gideon Scout\./);
   });
 
   it('offers both routes when the gap is wide', () => {
     const step = nextStep(150);
     expect(step).toContain('quizzes');
     expect(step).toContain('lessons');
-    expect(step).toContain('Gold');
+    expect(step).toContain('Joshua Commander');
   });
 
   it('says something sensible at the top instead of a dead end', () => {

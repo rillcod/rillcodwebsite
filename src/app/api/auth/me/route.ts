@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSafeAutoProfileRole } from './role-utils';
 import { canActivatePortalUser } from '@/lib/portal/structure';
+import { logActivity, shouldRecordSession } from '@/lib/activity/log';
 
 function adminClient() {
   return createClient(
@@ -35,7 +36,7 @@ async function stampLastLogin(
 
 // GET /api/auth/me — returns the portal_users profile for the current session.
 // Uses service role to bypass RLS so this always works regardless of policies.
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -107,6 +108,19 @@ export async function GET() {
     // treated every user as never having signed in. This GET runs on every session load, so
     // throttle it to one write per hour per user instead of writing on every page view.
     void stampLastLogin(admin, user.id, data.last_login ?? null);
+
+    // Activity belongs in activity_logs, not the CRM. This runs on every session
+    // load and is throttled on the same rule as the last_login stamp, so it
+    // measures attendance rather than clicking.
+    if (shouldRecordSession(data.last_login ?? null)) {
+      void logActivity(admin as never, {
+        userId: user.id,
+        event: 'session_started',
+        schoolId: (data as { school_id?: string | null }).school_id ?? null,
+        metadata: { role: data.role ?? null },
+        userAgent: request.headers.get('user-agent'),
+      });
+    }
 
     return NextResponse.json({
       profile: {

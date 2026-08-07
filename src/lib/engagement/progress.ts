@@ -52,7 +52,19 @@ export const DISCUSSION_DAILY_CAP = 3;
 export type LevelName = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
 export type Level = {
+  /** Stored value. The database constrains this column to these four. */
   name: LevelName;
+  /**
+   * What the learner is called on screen.
+   *
+   * The dashboard had a second ladder — Nehemiah Builder, Gideon Scout, Joshua
+   * Commander, Solomon Sage — kept in its own table with its own thresholds, so
+   * one screen showed two level names and two progress bars for the same work.
+   * The names are the school's own and worth keeping; the second engine is not.
+   * They are titles on this ladder now, not a rival one.
+   */
+  title: string;
+  icon: string;
   at: number;
   /** What reaching it says about the learner, in their own terms. */
   meaning: string;
@@ -67,11 +79,16 @@ export type Level = {
  * real work (two quizzes, or a quiz with a few lessons), then widens.
  */
 export const LEVELS: readonly Level[] = [
-  { name: 'Bronze', at: 0, meaning: 'Getting started' },
-  { name: 'Silver', at: 100, meaning: 'Finding your feet' },
-  { name: 'Gold', at: 400, meaning: 'Working steadily' },
-  { name: 'Platinum', at: 1200, meaning: 'Going well beyond the set work' },
+  { name: 'Bronze', title: 'Nehemiah Builder', icon: '🧱', at: 0, meaning: 'Getting started' },
+  { name: 'Silver', title: 'Gideon Scout', icon: '🏹', at: 100, meaning: 'Finding your feet' },
+  { name: 'Gold', title: 'Joshua Commander', icon: '🛡️', at: 400, meaning: 'Working steadily' },
+  { name: 'Platinum', title: 'Solomon Sage', icon: '👑', at: 1200, meaning: 'Going well beyond the set work' },
 ] as const;
+
+export function levelDetail(points: number): Level {
+  const name = levelFor(points);
+  return LEVELS.find((l) => l.name === name) ?? LEVELS[0];
+}
 
 export function levelFor(points: number): LevelName {
   const safe = Number.isFinite(points) ? Math.max(0, points) : 0;
@@ -83,9 +100,13 @@ export function levelFor(points: number): LevelName {
 export type Progress = {
   points: number;
   level: LevelName;
+  /** The school's own name for this level — what the learner is shown. */
+  levelTitle: string;
+  levelIcon: string;
   levelMeaning: string;
   /** Null at the top of the ladder. */
   nextLevel: LevelName | null;
+  nextLevelTitle: string | null;
   pointsToNextLevel: number;
   /** 0-100 through the current band; 100 when there is nothing above. */
   percentToNextLevel: number;
@@ -97,12 +118,19 @@ export function progressFor(points: number): Progress {
   const current = LEVELS[index];
   const next = LEVELS[index + 1] ?? null;
 
+  const base = {
+    points: safe,
+    level: current.name,
+    levelTitle: current.title,
+    levelIcon: current.icon,
+    levelMeaning: current.meaning,
+  };
+
   if (!next) {
     return {
-      points: safe,
-      level: current.name,
-      levelMeaning: current.meaning,
+      ...base,
       nextLevel: null,
+      nextLevelTitle: null,
       pointsToNextLevel: 0,
       percentToNextLevel: 100,
     };
@@ -111,10 +139,9 @@ export function progressFor(points: number): Progress {
   const span = next.at - current.at;
   const gained = safe - current.at;
   return {
-    points: safe,
-    level: current.name,
-    levelMeaning: current.meaning,
+    ...base,
     nextLevel: next.name,
+    nextLevelTitle: next.title,
     pointsToNextLevel: next.at - safe,
     percentToNextLevel: Math.max(0, Math.min(100, Math.round((gained / span) * 100))),
   };
@@ -139,9 +166,10 @@ export function nextStep(points: number): string {
   // Smallest honest action first. A couple of lessons is better advice than
   // "pass a quiz" when the gap is 20 points, even though one quiz would also
   // clear it — the point is to name something the learner can finish today.
-  if (lessons <= 3) return `Finish ${lessons} more lesson${lessons === 1 ? '' : 's'} to reach ${progress.nextLevel}.`;
-  if (quizzes === 1) return `Pass one quiz to reach ${progress.nextLevel}.`;
-  return `Pass ${quizzes} quizzes — or finish ${lessons} lessons — to reach ${progress.nextLevel}.`;
+  const target = progress.nextLevelTitle ?? progress.nextLevel;
+  if (lessons <= 3) return `Finish ${lessons} more lesson${lessons === 1 ? '' : 's'} to become ${target}.`;
+  if (quizzes === 1) return `Pass one quiz to become ${target}.`;
+  return `Pass ${quizzes} quizzes — or finish ${lessons} lessons — to become ${target}.`;
 }
 
 /**

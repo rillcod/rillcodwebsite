@@ -19,6 +19,7 @@ import {
   CommandLineIcon
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import MyProgressPanel from '@/components/engagement/MyProgressPanel';
 
 const GREETINGS = ['Welcome back', 'Ready to learn?', 'Let\'s continue', 'Great to see you'];
 const KID_GREETINGS = ['Hey there!', 'Ready to learn?', 'Let\'s have fun!', 'Time to explore!'];
@@ -580,42 +581,19 @@ export default function StudentLearningPage() {
           </div>
         </div>
 
-        {/* ── XP Progress ── */}
-        <div className="bg-card border border-border p-5 flex flex-col sm:flex-row items-center gap-5">
-          <div className="flex items-center gap-4 shrink-0">
-            <div className={`w-14 h-14 border-2 ${currentLevelConfig.bar.replace('bg-', 'border-')} flex items-center justify-center text-2xl rounded-xl`}>
-              {currentLevelConfig.name === 'Nehemiah Builder' ? '🧱' : currentLevelConfig.name === 'Gideon Scout' ? '🏹' : currentLevelConfig.name === 'Joshua Commander' ? '🛡️' : '👑'}
-            </div>
-            <div>
-              <p className={`text-sm font-black uppercase ${currentLevelConfig.color}`}>{currentLevelConfig.name}</p>
-              <p className="text-xs text-muted-foreground font-bold">Level {stats.level} · {stats.xp.toLocaleString()} XP</p>
-            </div>
-          </div>
-          <div className="flex-1 w-full space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
-              <span>{stats.xp.toLocaleString()} XP earned</span>
-              {nextLevelConfig && <span>{nextLevelConfig.min.toLocaleString()} XP for {nextLevelConfig.name}</span>}
-            </div>
-            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
-              <motion.div
-                className={`h-full ${currentLevelConfig.bar} rounded-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${xpProgress}%` }}
-                transition={{ duration: 1.2, ease: 'circOut' }}
-              />
-            </div>
-          </div>
-          {badges.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0 border-l border-border pl-5">
-              {badges.slice(0, 4).map((badge: any) => (
-                <div key={badge.id} title={badge.badge_label}
-                  className="w-10 h-10 bg-muted border border-border flex items-center justify-center text-xl hover:scale-110 transition-transform cursor-help">
-                  {badge.badge_icon || '🏅'}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* The XP bar that stood here was a second progress system: its own
+            table (student_xp_summary), its own thresholds (0/500/2000/5000) and
+            its own level names, sitting beside the points ladder. A learner saw
+            two bars and two titles for the same work and could not tell which
+            one counted. One ladder now carries the school's names, and
+            MyProgressPanel below is the only place progress is shown. */}
+
+        {/* ── What to do next, skills evidenced, milestones ──
+            Leads with the next step rather than a points total: a number tells a
+            beginner nothing they can act on, and with the old ladder it did not
+            move for a term. Skills come from marked work, so this is also the
+            first place a learner sees what they can actually do. */}
+        <MyProgressPanel />
 
         {/* ── Dashboard Workspaces: the student's own learning views ── */}
         <div className="bg-card/40 backdrop-blur-md border border-border/80 rounded-[24px] p-2 flex flex-col md:flex-row gap-2 items-center justify-between">

@@ -48,6 +48,8 @@ export type TeacherClassDetail = {
   school_name: string | null;
   content: ContentAccountability;
   true_students: number;
+  /** Learners the roster marks as gone this term — shown, never quietly dropped. */
+  withdrawn: number;
   reports_total: number;
   published: number;
   drafts: number;
@@ -73,6 +75,8 @@ export type TeacherWorkloadCard = {
   school_name: string | null;
   class_count: number;
   true_students: number;
+  /** Learners who left this term, counted so a teacher cannot improve by attrition. */
+  withdrawn: number;
   reports_total: number;
   published: number;
   drafts: number;
@@ -181,18 +185,57 @@ export async function GET() {
     }
   }
 
-  // Active-term roster for those classes
+  // Who is actually in each class.
+  //
+  // This read class_term_rosters alone, which covers 262 of 895 active learners
+  // — 633 have no roster row at all. Every figure the workspace showed was
+  // therefore drawn from under a third of the school, while presenting itself
+  // as the whole picture: a teacher with forty learners and no roster rows read
+  // as having none, and their completion percentage was computed against zero.
+  //
+  // portal_users.class_id is the complete record — every active student has one.
+  // The roster is kept as an overlay for the one thing it does better: marking
+  // someone withdrawn or removed for a term, which class_id cannot express.
   let rosterRows: Array<{ class_id: string; student_id: string; status: string | null }> = [];
+  const withdrawnByClass = new Map<string, number>();
   if (classIds.length > 0) {
-    let q = db
-      .from('class_term_rosters')
-      .select('class_id, student_id, status')
-      .in('class_id', classIds);
-    if (term?.id) q = q.or(`term_id.eq.${term.id},term_id.is.null`);
-    const { data } = await q;
-    rosterRows = (data ?? []).filter(
-      (r) => !['removed', 'ended', 'withdrawn'].includes(String(r.status || 'active').toLowerCase()),
-    );
+    const membership = new Map<string, string>();
+    for (let i = 0; i < classIds.length; i += 100) {
+      const chunk = classIds.slice(i, i + 100);
+      const { data } = await db
+        .from('portal_users')
+        .select('id, class_id')
+        .eq('role', 'student')
+        .eq('is_deleted', false)
+        .in('class_id', chunk);
+      for (const row of data ?? []) {
+        if (row.class_id) membership.set(row.id, row.class_id);
+      }
+    }
+
+    // Anyone the roster marks as gone for this term drops out, whichever class
+    // their profile still points at.
+    const departed = new Set<string>();
+    let rq = db.from('class_term_rosters').select('student_id, status').in('class_id', classIds);
+    if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
+    const { data: rosterStatuses } = await rq;
+    for (const r of rosterStatuses ?? []) {
+      if (['removed', 'ended', 'withdrawn'].includes(String(r.status || 'active').toLowerCase())) {
+        departed.add(r.student_id);
+      }
+    }
+
+    // Withdrawn learners are counted separately rather than dropped. Removing
+    // them silently means a class that lost half its learners reads as fully
+    // reported, and a teacher's percentage improves as people leave — the
+    // opposite of accountability.
+    for (const [studentId, classId] of membership.entries()) {
+      withdrawnByClass.set(classId, (withdrawnByClass.get(classId) ?? 0) + (departed.has(studentId) ? 1 : 0));
+    }
+
+    rosterRows = [...membership.entries()]
+      .filter(([studentId]) => !departed.has(studentId))
+      .map(([studentId, classId]) => ({ class_id: classId, student_id: studentId, status: 'active' }));
   }
 
   const studentIds = [...new Set(rosterRows.map((r) => r.student_id))];
@@ -357,6 +400,7 @@ export async function GET() {
           prepared_but_invisible: audit.preparedButInvisible,
           verdict: contentVerdict(audit),
         },
+        withdrawn: withdrawnByClass.get(klass.id) ?? 0,
         true_students,
         reports_total,
         published,
@@ -370,6 +414,7 @@ export async function GET() {
     }).sort((a, b) => a.class_name.localeCompare(b.class_name));
 
     const true_students = classDetails.reduce((s, c) => s + c.true_students, 0);
+    const withdrawn = classDetails.reduce((s, c) => s + c.withdrawn, 0);
     const published = classDetails.reduce((s, c) => s + c.published, 0);
     const drafts = classDetails.reduce((s, c) => s + c.drafts, 0);
     const missing = classDetails.reduce((s, c) => s + c.missing, 0);
@@ -403,6 +448,7 @@ export async function GET() {
       school_name: teacher.school_name || (teacher.school_id ? schoolNameById.get(teacher.school_id) || null : null),
       class_count: classDetails.length,
       true_students,
+      withdrawn,
       reports_total,
       published,
       drafts,
@@ -452,6 +498,7 @@ export async function GET() {
     // nothing — or prepares everything and releases none of it — is visible
     // without opening each card.
     classes_total: allClassDetails.length,
+    withdrawn_total: allClassDetails.reduce((s, c) => s + c.withdrawn, 0),
     classes_without_content: allClassDetails.filter((c) => c.content.prepared === 0).length,
     classes_withholding_content: allClassDetails.filter((c) => c.content.prepared_but_invisible).length,
     classes_fully_released: allClassDetails.filter((c) => c.content.released === 5).length,
