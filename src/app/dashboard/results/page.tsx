@@ -1527,6 +1527,24 @@ tbody tr:hover{background:#f3f4f6}
                         )}
                     </div>
 
+                    {/* Writing reports is the other half of this job, and it lives on
+                        another page. The only way through was a text-xs chip inside a
+                        horizontally scrolling row, which additionally did not render
+                        until a teacher had confirmed a period — so the first thing
+                        someone came here to do was the hardest thing to find. It is a
+                        primary action now, and it does not wait on the period picker:
+                        choosing what to write is part of the builder, not a
+                        precondition for opening it. */}
+                    {isEditor && (
+                        <Link
+                            href="/dashboard/reports/builder"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground shadow-sm transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        >
+                            <PencilSquareIcon className="h-4 w-4" />
+                            <span>{stats.draft > 0 ? `Write reports · ${stats.draft} draft${stats.draft === 1 ? '' : 's'}` : 'Write report cards'}</span>
+                        </Link>
+                    )}
+
                     {isStaff && (
                         <div className="w-full rounded-xl border border-border bg-card p-2.5 sm:w-auto sm:min-w-[280px]">
                             <div className="mb-1.5 flex items-center gap-1.5">
@@ -1576,15 +1594,9 @@ tbody tr:hover{background:#f3f4f6}
 
                     {(!isStaff || staffPeriodReady) && (
                     <div className="flex w-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:w-auto sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {isEditor && (
-                            <Link
-                                href="/dashboard/reports/builder"
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/15 px-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/25"
-                            >
-                                <PencilSquareIcon className="h-3.5 w-3.5" />
-                                <span className="whitespace-nowrap">Create / Edit</span>
-                            </Link>
-                        )}
+                        {/* "Create / Edit" stood here as one chip among many in a
+                            scrolling row. It is the header's primary action now, so
+                            repeating it only adds another thing to read past. */}
                         {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                             <button
                                 onClick={handleBulkPublish}
@@ -1726,6 +1738,22 @@ tbody tr:hover{background:#f3f4f6}
                             </div>
 
                             <div className="space-y-2">
+                              {/* Nine dropdowns — school, class, grade, status, parent
+                                  email, teacher, date basis, sort and direction — all
+                                  sat open above the student list. Most of the time a
+                                  teacher wants the list, not the controls, so they fold
+                                  away and announce themselves when any is in use. */}
+                              <details className="group rounded-xl border border-border bg-card/40" open={anyFilterActive}>
+                                <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
+                                  <span className="flex items-center gap-2">
+                                    Filters &amp; sorting
+                                    {anyFilterActive && (
+                                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">on</span>
+                                    )}
+                                  </span>
+                                  <span className="text-[10px] opacity-60 transition-transform group-open:rotate-180">▼</span>
+                                </summary>
+                                <div className="space-y-2 px-3 pb-3">
                                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                     <select
                                         value={filterSchool}
@@ -1823,6 +1851,10 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
                                     </div>
                                 )}
+                                </div>
+                              </details>
+                                {/* Kept outside the fold: this is the answer to what the
+                                    filters did, and is useless hidden behind them. */}
                                 {anyFilterActive && (
                                     <p className="px-1 text-[11px] text-muted-foreground">
                                         {filtered.length} of {students.length} students match

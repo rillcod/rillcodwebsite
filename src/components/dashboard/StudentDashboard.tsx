@@ -368,19 +368,12 @@ export default function StudentDashboard() {
               </p>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-border/60">
-              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3.5 bg-background/60 border border-border/70 hover:border-primary/40 rounded-2xl transition-all shadow-sm">
-                <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
-                <ArrowRightIcon className="w-3.5 h-3.5 text-primary" />
-              </Link>
-              <Link href="/dashboard/assignments" className="flex items-center justify-between p-3.5 bg-background/60 border border-border/70 hover:border-rose-500/40 rounded-2xl transition-all shadow-sm">
-                <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
-                <div className="flex items-center gap-2">
-                  {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
-                  <ArrowRightIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                </div>
-              </Link>
-            </div>
+            {/* Two tiles stood here — Path Progress and Assignments — both already
+                Quick Actions on this same page. The Assignments tile carried only a
+                dot to say something was pending, while the Overdue and Due Soon
+                sections below name the actual work and how late it is. A learner
+                reading top to bottom met assignments three times before reaching
+                the one place that said what was due. */}
           </div>
         </div>
       </div>

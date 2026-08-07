@@ -7,7 +7,7 @@ import {
   ClockIcon, ExclamationTriangleIcon, BuildingOfficeIcon,
   AcademicCapIcon, ChartBarIcon, CogIcon, UserPlusIcon,
   UserGroupIcon, ClipboardDocumentListIcon, BookOpenIcon,
-  RocketLaunchIcon, TrophyIcon, BanknotesIcon, ShieldCheckIcon
+  RocketLaunchIcon, TrophyIcon, BanknotesIcon, ShieldCheckIcon, DocumentChartBarIcon
 } from '@/lib/icons';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -32,10 +32,13 @@ const QUICK_ACTIONS = {
     { name: 'Platform Operations', href: '/dashboard/platform-operations', icon: CogIcon, desc: 'LMS, AI, system activity and health' },
     { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon, desc: 'Support cases & customer directory' },
   ],
+  // Register Students and Grading Center were dropped from here: the teacher
+  // dashboard already gives each a richer surface — three explained registration
+  // methods, and grading cards carrying the actual outstanding counts. Repeating
+  // them as bare tiles added a second, worse copy of both.
   teacher: [
-    { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade submitted work & exams' },
+    { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon, desc: 'Write, publish and share report cards' },
     { name: 'Classes & Rosters', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your teaching classes' },
   ],
   student: [

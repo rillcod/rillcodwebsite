@@ -84,7 +84,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                   : 'All Clear ✓'}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Link href="/dashboard/grading"
                 className={`group flex items-center gap-4 p-5 border rounded-xl transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedAssignments > 0
                     ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
@@ -117,15 +117,10 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
-              <Link href="/dashboard/classes"
-                className="group flex items-center gap-4 p-5 bg-primary/5 border border-primary/20 hover:border-primary/40 rounded-xl transition-all hover:scale-[1.01]">
-                <div className="w-12 h-12 bg-primary/20 flex items-center justify-center text-2xl rounded-xl">✨</div>
-                <div>
-                  <p className="text-sm font-black text-primary uppercase tracking-tight">Open Classes</p>
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Plan &amp; teach</p>
-                </div>
-                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
-              </Link>
+              {/* "Open Classes" sat here as a third card carrying no number, next
+                  to two that do. Classes is already in the sidebar and in Quick
+                  Actions, so this was a third door to the same room inside a
+                  section about what still needs marking. */}
             </div>
           </div>
         </div>
@@ -300,25 +295,14 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             </div>
           </div>
 
-          {/* Navigate To */}
-          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
-            <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
-            <div className="space-y-1">
-              {[
-                { label: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
-                { label: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
-                { label: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-                { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
-              ].map(({ label, href, icon: Icon }) => (
-                <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
-                  {label}
-                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
-                </Link>
-              ))}
-            </div>
-          </div>
+          {/* A "Navigate To" list stood here with Progress Reports, My Classes,
+              Grading Center and Profile — a fourth menu on a page that already
+              has the sidebar, the mobile tab bar and Quick Actions. Every one of
+              its four links existed elsewhere on this same screen: Profile two
+              rows above it, Grading on the cards with the counts, Classes in the
+              sidebar. Progress Reports was the only one without another home on
+              this page, so it moved into Quick Actions rather than justifying a
+              menu of its own. */}
         </div>
       </div>
     </div>
