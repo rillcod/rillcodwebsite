@@ -9,7 +9,7 @@ export default function MaintenanceBanner({ visible }: { visible: boolean }) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
-      <div className="max-w-md text-center px-6">
+      <div className="max-w-md text-center px-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
           <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

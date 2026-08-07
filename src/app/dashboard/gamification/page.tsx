@@ -309,7 +309,7 @@ export default function GamificationPage() {
       {/* Badge Form Modal */}
       {showForm && isAdmin && (
         <div className="mobile-native-dialog fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-lg shadow-2xl">
+          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-lg shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground text-lg">{editBadge ? 'Edit Badge' : 'Create Badge'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><XMarkIcon className="w-5 h-5 text-card-foreground/50" /></button>
@@ -353,7 +353,7 @@ export default function GamificationPage() {
       {/* Award Modal */}
       {showAward && (
         <div className="mobile-native-dialog fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground">Award Badge</h3>
               <button onClick={() => setShowAward(null)} className="p-1.5 hover:bg-white/5 rounded-lg"><XMarkIcon className="w-5 h-5 text-card-foreground/50" /></button>

@@ -80,7 +80,7 @@ export default function AIGenerationPanel({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-card border border-border w-full max-w-lg overflow-hidden shadow-2xl rounded-xl"
+        className="bg-card border border-border w-full max-w-lg flex max-h-[85dvh] flex-col overflow-hidden shadow-2xl rounded-xl"
       >
         {/* Header */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
@@ -101,7 +101,9 @@ export default function AIGenerationPanel({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        {/* Scrolls within the panel so the header stays put and, on a phone, the
+            Generate button below stays reachable instead of being pushed off. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-6">
           {/* Form */}
           <div className="space-y-4">
             <div>
@@ -164,7 +166,7 @@ export default function AIGenerationPanel({
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-muted/30 border-t border-border flex gap-3">
+        <div className="shrink-0 p-6 bg-muted/30 border-t border-border flex gap-3">
           <button 
             onClick={onClose}
             className="flex-1 py-3 bg-background border border-border text-muted-foreground font-bold rounded-xl hover:bg-muted transition-colors text-sm uppercase tracking-widest"

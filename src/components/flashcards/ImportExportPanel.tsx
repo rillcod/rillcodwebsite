@@ -102,7 +102,7 @@ export default function ImportExportPanel({
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-background border border-border rounded-lg w-full max-w-2xl p-6 space-y-6"
+        className="bg-background border border-border rounded-lg w-full max-w-2xl max-h-[85dvh] overflow-y-auto overscroll-contain p-6 space-y-6"
       >
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold">Import / Export Cards</h3>

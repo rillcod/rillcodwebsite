@@ -150,7 +150,7 @@ export default function StudyGroupsPage() {
         {/* Create modal */}
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="bg-card border border-border rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+            <div className="bg-card border border-border rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">

@@ -573,10 +573,6 @@ export function ClassTeachingWorkspace({
             </button>
           )}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Curriculum weeks, AI generate, and mark-as-taught all live in this
-          Teaching tab.
-        </p>
       </div>
       {data && !data.courses?.length && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
