@@ -73,17 +73,16 @@ describe('the row that gets written', () => {
 
   it('matches the shape of the plans that already generate', () => {
     const row = buildPlanRow(good)!;
-    expect(row.status).toBe('published');
     expect(row.version).toBe(2);
     expect(row.sessions_per_week).toBe(1);
     expect(row.curriculum_release_id).toBe('release-1');
   });
 
-  it('is published, not draft', () => {
-    // The generate routes reject a draft with "publish it and the whole week
-    // will generate". Building a draft would swap one blocking message for
-    // another, from a curriculum that was already published.
-    expect(buildPlanRow(good)!.status).toBe('published');
+  it('is draft, so the approval gate still applies', () => {
+    // Plans move draft → published → archived and Teaching Approvals exists for
+    // a person to make that call. Auto-publishing would push unreviewed
+    // curriculum to teachers and remove the one place the Academic Office looks.
+    expect(buildPlanRow(good)!.status).toBe('draft');
   });
 
   it('refuses to write a row that could never generate', () => {

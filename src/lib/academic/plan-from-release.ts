@@ -111,7 +111,7 @@ export type PlanRow = {
   term_id: string | null;
   curriculum_release_id: string;
   plan_data: PlanData;
-  status: 'published';
+  status: 'draft';
   version: number;
   sessions_per_week: number;
 };
@@ -119,10 +119,18 @@ export type PlanRow = {
 /**
  * The row to insert, shaped like the plans that already work.
  *
- * Published rather than draft on purpose: the generate routes refuse a draft
- * with "publish it and the whole week will generate", and a plan built from an
- * already-published curriculum release has nothing left to approve. Leaving it
- * draft would swap one blocking message for another.
+ * Draft, deliberately.
+ *
+ * This wrote `published` at first, reasoning that a plan derived from an
+ * already-published release has nothing left to approve. That was wrong: plans
+ * move draft → published → archived, and the Teaching Approvals workspace
+ * exists for a person to make that call. Auto-publishing would have pushed
+ * unreviewed curriculum straight to teachers and quietly removed the one place
+ * the Academic Office gets to look. The database RPC that provisions these,
+ * ensure_class_teaching_plan, also creates drafts — this now agrees with it.
+ *
+ * A class with a draft plan is not stuck. It is waiting on a decision, and the
+ * generate route says so: publish it and the whole week generates.
  *
  * Returns null when a binding is missing — the routes check for a course and a
  * school, so writing a row without them creates something that looks ready and
@@ -147,7 +155,7 @@ export function buildPlanRow(input: {
     term_id: input.termId ?? null,
     curriculum_release_id: input.releaseId,
     plan_data: input.planData,
-    status: 'published',
+    status: 'draft',
     version: 2,
     sessions_per_week: input.sessionsPerWeek && input.sessionsPerWeek > 0 ? input.sessionsPerWeek : 1,
   };
