@@ -194,6 +194,36 @@ const CANDIDATE_COLUMNS =
   'id, curriculum_release_id, curriculum_week_number, lesson_plan_id, metadata, created_at';
 
 /**
+ * Tables where one master body is mirrored to every class that adopted it.
+ *
+ * lessons and assignments hold their whole body in their own row, so a
+ * correction to the master can be pushed down by the triggers in
+ * 20260929000044.
+ *
+ * flashcard_decks and lesson_materials deliberately do not. A deck's content is
+ * its child cards, and a slide deck's content is storage objects each class now
+ * owns its own copies of — propagating either means rewriting rows and files
+ * this table cannot see, which is a different and much larger change than
+ * updating a column. They stay independent copies, and that is a real limit,
+ * not an oversight.
+ */
+const MIRRORED_TABLES: ReuseTable[] = ['lessons', 'assignments'];
+
+/**
+ * The master a new mirror should point at.
+ *
+ * Points at the source's own master when the source is itself a mirror, so
+ * chains flatten to one generation. decideReuse prefers the oldest source and
+ * so rarely builds them, but a chain would mean a correction reaching the first
+ * copy and stopping there.
+ */
+function masterIdFor(table: ReuseTable, source: Record<string, unknown>, sourceId: string) {
+  if (!MIRRORED_TABLES.includes(table)) return {};
+  const existing = source.shared_master_id;
+  return { shared_master_id: typeof existing === 'string' && existing ? existing : sourceId };
+}
+
+/**
  * Enough candidates to find an uncustomised one, few enough to stay cheap.
  *
  * decideReuse discards rows a teacher has edited. Reading only the oldest row
@@ -262,6 +292,7 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
       // Identity beats anything carried from the source; the caller's own
       // overrides beat everything, since they describe this specific week.
       ...identityFor(table, input.scope),
+      ...masterIdFor(table, source as Record<string, unknown>, decision.sourceId),
       ...derived,
       ...(input.overrides ?? {}),
     };

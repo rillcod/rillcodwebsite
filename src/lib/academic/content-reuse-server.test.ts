@@ -192,6 +192,38 @@ describe('a copy wears the copying class identity, never the source', () => {
   });
 });
 
+describe('a mirror points at the master, so corrections reach it', () => {
+  it('points a new copy at the row it copied from', async () => {
+    const { inserted } = await copyOnce('lessons');
+    expect(inserted[0].row.shared_master_id).toBe('source-content');
+  });
+
+  it('flattens chains — a copy of a copy still points at the original', async () => {
+    // Otherwise a correction reaches the first copy and stops there.
+    const fake = fakeDb({
+      candidates: [candidate],
+      source: { ...sourceRow(), shared_master_id: 'the-original' },
+    });
+    await reuseWeekContent({
+      db: fake.db,
+      table: 'lessons',
+      releaseId: RELEASE,
+      week: 3,
+      targetPlanId: TARGET_PLAN,
+      classId: null,
+      scope: TARGET_SCOPE,
+    });
+    expect(fake.inserted[0].row.shared_master_id).toBe('the-original');
+  });
+
+  it('leaves decks and slides unmirrored, because their body is not in the row', async () => {
+    // A deck's content is its child cards; a slide deck's is storage objects
+    // each class owns separately. Neither can be pushed down by a column update.
+    const deck = await copyOnce('flashcard_decks');
+    expect(deck.inserted[0].row).not.toHaveProperty('shared_master_id');
+  });
+});
+
 describe('the search is scoped before anything is copied', () => {
   it('never offers the target its own row as a source', async () => {
     const { filters } = await copyOnce('lessons');
