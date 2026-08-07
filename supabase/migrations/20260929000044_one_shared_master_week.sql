@@ -141,10 +141,17 @@ comment on function public.propagate_lesson_master() is
 -- this, every week copied before today would keep drifting forever and the
 -- change would only apply to content generated from now on.
 
+-- The cast is guarded by a uuid shape test, the same way 20260929000005 guards
+-- its own. metadata is free-form jsonb that many writers touch; a single row
+-- holding anything that is not a uuid makes `::uuid` throw, and one malformed
+-- value would abort this migration and every statement in it. Postgres also
+-- does not promise to evaluate the WHERE before the SET, so testing for
+-- not-null is not enough on its own.
 update public.lessons m
    set shared_master_id = (m.metadata->>'copied_from_content_id')::uuid
  where m.shared_master_id is null
-   and m.metadata->>'copied_from_content_id' is not null
+   and m.metadata->>'copied_from_content_id'
+       ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
    and exists (
      select 1 from public.lessons s
       where s.id = (m.metadata->>'copied_from_content_id')::uuid
@@ -153,7 +160,8 @@ update public.lessons m
 update public.assignments m
    set shared_master_id = (m.metadata->>'copied_from_content_id')::uuid
  where m.shared_master_id is null
-   and m.metadata->>'copied_from_content_id' is not null
+   and m.metadata->>'copied_from_content_id'
+       ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
    and exists (
      select 1 from public.assignments s
       where s.id = (m.metadata->>'copied_from_content_id')::uuid
