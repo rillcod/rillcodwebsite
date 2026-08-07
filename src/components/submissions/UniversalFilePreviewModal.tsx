@@ -12,33 +12,26 @@ import {
   XMarkIcon,
 } from '@/lib/icons';
 
-function cleanUrl(url: string) {
-  return url.split('?')[0].toLowerCase();
-}
+// The kind rules moved to src/lib/files/file-kind.ts, which the library and
+// lesson viewers now share too — they each carried their own broken copy.
+// Re-exported because callers already import them from this module.
+import {
+  isImageUrl,
+  isPdfUrl,
+  isVideoUrl,
+  isAudioUrl,
+  isDocUrl,
+  isCodeOrTextUrl,
+} from '@/lib/files/file-kind';
 
-export function isImageUrl(url: string) {
-  return /\.(png|jpe?g|gif|webp|svg|bmp|heic)(\?|$)/i.test(cleanUrl(url));
-}
-
-export function isPdfUrl(url: string) {
-  return /\.pdf(\?|$)/i.test(cleanUrl(url));
-}
-
-export function isVideoUrl(url: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(cleanUrl(url));
-}
-
-export function isAudioUrl(url: string) {
-  return /\.(mp3|wav|ogg|m4a|aac)(\?|$)/i.test(cleanUrl(url));
-}
-
-export function isDocUrl(url: string) {
-  return /\.(doc|docx|ppt|pptx|xls|xlsx)(\?|$)/i.test(cleanUrl(url));
-}
-
-export function isCodeOrTextUrl(url: string) {
-  return /\.(txt|py|js|ts|json|html|css|md|c|cpp|sql|sh)(\?|$)/i.test(cleanUrl(url));
-}
+export {
+  isImageUrl,
+  isPdfUrl,
+  isVideoUrl,
+  isAudioUrl,
+  isDocUrl,
+  isCodeOrTextUrl,
+};
 
 export function getFileKindInfo(url: string): { label: string; Icon: typeof DocumentIcon; category: 'image' | 'pdf' | 'video' | 'audio' | 'doc' | 'code' | 'other' } {
   if (isImageUrl(url)) return { label: 'Image Submission', Icon: PhotoIcon, category: 'image' };

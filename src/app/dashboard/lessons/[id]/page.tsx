@@ -10,6 +10,7 @@ import {
   Fragment,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { fileKind } from "@/lib/files/file-kind";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -95,22 +96,15 @@ function InAppViewer({
   const fileUrl = item.file_url;
   const fileType = item.file_type || item.content_type;
 
-  const isVideo =
-    fileType?.startsWith("video/") || item.content_type === "video";
-  const isImage =
-    fileType?.startsWith("image/") ||
-    ["jpg", "jpeg", "png", "gif", "webp"].some((ext) =>
-      fileUrl?.toLowerCase().includes(ext)
-    );
-  const isPDF =
-    fileType === "application/pdf" || fileUrl?.toLowerCase().includes(".pdf");
-  const isPresentation =
-    fileType === "presentation" ||
-    fileType?.includes("powerpoint") ||
-    fileType?.includes("presentation") ||
-    ["pptx", "ppt"].some((ext) => fileUrl?.toLowerCase().includes(`.${ext}`));
-  const isDocument =
-    ["document", "guide"].includes(item.content_type || "") || isPDF;
+  // One shared answer — see src/lib/files/file-kind.ts. This was a second copy
+  // of the library viewer's checks, wrong in the same two ways: MIME prefixes
+  // against a stored extension, and substring matching on the URL.
+  const kind = fileKind({ url: fileUrl, fileType, contentType: item.content_type });
+  const isVideo = kind === "video";
+  const isImage = kind === "image";
+  const isPDF = kind === "pdf";
+  const isPresentation = kind === "presentation";
+  const isDocument = kind === "doc" || isPDF;
 
   const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
 

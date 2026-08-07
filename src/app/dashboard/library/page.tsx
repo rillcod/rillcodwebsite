@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { fileKind } from "@/lib/files/file-kind";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Share2, Star, FolderPlus, Copy, Check } from "lucide-react";
@@ -279,11 +280,16 @@ function InAppViewer({
   const isRemote = !!remoteUrl && !item.files?.public_url;
   const fileType = item.files?.file_type || item.content_type;
 
-  const isVideo = fileType?.startsWith('video/') || item.content_type === 'video';
-  const isImage = fileType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].some(ext => fileUrl?.toLowerCase().includes(ext));
-  const isPDF = fileType === 'application/pdf' || fileUrl?.toLowerCase().includes('.pdf');
-  const isPresentation = fileType === 'presentation' || fileType?.includes('powerpoint') || fileType?.includes('presentation') || ['pptx', 'ppt'].some(ext => fileUrl?.toLowerCase().includes(`.${ext}`));
-  const isDocument = ['document', 'guide'].includes(item.content_type) || isPDF;
+  // One shared answer — see src/lib/files/file-kind.ts. The hand-rolled checks
+  // here tested MIME prefixes against a file_type that stores a bare extension,
+  // so they were never true, and the URL fallback matched extensions as
+  // substrings ("gif" inside "gift").
+  const kind = fileKind({ url: fileUrl, fileType, contentType: item.content_type });
+  const isVideo = kind === 'video';
+  const isImage = kind === 'image';
+  const isPDF = kind === 'pdf';
+  const isPresentation = kind === 'presentation';
+  const isDocument = kind === 'doc' || isPDF;
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
