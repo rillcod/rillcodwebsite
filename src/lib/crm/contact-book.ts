@@ -184,7 +184,7 @@ export async function upsertBookParent(
     const nextRole = params.role && shouldUpgradeBookRole(existing.role, params.role)
       ? params.role
       : undefined;
-    let children = Array.isArray(meta.children) ? [...(meta.children as Record<string, unknown>[])] : [];
+    const children = Array.isArray(meta.children) ? [...(meta.children as Record<string, unknown>[])] : [];
     if (params.childEntry) {
       const name = String(params.childEntry.name ?? '').toLowerCase();
       const idx = children.findIndex((c) => String(c.name ?? '').toLowerCase() === name);

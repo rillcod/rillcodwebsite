@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Fetch form_leads counts + pending_review counts via service role (bypasses RLS).
-  let leadCountMap: Record<string, number> = {};
-  let pendingReviewMap: Record<string, number> = {};
+  const leadCountMap: Record<string, number> = {};
+  const pendingReviewMap: Record<string, number> = {};
   if (data && data.length > 0) {
     const formIds = data.map((f: any) => f.id);
     const admin = adminClient();

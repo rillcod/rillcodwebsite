@@ -71,7 +71,7 @@ export function describeLedgerEntry(row: LedgerInput): LedgerDescription {
   const payerName = payer || parentName || null;
   const programLabel = programTitle || courseInterest || course || null;
 
-  let sourceType = paymentType || (invoice?.billing_cycle_id ? 'billing_cycle' : invoiceNumber ? 'invoice' : course ? 'course' : row.school_id ? 'school' : 'individual');
+  const sourceType = paymentType || (invoice?.billing_cycle_id ? 'billing_cycle' : invoiceNumber ? 'invoice' : course ? 'course' : row.school_id ? 'school' : 'individual');
 
   let purpose = itemDescription || programLabel || PAYMENT_TYPE_LABELS[sourceType];
   if (!purpose) {

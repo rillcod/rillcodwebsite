@@ -236,7 +236,10 @@ export default function CanvaEditor({ layout, onChange, lessonTitle }: CanvaEdit
     const toggleHint = (index: number) => {
         setExpandedHints(prev => {
             const next = new Set(prev);
-            next.has(index) ? next.delete(index) : next.add(index);
+            // A ternary evaluated for its side effects reads as a value being
+            // computed and thrown away; the intent is a branch.
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
             return next;
         });
     };

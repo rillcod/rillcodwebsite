@@ -230,13 +230,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Class-scoped decks inherit course, school, term and plan from the canonical class plan.
-  let canonicalClassId: string | null = typeof class_id === 'string' ? class_id : null;
+  const canonicalClassId: string | null = typeof class_id === 'string' ? class_id : null;
   let canonicalOfferingId: string | null = null;
   let canonicalOfferingPeriodId: string | null = null;
   let canonicalReleaseId: string | null = null;
-  let canonicalPlanId: string | null = typeof lesson_plan_id === 'string' ? lesson_plan_id : null;
+  const canonicalPlanId: string | null = typeof lesson_plan_id === 'string' ? lesson_plan_id : null;
   let canonicalCourseId: string | null = typeof course_id === 'string' ? course_id : null;
-  let canonicalLessonId: string | null = typeof lesson_id === 'string' ? lesson_id : null;
+  const canonicalLessonId: string | null = typeof lesson_id === 'string' ? lesson_id : null;
   let canonicalTermId: string | null = null;
   let canonicalSchoolId: string | null = null;
   if (canonicalPlanId || canonicalClassId) {

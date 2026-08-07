@@ -251,7 +251,7 @@ export async function resolveConsentLeadMatch(
     return { ok: false, code: 'NO_STUDENT_ROW', message: 'The matched student has no operational record.' };
   }
 
-  let matchedParentId = await resolveParentForConsentLead(admin, {
+  const matchedParentId = await resolveParentForConsentLead(admin, {
     parentEmail,
     parentPhone,
     candidateStudentPortalId: params.studentPortalUserId,

@@ -452,7 +452,7 @@ export async function POST(request: NextRequest) {
           }
 
           let targetClassId = selectedBatch.class_id;
-          let targetClassName = selectedBatch.class_name;
+          const targetClassName = selectedBatch.class_name;
 
           // Resolve class by name if ID missing
           if (!targetClassId && targetClassName && selectedBatch.school_id) {

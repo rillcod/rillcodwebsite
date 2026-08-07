@@ -502,11 +502,13 @@ function SessionModuleFields({ config, set, idPrefix, suggestions }: {
         }));
     };
     const smartFill = () => {
-        const module = sugg.modules.includes(config.current_module)
+        // Not named `module`: that is a real binding in a CommonJS scope, and
+        // shadowing it can confuse the bundler at build time rather than here.
+        const chosenModule = sugg.modules.includes(config.current_module)
             ? config.current_module
             : (sugg.modules[0] || config.current_module);
-        if (!module) return;
-        applyModule(module, true);
+        if (!chosenModule) return;
+        applyModule(chosenModule, true);
     };
 
     return (

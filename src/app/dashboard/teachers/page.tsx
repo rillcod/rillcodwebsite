@@ -849,8 +849,8 @@ function AdminTeacherView() {
       const teacherIds = list.map((t) => t.id).filter(Boolean);
 
       // Hydrate phone + teacher_schools (API list select does not embed deployments).
-      let phoneById: Record<string, string | null> = {};
-      let assignmentsMap: Record<string, any[]> = {};
+      const phoneById: Record<string, string | null> = {};
+      const assignmentsMap: Record<string, any[]> = {};
       if (teacherIds.length > 0) {
         const chunkSize = 100;
         for (let i = 0; i < teacherIds.length; i += chunkSize) {

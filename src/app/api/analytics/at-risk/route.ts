@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Teachers must be assigned to the requested school
-    let schoolId = requestedSchoolId;
+    const schoolId = requestedSchoolId;
     if (profile.role === 'teacher') {
       const db = createAdminClient();
       const { data: tsRows } = await db

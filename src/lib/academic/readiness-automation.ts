@@ -151,7 +151,7 @@ export async function runAcademicReadinessAutomation(
         programmeCourses,
         adoptedCourseIds: adoptedCourses,
       });
-      let courseId = inference.courseId;
+      const courseId = inference.courseId;
 
       if (courseId && inference.reason !== 'already_set') {
         const { error: courseUpdateError } = await db.from('classes')

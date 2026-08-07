@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest) {
       { status: 'Mastered', count: reviews.filter(r => r.repetitions >= 6).length },
     ];
 
-    let sessionsQuery = admin
+    const sessionsQuery = admin
       .from('flashcard_study_sessions')
       .select('*, flashcard_decks(term_id)')
       .eq('student_id', user.id)

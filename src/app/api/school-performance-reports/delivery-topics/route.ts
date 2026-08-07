@@ -22,7 +22,7 @@ async function loadPreviousCheckpoint(
   schoolId: string,
   excludeReportId?: string | null,
 ): Promise<{ checkpoint: DeliveryCheckpoint; fromTermLabel: string; fromAcademicYear: string } | null> {
-  let query = admin
+  const query = admin
     .from('school_performance_reports')
     .select('id, snapshot, term_label, academic_year, updated_at')
     .eq('school_id', schoolId)

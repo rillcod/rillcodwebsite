@@ -334,7 +334,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   // A match is only a suggestion unless auto-resolution is safe (parent-owned + plausible name).
   let needsReview = !!matchResult && ['high', 'medium'].includes(matchResult.confidence);
-  let matchStatus = needsReview ? 'pending_review' : 'new_prospect';
+  const matchStatus = needsReview ? 'pending_review' : 'new_prospect';
 
   let matchNotes: string | null = null;
   if (matchResult) {

@@ -531,7 +531,7 @@ export async function loadDeliveryTopicCatalogForReport(
     academicTermNumber: input.academicTermNumber,
     schoolScope,
   });
-  let catalog = extractDeliveryTopicCatalog(
+  const catalog = extractDeliveryTopicCatalog(
     curricula,
     input.academicTermNumber,
     input.range

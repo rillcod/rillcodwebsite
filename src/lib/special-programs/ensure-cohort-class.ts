@@ -176,7 +176,7 @@ export async function ensureCohortClass(
     .maybeSingle();
   if (!page) return { cohort: null, created: false, error: 'Page not found' };
 
-  let offeringId = page.academic_offering_id ? String(page.academic_offering_id) : null;
+  const offeringId = page.academic_offering_id ? String(page.academic_offering_id) : null;
   const { data: offering } = offeringId
     ? await db
         .from('academic_offerings')

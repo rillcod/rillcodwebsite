@@ -75,7 +75,13 @@ const eslintConfig = [
     },
   },
   {
-    // Generated / third-party-ish files — suppress everything
+    // Generated / third-party-ish files — suppress everything.
+    //
+    // Turning rules off is not enough for src/types/supabase.ts: it is large
+    // enough that the parser gives up with "File appears to be binary" before
+    // any rule runs, so it reported a parse ERROR on every lint run. A rules
+    // block cannot silence a parse failure — only not parsing it can, which is
+    // the `ignores` entry below.
     files: [
       "src/types/supabase.ts",
       "src/types/supabase-types.ts",
@@ -88,6 +94,12 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-empty-object-type": "off",
     },
+  },
+  {
+    // Not linted at all. The generated Supabase types are too large for the
+    // parser, which reported a parse error on every run — noise that buried the
+    // real errors underneath it.
+    ignores: ["src/types/supabase.ts", "src/types/supabase-types.ts"],
   },
 ];
 

@@ -581,7 +581,7 @@ export async function GET(req: Request) {
       };
 
       if (!effectiveSchool) {
-        let query = applySearch(
+        const query = applySearch(
           admin
             .from('portal_users')
             .select('id, email, full_name, phone, is_active, created_at')
@@ -596,7 +596,7 @@ export async function GET(req: Request) {
         if (allowedParentIds && allowedParentIds.length > 0) {
           for (let i = 0; i < allowedParentIds.length; i += 100) {
             const chunk = allowedParentIds.slice(i, i + 100);
-            let query = applySearch(
+            const query = applySearch(
               admin
                 .from('portal_users')
                 .select('id, email, full_name, phone, is_active, created_at')
@@ -613,7 +613,7 @@ export async function GET(req: Request) {
           const uniqueEmails = [...new Set(allowedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
           for (let i = 0; i < uniqueEmails.length; i += 100) {
             const chunk = uniqueEmails.slice(i, i + 100);
-            let query = applySearch(
+            const query = applySearch(
               admin
                 .from('portal_users')
                 .select('id, email, full_name, phone, is_active, created_at')
