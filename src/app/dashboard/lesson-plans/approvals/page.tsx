@@ -50,7 +50,14 @@ export default function PlanApprovalsPage() {
       const db = createClient();
       const { data, error } = await db
         .from('lesson_plans')
-        .select('id, version, plan_data, classes(name), schools(name), courses(title)')
+        // The class embed names its foreign key. lesson_plans has exactly one
+        // route to classes today, so PostgREST resolves it either way — but the
+        // moment a second is added the unhinted form stops being ambiguous in
+        // theory and starts returning an error in production, on a page that
+        // only staff open. audit:supabase-embeds fails the build on the
+        // unhinted form for that reason, and has been failing it since before
+        // this page existed.
+        .select('id, version, plan_data, classes!lesson_plans_class_id_fkey(name), schools(name), courses(title)')
         .eq('status', 'draft')
         .order('created_at', { ascending: false });
       if (error) throw error;
