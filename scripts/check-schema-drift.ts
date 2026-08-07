@@ -56,6 +56,49 @@ type Query = { table: string; cols: string; file: string; line: number };
 const PAIR = /\.from\(\s*['"]([a-z0-9_]+)['"]\s*\)\s*\.select\(\s*(['"`])([\s\S]*?)\2/g;
 
 /**
+ * Continue a select that is written as several string literals joined by `+`.
+ *
+ * PAIR stops at the first closing quote, so a select split across lines was read
+ * only as far as its first piece. A long column list broken for readability —
+ *
+ *     .select(
+ *       "id,school_id,created_by,academic_offering_id," +
+ *       "courses(title),classes!lesson_plans_class_id_fkey(id,name)"
+ *     )
+ *
+ * — was reported as ending in a trailing comma and "refused by the database",
+ * when the query the database actually receives is perfectly valid. A checker
+ * that invents failures is worse than one that misses them: it costs a real
+ * investigation, and it teaches everyone to distrust the output.
+ *
+ * Returns the remaining literals joined, or '' when the select ends here.
+ */
+function continuedLiterals(src: string, from: number): string {
+  let index = from;
+  let out = '';
+
+  for (;;) {
+    // Only whitespace and a single `+` may sit between one literal and the next.
+    const gap = /^\s*\+\s*/.exec(src.slice(index));
+    if (!gap) return out;
+    index += gap[0].length;
+
+    const quote = src[index];
+    if (quote !== '"' && quote !== "'" && quote !== '`') return out;
+
+    let end = index + 1;
+    while (end < src.length && src[end] !== quote) {
+      if (src[end] === '\\') end += 1; // an escaped quote is not the end
+      end += 1;
+    }
+    if (end >= src.length) return out; // unterminated — take what we have
+
+    out += src.slice(index + 1, end);
+    index = end + 1;
+  }
+}
+
+/**
  * Resolve `${CONST}` in a select when CONST is a plain string constant in the same file.
  *
  * Skipping every interpolated select is what let the worst bug of this sweep through: the official
@@ -81,7 +124,10 @@ function collect(): Query[] {
     const src = fs.readFileSync(file, 'utf8');
     for (const m of src.matchAll(PAIR)) {
       const table = m[1];
-      let cols = m[3].replace(/\s+/g, ' ').trim();
+      // m.index + m[0].length lands just past the first literal's closing quote,
+      // which is exactly where a `+ "…"` continuation would start.
+      const rest = continuedLiterals(src, (m.index ?? 0) + m[0].length);
+      let cols = (m[3] + rest).replace(/\s+/g, ' ').trim();
       if (cols.includes('${')) {
         const resolved = resolveInterpolations(cols, src);
         // Still dynamic (built from a variable or another module) — genuinely uncheckable here.

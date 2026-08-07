@@ -28,14 +28,21 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
   const channels = opts.channels ?? ['email', 'whatsapp', 'in_app'];
 
   // 1. Resolve student parent details either by classId or schoolId
+  // A learner's class is portal_users.class_id. `students` has no class_id and
+  // `class_enrollments` has never existed, so both halves of this lookup were
+  // rejected by the database — the embed with "column students_1.class_id does
+  // not exist", the roster with "Could not find the table
+  // public.class_enrollments". The errors were discarded, studentQuery matched
+  // nobody, and the digest reported success having messaged no one. A parent
+  // notifier that silently notifies nobody looks identical to a quiet week.
   let studentQuery = admin.from('portal_users').select(`
     id,
     full_name,
     student_id,
     school_id,
+    class_id,
     students!portal_users_student_id_fkey (
       id,
-      class_id,
       parent_name,
       parent_phone,
       parent_email
@@ -43,17 +50,11 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
   `).eq('role', 'student');
 
   if (opts.classId) {
-    const { data: enrollments } = await admin
-      .from('class_enrollments')
-      .select('student_id')
-      .eq('class_id', opts.classId);
-    
-    if (enrollments?.length) {
-      const studentIds = enrollments.map((e: { student_id: string }) => e.student_id);
-      studentQuery = studentQuery.in('id', studentIds);
-    } else if (opts.schoolId) {
-      studentQuery = studentQuery.eq('school_id', opts.schoolId);
-    }
+    // Filtered directly rather than via a roster round-trip. The old code fell
+    // back to the whole school when the roster came back empty, which for a
+    // caller that named one class is worse than sending nothing: every parent
+    // in the school would get a digest about another class's week.
+    studentQuery = studentQuery.eq('class_id', opts.classId);
   } else if (opts.schoolId) {
     studentQuery = studentQuery.eq('school_id', opts.schoolId);
   }
