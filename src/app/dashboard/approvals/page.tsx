@@ -661,7 +661,7 @@ export default function ApprovalsPage() {
                  {/* ── Credentials modal — shown after approving a student/school ── */}
                  {credentials && (
                      <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-                         <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+                         <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
                              <div className="flex items-center gap-3">
                                  <CheckCircleIcon className="w-7 h-7 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                                  <div>
@@ -763,7 +763,7 @@ export default function ApprovalsPage() {
                 {/* ── Manual payment modal — upload offline proof and admit an unpaid applicant ── */}
                 {payModal && (
                     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm overflow-y-auto">
-                        <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 my-8">
+                        <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 my-8">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl">💵</span>
                                 <div>

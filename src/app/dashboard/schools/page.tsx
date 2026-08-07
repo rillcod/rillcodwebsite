@@ -454,7 +454,7 @@ export default function SchoolsPage() {
       {/* ── Sync Result Modal ── */}
       {syncResult && (
         <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-          <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+          <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
                 <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -788,7 +788,7 @@ export default function SchoolsPage() {
         {/* Detail modal */}
         {detail && (
           <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div>
@@ -991,7 +991,7 @@ export default function SchoolsPage() {
 
         {showCreate && (
           <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-xl w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between p-6 border-b border-border">
                 <div>
                   <h3 className="font-bold text-foreground text-lg">{editingSchool ? 'Edit School' : 'Add Partner School'}</h3>

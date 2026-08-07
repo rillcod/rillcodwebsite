@@ -82,7 +82,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   if (isNativeApp) {
     return (
       <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-        <div className="max-h-[94dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
+        <div role="dialog" aria-modal="true" className="max-h-[94dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Summer School</p>
@@ -99,7 +99,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
   return (
     <div className="fixed inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-card text-card-foreground border border-border w-full max-w-3xl max-h-[92vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-primary rounded-t-3xl sm:rounded-none">
+      <div role="dialog" aria-modal="true" className="bg-card text-card-foreground border border-border w-full max-w-3xl max-h-[92vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-primary rounded-t-3xl sm:rounded-none">
 
         <button
           onClick={handleClose}

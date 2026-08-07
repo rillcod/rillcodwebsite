@@ -890,7 +890,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
 
       {showGeneratorChoice && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7">
+          <div role="dialog" aria-modal="true" className="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div><p className="text-lg font-black text-foreground">Create premium invoice</p><p className="text-sm text-muted-foreground">Choose the payer. Both options use the same invoice, payment and receipt lifecycle.</p></div>
               <button onClick={() => setShowGeneratorChoice(false)} className="p-2 rounded-xl hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
@@ -1119,7 +1119,7 @@ function QuickInvoiceForm({
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-      <div className="bg-background border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
             <p className="font-black text-foreground text-sm">Quick invoice</p>

@@ -147,7 +147,7 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
 
     return (
         <div className="fixed inset-0 z-[60] bg-foreground/35 dark:bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-card text-card-foreground border border-border w-full sm:max-w-md shadow-2xl p-6 sm:p-8 space-y-6 rounded-t-3xl sm:rounded-xl">
+            <div role="dialog" aria-modal="true" className="bg-card text-card-foreground border border-border w-full sm:max-w-md shadow-2xl p-6 sm:p-8 space-y-6 rounded-t-3xl sm:rounded-xl">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Batch-Sync Reports</h3>
@@ -349,7 +349,7 @@ function GradeModal({ sub, onClose, onSaved }: {
 
     return (
         <div className="fixed inset-0 z-50 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-card text-card-foreground border border-border rounded-t-[32px] sm:rounded-xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
+            <div role="dialog" aria-modal="true" className="bg-card text-card-foreground border border-border rounded-t-[32px] sm:rounded-xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Drag handle (mobile) */}

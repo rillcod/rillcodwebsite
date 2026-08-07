@@ -63,7 +63,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
 
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4" onClick={() => !wiping && setOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-rose-500/30 bg-card p-5 sm:p-6 space-y-4">
+          <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-rose-500/30 bg-card p-5 sm:p-6 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15"><ExclamationTriangleIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" /></span>

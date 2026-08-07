@@ -52,7 +52,7 @@ function AddItemModal({ onClose, onSave, schoolId }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
+      <div role="dialog" aria-modal="true" className="bg-card border border-border w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
         <h2 className="font-black flex items-center gap-2 text-sm">
           <StarIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Add Showcase Item
         </h2>

@@ -464,7 +464,7 @@ export default function NewProjectActivityPage() {
             {/* ── AI Generation Panel ────────────────────────────────────────── */}
             {aiOpen && (
                 <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-                    <div className="w-full max-w-lg bg-card border border-border shadow-2xl">
+                    <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-card border border-border shadow-2xl">
                         <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-primary/5">
                             <div className="w-8 h-8 bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
                                 <SparklesIcon className="w-4 h-4 text-primary" />

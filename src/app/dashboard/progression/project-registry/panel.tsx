@@ -454,7 +454,7 @@ export default function ProjectRegistryPage({
       {/* Add Activity Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-3xl z-[100] flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-[4rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 sm:p-16 shadow-[0_50px_150px_rgba(0,0,0,0.5)] relative animate-in zoom-in-95 duration-500">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-[4rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 sm:p-16 shadow-[0_50px_150px_rgba(0,0,0,0.5)] relative animate-in zoom-in-95 duration-500">
             <button
               onClick={() => setShowCreate(false)}
               className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-500 hover:text-white transition-all duration-500 group"
@@ -627,7 +627,7 @@ export default function ProjectRegistryPage({
       {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-3xl z-[100] flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-[4rem] w-full max-w-3xl p-10 sm:p-16 shadow-2xl relative animate-in zoom-in-95 duration-500">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-[4rem] w-full max-w-3xl p-10 sm:p-16 shadow-2xl relative animate-in zoom-in-95 duration-500">
             <button
               onClick={() => setEditing(null)}
               className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-500 hover:text-white transition-all duration-500 group"

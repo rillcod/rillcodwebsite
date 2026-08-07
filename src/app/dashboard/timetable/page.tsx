@@ -1248,7 +1248,7 @@ export default function TimetablePage() {
       {/* ── Timetable Form Modal ── */}
       {showTTForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="font-extrabold text-foreground">{editingTT ? 'Edit Timetable' : 'New Timetable'}</h2>
               <button onClick={() => setShowTTForm(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted">
@@ -1333,7 +1333,7 @@ export default function TimetablePage() {
       {/* ── Slot Form Modal ── */}
       {showSlotForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-extrabold text-foreground">{editingSlot ? 'Edit Slot' : 'Add Slot'}</h2>

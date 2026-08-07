@@ -364,7 +364,7 @@ export default function BulkDeletePage() {
       {/* Confirmation modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl rounded-xl p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
+          <div role="dialog" aria-modal="true" className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl rounded-xl p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
 
             <div className="flex items-start gap-4 mb-5">
               <div className="w-10 h-10 flex-shrink-0 rounded-full bg-rose-500/20 flex items-center justify-center">

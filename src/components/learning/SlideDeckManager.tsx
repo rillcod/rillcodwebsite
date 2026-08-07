@@ -120,7 +120,7 @@ export default function SlideDeckManager({
 
   return (
     <div className="fixed inset-0 z-[90] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <p className="text-sm font-black text-foreground">Manage Slides</p>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><XMarkIcon className="w-5 h-5" /></button>

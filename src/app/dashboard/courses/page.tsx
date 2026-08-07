@@ -424,7 +424,7 @@ export default function CoursesPage() {
         {/* Bulk fix modal */}
         {bulkFixOpen && (
           <div className="mobile-native-dialog fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-            <div className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-4">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-4">
               <h2 className="text-base font-black text-foreground uppercase tracking-widest">Assign Program to All Uncategorised Courses</h2>
               <p className="text-sm text-muted-foreground">
                 This will assign <span className="font-black text-foreground">{courses.filter(c => !c.program_id).length} courses</span> to the selected program at once. You can move individual courses later from their edit pages.

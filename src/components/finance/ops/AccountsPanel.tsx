@@ -365,7 +365,7 @@ function AccountForm({
 }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-      <div className="bg-background border border-border rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
             <p className="font-black text-foreground text-sm">

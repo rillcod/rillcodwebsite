@@ -1212,7 +1212,7 @@ function AdminTeacherView() {
       {/* Credentials Modal */}
       {credentials && (
         <div className="mobile-native-dialog fixed inset-0 z-[60] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">

@@ -1423,7 +1423,7 @@ export default function AssignmentDetailPage() {
             {/* Email PDF modal */}
             {emailOpen && (
                 <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
+                    <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-black text-foreground">Email Assignment PDF</p>
                             <button onClick={() => setEmailOpen(false)} className="text-muted-foreground hover:text-white">

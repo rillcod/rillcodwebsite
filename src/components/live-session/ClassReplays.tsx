@@ -191,7 +191,7 @@ export default function ClassReplays({ heading = 'Class Replays' }: { heading?: 
       {/* Inline player — mobile-first full-screen */}
       {active?.playback_url && (
         <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 p-0 sm:p-6" onClick={() => setActive(null)}>
-          <div className="flex w-full max-w-4xl items-center justify-between px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="flex w-full max-w-4xl items-center justify-between px-4 py-3" onClick={(e) => e.stopPropagation()}>
             <p className="min-w-0 truncate text-sm font-black text-foreground">{active.title}</p>
             <button onClick={() => setActive(null)} className="rounded-full bg-white/10 p-2 text-foreground hover:bg-white/20" aria-label="Close">
               <XMarkIcon className="h-5 w-5" />

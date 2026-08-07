@@ -65,7 +65,7 @@ export default function PasswordChangeGuard() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="bg-[#0d1526] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
+      <div role="dialog" aria-modal="true" className="bg-[#0d1526] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain">
 
         {/* Banner */}
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 flex items-center gap-3">

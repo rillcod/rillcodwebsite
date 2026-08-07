@@ -621,7 +621,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
 
       {isAdmin && showForm && (
         <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl border border-border bg-background rounded-xl p-4 sm:p-5 space-y-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-2xl border border-border bg-background rounded-xl p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="font-black text-foreground">{editingId ? 'Edit billing cycle' : 'Add billing cycle'}</p>
               <button type="button" onClick={() => setShowForm(false)} className="text-xs border border-border px-2 py-1 rounded-xl">Close</button>

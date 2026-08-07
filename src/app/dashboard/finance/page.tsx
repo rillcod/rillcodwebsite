@@ -926,7 +926,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
               <h3 className="font-black text-foreground">{editId ? 'Edit Subscription' : 'New Subscription'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
@@ -1234,7 +1234,7 @@ function SettlementsTab({ profile }: { profile: any }) {
       {/* Create / Edit Settlement Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="font-black text-foreground">{editId ? 'Edit Settlement' : 'New Settlement'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg">
@@ -2000,7 +2000,7 @@ function SetupTab({ profile }: { profile: any }) {
       {/* Account Form Modal */}
       {showAcctForm && (
         <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
               <h3 className="font-black text-foreground">{editAcct ? 'Edit Account' : 'Add Payment Account'}</h3>
               <button onClick={() => { setShowAcctForm(false); setEditAcct(null); }} className="p-1.5 hover:bg-muted rounded-lg">

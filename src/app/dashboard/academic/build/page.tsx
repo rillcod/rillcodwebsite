@@ -3806,7 +3806,7 @@ export default function CurriculumPage() {
       {/* Print Options Modal */}
       {showPrintOptions && curriculum && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm print:hidden">
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-2 mb-4">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-widest">
@@ -7411,7 +7411,7 @@ export default function CurriculumPage() {
         {/* ── Generate Modal — bottom-sheet on mobile, centered on sm+ ── */}
         {showGenerate && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
-            <div className="bg-card border border-border w-full sm:max-w-lg sm:rounded-xl rounded-t-2xl flex flex-col max-h-[92vh]">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border w-full sm:max-w-lg sm:rounded-xl rounded-t-2xl flex flex-col max-h-[92vh]">
               <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
                 <div>
                   <h2 className="font-black flex items-center gap-2">
@@ -8142,7 +8142,7 @@ export default function CurriculumPage() {
         {/* ── Notification Settings Modal ── */}
         {showNotifSettings && curriculum && canModifyCurriculum && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
-            <div className="bg-card border border-border w-full sm:max-w-md sm:rounded-xl rounded-t-2xl">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border w-full sm:max-w-md sm:rounded-xl rounded-t-2xl">
               <div className="flex items-center justify-between p-5 border-b border-border">
                 <h2 className="font-black text-sm flex items-center gap-2">
                   <BellIcon className="w-4 h-4 text-primary" /> Parent
@@ -8329,7 +8329,7 @@ export default function CurriculumPage() {
         {/* ── Clone Modal — school picker for multi-school teachers ── */}
         {showCloneModal && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
-            <div className="bg-card border border-border w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl">
               {/* Header */}
               <div className="flex items-center justify-between p-5 border-b border-border">
                 <div>
@@ -8394,7 +8394,7 @@ export default function CurriculumPage() {
         {/* ── Edit Version Modal ── */}
         {showEditVersionModal && curriculum && canModifyCurriculum && (
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-            <div className="bg-card border border-border w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden relative">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden relative">
               <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
               <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-white/[0.01]">
                 <h2 className="font-black text-sm flex items-center gap-2 tracking-wide uppercase text-foreground">

@@ -501,7 +501,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1526] border border-border rounded-xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div role="dialog" aria-modal="true" className="bg-[#0d1526] border border-border rounded-xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-foreground font-black">{editing ? 'Edit Project' : 'Add Project'}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">

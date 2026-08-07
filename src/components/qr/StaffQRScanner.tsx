@@ -255,7 +255,7 @@ export default function StaffQRScanner() {
       {/* ── Modal overlay ── */}
       {open && (
         <div className="app-fixed-overlay fixed inset-0 z-[200] flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4 print:hidden">
-          <div className="w-full sm:max-w-md bg-[#0f0f1a] border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex max-h-[85dvh] flex-col overflow-hidden">
+          <div role="dialog" aria-modal="true" className="w-full sm:max-w-md bg-[#0f0f1a] border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex max-h-[85dvh] flex-col overflow-hidden">
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">

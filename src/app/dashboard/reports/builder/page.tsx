@@ -4490,7 +4490,7 @@ function ReportBuilderInner() {
             {
                 showSettings && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-background border border-border rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                        <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
                             <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-muted/20">
                                 <div>
                                     <h3 className="text-xl font-extrabold text-foreground">Branding Settings</h3>

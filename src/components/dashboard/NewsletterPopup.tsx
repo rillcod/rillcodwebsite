@@ -105,7 +105,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/90 backdrop-blur-md animate-in fade-in duration-500">
-      <div className="bg-background border border-border rounded-[40px] w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
+      <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-[40px] w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
         
         {/* Header Bar */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">

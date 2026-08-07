@@ -643,7 +643,7 @@ export default function UsersPage() {
             {/* ── Sync Result Modal ── */}
             {syncResult && (
                 <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+                    <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -717,7 +717,7 @@ export default function UsersPage() {
             {/* ── Create User Modal ── */}
             {showCreate && (
                 <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
+                    <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <h2 className="text-lg font-extrabold text-foreground">Create User</h2>
                             <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
@@ -806,7 +806,7 @@ export default function UsersPage() {
             {/* ── Edit Modal ── */}
             {editing && (
                 <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
+                    <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <div>

@@ -1580,7 +1580,7 @@ export default function CRMPage() {
       {/* ── New Contact Modal ─────────────────────────────────────────────────── */}
       {showNewContact && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-sm font-black text-foreground">New Contact</h2>
               <button onClick={() => { setShowNewContact(false); setNewErr(''); }} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground">
@@ -1657,7 +1657,7 @@ export default function CRMPage() {
       {/* ── Link Student Modal ────────────────────────────────────────────────── */}
       {showLinkModal && selected && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
                 <h2 className="text-sm font-black text-foreground">Connect Student</h2>

@@ -2467,7 +2467,7 @@ export default function ResponsesPage() {
       {/* ── Class picker (before creating portal accounts) ─────────────────── */}
       {classModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm" onClick={() => !creatingPortalId && setClassModal(null)}>
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div>
               <h3 className="text-lg font-semibold text-foreground">Create portal accounts</h3>
               <p className="text-xs text-muted-foreground mt-1">
@@ -2601,7 +2601,7 @@ export default function ResponsesPage() {
       {/* ── Roster sibling review ─────────────────────────────────────────── */}
       {siblingReview && (
         <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12121e] p-6 shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12121e] p-6 shadow-2xl">
             <h3 className="text-base font-semibold text-foreground">Possible siblings on this roster</h3>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               These students are at the same school and their name matches{' '}
@@ -2715,7 +2715,7 @@ export default function ResponsesPage() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
               <div className="sticky top-0 z-10 bg-card border-b border-border/50 px-5 pt-5 pb-4">
                 <p className="text-sm font-semibold text-foreground">Account credentials</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">For {credsModal.parentName} — copy or share below</p>
@@ -2828,7 +2828,7 @@ export default function ResponsesPage() {
         const isMulti      = (childArr?.length ?? 1) > 1;
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
               <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
                 <div>
                   <p className="text-sm font-semibold text-foreground">
@@ -2939,7 +2939,7 @@ export default function ResponsesPage() {
       {/* ── WhatsApp message modal ─────────────────────────────────────────── */}
       {waBlastOpen && (
         <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
               <div>
                 <p className="text-sm font-semibold text-foreground">WhatsApp message</p>

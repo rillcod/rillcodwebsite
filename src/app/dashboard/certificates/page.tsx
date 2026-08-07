@@ -72,7 +72,7 @@ function IssueCertModal({ onClose, onIssued }: { onClose: () => void; onIssued: 
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm">
-            <div className="bg-card border border-border w-full max-w-md shadow-2xl max-h-[min(90vh,640px)] overflow-y-auto">
+            <div role="dialog" aria-modal="true" className="bg-card border border-border w-full max-w-md shadow-2xl max-h-[min(90vh,640px)] overflow-y-auto">
                 <div className="flex items-center justify-between p-5 border-b border-border">
                     <p className="font-black text-foreground text-sm uppercase tracking-widest">Issue Certificate</p>
                     <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground font-black text-xl leading-none" aria-label="Close">✕</button>

@@ -968,7 +968,7 @@ export function MasterCurriculumRoster({
 
       {showResetModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-rose-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
+          <div role="dialog" aria-modal="true" className="bg-card border border-rose-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
             <div className="flex items-center gap-3 text-rose-500">
               <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
                 <ExclamationTriangleIcon className="w-8 h-8 flex-shrink-0 animate-pulse" />
@@ -1025,7 +1025,7 @@ export function MasterCurriculumRoster({
 
       {showPurgeModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-amber-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
+          <div role="dialog" aria-modal="true" className="bg-card border border-amber-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
             <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Clear leftovers</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Removes lessons, assignments, flashcards and exams whose curriculum no longer exists.

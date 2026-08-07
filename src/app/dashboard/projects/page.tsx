@@ -1616,7 +1616,7 @@ export default function ProjectsPage() {
             {/* Delete Group Confirmation Modal (rendered at page level so it overlays correctly) */}
             {deleteGroupTarget && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-card border border-border shadow-2xl overflow-hidden">
+                    <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-card border border-border shadow-2xl overflow-hidden">
                         <div className="h-1 bg-rose-600" />
                         <div className="p-6 space-y-4">
                             <div className="flex items-center gap-3">

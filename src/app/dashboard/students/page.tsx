@@ -125,7 +125,7 @@ function LinkParentModal({ student, onClose, onSaved }: {
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
@@ -265,7 +265,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
@@ -1183,7 +1183,7 @@ export default function StudentsPage() {
       {/* ── Bulk Enrol Modal ────────────────────────────── */}
       {showBulkEnrolModal && (
         <div className="mobile-native-dialog fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+          <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
 
             {/* Header */}
             <div className="p-6 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -1373,7 +1373,7 @@ export default function StudentsPage() {
       {/* ── Sync Result Modal ────────────────────────────── */}
       {syncResult && (
         <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+          <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
                 <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -1476,7 +1476,7 @@ export default function StudentsPage() {
       {/* ── Reset Password Modal ──────────────────────────── */}
       {resetPwTarget && (
         <div className="mobile-native-dialog fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-[#0d1526]/95 border border-white/5 w-full max-w-sm shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5 animate-in zoom-in-95 duration-200">
+          <div role="dialog" aria-modal="true" className="bg-[#0d1526]/95 border border-white/5 w-full max-w-sm shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -1524,7 +1524,7 @@ export default function StudentsPage() {
       {/* ── Credentials Modal ─────────────────────────────── */}
       {credentials && (
         <div className="mobile-native-dialog fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
+          <div role="dialog" aria-modal="true" className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
             <div className="p-8 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center rotate-3">
@@ -2314,7 +2314,7 @@ export default function StudentsPage() {
         const noClass = selectedStudents.filter(s => !s.class_id);
         return (
           <div className="mobile-native-dialog fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-background border border-rose-500/30 rounded-xl w-full max-w-md shadow-2xl shadow-rose-500/10">
+            <div role="dialog" aria-modal="true" className="bg-background border border-rose-500/30 rounded-xl w-full max-w-md shadow-2xl shadow-rose-500/10">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">

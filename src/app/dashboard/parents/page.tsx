@@ -119,7 +119,7 @@ function LinkStudentModal({
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Link Student</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><XMarkIcon className="w-5 h-5" /></button>
@@ -450,7 +450,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" className="w-full max-w-2xl bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Bulk Import Parents</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -1582,7 +1582,7 @@ export default function ParentsPage() {
       )}
       {resetResult && (
         <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-card border border-border shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <KeyIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -1697,7 +1697,7 @@ export default function ParentsPage() {
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       {deleteTarget && (
         <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-card border border-rose-500/40 shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md bg-card border border-rose-500/40 shadow-2xl overflow-hidden">
             {/* Top accent strip */}
             <div className="h-1 w-full bg-gradient-to-r from-rose-600 to-rose-400" />
             <div className="p-6 space-y-5">

@@ -374,7 +374,7 @@ ${questionRows}
       {/* Question Form Modal */}
       {showForm && canManage && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-2xl shadow-2xl my-4">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-2xl shadow-2xl my-4">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground text-lg">{editQ ? 'Edit Question' : 'Add Question'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><XMarkIcon className="w-5 h-5 text-card-foreground/50" /></button>

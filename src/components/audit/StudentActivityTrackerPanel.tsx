@@ -423,7 +423,7 @@ export default function StudentActivityTrackerPanel({ embedded = false }: { embe
 
       {nudgeStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={(e) => e.target === e.currentTarget && setNudgeStudent(null)}>
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl max-h-[85dvh] overflow-y-auto overscroll-contain">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl max-h-[85dvh] overflow-y-auto overscroll-contain">
             <h2 className="font-black text-foreground">Send motivation nudge</h2>
             <p className="text-xs text-muted-foreground">
               To: <span className="text-foreground font-bold">{nudgeStudent.full_name}</span>

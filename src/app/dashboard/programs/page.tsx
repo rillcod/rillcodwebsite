@@ -310,7 +310,7 @@ export default function ProgramsPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-background border border-border rounded-xl p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div role="dialog" aria-modal="true" className="w-full max-w-xl bg-background border border-border rounded-xl p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-extrabold text-foreground">{editing ? 'Edit Program' : 'New Program'}</h2>
               <button onClick={() => setShowForm(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted">✕</button>

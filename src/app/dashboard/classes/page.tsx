@@ -412,7 +412,7 @@ export default function ClassesPage() {
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="mobile-native-dialog fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="bg-card border border-border w-full max-w-sm shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="bg-card border border-border w-full max-w-sm shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain" onClick={e => e.stopPropagation()}>
             <div className="h-1 w-full bg-rose-600" />
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">

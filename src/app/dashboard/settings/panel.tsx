@@ -3157,7 +3157,7 @@ function SettingsPageContent({
                 {/* ── Add Template modal (admin) ── */}
                 {showAddTemplate && isAdmin && (
                   <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl relative flex flex-col max-h-[90vh]">
                       {/* Modal header */}
                       <div className="flex items-start justify-between p-6 border-b border-border shrink-0">
                         <div>

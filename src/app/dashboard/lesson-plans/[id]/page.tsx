@@ -4449,7 +4449,7 @@ export default function LessonPlanDetailPage() {
       {/* Generate confirmation modal — replaces window.confirm for dry-run preview */}
       {genConfirm && (
         <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/[0.12] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -4530,7 +4530,7 @@ export default function LessonPlanDetailPage() {
       {/* Progression Run Confirmation Modal */}
       {progressionRunConfirm && (
         <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/[0.12] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center shrink-0">
@@ -4634,7 +4634,7 @@ export default function LessonPlanDetailPage() {
       {/* ── Clone / Deploy Plan Modal ─────────────────────────────────────── */}
       {cloneModalOpen && (
         <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
-          <div className="bg-card border border-white/10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-black text-card-foreground">
@@ -5683,7 +5683,7 @@ export default function LessonPlanDetailPage() {
       {/* Practical Score Modal */}
       {practicalModal && (
         <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/10 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden">
             <div className="p-8 text-center space-y-6">
               <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto">
                 <TrophyIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
@@ -5730,7 +5730,7 @@ export default function LessonPlanDetailPage() {
       {/* Override Reason Modal */}
       {overrideModal && (
         <div className="mobile-native-dialog fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden">
+          <div role="dialog" aria-modal="true" className="bg-card border border-white/10 rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-cyan-500/20 rounded-2xl flex items-center justify-center shrink-0">

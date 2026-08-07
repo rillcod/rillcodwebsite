@@ -777,7 +777,7 @@ export default function ResendCredentialsPage() {
       {/* Copyable Credentials Modal */}
       {lastCreatedCredentials && (
         <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto mobile-page-root">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto mobile-page-root">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground">Login Details — {lastCreatedCredentials.studentName}</h3>
               <button

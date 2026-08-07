@@ -239,7 +239,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <ChartBarIcon className="w-5 h-5 text-primary" />
@@ -450,7 +450,7 @@ function RoomsModal({ session, canManage, onClose }: {
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <UsersIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -566,7 +566,7 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <EyeIcon className="w-5 h-5 text-primary" />
@@ -716,7 +716,7 @@ function QAModal({ session, canManage, userId, onClose }: {
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex min-w-0 items-center gap-3">
@@ -854,7 +854,7 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-3xl flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" className="bg-[#0d0d0d] border border-white/10 w-full max-w-3xl flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <FilmIcon className="w-5 h-5 text-primary" />
@@ -1153,7 +1153,7 @@ function SessionModal({ initial, isEdit, schools, programs, terms, canGlobal, sa
 
   return (
     <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-      <div className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-primary w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+      <div role="dialog" aria-modal="true" className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-primary w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
         <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-white/[0.015] flex-shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center">
