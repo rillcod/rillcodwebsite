@@ -129,10 +129,24 @@ still skipped.
   records where app-side checks end: `maybeSingle()` errors on more than one
   row, the error read as "nothing there", and one class reached four copies of
   its Week 1 lesson.
-- **The repo's migration list is ahead of the database.** `20260929000024` was
-  never applied and nothing reported it — an unapplied migration does not fail,
-  it is simply absent. `20260929000045` restored its indexes. **Verify against
-  the live schema before assuming an index exists.**
+- **`schema_migrations` is not evidence.** `20260929000024` was absent from it
+  *and* absent from the database; `20260929000041` was absent from it and fully
+  present. An unapplied migration does not fail — it is simply missing, and
+  every later file that assumed it carries on assuming. **Ask the schema, not
+  the history.**
+
+  A full audit was run on 2026-08-07 — every object every migration declares,
+  checked against the live database. Result: **one real gap**, `...024`, since
+  restored by `...045`. Everything else that looked missing was superseded on
+  purpose (`guard_class_qa_control` by `...030`, `duration_offering_needs_its_owner`
+  by `...029`, `ensure_class_term_teaching_plan` by `...003`, the accountability
+  matview indexes by `...011`–`...014`) or a temp helper dropped by its own
+  migration (`_rill_rebind_fk`). History was then backfilled: 102 versions
+  against 102 files.
+
+  If you re-run that audit, expect two false positives: quoted schema names
+  (`"public"."x"`) and indexes on materialised views, which `pg_indexes` does
+  not list — query `pg_class`/`pg_index` for those.
 
 ---
 
