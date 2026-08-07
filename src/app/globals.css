@@ -185,6 +185,34 @@
       -webkit-backdrop-filter: blur(8px) !important;
     }
 
+    /* Every centred overlay behaves like a sheet on a phone, whether or not
+       someone remembered to add .mobile-native-dialog. 150 of the app's 205
+       overlays did not have it and opened as a desktop popup in the middle of
+       the screen — the single thing that most makes a screen feel like a web
+       page in a phone frame rather than an app.
+
+       Scoped to overlays that centre a panel, which is what a dialog does; a
+       decorative full-bleed layer has no items-center and is left alone. */
+    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog) {
+      align-items: flex-end !important;
+      padding: 0 !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog) > [class*="max-w-"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      max-height: min(92dvh, calc(100dvh - var(--safe-area-top))) !important;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-bottom-left-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+      border-top-left-radius: 1.5rem !important;
+      border-top-right-radius: 1.5rem !important;
+      padding-bottom: max(1rem, var(--safe-area-bottom));
+    }
+
     /* Any dashboard fixed overlay that isn't portaled yet. */
     .app-fixed-overlay {
       z-index: 120 !important;
@@ -196,6 +224,24 @@
     .app-fixed-overlay > [class*="sm:max-w-"],
     .app-fixed-overlay > .bg-card {
       max-height: min(92dvh, calc(100dvh - var(--safe-area-top)));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
+
+  /* Desktop dialogs need a ceiling too.
+     Everything above stops at 767px, so a laptop had no height limit at all: a
+     long form on a 13-inch screen ran past the bottom of the window with its
+     submit button, and nothing scrolled. A phone was better served than a
+     desktop, which is the reverse of what the app looked like it was doing.
+
+     A panel that already declares its own max-height or overflow is left alone,
+     so the dialogs migrated to <Modal> and the ones fixed by hand keep their
+     pinned footers rather than being flattened into one scrolling block. */
+  @media (min-width: 768px) {
+    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]
+      > [class*="max-w-"]:not([class*="max-h-"]):not([class*="overflow-y-"]):not([class*="overflow-hidden"]) {
+      max-height: calc(100dvh - 4rem);
       overflow-y: auto;
       overscroll-behavior: contain;
     }
