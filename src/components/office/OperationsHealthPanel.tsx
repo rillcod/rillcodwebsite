@@ -53,6 +53,14 @@ type GenerationIncident = {
   generatedAt: string | null;
 };
 
+/** One row per job the dispatcher tried to start, with what came back. */
+type FanoutSummary = {
+  children: Array<{ job: string; status: string; host: string; at: string | null }>;
+  failing: Array<{ job: string; status: string; host: string; at: string | null }>;
+  /** Nothing was reached at all — the dispatcher is broken, not the jobs. */
+  allUnreachable: boolean;
+};
+
 // Labels live in the cron registry alongside the schedule, so a new job is named once.
 const friendlyJob = cronLabel;
 
@@ -80,6 +88,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   const [busy, setBusy] = useState('');
   const [financeFailures, setFinanceFailures] = useState<FinanceFailure[]>([]);
   const [generationIncidents, setGenerationIncidents] = useState<GenerationIncident[]>([]);
+  const [fanout, setFanout] = useState<FanoutSummary | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -94,6 +103,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       setHistory(json.history ?? []);
       setFinanceFailures(json.financeFailures ?? []);
       setGenerationIncidents(json.generationIncidents ?? []);
+      setFanout(json.fanout ?? null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load operations health.');
     } finally {
@@ -194,6 +204,48 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
           </div>
         ))}
       </div>
+
+      {/*
+        Nine jobs are not on the scheduler at all — another job calls them. The
+        dispatcher recorded every result and nothing showed it, so when it began
+        failing, those jobs simply stopped and the panel stayed green: a job that
+        is never invoked never records a failure, it only grows an old
+        last_success_at, which reads as quiet rather than broken.
+      */}
+      {fanout && fanout.failing.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-red-500/40 bg-red-500/5">
+          <div className="border-b border-red-500/30 p-5">
+            <h2 className="font-black text-red-300">
+              {fanout.allUnreachable
+                ? 'Jobs are not being started at all'
+                : `${fanout.failing.length} job${fanout.failing.length === 1 ? '' : 's'} could not be started`}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {fanout.allUnreachable
+                ? 'Every one of these failed before the job itself was reached, so none of them ran and none of them recorded an error. This is the dispatcher, not the jobs.'
+                : 'These are started by another job rather than by the scheduler.'}
+            </p>
+          </div>
+          <div className="divide-y divide-red-500/20">
+            {fanout.failing.map((child) => (
+              <div key={`${child.host}-${child.job}`} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="font-bold">{child.job}</p>
+                  <p className="text-xs text-muted-foreground">started by {child.host}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-xs text-red-300">{child.status}</p>
+                  {child.at && (
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(child.at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="border-b border-border p-5">

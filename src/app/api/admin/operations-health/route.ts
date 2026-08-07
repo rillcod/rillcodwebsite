@@ -36,6 +36,50 @@ function withNeverRunJobs(rows: Array<Record<string, unknown>>) {
   return [...rows, ...placeholders].sort((a, b) => String(a.job_name).localeCompare(String(b.job_name)));
 }
 
+/**
+ * Flatten the dispatcher's own record into one row per child job.
+ *
+ * Stored as `{ host, at, result: { 'academic-readiness': 'ok' | 'http_500' | 'unreachable:…' } }`
+ * under a handful of app_settings keys. Reported per child rather than per host
+ * because "onboarding-sweep's fan-out failed" is not actionable, while
+ * "academic-readiness was unreachable at 18:00" names the job that stopped.
+ */
+function summariseFanout(rows: Array<Record<string, unknown>>) {
+  const children: Array<{ job: string; status: string; host: string; at: string | null }> = [];
+
+  for (const row of rows) {
+    let parsed: { host?: string; at?: string; result?: Record<string, string> } | null = null;
+    try {
+      const raw = row.value;
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as typeof parsed);
+    } catch {
+      continue; // A malformed record must not take the whole panel down.
+    }
+    if (!parsed?.result) continue;
+
+    for (const [job, status] of Object.entries(parsed.result)) {
+      children.push({
+        job,
+        status: String(status),
+        host: String(parsed.host ?? row.key ?? 'unknown'),
+        at: parsed.at ?? (row.updated_at as string) ?? null,
+      });
+    }
+  }
+
+  children.sort((a, b) => a.job.localeCompare(b.job));
+  const failing = children.filter((c) => c.status !== 'ok');
+
+  return {
+    children,
+    failing,
+    // True when the dispatcher is reaching nothing at all — the shape of the
+    // 2026-08-07 outage, and a different problem from one job returning 500.
+    allUnreachable:
+      children.length > 0 && children.every((c) => c.status.startsWith('unreachable')),
+  };
+}
+
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -49,7 +93,7 @@ export async function GET() {
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
-  const [health, deadLetters, history, financeFailures, generationIncidents] = await Promise.all([
+  const [health, deadLetters, history, financeFailures, generationIncidents, fanout] = await Promise.all([
     actor.db.from('cron_job_health').select('*').order('job_name'),
     actor.db.from('notification_dead_letters').select('*').in('status', ['pending', 'retrying']).order('created_at', { ascending: false }).limit(100),
     actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(100),
@@ -60,6 +104,16 @@ export async function GET() {
       .not('metadata->last_generation_errors', 'is', null)
       .order('updated_at', { ascending: false })
       .limit(50),
+    // Nine jobs are dispatched by fan-out rather than by the scheduler, and the
+    // dispatcher already recorded every result here. Nothing read it. On
+    // 2026-08-07 every dispatch had been failing for days — the container
+    // cannot reach its own public origin — and the panel showed nothing wrong,
+    // because a job that is never invoked never records a failure. It only has
+    // an old last_success_at, which reads as "quiet", not "broken".
+    actor.db
+      .from('app_settings')
+      .select('key,value,updated_at')
+      .like('key', 'cron_%_last_%fanout'),
   ]);
 
   const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error;
@@ -85,6 +139,7 @@ export async function GET() {
     history: history.data ?? [],
     financeFailures: financeFailures.data ?? [],
     generationIncidents: incidents,
+    fanout: summariseFanout(fanout.data ?? []),
     cronPaths: CRON_PATHS,
     generatedAt: new Date().toISOString(),
   });
