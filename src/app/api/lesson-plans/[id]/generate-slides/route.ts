@@ -234,25 +234,14 @@ export async function POST(
       continue;
     }
 
-    // Cast: content_stale_at was added by 20260929000046 and the generated
-    // Supabase types have not been regenerated since, so the column is real but
-    // the type does not know it — the same note migration 41 left on lessons.
-    const { data: existing } = (await (db as any)
+    const { data: existing } = await db
       .from("lesson_materials")
       .select("id,title,lesson_id,file_url,content_stale_at")
       .eq("lesson_id", lesson.id)
       .eq("file_type", "slide-deck")
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()) as {
-      data: {
-        id: string;
-        title: string | null;
-        lesson_id: string | null;
-        file_url: string | null;
-        content_stale_at: string | null;
-      } | null;
-    };
+      .maybeSingle();
 
     // A deck whose lesson has since been corrected is stale (20260929000046)
     // and is rebuilt whether or not the caller asked to regenerate. Skipping it

@@ -117,9 +117,12 @@ still skipped.
 - **`flashcard_decks` and `lesson_materials` have no lock columns.** They are
   frozen through the lesson they belong to. `UNSUPPORTED_COLUMNS` strips the
   lock fields for them; writing a column a table lacks rejects the whole insert.
-- **Generated Supabase types lag the migrations.** `curriculum_release_id`,
-  `shared_master_id` and `content_stale_at` are all real columns the types do
-  not know yet. Cast, and leave a note saying which migration added it.
+- **Regenerate the Supabase types after a migration**, or the next person casts
+  around a column that is really there. `npm run db:types:linked` — it writes
+  `src/types/supabase.ts`. Confirm the new columns actually appear in the output
+  before committing it; a truncated response is worse than a stale file.
+  (The casts left in the generators are for `reuseWeekContent`'s structural
+  `db` parameter, not for missing columns.)
 - **"Already exists" is not "still correct".** A generator that skips on
   existence alone will skip stale content forever. Check `content_stale_at`.
 - **Uniqueness is enforced by indexes, not by app checks.** `20260929000030`

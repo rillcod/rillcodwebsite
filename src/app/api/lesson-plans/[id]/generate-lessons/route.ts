@@ -270,9 +270,9 @@ export async function POST(
           // unchanged — which is why this cannot half-break.
           const planReleaseId = (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null;
           const reuse = await reuseWeekContent({
-            // Cast: lessons.curriculum_release_id was added by migration 41 and
-            // the generated Supabase types have not been regenerated since, so
-            // the column is real but the type does not know it yet.
+            // Cast: reuseWeekContent takes a structural { from(table: string) }
+            // so one helper can serve four tables. A Supabase client's `from` is
+            // typed to its own table union and does not match that shape.
             db: supabase as never,
             table: "lessons",
             releaseId: planReleaseId,
