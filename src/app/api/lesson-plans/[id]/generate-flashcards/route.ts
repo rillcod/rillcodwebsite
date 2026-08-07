@@ -168,16 +168,31 @@ export async function POST(
         return assetMeetingSession(row) === session;
       }) ?? (session == null ? (weekLessons ?? [])[0] : null);
 
+    // "Already exists" is not the same as "still correct". A deck whose lesson
+    // has since been corrected is marked stale by 20260929000046, and skipping
+    // it would leave the class practising wording the lesson no longer uses —
+    // with nothing on the row to say so. Stale decks are rebuilt: the old one
+    // is removed so the copy below can take its place, and for every class
+    // after the first that rebuild is a copy from the master, not an AI call.
+    const replaceStaleDeck = async (deck: { id: string; content_stale_at?: string | null }) => {
+      if (!deck.content_stale_at) return false;
+      // Cards are removed with the deck. Leaving them would orphan them against
+      // a deck id that no longer exists.
+      await (db as any).from("flashcard_cards").delete().eq("deck_id", deck.id);
+      await (db as any).from("flashcard_decks").delete().eq("id", deck.id);
+      return true;
+    };
+
     if (lesson?.id) {
       const { data: existingForLesson } = await (db as any)
         .from("flashcard_decks")
-        .select("id,title")
+        .select("id,title,content_stale_at")
         .eq("lesson_plan_id", id)
         .eq("lesson_id", lesson.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (existingForLesson?.id) {
+      if (existingForLesson?.id && !(await replaceStaleDeck(existingForLesson))) {
         results.push(existingForLesson);
         skipped += 1;
         continue;
@@ -185,14 +200,14 @@ export async function POST(
     } else if (session == null) {
       const { data: existingDeck } = await (db as any)
         .from("flashcard_decks")
-        .select("id,title")
+        .select("id,title,content_stale_at")
         .eq("lesson_plan_id", id)
         .eq("curriculum_week_number", week)
         .eq("class_id", (plan as any).class_id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (existingDeck?.id) {
+      if (existingDeck?.id && !(await replaceStaleDeck(existingDeck))) {
         results.push(existingDeck);
         skipped += 1;
         continue;

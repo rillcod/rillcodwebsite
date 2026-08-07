@@ -234,20 +234,39 @@ export async function POST(
       continue;
     }
 
-    const { data: existing } = await db
+    // Cast: content_stale_at was added by 20260929000046 and the generated
+    // Supabase types have not been regenerated since, so the column is real but
+    // the type does not know it — the same note migration 41 left on lessons.
+    const { data: existing } = (await (db as any)
       .from("lesson_materials")
-      .select("id,title,lesson_id,file_url")
+      .select("id,title,lesson_id,file_url,content_stale_at")
       .eq("lesson_id", lesson.id)
       .eq("file_type", "slide-deck")
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle();
-    if (existing && !regenerate) {
+      .maybeSingle()) as {
+      data: {
+        id: string;
+        title: string | null;
+        lesson_id: string | null;
+        file_url: string | null;
+        content_stale_at: string | null;
+      } | null;
+    };
+
+    // A deck whose lesson has since been corrected is stale (20260929000046)
+    // and is rebuilt whether or not the caller asked to regenerate. Skipping it
+    // would leave the class being taught from slides the lesson no longer says,
+    // and nothing on the row would show the mismatch.
+    const isStale = Boolean((existing as { content_stale_at?: string | null })?.content_stale_at);
+    const rebuild = regenerate || isStale;
+
+    if (existing && !rebuild) {
       results.push(existing);
       skipped += 1;
       continue;
     }
-    if (existing && regenerate) {
+    if (existing && rebuild) {
       try {
         const parsed = JSON.parse(String(existing.file_url ?? "{}"));
         const oldKeys: string[] = Array.isArray(parsed?.slides)

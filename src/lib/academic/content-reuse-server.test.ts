@@ -216,6 +216,22 @@ describe('a mirror points at the master, so corrections reach it', () => {
     expect(fake.inserted[0].row.shared_master_id).toBe('the-original');
   });
 
+  it('does not write lock columns to tables that have none', async () => {
+    // buildCopy clears the lock on every copy, but only lessons and assignments
+    // have lock columns. Writing them to the other two makes Postgres reject
+    // the whole insert — and because a failed copy falls back to generating,
+    // that failure was invisible while looking wired up.
+    for (const table of ['flashcard_decks', 'lesson_materials'] as const) {
+      const { inserted } = await copyOnce(table);
+      expect(inserted[0].row, table).not.toHaveProperty('content_locked_at');
+      expect(inserted[0].row, table).not.toHaveProperty('content_locked_by');
+    }
+
+    // Lessons keep theirs: arriving pre-frozen is the bug buildCopy prevents.
+    const { inserted } = await copyOnce('lessons');
+    expect(inserted[0].row.content_locked_at).toBeNull();
+  });
+
   it('leaves decks and slides unmirrored, because their body is not in the row', async () => {
     // A deck's content is its child cards; a slide deck's is storage objects
     // each class owns separately. Neither can be pushed down by a column update.

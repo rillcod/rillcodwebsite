@@ -210,6 +210,33 @@ const CANDIDATE_COLUMNS =
 const MIRRORED_TABLES: ReuseTable[] = ['lessons', 'assignments'];
 
 /**
+ * Columns buildCopy writes that a given table does not have.
+ *
+ * buildCopy clears the lock on every copy, which is right — a copy must never
+ * arrive pre-frozen — but only lessons and assignments have lock columns to
+ * clear. Writing them to the other two makes Postgres reject the whole insert
+ * with "column does not exist", and because reuseWeekContent treats a failed
+ * copy as "generate instead", that failure was invisible: decks and slides
+ * quietly went on paying the AI while appearing to be wired for reuse.
+ *
+ * Slides and decks are frozen through the lesson they belong to, which
+ * 20260929000044 already refuses to rewrite while it is locked, so nothing is
+ * lost by their not carrying a lock of their own.
+ */
+const UNSUPPORTED_COLUMNS: Partial<Record<ReuseTable, readonly string[]>> = {
+  flashcard_decks: ['content_locked_at', 'content_locked_by'],
+  lesson_materials: ['content_locked_at', 'content_locked_by'],
+};
+
+function withoutUnsupported(table: ReuseTable, row: Record<string, unknown>) {
+  const drop = UNSUPPORTED_COLUMNS[table];
+  if (!drop?.length) return row;
+  const cleaned = { ...row };
+  for (const column of drop) delete cleaned[column];
+  return cleaned;
+}
+
+/**
  * The master a new mirror should point at.
  *
  * Points at the source's own master when the source is itself a mirror, so
@@ -284,11 +311,14 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
     }
 
     const row = {
-      ...buildCopy(source as Record<string, unknown>, {
-        planId: targetPlanId,
-        classId,
-        sourceId: decision.sourceId,
-      }),
+      ...withoutUnsupported(
+        table,
+        buildCopy(source as Record<string, unknown>, {
+          planId: targetPlanId,
+          classId,
+          sourceId: decision.sourceId,
+        })
+      ),
       // Identity beats anything carried from the source; the caller's own
       // overrides beat everything, since they describe this specific week.
       ...identityFor(table, input.scope),
