@@ -181,6 +181,10 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
       {/* Main Grid: Activity + Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
+        {/* Left: Recent Activity. Its wrapper still has to exist even though the
+            Quick Actions card above it is gone — without it the two columns
+            collapse into one and the closing tag below has nothing to close. */}
+        <div className="xl:col-span-2 space-y-6">
           <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
