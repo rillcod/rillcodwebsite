@@ -330,10 +330,31 @@ export async function POST(req: NextRequest) {
             if (newStatus === 'paid') report.statusUpdatedPaid++;
             if (newStatus === 'partially_paid') report.statusUpdatedPartiallyPaid++;
 
-            if (!dryRun) {
-              await admin.from('students')
-                .update({ status: newStatus })
-                .eq('id', s.id);
+            // The student row is deliberately not written.
+            //
+            // 'paid' and 'partially_paid' are PROSPECT statuses. They live on
+            // prospective_students, which is unconstrained and holds nine of
+            // them today. students.status is an approval state and permits only
+            // pending, approved and rejected — two different meanings that
+            // collided on one column name.
+            //
+            // Writing here raised students_status_check and, because Postgres
+            // rejects the whole statement, the reconciliation this loop exists
+            // to perform was abandoned at the first summer student with a
+            // payment. The counts above are still reported, because knowing how
+            // many reconciled is the useful part; the payment state itself is
+            // already held by payment_transactions, which is where amountPaid
+            // and balanceDue were just read from.
+            // Only the two states this loop actually computes. newStatus starts
+            // as whatever the student row held, so writing it unguarded would
+            // echo an unrelated value back onto the prospect.
+            const paymentState =
+              newStatus === 'paid' || newStatus === 'partially_paid' ? newStatus : null;
+
+            if (!dryRun && prospect?.id && paymentState) {
+              await admin.from('prospective_students')
+                .update({ status: paymentState, updated_at: new Date().toISOString() })
+                .eq('id', prospect.id);
             }
           }
         }
