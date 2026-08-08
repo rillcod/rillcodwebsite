@@ -91,6 +91,32 @@ type AcademicTermRow = {
   is_current: boolean;
 };
 
+type SessionRolloverSummary = {
+  releases_needing_new_edition: number;
+  plans_awaiting_live_edition: number;
+  adoptions: number;
+  adoption_conflicts: number;
+  classes: number;
+  roster_rows_created: number;
+  lesson_plans: number;
+  lessons: number;
+  flashcard_decks: number;
+  assignments: number;
+  blocked: number;
+};
+
+type SessionRolloverPreview = {
+  summary: SessionRolloverSummary;
+  plan: {
+    blocked: string[];
+    adoption_conflicts: Array<{ reason: string }>;
+    releases_needing_new_edition: Array<{
+      title: string | null;
+      suggested_title: string | null;
+    }>;
+  };
+};
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const OPS_PILLARS = [
@@ -327,6 +353,18 @@ function SettingsPageContent({
   const [academicTerms, setAcademicTerms] = useState<AcademicTermRow[]>([]);
   const [currentTermId, setCurrentTermId] = useState("");
   const [currentTermSaving, setCurrentTermSaving] = useState(false);
+
+  // Session correction — moving work already filed against the wrong session.
+  // Setting the academic year above only names the live session; it cannot
+  // reach a curriculum, class or plan that was saved under a different one.
+  const [rollFrom, setRollFrom] = useState("");
+  const [rollTo, setRollTo] = useState("");
+  const [rollPreview, setRollPreview] = useState<SessionRolloverPreview | null>(
+    null
+  );
+  const [rollBusy, setRollBusy] = useState<"idle" | "preview" | "apply">(
+    "idle"
+  );
 
   // Platform settings (operations)
   const [opsData, setOpsData] = useState<OpsData>({});
@@ -895,6 +933,41 @@ function SettingsPageContent({
       showToast(e.message ?? "Save failed", false);
     } finally {
       setCurrentTermSaving(false);
+    }
+  };
+
+  const runSessionRollover = async (apply: boolean) => {
+    if (!rollFrom || !rollTo) return;
+    setRollBusy(apply ? "apply" : "preview");
+    try {
+      const res = await fetch("/api/settings/academic-session/rollover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_term_id: rollFrom,
+          to_term_id: rollTo,
+          apply,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Session correction failed");
+      if (apply) {
+        setRollPreview(null);
+        await loadAcademicCalendarSettings();
+        const failed = Array.isArray(json.failures) ? json.failures.length : 0;
+        showToast(
+          failed
+            ? `Applied with ${failed} problem(s) — check the activity trail`
+            : "Academic session corrected everywhere",
+          failed === 0
+        );
+      } else {
+        setRollPreview(json);
+      }
+    } catch (e: any) {
+      showToast(e.message ?? "Session correction failed", false);
+    } finally {
+      setRollBusy("idle");
     }
   };
 
@@ -2009,6 +2082,176 @@ function SettingsPageContent({
                             : " (Platform Default)"}
                         </button>
                       </div>
+
+                      {/* ── Correct an Academic Session (admin only) ──
+                          Everything above names the LIVE session. This moves work
+                          already filed against the wrong one — the case the
+                          platform previously had no screen for at all. */}
+                      {isAdmin && (
+                        <div className="p-4 space-y-3">
+                          <div>
+                            <p className="text-xs font-bold text-foreground uppercase tracking-widest">
+                              Correct an Academic Session
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Moves a curriculum release, its school adoptions,
+                              the classes on that term, their teaching plans and
+                              everything generated from those plans to a
+                              different session. Progress reports, attendance and
+                              class sessions are never moved — they are the
+                              record of what was actually taught.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {(
+                              [
+                                {
+                                  label: "Move work off",
+                                  value: rollFrom,
+                                  set: setRollFrom,
+                                },
+                                {
+                                  label: "On to",
+                                  value: rollTo,
+                                  set: setRollTo,
+                                },
+                              ] as const
+                            ).map((field) => (
+                              <div key={field.label}>
+                                <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest block mb-1">
+                                  {field.label}
+                                </label>
+                                <select
+                                  value={field.value}
+                                  onChange={(e) => {
+                                    field.set(e.target.value);
+                                    setRollPreview(null);
+                                  }}
+                                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                                >
+                                  <option value="">Select a term</option>
+                                  {academicTerms.map((term) => (
+                                    <option key={term.id} value={term.id}>
+                                      {term.term_label} {term.academic_year}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+
+                          {rollPreview && (
+                            <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                Nothing has been changed yet
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {(
+                                  [
+                                    ["School adoptions", "adoptions"],
+                                    ["Classes", "classes"],
+                                    ["Teaching plans", "lesson_plans"],
+                                    ["Generated lessons", "lessons"],
+                                    ["Flashcard decks", "flashcard_decks"],
+                                    ["Assignments", "assignments"],
+                                    ["Roster rows added", "roster_rows_created"],
+                                  ] as const
+                                ).map(([label, key]) => (
+                                  <div
+                                    key={key}
+                                    className="rounded-lg bg-background border border-border px-2.5 py-1.5"
+                                  >
+                                    <p className="text-sm font-black text-foreground">
+                                      {rollPreview.summary[key]}
+                                    </p>
+                                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                                      {label}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              {rollPreview.plan.blocked.map((reason) => (
+                                <p
+                                  key={reason}
+                                  className="text-[10px] text-rose-600 dark:text-rose-400"
+                                >
+                                  {reason}
+                                </p>
+                              ))}
+                              {rollPreview.summary.adoption_conflicts > 0 && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                  {rollPreview.summary.adoption_conflicts} school
+                                  adoption(s) left alone — they already have one
+                                  for the target term.
+                                </p>
+                              )}
+                              {rollPreview.summary.plans_awaiting_live_edition >
+                                0 && (
+                                <p className="text-[10px] text-rose-600 dark:text-rose-400">
+                                  {
+                                    rollPreview.summary
+                                      .plans_awaiting_live_edition
+                                  }{" "}
+                                  teaching plan(s) cannot move — their curriculum
+                                  edition has been retired. Publish a live
+                                  edition for that course, then run this again.
+                                </p>
+                              )}
+                              {rollPreview.plan.releases_needing_new_edition
+                                .length > 0 && (
+                                <div className="text-[10px] text-amber-600 dark:text-amber-400 space-y-1">
+                                  <p>
+                                    A published curriculum edition cannot be
+                                    relabelled in place. These still name the old
+                                    session — publish a new edition in Curriculum
+                                    Governance to correct the wording:
+                                  </p>
+                                  {rollPreview.plan.releases_needing_new_edition.map(
+                                    (release) => (
+                                      <p key={release.title ?? ""}>
+                                        · {release.title}
+                                      </p>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => runSessionRollover(false)}
+                              disabled={
+                                rollBusy !== "idle" || !rollFrom || !rollTo
+                              }
+                              className="flex items-center gap-2 px-5 py-2 bg-muted rounded-xl text-xs font-bold disabled:opacity-50"
+                            >
+                              {rollBusy === "preview" ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <MagnifyingGlassIcon className="w-3.5 h-3.5" />
+                              )}
+                              Check what would change
+                            </button>
+                            <button
+                              onClick={() => runSessionRollover(true)}
+                              disabled={
+                                rollBusy !== "idle" ||
+                                !rollPreview ||
+                                rollPreview.summary.blocked > 0
+                              }
+                              className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold disabled:opacity-50"
+                            >
+                              {rollBusy === "apply" ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckIcon className="w-3.5 h-3.5" />
+                              )}
+                              Apply the correction
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* ── OPS Pillars (admin only) ── */}
                       {isAdmin && (

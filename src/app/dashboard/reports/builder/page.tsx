@@ -2307,7 +2307,11 @@ function ReportBuilderInner() {
                 const bulkRes = await fetch('/api/progress-reports', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...payload, existing_id: existing?.id ?? null }),
+                    body: JSON.stringify({
+                        ...payload,
+                        existing_id: existing?.id ?? null,
+                        allow_backfill: isStaleAcademicSession(payload.report_term, payload.report_period),
+                    }),
                 });
                 if (!bulkRes.ok) {
                     const j = await bulkRes.json();
@@ -2404,7 +2408,16 @@ function ReportBuilderInner() {
             const res = await fetch('/api/progress-reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...payload, existing_id: existingReport?.id ?? null }),
+                body: JSON.stringify({
+                    ...payload,
+                    existing_id: existingReport?.id ?? null,
+                    // Keep a deliberately chosen prior session instead of rolling it to
+                    // live. Without this the builder writes up a finished term correctly
+                    // right up to the day the calendar turns over, then silently refiles
+                    // it into the new session — the Third Term reports a school writes in
+                    // September would land in First Term of the next year.
+                    allow_backfill: isStaleAcademicSession(payload.report_term, payload.report_period),
+                }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to save');
