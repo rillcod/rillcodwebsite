@@ -490,7 +490,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       needsReview = false;
       try {
         await (sb as any).from('form_leads').update({
-          match_status: 'auto_matched',
+          // 'approved', not 'auto_matched': the column permits approved,
+          // new_prospect, pending_review, rejected and unreviewed. 'auto_matched'
+          // failed the whole update, so a lead that WAS linked kept whatever
+          // review state it had — and the analytics funnel, which counts
+          // 'approved' as matched, never saw it. Every other successful link in
+          // the codebase writes 'approved'; the automatic path is still an
+          // approval, it just did not need a human.
+          match_status: 'approved',
           match_notes: `${matchNotes ?? ''}\nAuto-linked to existing student; consent name applied for spelling.`.trim(),
         }).eq('id', lead.id);
       } catch { /* non-fatal */ }

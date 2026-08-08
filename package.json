@@ -59,7 +59,8 @@
     "android:release": "cd android && ./gradlew bundleRelease",
     "cf:secret:fcm": "node scripts/set-cloudflare-fcm-secret.mjs",
     "test:smoke:ai": "npx tsx scripts/smoke-ai-paths.ts",
-    "check:schema": "npx tsx scripts/check-schema-drift.ts"
+    "check:schema": "npx tsx scripts/check-schema-drift.ts",
+    "check:writes": "npx tsx scripts/check-write-constraints.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

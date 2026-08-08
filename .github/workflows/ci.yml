@@ -53,5 +53,16 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+      # The sibling of the drift check, for writes. A value a CHECK constraint
+      # forbids compiles, typechecks and passes the suite — a Supabase client
+      # reached through `as any` cannot see a constraint, and TypeScript could
+      # not know 'inactive' is not a status even if it could. Skips on the same
+      # placeholder credentials as the check above.
+      - name: Write constraint check
+        run: npm run check:writes
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Production build
         run: npm run build
