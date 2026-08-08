@@ -46,11 +46,18 @@ jobs:
 
       # Replays every select() against the real schema. Skips automatically unless real
       # service-role credentials are provided, because the env block above uses placeholders.
-      # To enforce it, add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets.
+      # To enforce it, add SUPABASE_SERVICE_ROLE_KEY plus either SUPABASE_URL or
+      # NEXT_PUBLIC_SUPABASE_URL as repository secrets.
+      #
+      # Both URL names are accepted deliberately. This step originally read only
+      # secrets.SUPABASE_URL, so a secret added under the name the app itself uses —
+      # NEXT_PUBLIC_SUPABASE_URL — resolved to empty, the placeholder in the job env won,
+      # and the check went on skipping while looking configured. That failure is the exact
+      # one these two steps exist to catch, and it would have been invisible.
       - name: Schema drift check
         run: npm run check:schema
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       # The sibling of the drift check, for writes. A value a CHECK constraint
@@ -61,7 +68,7 @@ jobs:
       - name: Write constraint check
         run: npm run check:writes
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Production build
