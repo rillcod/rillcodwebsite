@@ -37,6 +37,81 @@ function withNeverRunJobs(rows: Array<Record<string, unknown>>) {
 }
 
 /**
+ * Work that is finished and waiting on a person.
+ *
+ * Every one of these is content somebody already produced, sitting behind the
+ * approval gate. The gate is deliberate — a generated plan is a draft because
+ * approval is the point — but nothing anywhere counted what had queued up
+ * behind it, and a gate with no counter is a drain.
+ *
+ * Found on 2026-08-07: 82 progress reports written, scored and never published,
+ * the oldest four months old. Also 45 plans with auto-generate switched on that
+ * the sweep skips because it only takes published ones, and 10 of 11 lessons
+ * finished but draft, which also hides their slides and flashcards from
+ * learners. None of it was broken. None of it was visible either.
+ *
+ * Counts only — head:true keeps this cheap enough to sit on a page that polls.
+ */
+async function waitingOnYou(db: any) {
+  const count = async (
+    table: string,
+    build: (q: any) => any
+  ): Promise<number | null> => {
+    try {
+      const { count: n, error } = await build(
+        db.from(table).select('id', { count: 'exact', head: true })
+      );
+      return error ? null : (n ?? 0);
+    } catch {
+      // A panel that half-renders beats a panel that 500s over one count.
+      return null;
+    }
+  };
+
+  const [reports, plans, lessons, assignments] = await Promise.all([
+    count('student_progress_reports', (q: any) => q.not('is_published', 'is', true)),
+    count('lesson_plans', (q: any) =>
+      q.eq('status', 'draft').eq('metadata->auto_generate_settings->>enabled', 'true')
+    ),
+    count('lessons', (q: any) => q.eq('status', 'draft')),
+    count('assignments', (q: any) =>
+      q.not('is_active', 'is', true).not('metadata->>generated_from', 'is', null)
+    ),
+  ]);
+
+  return [
+    {
+      key: 'reports',
+      label: 'Progress reports written but not published',
+      detail: 'Marked work no parent or learner can see yet.',
+      count: reports,
+      href: '/dashboard/results',
+    },
+    {
+      key: 'plans',
+      label: 'Teaching plans waiting for approval',
+      detail: 'Auto-generate is on, but the sweep only picks up published plans.',
+      count: plans,
+      href: '/dashboard/lesson-plans/approvals',
+    },
+    {
+      key: 'lessons',
+      label: 'Lessons finished but still draft',
+      detail: 'Their slides and flashcards are hidden from learners too.',
+      count: lessons,
+      href: '/dashboard/lessons',
+    },
+    {
+      key: 'assignments',
+      label: 'Generated assignments not yet active',
+      detail: 'Written for a week that has not been released.',
+      count: assignments,
+      href: '/dashboard/assignments',
+    },
+  ].filter((row) => row.count === null || row.count > 0);
+}
+
+/**
  * Flatten the dispatcher's own record into one row per child job.
  *
  * Stored as `{ host, at, result: { 'academic-readiness': 'ok' | 'http_500' | 'unreachable:…' } }`
@@ -140,6 +215,7 @@ export async function GET() {
     financeFailures: financeFailures.data ?? [],
     generationIncidents: incidents,
     fanout: summariseFanout(fanout.data ?? []),
+    waiting: await waitingOnYou(actor.db),
     cronPaths: CRON_PATHS,
     generatedAt: new Date().toISOString(),
   });

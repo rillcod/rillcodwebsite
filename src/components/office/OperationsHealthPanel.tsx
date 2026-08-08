@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
 import { cronLabel } from '@/lib/operations/cron-registry';
 
@@ -53,6 +54,16 @@ type GenerationIncident = {
   generatedAt: string | null;
 };
 
+/** Finished work sitting behind the approval gate. */
+type WaitingRow = {
+  key: string;
+  label: string;
+  detail: string;
+  /** null when the count could not be read — shown as unknown, never as zero. */
+  count: number | null;
+  href: string;
+};
+
 /** One row per job the dispatcher tried to start, with what came back. */
 type FanoutSummary = {
   children: Array<{ job: string; status: string; host: string; at: string | null }>;
@@ -89,6 +100,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   const [financeFailures, setFinanceFailures] = useState<FinanceFailure[]>([]);
   const [generationIncidents, setGenerationIncidents] = useState<GenerationIncident[]>([]);
   const [fanout, setFanout] = useState<FanoutSummary | null>(null);
+  const [waiting, setWaiting] = useState<WaitingRow[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -104,6 +116,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       setFinanceFailures(json.financeFailures ?? []);
       setGenerationIncidents(json.generationIncidents ?? []);
       setFanout(json.fanout ?? null);
+      setWaiting(json.waiting ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load operations health.');
     } finally {
@@ -204,6 +217,42 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
           </div>
         ))}
       </div>
+
+      {/*
+        Placed above the machine panels on purpose. Everything below this is the
+        system reporting on itself; this is the only part that cannot fix itself,
+        because each row is finished work waiting on a person. It stayed
+        invisible precisely because nothing here was broken — 82 progress
+        reports sat scored and unpublished, the oldest four months old, while
+        every panel on this page read green.
+      */}
+      {waiting.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-amber-500/40 bg-amber-500/5">
+          <div className="border-b border-amber-500/30 p-5">
+            <h2 className="font-black text-amber-200">Waiting on you</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Finished work that no learner or parent can see until it is released. Nothing here is broken.
+            </p>
+          </div>
+          <div className="divide-y divide-amber-500/20">
+            {waiting.map((row) => (
+              <Link
+                key={row.key}
+                href={row.href}
+                className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-amber-500/10 focus-visible:bg-amber-500/10 focus-visible:outline-none"
+              >
+                <div className="min-w-0">
+                  <p className="font-bold">{row.label}</p>
+                  <p className="text-xs text-muted-foreground">{row.detail}</p>
+                </div>
+                <span className="shrink-0 text-2xl font-black tabular-nums text-amber-200">
+                  {row.count ?? '—'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/*
         Nine jobs are not on the scheduler at all — another job calls them. The
