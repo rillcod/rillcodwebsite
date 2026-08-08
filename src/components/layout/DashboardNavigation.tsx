@@ -41,6 +41,7 @@ import {
   ChatBubbleLeftEllipsisIcon,
   ChatBubbleLeftRightIcon,
   SparklesIcon,
+  BeakerIcon,
   BoltIcon,
   QuestionMarkCircleIcon,
   ChevronDownIcon,
@@ -450,6 +451,19 @@ export default function DashboardNavigation() {
             name: "Special Programmes",
             href: "/dashboard/special-programs",
             icon: SparklesIcon,
+          },
+          {
+            // Seven pages existed here with no link to any of them. The only
+            // mention of /dashboard/progression outside its own folder was the
+            // permission list, so the whole subsystem was reachable only by
+            // typing the URL — which is why its 21,354-project catalogue has
+            // never been used once. It is not part of the curriculum spine: the
+            // spine carries a course week by week, this carries the practical
+            // build that goes with it, keyed by track and year/term/week. They
+            // meet in `assignments`, where both eventually write.
+            name: "Practical Projects",
+            href: "/dashboard/progression/project-registry",
+            icon: BeakerIcon,
           },
           { divider: true, label: "Assessment" },
           {
