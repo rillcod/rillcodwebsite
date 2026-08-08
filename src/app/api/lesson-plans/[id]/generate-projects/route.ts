@@ -60,7 +60,10 @@ export async function POST(
     const { data: plan, error: planErr } = await (supabase as any)
       .from("lesson_plans")
       .select(
-        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
+        // classes.program_id is what links a plan to its project catalogue. The
+        // registry is keyed by programme, and no plan carries a track — all 58
+        // have metadata.track empty, so matching on track resolved nothing.
+        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name, program_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
       )
       .eq("id", id)
       .single();
@@ -335,18 +338,15 @@ export async function POST(
             source: "ai",
             reason: "no_match",
           };
-          const planTrack = (plan as any)?.metadata?.track ?? null;
-          if (planTrack) {
+          const planProgramId = (plan as any)?.classes?.program_id ?? null;
+          if (planProgramId) {
             const { data: briefs } = await (supabase as any)
               .from("curriculum_project_registry")
               .select("id,title,classwork_prompt,estimated_minutes,concept_tags,difficulty_level")
-              .eq("track", planTrack)
+              .eq("program_id", planProgramId)
               .ilike("title", `%Week ${week.week}:%`)
               .limit(10);
-            canon = decideProjectSource(briefs ?? [], {
-              week: week.week,
-              track: planTrack,
-            });
+            canon = decideProjectSource(briefs ?? [], { week: week.week });
           }
 
           // The canon wins: no model call at all for this week.
