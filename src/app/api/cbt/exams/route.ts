@@ -7,6 +7,7 @@ import {
 } from '@/lib/cbt/visibility';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -310,6 +311,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: qErr.message }, { status: 500 });
       }
     }
+
+    await logAudit(admin as any, {
+      action: examPayload.is_active ? 'publish_cbt_exam' : 'create_cbt_exam_draft',
+      actorId: caller.id,
+      resourceType: 'cbt_exam',
+      resourceId: exam.id,
+      newValue: `${examPayload.is_active ? 'Published' : 'Created draft'} assessment: ${String(examPayload.title)}`,
+      newValues: {
+        title: examPayload.title,
+        school_id: examPayload.school_id ?? null,
+        class_id: examPayload.class_id ?? null,
+        course_id: examPayload.course_id ?? null,
+        term_id: examPayload.term_id ?? null,
+        lesson_plan_id: examPayload.lesson_plan_id ?? null,
+        question_count: questions.length,
+        is_active: examPayload.is_active ?? false,
+      },
+    });
 
     return NextResponse.json({ data: exam }, { status: 201 });
   } catch (err: any) {

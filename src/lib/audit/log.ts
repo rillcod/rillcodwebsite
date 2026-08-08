@@ -34,10 +34,10 @@ export interface AuditEntry {
  * resolves the actor through audit_logs.user_id → portal_users. Writing actor_id alone
  * (as several old call-sites did) left every entry showing "no user".
  */
-export async function logAudit(admin: AnySupabase, entry: AuditEntry): Promise<void> {
+export async function logAudit(admin: AnySupabase, entry: AuditEntry): Promise<boolean> {
   try {
     const actor = entry.actorId ?? null;
-    await admin.from('audit_logs').insert({
+    const { error } = await admin.from('audit_logs').insert({
       action: entry.action,
       actor_id: actor,
       user_id: actor,
@@ -53,7 +53,13 @@ export async function logAudit(admin: AnySupabase, entry: AuditEntry): Promise<v
       user_agent: entry.userAgent ?? null,
       created_at: new Date().toISOString(),
     });
+    if (error) {
+      console.error('[logAudit] database write failed (non-fatal):', error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('[logAudit] failed (non-fatal):', err);
+    return false;
   }
 }

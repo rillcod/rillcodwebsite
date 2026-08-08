@@ -40,6 +40,14 @@ describe('unified grading policy', () => {
     expect(score).toBe(89);
   });
 
+  it('uses the published policy in the final result calculation', () => {
+    const result = computeFinalScore(strongScores, 100, {
+      theory: 1, classwork: 0, practical: 0,
+      assignments: 0, attendance: 0, assessment: 0,
+    });
+    expect(result.raw).toBe(strongScores.theory);
+  });
+
   it('uses engagement bands only as coaching signals', () => {
     expect(ENGAGEMENT_BANDS.every((band) => !('maxScore' in band))).toBe(true);
     expect(getEngagementBand(100).label).toBe('Active');

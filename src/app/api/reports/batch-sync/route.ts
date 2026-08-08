@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
+import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
+import { logAudit } from '@/lib/audit/log';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { resolveSessionForWrite } from '@/lib/reports/academic-period';
 import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/evidence';
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest) {
 
   // 3. Process each student
   const results = [];
+  const policyBySchool = new Map<string, Awaited<ReturnType<typeof loadEffectiveScoreWeights>>>();
   for (const student of students) {
     try {
       const { data: teachingPlan } = await admin.from('lesson_plans')
@@ -248,6 +251,16 @@ export async function POST(request: NextRequest) {
       // Mid-term Assessment - 15% - best CBT evaluation score
       const assessmentScore = topCbtScore(scopedCbtRows, course_id, 'evaluation', programId) || asgnAvg;
 
+      const policyKey = student.school_id ?? 'global';
+      let effectivePolicy = policyBySchool.get(policyKey);
+      if (!effectivePolicy) {
+        effectivePolicy = await loadEffectiveScoreWeights(admin as any, {
+          schoolId: student.school_id,
+          courseId: course_id,
+          termId,
+        });
+        policyBySchool.set(policyKey, effectivePolicy);
+      }
       const overallScore = computeWeightedScore({
         theory: theoryScore,
         classwork: classworkScore,
@@ -255,7 +268,7 @@ export async function POST(request: NextRequest) {
         assignments: assignmentScore,
         attendance: attendanceScore,
         assessment: assessmentScore,
-      });
+      }, effectivePolicy.weights);
       const reportGrade = getWAECGrade(overallScore).code;
 
       const payload = {
@@ -336,6 +349,27 @@ export async function POST(request: NextRequest) {
       results.push({ student: student.full_name, status: 'error', message: err.message });
     }
   }
+
+  const succeeded = results.filter((item: any) => item.status === 'success').length;
+  const skipped = results.filter((item: any) => item.status === 'skipped').length;
+  const failed = results.filter((item: any) => item.status === 'error').length;
+  await logAudit(admin as any, {
+    action: 'batch_sync_academic_results',
+    actorId: caller.id,
+    resourceType: 'student_progress_report_batch',
+    resourceId: class_id || course_id,
+    newValue: `Prepared ${succeeded} results; skipped ${skipped}; failed ${failed}`,
+    newValues: {
+      class_id: class_id || null,
+      course_id,
+      term_id: termId,
+      report_period: reportPeriod,
+      total_students: students.length,
+      succeeded,
+      skipped,
+      failed,
+    },
+  });
 
   return NextResponse.json({ 
     message: `Processed ${students.length} students`,

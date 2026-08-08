@@ -6,6 +6,7 @@ import {
   resolveStudentProgramScope,
   programIdForCourse,
 } from '@/lib/assignments/visibility';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -434,6 +435,24 @@ export async function POST(request: NextRequest) {
       const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
       triggerAssignmentReleaseNotifications(data.id, caller.id).catch(console.error);
     }
+
+    await logAudit(admin as any, {
+      action: data.is_active ? 'publish_assignment' : 'create_assignment_draft',
+      actorId: caller.id,
+      resourceType: 'assignment',
+      resourceId: data.id,
+      newValue: `${data.is_active ? 'Published' : 'Created draft'} assignment: ${data.title}`,
+      newValues: {
+        title: data.title,
+        school_id: data.school_id,
+        class_id: data.class_id,
+        course_id: data.course_id,
+        term_id: data.term_id,
+        lesson_plan_id: data.lesson_plan_id,
+        grading_mode: data.grading_mode,
+        is_active: data.is_active,
+      },
+    });
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { healUnassignedStudents } from '@/lib/classes/heal-unassigned';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,14 @@ export async function POST(req: NextRequest) {
 
     const adminDb = createAdminClient();
     const result = await healUnassignedStudents(adminDb);
+
+    await logAudit(adminDb as any, {
+      action: 'heal_unassigned_student_classes',
+      actorId: user.id,
+      resourceType: 'class_placement',
+      newValue: `Auto-placed ${result.healedCount} unassigned student(s)`,
+      newValues: result as unknown as Record<string, unknown>,
+    });
 
     return NextResponse.json({
       success: true,

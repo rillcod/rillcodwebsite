@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { loadDutyCapacity } from '@/lib/communication/duty-assignment';
 import { getOfficeAdminActor, officeAdminForbiddenResponse, officeAdminUnauthorizedResponse } from '@/lib/operations/access';
+import { logAudit } from '@/lib/audit/log';
 
 const DUTY_KINDS = ['general_service', 'academic_support', 'admissions', 'technical_support'] as const;
 
@@ -60,6 +61,19 @@ export async function PATCH(req: NextRequest) {
 
   const { error } = await actor.admin.from('operations_staff_settings').upsert(updates, { onConflict: 'user_id' });
   if (error) return NextResponse.json({ error: 'Unable to update staff availability.' }, { status: 500 });
+  await logAudit(actor.admin, {
+    action: 'update_operations_staff_capacity',
+    actorId: actor.user.id,
+    resourceType: 'operations_staff_settings',
+    resourceId: userId,
+    newValue: 'Updated staff availability and service capacity',
+    newValues: {
+      is_available: updates.is_available,
+      accepts_general_queue: updates.accepts_general_queue,
+      max_active_cases: updates.max_active_cases,
+      skill_tags: updates.skill_tags,
+    },
+  });
   return NextResponse.json({ success: true });
 }
 
@@ -99,5 +113,19 @@ export async function POST(req: NextRequest) {
     p_is_primary: body.isPrimary !== false,
   });
   if (error) return NextResponse.json({ error: 'Unable to start this duty period.' }, { status: 500 });
+  await logAudit(actor.admin, {
+    action: 'handover_primary_operations_duty',
+    actorId: actor.user.id,
+    resourceType: 'operations_duty_assignment',
+    resourceId: staffId,
+    newValue: `Assigned ${dutyKind} duty for ${hours} hour${hours === 1 ? '' : 's'}`,
+    newValues: {
+      staff_id: staffId,
+      duty_kind: dutyKind,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      is_primary: body.isPrimary !== false,
+    },
+  });
   return NextResponse.json({ success: true, data });
 }

@@ -18,6 +18,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { findAuthUserIdByEmail, listAllAuthUsers, type ListedAuthUser } from '@/lib/auth/list-all-users';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -551,17 +552,27 @@ export async function POST() {
     }
   }
 
+  const summary = {
+    students_fixed: results.students_fixed.length,
+    schools_fixed: results.schools_fixed.length,
+    portal_rows_created: results.portal_rows_created.length,
+    portal_auth_created: results.portal_auth_created.length,
+    id_mismatches_fixed: results.id_mismatches_fixed.length,
+    data_fixes: results.data_fixes.length,
+    errors: results.errors.length,
+  };
+  await logAudit(admin as any, {
+    action: results.errors.length ? 'synchronize_user_accounts_partial' : 'synchronize_user_accounts',
+    actorId: caller.id,
+    resourceType: 'user_account_reconciliation',
+    newValue: `Reconciled ${Object.values(summary).slice(0, 6).reduce((total, value) => total + value, 0)} account issue(s); ${summary.errors} error(s)`,
+    newValues: { ...summary, errors: results.errors },
+  });
+
   return NextResponse.json({
-    success: true,
-    summary: {
-      students_fixed: results.students_fixed.length,
-      schools_fixed: results.schools_fixed.length,
-      portal_rows_created: results.portal_rows_created.length,
-      portal_auth_created: results.portal_auth_created.length,
-      id_mismatches_fixed: results.id_mismatches_fixed.length,
-      data_fixes: results.data_fixes.length,
-      errors: results.errors.length,
-    },
+    success: results.errors.length === 0,
+    partial: results.errors.length > 0,
+    summary,
     credentials: [
       ...results.students_fixed,
       ...results.schools_fixed,
@@ -615,6 +626,14 @@ export async function DELETE() {
       deleted.push(pu.email ?? pu.id);
     }
   }
+
+  await logAudit(admin as any, {
+    action: skipped.length ? 'remove_orphan_portal_accounts_partial' : 'remove_orphan_portal_accounts',
+    actorId: caller.id,
+    resourceType: 'user_account_reconciliation',
+    newValue: `Removed ${deleted.length} orphan portal account(s); skipped ${skipped.length}`,
+    newValues: { deleted, skipped },
+  });
 
   return NextResponse.json({
     success: true,

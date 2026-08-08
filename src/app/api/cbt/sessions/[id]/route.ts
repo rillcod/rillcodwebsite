@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { gradeCbtWithManualScores } from '@/lib/cbt/grading';
 import { denyIfMissingCapability } from '@/lib/auth/capabilities';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,7 @@ async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, call
         .eq('id', examClassId)
         .eq('teacher_id', caller.id)
         .maybeSingle();
-      if (ownedClass) return session;
+      return ownedClass ? session : null;
     }
     if (!examSchoolId) return null;
     const { data: assignment } = await admin
@@ -177,7 +178,7 @@ export async function PATCH(
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
       .from('cbt_sessions')
-      .select('id, exam_id, answers, cbt_exams(school_id, created_by, passing_score, metadata)')
+      .select('id, user_id, exam_id, answers, score, status, manual_scores, grading_notes, cbt_exams(school_id, created_by, class_id, passing_score, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -194,11 +195,18 @@ export async function PATCH(
       const exam = (session as any).cbt_exams;
       const examSchoolId: string | null = exam?.school_id ?? null;
       const examCreatedBy: string | null = exam?.created_by ?? null;
+      const examClassId: string | null = exam?.class_id ?? null;
 
-      const canGrade =
-        examCreatedBy === caller.id ||
-        (examSchoolId && caller.school_id === examSchoolId) ||
-        await (async () => {
+      const canGrade = examCreatedBy === caller.id || await (async () => {
+          if (examClassId) {
+            const { data: ownedClass } = await admin
+              .from('classes')
+              .select('id')
+              .eq('id', examClassId)
+              .eq('teacher_id', caller.id)
+              .maybeSingle();
+            return !!ownedClass;
+          }
           if (!examSchoolId) return false;
           const { data: ts } = await admin
             .from('teacher_schools')
@@ -253,6 +261,28 @@ export async function PATCH(
       .select('id, score, status');
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const saved = Array.isArray(data) ? data[0] : data;
+    await logAudit(admin as any, {
+      action: 'grade_cbt_session',
+      actorId: caller.id,
+      resourceType: 'cbt_session',
+      resourceId: id,
+      oldValue: `${(session as any).score ?? 'ungraded'} / ${(session as any).status ?? 'unknown'}`,
+      newValue: `${saved?.score ?? 'ungraded'} / ${saved?.status ?? 'unknown'}`,
+      oldValues: {
+        score: (session as any).score ?? null,
+        status: (session as any).status ?? null,
+        manual_scores: (session as any).manual_scores ?? null,
+      },
+      newValues: {
+        score: saved?.score ?? null,
+        status: saved?.status ?? null,
+        learner_id: (session as any).user_id ?? null,
+        exam_id: (session as any).exam_id ?? null,
+        manual_scores_changed: 'manual_scores' in body,
+        grading_notes_changed: 'grading_notes' in body,
+      },
+    });
     return NextResponse.json({ data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

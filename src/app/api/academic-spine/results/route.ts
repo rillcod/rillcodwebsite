@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -106,6 +107,14 @@ export async function POST(req: NextRequest) {
     if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
     const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: reportId });
     if (qualityError) return NextResponse.json({ error: qualityError.message }, { status: 400 });
+    await logAudit(db as any, {
+      action: 'recalculate_academic_result',
+      actorId: user.id,
+      resourceType: 'student_progress_report',
+      resourceId: reportId,
+      newValue: 'Recalculated from current academic evidence and evaluated academic QA',
+      newValues: { calculation, academic_quality: quality },
+    });
     return NextResponse.json({ data: { report_id: reportId, calculation, academic_quality: quality } });
   }
 
@@ -189,12 +198,43 @@ export async function POST(req: NextRequest) {
     : await db.from('student_progress_reports').insert(payload).select('id').single();
   if (write.error) return NextResponse.json({ error: write.error.message }, { status: 400 });
   if (calculationMode === 'manual') {
+    await logAudit(db as any, {
+      action: 'create_protected_manual_result',
+      actorId: user.id,
+      resourceType: 'student_progress_report',
+      resourceId: write.data.id,
+      newValue: `Created protected manual result for ${student.full_name}`,
+      newValues: {
+        student_id: student.id,
+        class_id: klass.id,
+        course_id: course.id,
+        academic_offering_id: klass.academic_offering_id,
+        offering_period_id: klass.offering_period_id,
+        calculation_mode: 'manual',
+      },
+    });
     return NextResponse.json({ data: { report_id: write.data.id, calculation_mode: 'manual', message: 'Manual result created. Entered marks will not be overwritten.' } }, { status: existing ? 200 : 201 });
   }
   const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
   if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
   const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: write.data.id });
   if (qualityError) return NextResponse.json({ error: qualityError.message }, { status: 400 });
+  await logAudit(db as any, {
+    action: existing ? 'refresh_automatic_academic_result' : 'create_automatic_academic_result',
+    actorId: user.id,
+    resourceType: 'student_progress_report',
+    resourceId: write.data.id,
+    newValue: `${existing ? 'Refreshed' : 'Created'} automatic result for ${student.full_name}`,
+    newValues: {
+      student_id: student.id,
+      class_id: klass.id,
+      course_id: course.id,
+      academic_offering_id: klass.academic_offering_id,
+      offering_period_id: klass.offering_period_id,
+      calculation,
+      academic_quality: quality,
+    },
+  });
   return NextResponse.json({ data: {
     report_id: write.data.id,
     pathway: offering?.pathway,

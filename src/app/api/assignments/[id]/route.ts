@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { programIdForCourse } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -154,7 +155,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id, is_active, term_id, class_id, academic_offering_id, offering_period_id')
+    .select('created_by, school_id, title, is_active, term_id, class_id, academic_offering_id, offering_period_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -250,6 +251,24 @@ export async function PATCH(
     triggerAssignmentReleaseNotifications(id, caller.id).catch(console.error);
   }
 
+  await logAudit(admin as any, {
+    action: allowed.is_active === true && existing.is_active !== true
+      ? 'publish_assignment'
+      : allowed.is_active === false && existing.is_active === true
+        ? 'deactivate_assignment'
+        : 'update_assignment',
+    actorId: caller.id,
+    resourceType: 'assignment',
+    resourceId: id,
+    oldValue: existing.title ?? null,
+    newValue: typeof allowed.title === 'string' ? allowed.title : existing.title ?? null,
+    oldValues: { is_active: existing.is_active },
+    newValues: {
+      changed_fields: Object.keys(allowed).filter((field) => field !== 'updated_at'),
+      is_active: 'is_active' in allowed ? allowed.is_active : existing.is_active,
+    },
+  });
+
   return NextResponse.json({ success: true });
 }
 
@@ -277,7 +296,7 @@ export async function DELETE(
 
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id')
+    .select('created_by, school_id, title, is_active')
     .eq('id', id)
     .maybeSingle();
 
@@ -306,5 +325,13 @@ export async function DELETE(
 
   const { error } = await admin.from('assignments').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'delete_ungraded_assignment_draft',
+    actorId: caller.id,
+    resourceType: 'assignment',
+    resourceId: id,
+    oldValue: existing.title ?? null,
+    oldValues: { title: existing.title, is_active: existing.is_active },
+  });
   return NextResponse.json({ success: true });
 }

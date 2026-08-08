@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   AcademicCapIcon, ChartBarIcon, CheckCircleIcon,
@@ -12,8 +12,9 @@ import {
   ENGAGEMENT_BANDS, XP_EVENTS, BADGES,
   computeFinalScore,
   getMotivationMessage, formatScore,
-  type ScoreComponents, type WAECGrade,
+  type ScoreComponents, type ScoreWeights, type WAECGrade,
 } from '@/lib/grading';
+import { scoreWeightsFromPublishedComponents } from '@/lib/grading-scheme';
 import { BadgeCardFull } from '@/components/badges/BadgeCard';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,8 +70,33 @@ export default function WAECGradingPage() {
     assessment: 65,
   });
   const [assignmentPct, setAssignmentPct] = useState(80);
+  const [weights, setWeights] = useState<ScoreWeights>(SCORE_WEIGHTS);
+  const [policyName, setPolicyName] = useState('Academic Office default');
 
-  const result = computeFinalScore(scores, assignmentPct);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/academic-spine/schemes', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!active || !Array.isArray(payload?.data)) return;
+        const globalPolicy = payload.data.find((scheme: any) => (
+          !scheme.school_id
+          && !scheme.course_id
+          && !scheme.academic_term_id
+          && !scheme.academic_offering_id
+          && scoreWeightsFromPublishedComponents(scheme.components)
+        ));
+        const published = globalPolicy && scoreWeightsFromPublishedComponents(globalPolicy.components);
+        if (published) {
+          setWeights(published);
+          setPolicyName(globalPolicy.name || 'Published Academic Office policy');
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const result = computeFinalScore(scores, assignmentPct, weights);
   const motivation = getMotivationMessage(result.raw, assignmentPct, 0);
 
   return (
@@ -88,6 +114,9 @@ export default function WAECGradingPage() {
           <h1 className="text-2xl font-black">Grading & Evaluation Guide</h1>
           <p className="text-xs text-muted-foreground mt-1">
             One calculation policy for assignments, projects, evaluations, CBT, gradebook, and reports.
+          </p>
+          <p className="text-[11px] font-bold text-primary mt-1">
+            Current default: {policyName}. Scoped school, course, term, and pathway policies apply automatically in official results.
           </p>
         </div>
         <Link
@@ -127,10 +156,10 @@ export default function WAECGradingPage() {
           <div className="lg:col-span-3 bg-card border border-border p-6 space-y-5">
             <h2 className="text-xs font-black uppercase tracking-widest text-primary">Enter Component Scores</h2>
 
-            {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => (
+            {(Object.keys(weights) as (keyof ScoreComponents)[]).map(key => (
               <ScoreSlider
                 key={key}
-                label={`${COMPONENT_LABELS[key]} — ${Math.round(SCORE_WEIGHTS[key] * 100)}%`}
+                label={`${COMPONENT_LABELS[key]} — ${Math.round(weights[key] * 100)}%`}
                 description={COMPONENT_DESCRIPTIONS[key]}
                 value={scores[key]}
                 onChange={v => setScores(p => ({ ...p, [key]: v }))}
@@ -191,8 +220,8 @@ export default function WAECGradingPage() {
             {/* Weighted breakdown */}
             <div className="bg-card border border-border p-4 space-y-2 mobile-page-root">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Score Breakdown</p>
-              {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => {
-                const contribution = Math.round(scores[key] * SCORE_WEIGHTS[key]);
+              {(Object.keys(weights) as (keyof ScoreComponents)[]).map(key => {
+                const contribution = Math.round(scores[key] * weights[key]);
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-bold truncate">{COMPONENT_LABELS[key]}</div>
@@ -256,11 +285,11 @@ export default function WAECGradingPage() {
           <div className="border-t border-border pt-6 space-y-3">
             <h3 className="text-xs font-black uppercase tracking-widest text-primary">Score Component Weights</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => (
+              {(Object.keys(weights) as (keyof ScoreComponents)[]).map(key => (
                 <div key={key} className="bg-muted/40 border border-border p-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">{COMPONENT_LABELS[key]}</span>
-                    <span className="text-sm font-black text-primary">{Math.round(SCORE_WEIGHTS[key] * 100)}%</span>
+                    <span className="text-sm font-black text-primary">{Math.round(weights[key] * 100)}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">{COMPONENT_DESCRIPTIONS[key]}</p>
                 </div>

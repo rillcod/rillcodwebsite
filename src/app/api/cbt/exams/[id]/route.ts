@@ -7,6 +7,7 @@ import {
   resolveStudentCbtScope,
 } from '@/lib/cbt/visibility';
 import { hasCbtAttemptEvidence } from '@/lib/academic/record-retention';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,7 +168,7 @@ export async function PATCH(
   // Fetch exam to validate access
   const { data: examMeta } = await admin
     .from('cbt_exams')
-    .select('school_id, created_by')
+    .select('school_id, created_by, title, is_active')
     .eq('id', id)
     .maybeSingle();
 
@@ -305,6 +306,26 @@ export async function PATCH(
     }
   }
 
+  await logAudit(admin as any, {
+    action: examPayload.is_active === true && examMeta.is_active !== true
+      ? 'publish_cbt_exam'
+      : examPayload.is_active === false && examMeta.is_active === true
+        ? 'deactivate_cbt_exam'
+        : 'update_cbt_exam',
+    actorId: caller.id,
+    resourceType: 'cbt_exam',
+    resourceId: id,
+    oldValue: examMeta.title ?? null,
+    newValue: typeof examPayload.title === 'string' ? examPayload.title : examMeta.title ?? null,
+    oldValues: { is_active: examMeta.is_active },
+    newValues: {
+      changed_fields: Object.keys(examPayload).filter((field) => field !== 'updated_at'),
+      questions_added_or_updated: Array.isArray(questions) ? questions.length : 0,
+      questions_deleted: Array.isArray(deletedQuestionIds) ? deletedQuestionIds.length : 0,
+      is_active: 'is_active' in examPayload ? examPayload.is_active : examMeta.is_active,
+    },
+  });
+
   return NextResponse.json({ success: true });
 }
 
@@ -327,7 +348,7 @@ export async function DELETE(
 
     const { data: examMeta } = await admin
       .from('cbt_exams')
-      .select('school_id, created_by')
+      .select('school_id, created_by, title, is_active')
       .eq('id', id)
       .maybeSingle();
 
@@ -354,6 +375,14 @@ export async function DELETE(
 
     const { error } = await admin.from('cbt_exams').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'delete_unused_cbt_exam',
+      actorId: caller.id,
+      resourceType: 'cbt_exam',
+      resourceId: id,
+      oldValue: examMeta.title ?? null,
+      oldValues: { title: examMeta.title, is_active: examMeta.is_active },
+    });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

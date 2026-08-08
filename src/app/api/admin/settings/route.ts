@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 const CARD_CONFIG_KEYS = {
   student: 'card_builder_config_student',
@@ -114,6 +115,15 @@ export async function POST(request: Request) {
       console.error('Error saving settings:', saveErr);
       return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
     }
+
+    await logAudit(db as any, {
+      action: 'update_card_builder_configuration',
+      actorId: user.id,
+      resourceType: 'system_setting',
+      resourceId: existing?.id ?? key,
+      newValue: `Updated ${type} card builder configuration`,
+      newValues: { setting_key: key, account_type: type },
+    });
 
     return NextResponse.json({ message: 'Saved successfully' });
   } catch (err: unknown) {

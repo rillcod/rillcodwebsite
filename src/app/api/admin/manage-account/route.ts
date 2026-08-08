@@ -18,6 +18,7 @@
  * Deletes support { dryRun: true } to preview impact.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
@@ -425,6 +426,22 @@ export async function POST(req: NextRequest) {
         console.error('[manage-account] email propagation incomplete:', { portalUserId, old, next, failures });
       }
 
+      await logAudit(admin as any, {
+        action: failures.length ? 'change_account_email_partial' : 'change_account_email',
+        actorId: user.id,
+        resourceType: 'portal_user',
+        resourceId: portalUserId,
+        oldValue: old,
+        newValue: next,
+        oldValues: { email: old },
+        newValues: {
+          email: next,
+          role: account.role,
+          propagation_targets: Object.keys(propagated),
+          failed_targets: failures,
+        },
+      });
+
       return NextResponse.json({
         // `success` stays strict: it means the login email changed AND every
         // denormalised copy followed. But a partial run must not read as "nothing
@@ -522,6 +539,21 @@ export async function POST(req: NextRequest) {
           console.error('[manage-account] auth delete failed:', e);
         }
 
+        await logAudit(admin as any, {
+          action: 'safe_delete_account',
+          actorId: user.id,
+          resourceType: 'portal_user',
+          resourceId: portalUserId,
+          oldValue: `${account.full_name || account.email || portalUserId} (${account.role})`,
+          oldValues: {
+            email: account.email,
+            full_name: account.full_name,
+            role: account.role,
+            completed_payments: totalPaymentsCount,
+          },
+          newValues: { account_deleted: true, finance_preserved: true },
+        });
+
         return NextResponse.json({ success: true, action, deleted: { id: portalUserId, email: account.email }, preservedFinance: true });
       }
 
@@ -564,6 +596,24 @@ export async function POST(req: NextRequest) {
 
         // A partially purged account is the dangerous outcome: the admin believes
         // the record is gone while orphaned rows still reference it. Say so.
+        await logAudit(admin as any, {
+          action: purgeFailures.length ? 'purge_account_partial' : 'purge_account',
+          actorId: user.id,
+          resourceType: 'portal_user',
+          resourceId: portalUserId,
+          oldValue: `${account.full_name || account.email || portalUserId} (${account.role})`,
+          oldValues: {
+            email: account.email,
+            full_name: account.full_name,
+            role: account.role,
+            completed_payments: totalPaymentsCount,
+          },
+          newValues: {
+            account_purged: purgeFailures.length === 0,
+            purged_children_count: childrenToPurge.length,
+            failed_targets: purgeFailures,
+          },
+        });
         return NextResponse.json({
           success: purgeFailures.length === 0,
           partial: purgeFailures.length > 0,

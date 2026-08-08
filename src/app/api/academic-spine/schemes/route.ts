@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { scoreWeightsFromPublishedComponents } from '@/lib/grading-scheme';
+import { logAudit } from '@/lib/audit/log';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function caller() {
   const auth = await createClient();
@@ -21,6 +23,12 @@ export async function GET() {
     .select('id,name,school_id,course_id,academic_term_id,academic_offering_id,components,status,updated_at,schools(name),courses(title)')
     .eq('status', 'active').order('updated_at', { ascending: false });
   if (user.role === 'school') query = query.or(`school_id.is.null,school_id.eq.${user.school_id}`);
+  if (user.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(user.id, user.school_id);
+    query = schoolIds.length
+      ? query.or(`school_id.is.null,school_id.in.(${schoolIds.join(',')})`)
+      : query.is('school_id', null);
+  }
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
@@ -48,5 +56,20 @@ export async function POST(req: NextRequest) {
     p_academic_term_id: body.academic_term_id || null,
   });
   if (error) return NextResponse.json({ error: error.message, detail: error.details }, { status: 400 });
+  const published = Array.isArray(data) ? data[0] : data;
+  await logAudit(db as any, {
+    action: 'publish_assessment_weighting_policy',
+    actorId: user.id,
+    resourceType: 'academic_assessment_scheme',
+    resourceId: published?.id ?? null,
+    newValue: `Published ${String(body.name || 'Academic result weighting').trim()}`,
+    newValues: {
+      name: String(body.name || 'Academic result weighting').trim(),
+      components,
+      school_ids: Array.isArray(body.school_ids) ? body.school_ids : [],
+      course_id: body.course_id || null,
+      academic_term_id: body.academic_term_id || null,
+    },
+  });
   return NextResponse.json({ data, message: 'The weighting scheme is now active for the selected schools.' }, { status: 201 });
 }

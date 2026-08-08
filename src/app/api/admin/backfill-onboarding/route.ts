@@ -26,6 +26,7 @@ import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { getSummerTotalTuition, getSummerBalanceDue } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient<Database>(
@@ -359,6 +360,27 @@ export async function POST(req: NextRequest) {
           }
         }
       }
+    }
+
+    if (!dryRun) {
+      await logAudit(admin as any, {
+        action: 'backfill_onboarding_structure',
+        actorId: user.id,
+        resourceType: 'onboarding_reconciliation',
+        resourceId: canonical.id,
+        newValue: `Repaired onboarding structure for ${report.schoollessStudentsFixed + report.studentsEnrolled} learner record(s)`,
+        newValues: {
+          canonical_school_id: canonical.id,
+          duplicate_schools_merged: report.duplicateSchoolsMerged.length,
+          schoolless_students_fixed: report.schoollessStudentsFixed,
+          students_enrolled: report.studentsEnrolled,
+          summer_classes_assigned: report.summerClassesAssigned,
+          parent_links_created: report.parentLinksCreated,
+          parent_accounts_created: report.parentAccountsCreated,
+          legacy_collisions_skipped: report.legacyCollisionsSkipped,
+          reconciled_payments: report.reconciledPayments,
+        },
+      });
     }
 
     return NextResponse.json({

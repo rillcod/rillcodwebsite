@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,6 +112,7 @@ export async function POST(req: NextRequest) {
       duplicateRows: 0,
       merged: 0,
       loginsDeactivated: 0,
+      errors: [] as string[],
       details: [] as Array<{ child: string; kept: string; keptReports: ReportStats; removed: Array<{ id: string; reports: ReportStats }>; reason: string }>,
     };
 
@@ -155,7 +157,8 @@ export async function POST(req: NextRequest) {
         //    away when the duplicate row is deleted.
         let linkMoveFailed = false;
         try {
-          const { data: links } = await admin.from('parent_student_links').select('parent_id').eq('student_id', d.id);
+          const { data: links, error: linksError } = await admin.from('parent_student_links').select('parent_id').eq('student_id', d.id);
+          if (linksError) throw linksError;
           for (const l of (links ?? []) as Array<{ parent_id: string }>) {
             await syncExplicitParentStudentLink(admin as any, l.parent_id, canonical.id);
           }
@@ -168,31 +171,66 @@ export async function POST(req: NextRequest) {
         if (linkMoveFailed) continue;
 
         // 2. Repoint valuable references onto the canonical.
+        let repointFailed = false;
         for (const table of REPOINT_TABLES) {
-          try { await admin.from(table).update({ student_id: canonical.id }).eq('student_id', d.id); } catch { /* table/col may differ — skip */ }
+          const { error } = await admin.from(table).update({ student_id: canonical.id }).eq('student_id', d.id);
+          if (error) {
+            repointFailed = true;
+            report.errors.push(`${d.id}: could not move ${table} records (${error.message})`);
+            break;
+          }
         }
+        if (repointFailed) continue;
 
         // 3. Deactivate a duplicate login (a different portal account for the same child).
         if (d.user_id && d.user_id !== canonical.user_id) {
-          try {
-            await admin.from('portal_users').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', d.user_id);
-            report.loginsDeactivated++;
-          } catch { /* non-fatal */ }
+          const { error } = await admin.from('portal_users')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', d.user_id);
+          if (error) {
+            report.errors.push(`${d.id}: duplicate login could not be deactivated (${error.message})`);
+            continue;
+          }
+          report.loginsDeactivated++;
         }
 
         // 4. Hard-delete the duplicate student row (its links cascade away).
-        try {
-          await admin.from('students').delete().eq('id', d.id);
+        const { error: deleteError } = await admin.from('students').delete().eq('id', d.id);
+        if (!deleteError) {
           report.merged++;
-        } catch (e) {
-          console.error('[merge-students] delete dup failed, soft-deleting instead:', e);
-          try { await admin.from('students').update({ is_deleted: true, is_active: false }).eq('id', d.id); } catch { /* */ }
+        } else {
+          console.error('[merge-students] delete dup failed, soft-deleting instead:', deleteError);
+          const { error: softDeleteError } = await admin.from('students')
+            .update({ is_deleted: true, is_active: false })
+            .eq('id', d.id);
+          if (softDeleteError) {
+            report.errors.push(`${d.id}: delete and fallback deactivation failed (${softDeleteError.message})`);
+          } else {
+            report.errors.push(`${d.id}: hard-delete failed; duplicate was safely deactivated instead`);
+          }
         }
       }
     }
 
+    if (!dryRun) {
+      await logAudit(admin as any, {
+        action: report.errors.length ? 'merge_duplicate_students_partial' : 'merge_duplicate_students',
+        actorId: user.id,
+        resourceType: 'student_identity_reconciliation',
+        newValue: `Merged ${report.merged} duplicate student record(s); ${report.errors.length} issue(s)`,
+        newValues: {
+          duplicate_groups: report.duplicateGroups,
+          duplicate_rows: report.duplicateRows,
+          merged: report.merged,
+          logins_deactivated: report.loginsDeactivated,
+          errors: report.errors,
+        },
+      });
+    }
+
     return NextResponse.json({
-      success: true,
+      success: report.errors.length === 0,
+      partial: report.errors.length > 0,
       message: dryRun ? 'Dry run — no changes written.' : 'Duplicate students merged.',
       ...report,
     });

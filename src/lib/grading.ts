@@ -203,13 +203,17 @@ export function computeWeightedScore(scores: ScoreComponents, weights: ScoreWeig
  * @param scores       - Raw component scores
  * @param assignmentSubmissionPct - 0–100: % of assignments the student submitted
  */
-export function computeFinalScore(scores: ScoreComponents, assignmentSubmissionPct: number): {
+export function computeFinalScore(
+  scores: ScoreComponents,
+  assignmentSubmissionPct: number,
+  weights: ScoreWeights = SCORE_WEIGHTS,
+): {
   raw: number;
   capped: number;
   cap: EngagementBand;
   grade: WAECGrade;
 } {
-  const raw = computeWeightedScore(scores);
+  const raw = computeWeightedScore(scores, weights);
   const cap = getEngagementBand(assignmentSubmissionPct);
   const capped = raw;
   const grade = getWAECGrade(raw);
@@ -276,10 +280,10 @@ export const COMPONENT_LABELS: Record<keyof ScoreComponents, string> = {
 };
 
 export const COMPONENT_DESCRIPTIONS: Record<keyof ScoreComponents, string> = {
-  theory:      'Pen-and-paper written tests and theory tasks (20%)',
-  classwork:   'In-class exercises and active participation (10%)',
-  practical:   'Hands-on projects, lab work, and deliverables (25%)',
-  assignments: 'Weekly homework and submitted assignment tasks (20%)',
-  attendance:  'Punctual attendance and class presence (10%)',
-  assessment:  'Week 3 (1st) and Week 6 (2nd) mid-term assessments (15%)',
+  theory:      'Pen-and-paper written tests and theory tasks',
+  classwork:   'In-class exercises and active participation',
+  practical:   'Hands-on projects, lab work, and deliverables',
+  assignments: 'Weekly homework and submitted assignment tasks',
+  attendance:  'Punctual attendance and class presence',
+  assessment:  'Week 3 and Week 6 mid-term assessments',
 };
