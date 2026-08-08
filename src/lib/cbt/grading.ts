@@ -4,7 +4,7 @@ export type CbtGradeQuestion = {
   id: string;
   question_type?: string | null;
   options?: unknown;
-  correct_answer?: string | null;
+  correct_answer?: unknown;
   points?: number | null;
   metadata?: any;
 };

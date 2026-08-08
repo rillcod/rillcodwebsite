@@ -3,13 +3,31 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
+import { z } from 'zod';
+
+const questionSchema = z.object({
+  question_text: z.string().trim().min(1).max(10_000),
+  question_type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'matching', 'fill_in_blank']).default('multiple_choice'),
+  points: z.number().min(0).max(1000).default(1),
+  options: z.array(z.string().max(1000)).max(20).nullable().optional(),
+  correct_answer: z.union([z.string().max(5000), z.number(), z.null()]).optional(),
+  explanation: z.string().max(5000).nullable().optional(),
+}).strict();
+
+async function examHasAttempts(db: ReturnType<typeof createAdminClient>, examId: string) {
+  const { count, error } = await db.from('exam_attempts').select('id', { count: 'exact', head: true }).eq('exam_id', examId);
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
+}
 
 async function getUser() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  return data ? { ...user, role: data.role, school_id: data.school_id } : null;
+  const { data } = await supabase.from('portal_users').select('role, school_id, is_active, is_deleted').eq('id', user.id).single();
+  return data?.is_active && !data.is_deleted ? { ...user, role: data.role, school_id: data.school_id } : null;
 }
 
 async function canManageExam(user: Awaited<ReturnType<typeof getUser>>, examId: string) {
@@ -28,9 +46,6 @@ async function canManageExam(user: Awaited<ReturnType<typeof getUser>>, examId: 
     const schoolIds = await getTeacherSchoolIds(user.id, user.school_id ?? null);
     return !!courseSchoolId && schoolIds.includes(courseSchoolId);
   }
-  if (user.role === 'school') {
-    return !!user.school_id && !!courseSchoolId && user.school_id === courseSchoolId;
-  }
   return false;
 }
 
@@ -40,9 +55,17 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await context.params;
-  const allowed = await canManageExam(user as any, id);
-  if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const db = createAdminClient();
+  let allowed = await canManageExam(user as any, id);
+  if (!allowed && user.role === 'school' && user.school_id) {
+    const { data: scopedExam } = await db
+      .from('exams')
+      .select('courses!course_id(school_id)')
+      .eq('id', id)
+      .maybeSingle();
+    allowed = (scopedExam as any)?.courses?.school_id === user.school_id;
+  }
+  if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   if (user.role === 'student') {
     const { data: exam } = await db
@@ -84,16 +107,17 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 // POST /api/exams/[id]/questions — add a question
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
-  if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!user || !['admin', 'teacher'].includes(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id: exam_id } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const body = await request.json();
-  const { question_text, question_type, points, options, correct_answer, explanation } = body;
-
-  if (!question_text) return NextResponse.json({ error: 'question_text required' }, { status: 400 });
-
   const db = createAdminClient();
+  if (await examHasAttempts(db, exam_id)) {
+    return NextResponse.json({ error: 'This exam already has learner attempts. Its question definition is now locked.' }, { status: 409 });
+  }
+  const parsed = questionSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid question' }, { status: 400 });
+  const { question_text, question_type, points, options, correct_answer, explanation } = parsed.data;
 
   // Get next order_index
   const { data: existing } = await db.from('exam_questions').select('order_index').eq('exam_id', exam_id).order('order_index', { ascending: false }).limit(1);
@@ -111,25 +135,53 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }]).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'add_written_exam_question', actorId: user.id,
+    resourceType: 'exam_question', resourceId: data.id,
+    tableName: 'exam_questions',
+    newValues: { exam_id, question_type: data.question_type, points: data.points, order_index: data.order_index },
+  });
   return NextResponse.json({ data }, { status: 201 });
 }
 
 // PATCH /api/exams/[id]/questions — reorder questions (bulk update order)
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
-  if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!user || !['admin', 'teacher'].includes(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id: exam_id } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const { questions } = await request.json(); // Array of { id, order_index }
-
-  if (!Array.isArray(questions)) return NextResponse.json({ error: 'questions array required' }, { status: 400 });
-
   const db = createAdminClient();
+  if (await examHasAttempts(db, exam_id)) {
+    return NextResponse.json({ error: 'This exam already has learner attempts. Its question definition is now locked.' }, { status: 409 });
+  }
+  const parsed = z.object({ questions: z.array(z.object({
+    id: z.string().uuid(), order_index: z.number().int().min(1).max(10_000),
+  }).strict()).min(1).max(1000) }).strict().safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'questions array required' }, { status: 400 });
+  const questions = parsed.data.questions;
+  if (new Set(questions.map((question) => question.id)).size !== questions.length) {
+    return NextResponse.json({ error: 'Each question may appear only once.' }, { status: 400 });
+  }
+  const { count, error: scopeError } = await db.from('exam_questions').select('id', { count: 'exact', head: true }).eq('exam_id', exam_id).in('id', questions.map((question) => question.id));
+  if (scopeError) return NextResponse.json({ error: scopeError.message }, { status: 500 });
+  if ((count ?? 0) !== questions.length) return NextResponse.json({ error: 'One or more questions do not belong to this exam.' }, { status: 400 });
   const updates = questions.map((q: { id: string; order_index: number }) =>
-    db.from('exam_questions').update({ order_index: q.order_index } as any).eq('id', q.id).eq('exam_id', exam_id)
+    requireSupabaseWrite(
+      db.from('exam_questions').update({ order_index: q.order_index } as any).eq('id', q.id).eq('exam_id', exam_id),
+      `Reorder written exam question ${q.id}`,
+    )
   );
 
-  await Promise.all(updates);
+  try {
+    await Promise.all(updates);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  }
+  await logAudit(db as any, {
+    action: 'reorder_written_exam_questions', actorId: user.id,
+    resourceType: 'exam', resourceId: exam_id,
+    newValues: { question_order: questions },
+  });
   return NextResponse.json({ success: true });
 }

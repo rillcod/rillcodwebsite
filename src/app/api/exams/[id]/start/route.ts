@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { examTakingService } from '@/services/exam-taking.service';
 import { AppError } from '@/lib/errors';
+import { logAudit } from '@/lib/audit/log';
 
 async function postHandler(req: Request, ctx: ApiContext) {
     const id = ctx.params?.id;
@@ -35,6 +36,11 @@ async function postHandler(req: Request, ctx: ApiContext) {
     }
 
     const session = await examTakingService.startExam(id, ctx.user!.id);
+    await logAudit(admin as any, {
+        action: session.resumed ? 'resume_written_exam_attempt' : 'start_written_exam_attempt', actorId: ctx.user!.id,
+        resourceType: 'exam_attempt', resourceId: session.attemptId,
+        tableName: 'exam_attempts', newValues: { exam_id: id },
+    });
     return NextResponse.json({ success: true, data: session });
 }
 

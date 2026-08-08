@@ -1,120 +1,99 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError } from '@/lib/errors';
-import { examService } from './exam.service';
 import { questionService } from './question.service';
-import { notificationsService } from './notifications.service';
 import { templatesService } from './templates.service';
 import { queueService } from './queue.service';
-import { isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
+import {
+    WrittenGradingError,
+    gradeWrittenAnswers,
+    readWrittenGradingMetadata,
+    stripWrittenGradingMetadata,
+    withWrittenGradingMetadata,
+} from '@/lib/exams/written-grading';
+import type { Json } from '@/types/supabase';
 
-/**
- * Legacy exams / exam_attempts grading.
- * Objective matching uses the same answer rules as CBT so school and special
- * evaluations do not diverge. Prefer CBT for new evaluations.
- */
+/** Written/manual exams share the objective matching rules used by CBT. */
 export class GradingService {
-    async submitExam(attemptId: string, userId: string, finalAnswers: any) {
-        const supabase = await createClient();
-
-        // 1. Get attempt and exam details
+    async submitExam(examId: string, attemptId: string, userId: string, finalAnswers: unknown) {
+        const supabase = createAdminClient();
         const { data: attempt, error: attemptErr } = await supabase
             .from('exam_attempts')
-            .select('*')
+            .select('*, exams(title,duration_minutes,passing_score)')
             .eq('id', attemptId)
+            .eq('exam_id', examId)
             .eq('portal_user_id', userId)
-            .single();
+            .maybeSingle();
 
-        if (attemptErr || !attempt) throw new NotFoundError('Attempt not found');
-        if (attempt.status !== 'in_progress') throw new AppError('Exam already submitted', 400);
+        if (attemptErr) throw new AppError(attemptErr.message, 500);
+        if (!attempt) throw new NotFoundError('Attempt not found');
+        if (attempt.status !== 'in_progress') throw new AppError('Exam already submitted', 409);
 
-        const { data: exam, error: examErr } = await supabase
-            .from('exams')
-            .select('*')
-            .eq('id', attempt.exam_id as string)
-            .single();
-        if (examErr || !exam || !exam.id) throw new AppError('Exam not found for this attempt', 404);
+        const exam = (attempt as any).exams;
+        if (!exam) throw new NotFoundError('Exam not found for this attempt');
+        const questions = await questionService.listQuestions(examId);
+        const submittedAnswers = stripWrittenGradingMetadata(finalAnswers);
+        const savedAnswers = stripWrittenGradingMetadata(attempt.answers);
+        const duration = Math.max(0, Number(exam.duration_minutes ?? 0));
+        const startedAt = attempt.started_at ? new Date(attempt.started_at).getTime() : Number.NaN;
+        const expired = duration > 0 && Number.isFinite(startedAt)
+            && Date.now() > startedAt + duration * 60_000 + 30_000;
+        // After the deadline, only answers already accepted by autosave are trusted.
+        const answers = expired ? savedAnswers : submittedAnswers;
 
-        const questions = await questionService.listQuestions(exam.id as string);
-
-        // 2. Automated Grading for objective questions
-        let score = 0;
-        let totalPoints = 0;
-        let needsManualGrading = false;
-
-        const gradedAnswers = questions.map(q => {
-            const qPoints = q.points || 0;
-            totalPoints += qPoints;
-            const userAnswer = finalAnswers[q.id];
-            let questionScore = 0;
-
-            if (isManualCbtQuestion(q.question_type) || ['short_answer'].includes(q.question_type || '')) {
-                needsManualGrading = true;
-            } else if (
-                isCbtAnswerCorrect(
-                    {
-                        id: String(q.id),
-                        question_type: q.question_type,
-                        options: (q as { options?: unknown }).options,
-                        correct_answer: q.correct_answer as string | null,
-                        points: qPoints,
-                    },
-                    userAnswer,
-                )
-            ) {
-                questionScore = qPoints;
-                score += qPoints;
-            }
-
-            return {
-                question_id: q.id,
-                user_answer: userAnswer,
-                correct_answer: q.correct_answer,
-                score: questionScore,
-                type: q.question_type
-            };
-        });
-
-        const percentage = (score / totalPoints) * 100;
-        const status = needsManualGrading ? 'submitted' : 'graded';
-
-        // 3. Update attempt record
+        let grade;
+        try {
+            grade = gradeWrittenAnswers(questions, answers);
+        } catch (error) {
+            if (error instanceof WrittenGradingError) throw new AppError(error.message, 422);
+            throw error;
+        }
+        const storedAnswers = withWrittenGradingMetadata(answers, grade, null);
         const { data: updatedAttempt, error: updateErr } = await supabase
             .from('exam_attempts')
             .update({
-                answers: finalAnswers,
-                status,
-                score,
-                total_points: totalPoints,
-                percentage,
-                submitted_at: new Date().toISOString()
+                answers: storedAnswers as Json,
+                status: grade.status,
+                score: grade.score,
+                total_points: grade.totalPoints,
+                percentage: grade.percentage,
+                submitted_at: new Date().toISOString(),
             })
             .eq('id', attemptId)
+            .eq('exam_id', examId)
+            .eq('portal_user_id', userId)
+            .eq('status', 'in_progress')
             .select()
-            .single();
+            .maybeSingle();
 
         if (updateErr) throw new AppError(updateErr.message, 500);
+        if (!updatedAttempt) throw new AppError('Exam attempt is no longer in progress', 409);
 
-        // 4. Trigger Notifications if already graded
-        if (status === 'graded') {
-            this.notifyStudent(userId, exam?.title || 'Exam', percentage);
-
-            // Trigger Gamification points if passing
-            if (percentage >= (exam?.passing_score || 50)) {
+        if (grade.status === 'graded') {
+            await this.notifyStudent(userId, exam.title || 'Exam', grade.percentage);
+            if (grade.percentage >= Number(exam.passing_score ?? 50)) {
                 const { gamificationService } = await import('./gamification.service');
                 const { badgeService } = await import('./badge.service');
-
-                const result = await gamificationService.awardPoints(userId, 'quiz_pass', exam?.id || attemptId, `Passed exam: ${exam?.title || 'Exam'}`);
+                const result = await gamificationService.awardPoints(
+                    userId,
+                    'quiz_pass',
+                    examId,
+                    `Passed exam: ${exam.title || 'Exam'}`,
+                );
                 await badgeService.awardBadgeIfEligible(userId, 'points_milestone', { totalPoints: result.totalPoints });
             }
         }
 
-        return updatedAttempt;
+        return { attempt: updatedAttempt, expired, grade };
     }
 
     private async notifyStudent(userId: string, examTitle: string, percentage: number) {
         try {
-            const supabase = await createClient();
-            const { data: user } = await supabase.from('portal_users').select('email, full_name').eq('id', userId).single();
+            const supabase = createAdminClient();
+            const { data: user } = await supabase
+                .from('portal_users')
+                .select('email, full_name')
+                .eq('id', userId)
+                .maybeSingle();
 
             if (user?.email) {
                 const template = await templatesService.getTemplate('Grade Published', 'email');
@@ -122,51 +101,74 @@ export class GradingService {
                     user_name: user.full_name,
                     course_name: `Exam: ${examTitle}`,
                     grade: `${percentage.toFixed(2)}%`,
-                    notes: 'Automated grading completed.'
+                    notes: 'Grading completed.',
                 });
-
                 await queueService.queueNotification(userId, 'email', {
                     to: user.email,
                     subject: `Exam Result: ${examTitle}`,
-                    html
+                    html,
                 });
             }
-        } catch (err) {
-            console.error('Failed to notify student of exam result:', err);
+        } catch (error) {
+            console.error('Failed to notify student of exam result:', error);
         }
     }
 
-    async manualGrade(attemptId: string, scores: Record<string, number>, feedback: string) {
-        const supabase = await createClient();
-
-        const { data: attempt } = await supabase
+    async manualGrade(attemptId: string, rawScores: Record<string, unknown>, feedback: string | null) {
+        const supabase = createAdminClient();
+        const { data: attempt, error: attemptError } = await supabase
             .from('exam_attempts')
             .select('*, exams(title)')
             .eq('id', attemptId)
-            .single();
+            .maybeSingle();
 
+        if (attemptError) throw new AppError(attemptError.message, 500);
         if (!attempt) throw new NotFoundError('Attempt not found');
+        if (!attempt.exam_id) throw new NotFoundError('Exam not found for this attempt');
+        if (!['submitted', 'graded'].includes(attempt.status ?? '')) {
+            throw new AppError('Only submitted exams can be manually graded', 409);
+        }
 
-        // Recalculate total score
-        let newScore = (attempt.score || 0);
-        Object.values(scores).forEach(s => newScore += s);
-
-        const newPercentage = (newScore / (attempt.total_points || 100)) * 100;
-
-        await supabase
+        const questions = await questionService.listQuestions(attempt.exam_id);
+        const answers = stripWrittenGradingMetadata(attempt.answers);
+        const previous = readWrittenGradingMetadata(attempt.answers);
+        let grade;
+        try {
+            grade = gradeWrittenAnswers(questions, answers, previous.manual_scores, rawScores);
+        } catch (error) {
+            if (error instanceof WrittenGradingError) throw new AppError(error.message, 422);
+            throw error;
+        }
+        const normalizedFeedback = feedback?.trim() || previous.feedback;
+        const storedAnswers = withWrittenGradingMetadata(answers, grade, normalizedFeedback);
+        const { data: updated, error: updateError } = await supabase
             .from('exam_attempts')
             .update({
-                score: newScore,
-                percentage: newPercentage,
-                status: 'graded'
+                answers: storedAnswers as Json,
+                score: grade.score,
+                total_points: grade.totalPoints,
+                percentage: grade.percentage,
+                status: grade.status,
             })
-            .eq('id', attemptId);
+            .eq('id', attemptId)
+            .in('status', ['submitted', 'graded'])
+            .select()
+            .maybeSingle();
+        if (updateError) throw new AppError(updateError.message, 500);
+        if (!updated) throw new AppError('The exam attempt changed while it was being graded', 409);
 
-        if (attempt.portal_user_id) {
-            const examData = attempt.exams as any;
-            this.notifyStudent(attempt.portal_user_id, examData?.title || 'Exam', newPercentage);
+        if (grade.status === 'graded' && attempt.portal_user_id) {
+            const exam = (attempt as any).exams;
+            await this.notifyStudent(attempt.portal_user_id, exam?.title || 'Exam', grade.percentage);
         }
-        return true;
+        return {
+            attempt: updated,
+            previous,
+            previousScore: attempt.score,
+            previousStatus: attempt.status,
+            grade,
+            feedback: normalizedFeedback,
+        };
     }
 }
 

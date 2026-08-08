@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError } from '@/lib/errors';
 import type { Database } from '@/types/supabase';
 
 export interface ExamInput {
     course_id: string;
     title: string;
-    description?: string;
+    description?: string | null;
     duration_minutes: number;
     total_points?: number;
     passing_score?: number;
@@ -25,59 +25,57 @@ export class ExamService {
      *   programme/course scope assignments use). An empty array → no exams.
      */
     async listExams(courseId?: string, tenantId?: string, allowedCourseIds?: string[]) {
-        const supabase = await createClient();
-        let query = supabase.from('exams').select('*');
+        const supabase = createAdminClient();
+        let query = supabase.from('exams').select('*, courses!course_id(id,title,school_id)');
+
+        let scopedCourseIds = allowedCourseIds ? [...new Set(allowedCourseIds)] : null;
+        if (tenantId) {
+            const { data: tenantCourses, error: courseError } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('school_id', tenantId);
+            if (courseError) throw new AppError(courseError.message, 500);
+            const tenantCourseIds = new Set((tenantCourses ?? []).map((course) => course.id));
+            scopedCourseIds = scopedCourseIds
+                ? scopedCourseIds.filter((id) => tenantCourseIds.has(id))
+                : [...tenantCourseIds];
+        }
 
         if (courseId) {
+            if (scopedCourseIds && !scopedCourseIds.includes(courseId)) return [];
             query = query.eq('course_id', courseId);
         }
 
-        if (allowedCourseIds) {
-            if (allowedCourseIds.length === 0) return []; // enrolled in nothing → see nothing
-            query = query.in('course_id', allowedCourseIds);
+        if (scopedCourseIds) {
+            if (scopedCourseIds.length === 0) return [];
+            query = query.in('course_id', scopedCourseIds);
         }
 
-        if (tenantId) {
-            // Assuming courses have school_id or exams table will have it
-            // Based on schema, exams only has course_id. We need to join.
-            query = query.filter('course_id', 'in',
-                supabase.from('courses').select('id').eq('school_id', tenantId)
-            );
-        }
-
-        const { data, error } = await query;
+        const { data, error } = await query.order('created_at', { ascending: false });
         if (error) throw new AppError(error.message, 500);
         return data;
     }
 
     async getExam(id: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const { data, error } = await supabase
             .from('exams')
-            .select('*')
+            .select('*, courses!course_id(id,title,school_id)')
             .eq('id', id)
             .single();
 
         if (error || !data) throw new NotFoundError('Exam not found');
-
-        let courseData = null;
-        if (data.course_id) {
-            const { data: cData } = await supabase
-                .from('courses')
-                .select('school_id')
-                .eq('id', data.course_id)
-                .single();
-            courseData = cData;
-        }
-
-        return {
-            ...data,
-            courses: courseData
-        };
+        return data;
     }
 
     async createExam(input: ExamInput, creatorId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('id,school_id')
+            .eq('id', input.course_id)
+            .maybeSingle();
+        if (courseError || !course) throw new AppError(courseError?.message || 'Course not found', 400);
         const payload: ExamInsert = {
             course_id: input.course_id,
             title: input.title,
@@ -88,7 +86,8 @@ export class ExamService {
             randomize_questions: input.randomize_questions,
             randomize_options: input.randomize_options,
             max_attempts: input.max_attempts,
-            is_active: input.is_active
+            is_active: input.is_active,
+            school_id: course.school_id ?? null,
         };
 
         const { data, error } = await supabase
@@ -107,7 +106,7 @@ export class ExamService {
     }
 
     async updateExam(id: string, input: Partial<ExamInput>) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const payload: ExamUpdate = {
             course_id: input.course_id,
             title: input.title,
@@ -120,6 +119,15 @@ export class ExamService {
             max_attempts: input.max_attempts,
             is_active: input.is_active
         };
+        if (input.course_id) {
+            const { data: course, error: courseError } = await supabase
+                .from('courses')
+                .select('school_id')
+                .eq('id', input.course_id)
+                .maybeSingle();
+            if (courseError || !course) throw new AppError(courseError?.message || 'Course not found', 400);
+            payload.school_id = course.school_id ?? null;
+        }
 
         const { data, error } = await supabase
             .from('exams')
@@ -136,7 +144,15 @@ export class ExamService {
     }
 
     async deleteExam(id: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
+        const { count, error: attemptError } = await supabase
+            .from('exam_attempts')
+            .select('id', { count: 'exact', head: true })
+            .eq('exam_id', id);
+        if (attemptError) throw new AppError(attemptError.message, 500);
+        if ((count ?? 0) > 0) {
+            throw new AppError('This exam has learner attempts and cannot be deleted. Deactivate it instead.', 409);
+        }
         const { error } = await supabase.from('exams').delete().eq('id', id);
         if (error) throw new AppError(error.message, 400);
         return true;
