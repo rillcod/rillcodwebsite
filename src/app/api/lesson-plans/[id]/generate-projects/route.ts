@@ -13,6 +13,11 @@ import {
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { decideProjectSource, frameFor } from "@/lib/academic/project-canon";
+import {
+  capstoneForWeek,
+  capstoneScope,
+  levelBandFrom,
+} from "@/lib/academic/project-cadence";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
@@ -319,6 +324,36 @@ export async function POST(
           );
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
+          // Two capstones a term, not one project a week.
+          //
+          // An eight-week term was producing eight separate builds, none aware
+          // of the others, and a learner finished with eight half-things. The
+          // weeks between are not projectless — they are the run-up, and the
+          // capstone is made of what they taught. Anything that is not a
+          // hand-in week is skipped here rather than generated and ignored.
+          const capstone = capstoneForWeek(week.week, weeks.length);
+          if (!capstone) {
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Week ${week.week} builds towards the capstone — no separate project`,
+            });
+            skipped++;
+            continue;
+          }
+
+          const band = levelBandFrom(
+            plan.classes?.name ?? plan.courses?.title ?? null
+          );
+          const scope = capstoneScope(band, capstone.index);
+          // The teaching this capstone is assembled from, so the model builds on
+          // the term rather than restating the hand-in week.
+          const runUpTopics = weeks
+            .filter((w) => capstone.buildsOn.includes(w.week))
+            .map((w) => `Week ${w.week}: ${w.topic}`)
+            .join(" · ");
+
           // Before asking the AI, look for a brief the Academic Office already
           // wrote for this week.
           //
@@ -371,13 +406,24 @@ export async function POST(
               assignmentType: "project",
               programName,
               syllabusReference,
-              ...(frame
-                ? {
-                    projectFrame: frame.frame,
-                    projectFrameMinutes: frame.minutes,
-                    projectFrameDifficulty: frame.difficulty,
-                  }
-                : {}),
+              // The capstone brief. This is the whole of what makes the two
+              // projects a term build on each other rather than repeat.
+              projectFrame: [
+                `This is capstone ${capstone.index} of ${capstone.index === 1 ? "two" : "two"} this term, handed in at week ${capstone.week}.`,
+                scope.shape,
+                `Learners work in ${scope.grouping}.`,
+                runUpTopics
+                  ? `It must be assembled from what weeks ${capstone.buildsOn.join(", ")} taught — ${runUpTopics} — not from the hand-in week alone.`
+                  : "",
+                capstone.extendsPrevious
+                  ? "It EXTENDS the mid-term capstone rather than starting a new build: say plainly what is being added to what they already have."
+                  : "It is the first build of the term, so it starts from nothing and must be finishable by every learner.",
+                frame?.frame ?? "",
+              ]
+                .filter(Boolean)
+                .join(" "),
+              projectFrameMinutes: scope.minutes,
+              projectFrameDifficulty: frame?.difficulty ?? null,
               planWeekObjectives:
                 typeof week.objectives === "string" ? week.objectives : "",
               planWeekActivities:
@@ -473,6 +519,9 @@ export async function POST(
                 // afterwards, and there is no way to see whether rewriting the
                 // catalogue is actually reaching classes.
                 project_source: frame ? "frame" : "ai",
+                capstone_index: capstone.index,
+                capstone_builds_on: capstone.buildsOn,
+                capstone_band: scope.band,
                 ...(frame
                   ? { project_frame_id: frame.templateId }
                   : { canon_miss: canon.source === "ai" ? canon.reason : "unknown" }),
