@@ -201,6 +201,20 @@ function RolloutWorkspace() {
   // that no current class binds to — and looked completely normal doing it.
   const [session, setSession] = useState('');
   const [sessionError, setSessionError] = useState(false);
+  /**
+   * The sessions an edition may be published for.
+   *
+   * This field used to be read-only, showing whatever app_settings.academic_year
+   * said. That is the session running NOW, and a curriculum is almost always
+   * prepared for the one about to start — so in August, with the platform year
+   * still reading 2025/2026, the form offered a First Term that had ended eight
+   * months earlier and no way to say otherwise. A whole curriculum went out
+   * under it, and correcting it afterwards took a tool that did not exist.
+   *
+   * Options come from academic_terms so they are the canonical sessions, not a
+   * computed guess.
+   */
+  const [sessionOptions, setSessionOptions] = useState<string[]>([]);
   const [audience, setAudience] = useState(DEFAULT_AUDIENCE_LABEL);
   const [termNumber, setTermNumber] = useState(1);
 
@@ -329,7 +343,19 @@ function RolloutWorkspace() {
         .then((response) => (response.ok ? response.json() : null))
         .then((payload) => {
           if (payload?.effective) {
-            setSession(String(payload.effective));
+            const effective = String(payload.effective);
+            // Canonical sessions, newest last, with the live one guaranteed
+            // present even if academic_terms has not been seeded that far.
+            const years = Array.from(
+              new Set<string>([
+                ...((payload.terms ?? []) as Array<{ academic_year?: string }>)
+                  .map((term) => String(term.academic_year ?? ''))
+                  .filter(Boolean),
+                effective,
+              ]),
+            ).sort();
+            setSessionOptions(years);
+            setSession(effective);
             setSessionError(false);
           } else {
             setSessionError(true);
@@ -693,17 +719,24 @@ function RolloutWorkspace() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="text-xs font-bold">Academic session
-                <input
+                <select
                   value={session}
-                  readOnly
+                  onChange={(e) => { setSession(e.target.value); setReport(null); setPreview(null); }}
+                  disabled={sessionError || sessionOptions.length === 0}
                   aria-describedby="session-note"
-                  placeholder={sessionError ? 'Unavailable' : 'Loading…'}
-                  className="mt-1 w-full rounded-lg border border-border bg-muted/40 p-2 text-sm text-muted-foreground"
-                />
+                  className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm disabled:bg-muted/40 disabled:text-muted-foreground"
+                >
+                  {sessionOptions.length === 0 && (
+                    <option value="">{sessionError ? 'Unavailable' : 'Loading…'}</option>
+                  )}
+                  {sessionOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
                 <span id="session-note" className={`mt-1 block text-[10px] font-medium ${sessionError ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                   {sessionError
                     ? 'Could not read the academic year — set it in Settings before publishing.'
-                    : 'From the platform academic year.'}
+                    : 'Defaults to the platform academic year. Change it when preparing for the session ahead.'}
                 </span>
               </label>
               {/* A fixed choice, not free text. The audience is part of an
