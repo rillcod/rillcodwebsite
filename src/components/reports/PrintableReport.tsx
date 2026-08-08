@@ -10,6 +10,7 @@ import {
 } from '@/lib/icons';
 
 import { StudentReport, OrgSettings, parseEngagementMetrics } from '@/types/reports';
+import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
 
 interface PrintableReportProps {
     report: StudentReport;
@@ -56,28 +57,30 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
         : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
     // WAEC 6-component weighted score
-    const theory      = Number(report.theory_score)              || 0; // 20%
-    const practical   = Number(report.practical_score)           || 0; // 25%
-    const assignments = Number(report.attendance_score)          || 0; // 20% (DB: attendance_score)
-    const attendance  = Number(report.participation_score)       || 0; // 10% (DB: participation_score)
+    const theory      = Number(report.theory_score)              || 0;
+    const practical   = Number(report.practical_score)           || 0;
+    const assignments = Number(report.attendance_score)          || 0; // DB: attendance_score
+    const attendance  = Number(report.participation_score)       || 0; // DB: participation_score
     const em = parseEngagementMetrics(report.engagement_metrics);
-    const classwork   = Number(em.classwork_score)               || 0; // 10%
-    const assessment  = Number(em.assessment_score)              || 0; // 15%
+    const weights = scoreWeightsFromReportMetrics(em);
+    const weight = (key: keyof typeof weights) => scoreWeightPercent(weights, key);
+    const classwork   = Number(em.classwork_score)               || 0;
+    const assessment  = Number(em.assessment_score)              || 0;
 
     const computed = Math.round(
-        theory * 0.20 + practical * 0.25 + assignments * 0.20 +
-        attendance * 0.10 + classwork * 0.10 + assessment * 0.15
+        theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
+        attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
     const overall = Number(report.overall_score) || computed;
     const grade = getWAECGrade(overall);
 
     const metrics = [
-        { label: 'Theory (20%)',          value: theory,      bar: C.black  },
-        { label: 'Practical (25%)',        value: practical,   bar: C.accent },
-        { label: 'Assignments (20%)',      value: assignments, bar: C.black  },
-        { label: 'Attendance (10%)',       value: attendance,  bar: C.accent },
-        { label: 'Classwork (10%)',        value: classwork,   bar: C.black  },
-        { label: 'Mid-Term Assess. (15%)', value: assessment,  bar: C.accent },
+        { label: `Theory (${weight('theory')}%)`, value: theory, bar: C.black },
+        { label: `Practical (${weight('practical')}%)`, value: practical, bar: C.accent },
+        { label: `Assignments (${weight('assignments')}%)`, value: assignments, bar: C.black },
+        { label: `Attendance (${weight('attendance')}%)`, value: attendance, bar: C.accent },
+        { label: `Classwork (${weight('classwork')}%)`, value: classwork, bar: C.black },
+        { label: `Mid-Term Assess. (${weight('assessment')}%)`, value: assessment, bar: C.accent },
     ];
 
     const hasPayment = report.fee_status && report.fee_status !== 'none';

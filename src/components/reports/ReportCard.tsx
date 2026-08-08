@@ -3,6 +3,7 @@
 import React from 'react';
 import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
+import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
 
 function SparklesIcon({ className }: { className?: string }) {
     return (
@@ -149,17 +150,19 @@ export default function ReportCard({ report, orgSettings }: {
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
-    const theory = Number(report.theory_score) || 0;  // 20%
-    const practical = Number(report.practical_score) || 0;  // 25%
-    const assignments = Number(report.attendance_score) || 0;  // 20% (DB field reused)
-    const attendance = Number(report.participation_score) || 0;  // 10% (DB field reused)
+    const theory = Number(report.theory_score) || 0;
+    const practical = Number(report.practical_score) || 0;
+    const assignments = Number(report.attendance_score) || 0; // DB field reused
+    const attendance = Number(report.participation_score) || 0; // DB field reused
     const em = (report as any).engagement_metrics ?? {};
-    const classwork = Number(em.classwork_score) || 0;  // 10%
-    const assessment = Number(em.assessment_score) || 0;  // 15%
-    // WAEC weights: Theory 20% · Practical 25% · Assignments 20% · Attendance 10% · Classwork 10% · Assessment 15%
+    const weights = scoreWeightsFromReportMetrics(em);
+    const weight = (key: keyof typeof weights) => scoreWeightPercent(weights, key);
+    const classwork = Number(em.classwork_score) || 0;
+    const assessment = Number(em.assessment_score) || 0;
+    // The report keeps the Academic Office weighting snapshot used for its official score.
     const computed = Math.round(
-        theory * 0.20 + practical * 0.25 + assignments * 0.20 +
-        attendance * 0.10 + classwork * 0.10 + assessment * 0.15
+        theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
+        attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
     const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = letterGrade(overall);
@@ -351,12 +354,12 @@ export default function ReportCard({ report, orgSettings }: {
                                 <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
                                     {[
-                                        { label: 'Theory',    pts: 20, color: '#6366f1' },
-                                        { label: 'Practical', pts: 25, color: '#06b6d4' },
-                                        { label: 'Assign',    pts: 20, color: '#10b981' },
-                                        { label: 'Attend',    pts: 10, color: '#8b5cf6' },
-                                        { label: 'Class',     pts: 10, color: '#f97316' },
-                                        { label: 'Assess',    pts: 15, color: '#f59e0b' },
+                                        { label: 'Theory',    pts: weight('theory'), color: '#6366f1' },
+                                        { label: 'Practical', pts: weight('practical'), color: '#06b6d4' },
+                                        { label: 'Assign',    pts: weight('assignments'), color: '#10b981' },
+                                        { label: 'Attend',    pts: weight('attendance'), color: '#8b5cf6' },
+                                        { label: 'Class',     pts: weight('classwork'), color: '#f97316' },
+                                        { label: 'Assess',    pts: weight('assessment'), color: '#f59e0b' },
                                     ].map((item, i) => (
                                         <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
                                             {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 8 }}>·</span>}
@@ -367,12 +370,12 @@ export default function ReportCard({ report, orgSettings }: {
                                     ))}
                                     <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100%</span>
                                 </div>
-                                <MetricBar label="Theory / Written (20%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Practical / Projects (25%)" value={practical} color="#06b6d4" />
-                                <MetricBar label="Assignments (20%)" value={assignments} color="#10b981" />
-                                <MetricBar label="Attendance (10%)" value={attendance} color="#8b5cf6" />
-                                <MetricBar label="Classwork (10%)" value={classwork} color="#f97316" />
-                                <MetricBar label="Mid-term Assessment (15%)" value={assessment} color="#f59e0b" />
+                                <MetricBar label={`Theory / Written (${weight('theory')}%)`} value={theory} color="#6366f1" />
+                                <MetricBar label={`Practical / Projects (${weight('practical')}%)`} value={practical} color="#06b6d4" />
+                                <MetricBar label={`Assignments (${weight('assignments')}%)`} value={assignments} color="#10b981" />
+                                <MetricBar label={`Attendance (${weight('attendance')}%)`} value={attendance} color="#8b5cf6" />
+                                <MetricBar label={`Classwork (${weight('classwork')}%)`} value={classwork} color="#f97316" />
+                                <MetricBar label={`Mid-term Assessment (${weight('assessment')}%)`} value={assessment} color="#f59e0b" />
                             </div>
 
                             {/* Right — weighted grade display */}

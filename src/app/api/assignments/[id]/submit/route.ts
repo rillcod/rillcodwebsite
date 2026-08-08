@@ -17,6 +17,8 @@ import {
   gradeAssignmentAnswers,
 } from '@/lib/assignments/grading';
 import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core';
+import { logAudit } from '@/lib/audit/log';
+import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,20 +135,22 @@ export async function POST(
       }
     }
 
-    // Fetch existing submission to check if already graded (students only)
-    let existingSubmissionStatus: string | null = null;
-    if (!isStaff) {
-      const { data: existingSub } = await admin
-        .from('assignment_submissions')
-        .select('status')
-        .eq('assignment_id', assignment_id)
-        .eq('portal_user_id', effectiveUserId)
-        .maybeSingle();
-
-      existingSubmissionStatus = existingSub?.status ?? null;
-      if (existingSub && existingSub.status === 'graded') {
-        return NextResponse.json({ error: 'This assignment has already been graded and cannot be resubmitted' }, { status: 403 });
-      }
+    // Never mutate the submitted evidence underneath an existing score. This
+    // applies to staff proxy submissions too; grade corrections use the
+    // dedicated grading route, which keeps a before/after audit trail.
+    const { data: existingSub, error: existingError } = await admin
+      .from('assignment_submissions')
+      .select('id,status,grade,weighted_score,graded_at,graded_by,grading_mode')
+      .eq('assignment_id', assignment_id)
+      .eq('portal_user_id', effectiveUserId)
+      .maybeSingle();
+    if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
+    const existingSubmissionStatus = existingSub?.status ?? null;
+    if (existingSub && hasProtectedAssignmentScoreEvidence(existingSub)) {
+      return NextResponse.json({
+        error: 'This assignment already contains recorded score evidence. Correct the grade through the grading workflow instead of replacing the submission.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
     }
 
     // Students: assignment must be active
@@ -186,6 +190,8 @@ export async function POST(
       portal_user_id: effectiveUserId,
       submitted_at:   new Date().toISOString(),
       status:         isLate ? 'late' : 'submitted',
+      ai_suggested_grade: null,
+      ai_suggested_feedback: null,
       updated_at:     new Date().toISOString(),
     };
     if (submission_text !== undefined) upsertData.submission_text = submission_text || null;
@@ -241,12 +247,13 @@ export async function POST(
           const autoGrade = autoResult.grade;
           const weightedScore = computeAssignmentWeightedScore(autoGrade, maxPts, assignWeight);
           const gradedAt = new Date().toISOString();
-          const { data: gradedRow } = await admin
+          const { data: gradedRow, error: gradedError } = await admin
             .from('assignment_submissions')
             .update({
               grade: autoGrade,
               status: 'graded',
               weighted_score: weightedScore,
+              grading_mode: 'auto',
               graded_at: gradedAt,
               updated_at: gradedAt,
             })
@@ -255,7 +262,24 @@ export async function POST(
             .select()
             .single();
 
+          if (gradedError) throw new Error(gradedError.message);
+
           if (gradedRow) {
+            await logAudit(admin as any, {
+              action: 'submit_and_auto_grade_assignment',
+              actorId: caller.id,
+              resourceType: 'assignment_submission',
+              resourceId: gradedRow.id,
+              tableName: 'assignment_submissions',
+              newValues: {
+                assignment_id,
+                student_id: effectiveUserId,
+                submitted_by_staff: isStaff,
+                status: gradedRow.status,
+                grade: gradedRow.grade,
+                weighted_score: gradedRow.weighted_score,
+              },
+            });
             // Notify student with rich HTML email
             (async () => {
               const { data: studentInfo } = await admin.from('portal_users').select('email, full_name').eq('id', effectiveUserId).single();
@@ -277,11 +301,15 @@ export async function POST(
                 html,
               });
             })().catch(console.error);
+            if (!isStaff && !existingSubmissionStatus) {
+              const engAdmin = createEngagementAdminClient();
+              awardSubmissionXP(engAdmin, effectiveUserId, assignment_id, assignment).catch(console.error);
+            }
             return NextResponse.json({ data: gradedRow }, { status: 201 });
           }
         } else {
           const reviewAt = new Date().toISOString();
-          await admin
+          const { error: reviewError } = await admin
             .from('assignment_submissions')
             .update({
               grade: null,
@@ -291,12 +319,38 @@ export async function POST(
             })
             .eq('assignment_id', assignment_id)
             .eq('portal_user_id', effectiveUserId);
+          if (reviewError) throw new Error(reviewError.message);
           data.status = 'pending_review';
           data.grade = null;
           data.weighted_score = null;
         }
       } catch (autoErr) {
         console.error('[auto-grade] failed:', autoErr);
+        const { error: recoveryError } = await admin
+          .from('assignment_submissions')
+          .update({
+            grade: null,
+            weighted_score: null,
+            status: 'pending_review',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('assignment_id', assignment_id)
+          .eq('portal_user_id', effectiveUserId);
+        if (recoveryError) {
+          return NextResponse.json({
+            error: 'Submission was saved, but it could not be placed in the teacher review queue.',
+            detail: recoveryError.message,
+          }, { status: 500 });
+        }
+        data.status = 'pending_review';
+        data.grade = null;
+        data.weighted_score = null;
+        await logAudit(admin as any, {
+          action: 'assignment_auto_grading_failed', actorId: caller.id,
+          resourceType: 'assignment_submission', resourceId: data.id,
+          newValue: autoErr instanceof Error ? autoErr.message : 'Automatic grading failed',
+          newValues: { assignment_id, student_id: effectiveUserId, recovered_to: 'pending_review' },
+        });
       }
     } else if (gradingMode === 'ai_suggested' && answers && data) {
       // AI-assisted: call AI grading endpoint, store suggestions, set status='pending_review'
@@ -312,21 +366,42 @@ export async function POST(
           studentAnswers: answers,
         } as GenerateRequest);
 
-        if (aiData?.data) {
-          const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
-          await admin
-            .from('assignment_submissions')
-            .update({
-              ai_suggested_grade: totalScore,
-              ai_suggested_feedback: aiData.data.feedback || '',
-              status: 'pending_review',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('assignment_id', assignment_id)
-            .eq('portal_user_id', effectiveUserId);
-        }
+        if (!aiData?.data) throw new Error('AI grader returned no suggestion');
+        const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
+        const { error: suggestionError } = await admin
+          .from('assignment_submissions')
+          .update({
+            ai_suggested_grade: totalScore,
+            ai_suggested_feedback: aiData.data.feedback || '',
+            status: 'pending_review',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('assignment_id', assignment_id)
+          .eq('portal_user_id', effectiveUserId);
+        if (suggestionError) throw new Error(suggestionError.message);
+        data.status = 'pending_review';
+        data.ai_suggested_grade = totalScore;
+        data.ai_suggested_feedback = aiData.data.feedback || '';
       } catch (aiErr) {
         console.error('[ai-assisted-grade] failed:', aiErr);
+        const { error: recoveryError } = await admin
+          .from('assignment_submissions')
+          .update({ status: 'pending_review', updated_at: new Date().toISOString() })
+          .eq('assignment_id', assignment_id)
+          .eq('portal_user_id', effectiveUserId);
+        if (recoveryError) {
+          return NextResponse.json({
+            error: 'Submission was saved, but it could not be placed in the teacher review queue.',
+            detail: recoveryError.message,
+          }, { status: 500 });
+        }
+        data.status = 'pending_review';
+        await logAudit(admin as any, {
+          action: 'assignment_ai_grading_failed', actorId: caller.id,
+          resourceType: 'assignment_submission', resourceId: data.id,
+          newValue: aiErr instanceof Error ? aiErr.message : 'AI-assisted grading failed',
+          newValues: { assignment_id, student_id: effectiveUserId, recovered_to: 'pending_review' },
+        });
       }
     }
     // Manual mode: status remains 'submitted', teacher grades later
@@ -360,6 +435,22 @@ export async function POST(
       const engAdmin = createEngagementAdminClient();
       awardSubmissionXP(engAdmin, effectiveUserId, assignment_id, assignment).catch(console.error);
     }
+
+    await logAudit(admin as any, {
+      action: isStaff ? 'submit_assignment_for_student' : 'submit_assignment',
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: data.id,
+      tableName: 'assignment_submissions',
+      oldValues: { prior_status: existingSubmissionStatus },
+      newValues: {
+        assignment_id,
+        student_id: effectiveUserId,
+        status: data.status,
+        grading_mode: gradingMode,
+        late: isLate,
+      },
+    });
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {

@@ -8,6 +8,7 @@ import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rill
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 import { buildAssignmentGradeTransition } from '@/lib/assignments/grading';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,12 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    if ('submission_text' in body && hasProtectedAssignmentScoreEvidence(sub)) {
+      return NextResponse.json({
+        error: 'Submitted work cannot be replaced after score evidence exists. Update only the grade or teacher feedback.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
+    }
     const assignMax = assignment?.max_points ?? 100;
     const assignWeight = assignment?.weight ?? 0;
     const gradeResult = normalizeGradeValueWithMax(body.grade, assignMax);
@@ -117,6 +124,21 @@ export async function PATCH(
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logAudit(admin as any, {
+      action: transition.finalized ? 'grade_assignment_submission' : 'update_assignment_submission_review',
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: id,
+      tableName: 'assignment_submissions',
+      oldValues: { grade: sub.grade ?? null, status: sub.status ?? null },
+      newValues: {
+        grade: data.grade ?? null,
+        status: data.status ?? null,
+        weighted_score: data.weighted_score ?? null,
+        feedback_updated: 'feedback' in body,
+      },
+    });
 
     // Send grade email when a submission is marked graded
     if (transition.finalized && data?.portal_user_id) {
@@ -176,7 +198,7 @@ export async function DELETE(
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, grade, weighted_score, graded_at, graded_by, grading_mode, status, assignments(school_id, created_by, class_id, metadata)')
+      .select('id, assignment_id, grade, weighted_score, graded_at, graded_by, grading_mode, status, assignments(school_id, created_by, class_id, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -200,6 +222,15 @@ export async function DELETE(
 
     const { error } = await admin.from('assignment_submissions').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'delete_ungraded_assignment_submission',
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: id,
+      tableName: 'assignment_submissions',
+      oldValues: { status: sub.status ?? null, assignment_id: sub.assignment_id ?? null },
+      newValue: 'Deleted submission with no protected score evidence',
+    });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

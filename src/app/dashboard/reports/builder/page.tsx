@@ -48,7 +48,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 import { cn } from '@/lib/utils';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
-import { resolveEffectiveScoreWeights, type PublishedGradingScheme } from '@/lib/grading-scheme';
+import { resolveEffectiveScoreWeights, scoreWeightPercent, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner, ManualEntryDeskBanner } from '@/components/reports/ResultStatusBadges';
@@ -714,11 +714,11 @@ function ReportBuilderInner() {
         gender: '' as '' | 'male' | 'female',
         // ── WAEC 6-component scores ──────────────────────────────────────────
         theory_score:       '0',   // Theory/Written    20%
-        classwork_score:    '0',   // Classwork         10%  (→ engagement_metrics)
+        classwork_score:    '0',   // Classwork evidence (stored in engagement_metrics)
         practical_score:    '0',   // Practical/Projects 25%
         attendance_score:   '0',   // Assignments       20%  (DB: attendance_score)
         participation_score:'0',   // Attendance        10%  (DB: participation_score)
-        assessment_score:   '0',   // Mid-term          15%  (→ engagement_metrics)
+        assessment_score:   '0',   // Mid-term evidence (stored in engagement_metrics)
         // ── Qualitative ─────────────────────────────────────────────────────
         participation_grade: '',   // Classwork qualifier comment
         projects_grade: '',        // Practical/Projects qualifier comment
@@ -1956,7 +1956,7 @@ function ReportBuilderInner() {
         courseId: sessionConfig.course_id || null,
         termId: sessionConfig.term_id || null,
     });
-    const weightPct = (key: keyof typeof effectiveWeighting.weights) => Math.round(effectiveWeighting.weights[key] * 100);
+    const weightPct = (key: keyof typeof effectiveWeighting.weights) => scoreWeightPercent(effectiveWeighting.weights, key);
     // One Academic Office weighting policy drives preview, bulk entry and API saves.
     const rawOverallScore = computeWeightedScore({
         theory: parseFloat(form.theory_score) || 0,
@@ -2264,12 +2264,12 @@ function ReportBuilderInner() {
                 const evalScore = topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
 
                 // 3. Map to 6 weighted components
-                const theory      = cbtScore;    // Theory (20%)  — CBT exam score
-                const classwork   = asgnAvg;      // Classwork (10%) — assignment grade avg
-                const practical   = projectPct;   // Practical (25%) — project completion %
-                const assignments = assigPct;     // Assignments (20%) — submission rate
-                const attendance  = attPct;       // Attendance (10%) — session attendance %
-                const assessment  = evalScore;    // Assessment (15%) — blended eval score
+                const theory      = cbtScore;     // CBT examination score
+                const classwork   = asgnAvg;      // Assignment grade average
+                const practical   = projectPct;   // Project completion
+                const assignments = assigPct;     // Assignment submission rate
+                const attendance  = attPct;       // Session attendance
+                const assessment  = evalScore;    // Blended evaluation score
 
                 // 4. Check for existing report
                 const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
@@ -2746,6 +2746,9 @@ function ReportBuilderInner() {
         engagement_metrics: {
             classwork_score:  parseFloat(form.classwork_score)  || 0,
             assessment_score: parseFloat(form.assessment_score) || 0,
+            score_weights: effectiveWeighting.weights,
+            grading_scheme_id: effectiveWeighting.scheme?.id ?? null,
+            grading_scheme_name: effectiveWeighting.scheme?.name ?? 'Rillcod balanced evidence model',
         },
         has_certificate: forceCertificate || overallScore >= 45,
         certificate_text: (forceCertificate || overallScore >= 45)

@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { brandContact } from '@/config/brand';
+import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
 
 export interface ReportCardData {
     id?: string | null;
@@ -108,17 +109,19 @@ export default function ModernReportCard({ report, orgSettings }: {
         : '—';
 
     // ── WAEC 6-component scoring ─────────────────────────────────────────
-    // Theory 20% · Classwork 10% · Practical 25% · Assignments 20% · Attendance 10% · Assessment 15%
+    // Render the immutable Academic Office weighting snapshot stored with this report.
     const em = (report.engagement_metrics as any) ?? {};
-    const theory = Number(report.theory_score) || 0;   // 20%
-    const classwork = Number(em.classwork_score) || 0;   // 10%
-    const practical = Number(report.practical_score) || 0;   // 25%
-    const assignments = Number(report.attendance_score) || 0;   // 20% (assignment completion %)
-    const attendance = Number(report.participation_score) || 0;   // 10% (class attendance %)
-    const assessment = Number(em.assessment_score) || 0;   // 15% (mid-term)
+    const weights = scoreWeightsFromReportMetrics(em);
+    const weight = (key: keyof typeof weights) => `${scoreWeightPercent(weights, key)}%`;
+    const theory = Number(report.theory_score) || 0;
+    const classwork = Number(em.classwork_score) || 0;
+    const practical = Number(report.practical_score) || 0;
+    const assignments = Number(report.attendance_score) || 0;
+    const attendance = Number(report.participation_score) || 0;
+    const assessment = Number(em.assessment_score) || 0;
     const computed = Math.round(
-        theory * 0.20 + classwork * 0.10 + practical * 0.25 +
-        assignments * 0.20 + attendance * 0.10 + assessment * 0.15
+        theory * weights.theory + classwork * weights.classwork + practical * weights.practical +
+        assignments * weights.assignments + attendance * weights.attendance + assessment * weights.assessment
     );
     const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = waecGrade(overall);
@@ -143,12 +146,12 @@ export default function ModernReportCard({ report, orgSettings }: {
     const M_EXEC = ['#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E'];
     const M_FUT = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#f59e0b', '#8b5cf6'];
     const metrics = [
-        { label: 'Theory / Written', weight: '20%', value: theory, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
-        { label: 'Classwork', weight: '10%', value: classwork, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
-        { label: 'Practical / Projects', weight: '25%', value: practical, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
-        { label: 'Assignments', weight: '20%', value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
-        { label: 'Attendance', weight: '10%', value: attendance, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
-        { label: 'Mid-term Assessment', weight: '15%', value: assessment, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
+        { label: 'Theory / Written', weight: weight('theory'), value: theory, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
+        { label: 'Classwork', weight: weight('classwork'), value: classwork, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
+        { label: 'Practical / Projects', weight: weight('practical'), value: practical, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
+        { label: 'Assignments', weight: weight('assignments'), value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
+        { label: 'Attendance', weight: weight('attendance'), value: attendance, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
+        { label: 'Mid-term Assessment', weight: weight('assessment'), value: assessment, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
     ];
 
     return (

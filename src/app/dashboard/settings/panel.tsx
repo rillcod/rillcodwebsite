@@ -2481,6 +2481,12 @@ function SettingsPageContent({
                               ))}
                             </select>
                           </div>
+                          {!isAdmin && (
+                            <div className="border-t border-border bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+                              Programme rules are published centrally by the Academic Office. Teachers can review them here.
+                            </div>
+                          )}
+                          <fieldset disabled={!isAdmin} className="contents">
                           {/* Program Basics */}
                           <div className="p-4 space-y-4">
                             <p className="text-xs font-bold text-foreground uppercase tracking-widest">
@@ -2786,6 +2792,7 @@ function SettingsPageContent({
                               </span>
                             )}
                           </div>
+                          </fieldset>
                         </div>
                       )}
                     </div>

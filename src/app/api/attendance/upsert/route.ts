@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { canRecordAttendanceForStudent } from '@/lib/attendance/eligibility';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -53,6 +55,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'One or more sessions were not found' }, { status: 404 });
     }
 
+    const studentIds = [...new Set(records.map((record) => record.user_id))];
+    const { data: studentRows, error: studentsError } = await admin
+      .from('portal_users')
+      .select('id,role,class_id,is_active,is_deleted')
+      .in('id', studentIds);
+    if (studentsError) return NextResponse.json({ error: studentsError.message }, { status: 500 });
+    const studentsById = new Map((studentRows ?? []).map((student: any) => [student.id, student]));
+    if (studentsById.size !== studentIds.length || (studentRows ?? []).some((student: any) =>
+      student.role !== 'student' || student.is_deleted || student.is_active === false)) {
+      return NextResponse.json({ error: 'Attendance can only be recorded for active student accounts.' }, { status: 400 });
+    }
+
     // Teacher: verify all session_ids belong to classes at their assigned schools
     if (caller.role === 'teacher') {
       const { data: tsRows } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', caller.id);
@@ -72,32 +86,70 @@ export async function POST(request: NextRequest) {
 
     const rosterLookups = records.map(async (record) => {
       const session = sessionsById.get(record.session_id) as any;
-      if (!session?.class_id || !record.user_id) return { ...record, term_id: session?.term_id ?? null };
+      if (!session?.class_id || !record.user_id) return {
+        ...record,
+        term_id: session?.term_id ?? null,
+        class_term_roster_id: null,
+        recorded_by: caller.id,
+        eligible: false,
+      };
       let rosterQuery = admin
         .from('class_term_rosters')
-        .select('id')
+        .select('id,status')
         .eq('class_id', session.class_id)
         .eq('student_id', record.user_id)
         .order('reinstated_at', { ascending: false, nullsFirst: false })
         .order('started_at', { ascending: false })
         .limit(1);
       rosterQuery = session.term_id ? rosterQuery.eq('term_id', session.term_id) : rosterQuery.is('term_id', null);
-      const { data: roster } = await rosterQuery.maybeSingle();
+      const { data: roster, error: rosterError } = await rosterQuery.maybeSingle();
+      if (rosterError) throw new Error(rosterError.message);
+      const student = studentsById.get(record.user_id) as any;
+      const eligible = canRecordAttendanceForStudent({
+        sessionClassId: session.class_id,
+        studentClassId: student?.class_id ?? null,
+        hasRosterRecord: Boolean(roster),
+        rosterStatus: roster?.status ?? null,
+      });
       return {
         ...record,
         term_id: session.term_id ?? null,
         class_term_roster_id: roster?.id ?? null,
         recorded_by: caller.id,
+        eligible,
       };
     });
 
-    const scopedRecords = await Promise.all(rosterLookups);
+    const checkedRecords = await Promise.all(rosterLookups);
+    const ineligible = checkedRecords.find((record) => !record.eligible);
+    if (ineligible) {
+      return NextResponse.json({
+        error: 'A selected student is not active in the class for this session. Refresh the roster before saving attendance.',
+        user_id: ineligible.user_id,
+        session_id: ineligible.session_id,
+      }, { status: 409 });
+    }
+    const scopedRecords = checkedRecords.map(({ eligible: _eligible, ...record }) => record);
 
     const { error } = await admin
       .from('attendance')
       .upsert(scopedRecords, { onConflict: 'session_id,user_id' });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'record_class_attendance', actorId: caller.id,
+      resourceType: 'attendance_batch',
+      resourceId: uniqueSessionIds.length === 1 ? uniqueSessionIds[0] : null,
+      newValue: `Recorded ${scopedRecords.length} attendance entries across ${uniqueSessionIds.length} session(s)`,
+      newValues: {
+        count: scopedRecords.length,
+        session_ids: uniqueSessionIds,
+        status_counts: scopedRecords.reduce<Record<string, number>>((counts, record) => {
+          counts[record.status] = (counts[record.status] || 0) + 1;
+          return counts;
+        }, {}),
+      },
+    });
     return NextResponse.json({ saved: scopedRecords.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

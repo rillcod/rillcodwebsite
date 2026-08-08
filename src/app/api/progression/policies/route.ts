@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 type ProgressionPolicy = Record<string, unknown>;
 
@@ -41,8 +42,8 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const caller = await getCaller();
-  if (!caller || !['teacher', 'admin'].includes(caller.role ?? '')) {
-    return NextResponse.json({ error: 'Teacher or admin access required.' }, { status: 403 });
+  if (!caller || caller.role !== 'admin') {
+    return NextResponse.json({ error: 'Only the Academic Office can change central programme rules.' }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -51,7 +52,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'program_id is required.' }, { status: 400 });
   }
 
-  const { data: currentProgram, error: currentErr } = await adminClient()
+  const db = adminClient();
+  const { data: currentProgram, error: currentErr } = await db
     .from('programs')
     .select('id, progression_policy')
     .eq('id', programId)
@@ -113,12 +115,19 @@ export async function PUT(req: NextRequest) {
     updatePayload.school_progression_enabled = body.school_progression_enabled;
   }
 
-  const { data, error } = await adminClient()
+  const { data, error } = await db
     .from('programs')
     .update(updatePayload)
     .eq('id', programId)
     .select('id,name,is_active,program_scope,delivery_type,session_frequency_per_week,school_progression_enabled,progression_policy,updated_at')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'update_progression_program_policy', actorId: caller.id,
+    resourceType: 'program', resourceId: programId, tableName: 'programs',
+    oldValues: { progression_policy: currentPolicy },
+    newValues: updatePayload,
+    newValue: `Updated central programme rules for ${data.name}`,
+  });
   return NextResponse.json({ data });
 }

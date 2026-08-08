@@ -39,6 +39,30 @@ export function scoreWeightsFromPublishedComponents(value: unknown): ScoreWeight
   ) as ScoreWeights;
 }
 
+/** Resolve the immutable weighting snapshot stored with an official report. */
+export function scoreWeightsFromReportMetrics(metrics: unknown): ScoreWeights {
+  if (!metrics || typeof metrics !== 'object' || Array.isArray(metrics)) return SCORE_WEIGHTS;
+  const value = (metrics as Record<string, unknown>).score_weights;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return SCORE_WEIGHTS;
+  const record = value as Record<string, unknown>;
+  const parsed = {} as Record<(typeof SCORE_COMPONENT_KEYS)[number], number>;
+  let total = 0;
+  for (const key of SCORE_COMPONENT_KEYS) {
+    const amount = Number(record[key]);
+    if (!Number.isFinite(amount) || amount < 0) return SCORE_WEIGHTS;
+    parsed[key] = amount;
+    total += amount;
+  }
+  if (Math.abs(total - 1) <= 0.0001 && SCORE_COMPONENT_KEYS.every((key) => parsed[key] <= 1)) {
+    return parsed as ScoreWeights;
+  }
+  return scoreWeightsFromPublishedComponents(parsed) ?? SCORE_WEIGHTS;
+}
+
+export function scoreWeightPercent(weights: ScoreWeights, key: keyof ScoreWeights): number {
+  return Math.round(weights[key] * 10_000) / 100;
+}
+
 function matches(scope: string | null | undefined, context: string | null | undefined): boolean {
   return !scope || (!!context && scope === context);
 }

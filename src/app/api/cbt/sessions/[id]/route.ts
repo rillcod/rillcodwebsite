@@ -122,7 +122,9 @@ export async function PATCH(
     // ── Student auto-save path (Req 3) ────────────────────────────────────────
     if (caller.role === 'student') {
       const { answers } = body;
-      if (!answers) return NextResponse.json({ error: 'answers required' }, { status: 400 });
+      if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
+        return NextResponse.json({ error: 'answers must be an object' }, { status: 400 });
+      }
 
       // Fetch session — must belong to this student and be in_progress
       const { data: session } = await admin
@@ -157,12 +159,19 @@ export async function PATCH(
       }
 
       const savedAt = new Date().toISOString();
-      const { error } = await admin
+      const { data: saved, error } = await admin
         .from('cbt_sessions')
         .update({ answers, updated_at: savedAt })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', caller.id)
+        .eq('status', 'in_progress')
+        .select('id')
+        .maybeSingle();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!saved) {
+        return NextResponse.json({ error: 'Session is no longer in progress' }, { status: 409 });
+      }
       return NextResponse.json({ saved_at: savedAt });
     }
 

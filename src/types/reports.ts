@@ -14,6 +14,17 @@ export type OrgSettings = Database['public']['Tables']['report_settings']['Row']
 export interface EngagementMetrics {
     classwork_score?: number;
     assessment_score?: number;
+    /** Immutable Academic Office policy snapshot used to calculate this report. */
+    score_weights?: {
+        theory: number;
+        classwork: number;
+        practical: number;
+        assignments: number;
+        attendance: number;
+        assessment: number;
+    };
+    grading_scheme_id?: string | null;
+    grading_scheme_name?: string | null;
     [key: string]: any;
 }
 

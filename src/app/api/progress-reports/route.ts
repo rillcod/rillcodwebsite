@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     'school_section',
     // WAEC 6-component scores (attendance_score stores assignments %, participation_score stores attendance %)
     'theory_score', 'practical_score', 'attendance_score', 'participation_score',
-    'engagement_metrics',   // ← stores classwork_score (10%) and assessment_score (15%)
+    'engagement_metrics',   // Component evidence plus the immutable weighting-policy snapshot
     'overall_score', 'overall_grade',
     // Qualitative
     'participation_grade',  // ← Classwork & Participation qualifier
@@ -200,6 +200,19 @@ export async function POST(request: NextRequest) {
       updatePayload.overall_grade = result.overallGrade;
       insertPayload.overall_score = result.overallScore;
       insertPayload.overall_grade = result.overallGrade;
+      const weightingSnapshot = {
+        score_weights: weighting.weights,
+        grading_scheme_id: weighting.scheme?.id ?? null,
+        grading_scheme_name: weighting.scheme?.name ?? 'Rillcod balanced evidence model',
+      };
+      const updateMetrics = updatePayload.engagement_metrics && typeof updatePayload.engagement_metrics === 'object' && !Array.isArray(updatePayload.engagement_metrics)
+        ? updatePayload.engagement_metrics as Record<string, unknown>
+        : {};
+      const insertMetrics = insertPayload.engagement_metrics && typeof insertPayload.engagement_metrics === 'object' && !Array.isArray(insertPayload.engagement_metrics)
+        ? insertPayload.engagement_metrics as Record<string, unknown>
+        : {};
+      updatePayload.engagement_metrics = { ...updateMetrics, ...weightingSnapshot } as any;
+      insertPayload.engagement_metrics = { ...insertMetrics, ...weightingSnapshot } as any;
     } catch (cause) {
       return NextResponse.json({
         error: cause instanceof Error ? cause.message : 'The active result-weighting policy could not be loaded.',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -28,12 +29,19 @@ export async function POST(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
+  const editable = [
+    'default_instructor', 'default_term', 'logo_url', 'org_address', 'org_email',
+    'org_name', 'org_phone', 'org_tagline', 'org_website',
+  ] as const;
+  const settings = Object.fromEntries(editable
+    .filter((key) => key in body)
+    .map((key) => [key, body[key] == null ? null : String(body[key]).trim().slice(0, 1000)]));
 
   const admin = adminClient();
   const { data, error } = await admin
     .from('report_settings')
     .upsert({
-      ...body,
+      ...settings,
       teacher_id: caller.id,
       school_id: caller.school_id || null,
       updated_at: new Date().toISOString(),
@@ -42,5 +50,12 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'update_report_branding_settings', actorId: caller.id,
+    resourceType: 'report_settings', resourceId: data.id,
+    tableName: 'report_settings',
+    newValue: 'Updated progress-report branding and defaults',
+    newValues: { changed_fields: Object.keys(settings), school_id: caller.school_id || null },
+  });
   return NextResponse.json({ data });
 }

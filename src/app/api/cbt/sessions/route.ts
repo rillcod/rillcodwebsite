@@ -7,6 +7,7 @@ import {
   resolveStudentCbtScope,
 } from '@/lib/cbt/visibility';
 import { gradeCbtSubmission } from '@/lib/cbt/grading';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -40,7 +41,6 @@ async function finalizeExpiredSession(
   admin: ReturnType<typeof adminClient>,
   existing: any,
   examRow: any,
-  fallbackAnswers?: Record<string, unknown>,
 ) {
   const { data: questionRows, error: questionsErr } = await admin
     .from('cbt_questions')
@@ -54,7 +54,10 @@ async function finalizeExpiredSession(
   }
 
   const savedAnswers = hasAnswers(existing.answers) ? existing.answers : {};
-  const cleanAnswers = hasAnswers(savedAnswers) ? savedAnswers : (fallbackAnswers ?? {});
+  // Once the deadline has elapsed, only answers persisted by the 10-second
+  // autosave are admissible. Accepting a fresh request body here would allow
+  // answers to be supplied after time expired.
+  const cleanAnswers = hasAnswers(savedAnswers) ? savedAnswers : {};
   const grading = gradeCbtSubmission(examRow, questionRows, cleanAnswers);
   const gradingNotes = [
     grading.needsGrading ? `Awaiting instructor review for ${grading.manualQuestionCount} subjective question(s).` : null,
@@ -79,6 +82,15 @@ async function finalizeExpiredSession(
     .single();
 
   if (error) throw new Error(error.message);
+  await logAudit(admin as any, {
+    action: 'auto_finalize_expired_cbt_session',
+    actorId: existing.user_id,
+    resourceType: 'cbt_session',
+    resourceId: existing.id,
+    tableName: 'cbt_sessions',
+    oldValues: { status: existing.status ?? null },
+    newValues: { status: data.status, score: data.score, needs_grading: data.needs_grading, exam_id: examRow.id },
+  });
   return {
     ...data,
     correct: grading.correct,
@@ -176,10 +188,7 @@ export async function POST(request: NextRequest) {
       if (!existing) {
         return NextResponse.json({ error: 'The exam window has closed' }, { status: 422 });
       }
-      const fallbackAnswers = answers && typeof answers === 'object' && !Array.isArray(answers)
-        ? answers as Record<string, unknown>
-        : {};
-      const finalized = await finalizeExpiredSession(admin, existing, examRow, fallbackAnswers);
+      const finalized = await finalizeExpiredSession(admin, existing, examRow);
       return NextResponse.json({ data: finalized }, { status: 201 });
     }
 
@@ -219,6 +228,12 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ error: startErr.message }, { status: 500 });
       }
+      await logAudit(admin as any, {
+        action: 'start_cbt_session', actorId: caller.id,
+        resourceType: 'cbt_session', resourceId: started.id,
+        tableName: 'cbt_sessions',
+        newValues: { exam_id, status: started.status },
+      });
       return NextResponse.json({ data: started }, { status: 201 });
     }
 
@@ -234,10 +249,7 @@ export async function POST(request: NextRequest) {
       const GRACE_MS = 30_000; // 30-second grace period for network latency
 
       if (submittedMs > deadline + GRACE_MS) {
-        const fallbackAnswers = answers && typeof answers === 'object' && !Array.isArray(answers)
-          ? answers as Record<string, unknown>
-          : {};
-        const finalized = await finalizeExpiredSession(admin, existing, examRow, fallbackAnswers);
+        const finalized = await finalizeExpiredSession(admin, existing, examRow);
         return NextResponse.json({ data: finalized }, { status: 201 });
       }
     }
@@ -280,6 +292,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(admin as any, {
+      action: auto_submitted ? 'auto_submit_cbt_session' : 'submit_cbt_session',
+      actorId: caller.id,
+      resourceType: 'cbt_session',
+      resourceId: existing.id,
+      tableName: 'cbt_sessions',
+      oldValues: { status: existing.status ?? null },
+      newValues: { exam_id, status: data.status, score: data.score, needs_grading: data.needs_grading },
+    });
     return NextResponse.json({
       data: {
         ...data,
