@@ -89,7 +89,14 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
         await admin.from('whatsapp_outbox').insert({
           phone_number: cleanPhone,
           message_text: waText,
-          status: 'pending',
+          // 'queued', not 'pending': the outbox permits queued, processing,
+          // retry, sent, delivered, read, failed and cancelled, and nothing
+          // else. 'pending' failed the insert every time, and this is the only
+          // code that writes to this table — so no milestone message has ever
+          // reached a parent by WhatsApp. It sat behind the two broken queries
+          // above, which meant the digest found no parents to message in the
+          // first place and never reached this line to fail at it.
+          status: 'queued',
           metadata: {
             type: 'milestone_digest',
             student_id: student.id,

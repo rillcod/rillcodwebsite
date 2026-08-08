@@ -951,7 +951,10 @@ export async function POST(req: NextRequest) {
       .eq('portal_users.is_deleted', true);
     const ids = (phantoms ?? []).map((p: any) => p.user_id).filter(Boolean);
     for (let i = 0; i < ids.length; i += 200) {
-      await db.from('students').update({ is_deleted: true, is_active: false, status: 'inactive' }).in('user_id', ids.slice(i, i + 200));
+      // No status write: students_status_check allows only pending, approved and
+      // rejected, so 'inactive' fails the update and the phantom this action
+      // exists to clear survives the run that was meant to clear it.
+      await db.from('students').update({ is_deleted: true, is_active: false }).in('user_id', ids.slice(i, i + 200));
     }
     return NextResponse.json({ success: true, resynced: ids.length });
   }
@@ -1156,7 +1159,8 @@ export async function POST(req: NextRequest) {
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     await db.from('students')
-      .update({ status: 'inactive', is_deleted: true, is_active: false, class_id: null, section_class: null })
+      // See above: 'inactive' is not a permitted status and fails the write.
+      .update({ is_deleted: true, is_active: false, class_id: null, section_class: null })
       .in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
   }

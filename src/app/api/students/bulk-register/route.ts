@@ -511,8 +511,15 @@ export async function POST(request: Request) {
             .eq('id', ghost.id);
           // Mirror is_deleted into the registry too (status alone left phantoms in
           // registry-backed lists — the duplicate-appears-twice bug).
+          //
+          // status is deliberately not touched: students_status_check allows only
+          // pending, approved and rejected, so writing 'inactive' fails the whole
+          // update and the mirror never happens — which is the phantom this line
+          // was added to prevent. Deletion is is_deleted plus is_active, and
+          // nothing reads status for it; the 'inactive' the students list shows is
+          // derived from is_active in the page, not stored here.
           await supabaseAdmin.from('students')
-            .update({ status: 'inactive', is_deleted: true, is_active: false })
+            .update({ is_deleted: true, is_active: false })
             .eq('user_id', ghost.id);
         }
 
