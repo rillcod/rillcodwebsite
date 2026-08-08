@@ -12,6 +12,7 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { decideProjectSource } from "@/lib/academic/project-canon";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
@@ -315,8 +316,58 @@ export async function POST(
           );
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
+          // Before asking the AI, look for a brief the Academic Office already
+          // wrote for this week.
+          //
+          // curriculum_project_registry holds 21,354 authored slots and has
+          // never been read once, while this route has invented a project per
+          // class per week the whole time. Neither choice was right on its own:
+          // an authored brief is better where it exists, and it does not exist
+          // everywhere. So the canon wins when it is real and the AI covers the
+          // rest — the same rule content-reuse.ts applies to lessons.
+          //
+          // 20,520 of those rows still hold a 71-character placeholder, which
+          // is worse than what the AI writes, so decideProjectSource ignores
+          // anything under SUBSTANTIVE_BRIEF_CHARS. Rewrite a shape in the
+          // Project Library and every slot sharing it starts winning here
+          // automatically — no flag, no migration between the two states.
+          let canon: ReturnType<typeof decideProjectSource> = {
+            source: "ai",
+            reason: "no_match",
+          };
+          const planTrack = (plan as any)?.metadata?.track ?? null;
+          if (planTrack) {
+            const { data: briefs } = await (supabase as any)
+              .from("curriculum_project_registry")
+              .select("id,title,classwork_prompt,estimated_minutes,concept_tags,difficulty_level")
+              .eq("track", planTrack)
+              .ilike("title", `%Week ${week.week}:%`)
+              .limit(10);
+            canon = decideProjectSource(briefs ?? [], {
+              week: week.week,
+              track: planTrack,
+            });
+          }
+
+          // The canon wins: no model call at all for this week.
           let aiData: { success: true; data: unknown };
-          try {
+          if (canon.source === "canon") {
+            aiData = {
+              success: true,
+              data: {
+                title: canon.title,
+                description: canon.brief,
+                instructions: canon.brief,
+                estimated_minutes: canon.minutes,
+              },
+            };
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Week ${week.week} project taken from the Project Library (no AI needed)`,
+            });
+          } else try {
             aiData = await fetchAIGenerate({
               type: "assignment",
               topic: week.topic,
@@ -371,6 +422,12 @@ export async function POST(
                   )
                 )?.id ?? null,
               class_id: plan.class_id,
+              // The join added by 20260929000005 and never once populated. It
+              // is what turns "the catalogue is used" from a claim into a
+              // countable fact.
+              ...(canon.source === "canon"
+                ? { project_template_id: canon.templateId }
+                : {}),
               created_by: isCron ? plan.created_by : staff.id,
               school_id: planSchoolId,
               term_id: assignmentTermId,
@@ -410,6 +467,12 @@ export async function POST(
                     ? effectiveTermNum
                     : null,
                 generated_from: "progression_project_route",
+                // Which of the two sources wrote this week, and why. Without it
+                // an authored brief and a generated one are indistinguishable
+                // afterwards, and there is no way to see whether rewriting the
+                // catalogue is actually reaching classes.
+                project_source: canon.source,
+                ...(canon.source === "ai" ? { canon_miss: canon.reason } : {}),
                 ...(assignmentTermId ? { term_id: assignmentTermId } : {}),
               } as import("@/types/supabase").Json,
               questions: (d.questions ||

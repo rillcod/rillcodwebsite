@@ -20,12 +20,20 @@ export async function GET(req: NextRequest) {
   const courseId = url.searchParams.get('course_id');
   const track = url.searchParams.get('track');
   const seedSource = url.searchParams.get('seed_source');
+  const search = url.searchParams.get('search')?.trim();
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const perPage = Math.min(200, Math.max(1, Number(url.searchParams.get('per_page')) || 50));
 
+  // This query had no limit and no count. PostgREST caps an unbounded select at
+  // 1,000 rows and says nothing about it, so the screen showed 1,000 of 21,354
+  // and looked complete — the same shape of failure as every other one found
+  // this week: not an error, just silently less than there is.
   let query = supabase
     .from('curriculum_project_registry')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('difficulty_level', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .range((page - 1) * perPage, page * perPage - 1);
 
   if (profile.role === 'school' && profile.school_id) {
     query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
@@ -35,9 +43,24 @@ export async function GET(req: NextRequest) {
   if (track) query = query.eq('track', track);
   if (seedSource) query = query.contains('metadata', { seed_source: seedSource });
 
-  const { data, error } = await query;
+  // Searching the prompt matters more than searching the title. Rewriting this
+  // catalogue means finding every row that still says "Build, test, and present
+  // practical output for week N", and those all share a prompt, not a title.
+  if (search) {
+    const safe = search.replace(/[%,()]/g, ' ');
+    query = query.or(`title.ilike.%${safe}%,classwork_prompt.ilike.%${safe}%,project_key.ilike.%${safe}%`);
+  }
+
+  const { data, error, count } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+
+  return NextResponse.json({
+    data: data ?? [],
+    page,
+    perPage,
+    total: count ?? 0,
+    totalPages: Math.max(1, Math.ceil((count ?? 0) / perPage)),
+  });
 }
 
 export async function POST(req: NextRequest) {
