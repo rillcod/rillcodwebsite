@@ -114,6 +114,17 @@ async function main() {
     !url || !key || /placeholder|example\.com|localhost/i.test(url) || /placeholder/i.test(key);
   if (placeholder) {
     console.log('[write-constraints] skipped — no real Supabase credentials.');
+    // See the same note in check-schema-drift: a step that skipped and a step
+    // that passed are indistinguishable on a green run, and that is precisely
+    // how the three constraint violations this script exists to catch reached
+    // main in the first place.
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      console.log(
+        '::warning title=Write constraint check did not run::' +
+          'No Supabase credentials, so every literal write went unchecked. ' +
+          'Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets to enforce it.',
+      );
+    }
     return;
   }
 

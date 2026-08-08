@@ -167,6 +167,18 @@ async function main() {
       }.`,
     );
     console.log('[schema-drift] set real NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to enforce.');
+
+    // A skipped step and a passed step look identical on a green run, and this
+    // one had been skipping since it was written — which is how three queries
+    // the database refuses outright survived in main. An annotation puts it on
+    // the run summary rather than three hundred lines into a log nobody opens.
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      console.log(
+        '::warning title=Schema drift check did not run::' +
+          'No Supabase credentials, so ~1500 queries went unchecked. ' +
+          'Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets to enforce it.',
+      );
+    }
     process.exit(strict ? 1 : 0);
   }
 
