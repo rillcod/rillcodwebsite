@@ -77,23 +77,85 @@ function objectLiteralAt(src: string, open: number): string | null {
   return null;
 }
 
-/** Top-level `key: 'literal'` pairs only — never keys inside a nested object. */
-function topLevelLiterals(objectSrc: string): Array<{ key: string; value: string }> {
-  const out: Array<{ key: string; value: string }> = [];
+/**
+ * Top-level `key: value` pairs only — never keys inside a nested object.
+ *
+ * `value` is the literal when there is one, or the identifier when the column is
+ * set from a variable. Reading only literals is what let the students.status bug
+ * through: the value was computed a few lines above the write.
+ */
+function topLevelEntries(objectSrc: string): Array<{ key: string; literal?: string; ident?: string }> {
+  const out: Array<{ key: string; literal?: string; ident?: string }> = [];
   let depth = 0;
   for (let i = 0; i < objectSrc.length; i += 1) {
     const ch = objectSrc[i];
     if (ch === '{' || ch === '[' || ch === '(') depth += 1;
     else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
-    else if (depth === 1) {
-      const m = /^([a-z_][a-z0-9_]*)\s*:\s*(['"])([^'"]*)\2/i.exec(objectSrc.slice(i));
-      if (m && (i === 0 || /[{,\s]/.test(objectSrc[i - 1]))) {
-        out.push({ key: m[1], value: m[3] });
-        i += m[0].length - 1;
+    else if (depth === 1 && (i === 0 || /[{,\s]/.test(objectSrc[i - 1]))) {
+      const lit = /^([a-z_][a-z0-9_]*)\s*:\s*(['"])([^'"]*)\2/i.exec(objectSrc.slice(i));
+      if (lit) {
+        out.push({ key: lit[1], literal: lit[3] });
+        i += lit[0].length - 1;
+        continue;
+      }
+      // `status: newStatus` — a bare identifier, not a call, member access or
+      // expression. Anything more involved is not worth guessing at.
+      const ref = /^([a-z_][a-z0-9_]*)\s*:\s*([a-z_$][a-z0-9_$]*)\s*[,}]/i.exec(objectSrc.slice(i));
+      if (ref) {
+        out.push({ key: ref[1], ident: ref[2] });
+        i += ref[0].length - 2;
       }
     }
   }
   return out;
+}
+
+/**
+ * Every string literal assigned to a name before it is used.
+ *
+ * Deliberately shallow. It reads `x = 'a'`, `let x = 'a'` and `x = cond ? 'a' :
+ * 'b'` within the same file, ahead of the write. That is enough for the shape
+ * this exists to catch — a status worked out over a few branches and then
+ * written — and stops well short of tracking values across functions, which
+ * would need a real type checker and would start inventing findings.
+ *
+ * A name assigned from something that is not a literal (another variable, a
+ * call, a column read) contributes nothing, so a variable that never holds a
+ * literal is simply not checked rather than guessed at.
+ */
+function literalsAssignedTo(src: string, ident: string, before: number): string[] {
+  const scope = src.slice(Math.max(0, before - 6000), before);
+  const found = new Set<string>();
+  const name = ident.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /**
+   * A destructuring default is not an assignment.
+   *
+   * `const { transactionId, status = 'success' } = await req.json()` says "use
+   * this when the caller omits it", and the value usually cannot reach the write
+   * at all — /api/payments/approve rejects anything but success or failed, and
+   * then writes `status` only on the branch where it is NOT 'success'. Reading
+   * that default as a written value reported a correctly guarded route as
+   * broken, which is the kind of finding that teaches people to ignore the tool.
+   */
+  const isDestructuringDefault = (at: number): boolean => {
+    const lineStart = scope.lastIndexOf('\n', at) + 1;
+    let lineEnd = scope.indexOf('\n', at);
+    if (lineEnd < 0) lineEnd = scope.length;
+    const line = scope.slice(lineStart, lineEnd);
+    return /[{,]\s*[a-z_$][\w$]*\s*=/i.test(line) && /\}\s*=/.test(line);
+  };
+
+  for (const m of scope.matchAll(new RegExp(`\\b${name}\\s*=\\s*(['"])([^'"]*)\\1`, 'g'))) {
+    if (isDestructuringDefault(m.index ?? 0)) continue;
+    found.add(m[2]);
+  }
+  // Ternaries: `x = cond ? 'a' : 'b'` — both arms are candidate values.
+  for (const m of scope.matchAll(new RegExp(`\\b${name}\\s*=\\s*[^;\\n]*\\?\\s*(['"])([^'"]*)\\1\\s*:\\s*(['"])([^'"]*)\\3`, 'g'))) {
+    found.add(m[2]);
+    found.add(m[4]);
+  }
+  return [...found];
 }
 
 type Violation = {
@@ -163,17 +225,29 @@ async function main() {
       const literal = objectLiteralAt(src, open);
       if (!literal) continue;
 
-      for (const { key: column, value } of topLevelLiterals(literal)) {
-        const permitted = cols.get(column);
-        if (!permitted || permitted.has(value)) continue;
-        violations.push({
-          file: path.relative(process.cwd(), file).split(path.sep).join('/'),
-          line: src.slice(0, m.index ?? 0).split('\n').length,
-          table,
-          column,
-          wrote: value,
-          allowed: [...permitted].sort(),
-        });
+      for (const entry of topLevelEntries(literal)) {
+        const permitted = cols.get(entry.key);
+        if (!permitted) continue;
+
+        // A literal is checked as written. An identifier is checked against
+        // every literal assigned to it beforehand — the shape that produced the
+        // students.status bug, where 'paid' and 'partially_paid' were worked out
+        // over two branches and only then written.
+        const candidates = entry.literal !== undefined
+          ? [entry.literal]
+          : literalsAssignedTo(src, entry.ident!, m.index ?? 0);
+
+        for (const value of candidates) {
+          if (permitted.has(value)) continue;
+          violations.push({
+            file: path.relative(process.cwd(), file).split(path.sep).join('/'),
+            line: src.slice(0, m.index ?? 0).split('\n').length,
+            table,
+            column: entry.key,
+            wrote: entry.ident ? `${value}  (via ${entry.ident})` : value,
+            allowed: [...permitted].sort(),
+          });
+        }
       }
     }
   }
