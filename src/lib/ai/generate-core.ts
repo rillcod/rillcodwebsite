@@ -174,6 +174,14 @@ export interface GenerateRequest {
   studentAnswers?: Record<string, string>;
   // For assignment generation
   assignmentType?: string;
+  /**
+   * The Academic Office's house frame for a practical project, from
+   * curriculum_project_registry. Shapes the task; never supplies its content —
+   * one frame serves thousands of weeks, so it cannot know this week's topic.
+   */
+  projectFrame?: string;
+  projectFrameMinutes?: number | null;
+  projectFrameDifficulty?: number | null;
   // For daily missions & hooks
   xp?: number;
   streak?: number;
@@ -1146,7 +1154,24 @@ ${
 }${sourceBlock}
 Assignment type hint: ${req.assignmentType ?? "auto-detect"}
 Max Points: 100
-${syllabusAnchorBlock}${planWeekSection}${dedupAssign}
+${syllabusAnchorBlock}${planWeekSection}${dedupAssign}${
+        req.projectFrame
+          ? `
+HOUSE FRAME — the shape every Rillcod practical project takes. Follow it, do not repeat it.
+The frame is written once for hundreds of weeks, so it deliberately says nothing about THIS
+week. That part is your job: name the actual tool and the actual concept from the topic and
+syllabus above, and pitch every sentence at ${req.gradeLevel ?? "the stated grade"} — a Basic 1
+pupil and an SS 3 student must not receive the same wording.
+
+"${req.projectFrame}"
+${req.projectFrameMinutes ? `Run time: about ${req.projectFrameMinutes} minutes.` : ""}${
+              req.projectFrameDifficulty
+                ? ` Difficulty: ${req.projectFrameDifficulty} of 10.`
+                : ""
+            }
+`
+          : ""
+      }
 
 Return a JSON object with this exact shape:
 {

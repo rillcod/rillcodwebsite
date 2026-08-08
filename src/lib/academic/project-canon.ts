@@ -39,6 +39,42 @@ export type CanonDecision =
   | { source: 'ai'; reason: 'no_match' | 'placeholder_only' };
 
 /**
+ * The house frame for a project, handed to the model rather than used instead
+ * of it.
+ *
+ * The first version of this replaced the generated project outright, and that
+ * was wrong in a way only reading the output showed. One brief served 9,720
+ * slots, so it could not name the tool, could not use the week's actual topic,
+ * and was pitched at no particular age — a Basic 1 pupil got the same sentence
+ * as SS 3. The model it displaced was worse-written but better-informed,
+ * because it reads the syllabus week.
+ *
+ * The registry knows things the model cannot: the shape a Rillcod project takes,
+ * how long it should run, how hard it should be. The model knows the thing the
+ * registry cannot: what this week is actually about. So the brief becomes the
+ * frame and the model fills it, and neither is asked to do the other's job.
+ *
+ * The 120-character bar still applies. A one-line placeholder is not a frame.
+ */
+export type ProjectFrame = {
+  templateId: string;
+  /** The authored brief, with {week} and {track} already filled. */
+  frame: string;
+  minutes: number | null;
+  difficulty: number | null;
+};
+
+export function frameFor(decision: CanonDecision, difficulty?: number | null): ProjectFrame | null {
+  if (decision.source !== 'canon') return null;
+  return {
+    templateId: decision.templateId,
+    frame: decision.brief,
+    minutes: decision.minutes,
+    difficulty: difficulty ?? null,
+  };
+}
+
+/**
  * Whether a registry row is worth using instead of generating.
  *
  * Length is a blunt test and deliberately so: the placeholders are uniformly

@@ -12,7 +12,7 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
-import { decideProjectSource } from "@/lib/academic/project-canon";
+import { decideProjectSource, frameFor } from "@/lib/academic/project-canon";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
@@ -349,25 +349,19 @@ export async function POST(
             canon = decideProjectSource(briefs ?? [], { week: week.week });
           }
 
-          // The canon wins: no model call at all for this week.
+          // The frame shapes the task; the model still writes it.
+          //
+          // This replaced the generated project outright at first, and reading
+          // the result showed why that was wrong: one brief serves 9,720 slots,
+          // so it cannot name the tool, cannot use the week's topic, and is
+          // pitched at no particular age — Basic 1 received the same sentence
+          // as SS 3. The model is the worse writer and the better informed one,
+          // because it reads the syllabus week. So the registry supplies the
+          // shape a Rillcod project takes and the model supplies this week,
+          // and neither does the other's job.
+          const frame = frameFor(canon);
           let aiData: { success: true; data: unknown };
-          if (canon.source === "canon") {
-            aiData = {
-              success: true,
-              data: {
-                title: canon.title,
-                description: canon.brief,
-                instructions: canon.brief,
-                estimated_minutes: canon.minutes,
-              },
-            };
-            emit({
-              generated,
-              total,
-              current: week.week,
-              status: `Week ${week.week} project taken from the Project Library (no AI needed)`,
-            });
-          } else try {
+          try {
             aiData = await fetchAIGenerate({
               type: "assignment",
               topic: week.topic,
@@ -377,6 +371,13 @@ export async function POST(
               assignmentType: "project",
               programName,
               syllabusReference,
+              ...(frame
+                ? {
+                    projectFrame: frame.frame,
+                    projectFrameMinutes: frame.minutes,
+                    projectFrameDifficulty: frame.difficulty,
+                  }
+                : {}),
               planWeekObjectives:
                 typeof week.objectives === "string" ? week.objectives : "",
               planWeekActivities:
@@ -471,8 +472,10 @@ export async function POST(
                 // an authored brief and a generated one are indistinguishable
                 // afterwards, and there is no way to see whether rewriting the
                 // catalogue is actually reaching classes.
-                project_source: canon.source,
-                ...(canon.source === "ai" ? { canon_miss: canon.reason } : {}),
+                project_source: frame ? "frame" : "ai",
+                ...(frame
+                  ? { project_frame_id: frame.templateId }
+                  : { canon_miss: canon.source === "ai" ? canon.reason : "unknown" }),
                 ...(assignmentTermId ? { term_id: assignmentTermId } : {}),
               } as import("@/types/supabase").Json,
               questions: (d.questions ||
