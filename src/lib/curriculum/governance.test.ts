@@ -44,4 +44,18 @@ describe('curriculum governance policy', () => {
     expect(determineRolloutStatus({ autoUpdate: false, requested: true }).status).toBe('skipped');
     expect(determineRolloutStatus({ autoUpdate: true, requested: true, adoptionStatus: 'conflict' }).status).toBe('conflict');
   });
+
+  it('resumes an adoption the platform paused, but still respects a school opting out', () => {
+    // Withdrawing an edition pauses every adoption of it. Reading that back as
+    // "this school paused updates" made re-publishing roll out to nobody: 29
+    // schools skipped, every Teen Developers class left with no direction.
+    expect(determineRolloutStatus({ autoUpdate: true, requested: true, adoptionStatus: 'paused' }).status)
+      .toBe('eligible');
+    // auto_update is the school's own switch and still wins.
+    expect(determineRolloutStatus({ autoUpdate: false, requested: true, adoptionStatus: 'paused' }).status)
+      .toBe('skipped');
+    // An unresolved conflict is still a conflict.
+    expect(determineRolloutStatus({ autoUpdate: true, requested: true, adoptionStatus: 'conflict' }).status)
+      .toBe('conflict');
+  });
 });

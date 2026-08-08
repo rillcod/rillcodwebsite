@@ -120,8 +120,20 @@ export function determineRolloutStatus(input: {
   if (input.adoptionStatus === 'conflict') {
     return { status: 'conflict', reason: 'Existing adoption has an unresolved conflict.' };
   }
-  if (input.adoptionStatus === 'paused' || !input.autoUpdate) {
-    return { status: 'skipped', reason: 'Automatic curriculum updates are paused for this school.' };
+  // A school that switched auto-update off has made a choice, and publishing
+  // must respect it.
+  if (!input.autoUpdate) {
+    return { status: 'skipped', reason: 'Automatic curriculum updates are switched off for this school.' };
+  }
+  // 'paused' is NOT that choice. Withdrawing an edition pauses every adoption of
+  // it, so the status records something the platform did, not something the
+  // school asked for. Treating the two as one turned unpublishing into a
+  // one-way door a second time: the office could re-publish the edition, the
+  // release row appeared, and the rollout then skipped all 29 schools as
+  // "paused" — leaving every class with no official direction and no way back
+  // through the UI. Only auto_update expresses a school's intent.
+  if (input.adoptionStatus === 'paused') {
+    return { status: 'eligible', reason: 'Resuming an adoption paused when the previous edition was withdrawn.' };
   }
   return { status: 'eligible', reason: 'Safe to adopt for future class-term plans.' };
 }
