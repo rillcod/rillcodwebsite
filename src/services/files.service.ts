@@ -77,6 +77,26 @@ export class FilesService {
                 if (!objectStillExists) {
                     // Metadata can outlive a purged lesson slide deck. In that case the
                     // duplicate shortcut would return a dead key, so upload a fresh object.
+                } else if (
+                    existing.school_id === tenantId &&
+                    existing.uploaded_by === uploaderId
+                ) {
+                    // The same person re-uploading the same file into the same
+                    // school already has this record. Handing it back is the
+                    // whole answer — a second row describes nothing new.
+                    //
+                    // Inserting one anyway is why the library shows a file eight
+                    // times: 9c3415cb fixed the dead-key half of this in June,
+                    // but every retry still left a row behind. One PDF collected
+                    // 8, three images collected 5, 5 and 4, and an access card 4
+                    // — all one uploader, all one school, all pointing at a
+                    // single object. The storage was never duplicated; the
+                    // records were.
+                    //
+                    // A different school or a different uploader still gets its
+                    // own row, because that row carries scoping and ownership
+                    // that genuinely differ.
+                    return existing;
                 } else {
                     const { data: copyData, error: copyErr } = await supabase
                         .from('files')

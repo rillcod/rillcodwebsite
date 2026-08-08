@@ -52,6 +52,15 @@ function withNeverRunJobs(rows: Array<Record<string, unknown>>) {
  *
  * Counts only — head:true keeps this cheap enough to sit on a page that polls.
  */
+/**
+ * Below this, a score was recorded as a non-result rather than earned as a low
+ * one — a learner who never really attended, or a shell the builder created and
+ * nobody filled in. The Academy reads its own marks this way; it is not derived
+ * from the distribution, so it belongs here as a named constant rather than
+ * buried in a filter.
+ */
+const GENUINE_RESULT_MARK = 40;
+
 async function waitingOnYou(db: any) {
   const count = async (
     table: string,
@@ -68,8 +77,23 @@ async function waitingOnYou(db: any) {
     }
   };
 
-  const [reports, plans, lessons, assignments] = await Promise.all([
-    count('student_progress_reports', (q: any) => q.not('is_published', 'is', true)),
+  const [reports, blankReports, plans, lessons, assignments] = await Promise.all([
+    // Split on the mark, not on the flag. is_published=false does double duty:
+    // it means "a shell nobody filled in" as often as "finished and not
+    // released". All 82 counted together reads as 82 reports owed to parents,
+    // and publishing that batch would send most of those families a blank one —
+    // average attendance across them is 23, against 69.5 for published reports.
+    //
+    // The 40 mark is the Academy's own reading of its data, not a statistical
+    // guess: anything below it was entered as a non-result rather than earned
+    // as a low one. That puts 57 of the 82 on the wrong side of the line, which
+    // is why the flag alone could never have answered this.
+    count('student_progress_reports', (q: any) =>
+      q.not('is_published', 'is', true).gte('overall_score', GENUINE_RESULT_MARK)
+    ),
+    count('student_progress_reports', (q: any) =>
+      q.not('is_published', 'is', true).lt('overall_score', GENUINE_RESULT_MARK)
+    ),
     count('lesson_plans', (q: any) =>
       q.eq('status', 'draft').eq('metadata->auto_generate_settings->>enabled', 'true')
     ),
@@ -82,10 +106,17 @@ async function waitingOnYou(db: any) {
   return [
     {
       key: 'reports',
-      label: 'Progress reports written but not published',
-      detail: 'Marked work no parent or learner can see yet.',
+      label: 'Marked reports not published',
+      detail: 'Scores are in. No parent or learner can see them yet.',
       count: reports,
       href: '/dashboard/results',
+    },
+    {
+      key: 'blank-reports',
+      label: `Reports under ${GENUINE_RESULT_MARK} — not real results`,
+      detail: 'Shells and non-attenders. Complete or remove them; do not publish.',
+      count: blankReports,
+      href: '/dashboard/reports/builder',
     },
     {
       key: 'plans',
