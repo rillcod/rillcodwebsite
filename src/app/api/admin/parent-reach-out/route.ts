@@ -11,6 +11,7 @@ import {
 import { getParentsForStudentPortalId } from '@/lib/parents/links';
 import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 import { env } from '@/config/env';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -374,6 +375,22 @@ export async function POST(req: Request) {
     : failedCount > 0
       ? `All sends failed (${failedCount}). ${errors[0] || ''}`.trim()
       : `Nothing sent. ${errors[0] || 'No resolvable parent emails.'}`;
+
+  await logAudit(db as any, {
+    action: ok ? (failedCount || skippedCount ? 'send_parent_reach_out_partial' : 'send_parent_reach_out') : 'send_parent_reach_out_failed',
+    actorId: user!.id,
+    resourceType: 'parent_communication_batch',
+    newValue: message,
+    newValues: {
+      template_key: template.key,
+      channel: 'email',
+      requested_count: targetList.length,
+      sent_count: sentCount,
+      failed_count: failedCount,
+      skipped_count: skippedCount,
+      providers: [...providersUsed],
+    },
+  });
 
   return NextResponse.json(
     {

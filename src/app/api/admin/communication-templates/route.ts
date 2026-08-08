@@ -7,6 +7,8 @@ import {
   normalizeTemplateKey,
   renderCommunicationTemplate,
 } from '@/lib/communication/template-registry';
+import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 async function requireAdmin() {
   const supabase = await createServerClient();
@@ -60,9 +62,26 @@ export async function POST(req: NextRequest) {
       change_note: String(body.changeNote || 'Initial version'), created_by: actor.user.id,
     }).select('*').single();
     if (versionError) {
-      await actor.db.from('communication_templates').delete().eq('id', template.id);
+      try {
+        await requireSupabaseWrite(
+          actor.db.from('communication_templates').delete().eq('id', template.id),
+          'Roll back incomplete communication template',
+        );
+      } catch (rollbackError) {
+        return NextResponse.json({
+          error: versionError.message,
+          rollback_error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+        }, { status: 500 });
+      }
       return NextResponse.json({ error: versionError.message }, { status: 500 });
     }
+    await logAudit(actor.db, {
+      action: 'create_communication_template', actorId: actor.user.id,
+      resourceType: 'communication_template', resourceId: template.id,
+      tableName: 'communication_templates',
+      newValue: `Created draft template ${name}`,
+      newValues: { template_key: key, name, category: String(body.category || 'operations'), channel, version_id: version.id },
+    });
     return NextResponse.json({ success: true, template, version });
   }
 
@@ -79,6 +98,13 @@ export async function POST(req: NextRequest) {
       subject, body: templateBody, change_note: String(body.changeNote || 'Updated version'), created_by: actor.user.id,
     }).select('*').single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(actor.db, {
+      action: 'create_communication_template_version', actorId: actor.user.id,
+      resourceType: 'communication_template', resourceId: templateId,
+      tableName: 'communication_template_versions', recordId: version.id,
+      newValue: `Created communication template version ${version.version_number}`,
+      newValues: { version_id: version.id, version_number: version.version_number },
+    });
     return NextResponse.json({ success: true, version });
   }
 
@@ -87,15 +113,40 @@ export async function POST(req: NextRequest) {
     const { data: version } = await actor.db.from('communication_template_versions').select('*').eq('id', versionId).maybeSingle();
     if (!version) return NextResponse.json({ error: 'Version not found.' }, { status: 404 });
     const variables = extractTemplateVariables(version.subject, version.body);
+    let rendered: ReturnType<typeof renderCommunicationTemplate>;
     try {
-      const rendered = renderCommunicationTemplate({ subject: version.subject, body: version.body, requiredVariables: variables, data: buildTemplateTestData(variables) });
-      await actor.db.from('communication_template_versions').update({ test_status: 'passed', test_notes: 'All declared variables rendered without unresolved placeholders.', tested_at: now }).eq('id', versionId);
-      return NextResponse.json({ success: true, rendered });
+      rendered = renderCommunicationTemplate({ subject: version.subject, body: version.body, requiredVariables: variables, data: buildTemplateTestData(variables) });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await actor.db.from('communication_template_versions').update({ test_status: 'failed', test_notes: message, tested_at: now }).eq('id', versionId);
+      try {
+        await requireSupabaseWrite(
+          actor.db.from('communication_template_versions').update({ test_status: 'failed', test_notes: message, tested_at: now }).eq('id', versionId),
+          'Record failed communication template test',
+        );
+      } catch (writeError) {
+        return NextResponse.json({ error: message, state_error: writeError instanceof Error ? writeError.message : String(writeError) }, { status: 500 });
+      }
+      await logAudit(actor.db, {
+        action: 'test_communication_template_version_failed', actorId: actor.user.id,
+        resourceType: 'communication_template_version', resourceId: versionId,
+        newValue: message,
+      });
       return NextResponse.json({ error: message }, { status: 400 });
     }
+    try {
+      await requireSupabaseWrite(
+        actor.db.from('communication_template_versions').update({ test_status: 'passed', test_notes: 'All declared variables rendered without unresolved placeholders.', tested_at: now }).eq('id', versionId),
+        'Record successful communication template test',
+      );
+    } catch (writeError) {
+      return NextResponse.json({ error: writeError instanceof Error ? writeError.message : String(writeError) }, { status: 500 });
+    }
+    await logAudit(actor.db, {
+      action: 'test_communication_template_version', actorId: actor.user.id,
+      resourceType: 'communication_template_version', resourceId: versionId,
+      newValue: 'Template rendering test passed',
+    });
+    return NextResponse.json({ success: true, rendered });
   }
 
   if (action === 'approve') {
@@ -105,6 +156,12 @@ export async function POST(req: NextRequest) {
     const requiredVariables = extractTemplateVariables(version.subject, version.body);
     const { error } = await actor.db.from('communication_templates').update({ status: 'approved', current_version_id: version.id, required_variables: requiredVariables, approved_by: actor.user.id, approved_at: now, updated_at: now }).eq('id', version.template_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(actor.db, {
+      action: 'approve_communication_template', actorId: actor.user.id,
+      resourceType: 'communication_template', resourceId: version.template_id,
+      newValue: `Approved version ${version.version_number}`,
+      newValues: { current_version_id: version.id, version_number: version.version_number },
+    });
     return NextResponse.json({ success: true, status: 'approved' });
   }
 
@@ -112,6 +169,11 @@ export async function POST(req: NextRequest) {
     const templateId = String(body.templateId || '');
     const { error } = await actor.db.from('communication_templates').update({ status: 'retired', updated_at: now }).eq('id', templateId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(actor.db, {
+      action: 'retire_communication_template', actorId: actor.user.id,
+      resourceType: 'communication_template', resourceId: templateId,
+      newValue: 'Retired communication template',
+    });
     return NextResponse.json({ success: true, status: 'retired' });
   }
 

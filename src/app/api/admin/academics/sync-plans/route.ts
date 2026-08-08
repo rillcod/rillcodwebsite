@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { instantiatePlansFromAdoptions } from '@/lib/academic/plan-from-release';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,13 +38,26 @@ export async function POST(req: NextRequest) {
 
   try {
     const report = await instantiatePlansFromAdoptions(db, { classIds, courseId, offeringId, limit, forceRefresh });
+    await logAudit(db, {
+      action: 'sync_teaching_plans_from_curriculum',
+      actorId: user.id,
+      resourceType: 'lesson_plan_sync',
+      newValue: `Scanned ${report.scanned} classes and created or updated ${report.created} teaching plans`,
+      newValues: { ...report, class_ids: classIds ?? null, course_id: courseId ?? null, offering_id: offeringId ?? null, force_refresh: forceRefresh },
+    });
     return NextResponse.json({
       success: true,
       report,
       message: `Scanned ${report.scanned} classes. Created/updated ${report.created} teaching plans from adopted curriculum releases (${report.skipped} skipped).`,
     });
   } catch (error: any) {
-
+    await logAudit(db, {
+      action: 'sync_teaching_plans_from_curriculum_failed',
+      actorId: user.id,
+      resourceType: 'lesson_plan_sync',
+      newValue: error.message ?? 'Failed to sync plans from adoptions',
+      newValues: { class_ids: classIds ?? null, course_id: courseId ?? null, offering_id: offeringId ?? null, force_refresh: forceRefresh },
+    });
     return NextResponse.json({ error: error.message ?? 'Failed to sync plans from adoptions.' }, { status: 500 });
   }
 }

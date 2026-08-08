@@ -5,6 +5,7 @@ import { sendTermRegistrationActivation } from '@/lib/registration/term-activati
 import { sendSchoolPartnershipActivation } from '@/lib/registration/school-activation';
 import { sendSpecialProgramActivation, onboardSummerStudent } from '@/lib/summer-school/onboard';
 import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -50,6 +51,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Student has no portal account yet — approve first.' }, { status: 400 });
     }
     const activation = await sendTermRegistrationActivation(admin, student, { force: true });
+    await logAudit(admin as any, {
+      action: activation.email ? 'resend_student_activation' : 'resend_student_activation_failed',
+      actorId: caller.id, resourceType: 'student', resourceId: student.id,
+      newValue: activation.email ? 'Student activation email resent' : 'Student activation email was not delivered',
+    });
     return NextResponse.json({
       success: true,
       delivered: activation.email,
@@ -86,6 +92,11 @@ export async function POST(request: Request) {
       tempPassword: '',
       force: true,
     });
+    await logAudit(admin as any, {
+      action: activation.email ? 'resend_school_activation' : 'resend_school_activation_failed',
+      actorId: caller.id, resourceType: 'school', resourceId: school.id,
+      newValue: activation.email ? 'School activation email resent' : 'School activation email was not delivered',
+    });
     return NextResponse.json({
       success: true,
       delivered: activation.email,
@@ -107,6 +118,12 @@ export async function POST(request: Request) {
     const onboard = await onboardSummerStudent(admin, prospect as any, { approvedBy: caller.id });
     const activation = await sendSpecialProgramActivation(onboard, prospect as any, { force: true });
     after(() => runClassAcademicReadiness(onboard.classId));
+    await logAudit(admin as any, {
+      action: activation.email ? 'resend_special_program_activation' : 'resend_special_program_activation_failed',
+      actorId: caller.id, resourceType: 'prospective_student', resourceId: prospect.id,
+      newValue: activation.email ? 'Special programme activation email resent' : 'Special programme activation email was not delivered',
+      newValues: { class_id: onboard.classId },
+    });
     return NextResponse.json({
       success: true,
       delivered: activation.email,
@@ -115,6 +132,11 @@ export async function POST(request: Request) {
         : 'Activation email could not be delivered.',
     });
   } catch (err: unknown) {
+    await logAudit(admin as any, {
+      action: 'resend_special_program_activation_failed', actorId: caller.id,
+      resourceType: 'prospective_student', resourceId: id,
+      newValue: err instanceof Error ? err.message : 'Could not resend special programme activation',
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Could not resend special programme activation' },
       { status: 500 },

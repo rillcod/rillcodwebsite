@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
+import { logAudit } from '@/lib/audit/log';
 
 /**
  * Full accountability census: every account, where they are placed, what they
@@ -38,11 +39,11 @@ function timeout(ms: number): Promise<never> {
   );
 }
 
-async function assertAdmin(): Promise<NextResponse | null> {
+async function accountabilityActor(): Promise<{ actorId: string | null; error: NextResponse | null }> {
   const supabase = await createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return { actorId: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
   const { data: caller } = await supabase
     .from('portal_users')
@@ -50,9 +51,9 @@ async function assertAdmin(): Promise<NextResponse | null> {
     .eq('id', user.id)
     .maybeSingle();
   if (!roleHasCapability(caller?.role, 'view_accountability')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return { actorId: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
-  return null;
+  return { actorId: user.id, error: null };
 }
 
 const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
@@ -67,8 +68,8 @@ function countByRole(rows: Array<{ role?: string | null }>) {
 }
 
 export async function GET() {
-  const authErr = await assertAdmin();
-  if (authErr) return authErr;
+  const actor = await accountabilityActor();
+  if (actor.error) return actor.error;
 
   let db: ReturnType<typeof adminClient>;
   try {
@@ -143,8 +144,8 @@ export async function GET() {
 }
 
 export async function POST() {
-  const authErr = await assertAdmin();
-  if (authErr) return authErr;
+  const actor = await accountabilityActor();
+  if (actor.error) return actor.error;
 
   let db: ReturnType<typeof adminClient>;
   try {
@@ -163,6 +164,11 @@ export async function POST() {
       timeout(RPC_TIMEOUT_MS),
     ]);
   } catch (e) {
+    await logAudit(db as any, {
+      action: 'refresh_accountability_cache_failed', actorId: actor.actorId,
+      resourceType: 'accountability_cache',
+      newValue: e instanceof Error ? e.message : 'Refresh timed out',
+    });
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Refresh timed out' },
       { status: 500 },
@@ -170,8 +176,19 @@ export async function POST() {
   }
 
   if (refreshRes.error) {
+    await logAudit(db as any, {
+      action: 'refresh_accountability_cache_failed', actorId: actor.actorId,
+      resourceType: 'accountability_cache', newValue: refreshRes.error.message,
+    });
     return NextResponse.json({ error: refreshRes.error.message }, { status: 500 });
   }
+
+  await logAudit(db as any, {
+    action: 'refresh_accountability_cache', actorId: actor.actorId,
+    resourceType: 'accountability_cache',
+    newValue: 'Refreshed the central administrative accountability census',
+    newValues: { refreshed_at: refreshRes.data },
+  });
 
   return NextResponse.json({ refreshed_at: refreshRes.data }, NO_STORE);
 }

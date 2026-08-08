@@ -3,6 +3,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
 import { cronPathMap, monitoredCronJobs } from '@/lib/operations/cron-registry';
+import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -273,9 +275,21 @@ export async function PATCH(req: NextRequest) {
       });
       const result = await response.json().catch(() => ({}));
       const succeeded = cronResultSucceeded(response.status, result);
+      await logAudit(actor.db, {
+        action: succeeded ? 'run_automation_job_now' : 'run_automation_job_now_failed',
+        actorId: actor.user.id, resourceType: 'cron_job', resourceId: jobName,
+        newValue: succeeded ? `Ran ${jobName} successfully` : `${jobName} returned HTTP ${response.status}`,
+        newValues: { path, http_status: response.status },
+      });
       return NextResponse.json({ success: succeeded, status: response.status, result }, { status: succeeded ? 200 : 502 });
     } catch (error) {
-      return NextResponse.json({ error: error instanceof Error ? error.message : 'Cron run failed.' }, { status: 502 });
+      const message = error instanceof Error ? error.message : 'Cron run failed.';
+      await logAudit(actor.db, {
+        action: 'run_automation_job_now_failed', actorId: actor.user.id,
+        resourceType: 'cron_job', resourceId: jobName, newValue: message,
+        newValues: { path },
+      });
+      return NextResponse.json({ error: message }, { status: 502 });
     }
   }
 
@@ -295,6 +309,12 @@ export async function PATCH(req: NextRequest) {
       updated_at: now,
     }).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(actor.db, {
+      action: status === 'resolved' ? 'resolve_notification_dead_letter' : 'ignore_notification_dead_letter',
+      actorId: actor.user.id, resourceType: 'notification_dead_letter', resourceId: id,
+      tableName: 'notification_dead_letters',
+      oldValue: String(row.status || 'pending'), newValue: status,
+    });
     return NextResponse.json({ success: true, status });
   }
 
@@ -311,7 +331,14 @@ export async function PATCH(req: NextRequest) {
     if (!row.user_id && !payload.to) {
       return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
     }
-    await actor.db.from('notification_dead_letters').update({ status: 'retrying', last_retry_at: now, updated_at: now }).eq('id', id);
+    try {
+      await requireSupabaseWrite(
+        actor.db.from('notification_dead_letters').update({ status: 'retrying', last_retry_at: now, updated_at: now }).eq('id', id),
+        'Mark notification for retry',
+      );
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    }
     try {
       const { notificationsService } = await import('@/services/notifications.service');
       let delivered = true;
@@ -321,26 +348,55 @@ export async function PATCH(req: NextRequest) {
         await notificationsService.sendExternalEmail(payload as any);
       }
       if (!delivered) {
-        await actor.db.from('notification_dead_letters').update({
-          status: 'ignored', retry_count: Number(row.retry_count || 0) + 1,
-          last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
-          resolution_note: 'Not sent because the customer has disabled this channel.', updated_at: now,
-        }).eq('id', id);
+        await requireSupabaseWrite(
+          actor.db.from('notification_dead_letters').update({
+            status: 'ignored', retry_count: Number(row.retry_count || 0) + 1,
+            last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
+            resolution_note: 'Not sent because the customer has disabled this channel.', updated_at: now,
+          }).eq('id', id),
+          'Record notification preference skip',
+        );
+        await logAudit(actor.db, {
+          action: 'retry_notification_dead_letter_skipped', actorId: actor.user.id,
+          resourceType: 'notification_dead_letter', resourceId: id,
+          oldValue: String(row.status || 'pending'), newValue: 'ignored',
+        });
         return NextResponse.json({ success: true, status: 'ignored', delivered: false, reason: 'customer_preference' });
       }
-      await actor.db.from('notification_dead_letters').update({
-        status: 'resolved', retry_count: Number(row.retry_count || 0) + 1,
-        last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
-        resolution_note: 'Delivered successfully by administrator retry.', updated_at: now,
-      }).eq('id', id);
+      await requireSupabaseWrite(
+        actor.db.from('notification_dead_letters').update({
+          status: 'resolved', retry_count: Number(row.retry_count || 0) + 1,
+          last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
+          resolution_note: 'Delivered successfully by administrator retry.', updated_at: now,
+        }).eq('id', id),
+        'Record successful notification retry',
+      );
+      await logAudit(actor.db, {
+        action: 'retry_notification_dead_letter', actorId: actor.user.id,
+        resourceType: 'notification_dead_letter', resourceId: id,
+        oldValue: String(row.status || 'pending'), newValue: 'resolved',
+      });
       return NextResponse.json({ success: true, status: 'resolved' });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await actor.db.from('notification_dead_letters').update({
-        status: 'pending', retry_count: Number(row.retry_count || 0) + 1,
-        last_retry_at: now, error: message.slice(0, 4000), updated_at: now,
-      }).eq('id', id);
-      return NextResponse.json({ error: message }, { status: 502 });
+      let stateError: string | null = null;
+      try {
+        await requireSupabaseWrite(
+          actor.db.from('notification_dead_letters').update({
+            status: 'pending', retry_count: Number(row.retry_count || 0) + 1,
+            last_retry_at: now, error: message.slice(0, 4000), updated_at: now,
+          }).eq('id', id),
+          'Restore notification after failed retry',
+        );
+      } catch (writeError) {
+        stateError = writeError instanceof Error ? writeError.message : String(writeError);
+      }
+      await logAudit(actor.db, {
+        action: 'retry_notification_dead_letter_failed', actorId: actor.user.id,
+        resourceType: 'notification_dead_letter', resourceId: id, newValue: message,
+        newValues: { state_error: stateError },
+      });
+      return NextResponse.json({ error: message, state_error: stateError }, { status: stateError ? 500 : 502 });
     }
   }
 

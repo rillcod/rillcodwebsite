@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { brandContact } from '@/config/brand';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 async function requireAdmin() {
     const supabase = await createClient();
@@ -91,9 +93,21 @@ export async function POST(request: Request) {
         });
         sent.push({ to: feedbackTo, subject: 'Rillcod — feedback / pay test' });
 
+        await logAudit(createAdminClient() as any, {
+            action: 'send_diagnostic_email', actorId: admin.id,
+            resourceType: 'communication_diagnostic',
+            newValue: `Sent ${sent.length} diagnostic messages`,
+            newValues: { recipients: sent.map((item) => item.to), count: sent.length },
+        });
+
         return NextResponse.json({ success: true, sent });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Send failed';
+        await logAudit(createAdminClient() as any, {
+            action: 'send_diagnostic_email_failed', actorId: admin.id,
+            resourceType: 'communication_diagnostic', newValue: message,
+            newValues: { delivered_recipients: sent.map((item) => item.to), delivered_count: sent.length },
+        });
         return NextResponse.json({ error: message, sent }, { status: 500 });
     }
 }

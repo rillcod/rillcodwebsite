@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffUser } from "@/app/api/lesson-plans/authz";
 import { releasePreparedWeek } from "@/lib/academic/release-week-content";
 import { assetMeetingSession, normalizeMeetingSession, parseRequestSession } from "@/lib/academic/session-identity";
+import { logAudit } from "@/lib/audit/log";
 import {
   pendingWeekKey,
   type PendingWeek,
@@ -246,6 +247,24 @@ export async function POST(req: NextRequest) {
   }
 
   const failures = results.filter((r) => r.error);
+  await logAudit(db as any, {
+    action: failures.length ? "release_prepared_teaching_content_partial" : "release_prepared_teaching_content",
+    actorId: staff.id,
+    resourceType: "lesson_plan_week",
+    resourceId: targets.length === 1 ? targets[0].planId : null,
+    newValue: `Released ${results.length - failures.length} of ${results.length} prepared teaching week(s)`,
+    newValues: {
+      requested: results.length,
+      released: results.length - failures.length,
+      failed: failures.length,
+      targets: results.map((result) => ({
+        plan_id: result.planId,
+        week: result.week,
+        session: result.session,
+        error: result.error ?? null,
+      })),
+    },
+  });
   return NextResponse.json(
     {
       data: {

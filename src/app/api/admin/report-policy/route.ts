@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSchoolReportActor } from '@/lib/school-reports/access';
 import { loadSchoolReportPolicy, normalizeSchoolReportPolicy, SCHOOL_REPORT_POLICY_KEY } from '@/lib/school-reports/report-policy';
+import { logAudit } from '@/lib/audit/log';
 
 export async function GET() {
   const actor = await getSchoolReportActor();
@@ -19,5 +20,14 @@ export async function PUT(request: Request) {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'setting_key' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(actor.admin, {
+    action: 'update_school_report_policy',
+    actorId: actor.user.id,
+    resourceType: 'system_setting',
+    resourceId: SCHOOL_REPORT_POLICY_KEY,
+    tableName: 'system_settings',
+    newValue: 'Updated the central school report policy',
+    newValues: { policy },
+  });
   return NextResponse.json({ policy });
 }

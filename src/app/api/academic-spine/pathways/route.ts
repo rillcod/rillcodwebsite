@@ -1,6 +1,7 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 async function caller() {
   const auth = await createClient();
@@ -79,6 +80,12 @@ export async function POST(req: NextRequest) {
       p_actor_id: user.id,
     });
     if (error) return NextResponse.json({ error: error.message, detail: error.details }, { status: 400 });
+    await logAudit(db, {
+      action: 'create_academic_pathway', actorId: user.id,
+      resourceType: 'academic_offering', resourceId: String(data), tableName: 'academic_offerings',
+      newValue: `Created ${pathway} academic pathway`,
+      newValues: { title: String(body.title ?? '').trim(), pathway, programme_id: body.programme_id || null, school_id: schoolId },
+    });
     return NextResponse.json({ data: { id: data }, message: 'Independent academic pathway created. Choose its curriculum edition when ready.' }, { status: 201 });
   }
 
@@ -97,6 +104,12 @@ export async function POST(req: NextRequest) {
       p_actor_id: user.id,
     });
     if (error) return NextResponse.json({ error: error.message, detail: error.details }, { status: 400 });
+    await logAudit(db, {
+      action: 'publish_offering_curriculum_direction', actorId: user.id,
+      resourceType: 'academic_offering', resourceId: body.academic_offering_id,
+      newValue: 'Published official curriculum direction',
+      newValues: { course_id: body.course_id, release_id: body.release_id },
+    });
     after(async () => {
       try {
         const { runAcademicReadinessAutomation } = await import('@/lib/academic/readiness-automation');
@@ -129,6 +142,11 @@ export async function POST(req: NextRequest) {
     if (delivery) patch.delivery_mode = delivery;
     const { data, error } = await db.from('academic_offerings').update(patch).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    await logAudit(db, {
+      action: 'update_academic_pathway', actorId: user.id,
+      resourceType: 'academic_offering', resourceId: id, tableName: 'academic_offerings',
+      oldValues: { settings: current.settings }, newValues: patch,
+    });
     return NextResponse.json({ data, message: 'Pathway settings saved.' });
   }
 
@@ -139,6 +157,12 @@ export async function POST(req: NextRequest) {
       status: body.status || 'active', updated_at: new Date().toISOString(),
     }).eq('id', body.period_id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    await logAudit(db, {
+      action: 'update_academic_offering_period', actorId: user.id,
+      resourceType: 'academic_offering_period', resourceId: body.period_id,
+      tableName: 'academic_offering_periods',
+      newValues: { label: String(body.label).trim(), starts_on: body.starts_on || null, ends_on: body.ends_on || null, status: body.status || 'active' },
+    });
     return NextResponse.json({ data, message: 'Learning period updated.' });
   }
   return NextResponse.json({ error: 'Unknown pathway action.' }, { status: 400 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,6 +167,15 @@ export async function POST(req: NextRequest) {
     }
     const { data, error } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: reportId });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    await logAudit(db, {
+      action: 'evaluate_progress_report_academic_qa',
+      actorId: user.id,
+      resourceType: 'student_progress_report',
+      resourceId: reportId,
+      tableName: 'student_progress_reports',
+      newValue: 'Academic QA check completed',
+      newValues: { class_id: report.class_id, school_id: report.school_id },
+    });
     return NextResponse.json({ data });
   }
 
@@ -194,6 +204,22 @@ export async function POST(req: NextRequest) {
       approved_at: new Date().toISOString(),
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    await logAudit(db, {
+      action: 'record_academic_progression_decision',
+      actorId: user.id,
+      resourceType: 'academic_progression_decision',
+      resourceId: data.id,
+      tableName: 'academic_progression_decisions',
+      newValue: `Approved ${body.decision} progression decision`,
+      newValues: {
+        student_id: body.student_id,
+        school_id: body.school_id,
+        class_id: body.class_id ?? null,
+        academic_term_id: body.academic_term_id,
+        decision: body.decision,
+        next_class_id: body.next_class_id ?? null,
+      },
+    });
     return NextResponse.json({ data }, { status: 201 });
   }
 
