@@ -3,15 +3,13 @@
  * Cloudflare Containers deploy (primary host).
  * 1. Build Next.js on the host (reliable on Windows).
  * 2. Package .next into a slim Docker image (Dockerfile.cf).
- * 3. wrangler deploy — hides open-next.config.ts so Wrangler skips OpenNext Workers path.
+ * 3. Deploy the thin Worker gateway and its Container image with Wrangler.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const openNextConfig = path.join(root, "open-next.config.ts");
-const openNextHidden = path.join(root, "open-next.config.ts.container-hidden");
 
 function run(cmd, args, extraEnv = {}) {
   const result = spawnSync(cmd, args, {
@@ -48,20 +46,7 @@ function ensureNextBuild() {
   }
 }
 
-let hidOpenNext = false;
-if (fs.existsSync(openNextConfig) && !fs.existsSync(openNextHidden)) {
-  fs.renameSync(openNextConfig, openNextHidden);
-  hidOpenNext = true;
-}
-
-let exitCode = 1;
-try {
-  ensureNextBuild();
-  exitCode = run("npx", ["wrangler", "deploy"], { OPENNEXT_CLOUDFLARE: "0" });
-} finally {
-  if (hidOpenNext && fs.existsSync(openNextHidden) && !fs.existsSync(openNextConfig)) {
-    fs.renameSync(openNextHidden, openNextConfig);
-  }
-}
+ensureNextBuild();
+const exitCode = run("npx", ["wrangler", "deploy"]);
 
 process.exit(exitCode);

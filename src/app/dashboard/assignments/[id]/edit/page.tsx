@@ -149,7 +149,7 @@ export default function EditAssignmentPage() {
     };
 
     const handleDelete = async () => {
-        if (!confirm('Delete this assignment? All submissions will also be deleted. This cannot be undone.')) return;
+        if (!confirm('Delete this assignment draft? Assignments with recorded scores are protected and must be deactivated instead.')) return;
         setDeleting(true);
         try {
             const res = await fetch(`/api/assignments/${id}`, { method: 'DELETE' });

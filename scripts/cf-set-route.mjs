@@ -8,13 +8,8 @@
  * Then import/copy DNS records and point cf → Worker (this script does the Worker side).
  */
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 
-const root = process.cwd();
 const stagingHost = process.env.CF_STAGING_HOST || "cf.rillcod.com";
-const openNextConfig = path.join(root, "open-next.config.ts");
-const openNextHidden = path.join(root, "open-next.config.ts.container-hidden");
 
 function run(cmd, args, extraEnv = {}) {
   const result = spawnSync(cmd, args, {
@@ -29,16 +24,10 @@ function run(cmd, args, extraEnv = {}) {
   };
 }
 
-let hidOpenNext = false;
-if (fs.existsSync(openNextConfig) && !fs.existsSync(openNextHidden)) {
-  fs.renameSync(openNextConfig, openNextHidden);
-  hidOpenNext = true;
-}
-
 let exitCode = 1;
-try {
+{
   console.log(`Setting Worker custom domain route for ${stagingHost}…\n`);
-  const { code, out } = run("npx", ["wrangler", "deploy"], { OPENNEXT_CLOUDFLARE: "0" });
+  const { code, out } = run("npx", ["wrangler", "deploy"]);
   process.stdout.write(out);
 
   if (code === 0) {
@@ -76,10 +65,6 @@ Until then, staging works at:
     exitCode = 1;
   } else {
     exitCode = code;
-  }
-} finally {
-  if (hidOpenNext && fs.existsSync(openNextHidden) && !fs.existsSync(openNextConfig)) {
-    fs.renameSync(openNextHidden, openNextConfig);
   }
 }
 

@@ -1,6 +1,6 @@
 #:schema node_modules/wrangler/config-schema.json
 # Full LMS on Cloudflare Containers (Node Next.js) behind a thin Worker gateway.
-# OpenNext Workers cannot fit this app (~96 MiB script vs 64 MiB limit).
+# The full Next.js application runs in the Container; this Worker is only its gateway.
 name = "rillcodwebsite"
 main = "src/cloudflare/container-gateway.ts"
 compatibility_date = "2025-05-05"

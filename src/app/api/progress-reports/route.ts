@@ -13,6 +13,7 @@ import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-cours
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
 import { deriveProgressReportResult, PROGRESS_REPORT_SCORE_FIELDS } from '@/lib/reports/score';
+import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 
 
 /**
@@ -102,13 +103,6 @@ export async function POST(request: NextRequest) {
   delete (updatePayload as Record<string, unknown>).overall_grade;
   delete (insertPayload as Record<string, unknown>).overall_score;
   delete (insertPayload as Record<string, unknown>).overall_grade;
-  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)) {
-    const result = deriveProgressReportResult(updatePayload as Record<string, unknown>);
-    updatePayload.overall_score = result.overallScore;
-    updatePayload.overall_grade = result.overallGrade;
-    insertPayload.overall_score = result.overallScore;
-    insertPayload.overall_grade = result.overallGrade;
-  }
   // On insert, always stamp teacher_id as caller.
   // On update, do NOT overwrite — original owner stays (ownership is verified below).
   updatePayload.updated_at = new Date().toISOString();
@@ -190,6 +184,27 @@ export async function POST(request: NextRequest) {
   if (reconciledCourse.course_name) {
     updatePayload.course_name = reconciledCourse.course_name;
     insertPayload.course_name = reconciledCourse.course_name;
+  }
+
+  // The published Academic Office scheme is the one weighting authority for
+  // both manually entered evidence and automatic evidence calculations.
+  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)) {
+    try {
+      const weighting = await loadEffectiveScoreWeights(admin as any, {
+        schoolId: String(updatePayload.school_id ?? insertPayload.school_id ?? '') || null,
+        courseId: String(updatePayload.course_id ?? insertPayload.course_id ?? '') || null,
+        termId: String(updatePayload.term_id ?? insertPayload.term_id ?? '') || null,
+      });
+      const result = deriveProgressReportResult(updatePayload as Record<string, unknown>, weighting.weights);
+      updatePayload.overall_score = result.overallScore;
+      updatePayload.overall_grade = result.overallGrade;
+      insertPayload.overall_score = result.overallScore;
+      insertPayload.overall_grade = result.overallGrade;
+    } catch (cause) {
+      return NextResponse.json({
+        error: cause instanceof Error ? cause.message : 'The active result-weighting policy could not be loaded.',
+      }, { status: 500 });
+    }
   }
 
   if (caller.role === 'teacher' && updatePayload.course_id) {

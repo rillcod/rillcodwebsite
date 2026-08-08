@@ -118,7 +118,7 @@ CREATE TABLE schools (
 - Ensure Supabase project is active
 - Check browser console for detailed error messages
 
-#### 2. "Could not find school name column" Error (Netlify)
+#### 2. "Could not find school name column" Error
 **Cause**: Database schema mismatch
 **Solution**:
 1. **Check your database schema**:
@@ -135,16 +135,14 @@ CREATE TABLE schools (
    ALTER TABLE students RENAME COLUMN current_school TO school_name;
    ```
 
-3. **Set up environment variables in Netlify**:
-   - Go to Netlify Dashboard → Site Settings → Environment Variables
-   - Add:
-     - `NEXT_PUBLIC_SUPABASE_URL`
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. **Check the Cloudflare environment**:
+   - Run `npm run cf:env:check`.
+   - Confirm `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are present.
 
 #### 3. Environment Variables Not Working
 **Solution**:
 1. **For Development**: Ensure `.env.local` exists in project root
-2. **For Netlify**: Add environment variables in Netlify dashboard
+2. **For production**: update the Cloudflare environment with `npm run cf:env`
 3. **Restart development server** after adding environment variables
 
 ### Theme Issues
@@ -157,25 +155,9 @@ CREATE TABLE schools (
 
 ## 🌐 Deployment
 
-### Netlify Deployment
+### Cloudflare Containers deployment
 
-1. **Connect to GitHub**:
-   - Go to Netlify Dashboard
-   - Click "New site from Git"
-   - Connect to your GitHub repository
-
-2. **Build Settings**:
-   - **Build command**: `npm run build`
-   - **Publish directory**: `.next`
-   - **Node version**: 18 (or higher)
-
-3. **Environment Variables**:
-   - Add your Supabase credentials in Netlify dashboard
-   - Redeploy after adding environment variables
-
-4. **Domain Setup**:
-   - Configure custom domain if needed
-   - Set up SSL certificate
+Push to `main` to run `.github/workflows/deploy-cloudflare.yml`, or run `npm run deploy` locally with Docker available. See `docs/CLOUDFLARE_DEPLOY.md` for environment, DNS and smoke-test instructions.
 
 ## 📱 Mobile Optimization
 
@@ -204,4 +186,4 @@ This project is proprietary to Rillcod Academy. All rights reserved.
 
 ---
 
-**Made with ❤️ in Nigeria** 
+**Made with ❤️ in Nigeria**

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { scoreWeightsFromPublishedComponents } from '@/lib/grading-scheme';
 
 async function caller() {
   const auth = await createClient();
@@ -17,7 +18,7 @@ export async function GET() {
   if (!['admin', 'teacher', 'school'].includes(user.role)) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   const db: any = createAdminClient();
   let query = db.from('academic_assessment_schemes')
-    .select('id,name,school_id,course_id,academic_term_id,components,status,updated_at,schools(name),courses(title)')
+    .select('id,name,school_id,course_id,academic_term_id,academic_offering_id,components,status,updated_at,schools(name),courses(title)')
     .eq('status', 'active').order('updated_at', { ascending: false });
   if (user.role === 'school') query = query.or(`school_id.is.null,school_id.eq.${user.school_id}`);
   const { data, error } = await query;
@@ -32,6 +33,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const components = body.components && typeof body.components === 'object' ? body.components : null;
   if (!components) return NextResponse.json({ error: 'Supply the six result component weights.' }, { status: 400 });
+  if (!scoreWeightsFromPublishedComponents(components)) {
+    return NextResponse.json({
+      error: 'Supply all six component weights as numbers from 0 to 100 with a total of exactly 100%.',
+    }, { status: 400 });
+  }
   const db: any = createAdminClient();
   const { data, error } = await db.rpc('publish_academic_assessment_scheme', {
     p_name: String(body.name || 'Academic result weighting').trim(),

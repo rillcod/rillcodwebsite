@@ -48,6 +48,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 import { cn } from '@/lib/utils';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
+import { resolveEffectiveScoreWeights, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner, ManualEntryDeskBanner } from '@/components/reports/ResultStatusBadges';
@@ -648,6 +649,7 @@ function ReportBuilderInner() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+    const [gradingSchemes, setGradingSchemes] = useState<PublishedGradingScheme[]>([]);
     const [sessionProgramId, setSessionProgramId] = useState('');
     const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; school_id: string | null; term_id: string | null; program_id: string | null; current_course_id: string | null; qa_grade_key?: string | null; academic_terms?: { id: string; academic_year: string; term_label: string } | null }>>([]);
     const [search, setSearch] = useState('');
@@ -1144,6 +1146,7 @@ function ReportBuilderInner() {
                 progJson,
                 coursesJson,
                 classesJson,
+                schemesJson,
                 brandingRes,
             ] = await Promise.all([
                 fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
@@ -1159,6 +1162,7 @@ function ReportBuilderInner() {
                 // course disappear and left the selector disabled.
                 fetchJsonWithTimeout('/api/courses?limit=1000', { data: [] }, 'courses'),
                 fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'classes'),
+                fetchJsonWithTimeout('/api/academic-spine/schemes', { data: [] }, 'result weighting'),
                 withTimeout(db.from('report_settings').select('*').limit(1).maybeSingle(), { data: null, error: null }, 'report settings'),
             ]);
             const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
@@ -1196,6 +1200,7 @@ function ReportBuilderInner() {
             setPrograms(progJson.data ?? []);
             setSchools(schoolsList);
             setTeacherClasses(classesJson.data ?? []);
+            setGradingSchemes(schemesJson.data ?? []);
             
             // Do not silently choose the first course in the catalogue. A class
             // selection below supplies its programme/course focus; standalone
@@ -1946,7 +1951,13 @@ function ReportBuilderInner() {
         }
     }
 
-    // ── WAEC weighted overall (6 components, mirrors grading.ts SCORE_WEIGHTS) ──
+    const effectiveWeighting = resolveEffectiveScoreWeights(gradingSchemes, {
+        schoolId: sessionConfig.school_id || (selectedStudent as any)?.school_id || profile?.school_id || null,
+        courseId: sessionConfig.course_id || null,
+        termId: sessionConfig.term_id || null,
+    });
+    const weightPct = (key: keyof typeof effectiveWeighting.weights) => Math.round(effectiveWeighting.weights[key] * 100);
+    // One Academic Office weighting policy drives preview, bulk entry and API saves.
     const rawOverallScore = computeWeightedScore({
         theory: parseFloat(form.theory_score) || 0,
         classwork: parseFloat(form.classwork_score) || 0,
@@ -1954,7 +1965,7 @@ function ReportBuilderInner() {
         assignments: parseFloat(form.attendance_score) || 0,
         attendance: parseFloat(form.participation_score) || 0,
         assessment: parseFloat(form.assessment_score) || 0,
-    });
+    }, effectiveWeighting.weights);
     // Engagement is coaching evidence only; the official score always uses the canonical weights.
     const overallScore = rawOverallScore;
 
@@ -2273,7 +2284,10 @@ function ReportBuilderInner() {
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })(), { data: null, error: null }, 'bulk existing report lookup');
 
-                const overall = computeWeightedScore({ theory, classwork, practical, assignments, attendance, assessment });
+                const overall = computeWeightedScore(
+                  { theory, classwork, practical, assignments, attendance, assessment },
+                  effectiveWeighting.weights,
+                );
                 // Grade code for display (A1–F9); letter grade kept for Standard report card
                 const bulkWaecCode = getWAECGrade(overall).code;
 
@@ -3903,6 +3917,9 @@ function ReportBuilderInner() {
                                         <ScorePanelSkeleton />
                                     ) : (
                                     <div className="space-y-2">
+                                        <div className="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-[10px] text-muted-foreground">
+                                            Weighting policy: <span className="font-black text-foreground">{effectiveWeighting.scheme?.name || 'Rillcod balanced evidence model'}</span>
+                                        </div>
                                         {/* Quick-apply score profiles */}
                                         <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border">
                                             <span className="text-[10px] font-bold text-muted-foreground self-center flex-shrink-0">Quick:</span>
@@ -3937,12 +3954,12 @@ function ReportBuilderInner() {
                                         </div>
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                         {([
-                                            { key: 'theory_score',       label: 'Theory / Written',      weight: '20%', color: '#6366f1', hint: `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
-                                            { key: 'classwork_score',    label: 'Classwork',             weight: '10%', color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
-                                            { key: 'practical_score',    label: 'Practical / Projects',  weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
-                                            { key: 'attendance_score',   label: 'Assignments',           weight: '20%', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
-                                            { key: 'participation_score',label: 'Attendance',            weight: '10%', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
-                                            { key: 'assessment_score',   label: 'Mid-term',              weight: '15%', color: '#f43f5e', hint: `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
+                                            { key: 'theory_score',       label: 'Theory / Written',      weight: `${weightPct('theory')}%`, color: '#6366f1', hint: `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
+                                            { key: 'classwork_score',    label: 'Classwork',             weight: `${weightPct('classwork')}%`, color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                            { key: 'practical_score',    label: 'Practical / Projects',  weight: `${weightPct('practical')}%`, color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
+                                            { key: 'attendance_score',   label: 'Assignments',           weight: `${weightPct('assignments')}%`, color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
+                                            { key: 'participation_score',label: 'Attendance',            weight: `${weightPct('attendance')}%`, color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
+                                            { key: 'assessment_score',   label: 'Mid-term',              weight: `${weightPct('assessment')}%`, color: '#f43f5e', hint: `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
                                         ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             return (
@@ -4003,12 +4020,12 @@ function ReportBuilderInner() {
                                                 <span className="text-[9px] font-bold text-muted-foreground">{overallScore}% / 100%</span>
                                             </div>
                                             <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
-                                                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * 0.20}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%`} />
-                                                <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.classwork_score)) || 0) * 0.10}%` }} title={`Classwork: ${Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%`} />
-                                                <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.practical_score)) || 0) * 0.25}%` }} title={`Practical: ${Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%`} />
-                                                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.attendance_score)) || 0) * 0.20}%` }} title={`Assignments: ${Math.round((parseInt(String(form.attendance_score)) || 0) * 0.20)}%`} />
-                                                <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.participation_score)) || 0) * 0.10}%` }} title={`Attendance: ${Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%`} />
-                                                <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * 0.15}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%`} />
+                                                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * effectiveWeighting.weights.theory}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * effectiveWeighting.weights.theory)}%`} />
+                                                <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.classwork_score)) || 0) * effectiveWeighting.weights.classwork}%` }} title={`Classwork: ${Math.round((parseInt(String(form.classwork_score)) || 0) * effectiveWeighting.weights.classwork)}%`} />
+                                                <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.practical_score)) || 0) * effectiveWeighting.weights.practical}%` }} title={`Practical: ${Math.round((parseInt(String(form.practical_score)) || 0) * effectiveWeighting.weights.practical)}%`} />
+                                                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.attendance_score)) || 0) * effectiveWeighting.weights.assignments}%` }} title={`Assignments: ${Math.round((parseInt(String(form.attendance_score)) || 0) * effectiveWeighting.weights.assignments)}%`} />
+                                                <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.participation_score)) || 0) * effectiveWeighting.weights.attendance}%` }} title={`Attendance: ${Math.round((parseInt(String(form.participation_score)) || 0) * effectiveWeighting.weights.attendance)}%`} />
+                                                <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * effectiveWeighting.weights.assessment}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * effectiveWeighting.weights.assessment)}%`} />
                                             </div>
                                         </div>
                                     </div>

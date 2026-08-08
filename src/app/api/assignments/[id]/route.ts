@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { programIdForCourse } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
+import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,6 +169,25 @@ export async function PATCH(
   const inputIssue = validateAssignmentInput(body, true);
   if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
 
+  const evidenceDefinitionFields = [
+    'course_id', 'program_id', 'class_id', 'term_id', 'assignment_type',
+    'questions', 'max_points', 'weight', 'grading_mode',
+  ];
+  if (evidenceDefinitionFields.some((field) => field in body)) {
+    const { data: scoredSubmissions, error: scoreLookupError } = await admin
+      .from('assignment_submissions')
+      .select('grade,weighted_score,graded_at,graded_by,grading_mode,status')
+      .eq('assignment_id', id)
+      .limit(500);
+    if (scoreLookupError) return NextResponse.json({ error: scoreLookupError.message }, { status: 500 });
+    if ((scoredSubmissions ?? []).some(hasProtectedAssignmentScoreEvidence)) {
+      return NextResponse.json({
+        error: 'This assignment already contains graded evidence. Its scoring, questions and academic placement are locked; create a replacement assignment instead.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
+    }
+  }
+
   const allowed: Record<string, unknown> = {};
   const allowedFields = [
     'title', 'description', 'instructions', 'course_id', 'program_id',
@@ -268,7 +288,20 @@ export async function DELETE(
     return NextResponse.json({ error: 'Not authorized: assignment belongs to a different school or teacher' }, { status: 403 });
   }
 
-  // Delete submissions first to avoid FK violations if no CASCADE is set
+  const { data: scoredSubmissions, error: scoreLookupError } = await admin
+    .from('assignment_submissions')
+    .select('grade,weighted_score,graded_at,graded_by,grading_mode,status')
+    .eq('assignment_id', id)
+    .limit(500);
+  if (scoreLookupError) return NextResponse.json({ error: scoreLookupError.message }, { status: 500 });
+  if ((scoredSubmissions ?? []).some(hasProtectedAssignmentScoreEvidence)) {
+    return NextResponse.json({
+      error: 'This assignment contains graded learner records and cannot be deleted. Deactivate it instead.',
+      code: 'PROTECTED_ACADEMIC_EVIDENCE',
+    }, { status: 409 });
+  }
+
+  // Only ungraded drafts can reach this point. Scored evidence is retained above.
   await admin.from('assignment_submissions').delete().eq('assignment_id', id);
 
   const { error } = await admin.from('assignments').delete().eq('id', id);

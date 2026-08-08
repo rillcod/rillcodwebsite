@@ -1,18 +1,8 @@
 import type { NextConfig } from "next";
-import path from "path";
 // @ts-ignore
 import withPWAInit from "next-pwa";
 // @ts-ignore
 import runtimeCaching from "next-pwa/cache";
-
-/**
- * Legacy OpenNext-on-Workers path. Cloudflare Pages sets CF_PAGES=1; the local
- * OpenNext scripts set OPENNEXT_CLOUDFLARE=1. Not the production path — the app
- * does not fit the 64 MiB Worker limit — but the stub aliases below are still
- * needed whenever that build is attempted.
- */
-const isCloudflareBuild =
-  process.env.CF_PAGES === "1" || process.env.OPENNEXT_CLOUDFLARE === "1";
 
 /**
  * PRODUCTION PATH: Cloudflare Containers (Dockerfile.cf) — slim standalone
@@ -54,31 +44,25 @@ const nextConfig: NextConfig = {
   ...(isContainerBuild ? { output: "standalone" as const } : {}),
 
   // Keep pdf engines out of the webpack bundle on the container build so AFM/TTF
-  // paths resolve from node_modules. On the Workers build, omit them so stubs
-  // replace the heavy packages instead of copying fonts into the Worker.
-  // `jose` stays external for workerd.
-  serverExternalPackages: isCloudflareBuild
-    ? ["jose"]
-    : [
-        "pdfmake",
-        "pdfkit",
-        "@foliojs-fork/pdfkit",
-        "fontkit",
-        "@foliojs-fork/fontkit",
-        "jose",
-      ],
+  // paths resolve from node_modules inside the Container image.
+  serverExternalPackages: [
+    "pdfmake",
+    "pdfkit",
+    "@foliojs-fork/pdfkit",
+    "fontkit",
+    "@foliojs-fork/fontkit",
+    "jose",
+  ],
 
   // Ensure font metric / TTF files are traced into the standalone server output.
-  outputFileTracingIncludes: isCloudflareBuild
-    ? {}
-    : {
-        "/api/**/*": [
-          "./node_modules/pdfkit/js/data/**/*",
-          "./node_modules/@foliojs-fork/pdfkit/js/data/**/*",
-          "./node_modules/pdfmake/fonts/**/*",
-          "./node_modules/pdfmake/build/fonts/**/*",
-        ],
-      },
+  outputFileTracingIncludes: {
+    "/api/**/*": [
+      "./node_modules/pdfkit/js/data/**/*",
+      "./node_modules/@foliojs-fork/pdfkit/js/data/**/*",
+      "./node_modules/pdfmake/fonts/**/*",
+      "./node_modules/pdfmake/build/fonts/**/*",
+    ],
+  },
 
   // ── Turbopack Compatibility ──────────────────────────────────────────────
   // silences warning for custom webpack used by next-pwa
@@ -126,29 +110,9 @@ const nextConfig: NextConfig = {
 
   // next-pwa already injects webpack; disable persistent cache in the container
   // build to cut peak RAM (and to keep the Docker layer small).
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     if (!dev && process.env.DOCKER_BUILD) {
       config.cache = false;
-    }
-    // Cloudflare Workers size limits: stub Node-only heavies so they never enter the Worker.
-    // Use `pkg$` exact aliases — a bare `pdfmake` alias breaks subpath imports like fonts/Roboto.
-    if (isServer && isCloudflareBuild) {
-      const stubs = path.join(__dirname, "src/lib/cloudflare-stubs");
-      config.resolve = config.resolve ?? {};
-      config.resolve.alias = {
-        ...(config.resolve.alias as Record<string, string | false | string[]>),
-        "firebase-admin$": path.join(__dirname, "src/lib/push/firebase-admin-stub.cjs"),
-        "pdfmake$": path.join(stubs, "pdfmake.cjs"),
-        "pdfmake/fonts/Roboto$": path.join(stubs, "pdfmake-fonts-Roboto.cjs"),
-        "pdfkit$": path.join(stubs, "pdfkit.cjs"),
-        "@foliojs-fork/pdfkit$": path.join(stubs, "pdfkit.cjs"),
-        "fontkit$": path.join(stubs, "pdfkit.cjs"),
-        "@foliojs-fork/fontkit$": path.join(stubs, "pdfkit.cjs"),
-        [path.join(__dirname, "src/lib/pdfmake-server.ts")]: path.join(
-          stubs,
-          "pdfmake-server.ts",
-        ),
-      };
     }
     return config;
   },

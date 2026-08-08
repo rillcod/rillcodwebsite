@@ -1,4 +1,4 @@
-import { computeWeightedScore, getWAECGrade, type ScoreComponents } from '@/lib/grading';
+import { computeWeightedScore, getWAECGrade, type ScoreComponents, type ScoreWeights } from '@/lib/grading';
 
 type ProgressReportScoreSource = {
   theory_score?: unknown;
@@ -37,13 +37,13 @@ export function progressReportScoreComponents(report: ProgressReportScoreSource)
   };
 }
 
-export function deriveProgressReportResult(report: ProgressReportScoreSource): {
+export function deriveProgressReportResult(report: ProgressReportScoreSource, weights?: ScoreWeights): {
   overallScore: number;
   overallGrade: string;
   components: ScoreComponents;
 } {
   const components = progressReportScoreComponents(report);
-  const overallScore = computeWeightedScore(components);
+  const overallScore = computeWeightedScore(components, weights);
   return {
     overallScore,
     overallGrade: getWAECGrade(overallScore).code,

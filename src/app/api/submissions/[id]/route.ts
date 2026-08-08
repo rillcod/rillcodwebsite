@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
+import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
@@ -185,7 +186,7 @@ export async function DELETE(
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, grade, assignments(school_id, created_by, class_id, metadata)')
+      .select('id, grade, weighted_score, graded_at, graded_by, grading_mode, status, assignments(school_id, created_by, class_id, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -197,6 +198,13 @@ export async function DELETE(
         { error: 'Access denied: this submission is outside your class/school scope' },
         { status: 403 },
       );
+    }
+
+    if (hasProtectedAssignmentScoreEvidence(sub)) {
+      return NextResponse.json({
+        error: 'This submission contains a recorded score and cannot be deleted. Correct the grade through the grading workflow.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
     }
 
     const { error } = await admin.from('assignment_submissions').delete().eq('id', id);

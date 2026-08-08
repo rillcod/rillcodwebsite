@@ -15,6 +15,7 @@ import {
 } from '@/lib/reports/academic-period';
 import { logAudit } from '@/lib/audit/log';
 import { deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
+import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 
 function adminClient() {
   return createClient<Database>(
@@ -153,14 +154,26 @@ export async function PATCH(
 
   const { data: currentReport } = await admin
     .from('student_progress_reports')
-    .select('student_id, student_name, section_class, course_id, course_name, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
+    .select('student_id, student_name, section_class, school_id, course_id, course_name, term_id, academic_offering_id, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
     .eq('id', id)
     .maybeSingle();
 
   if (touchesProgressReportScores(body as Record<string, unknown>)) {
-    const result = deriveProgressReportResult({ ...(currentReport as any), ...allowed });
-    allowed.overall_score = result.overallScore;
-    allowed.overall_grade = result.overallGrade;
+    try {
+      const weighting = await loadEffectiveScoreWeights(admin as any, {
+        schoolId: (currentReport as any)?.school_id,
+        courseId: allowed.course_id ?? (currentReport as any)?.course_id,
+        termId: allowed.term_id ?? (currentReport as any)?.term_id,
+        academicOfferingId: (currentReport as any)?.academic_offering_id,
+      });
+      const result = deriveProgressReportResult({ ...(currentReport as any), ...allowed }, weighting.weights);
+      allowed.overall_score = result.overallScore;
+      allowed.overall_grade = result.overallGrade;
+    } catch (cause) {
+      return NextResponse.json({
+        error: cause instanceof Error ? cause.message : 'The active result-weighting policy could not be loaded.',
+      }, { status: 500 });
+    }
   }
 
   // Direct overall-score overrides are intentionally ignored; evidence components

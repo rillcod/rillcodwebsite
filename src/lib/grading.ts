@@ -75,6 +75,7 @@ export const SCORE_WEIGHTS: Record<keyof ScoreComponents, number> = {
   attendance:  0.10,  // 10%
   assessment:  0.15,  // 15%
 };
+export type ScoreWeights = Record<keyof ScoreComponents, number>;
 
 // ── Engagement Signals ───────────────────────────────────────────────────────
 /**
@@ -184,9 +185,9 @@ export function getEngagementBand(assignmentSubmissionPct: number): EngagementBa
  * Compute the raw weighted score from score components.
  * Result is the official 0–100 score.
  */
-export function computeWeightedScore(scores: ScoreComponents): number {
+export function computeWeightedScore(scores: ScoreComponents, weights: ScoreWeights = SCORE_WEIGHTS): number {
   let total = 0;
-  for (const [key, weight] of Object.entries(SCORE_WEIGHTS)) {
+  for (const [key, weight] of Object.entries(weights)) {
     const raw = scores[key as keyof ScoreComponents] ?? 0;
     const clamped = Math.max(0, Math.min(100, raw));
     total += clamped * weight;

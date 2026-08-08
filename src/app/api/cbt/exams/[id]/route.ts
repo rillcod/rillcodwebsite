@@ -6,6 +6,7 @@ import {
   loadCbtStudentProfile,
   resolveStudentCbtScope,
 } from '@/lib/cbt/visibility';
+import { hasCbtAttemptEvidence } from '@/lib/academic/record-retention';
 
 export const dynamic = 'force-dynamic';
 
@@ -179,6 +180,25 @@ export async function PATCH(
 
   const body = await request.json();
   const { questions, deletedQuestionIds = [], ...examFields } = body;
+
+  const changesAssessmentDefinition = questions !== undefined
+    || deletedQuestionIds.length > 0
+    || ['passing_score', 'total_questions'].some((field) => field in examFields);
+  if (changesAssessmentDefinition) {
+    const { data: startedSession, error: sessionError } = await admin
+      .from('cbt_sessions')
+      .select('id,answers,score,manual_scores,start_time,end_time,status')
+      .eq('exam_id', id)
+      .limit(1)
+      .maybeSingle();
+    if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 });
+    if (hasCbtAttemptEvidence(startedSession)) {
+      return NextResponse.json({
+        error: 'Learners have already started this assessment. Questions and scoring rules are locked; duplicate the exam for changes.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
+    }
+  }
   if (examFields.start_date && examFields.end_date) {
     const startMs = new Date(examFields.start_date).getTime();
     const endMs = new Date(examFields.end_date).getTime();
@@ -316,6 +336,20 @@ export async function DELETE(
     const canManage = await callerCanManageExam(caller, examMeta.created_by);
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: you did not create this exam and are not assigned to its school' }, { status: 403 });
+    }
+
+    const { data: startedSession, error: sessionError } = await admin
+      .from('cbt_sessions')
+      .select('id,answers,score,manual_scores,start_time,end_time,status')
+      .eq('exam_id', id)
+      .limit(1)
+      .maybeSingle();
+    if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 });
+    if (hasCbtAttemptEvidence(startedSession)) {
+      return NextResponse.json({
+        error: 'This exam contains learner attempts and cannot be deleted. Deactivate it to preserve assessment records.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
     }
 
     const { error } = await admin.from('cbt_exams').delete().eq('id', id);

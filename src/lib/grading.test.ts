@@ -32,6 +32,14 @@ describe('unified grading policy', () => {
     expect(result.cap).toEqual(getEngagementBand(10));
   });
 
+  it('accepts the centrally published weights without changing score handling', () => {
+    const score = computeWeightedScore(strongScores, {
+      theory: 0.3, classwork: 0.1, practical: 0.15,
+      assignments: 0.2, attendance: 0.1, assessment: 0.15,
+    });
+    expect(score).toBe(89);
+  });
+
   it('uses engagement bands only as coaching signals', () => {
     expect(ENGAGEMENT_BANDS.every((band) => !('maxScore' in band))).toBe(true);
     expect(getEngagementBand(100).label).toBe('Active');

@@ -56,8 +56,7 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 ## Architecture notes (do not “simplify” away)
 
-- **OpenNext Workers cannot fit this app** (~96 MiB vs 64 MiB limit). Production path is **Containers** + thin gateway `src/cloudflare/container-gateway.ts`.
-- Deploy **hides** `open-next.config.ts` temporarily so Wrangler does not take the OpenNext path.
+- The full application runs in **Containers** behind the thin gateway `src/cloudflare/container-gateway.ts`; there is no second Workers/OpenNext deployment path.
 - Image is **standalone** (`DOCKER_BUILD=1` → `output: "standalone"` in `next.config.ts`) so the registry push stays small.
 - **Crons are NOT scheduled here.** `wrangler.toml` has no `[triggers]` block, deliberately.
   Every job is registered on **cron-job.org**; `src/lib/operations/cron-registry.ts` is the source
@@ -91,7 +90,7 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 | `src/cloudflare/container-gateway.ts` | Worker → container gateway + cron fanout |
 | `docs/CLOUDFLARE_DEPLOY.md` | This document |
 
-Do not delete these to “clean up” OpenNext leftovers without replacing the Containers path.
+These files are the complete production path. Do not add a parallel hosting configuration.
 
 ---
 
