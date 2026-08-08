@@ -32,6 +32,24 @@ type RegistryRow = {
   created_at: string;
 };
 
+/** One distinct prompt sentence, and every slot that shares it. */
+type ShapeRow = {
+  shape: string;
+  rows: number;
+  sample_title: string | null;
+  sample_prompt: string | null;
+  tracks: string[] | null;
+  avg_length: number;
+};
+
+type ShapeSummary = {
+  shapes: number;
+  rows: number;
+  coveredByTopThree: number;
+  /** Briefs too short to beat the AI — see SUBSTANTIVE_BRIEF_CHARS. */
+  thinShapes: number;
+};
+
 type EditState = {
   id: string;
   title: string;
@@ -71,6 +89,25 @@ export default function ProjectRegistryPage({
   const [editing, setEditing] = useState<EditState | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
 
+  // Paging exists because the list was silently truncated. The API had no limit
+  // and no count, so PostgREST returned its default 1,000 of 21,354 and the
+  // screen looked complete. `total` is now the real number and is always shown.
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // 21,354 rows are 361 sentences, and the largest three cover 20,520 of them.
+  // Editing by row was never going to happen; editing by sentence is a morning.
+  const [mode, setMode] = useState<"rows" | "shapes">("shapes");
+  const [shapes, setShapes] = useState<ShapeRow[]>([]);
+  const [shapeSummary, setShapeSummary] = useState<ShapeSummary | null>(null);
+  const [shapesLoading, setShapesLoading] = useState(false);
+  const [rewriting, setRewriting] = useState<ShapeRow | null>(null);
+  const [rewriteText, setRewriteText] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [applying, setApplying] = useState(false);
+
   const [createForm, setCreateForm] = useState({
     program_id: "",
     course_id: "",
@@ -90,10 +127,15 @@ export default function ProjectRegistryPage({
       if (trackFilter) params.set("track", trackFilter);
       if (programId) params.set("program_id", programId);
       if (seedSourceFilter) params.set("seed_source", seedSourceFilter);
+      if (search.trim()) params.set("search", search.trim());
+      params.set("page", String(page));
+      params.set("per_page", "50");
       const res = await fetch(`/api/curriculum-projects?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Load failed");
       setRows((json.data ?? []) as RegistryRow[]);
+      setTotal(Number(json.total ?? 0));
+      setTotalPages(Number(json.totalPages ?? 1));
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Failed to load activities"
@@ -103,10 +145,91 @@ export default function ProjectRegistryPage({
     }
   }
 
+  async function loadShapes() {
+    setShapesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (trackFilter) params.set("track", trackFilter);
+      if (programId) params.set("program_id", programId);
+      const res = await fetch(`/api/curriculum-projects/shapes?${params}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Load failed");
+      setShapes((json.data ?? []) as ShapeRow[]);
+      setShapeSummary((json.summary ?? null) as ShapeSummary | null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to group the library");
+    } finally {
+      setShapesLoading(false);
+    }
+  }
+
+  /** Ask the engine for a replacement. It writes nothing — this fills the box. */
+  async function draftReplacement(shape: ShapeRow) {
+    setDrafting(true);
+    try {
+      const res = await fetch("/api/curriculum-projects/shapes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sample_prompt: shape.sample_prompt,
+          sample_title: shape.sample_title,
+          tracks: shape.tracks,
+          rows: shape.rows,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "The engine returned nothing");
+      setRewriteText(String(json.draft ?? ""));
+      toast.success("Draft ready — read it before applying");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Draft failed");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  async function applyRewrite() {
+    if (!rewriting || !rewriteText.trim()) return;
+    setApplying(true);
+    try {
+      const res = await fetch("/api/curriculum-projects/shapes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shape: rewriting.shape,
+          prompt: rewriteText,
+          track: trackFilter || null,
+          program_id: programId || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Rewrite failed");
+      toast.success(`Rewrote ${json.updated} project brief(s)`);
+      setRewriting(null);
+      setRewriteText("");
+      await loadShapes();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Rewrite failed");
+    } finally {
+      setApplying(false);
+    }
+  }
+
   useEffect(() => {
     if (!canView) return;
     void loadRows();
-  }, [canView, trackFilter, programId, seedSourceFilter]);
+  }, [canView, trackFilter, programId, seedSourceFilter, page]);
+
+  // Filters change what is being looked at, so go back to the first page rather
+  // than leaving the reader on page 9 of a different result set.
+  useEffect(() => {
+    setPage(1);
+  }, [trackFilter, programId, seedSourceFilter, search]);
+
+  useEffect(() => {
+    if (!canView || mode !== "shapes") return;
+    void loadShapes();
+  }, [canView, mode, trackFilter, programId]);
 
   const seedSourceOptions = useMemo(() => {
     const set = new Set<string>();
@@ -310,7 +433,124 @@ export default function ProjectRegistryPage({
         </button>
       </div>
 
+      {/* Search, and the true size of what is being searched. */}
+      <div className="px-4 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void loadRows(); }}
+            placeholder="Search a brief, title or activity code…"
+            className="flex-1 min-w-[16rem] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white"
+          />
+          <button
+            type="button"
+            onClick={() => void loadRows()}
+            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold"
+          >
+            Search
+          </button>
+          <div className="inline-flex rounded-xl border border-white/10 overflow-hidden">
+            {(["shapes", "rows"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`px-4 py-2.5 text-sm font-bold transition-colors ${
+                  mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-white"
+                }`}
+              >
+                {m === "shapes" ? "By brief" : "By activity"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === "shapes" && shapeSummary && (
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-white">{shapeSummary.rows.toLocaleString()}</strong> activities are written from{" "}
+            <strong className="text-white">{shapeSummary.shapes}</strong> different briefs. The largest three cover{" "}
+            <strong className="text-white">{shapeSummary.coveredByTopThree.toLocaleString()}</strong> of them, and{" "}
+            <strong className="text-amber-300">{shapeSummary.thinShapes}</strong> are still too short to be used —
+            those slots fall back to AI until the brief is rewritten.
+          </p>
+        )}
+      </div>
+
+      {/* Briefs — the catalogue grouped by the sentence rather than the row. */}
+      {mode === "shapes" && (
+        <div className="px-4 flex flex-col gap-4">
+          {shapesLoading && <p className="text-sm text-muted-foreground">Grouping the library…</p>}
+          {!shapesLoading && shapes.map((shape) => {
+            const thin = shape.avg_length < 120;
+            return (
+              <div
+                key={shape.shape}
+                className={`rounded-3xl border p-6 flex flex-col gap-3 ${
+                  thin ? "border-amber-500/40 bg-amber-500/5" : "border-emerald-500/40 bg-emerald-500/5"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/90">{shape.sample_prompt}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      e.g. {shape.sample_title} · {(shape.tracks ?? []).join(", ")} · {shape.avg_length} characters
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-2xl font-black tabular-nums">{shape.rows.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">activities</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`text-xs font-bold ${thin ? "text-amber-300" : "text-emerald-300"}`}>
+                    {thin ? "Too short — AI is writing these instead" : "In use"}
+                  </span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => { setRewriting(shape); setRewriteText(shape.sample_prompt ?? ""); }}
+                      className="ml-auto px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold"
+                    >
+                      Rewrite all {shape.rows.toLocaleString()}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Activity Grid */}
+      {mode === "rows" && (
+      <>
+      <div className="px-4 flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {total === 0 ? "No activities" : `${(page - 1) * 50 + 1}–${Math.min(page * 50, total)} of ${total.toLocaleString()}`}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-4 py-2 rounded-xl border border-white/10 text-sm disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-4 py-2 rounded-xl border border-white/10 text-sm disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10 px-4">
         {rows.map((row) => (
           <div
@@ -426,8 +666,10 @@ export default function ProjectRegistryPage({
           </div>
         ))}
       </div>
+      </>
+      )}
 
-      {rows.length === 0 && !loading && (
+      {mode === "rows" && rows.length === 0 && !loading && (
         <div className="py-40 text-center space-y-8 bg-card border-2 border-dashed border-border rounded-[4rem] shadow-2xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           <div className="w-24 h-24 bg-muted/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-border shadow-inner relative z-10">
@@ -745,6 +987,71 @@ export default function ProjectRegistryPage({
               <button
                 onClick={() => setEditing(null)}
                 className="flex-1 py-6 border-2 border-border rounded-[2rem] font-black uppercase tracking-[0.4em] text-muted-foreground hover:bg-muted/50 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/*
+        Rewriting one brief changes thousands of activities at once, so the
+        count is stated plainly on the button and the draft is never applied
+        without being shown first. The engine proposes; a person decides.
+      */}
+      {rewriting && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-6">
+          <div className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-card border border-border rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-5">
+            <div>
+              <h3 className="text-xl font-black">Rewrite this brief</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Changes <strong className="text-white">{rewriting.rows.toLocaleString()}</strong> activities that all
+                share this sentence. Use <code className="text-primary">{"{week}"}</code> and{" "}
+                <code className="text-primary">{"{track}"}</code> — each activity fills them in with its own, so one
+                brief stays specific to every week it covers.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Replacing</p>
+              <p className="text-sm text-white/70">{rewriting.sample_prompt}</p>
+            </div>
+
+            <textarea
+              value={rewriteText}
+              onChange={(e) => setRewriteText(e.target.value)}
+              rows={8}
+              placeholder="Build a … for week {week}. Test it by … Show the class …"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white"
+            />
+            <p className="text-xs text-muted-foreground">
+              {rewriteText.trim().length} characters — briefs under 120 are treated as placeholders and the AI keeps
+              writing those weeks instead.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => void draftReplacement(rewriting)}
+                disabled={drafting || applying}
+                className="flex-1 py-3 rounded-2xl border border-primary/50 text-primary font-bold disabled:opacity-50"
+              >
+                {drafting ? "Drafting…" : "Draft one for me"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void applyRewrite()}
+                disabled={applying || drafting || rewriteText.trim().length === 0}
+                className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground font-bold disabled:opacity-50"
+              >
+                {applying ? "Applying…" : `Apply to ${rewriting.rows.toLocaleString()}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRewriting(null); setRewriteText(""); }}
+                disabled={applying}
+                className="py-3 px-6 rounded-2xl border border-border text-muted-foreground font-bold"
               >
                 Cancel
               </button>
