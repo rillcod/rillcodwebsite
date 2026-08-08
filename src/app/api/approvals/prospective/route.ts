@@ -5,6 +5,7 @@ import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer
 import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
 import { isSpecialProgramProspect } from '@/lib/summer-school/balance-prospect';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,15 @@ export async function POST(request: NextRequest) {
         .eq('id', id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await logAudit(admin as any, {
+        action: 'reject_special_program_application',
+        actorId: caller.id,
+        resourceType: 'prospective_student',
+        resourceId: id,
+        oldValue: String(record.status ?? ''),
+        newValue: 'rejected',
+        newValues: { applicant_name: record.full_name ?? null, school_id: record.school_id ?? null },
+      });
       return NextResponse.json({ success: true });
     }
 
@@ -165,6 +175,15 @@ export async function POST(request: NextRequest) {
       } catch (activationErr) {
         console.error('Failed to send activation after prospective approval settlement:', activationErr);
       }
+      await logAudit(admin as any, {
+        action: 'approve_special_program_application',
+        actorId: caller.id,
+        resourceType: 'prospective_student',
+        resourceId: id,
+        oldValue: String(record.status ?? ''),
+        newValue: String(refreshed.status ?? 'active'),
+        newValues: { applicant_name: refreshed.full_name ?? null, payments_settled: settledCount, activation },
+      });
       return NextResponse.json({
         success: true,
         message: activation.email
@@ -177,7 +196,7 @@ export async function POST(request: NextRequest) {
     // Fallback: payment already settled elsewhere or onboarding did not complete inside settlement.
     const onboard = await onboardSummerStudent(admin, record as any, { approvedBy: caller.id });
 
-    await admin
+    const { error: activationStateError } = await admin
       .from('prospective_students')
       .update({
         is_active: true,
@@ -185,6 +204,12 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
+    if (activationStateError) {
+      return NextResponse.json({
+        error: `Learner accounts were created, but the application status could not be finalized: ${activationStateError.message}. Re-run approval to finish the transition.`,
+        partial: true,
+      }, { status: 500 });
+    }
 
     try {
       const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
@@ -200,6 +225,21 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send activation email on manual approval:', mailErr);
     }
     after(() => runClassAcademicReadiness(onboard.classId));
+
+    await logAudit(admin as any, {
+      action: 'approve_special_program_application',
+      actorId: caller.id,
+      resourceType: 'prospective_student',
+      resourceId: id,
+      oldValue: String(record.status ?? ''),
+      newValue: refreshed?.status === 'partially_paid' ? 'partially_paid' : 'active',
+      newValues: {
+        applicant_name: record.full_name ?? null,
+        student_id: onboard.student.id,
+        class_id: onboard.classId,
+        activation,
+      },
+    });
 
     return NextResponse.json({
       success: true,

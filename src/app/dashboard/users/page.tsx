@@ -238,10 +238,12 @@ export default function UsersPage() {
         try {
             const res = await fetch('/api/admin/sync-users', { method: 'DELETE' });
             const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Could not remove orphan accounts');
             await load();
             await checkGaps();
             setSyncResult({
-                success: true,
+                success: json.success !== false,
+                partial: json.partial === true,
                 summary: { orphans_deleted: json.deleted, skipped: json.skipped },
                 credentials: [],
                 errors: json.skipped_list ?? [],
@@ -647,7 +649,9 @@ export default function UsersPage() {
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                <h2 className="text-lg font-extrabold text-foreground">Sync Complete</h2>
+                                <h2 className="text-lg font-extrabold text-foreground">
+                                    {syncResult.partial ? 'Sync Partially Complete' : 'Sync Complete'}
+                                </h2>
                             </div>
                             <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                                 <XMarkIcon className="w-5 h-5" />
@@ -661,6 +665,12 @@ export default function UsersPage() {
                                 </div>
                             ) : (
                                 <>
+                                    {syncResult.partial && (
+                                        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4">
+                                            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                            <p className="text-amber-700 dark:text-amber-300 text-sm">Some records were repaired, but the items listed below still need attention.</p>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-2 gap-3">
                                         {(syncResult.summary?.orphans_deleted !== undefined ? [
                                             { label: 'Orphans Deleted', value: syncResult.summary?.orphans_deleted ?? 0, color: 'text-rose-600 dark:text-rose-400' },

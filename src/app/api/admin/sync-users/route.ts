@@ -19,6 +19,7 @@ import { generateTempPassword } from '@/lib/utils/password';
 import { findAuthUserIdByEmail, listAllAuthUsers, type ListedAuthUser } from '@/lib/auth/list-all-users';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 function adminClient() {
   return createClient(
@@ -312,7 +313,7 @@ export async function POST() {
       const classId = existingPu?.class_id ?? null;
       const canActivate = hasStructure && !!classId;
 
-      await admin.from('portal_users').upsert({
+      await requireSupabaseWrite(admin.from('portal_users').upsert({
         id: authUserId, email: loginEmail!,
         full_name: s.full_name, role: 'student',
         school_name: s.school_name || null,
@@ -320,8 +321,11 @@ export async function POST() {
         date_of_birth: s.date_of_birth || null,
         is_active: canActivate,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      await admin.from('students').update({ user_id: authUserId }).eq('id', s.id);
+      }, { onConflict: 'id' }), `create student portal account for ${s.full_name}`);
+      await requireSupabaseWrite(
+        admin.from('students').update({ user_id: authUserId }).eq('id', s.id),
+        `link student record for ${s.full_name}`,
+      );
       results.students_fixed.push({
         name: s.full_name, email: loginEmail!,
         password: password ?? '(existing — no new password)', portal_user_id: authUserId,
@@ -383,13 +387,13 @@ export async function POST() {
     }
     if (!authUserId) continue;
     try {
-      await admin.from('portal_users').upsert({
+      await requireSupabaseWrite(admin.from('portal_users').upsert({
         id: authUserId, email,
         full_name: s.contact_person || s.name,
         role: 'school', school_name: s.name, school_id: s.id,
         is_active: true,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
+      }, { onConflict: 'id' }), `create school portal account for ${s.name}`);
       results.schools_fixed.push({
         name: s.name, email,
         password: password ?? '(existing — no new password)', portal_user_id: authUserId,
@@ -424,7 +428,7 @@ export async function POST() {
         wantActive: true,
         autoCreateClass: role === 'student' && !!schoolId,
       });
-      await admin.from('portal_users').upsert({
+      await requireSupabaseWrite(admin.from('portal_users').upsert({
         id: u.id, email: u.email ?? '',
         full_name: (typeof meta.full_name === 'string' ? meta.full_name : null) ?? u.email?.split('@')[0] ?? '',
         role,
@@ -433,12 +437,12 @@ export async function POST() {
         section_class: placed.className,
         is_active: placed.isActive,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
+      }, { onConflict: 'id' }), `create missing portal row for ${u.email ?? u.id}`);
       if (role === 'teacher' && placed.schoolId) {
-        await admin.from('teacher_schools').upsert(
+        await requireSupabaseWrite(admin.from('teacher_schools').upsert(
           { teacher_id: u.id, school_id: placed.schoolId },
           { onConflict: 'teacher_id,school_id' },
-        );
+        ), `assign teacher school for ${u.email ?? u.id}`);
       }
       results.portal_rows_created.push(
         placed.isActive
@@ -457,17 +461,17 @@ export async function POST() {
     try {
       const matchingAuth = authByEmail.get(email);
       if (!matchingAuth || matchingAuth.id === pu.id) continue;
-      await admin.from('portal_users').upsert({
+      await requireSupabaseWrite(admin.from('portal_users').upsert({
         ...pu, id: matchingAuth.id, updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      await admin.auth.admin.updateUserById(matchingAuth.id, {
+      }, { onConflict: 'id' }), `replace mismatched portal id for ${email}`);
+      await requireSupabaseWrite(admin.auth.admin.updateUserById(matchingAuth.id, {
         user_metadata: { full_name: pu.full_name, role: pu.role },
-      });
+      }), `synchronize auth metadata for ${email}`);
       // Remove the stale wrong-ID row (clean up study group refs first)
-      await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
-      await admin.from('study_group_members').delete().eq('user_id', pu.id);
-      await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
-      await admin.from('portal_users').delete().eq('id', pu.id);
+      await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink study-group messages for ${email}`);
+      await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink study-group membership for ${email}`);
+      await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink owned study groups for ${email}`);
+      await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove stale portal id for ${email}`);
       results.id_mismatches_fixed.push(email);
     } catch (err: any) {
       results.errors.push(`mismatch ${email}: ${err.message}`);
@@ -502,10 +506,10 @@ export async function POST() {
           continue;
         } else {
           // Force delete the orphaned portal row if it can't be linked
-          await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
-          await admin.from('study_group_members').delete().eq('user_id', pu.id);
-          await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
-          await admin.from('portal_users').delete().eq('id', pu.id);
+          await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink orphan messages for ${email}`);
+          await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink orphan membership for ${email}`);
+          await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink orphan study groups for ${email}`);
+          await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove orphan portal row for ${email}`);
           results.errors.push(`portal ${email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
           continue;
         }
@@ -517,13 +521,13 @@ export async function POST() {
 
       if (newAuthId !== pu.id) {
         // Auth ID differs from portal row ID — update portal row to match
-        await admin.from('portal_users').upsert({
+        await requireSupabaseWrite(admin.from('portal_users').upsert({
           ...pu, id: newAuthId, updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-        await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
-        await admin.from('study_group_members').delete().eq('user_id', pu.id);
-        await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
-        await admin.from('portal_users').delete().eq('id', pu.id);
+        }, { onConflict: 'id' }), `align portal id with auth for ${email}`);
+        await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink old-id messages for ${email}`);
+        await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink old-id membership for ${email}`);
+        await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink old-id study groups for ${email}`);
+        await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove old portal id for ${email}`);
       }
 
       results.portal_auth_created.push({
@@ -540,12 +544,12 @@ export async function POST() {
   // ── Gap E: Students with mismatched school_id or name ──────────────────
   for (const s of studentsNeedingDataFix) {
     try {
-      await admin.from('portal_users').update({
+      await requireSupabaseWrite(admin.from('portal_users').update({
         full_name: s.full_name,
         school_id: s.school_id,
         school_name: s.school_name,
         updated_at: new Date().toISOString(),
-      }).eq('id', s.user_id);
+      }).eq('id', s.user_id), `repair profile data for ${s.full_name}`);
       results.data_fixes.push(s.full_name);
     } catch (err: any) {
       results.errors.push(`data-fix ${s.full_name}: ${err.message}`);
@@ -616,9 +620,14 @@ export async function DELETE() {
       skipped.push(`${pu.email ?? pu.id} (admin — refuse delete)`);
       continue;
     }
-    await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
-    await admin.from('study_group_members').delete().eq('user_id', pu.id);
-    await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
+    try {
+      await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink orphan messages for ${pu.email ?? pu.id}`);
+      await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink orphan membership for ${pu.email ?? pu.id}`);
+      await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink orphan study groups for ${pu.email ?? pu.id}`);
+    } catch (error) {
+      skipped.push(`${pu.email ?? pu.id} (${error instanceof Error ? error.message : String(error)})`);
+      continue;
+    }
     const { error } = await admin.from('portal_users').delete().eq('id', pu.id);
     if (error) {
       skipped.push(`${pu.email ?? pu.id} (${error.message})`);
@@ -636,7 +645,8 @@ export async function DELETE() {
   });
 
   return NextResponse.json({
-    success: true,
+    success: skipped.length === 0,
+    partial: skipped.length > 0,
     deleted: deleted.length,
     skipped: skipped.length,
     deleted_list: deleted,

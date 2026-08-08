@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,8 @@ export async function GET() {
 
 // PATCH — update the regulator settings.
 export async function PATCH(req: NextRequest) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const caller = await requireAdmin();
+  if (!caller) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const upd: Record<string, any> = { updated_at: new Date().toISOString() };
   for (const k of ['enabled', 'every_days', 'max_reminders', 'channel_email', 'channel_whatsapp']) {
@@ -76,14 +78,24 @@ export async function PATCH(req: NextRequest) {
   }
   if ('every_days' in upd) upd.every_days = Math.min(60, Math.max(1, Number(upd.every_days) || 5));
   if ('max_reminders' in upd) upd.max_reminders = Math.min(20, Math.max(1, Number(upd.max_reminders) || 4));
-  const { data, error } = await admin().from('balance_reminder_settings').update(upd).eq('id', 1).select().single();
+  const db = admin();
+  const { data, error } = await db.from('balance_reminder_settings').update(upd).eq('id', 1).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'update_balance_reminder_policy',
+    actorId: caller.id,
+    resourceType: 'balance_reminder_settings',
+    resourceId: '1',
+    newValue: 'Updated automated balance reminder policy',
+    newValues: upd,
+  });
   return NextResponse.json({ settings: data });
 }
 
 // POST — per-parent actions + run-now.
 export async function POST(req: NextRequest) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const caller = await requireAdmin();
+  if (!caller) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   const { action, prospectId } = await req.json().catch(() => ({}));
   const db = admin();
 
@@ -93,6 +105,13 @@ export async function POST(req: NextRequest) {
     if (!secret) return NextResponse.json({ error: 'CRON_SECRET not configured on the server.' }, { status: 500 });
     const r = await fetch(`${base}/api/cron/payment-reminders`, { method: 'POST', headers: { 'x-cron-secret': secret } });
     const j = await r.json().catch(() => ({}));
+    await logAudit(db as any, {
+      action: r.ok ? 'run_balance_reminders_now' : 'run_balance_reminders_now_failed',
+      actorId: caller.id,
+      resourceType: 'balance_reminder_run',
+      newValue: r.ok ? 'Manual reminder run completed' : `Manual reminder run failed with HTTP ${r.status}`,
+      newValues: { http_status: r.status, result: j },
+    });
     return NextResponse.json({ ok: r.ok, result: j });
   }
 
@@ -100,7 +119,15 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
 
   if (action === 'mark_paid') {
-    await db.from('prospective_students').update({ status: 'paid', updated_at: now }).eq('id', prospectId);
+    const { error } = await db.from('prospective_students').update({ status: 'paid', updated_at: now }).eq('id', prospectId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(db as any, {
+      action: 'mark_balance_reminder_account_paid',
+      actorId: caller.id,
+      resourceType: 'prospective_student',
+      resourceId: prospectId,
+      newValue: 'Marked balance as paid and removed it from the reminder pipeline',
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -115,6 +142,14 @@ export async function POST(req: NextRequest) {
   } else {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
-  await db.from('prospective_students').update({ notes, updated_at: now }).eq('id', prospectId);
+  const { error } = await db.from('prospective_students').update({ notes, updated_at: now }).eq('id', prospectId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: `${action}_balance_reminders`,
+    actorId: caller.id,
+    resourceType: 'prospective_student',
+    resourceId: prospectId,
+    newValue: `${action} balance reminders for this account`,
+  });
   return NextResponse.json({ ok: true });
 }

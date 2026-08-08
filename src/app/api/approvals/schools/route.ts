@@ -6,6 +6,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { sendSchoolPartnershipActivation } from '@/lib/registration/school-activation';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 function adminClient() {
   return createClient(
@@ -50,12 +51,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'School not found' }, { status: 404 });
   }
 
-  await admin.from('schools').update({
-    status: action,
-    updated_at: new Date().toISOString(),
-  }).eq('id', id);
-
   if (action === 'rejected') {
+    const { error: rejectionError } = await admin.from('schools').update({
+      status: 'rejected',
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (rejectionError) return NextResponse.json({ error: `Could not reject school: ${rejectionError.message}` }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'reject_school_registration',
+      actorId: caller.id,
+      resourceType: 'school',
+      resourceId: id,
+      oldValue: school.status ?? null,
+      newValue: 'rejected',
+      newValues: { school_name: school.name, email: school.email },
+    });
     if (school.email) {
       try {
         const { notificationsService } = await import('@/services/notifications.service');
@@ -85,6 +95,20 @@ export async function POST(request: Request) {
   }
 
   if (!school.email) {
+    const { error: approvalError } = await admin.from('schools').update({
+      status: 'approved',
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (approvalError) return NextResponse.json({ error: `Could not approve school: ${approvalError.message}` }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'approve_school_registration_without_login',
+      actorId: caller.id,
+      resourceType: 'school',
+      resourceId: id,
+      oldValue: school.status ?? null,
+      newValue: 'approved',
+      newValues: { school_name: school.name, warning: 'No email on record' },
+    });
     return NextResponse.json({
       success: true,
       warning: 'School approved but no email on record — portal account not created',
@@ -127,10 +151,10 @@ export async function POST(request: Request) {
     }
 
     if (suppliedPassword && suppliedPassword.length >= 8) {
-      await admin.auth.admin.updateUserById(existingPortal.id, {
+      await requireSupabaseWrite(admin.auth.admin.updateUserById(existingPortal.id, {
         password: suppliedPassword,
         user_metadata: { full_name: school.contact_person || school.name, role: 'school' },
-      });
+      }), `update school login credentials for ${school.name}`);
       credentialsPassword = suppliedPassword;
     } else {
       credentialsPassword = null;
@@ -154,14 +178,14 @@ export async function POST(request: Request) {
       const existingId = await findAuthUserIdByEmail(admin as any, normalizedEmail);
       if (existingId) {
         portalUserId = existingId;
-        await admin.auth.admin.updateUserById(portalUserId, {
+        await requireSupabaseWrite(admin.auth.admin.updateUserById(portalUserId, {
           password,
           user_metadata: {
             full_name: school.contact_person || school.name,
             role: 'school',
             school_id: school.id,
           },
-        });
+        }), `synchronize existing school auth account for ${school.name}`);
         credentialsPassword = password;
       }
     } else {
@@ -187,6 +211,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Portal account synchronization failed: ${portalErr.message}` }, { status: 500 });
     }
   }
+
+  const { error: approvalError } = await admin.from('schools').update({
+    status: 'approved',
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (approvalError) {
+    return NextResponse.json({
+      error: `Portal account is ready, but school approval status could not be saved: ${approvalError.message}. Re-run approval to complete the status transition.`,
+      partial: true,
+      portalUserId,
+    }, { status: 500 });
+  }
+  await logAudit(admin as any, {
+    action: 'approve_school_registration',
+    actorId: caller.id,
+    resourceType: 'school',
+    resourceId: id,
+    oldValue: school.status ?? null,
+    newValue: 'approved',
+    newValues: { school_name: school.name, email: normalizedEmail, portal_user_id: portalUserId },
+  });
 
   let activation = { email: false };
   if (portalUserId) {

@@ -33,7 +33,8 @@ function adminClient() {
 }
 
 // Helper to delete engagement records for a user or student ID
-async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, studentId?: string | null) {
+async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, studentId?: string | null): Promise<string[]> {
+  const failures: string[] = [];
   if (portalUserId) {
     const portalRefs = [
       { table: 'lesson_progress', col: 'portal_user_id' },
@@ -59,8 +60,10 @@ async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, stu
 
     for (const { table, col } of portalRefs) {
       try {
-        await admin.from(table).delete().eq(col, portalUserId);
+        const { error } = await admin.from(table).delete().eq(col, portalUserId);
+        if (error) failures.push(`${table}.${col}: ${error.message}`);
       } catch (err) {
+        failures.push(`${table}.${col}: ${err instanceof Error ? err.message : String(err)}`);
         console.warn(`[safe-delete] Delete failed for ${table}.${col}:`, err);
       }
     }
@@ -90,17 +93,21 @@ async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, stu
     for (const { table, col } of studentRefs) {
       for (const id of studentIdCandidates) {
         try {
-          await admin.from(table).delete().eq(col, id);
+          const { error } = await admin.from(table).delete().eq(col, id);
+          if (error) failures.push(`${table}.${col}: ${error.message}`);
         } catch (err) {
+          failures.push(`${table}.${col}: ${err instanceof Error ? err.message : String(err)}`);
           console.warn(`[safe-delete] Delete failed for ${table}.${col}:`, err);
         }
       }
     }
   }
+  return failures;
 }
 
 // Helper to nullify referencing fields for safe-delete (to avoid deleting data and blockages)
-async function nullifyRefs(admin: any, portalUserId: string) {
+async function nullifyRefs(admin: any, portalUserId: string): Promise<string[]> {
+  const failures: string[] = [];
   const refs = [
     { table: 'payments', col: 'user_id' },
     { table: 'payment_transactions', col: 'portal_user_id' },
@@ -141,11 +148,14 @@ async function nullifyRefs(admin: any, portalUserId: string) {
 
   for (const { table, col } of refs) {
     try {
-      await admin.from(table).update({ [col]: null }).eq(col, portalUserId);
+      const { error } = await admin.from(table).update({ [col]: null }).eq(col, portalUserId);
+      if (error) failures.push(`${table}.${col}: ${error.message}`);
     } catch (err) {
+      failures.push(`${table}.${col}: ${err instanceof Error ? err.message : String(err)}`);
       console.warn(`[safe-delete] Nullify failed for ${table}.${col}:`, err);
     }
   }
+  return failures;
 }
 
 /**
@@ -229,7 +239,7 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
   }
 
   // 4. Delete all engagement records
-  await safeDeleteRefDeletes(admin, portalUserId, studentId);
+  failures.push(...await safeDeleteRefDeletes(admin, portalUserId, studentId));
 
   // 6. Delete student profile row
   if (studentId) {
@@ -283,7 +293,8 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
 
     // 9. Delete Auth user
     try {
-      await admin.auth.admin.deleteUser(portalUserId);
+      const { error } = await admin.auth.admin.deleteUser(portalUserId);
+      if (error) failures.push(`auth.user: ${error.message}`);
     } catch (e) {
       failures.push(`auth.user: ${e instanceof Error ? e.message : String(e)}`);
       console.error('[purge] Auth delete failed:', e);
@@ -512,11 +523,10 @@ export async function POST(req: NextRequest) {
           }, { status: 409 });
         }
 
-        // Nullify all FKs referencing this user
-        await nullifyRefs(admin, portalUserId);
-
-        // Delete all engagement records
-        await safeDeleteRefDeletes(admin, portalUserId, resolvedStudentId);
+        const cleanupFailures = [
+          ...await nullifyRefs(admin, portalUserId),
+          ...await safeDeleteRefDeletes(admin, portalUserId, resolvedStudentId),
+        ];
 
         // Remove the portal_users row
         const { error: delErr } = await admin.from('portal_users').delete().eq('id', portalUserId);
@@ -528,19 +538,26 @@ export async function POST(req: NextRequest) {
         // student (the login FK was set null) while its history is preserved.
         if (resolvedStudentId) {
           try {
-            await admin.from('students')
+            const { error } = await admin.from('students')
               .update({ is_active: false, is_deleted: true, updated_at: new Date().toISOString() })
               .eq('id', resolvedStudentId);
-          } catch { /* non-fatal */ }
+            if (error) cleanupFailures.push(`students.id: ${error.message}`);
+          } catch (error) {
+            cleanupFailures.push(`students.id: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
 
         // Remove the auth user
-        try { await admin.auth.admin.deleteUser(portalUserId); } catch (e) {
+        try {
+          const { error } = await admin.auth.admin.deleteUser(portalUserId);
+          if (error) cleanupFailures.push(`auth.user: ${error.message}`);
+        } catch (e) {
+          cleanupFailures.push(`auth.user: ${e instanceof Error ? e.message : String(e)}`);
           console.error('[manage-account] auth delete failed:', e);
         }
 
         await logAudit(admin as any, {
-          action: 'safe_delete_account',
+          action: cleanupFailures.length ? 'safe_delete_account_partial' : 'safe_delete_account',
           actorId: user.id,
           resourceType: 'portal_user',
           resourceId: portalUserId,
@@ -551,10 +568,21 @@ export async function POST(req: NextRequest) {
             role: account.role,
             completed_payments: totalPaymentsCount,
           },
-          newValues: { account_deleted: true, finance_preserved: true },
+          newValues: {
+            account_deleted: true,
+            finance_preserved: true,
+            failed_targets: cleanupFailures,
+          },
         });
 
-        return NextResponse.json({ success: true, action, deleted: { id: portalUserId, email: account.email }, preservedFinance: true });
+        return NextResponse.json({
+          success: cleanupFailures.length === 0,
+          partial: cleanupFailures.length > 0,
+          action,
+          deleted: { id: portalUserId, email: account.email },
+          preservedFinance: true,
+          ...(cleanupFailures.length ? { failedTargets: cleanupFailures } : {}),
+        });
       }
 
       if (action === 'purge') {

@@ -27,6 +27,7 @@ import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { getSummerTotalTuition, getSummerBalanceDue } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 function adminClient() {
   return createClient<Database>(
@@ -84,6 +85,17 @@ export async function POST(req: NextRequest) {
       reconciledPayments: 0,
       statusUpdatedPaid: 0,
       statusUpdatedPartiallyPaid: 0,
+      errors: [] as string[],
+    };
+
+    const recordWrite = async (operation: PromiseLike<{ error?: { message: string; code?: string | null } | null }>, label: string) => {
+      try {
+        await requireSupabaseWrite(operation, label);
+        return true;
+      } catch (error) {
+        report.errors.push(error instanceof Error ? error.message : `${label}: write failed`);
+        return false;
+      }
     };
 
     // ── 1. Canonical online school ──
@@ -109,12 +121,19 @@ export async function POST(req: NextRequest) {
         .eq('school_id', dup.id);
 
       if (!dryRun) {
-        await admin.from('students')
-          .update({ school_id: canonical.id, school_name: canonical.name })
-          .eq('school_id', dup.id);
-        await admin.from('portal_users')
-          .update({ school_id: canonical.id, school_name: canonical.name })
-          .eq('school_id', dup.id);
+        const studentsMoved = await recordWrite(
+          admin.from('students')
+            .update({ school_id: canonical.id, school_name: canonical.name })
+            .eq('school_id', dup.id),
+          `move students from duplicate school ${dup.name}`,
+        );
+        const usersMoved = studentsMoved && await recordWrite(
+          admin.from('portal_users')
+            .update({ school_id: canonical.id, school_name: canonical.name })
+            .eq('school_id', dup.id),
+          `move portal users from duplicate school ${dup.name}`,
+        );
+        if (!studentsMoved || !usersMoved) continue;
       }
 
       report.duplicateSchoolsMerged.push({
@@ -134,13 +153,21 @@ export async function POST(req: NextRequest) {
 
     for (const s of (schoolless ?? []) as Array<{ id: string; user_id: string | null }>) {
       if (!dryRun) {
-        await admin.from('students')
-          .update({ school_id: canonical.id, school_name: canonical.name })
-          .eq('id', s.id);
-        if (s.user_id) {
-          await admin.from('portal_users')
+        const studentFixed = await recordWrite(
+          admin.from('students')
             .update({ school_id: canonical.id, school_name: canonical.name })
-            .eq('id', s.user_id);
+            .eq('id', s.id),
+          `attach student ${s.id} to the canonical online school`,
+        );
+        if (!studentFixed) continue;
+        if (s.user_id) {
+          const portalFixed = await recordWrite(
+            admin.from('portal_users')
+              .update({ school_id: canonical.id, school_name: canonical.name })
+              .eq('id', s.user_id),
+            `attach portal account ${s.user_id} to the canonical online school`,
+          );
+          if (!portalFixed) continue;
         }
       }
       report.schoollessStudentsFixed++;
@@ -217,8 +244,11 @@ export async function POST(req: NextRequest) {
           }
           if (classId) {
             // Note: class_id is not a column on the students table (only on portal_users)
-            if (s.user_id) await admin.from('portal_users').update({ class_id: classId }).eq('id', s.user_id);
-            report.summerClassesAssigned++;
+            const placed = !s.user_id || await recordWrite(
+              admin.from('portal_users').update({ class_id: classId }).eq('id', s.user_id),
+              `place summer learner ${s.user_id} in class ${classId}`,
+            );
+            if (placed) report.summerClassesAssigned++;
           }
         }
       }
@@ -262,12 +292,12 @@ export async function POST(req: NextRequest) {
               parentId = provisioned.parentId;
               if (!schoolId) {
                 // Structure seal: inactive shell only — never activate without school.
-                await admin.from('portal_users').update({
+                await recordWrite(admin.from('portal_users').update({
                   is_active: false,
                   school_id: null,
                   school_name: null,
                   updated_at: new Date().toISOString(),
-                }).eq('id', parentId);
+                }).eq('id', parentId), `keep unplaced parent ${parentId} inactive`);
               }
               if (provisioned.created) report.parentAccountsCreated++;
             }
@@ -353,9 +383,12 @@ export async function POST(req: NextRequest) {
               newStatus === 'paid' || newStatus === 'partially_paid' ? newStatus : null;
 
             if (!dryRun && prospect?.id && paymentState) {
-              await admin.from('prospective_students')
-                .update({ status: paymentState, updated_at: new Date().toISOString() })
-                .eq('id', prospect.id);
+              await recordWrite(
+                admin.from('prospective_students')
+                  .update({ status: paymentState, updated_at: new Date().toISOString() })
+                  .eq('id', prospect.id),
+                `reconcile summer payment status for prospect ${prospect.id}`,
+              );
             }
           }
         }
@@ -364,7 +397,7 @@ export async function POST(req: NextRequest) {
 
     if (!dryRun) {
       await logAudit(admin as any, {
-        action: 'backfill_onboarding_structure',
+        action: report.errors.length ? 'backfill_onboarding_structure_partial' : 'backfill_onboarding_structure',
         actorId: user.id,
         resourceType: 'onboarding_reconciliation',
         resourceId: canonical.id,
@@ -379,12 +412,14 @@ export async function POST(req: NextRequest) {
           parent_accounts_created: report.parentAccountsCreated,
           legacy_collisions_skipped: report.legacyCollisionsSkipped,
           reconciled_payments: report.reconciledPayments,
+          errors: report.errors,
         },
       });
     }
 
     return NextResponse.json({
-      success: true,
+      success: report.errors.length === 0,
+      partial: report.errors.length > 0,
       message: dryRun
         ? 'Dry run complete — no changes were written.'
         : 'Backfill complete.',

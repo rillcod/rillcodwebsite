@@ -84,6 +84,11 @@ export default function AccountabilityPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not fix classes');
       const n = Number(json.synced_count) || 0;
+      if (json.partial) {
+        setSyncFeedback(`Fixed ${n} profile${n === 1 ? '' : 's'}, but ${json.failed_count ?? 0} item${json.failed_count === 1 ? '' : 's'} still need attention.`);
+        await load(false);
+        return;
+      }
       setSyncFeedback(
         n === 0
           ? 'No wrong classes left to fix — everyone already matches this term’s class list.'

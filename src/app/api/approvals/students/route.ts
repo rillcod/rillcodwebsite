@@ -73,11 +73,14 @@ export async function POST(request: Request) {
 
   if (action === 'rejected') {
     const { logAudit } = await import('@/lib/audit/log');
-    await admin.from('students').update({
+    const { error: rejectionError } = await admin.from('students').update({
       status: 'rejected',
       approved_by: caller.id,
       approved_at: null,
     }).eq('id', id);
+    if (rejectionError) {
+      return NextResponse.json({ error: `Could not reject registration: ${rejectionError.message}` }, { status: 500 });
+    }
     await logAudit(admin as any, {
       action: 'student.registration_rejected',
       actorId: caller.id,

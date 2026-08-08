@@ -169,7 +169,12 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Purge failed');
-      setFeedback((f) => ({ ...f, [row.id]: 'Hard purge completed.' }));
+      setFeedback((f) => ({
+        ...f,
+        [row.id]: json.partial
+          ? `Hard purge partially completed; ${json.failedTargets?.length ?? 0} item(s) still need attention.`
+          : 'Hard purge completed.',
+      }));
       await fetch('/api/admin/accountability', { method: 'POST' });
       await load();
     } catch (e) {
@@ -195,7 +200,12 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Deactivate failed');
-      setFeedback((f) => ({ ...f, [row.id]: 'Account deactivated (safe-delete).' }));
+      setFeedback((f) => ({
+        ...f,
+        [row.id]: json.partial
+          ? `Account deactivated, but ${json.failedTargets?.length ?? 0} cleanup item(s) still need attention.`
+          : 'Account deactivated (safe-delete).',
+      }));
       await fetch('/api/admin/accountability', { method: 'POST' });
       await load();
     } catch (e) {
@@ -212,6 +222,15 @@ export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
       const res = await fetch('/api/admin/accountability/sync-classes', { method: 'POST' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Sync failed');
+      if (json.partial) {
+        setFeedback((f) => ({
+          ...f,
+          [row.id]: `Class sync updated ${json.synced_count ?? 0} profile(s), but ${json.failed_count ?? 0} item(s) still need attention.`,
+        }));
+        await fetch('/api/admin/accountability', { method: 'POST' });
+        await load();
+        return;
+      }
       setFeedback((f) => ({
         ...f,
         [row.id]: `Class sync ran (${json.synced_count ?? 0} profile(s) updated). Refreshing…`,

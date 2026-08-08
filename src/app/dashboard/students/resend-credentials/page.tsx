@@ -277,6 +277,14 @@ export default function ResendCredentialsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Repair failed');
       const dr = data.report;
+      if (data.partial) {
+        toast.error(
+          `Repair partially completed. ${dr.errors?.length ?? 0} item(s) still need attention.`,
+          { duration: 10000 },
+        );
+        await load();
+        return;
+      }
       toast.success(
         `Repair done — ${(dr.duplicateSchoolsMerged ?? []).length} school(s) merged, ` +
         `${dr.schoollessStudentsFixed} school-less fixed, ${dr.studentsEnrolled} enrolled, ` +
@@ -311,6 +319,15 @@ export default function ResendCredentialsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Migration failed');
+      if (data.partial) {
+        toast.error(
+          `Migrated ${data.report?.migrated ?? 0} pair(s), but ${data.report?.skipped ?? 0} record(s) still need attention.`,
+          { duration: 10000 },
+        );
+        await load();
+        await loadHealth();
+        return;
+      }
       toast.success(`Migrated ${data.report?.migrated ?? 0} parent/student pair(s)${data.report?.skipped ? `, ${data.report.skipped} skipped` : ''}.`, { duration: 7000 });
       await load();
       await loadHealth();
@@ -340,6 +357,14 @@ export default function ResendCredentialsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Merge failed');
+      if (data.partial) {
+        toast.error(
+          `Merged ${data.merged ?? 0} duplicate(s), but ${data.errors?.length ?? 0} item(s) still need attention.`,
+          { duration: 10000 },
+        );
+        await load();
+        return;
+      }
       toast.success(`Merged ${data.merged} duplicate(s) across ${data.duplicateGroups} child(ren); ${data.loginsDeactivated} extra login(s) deactivated.`, { duration: 7000 });
       await load();
     } catch (err: any) {

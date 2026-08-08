@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,7 @@ export async function POST() {
 
     // 3. Update portal_users for mismatched students
     let syncedCount = 0;
+    const failures: string[] = [];
     for (const [studentId, classId] of rosterMap.entries()) {
       const { data: pu } = await db
         .from('portal_users')
@@ -81,16 +83,30 @@ export async function POST() {
         .maybeSingle();
 
       if (pu && pu.role === 'student' && pu.is_active && pu.class_id !== classId) {
-        await db.from('portal_users').update({ class_id: classId }).eq('id', studentId);
-        syncedCount++;
+        try {
+          await requireSupabaseWrite(
+            db.from('portal_users').update({ class_id: classId }).eq('id', studentId),
+            `synchronize class placement for ${studentId}`,
+          );
+          syncedCount++;
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : `Could not place ${studentId}`);
+        }
       }
     }
 
     // 4. Refresh accountability materialised views so cache is instantly updated
-    await db.rpc('refresh_accountability_cache' as never);
+    try {
+      await requireSupabaseWrite(
+        db.rpc('refresh_accountability_cache' as never),
+        'refresh accountability cache',
+      );
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : 'Accountability cache refresh failed');
+    }
 
     await logAudit(db as any, {
-      action: 'sync_accountability_classes',
+      action: failures.length ? 'sync_accountability_classes_partial' : 'sync_accountability_classes',
       actorId: user.id,
       resourceType: 'accountability',
       resourceId: 'class-placement',
@@ -98,9 +114,16 @@ export async function POST() {
       newValues: {
         synced_count: syncedCount,
         source: 'active_class_term_rosters',
+        failures,
       },
     });
-    return NextResponse.json({ ok: true, synced_count: syncedCount });
+    return NextResponse.json({
+      ok: failures.length === 0,
+      partial: failures.length > 0,
+      synced_count: syncedCount,
+      failed_count: failures.length,
+      failures,
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Sync failed' }, { status: 500 });
   }

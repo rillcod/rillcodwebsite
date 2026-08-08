@@ -21,6 +21,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
+import { logAudit } from '@/lib/audit/log';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      let renamedStudentEmail: string | null = null;
+      let parentProvisioned = false;
       try {
         // Gate before any rewrite — never rename the student if we cannot create the parent.
         if (!s.school_id) {
@@ -100,15 +104,20 @@ export async function POST(req: NextRequest) {
 
         // 1. Rename the student account to a fresh @rillcod.com login (frees parentEmail).
         const newStudentEmail = await generateUniqueStudentLoginEmail(admin as any, fullName);
-        const studentPw = tempPassword();
-        await admin.auth.admin.updateUserById(s.user_id, {
+        await requireSupabaseWrite(admin.auth.admin.updateUserById(s.user_id, {
           email: newStudentEmail,
-          password: studentPw,
           email_confirm: true,
           user_metadata: { full_name: fullName, role: 'student' },
-        });
-        await admin.from('portal_users').update({ email: newStudentEmail, role: 'student', updated_at: new Date().toISOString() }).eq('id', s.user_id);
-        await admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
+        }), `rename legacy student login for ${fullName}`);
+        renamedStudentEmail = newStudentEmail;
+        await requireSupabaseWrite(
+          admin.from('portal_users').update({ email: newStudentEmail, role: 'student', updated_at: new Date().toISOString() }).eq('id', s.user_id),
+          `update legacy student portal email for ${fullName}`,
+        );
+        await requireSupabaseWrite(
+          admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id),
+          `update legacy student record email for ${fullName}`,
+        );
 
         // 2. Create the PARENT account on the now-free original email.
         const parentPw = tempPassword();
@@ -127,6 +136,7 @@ export async function POST(req: NextRequest) {
         if (!provisioned.ok || !provisioned.parentId) {
           throw new Error(provisioned.error || 'could not create/resolve parent account');
         }
+        parentProvisioned = true;
         const parentId = provisioned.parentId;
 
         // 3. Link parent ↔ student.
@@ -135,14 +145,49 @@ export async function POST(req: NextRequest) {
         report.migrated++;
         report.details.push({ studentId: s.id, fullName, parentEmail, newStudentEmail });
       } catch (err: any) {
+        if (renamedStudentEmail && !parentProvisioned) {
+          try {
+            await requireSupabaseWrite(admin.auth.admin.updateUserById(s.user_id, {
+              email: parentEmail,
+              email_confirm: true,
+              user_metadata: { full_name: fullName, role: 'student' },
+            }), `roll back student login for ${fullName}`);
+            await requireSupabaseWrite(
+              admin.from('portal_users').update({ email: parentEmail, role: 'student', updated_at: new Date().toISOString() }).eq('id', s.user_id),
+              `roll back student portal email for ${fullName}`,
+            );
+            await requireSupabaseWrite(
+              admin.from('students').update({ student_email: parentEmail, email: parentEmail, updated_at: new Date().toISOString() }).eq('id', s.id),
+              `roll back student record email for ${fullName}`,
+            );
+          } catch (rollbackError) {
+            report.errors.push(`${s.id}: rollback failed after migration error (${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)})`);
+          }
+        }
         report.skipped++;
         report.errors.push(`${s.id}: ${err?.message ?? 'unknown'}`);
         console.error('[migrate-legacy-parents] failed for', s.id, err);
       }
     }
 
+    if (!dryRun) {
+      await logAudit(admin as any, {
+        action: report.errors.length ? 'migrate_legacy_parent_accounts_partial' : 'migrate_legacy_parent_accounts',
+        actorId: user.id,
+        resourceType: 'parent_student_identity_reconciliation',
+        newValue: `Migrated ${report.migrated} legacy parent/student account(s); skipped ${report.skipped}`,
+        newValues: {
+          candidates: report.candidates,
+          migrated: report.migrated,
+          skipped: report.skipped,
+          errors: report.errors,
+        },
+      });
+    }
+
     return NextResponse.json({
-      success: true,
+      success: report.errors.length === 0,
+      partial: report.errors.length > 0,
       message: dryRun ? 'Dry run — no changes written.' : 'Legacy parent migration complete.',
       report,
     });
