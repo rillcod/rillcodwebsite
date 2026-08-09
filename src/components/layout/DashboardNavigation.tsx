@@ -681,6 +681,25 @@ export default function DashboardNavigation() {
             href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
+          // The week's material. Each of these already admits a teacher — the
+          // pages gate on admin/teacher/school — they were simply never linked,
+          // so a teacher had to know the URL to reach the lessons, resources and
+          // projects their own plan generates.
+          {
+            name: "Lessons",
+            href: "/dashboard/lessons",
+            icon: BookOpenIcon,
+          },
+          {
+            name: "Projects",
+            href: "/dashboard/projects",
+            icon: RocketLaunchIcon,
+          },
+          {
+            name: "Library",
+            href: "/dashboard/library",
+            icon: ArchiveBoxIcon,
+          },
           { divider: true, label: "Schedule" },
           {
             name: "Timetable",
@@ -699,6 +718,23 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Assessment" },
+          // Setting the work comes before marking it. Both pages gate on
+          // admin/teacher/school and neither was linked, so the two things a
+          // teacher does most often — give an assignment, run a test — were the
+          // only ones reachable purely by typing a URL. Grading Queue below is
+          // where that work comes back.
+          {
+            name: "Assignments",
+            href: "/dashboard/assignments",
+            icon: ClipboardDocumentListIcon,
+          },
+          {
+            // /dashboard/exams is the admin and learner view; cbt is the one a
+            // teacher authors and grades from.
+            name: "Tests & Exams",
+            href: "/dashboard/cbt",
+            icon: BeakerIcon,
+          },
           {
             name: "Grading Queue",
             href: "/dashboard/grading",
