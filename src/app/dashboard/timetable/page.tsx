@@ -35,14 +35,15 @@ type Timetable = {
 type Slot = {
   id: string; timetable_id: string; day_of_week: string; start_time: string;
   end_time: string; subject: string; teacher_id: string | null; teacher_name: string | null;
-  room: string | null; notes: string | null; course_id: string | null;
+  room: string | null; notes: string | null; course_id: string | null; class_id: string | null;
 };
 type Program = { id: string; name: string };
+type ClassRow = { id: string; name: string; school_id: string | null; status: string | null };
 type Course = { id: string; title: string; program_id: string | null; programs?: { name: string } | null };
 
 const BLANK_SLOT = {
   day_of_week: 'Monday', start_time: '08:00', end_time: '09:00',
-  subject: '', teacher_id: '', teacher_name: '', room: '', notes: '', course_id: '',
+  subject: '', teacher_id: '', teacher_name: '', room: '', notes: '', course_id: '', class_id: '',
 };
 
 function Badge({ text, color }: { text: string; color: string }) {
@@ -206,6 +207,18 @@ function SlotCell({
           <p className={`text-[10px] mt-0.5 font-bold ${isCurrent ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
             {slot.start_time}–{slot.end_time}
           </p>
+          {/* Shown on the grid, not only in the form. A slot with no class looks
+              complete on a printed timetable and quietly creates no register —
+              a gap nobody finds until they go looking for an attendance list
+              that was never made. */}
+          {!slot.class_id && (
+            <span
+              title="No class set — this slot will not create attendance registers"
+              className="mt-1 inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700 dark:text-amber-300"
+            >
+              No class
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {isCurrent && (
@@ -264,6 +277,7 @@ export default function TimetablePage() {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTimetable, setActiveTimetable] = useState<string | null>(null);
@@ -374,9 +388,11 @@ export default function TimetablePage() {
     Promise.all([
       db.from('programs').select('id, name').order('name'),
       db.from('courses').select('id, title, program_id, programs(name)').order('title'),
-    ]).then(([programRes, courseRes]) => {
+      db.from('classes').select('id, name, school_id, status').order('name'),
+    ]).then(([programRes, courseRes, classRes]) => {
       setPrograms((programRes.data ?? []) as Program[]);
       setCourses((courseRes.data ?? []) as unknown as Course[]);
+      setClasses((classRes.data ?? []) as unknown as ClassRow[]);
     });
   }, [profile?.id, authLoading, schoolIdParam, profile?.school_id, profile?.role]); // eslint-disable-line
 
@@ -454,7 +470,7 @@ export default function TimetablePage() {
     setSlotForm({
       day_of_week: slot.day_of_week, start_time: slot.start_time, end_time: slot.end_time,
       subject: slot.subject, teacher_id: slot.teacher_id ?? '', teacher_name: slot.teacher_name ?? '',
-      room: slot.room ?? '', notes: slot.notes ?? '', course_id: slot.course_id ?? '',
+      room: slot.room ?? '', notes: slot.notes ?? '', course_id: slot.course_id ?? '', class_id: slot.class_id ?? '',
     });
     setShowSlotForm(true);
   };
@@ -471,6 +487,7 @@ export default function TimetablePage() {
         teacher_name: (teacher?.full_name ?? slotForm.teacher_name.trim()) || null,
         room: slotForm.room.trim() || null, notes: slotForm.notes.trim() || null,
         course_id: slotForm.course_id || null,
+        class_id: slotForm.class_id || null,
       };
       if (editingSlot) {
         const res = await fetch(`/api/timetable-slots/${editingSlot.id}`, {
@@ -1380,6 +1397,46 @@ export default function TimetablePage() {
                 </select>
                 <p className="text-[10px] text-muted-foreground">
                   Linking a course lets the program filter and reports read this slot correctly.
+                </p>
+              </div>
+
+              {/* The one field that turns a printed schedule into a working register.
+                  Given prominence, and its consequence spelled out, because a slot
+                  without a class silently generates nothing — which is invisible
+                  until someone goes looking for an attendance list that was never
+                  created. */}
+              <div className="space-y-1 col-span-2">
+                <label
+                  htmlFor="slot-class"
+                  className="text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+                >
+                  Class taught in this slot
+                </label>
+                <select
+                  id="slot-class"
+                  value={slotForm.class_id}
+                  onChange={e => setSlotForm(s => ({ ...s, class_id: e.target.value }))}
+                  aria-describedby="slot-class-help"
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                >
+                  <option value="">— Not set: this slot stays a printed line only —</option>
+                  {classes
+                    .filter(c => c.status !== 'archived')
+                    .filter(c => {
+                      // Only this school's classes. Attaching another school's class
+                      // would put its register on the wrong school's timetable.
+                      const schoolId = timetables.find(t => t.id === activeTimetable)?.school_id;
+                      return !schoolId || c.school_id === schoolId;
+                    })
+                    .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <p
+                  id="slot-class-help"
+                  className={`text-[10px] leading-4 ${slotForm.class_id ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}
+                >
+                  {slotForm.class_id
+                    ? 'Attendance registers for this class will be created automatically, each week, to the end of term.'
+                    : 'Without a class this slot appears on the timetable but creates no attendance register — a teacher would still have to add each lesson by hand.'}
                 </p>
               </div>
               <div className="space-y-1">
