@@ -208,10 +208,27 @@ export function runAcademicQualityEngine(contentValue: unknown, context: Quality
     }
   }
 
-  if (metadata.delivery_entry || metadata.program_start_term || metadata.entry_week) {
+  // Only a start point that actually says something counts.
+  //
+  // This fired on every curriculum, because program_start_term is written by the
+  // builder on save and 1 is its default — "Programme Term 1 is the first term",
+  // which is the neutral answer, not one school's timing. Flagging it made a
+  // permanent suggestion nobody could ever clear, sitting beside the real ones.
+  //
+  // 2 or 3 is different: it says a school begins the programme mid-year, which
+  // is a per-school fact. Schools here are onboarded termly and some joined in
+  // Third Term, so this is a live distinction, not a hypothetical one.
+  const declaredStartTerm = Number(metadata.program_start_term);
+  const startsMidYear = declaredStartTerm === 2 || declaredStartTerm === 3;
+  if (metadata.delivery_entry || metadata.entry_week || startsMidYear) {
     add('improve', 'academic_foundation', 'school_timing_in_core', 'Academic timing',
       'A school-specific start point is stored inside the central curriculum.',
-      'Move it to that school’s delivery schedule so the official curriculum stays reusable.');
+      // Names where it actually belongs. The old wording said "move it to that
+      // school's delivery schedule", and there is no such column to move it to —
+      // the schedule expresses entry as entry_term_number and entry_week_number.
+      'Set that school’s entry term and week on its delivery schedule (Rollout → timing), '
+      + 'or the programme default under Programme rules. The central curriculum should say '
+      + 'what is taught, not when one school begins it.');
   }
 
   const mustFix = issues.filter((issue) => issue.severity === 'must_fix');
