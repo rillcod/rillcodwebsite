@@ -35,7 +35,16 @@ const CONTAINER_ENV_KEYS = [
   "SENDPULSE_API_ID",
   "SENDPULSE_API_SECRET",
   "OPENROUTER_API_KEY",
+  // The AI engine rotates across every Gemini key it can see, and each free key
+  // carries its own quota. Only the first was forwarded here, so adding
+  // GEMINI_API_KEY_2.._5 multiplied the quota in local dev and did nothing at
+  // all in production — the container never received them.
   "GEMINI_API_KEY",
+  "GEMINI_API_KEY_2",
+  "GEMINI_API_KEY_3",
+  "GEMINI_API_KEY_4",
+  "GEMINI_API_KEY_5",
+  "GEMINI_API_KEYS",
   "HUGGINGFACE_API_KEY",
   "LIVEKIT_API_KEY",
   "LIVEKIT_API_SECRET",

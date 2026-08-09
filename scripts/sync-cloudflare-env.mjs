@@ -64,7 +64,15 @@ const SECRET_KEYS = [
   "SENDPULSE_API_ID",
   "SENDPULSE_API_SECRET",
   "OPENROUTER_API_KEY",
+  // Keep in step with CONTAINER_ENV_KEYS in src/cloudflare/container-gateway.ts.
+  // A key that syncs but is not forwarded (or forwarded but never synced) is
+  // invisible either way: the rotation quietly runs on fewer keys than intended.
   "GEMINI_API_KEY",
+  "GEMINI_API_KEY_2",
+  "GEMINI_API_KEY_3",
+  "GEMINI_API_KEY_4",
+  "GEMINI_API_KEY_5",
+  "GEMINI_API_KEYS",
   "HUGGINGFACE_API_KEY",
   "LIVEKIT_API_KEY",
   "LIVEKIT_API_SECRET",
