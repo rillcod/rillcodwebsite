@@ -511,7 +511,10 @@ function RolloutWorkspace() {
         const n = Number(payload.updated ?? 0);
         setCourseNote(
           n > 0
-            ? `${n} class${n === 1 ? '' : 'es'} now teach this course. They pick up the edition on the next readiness run.`
+            // Not "pick up the edition on the next readiness run" — that named
+            // two internal things and left a teacher wondering whether they had
+            // to do something. The sweep is daily, so say daily.
+            ? `${n} class${n === 1 ? '' : 'es'} now teach this course. Their lesson plans are set up automatically on the next daily run — nothing else to do.`
             : 'No class needed changing.',
         );
       }
@@ -546,7 +549,7 @@ function RolloutWorkspace() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not publish this edition.');
-      setMessage(payload?.data?.message || 'Edition published and assigned to schools.');
+      setMessage(payload?.data?.message || 'Published and sent to every school on this course.');
       setReport(null);
       await load();
     } catch (reason) {
@@ -648,7 +651,7 @@ function RolloutWorkspace() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not save this timing.');
-      setMessage(payload?.data?.message || 'School timing saved.');
+      setMessage(payload?.data?.message || 'Saved — this school now starts where you set it.');
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not save this timing.');
@@ -945,7 +948,7 @@ function RolloutWorkspace() {
                 <h2 className="text-lg font-black">2 · After publish</h2>
                 <p className="text-sm text-muted-foreground">
                   {publishedForCourse.length > 0
-                    ? 'Assign waiting classes, check school reach, or clear old editions.'
+                    ? 'Give this course to classes still waiting for one, see which schools received it, or tidy up schools left on a withdrawn version.'
                     : 'Publish above first — then assign classes here.'}
                 </p>
               </div>
