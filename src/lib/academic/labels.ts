@@ -58,6 +58,53 @@ export function editionName(edition: EditionLike | null | undefined): string {
   return edition.title?.trim() || "Official edition";
 }
 
+/**
+ * The same ideas, in the words a school actually uses.
+ *
+ * The system speaks its own dialect — "official academic direction", "adoption",
+ * "delivery schedule", "rollout", "entry point", "readiness". Those names are
+ * precise and they earn their place in the code. In front of a teacher or a head
+ * of school they are a second language: "The Academic Office has not assigned an
+ * official edition to this pathway and course" tells someone that something is
+ * wrong and nothing about what to do next.
+ *
+ * One translation table, so a screen and an error message never call the same
+ * thing by two different names.
+ */
+export const PLAIN_WORDS = {
+  /** academic direction / official edition */
+  curriculum: 'approved curriculum',
+  /** adoption */
+  usingCurriculum: 'the curriculum this school follows',
+  /** rollout */
+  sendToSchools: 'sending it to schools',
+  /** delivery schedule */
+  startPoint: 'when this school starts teaching it',
+  /** readiness */
+  readyToTeach: 'ready to teach',
+} as const;
+
+/**
+ * Why a class is not ready, said as something a person can act on.
+ *
+ * Each one names the thing that is missing and who fixes it. The old wording
+ * named internal concepts and left the reader to work out both.
+ */
+export const NOT_READY_REASONS = {
+  no_teacher: 'No teacher has been added to this school yet, so nobody can be given this class.',
+  no_period:
+    'This class has no term yet, so there is no way to tell which teaching week it is in. '
+    + 'Set its term and it will pick up from there.',
+  no_direction:
+    `No ${PLAIN_WORDS.curriculum} has been sent to this school for this course yet. `
+    + 'Publish it in the Academic Office and every class here will be set up automatically.',
+} as const;
+
+/** "Could not save when St. Bryan starts teaching: <reason>" */
+export function startPointNotSaved(detail: string): string {
+  return `Could not save ${PLAIN_WORDS.startPoint}: ${detail}`;
+}
+
 /** "Edition 2 · First Term 2026/2027 · Published 28 Jul 2026" */
 export function editionMeta(edition: EditionLike | null | undefined): string {
   if (!edition) return "";

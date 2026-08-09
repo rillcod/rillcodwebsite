@@ -5,7 +5,7 @@ import {
   resolveOfficialCurriculumDirection,
   resolveOfficialDeliverySchedule,
 } from '@/lib/curriculum/official-direction';
-import { humanEntryPoint, humanTermLabel } from '@/lib/academic/labels';
+import { humanEntryPoint, humanTermLabel, NOT_READY_REASONS, startPointNotSaved } from '@/lib/academic/labels';
 import { DEFAULT_AUTO_GENERATE_SETTINGS } from '@/lib/academic/auto-generate-settings';
 import { decideEntryPoint } from '@/lib/academic/entry-point';
 
@@ -140,7 +140,7 @@ export async function runAcademicReadinessAutomation(
       if (!await teacherCanOwnClass(db, teacherId, klass.school_id)) {
         const candidate = await selectAutomaticClassTeacher(db, klass.school_id);
         if (!candidate) {
-          issue(report, klass, 'no_teacher', 'No active teacher is assigned to this school yet.');
+          issue(report, klass, 'no_teacher', NOT_READY_REASONS.no_teacher);
           continue;
         }
         const { error: ownerError } = await db.from('classes')
@@ -173,7 +173,7 @@ export async function runAcademicReadinessAutomation(
         continue;
       }
       if (!klass.term_id && !klass.offering_period_id) {
-        issue(report, klass, 'no_period', 'Give this class an academic term or a delivery period.');
+        issue(report, klass, 'no_period', NOT_READY_REASONS.no_period);
         continue;
       }
 
@@ -197,7 +197,7 @@ export async function runAcademicReadinessAutomation(
         pinnedReleaseId: existing?.curriculum_release_id ?? null,
       });
       if (!direction) {
-        issue(report, klass, 'no_direction', 'The Academic Office has not assigned an official edition to this pathway and course.');
+        issue(report, klass, 'no_direction', NOT_READY_REASONS.no_direction);
         continue;
       }
 
@@ -246,7 +246,7 @@ export async function runAcademicReadinessAutomation(
             // A losing race with another sweep is the expected failure here, and
             // the plan below does not depend on the row existing — it uses the
             // same values either way. Reported, not fatal.
-            issue(report, klass, 'automation_failed', `Entry point not recorded: ${scheduleError.message}`);
+            issue(report, klass, 'automation_failed', startPointNotSaved(scheduleError.message));
           } else {
             report.entryPointsRecorded += 1;
           }
