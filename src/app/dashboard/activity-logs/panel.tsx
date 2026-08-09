@@ -377,10 +377,16 @@ export default function ActivityLogsPage({
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const LIMIT = 50;
 
-  const isStaff = ["admin", "teacher", "school"].includes(profile?.role ?? "");
+  // This screen reads audit_logs, and audit_logs has no school_id — there is no
+  // column to scope a tenant by, so it cannot be shown to anyone but an admin.
+  // Both /api/activity-logs and its export enforce exactly that. The guard here
+  // used to admit teachers and school accounts, which the sidebar never offered
+  // and the API now refuses: anyone reaching the URL directly got a spinner and
+  // a "Failed to load" toast instead of being told they lack access.
+  const canViewAuditTrail = profile?.role === "admin";
 
   const load = useCallback(async () => {
-    if (!isStaff) return;
+    if (!canViewAuditTrail) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -408,19 +414,19 @@ export default function ActivityLogsPage({
     } finally {
       setLoading(false);
     }
-  }, [isStaff, page, eventFilter, accessMethodFilter, from, to]);
+  }, [canViewAuditTrail, page, eventFilter, accessMethodFilter, from, to]);
 
   useEffect(() => {
     if (!authLoading) load();
   }, [authLoading, load]);
 
   useEffect(() => {
-    if (!autoRefresh || !isStaff) return;
+    if (!autoRefresh || !canViewAuditTrail) return;
     const interval = setInterval(() => {
       load();
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, isStaff, load]);
+  }, [autoRefresh, canViewAuditTrail, load]);
 
   const applyQuickFilter = (id: string) => {
     const chip = AUDIT_QUICK_FILTERS.find((f) => f.id === id);
@@ -449,12 +455,16 @@ export default function ActivityLogsPage({
     );
   }
 
-  if (!isStaff) {
+  if (!canViewAuditTrail) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 mobile-page-root">
         <ShieldCheckIcon className="w-16 h-16 text-destructive/40" />
         <p className="text-muted-foreground text-lg font-semibold">
-          Staff or Admin access required
+          Administrator access required
+        </p>
+        <p className="text-muted-foreground/70 text-sm max-w-sm text-center">
+          The audit trail covers every school, so it is not scoped to one. Ask an
+          administrator for the records you need.
         </p>
       </div>
     );
