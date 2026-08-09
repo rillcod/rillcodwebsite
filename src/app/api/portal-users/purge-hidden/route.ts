@@ -4,6 +4,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getAccountValuables } from '@/lib/students/account-valuables';
 import { logAudit } from '@/lib/audit/log';
 import { pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import { getProtectedAcademicEvidence, protectedAcademicEvidenceMessage } from '@/lib/students/protected-academic-evidence';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +53,9 @@ export async function POST(request: NextRequest) {
 
   if (explicitIds.length) query = query.in('id', explicitIds) as typeof query;
 
-  const { data: targets, error: loadErr } = await query;
-  if (loadErr) return NextResponse.json({ error: loadErr.message }, { status: 500 });
+  const targetResult = await fetchAllSupabaseRows<any>((from, to) => query.range(from, to));
+  if (targetResult.error) return NextResponse.json({ error: targetResult.error.message }, { status: 500 });
+  const targets = targetResult.data;
 
   const scoped = (targets ?? []).filter((row) => {
     if (row.id === caller.id) return false;
@@ -65,6 +68,13 @@ export async function POST(request: NextRequest) {
   const needsConfirmation: { id: string; name: string; valuables: Awaited<ReturnType<typeof getAccountValuables>> }[] = [];
 
   for (const row of scoped) {
+    if (row.role === 'student') {
+      const evidence = await getProtectedAcademicEvidence(admin, row.id);
+      if (evidence.total > 0) {
+        blocked.push({ id: row.id, reason: protectedAcademicEvidenceMessage(evidence) });
+        continue;
+      }
+    }
     if (!confirmDestroy && role === 'student') {
       const { data: sRow } = await admin.from('students').select('id').eq('user_id', row.id).maybeSingle();
       const valuables = await getAccountValuables(admin, row.id, (sRow as { id?: string } | null)?.id ?? null);
@@ -91,7 +101,7 @@ export async function POST(request: NextRequest) {
       actorId: caller.id,
       resourceType: 'portal_user',
       resourceId: null,
-      oldValues: { role, deleted_count: deleted.length, explicit: explicitIds.length > 0 },
+      oldValues: { role, deleted_count: deleted.length, blocked_count: blocked.length, explicit: explicitIds.length > 0 },
     });
   }
 

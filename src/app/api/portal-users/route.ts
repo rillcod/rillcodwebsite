@@ -7,6 +7,10 @@ import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { SELECT } from '@/lib/supabase/embed-hints';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { preparePortalStructure } from '@/lib/portal/ensure-structure';
+import { getProtectedAcademicEvidence, protectedAcademicEvidenceMessage } from '@/lib/students/protected-academic-evidence';
+import { logAudit } from '@/lib/audit/log';
+import { z } from 'zod';
+import { requireSupabaseResult } from '@/lib/supabase/require-result';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -229,13 +233,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
-    const { ids, update } = await request.json() as { ids: string[]; update: Record<string, unknown> };
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json({ error: 'ids array required' }, { status: 400 });
-    }
+    const parsed = z.object({
+      ids: z.array(z.string().uuid()).min(1).max(500),
+      update: z.object({ class_id: z.string().uuid().nullable().optional(), school_id: z.string().uuid().nullable().optional() }).strict(),
+    }).strict().safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid batch update' }, { status: 400 });
+    const ids = [...new Set(parsed.data.ids)];
+    const update = parsed.data.update as Record<string, unknown>;
 
     // Whitelist allowed fields — never let callers set arbitrary columns
     const admin = adminClient();
+    const { data: allTargets, error: targetError } = await admin
+      .from('portal_users')
+      .select('id, full_name, school_id, role')
+      .in('id', ids);
+    if (targetError) return NextResponse.json({ error: targetError.message }, { status: 500 });
+    if ((allTargets ?? []).length !== ids.length) return NextResponse.json({ error: 'One or more selected accounts do not exist.' }, { status: 404 });
+    if ((allTargets ?? []).some(target => target.role !== 'student')) {
+      return NextResponse.json({ error: 'Class and school batch updates may target student accounts only.' }, { status: 400 });
+    }
 
     // Campus scope: school/teacher may only touch their campus (or schoolless rows to place).
     if (caller.role !== 'admin') {
@@ -249,11 +265,7 @@ export async function PATCH(request: NextRequest) {
       if (allowedSchoolIds.length === 0) {
         return NextResponse.json({ error: 'Your account has no school assignment' }, { status: 403 });
       }
-      const { data: targets } = await admin
-        .from('portal_users')
-        .select('id, full_name, school_id, role')
-        .in('id', ids);
-      const foreign = (targets ?? []).filter(
+      const foreign = (allTargets ?? []).filter(
         (t: { school_id: string | null }) => t.school_id && !allowedSchoolIds.includes(t.school_id),
       );
       if (foreign.length > 0) {
@@ -265,6 +277,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const allowed: Record<string, unknown> = {};
+    const updatedIds = new Set<string>();
 
     if ('class_id' in update) {
       const classId = update.class_id as string | null;
@@ -352,30 +365,33 @@ export async function PATCH(request: NextRequest) {
             .map((r: { id: string }) => r.id);
 
           if (keepActive.length) {
-            await admin.from('portal_users').update({
+            const rows = await requireSupabaseResult(admin.from('portal_users').update({
               school_id: update.school_id,
               school_name: schoolRow?.name ?? null,
               is_active: true,
               updated_at: new Date().toISOString(),
-            }).in('id', keepActive).eq('role', 'student');
+            }).in('id', keepActive).eq('role', 'student').select('id'), 'Move students while retaining valid classes');
+            for (const row of rows ?? []) updatedIds.add((row as { id: string }).id);
           }
           if (clearClass.length) {
-            await admin.from('portal_users').update({
+            const rows = await requireSupabaseResult(admin.from('portal_users').update({
               school_id: update.school_id,
               school_name: schoolRow?.name ?? null,
               class_id: null,
               section_class: null,
               is_active: false,
               updated_at: new Date().toISOString(),
-            }).in('id', clearClass).eq('role', 'student');
+            }).in('id', clearClass).eq('role', 'student').select('id'), 'Move students and clear cross-school classes');
+            for (const row of rows ?? []) updatedIds.add((row as { id: string }).id);
           }
           if (withoutClass.length) {
-            await admin.from('portal_users').update({
+            const rows = await requireSupabaseResult(admin.from('portal_users').update({
               school_id: update.school_id,
               school_name: schoolRow?.name ?? null,
               is_active: false,
               updated_at: new Date().toISOString(),
-            }).in('id', withoutClass).eq('role', 'student');
+            }).in('id', withoutClass).eq('role', 'student').select('id'), 'Move students without classes');
+            for (const row of rows ?? []) updatedIds.add((row as { id: string }).id);
           }
           // Already applied school updates per-cohort — skip generic update for school fields.
           delete allowed.school_id;
@@ -388,17 +404,29 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (Object.keys(allowed).length === 0) {
-      return NextResponse.json({ updated: ids.length });
+      await logAudit(admin as any, {
+        action: 'batch_update_student_structure', actorId: user.id,
+        resourceType: 'portal_user', tableName: 'portal_users',
+        newValues: { requested_count: ids.length, updated_count: updatedIds.size, fields: Object.keys(update) },
+      });
+      return NextResponse.json({ updated: updatedIds.size });
     }
 
-    const { error } = await admin
+    const { data: updatedRows, error } = await admin
       .from('portal_users')
       .update({ ...allowed, updated_at: new Date().toISOString() })
       .in('id', ids)
-      .eq('role', 'student'); // safety: only update students
+      .eq('role', 'student')
+      .select('id'); // safety: only update students
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ updated: ids.length });
+    for (const row of updatedRows ?? []) updatedIds.add(row.id);
+    await logAudit(admin as any, {
+      action: 'batch_update_student_structure', actorId: user.id,
+      resourceType: 'portal_user', tableName: 'portal_users',
+      newValues: { requested_count: ids.length, updated_count: updatedIds.size, fields: Object.keys(update) },
+    });
+    return NextResponse.json({ updated: updatedIds.size });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
@@ -533,12 +561,33 @@ export async function DELETE(request: NextRequest) {
     const safeIds = ids.filter((id: string) => id !== caller.id);
     if (safeIds.length === 0) return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
 
-    const { data: targets } = await admin.from('portal_users').select('id, role, school_id, email').in('id', safeIds);
+    const { data: targets, error: targetError } = await admin.from('portal_users').select('id, role, school_id, email').in('id', safeIds);
+    if (targetError) return NextResponse.json({ error: targetError.message }, { status: 500 });
 
-    if (confirmDestroy !== true && (targets?.length ?? 0) > 0) {
+    const protectedAccounts: { id: string; reason: string }[] = [];
+    const deletableTargets = [];
+    for (const target of targets ?? []) {
+      if (target.role === 'student') {
+        const evidence = await getProtectedAcademicEvidence(admin, target.id);
+        if (evidence.total > 0) {
+          protectedAccounts.push({ id: target.id, reason: protectedAcademicEvidenceMessage(evidence) });
+          continue;
+        }
+      }
+      deletableTargets.push(target);
+    }
+    if (deletableTargets.length === 0 && protectedAccounts.length > 0) {
+      return NextResponse.json({
+        error: 'Selected accounts contain protected academic evidence and cannot be deleted. Archive them instead.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+        blocked: protectedAccounts,
+      }, { status: 409 });
+    }
+
+    if (confirmDestroy !== true && deletableTargets.length > 0) {
       const { getAccountValuables } = await import('@/lib/students/account-valuables');
       const valuableHits: { id: string; email: string | null; summary: string }[] = [];
-      for (const t of targets ?? []) {
+      for (const t of deletableTargets) {
         const { data: sRow } = await admin.from('students').select('id').eq('user_id', t.id).maybeSingle();
         const valuables = await getAccountValuables(admin, t.id, (sRow as { id?: string } | null)?.id ?? null);
         if (valuables.hasValuables) {
@@ -554,13 +603,24 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    const { deleted, failed } = await permanentWipePortalUsers(admin, targets ?? []);
+    const { deleted, failed } = await permanentWipePortalUsers(admin, deletableTargets);
 
     if (failed.length && deleted.length === 0) {
       return NextResponse.json({ error: failed[0].error, failed }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, deleted: deleted.length, failed });
+    await logAudit(admin as any, {
+      action: failed.length || protectedAccounts.length ? 'bulk_delete_users_partial' : 'bulk_delete_users',
+      actorId: caller.id,
+      resourceType: 'portal_user',
+      newValues: {
+        requested_count: safeIds.length,
+        deleted_count: deleted.length,
+        failed_count: failed.length,
+        protected_count: protectedAccounts.length,
+      },
+    });
+    return NextResponse.json({ success: failed.length === 0, deleted: deleted.length, failed, blocked: protectedAccounts });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

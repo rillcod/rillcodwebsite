@@ -7,6 +7,7 @@ import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { programLabel } from '@/lib/consent/onboard-lead-children';
 import { RESULT_INTAKE_FORM_TYPE } from '@/lib/parent-claim/intake-form';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +16,9 @@ function admin() {
 }
 
 async function fetchAll(q: any) {
-  const out: any[] = []; let from = 0;
-  for (;;) { const { data, error } = await q.range(from, from + 999); if (error || !data) break; out.push(...data); if (data.length < 1000) break; from += 1000; }
-  return out;
+  const result = await fetchAllSupabaseRows<any>((from, to) => q.range(from, to));
+  if (result.error) throw new Error(`Record source unavailable: ${result.error.message}`);
+  return result.data;
 }
 
 const norm = (e?: string | null) => (e || '').trim().toLowerCase();
@@ -55,7 +56,8 @@ export async function GET() {
     const ids = new Set<string>();
     if (profile.school_id) ids.add(profile.school_id);
     if (profile.role === 'teacher') {
-      const { data: ts } = await sb.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      const { data: ts, error: teacherSchoolError } = await sb.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      if (teacherSchoolError) return NextResponse.json({ error: teacherSchoolError.message }, { status: 500 });
       for (const r of ts ?? []) if ((r as any).school_id) ids.add((r as any).school_id);
     }
     scopeSchoolIds = [...ids];
@@ -66,15 +68,18 @@ export async function GET() {
     const classScope = await getTeacherClassScope(sb, user.id, profile.school_id);
     visibleStudentIds = new Set<string>();
     if (classScope.classIds.length > 0) {
-      const { data: classStudents } = await sb.from('portal_users').select('id').eq('role', 'student').in('class_id', classScope.classIds);
+      const { data: classStudents, error: classStudentError } = await sb.from('portal_users').select('id').eq('role', 'student').in('class_id', classScope.classIds);
+      if (classStudentError) return NextResponse.json({ error: classStudentError.message }, { status: 500 });
       for (const row of classStudents ?? []) visibleStudentIds.add(row.id);
     }
     if (classScope.classNames.length > 0) {
-      const { data: sectionStudents } = await sb.from('portal_users').select('id').eq('role', 'student').is('class_id', null)
+      const { data: sectionStudents, error: sectionStudentError } = await sb.from('portal_users').select('id').eq('role', 'student').is('class_id', null)
         .in('school_id', classScope.assignedSchoolIds).in('section_class', classScope.classNames);
+      if (sectionStudentError) return NextResponse.json({ error: sectionStudentError.message }, { status: 500 });
       for (const row of sectionStudents ?? []) visibleStudentIds.add(row.id);
     }
-    const { data: authored } = await sb.from('student_progress_reports').select('student_id').eq('teacher_id', user.id);
+    const { data: authored, error: authoredError } = await sb.from('student_progress_reports').select('student_id').eq('teacher_id', user.id);
+    if (authoredError) return NextResponse.json({ error: authoredError.message }, { status: 500 });
     for (const row of authored ?? []) if (row.student_id) visibleStudentIds.add(row.student_id);
   }
   if (scopeSchoolIds && scopeSchoolIds.length === 0) {
@@ -122,7 +127,8 @@ export async function GET() {
   if (schoolIdsNeeded.size) {
     const ids = [...schoolIdsNeeded];
     for (let i = 0; i < ids.length; i += 100) {
-      const { data } = await sb.from('schools').select('id, name').in('id', ids.slice(i, i + 100));
+      const { data, error } = await sb.from('schools').select('id, name').in('id', ids.slice(i, i + 100));
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       for (const s of data ?? []) schoolNameById.set(s.id, s.name);
     }
   }
@@ -131,7 +137,8 @@ export async function GET() {
   const programNameById = new Map<string, string>();
   if (programIds.length) {
     for (let i = 0; i < programIds.length; i += 100) {
-      const { data } = await sb.from('programs').select('id, name').in('id', programIds.slice(i, i + 100));
+      const { data, error } = await sb.from('programs').select('id, name').in('id', programIds.slice(i, i + 100));
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       for (const p of data ?? []) programNameById.set(p.id, p.name);
     }
   }

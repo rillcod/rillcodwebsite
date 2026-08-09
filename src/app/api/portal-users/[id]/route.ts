@@ -10,6 +10,7 @@ import {
   getProtectedAcademicEvidence,
   protectedAcademicEvidenceMessage,
 } from '@/lib/students/protected-academic-evidence';
+import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 import { prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 import { preparePortalStructure, clampActiveFlag } from '@/lib/portal/ensure-structure';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
@@ -128,11 +129,13 @@ export async function PATCH(
 
   // Structure seal: when activating (or already active with structure fields changing),
   // auto-place class for students and refuse incomplete active profiles.
-  const { data: current } = await admin
+  const { data: current, error: currentError } = await admin
     .from('portal_users')
     .select('role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, full_name, phone')
     .eq('id', id)
     .maybeSingle();
+  if (currentError) return NextResponse.json({ error: currentError.message }, { status: 500 });
+  if (!current) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
   if (isTeacher && !isSelf) {
     if (!current || current.role !== 'student') {
@@ -143,7 +146,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Student is outside your assigned school(s)' }, { status: 403 });
     }
     if (update.class_id) {
-      const { data: cls } = await admin.from('classes').select('school_id').eq('id', update.class_id).maybeSingle();
+      const { data: cls, error: classError } = await admin.from('classes').select('school_id').eq('id', update.class_id).maybeSingle();
+      if (classError) return NextResponse.json({ error: classError.message }, { status: 500 });
       if (!cls?.school_id || !allowedSchools.includes(cls.school_id)) {
         return NextResponse.json({ error: 'Class is outside your assigned school(s)' }, { status: 403 });
       }
@@ -199,6 +203,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const syncWarnings: string[] = [];
 
   // Soft-deleting a parent must detach children so junction + denorm don't orphan.
   if (update.is_deleted === true && (data?.role === 'parent' || current?.role === 'parent')) {
@@ -210,18 +215,34 @@ export async function PATCH(
       });
     } catch (detachErr) {
       console.error('[portal-users PATCH] detach children on soft-delete failed:', detachErr);
+      try {
+        await requireSupabaseWrite(
+          admin.from('portal_users').update({ is_deleted: current.is_deleted, updated_at: new Date().toISOString() }).eq('id', id),
+          'Restore parent after child-link detachment failure',
+        );
+      } catch (rollbackError) {
+        return NextResponse.json({
+          error: 'Parent archive failed after the profile changed, and automatic rollback also failed.',
+          rollback_error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+        }, { status: 500 });
+      }
+      return NextResponse.json({ error: 'Parent archive was cancelled because child links could not be detached.' }, { status: 500 });
     }
   }
 
   const isStudentProfile = data?.role === 'student' || update.gender !== undefined || update.date_of_birth !== undefined;
   if (isStudentProfile && (update.gender !== undefined || update.date_of_birth !== undefined || update.full_name !== undefined || update.section_class !== undefined)) {
-    await syncStudentIdentityAcrossStores(admin, id, {
-      gender: update.gender,
-      date_of_birth: update.date_of_birth,
-      full_name: update.full_name,
-      section_class: update.section_class,
-    }, 'overwrite');
-    await harmonizeStudentParentIdentity(admin, { studentUserId: id });
+    try {
+      await syncStudentIdentityAcrossStores(admin, id, {
+        gender: update.gender,
+        date_of_birth: update.date_of_birth,
+        full_name: update.full_name,
+        section_class: update.section_class,
+      }, 'overwrite');
+      await harmonizeStudentParentIdentity(admin, { studentUserId: id });
+    } catch (syncError) {
+      syncWarnings.push(syncError instanceof Error ? syncError.message : 'Student identity synchronization failed');
+    }
   } else {
   // Sync students shadow table when profile fields change
   const studentSync: Record<string, any> = {};
@@ -233,7 +254,8 @@ export async function PATCH(
   if (update.date_of_birth !== undefined) { studentSync.date_of_birth = update.date_of_birth; }
   if (update.phone         !== undefined) { studentSync.parent_phone = update.phone; }
   if (Object.keys(studentSync).length > 0) {
-    await admin.from('students').update(studentSync).eq('user_id', id);
+    const { error: studentSyncError } = await admin.from('students').update(studentSync).eq('user_id', id);
+    if (studentSyncError) syncWarnings.push(`Student profile mirror: ${studentSyncError.message}`);
   }
   }
 
@@ -241,7 +263,8 @@ export async function PATCH(
   // sync branch ran, so the specific grade is consistent across stores. grade stays SEPARATE
   // from the section/class (current_class).
   if (update.grade !== undefined) {
-    await admin.from('students').update({ grade: update.grade, grade_level: update.grade }).eq('user_id', id);
+    const { error: gradeSyncError } = await admin.from('students').update({ grade: update.grade, grade_level: update.grade }).eq('user_id', id);
+    if (gradeSyncError) syncWarnings.push(`Student grade mirror: ${gradeSyncError.message}`);
   }
 
   // Keep auth.users metadata in sync so role/name are consistent everywhere
@@ -249,7 +272,8 @@ export async function PATCH(
   if (update.full_name !== undefined) metaUpdate.full_name = update.full_name;
   if (update.role      !== undefined) metaUpdate.role      = update.role;
   if (Object.keys(metaUpdate).length > 0) {
-    await admin.auth.admin.updateUserById(id, { user_metadata: metaUpdate });
+    const { error: authSyncError } = await admin.auth.admin.updateUserById(id, { user_metadata: metaUpdate });
+    if (authSyncError) syncWarnings.push(`Authentication metadata: ${authSyncError.message}`);
   }
 
   await logAudit(admin as any, {
@@ -261,11 +285,12 @@ export async function PATCH(
     oldValues: current as unknown as Record<string, unknown>,
     newValues: {
       fields: Object.keys(update).filter((field) => field !== 'updated_at'),
+      synchronization_warnings: syncWarnings,
       ...update,
     },
   });
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, partial: syncWarnings.length > 0, warnings: syncWarnings }, { status: syncWarnings.length > 0 ? 207 : 200 });
 }
 
 // DELETE /api/portal-users/[id] — force-deletes portal row + auth account,
@@ -294,11 +319,12 @@ export async function DELETE(
   const admin = adminClient();
 
   // Fetch target user info (including email for parent cleanup)
-  const { data: pu } = await admin
+  const { data: pu, error: targetError } = await admin
     .from('portal_users')
     .select('role, school_id, email')
     .eq('id', id)
     .single();
+  if (targetError || !pu) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
 
   // Teachers can only delete students, and only from their assigned school
@@ -350,7 +376,6 @@ export async function DELETE(
   }
 
   // ── Step 0: Role-specific pre-steps the DB function can't infer ──────────
-  if (pu) await prepareRoleSpecificWipe(admin, { id, ...pu });
   // Teacher: never orphan their classes. Reassign owned classes (and their students'
   // primary_teacher_id) to a chosen replacement before the wipe. Without a valid target
   // we block and hand back the owned classes + eligible same-school teachers so the UI can
@@ -389,15 +414,22 @@ export async function DELETE(
       // outgoing teacher's authored work (reports, lessons) under the new teacher's
       // authorship BEFORE the wipe nulls those references — so nothing is orphaned.
       const classIds = ownedClasses.map((c) => c.id);
-      await admin.from('classes').update({ teacher_id: target.id, updated_at: new Date().toISOString() }).in('id', classIds);
-      await admin.from('portal_users').update({ primary_teacher_id: target.id, updated_at: new Date().toISOString() })
-        .in('class_id', classIds).eq('role', 'student');
-      await admin.from('student_progress_reports').update({ teacher_id: target.id }).eq('teacher_id', id);
-      await admin.from('lesson_plans').update({ created_by: target.id }).eq('created_by', id);
+      try {
+        await requireSupabaseWrite(admin.from('classes').update({ teacher_id: target.id, updated_at: new Date().toISOString() }).in('id', classIds), 'Reassign teacher classes');
+        await requireSupabaseWrite(
+          admin.from('portal_users').update({ primary_teacher_id: target.id, updated_at: new Date().toISOString() })
+            .in('class_id', classIds).eq('role', 'student'),
+          'Reassign class learners to replacement teacher',
+        );
+        await requireSupabaseWrite(admin.from('student_progress_reports').update({ teacher_id: target.id }).eq('teacher_id', id), 'Reassign teacher progress reports');
+        await requireSupabaseWrite(admin.from('lesson_plans').update({ created_by: target.id }).eq('created_by', id), 'Reassign teacher lesson plans');
+        await requireSupabaseWrite(admin.from('registration_batches').update({ created_by: target.id }).eq('created_by', id), 'Reassign teacher registration history');
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Teacher reassignment failed; account was not deleted.' }, { status: 500 });
+      }
       // Registration batches (who bulk-registered the students) follow the replacement teacher
       // too — so the class's registration history stays attributed to its NEW owner rather
       // than being nulled by the FK safety-net on wipe.
-      await admin.from('registration_batches').update({ created_by: target.id }).eq('created_by', id);
     }
   }
 
@@ -407,6 +439,8 @@ export async function DELETE(
   // …) are set NULL so a teacher's content is preserved and just unlinked. Then it removes
   // the students, portal_users and auth.users rows — a clean, complete delete for ANY role
   // with nothing left to orphan or resurface as a phantom.
+  // Destructive preparation starts only after every safety and reassignment gate passed.
+  await prepareRoleSpecificWipe(admin, { id, ...pu });
   const wipeResult = await wipePortalUserCascade(admin, id);
   if (!wipeResult.ok) return NextResponse.json({ error: wipeResult.error }, { status: 500 });
 

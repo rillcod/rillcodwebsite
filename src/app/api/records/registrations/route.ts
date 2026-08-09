@@ -3,10 +3,15 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 function admin() { return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!); }
-async function fetchAll(q: any) { const out: any[] = []; let f = 0; for (;;) { const { data, error } = await q.range(f, f + 999); if (error || !data) break; out.push(...data); if (data.length < 1000) break; f += 1000; } return out; }
+async function fetchAll(q: any) {
+  const result = await fetchAllSupabaseRows<any>((from, to) => q.range(from, to));
+  if (result.error) throw new Error(`Registration record source unavailable: ${result.error.message}`);
+  return result.data;
+}
 const norm = (e?: string | null) => (e || '').trim().toLowerCase();
 
 // GET /api/records/registrations — ALL registration credentials across every batch,
@@ -28,7 +33,8 @@ export async function GET() {
     const ids = new Set<string>();
     if (profile.school_id) ids.add(profile.school_id);
     if (profile.role === 'teacher') {
-      const { data: ts } = await sb.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      const { data: ts, error: teacherSchoolError } = await sb.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      if (teacherSchoolError) return NextResponse.json({ error: teacherSchoolError.message }, { status: 500 });
       for (const r of ts ?? []) if ((r as any).school_id) ids.add((r as any).school_id);
     }
     scopeSchoolIds = [...ids];
