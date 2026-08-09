@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findLiveDirectionForDraft } from './rollout-workflow';
+import { findLiveDirectionForDraft,
+  findLiveDirectionInOtherSession } from './rollout-workflow';
 
 const rolloutPage = readFileSync(
   join(process.cwd(), 'src/app/dashboard/academic/rollout/page.tsx'),
@@ -95,5 +96,50 @@ describe('rollout page guards', () => {
   it('refuses to review or publish until the real session is known', () => {
     expect(rolloutPage).toContain('!session ||');
     expect(rolloutPage).toContain('there is no session to publish to');
+  });
+});
+
+describe('an edition published under a different session', () => {
+  // Editions are immutable, so a release keeps the session it was published
+  // under for ever. Adoptions can be corrected afterwards — and were: Scratch
+  // is stamped 2025/2026 while all 58 schools sit at 2026/2027. Selecting
+  // 2026/2027 showed no "already live" banner, inviting a second edition of a
+  // curriculum already with every school.
+  const scratch = {
+    id: 'rel-scratch',
+    source_curriculum_id: 'cur-scratch',
+    status: 'published',
+    academic_session: '2025/2026',
+    effective_term_number: 1,
+    audience_label: 'All assigned learner levels',
+  };
+  const selection = {
+    curriculumId: 'cur-scratch',
+    academicSession: '2026/2027',
+    effectiveTermNumber: 1,
+    audienceLabel: 'All assigned learner levels',
+  };
+
+  it('is not returned by the exact-session match', () => {
+    expect(findLiveDirectionForDraft([scratch], selection)).toBeNull();
+  });
+
+  it('is surfaced so a duplicate is not published by accident', () => {
+    expect(findLiveDirectionInOtherSession([scratch], selection)?.id).toBe('rel-scratch');
+  });
+
+  it('says nothing when the session already matches', () => {
+    expect(
+      findLiveDirectionInOtherSession([scratch], { ...selection, academicSession: '2025/2026' }),
+    ).toBeNull();
+  });
+
+  it('does not confuse a different audience or term for the same edition', () => {
+    expect(findLiveDirectionInOtherSession([scratch], { ...selection, audienceLabel: 'JSS 1-3' })).toBeNull();
+    expect(findLiveDirectionInOtherSession([scratch], { ...selection, effectiveTermNumber: 2 })).toBeNull();
+  });
+
+  it('ignores a retired edition', () => {
+    expect(findLiveDirectionInOtherSession([{ ...scratch, status: 'retired' }], selection)).toBeNull();
   });
 });

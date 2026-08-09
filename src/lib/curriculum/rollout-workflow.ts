@@ -77,6 +77,46 @@ export function findLiveDirectionForDraft(
   );
 }
 
+/**
+ * A live edition of this same curriculum, published under a DIFFERENT session.
+ *
+ * findLiveDirectionForDraft matches the session exactly, which is right for
+ * deciding "is this exact edition already out there". It is wrong as the only
+ * signal on screen, because an edition's session is frozen at publication and
+ * the schools' adoptions can be corrected afterwards.
+ *
+ * That is the live case here. Creative Coding with Scratch is stamped 2025/2026
+ * — editions are immutable, so it will say that for ever — while all 58 school
+ * adoptions were corrected to 2026/2027. An admin selecting 2026/2027 sees no
+ * "already live" banner, concludes nothing is published, and publishes a second
+ * edition of a curriculum that is already with every school.
+ *
+ * Surfaced rather than merged into the match: publishing a genuinely new edition
+ * for a new session is legitimate and common. The screen just has to say that
+ * one already exists first.
+ */
+export function findLiveDirectionInOtherSession(
+  directions: CurriculumDirectionSummary[],
+  selection: {
+    curriculumId: string;
+    academicSession: string;
+    effectiveTermNumber: number;
+    audienceLabel: string;
+  }
+): CurriculumDirectionSummary | null {
+  return (
+    directions.find(
+      (direction) =>
+        direction.status === "published" &&
+        direction.source_curriculum_id === selection.curriculumId &&
+        normalized(direction.audience_label) === normalized(selection.audienceLabel) &&
+        Number(direction.effective_term_number ?? 1) === selection.effectiveTermNumber &&
+        // The one thing that differs — otherwise findLiveDirectionForDraft owns it.
+        normalized(direction.academic_session) !== normalized(selection.academicSession)
+    ) ?? null
+  );
+}
+
 /** Return the schedule that the timing form is about to update. */
 export function findScheduleForTimingScope(
   schedules: CurriculumTimingSchedule[],

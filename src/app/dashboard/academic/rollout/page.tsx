@@ -31,6 +31,7 @@ import { humanDeliveryStart } from '@/lib/curriculum/humanLabels';
 import { MAX_CURRICULUM_YEARS, TERM_WEEK_STRIDE } from '@/lib/curriculum/deliverySchedule';
 import {
   findLiveDirectionForDraft,
+  findLiveDirectionInOtherSession,
   findScheduleForTimingScope,
   timingValuesFromSchedule,
   type CurriculumDirectionSummary,
@@ -280,6 +281,27 @@ function RolloutWorkspace() {
           })
         : null,
     [audience, directions, selected, session, termNumber],
+  );
+  /**
+   * The same curriculum, live, but published under a different session.
+   *
+   * An edition's session is frozen at publication while adoptions can be
+   * corrected afterwards — which is exactly what happened to Scratch: stamped
+   * 2025/2026, adopted by all 58 schools at 2026/2027. Without this the screen
+   * says nothing is live for 2026/2027 and invites a second edition of a
+   * curriculum already sitting with every school.
+   */
+  const liveInOtherSession = useMemo(
+    () =>
+      selected && !liveDirection
+        ? findLiveDirectionInOtherSession(directions, {
+            curriculumId: selected.id,
+            academicSession: session,
+            effectiveTermNumber: termNumber,
+            audienceLabel: audience,
+          })
+        : null,
+    [audience, directions, liveDirection, selected, session, termNumber],
   );
   const courseAssignments = useMemo(
     () => assignments.filter((assignment) => assignment.course_id === selected?.course_id),
@@ -736,6 +758,31 @@ function RolloutWorkspace() {
                   <p className="text-sm font-black">Already live</p>
                   <p className="mt-1 text-xs leading-5">
                     {liveDirection.title || 'This curriculum'} is already with schools. Publishing again only refreshes coverage — it does not create a duplicate.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* An edition keeps the session it was published under for ever, while
+                the schools' adoptions can be corrected afterwards. Without this the
+                screen looks empty for the selected session and invites a second
+                edition of a curriculum already sitting with every school. */}
+            {liveInOtherSession && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-100">
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="text-sm font-black">Already live under a different session</p>
+                  <p className="mt-1 text-xs leading-5">
+                    “{liveInOtherSession.title || 'This curriculum'}” is published for{' '}
+                    <strong>{liveInOtherSession.academic_session}</strong> and is already with schools.
+                    An edition keeps the session it was published under, so a corrected one can read
+                    differently from the schools now following it — check the schools below before
+                    publishing.
+                  </p>
+                  <p className="mt-1.5 text-xs leading-5">
+                    Publishing for <strong>{session}</strong> creates a <strong>second</strong> edition
+                    of the same curriculum. Do that only if this is genuinely a new edition for the new
+                    session.
                   </p>
                 </div>
               </div>
