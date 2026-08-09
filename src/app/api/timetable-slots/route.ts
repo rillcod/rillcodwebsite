@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { timetable_id, day_of_week, start_time, end_time, subject,
-    teacher_id, teacher_name, room, notes, course_id } = body;
+    teacher_id, teacher_name, room, notes, course_id, class_id } = body;
 
   if (!timetable_id || !subject?.trim())
     return NextResponse.json({ error: 'timetable_id and subject are required' }, { status: 400 });
@@ -92,6 +92,10 @@ export async function POST(request: NextRequest) {
       room: room?.trim() || null,
       notes: notes?.trim() || null,
       course_id: course_id || null,
+      // Which class sits in this slot. Without it the slot is only a printed
+      // schedule line — session generation has nobody to mark present, so it
+      // reports the slot rather than guessing a class.
+      class_id: class_id || null,
     })
     .select()
     .single();

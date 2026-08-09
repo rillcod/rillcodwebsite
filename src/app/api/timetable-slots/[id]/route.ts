@@ -62,7 +62,9 @@ export async function PATCH(
 
   const update: Record<string, any> = {};
   const fields = ['day_of_week', 'start_time', 'end_time', 'subject',
-    'teacher_id', 'teacher_name', 'room', 'notes', 'course_id', 'timetable_id'];
+    // class_id is editable: a slot created before it existed, or attached to the
+    // wrong class, has to be correctable — it decides whose register is created.
+    'teacher_id', 'teacher_name', 'room', 'notes', 'course_id', 'timetable_id', 'class_id'];
   for (const f of fields) {
     if (body[f] !== undefined) update[f] = body[f];
   }
