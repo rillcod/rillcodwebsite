@@ -574,8 +574,20 @@ export async function DELETE(
 
   if (cls) await upsertClassTermRoster(admin, cls, ids, 'withdrawn', caller.id);
 
+  // A withdrawal is two writes: the roster row, and the programme enrolment.
+  //
+  // The second one's result was discarded. When it failed, nothing said so and
+  // this route still answered success — leaving a learner withdrawn on the
+  // roster and still actively enrolled in the programme. Two learners were
+  // found in exactly that state, their enrolments last touched four months
+  // before the withdrawal that was supposed to suspend them.
+  //
+  // Reported rather than thrown: the roster write has already happened, so
+  // failing the whole request here would claim nothing was withdrawn when in
+  // fact half of it was. The caller is told precisely which half is missing.
+  let enrolmentSuspended = true;
   if (cls?.program_id) {
-    await admin
+    const { error: suspendError } = await admin
       .from('enrollments')
       .update({
         status: 'suspended',
@@ -584,11 +596,26 @@ export async function DELETE(
       })
       .in('user_id', ids)
       .eq('program_id', cls.program_id);
+    if (suspendError) {
+      enrolmentSuspended = false;
+      console.error('[unenrol] roster updated but programme enrolment not suspended:', suspendError);
+    }
   }
 
   // Resync class count (exact — never drift)
   const { data: afterCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
   await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
 
-  return NextResponse.json({ success: true, removed: ids.length });
+  return NextResponse.json({
+    success: true,
+    removed: ids.length,
+    enrolment_suspended: enrolmentSuspended,
+    ...(enrolmentSuspended
+      ? {}
+      : {
+        warning:
+            'Removed from the class register, but the programme enrolment could not be paused. '
+            + 'Run scripts/audit-class-headcount.ts to see who is affected.',
+      }),
+  });
 }

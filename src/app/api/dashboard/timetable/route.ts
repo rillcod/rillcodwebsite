@@ -48,13 +48,50 @@ export async function GET(req: NextRequest) {
         school_name: s.timetables?.schools?.name
       }));
     } else if (role === 'school' && profile.school_id) {
-      // Get active timetable for this school
-      const { data: tt } = await supabase
+      // The timetable for the term we are actually in.
+      //
+      // This asked for the school's one active timetable with maybeSingle() and
+      // no term filter at all. Two problems, both live:
+      //
+      //  - A school keeping last term's timetable active alongside a new one
+      //    returns two rows, maybeSingle() refuses them, the error was
+      //    discarded, and the school's schedule silently vanished from the
+      //    dashboard. Preparing next term is exactly when a second active
+      //    timetable appears, so the failure was waiting for this week.
+      //  - With no term filter, a Second Term timetable was being shown as
+      //    today's schedule two terms later. All five in the system are
+      //    Second Term 2025/2026 and all five are still flagged active.
+      //
+      // Now: prefer the live term, fall back to whatever is active, and take the
+      // newest deterministically instead of refusing to choose.
+      // Returns a bare uuid, not a row — granted to authenticated, so the
+      // school's own session can call it.
+      const { data: liveTermId } = await (supabase as any).rpc('current_academic_term');
+
+      let pick = supabase
         .from('timetables')
-        .select('id')
+        .select('id, term_id, updated_at')
         .eq('school_id', profile.school_id)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
+      if (typeof liveTermId === 'string' && liveTermId) pick = pick.eq('term_id', liveTermId);
+
+      let { data: candidates } = await pick
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      // No timetable written for this term yet — show the school's current one
+      // rather than an empty day.
+      if (!candidates?.length) {
+        const { data: fallback } = await supabase
+          .from('timetables')
+          .select('id, term_id, updated_at')
+          .eq('school_id', profile.school_id)
+          .eq('is_active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        candidates = fallback ?? [];
+      }
+      const tt = candidates?.[0] ?? null;
 
       if (tt) {
         const { data } = await supabase
