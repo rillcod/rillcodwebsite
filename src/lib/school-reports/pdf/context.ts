@@ -10,6 +10,7 @@ import { resolveLeadershipNarrativeForDisplay } from '../topics-covered-presenta
 import { briefExecutiveItems, formatProgrammeScopeText } from './text';
 import { buildTopicsPresentation, topicsCoveredText } from './topics';
 import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from '../design';
+import { humanCurriculumSpan } from '@/lib/curriculum/humanLabels';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '../programme-course-performance';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from '../report-policy';
 import type { SchoolPerformanceReportRow } from '../types';
@@ -124,7 +125,15 @@ export function buildSchoolReportPdfContext(
 
   const narrative = opts?.narrative || report.narrative;
   const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
-  const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week}  to  Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
+  // Parents and head teachers read this line. "Term 1 Week 1  to  Term 1 Week 8"
+  // is a pair of coordinates; humanCurriculumSpan says it as a sentence and
+  // names the term once when both ends share it.
+  const curriculumRange = humanCurriculumSpan({
+    startTerm: report.curriculum_start_term,
+    startWeek: report.curriculum_start_week,
+    endTerm: report.curriculum_end_term,
+    endWeek: report.curriculum_end_week,
+  });
 
   const insights = resolveSchoolReportInsights(snapshot);
   const topicsPresentation = buildTopicsPresentation(snapshot);

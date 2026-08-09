@@ -10,6 +10,7 @@ import {
   scopeCurriculaForSchool,
 } from "./school-curriculum-scope";
 import { nounFor } from "./wording";
+import { humanCurriculumSpan } from "@/lib/curriculum/humanLabels";
 
 type AnyClient = SupabaseClient<any>;
 
@@ -195,12 +196,17 @@ export function suggestReportCurriculumRange(input: {
     source: "delivery_tracking",
     trackedWeekCount: active.length,
     syllabusCount,
+    // Was "Term 3 Week 1 → Term 1 Week 1". An arrow between two coordinates is
+    // a diagram of the database, not a sentence someone settling a school reads.
     hint: `Detected ${active.length} marked ${nounFor(
       active.length,
       "week"
-    )} from delivery tracking: Term ${min.term} Week ${min.week} → Term ${
-      max.term
-    } Week ${max.week}. Adjust below if needed.`,
+    )} from delivery tracking: ${humanCurriculumSpan({
+      startTerm: min.term,
+      startWeek: min.week,
+      endTerm: max.term,
+      endWeek: max.week,
+    })}. Adjust below if needed.`,
     status: "detected",
     checkedAt,
     sourceChecked: "curriculum_week_tracking",

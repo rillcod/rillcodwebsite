@@ -6,6 +6,7 @@ import { programmeCourseKey } from './school-curriculum-scope';
 import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
 import { dedupeStringList, filterSchoolFacingLines } from './report-content-dedup';
+import { humanCurriculumSpan } from '@/lib/curriculum/humanLabels';
 import { countNoun, nounFor } from './wording';
 
 /**
@@ -402,7 +403,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   const curriculumRange =
     snapshot.period?.curriculumStart && snapshot.period?.curriculumEnd
-      ? `Term ${snapshot.period.curriculumStart.term} Week ${snapshot.period.curriculumStart.week} – Term ${snapshot.period.curriculumEnd.term} Week ${snapshot.period.curriculumEnd.week}`
+      ? humanCurriculumSpan({
+          startTerm: snapshot.period.curriculumStart.term,
+          startWeek: snapshot.period.curriculumStart.week,
+          endTerm: snapshot.period.curriculumEnd.term,
+          endWeek: snapshot.period.curriculumEnd.week,
+        })
       : termLabel;
   const programmeNames = Array.from(
     new Set((curriculum.courses || []).map((row) => row.programme).filter(Boolean)),

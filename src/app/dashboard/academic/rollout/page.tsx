@@ -25,6 +25,7 @@ import {
   SparklesIcon,
 } from '@/lib/icons';
 import { buildCurriculumHref } from '@/lib/curriculum/href';
+import { humanDeliveryStart } from '@/lib/curriculum/humanLabels';
 // The same limits the schedule maths uses, so the form cannot offer a week the
 // engine would clamp, nor refuse one it can represent.
 import { MAX_CURRICULUM_YEARS, TERM_WEEK_STRIDE } from '@/lib/curriculum/deliverySchedule';
@@ -1240,10 +1241,21 @@ function RolloutWorkspace() {
                       <article key={item.id} className="rounded-2xl border border-border p-4">
                         <h3 className="font-black">{relation(item.classes)?.name ?? relation(item.schools)?.name ?? 'School default'}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{relation(item.courses)?.title ?? 'Course'}</p>
-                        <p className="mt-3 text-sm font-bold">Begins {TERM_LABELS[Number(item.entry_term_number ?? 1)] ?? `Term ${item.entry_term_number}`}, Week {item.entry_week_number}</p>
+                        {/* One sentence, because the relationship is the point: a
+                            school joining in Third Term still starts the curriculum
+                            at the beginning. Shown as two separate lines, that had
+                            to be inferred from a pair of coordinates. */}
+                        <p className="mt-3 text-sm font-bold">
+                          {humanDeliveryStart({
+                            entryTerm: item.entry_term_number,
+                            entryWeek: item.entry_week_number,
+                            curriculumYear: item.curriculum_year_number,
+                            curriculumTerm: item.curriculum_term_number,
+                            curriculumWeek: item.curriculum_week_number,
+                          })}
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Starts from Programme Year {item.curriculum_year_number}, {TERM_LABELS[Number(item.curriculum_term_number ?? 1)] ?? `Term ${item.curriculum_term_number}`}, Week {item.curriculum_week_number}
-                          {' · '}{item.sessions_per_week} session(s) weekly · {item.pacing_mode} pace
+                          {item.sessions_per_week} session(s) weekly · {item.pacing_mode} pace
                         </p>
                       </article>
                     ))}
