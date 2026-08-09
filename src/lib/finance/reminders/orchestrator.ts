@@ -13,7 +13,7 @@ export type DeliverReminderInput = {
   entityId: string;
   stage?: string | null;
   channel: ReminderChannel;
-  /** When true, skip if a success already exists for this stream/entity/stage/channel */
+  /** When true, skip if a success already exists for this stream/entity/stage/channel. */
   dedupe?: boolean;
   metadata?: Record<string, unknown>;
   deliver: () => Promise<void>;
@@ -21,7 +21,7 @@ export type DeliverReminderInput = {
 
 /**
  * Shared delivery + audit for finance reminders across streams.
- * Streams keep eligibility logic; this owns dedup, retries, and logging.
+ * Streams keep eligibility logic; this owns deduplication, retries, and logging.
  */
 export async function deliverReminder(input: DeliverReminderInput): Promise<{
   status: 'success' | 'failed' | 'skipped';
@@ -33,34 +33,36 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
   const db = createAdminClient();
   const stage = input.stage ?? null;
   const dedupe = input.dedupe !== false;
+  let failCount = 0;
 
   if (dedupe) {
-    const { data: existing, error: exErr } = await (db as any)
+    let successQuery = (db as any)
       .from('finance_automation_log')
       .select('id, attempt')
       .eq('stream', stream)
       .eq('entity_id', input.entityId)
       .eq('channel', input.channel)
-      .eq('status', 'success')
-      .eq('stage', stage)
-      .maybeSingle();
-    // stage null match — also try is null
-    if (exErr && !/finance_automation_log|does not exist/i.test(exErr.message)) {
-      // try without stage eq for null stages
-    }
+      .eq('status', 'success');
+    successQuery = stage === null ? successQuery.is('stage', null) : successQuery.eq('stage', stage);
+    const { data: existing, error: existingError } = await successQuery.maybeSingle();
+    assertDbOk(existingError, 'finance reminder success history');
     if (existing) {
       return { status: 'skipped', attempt: Number(existing.attempt || 1) };
     }
 
-    // Count prior failures for retry budget
-    const { data: fails } = await (db as any)
+    let failureQuery = (db as any)
       .from('finance_automation_log')
       .select('id')
       .eq('stream', stream)
       .eq('entity_id', input.entityId)
       .eq('channel', input.channel)
-      .eq('status', 'failed');
-    const failCount = fails?.length ?? 0;
+      .eq('status', 'failed')
+      .limit(MAX_ATTEMPTS);
+    failureQuery = stage === null ? failureQuery.is('stage', null) : failureQuery.eq('stage', stage);
+    const { data: failures, error: failuresError } = await failureQuery;
+    assertDbOk(failuresError, 'finance reminder failure history');
+    failCount = failures?.length ?? 0;
+
     if (failCount >= MAX_ATTEMPTS) {
       await logAutomation({
         stream,
@@ -78,21 +80,9 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
     }
   }
 
-  const attempt = 1;
+  const attempt = failCount + 1;
   try {
     await input.deliver();
-    await logAutomation({
-      stream,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      stage,
-      channel: input.channel,
-      status: 'success',
-      attempt,
-      metadata: input.metadata,
-    });
-    return { status: 'success', attempt };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     await logAutomation({
@@ -109,6 +99,21 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
     });
     return { status: 'failed', attempt, error: message };
   }
+
+  // Keep logging outside the delivery catch: a logging outage must never be
+  // recorded as if the email/notification itself failed.
+  await logAutomation({
+    stream,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    stage,
+    channel: input.channel,
+    status: 'success',
+    attempt,
+    metadata: input.metadata,
+  });
+  return { status: 'success', attempt };
 }
 
 export async function logAutomation(row: {
@@ -136,14 +141,15 @@ export async function logAutomation(row: {
     error: row.error ?? null,
     metadata: row.metadata ?? {},
   });
-  if (error && !/finance_automation_log|does not exist|duplicate|unique/i.test(error.message)) {
-    assertDbOk(error, 'finance_automation_log insert');
-  }
+  // A concurrent worker may win the unique successful-delivery race. That is
+  // already the desired durable state; every other logging failure is material.
+  if (error && /duplicate|unique/i.test(error.message) && row.status === 'success') return;
+  assertDbOk(error, 'finance_automation_log insert');
 }
 
 /**
- * When a billing cycle has a linked invoice, cycle reminders win —
- * invoice-reminders should skip that invoice for the same due window.
+ * When a billing cycle has a linked invoice, cycle reminders win. A failed
+ * lookup must stop sending instead of risking duplicate finance messages.
  */
 export async function shouldSuppressInvoiceReminder(invoiceId: string): Promise<boolean> {
   const db = createAdminClient();
@@ -153,7 +159,7 @@ export async function shouldSuppressInvoiceReminder(invoiceId: string): Promise<
     .eq('invoice_id', invoiceId)
     .limit(1)
     .maybeSingle();
-  if (error) return false;
+  assertDbOk(error, 'billing-cycle reminder suppression lookup');
   return !!data;
 }
 
@@ -164,8 +170,8 @@ export async function listFailedAutomation(limit = 50): Promise<unknown[]> {
     .select('*')
     .eq('status', 'failed')
     .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) return [];
+    .limit(Math.min(200, Math.max(1, Math.trunc(limit))));
+  assertDbOk(error, 'failed finance automation history');
   return data ?? [];
 }
 

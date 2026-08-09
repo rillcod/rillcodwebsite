@@ -19,7 +19,7 @@ export type TermBalanceReminderReport = {
 };
 
 async function termReminderCount(admin: SupabaseClient, studentId: string): Promise<number> {
-  const { count } = await admin
+  const { count, error } = await admin
     .from('finance_automation_log')
     .select('*', { count: 'exact', head: true })
     .eq('stream', TERM_STREAM)
@@ -27,11 +27,12 @@ async function termReminderCount(admin: SupabaseClient, studentId: string): Prom
     .eq('entity_id', studentId)
     .eq('channel', 'email')
     .eq('status', 'success');
+  if (error) throw new Error(`Term reminder count failed: ${error.message}`);
   return count ?? 0;
 }
 
 async function lastTermReminderAt(admin: SupabaseClient, studentId: string): Promise<Date | null> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from('finance_automation_log')
     .select('created_at')
     .eq('stream', TERM_STREAM)
@@ -41,6 +42,7 @@ async function lastTermReminderAt(admin: SupabaseClient, studentId: string): Pro
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) throw new Error(`Term reminder history failed: ${error.message}`);
   if (!data?.created_at) return null;
   const d = new Date(data.created_at);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -67,7 +69,7 @@ export async function runTermBalanceReminders(input: {
   };
 
   const cutoff = Date.now() - input.everyDays * 86400000;
-  const { data: students } = await input.admin
+  const { data: students, error: studentsError } = await input.admin
     .from('students')
     .select('id, full_name, name, parent_name, parent_email, parent_phone, enrollment_type, registration_payment_at')
     .not('registration_payment_at', 'is', null)
@@ -75,6 +77,7 @@ export async function runTermBalanceReminders(input: {
     .eq('is_deleted', false)
     .order('updated_at', { ascending: true })
     .limit(100);
+  if (studentsError) throw new Error(`Term reminder recipients failed: ${studentsError.message}`);
 
   const { notificationsService } = await import('@/services/notifications.service');
   const { buildRillcodTransactionalEmailHtml, escapeHtml } = await import('@/lib/email/rillcod-transactional-email');

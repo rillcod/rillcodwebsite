@@ -17,9 +17,10 @@ function adminClient() {
 
 async function requireAdmin() {
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('portal_users').select('id, role, full_name').eq('id', user.id).maybeSingle();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return null;
+  const { data, error } = await supabase.from('portal_users').select('id, role, full_name').eq('id', user.id).maybeSingle();
+  if (error) return null;
   if (!data || data.role !== 'admin') return null;
   return data as { id: string; role: string; full_name: string | null };
 }
@@ -37,18 +38,23 @@ export async function GET() {
   if (!caller) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const db = adminClient();
-  const { data, error } = await db
-    .from('invoices')
-    .select('id, invoice_number, amount, currency, status, school_id, created_at, metadata, schools(name)')
-    .eq('stream', 'school')
-    .not('status', 'in', '(cancelled,void)')
-    .order('created_at', { ascending: true })
-    .limit(500);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const data: any[] = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const { data: page, error } = await db
+      .from('invoices')
+      .select('id, invoice_number, amount, currency, status, school_id, created_at, metadata, schools(name)')
+      .eq('stream', 'school')
+      .not('status', 'in', '(cancelled,void)')
+      .order('created_at', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    data.push(...(page ?? []));
+    if ((page?.length ?? 0) < pageSize) break;
+  }
 
   const groups = new Map<string, any[]>();
-  for (const inv of data ?? []) {
+  for (const inv of data) {
     const term = extractSchoolTermFromMetadata(inv.metadata);
     if (!inv.school_id || !term) continue;
     // Normalized key so "2025" and "2025/2026" collapse to one session.
@@ -90,8 +96,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const keepInvoiceId = String(body.keepInvoiceId || '').trim();
-  const cancelInvoiceIds = Array.isArray(body.cancelInvoiceIds)
-    ? body.cancelInvoiceIds.map((id: unknown) => String(id)).filter(Boolean)
+  const cancelInvoiceIds: string[] = Array.isArray(body.cancelInvoiceIds)
+    ? Array.from(new Set<string>(body.cancelInvoiceIds.map((id: unknown) => String(id)).filter(Boolean)))
     : [];
   const reason = String(body.reason || 'Duplicate school term invoice cleanup').trim();
 
@@ -101,19 +107,50 @@ export async function POST(req: NextRequest) {
   if (cancelInvoiceIds.includes(keepInvoiceId)) {
     return NextResponse.json({ error: 'Cannot cancel the invoice marked to keep' }, { status: 400 });
   }
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (![keepInvoiceId, ...cancelInvoiceIds].every((id) => uuidPattern.test(id))) {
+    return NextResponse.json({ error: 'Every invoice id must be valid' }, { status: 400 });
+  }
+  if (!reason || reason.length > 300) {
+    return NextResponse.json({ error: 'Reason is required and must be 300 characters or fewer' }, { status: 400 });
+  }
 
   const db = adminClient();
+  const { data: keepInvoice, error: keepError } = await db
+    .from('invoices')
+    .select('id, invoice_number, status, school_id, stream, metadata')
+    .eq('id', keepInvoiceId)
+    .maybeSingle();
+  if (keepError) return NextResponse.json({ error: keepError.message }, { status: 500 });
+  const keepTerm = keepInvoice ? extractSchoolTermFromMetadata(keepInvoice.metadata) : null;
+  if (!keepInvoice || keepInvoice.stream !== 'school' || !keepInvoice.school_id || !keepTerm) {
+    return NextResponse.json({ error: 'The invoice to keep is not a valid school-term invoice' }, { status: 400 });
+  }
+
+  const { data: targetInvoices, error: targetsError } = await db
+    .from('invoices')
+    .select('id, invoice_number, status, billing_cycle_id, stream, school_id, metadata')
+    .in('id', cancelInvoiceIds);
+  if (targetsError) return NextResponse.json({ error: targetsError.message }, { status: 500 });
+  const targetById = new Map((targetInvoices ?? []).map((invoice) => [invoice.id, invoice]));
   const cancelled: string[] = [];
   const skipped: Array<{ id: string; reason: string }> = [];
 
   for (const id of cancelInvoiceIds) {
-    const { data: inv } = await db
-      .from('invoices')
-      .select('id, invoice_number, status, billing_cycle_id, stream')
-      .eq('id', id)
-      .maybeSingle();
+    const inv = targetById.get(id);
     if (!inv) {
       skipped.push({ id, reason: 'not found' });
+      continue;
+    }
+    const targetTerm = extractSchoolTermFromMetadata(inv.metadata);
+    if (
+      inv.stream !== 'school'
+      || inv.school_id !== keepInvoice.school_id
+      || !targetTerm
+      || targetTerm.periodLabel !== keepTerm.periodLabel
+      || Number(targetTerm.termNumber) !== Number(keepTerm.termNumber)
+    ) {
+      skipped.push({ id, reason: 'not a duplicate of the selected school term invoice' });
       continue;
     }
     if (inv.status === 'paid') {
@@ -121,7 +158,16 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const cycleId = await resolveBillingCycleIdForInvoice(db, inv);
+    let cycleId: string | null;
+    try {
+      cycleId = await resolveBillingCycleIdForInvoice(db, inv);
+    } catch (error) {
+      skipped.push({
+        id,
+        reason: error instanceof Error ? error.message : 'linked billing-cycle lookup failed',
+      });
+      continue;
+    }
     if (cycleId) {
       const sync = await syncInvoiceFieldsThroughBillingCycle(db, cycleId, {
         invoice_status: 'cancelled',
@@ -132,7 +178,7 @@ export async function POST(req: NextRequest) {
       }
     } else {
       const noteSuffix = ` [cancelled duplicate: ${reason}]`;
-      const { error } = await db
+      const { data: updated, error } = await db
         .from('invoices')
         .update({
           status: 'cancelled',
@@ -140,9 +186,11 @@ export async function POST(req: NextRequest) {
           notes: noteSuffix,
         })
         .eq('id', id)
-        .not('status', 'in', '(cancelled,void,paid)');
-      if (error) {
-        skipped.push({ id, reason: error.message });
+        .not('status', 'in', '(cancelled,void,paid)')
+        .select('id')
+        .maybeSingle();
+      if (error || !updated) {
+        skipped.push({ id, reason: error?.message || 'invoice changed before cancellation' });
         continue;
       }
     }
@@ -159,7 +207,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    success: true,
+    success: skipped.length === 0,
+    complete: skipped.length === 0,
     kept: keepInvoiceId,
     cancelled,
     skipped,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { DEFAULT_CONFIG, type BillingAutomationConfig } from './config';
+import { logAudit } from '@/lib/audit/log';
+import { DEFAULT_CONFIG, parseBillingAutomationConfig } from './config';
 
 const SETTING_KEY = 'billing_automation_config';
 
@@ -24,24 +25,54 @@ export async function GET() {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const db = createAdminClient();
-  const { data } = await db
+  const { data, error } = await db
     .from('system_settings')
-    .select('setting_value')
+    .select('id, setting_value')
     .eq('setting_key', SETTING_KEY)
     .maybeSingle();
+  if (error) {
+    return NextResponse.json(
+      { error: 'Failed to load billing automation settings', detail: error.message },
+      { status: 500 },
+    );
+  }
 
-  let config = DEFAULT_CONFIG;
+  let config;
   if (data?.setting_value) {
-    try { config = { ...DEFAULT_CONFIG, ...JSON.parse(data.setting_value) }; } catch { /* use defaults */ }
+    let stored: unknown;
+    try {
+      stored = JSON.parse(data.setting_value);
+    } catch {
+      return NextResponse.json(
+        { error: 'Billing automation settings are corrupt; repair them before running reminders' },
+        { status: 500 },
+      );
+    }
+    const parsed = parseBillingAutomationConfig(stored);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 500 });
+    }
+    config = parsed.config;
   } else {
     // Persist defaults once so Settings / cron share the same row.
-    await db.from('system_settings').insert({
-      setting_key: SETTING_KEY,
-      setting_value: JSON.stringify(DEFAULT_CONFIG),
-      category: 'billing',
-      description: 'Automated billing reminder rules and schedule',
-      is_public: false,
-    });
+    const { data: inserted, error: insertError } = await db
+      .from('system_settings')
+      .insert({
+        setting_key: SETTING_KEY,
+        setting_value: JSON.stringify(DEFAULT_CONFIG),
+        category: 'billing',
+        description: 'Automated billing reminder rules and schedule',
+        is_public: false,
+      })
+      .select('id')
+      .single();
+    if (insertError || !inserted) {
+      return NextResponse.json(
+        { error: 'Failed to initialize billing automation settings', detail: insertError?.message },
+        { status: 500 },
+      );
+    }
+    config = DEFAULT_CONFIG;
   }
 
   return NextResponse.json({ config });
@@ -51,45 +82,81 @@ export async function POST(req: NextRequest) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const body = await req.json().catch(() => ({}));
-  const config: BillingAutomationConfig = {
-    invoice_reminders_enabled:   !!body.invoice_reminders_enabled,
-    finance_messages_enabled:     body.finance_messages_enabled !== false,
-    billing_cycle_reminders_enabled: body.billing_cycle_reminders_enabled !== false,
-    reminder_1_days_after_issue: Math.max(0, Number(body.reminder_1_days_after_issue ?? 1)),
-    reminder_2_days_before_due:  Math.max(0, Number(body.reminder_2_days_before_due  ?? 3)),
-    reminder_3_days_after_due:   Math.max(0, Number(body.reminder_3_days_after_due   ?? 1)),
-    auto_overdue_enabled:        !!body.auto_overdue_enabled,
-    notify_email:                !!body.notify_email,
-    notify_in_app:               !!body.notify_in_app,
-    notify_whatsapp:             body.notify_whatsapp !== false,
-  };
+  const body = await req.json().catch(() => null);
+  const parsed = parseBillingAutomationConfig(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+  }
+  const config = parsed.config;
 
   const db = createAdminClient();
-  const { data: existing } = await db
+  const { data: existing, error: existingError } = await db
     .from('system_settings')
-    .select('id')
+    .select('id, setting_value')
     .eq('setting_key', SETTING_KEY)
     .maybeSingle();
+  if (existingError) {
+    return NextResponse.json(
+      { success: false, error: 'Failed to inspect billing automation settings', detail: existingError.message },
+      { status: 500 },
+    );
+  }
 
+  let savedId: string | null = null;
   let writeError: { message: string } | null = null;
   if (existing) {
-    const { error } = await db.from('system_settings').update({
-      setting_value: JSON.stringify(config),
-      updated_at: new Date().toISOString(),
-    }).eq('id', existing.id);
+    const { data, error } = await db
+      .from('system_settings')
+      .update({
+        setting_value: JSON.stringify(config),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('id')
+      .maybeSingle();
     writeError = error;
+    savedId = data?.id ?? null;
   } else {
-    const { error } = await db.from('system_settings').insert({
-      setting_key: SETTING_KEY,
-      setting_value: JSON.stringify(config),
-      category: 'billing',
-      description: 'Automated billing reminder rules and schedule',
-      is_public: false,
-    });
+    const { data, error } = await db
+      .from('system_settings')
+      .insert({
+        setting_key: SETTING_KEY,
+        setting_value: JSON.stringify(config),
+        category: 'billing',
+        description: 'Automated billing reminder rules and schedule',
+        is_public: false,
+      })
+      .select('id')
+      .single();
     writeError = error;
+    savedId = data?.id ?? null;
   }
   if (writeError) return NextResponse.json({ success: false, error: 'Failed to save billing automation settings', code: 'db_error', detail: writeError.message }, { status: 500 });
+  if (!savedId) {
+    return NextResponse.json(
+      { success: false, error: 'Billing automation settings were not changed', code: 'no_change' },
+      { status: 409 },
+    );
+  }
+
+  let oldConfig: Record<string, unknown> | null = null;
+  if (existing?.setting_value) {
+    try {
+      const oldParsed = parseBillingAutomationConfig(JSON.parse(existing.setting_value));
+      if (oldParsed.ok) oldConfig = oldParsed.config as unknown as Record<string, unknown>;
+    } catch {
+      oldConfig = { corrupt_setting_replaced: true };
+    }
+  }
+  await logAudit(db as any, {
+    action: 'update_billing_automation_settings',
+    actorId: caller.id,
+    resourceType: 'system_setting',
+    resourceId: savedId,
+    tableName: 'system_settings',
+    oldValues: oldConfig,
+    newValues: config as unknown as Record<string, unknown>,
+  });
 
   return NextResponse.json({ success: true, config });
 }

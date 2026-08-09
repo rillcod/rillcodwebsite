@@ -17,12 +17,39 @@ export async function ensureBillingCycleInvoice(
   try {
     // Already linked / already invoiced?
     if (transaction.invoice_id) return transaction.invoice_id;
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from('invoices')
       .select('id')
       .eq('payment_transaction_id', transaction.id)
       .maybeSingle();
-    if (existing?.id) return existing.id;
+    if (existingError) {
+      console.error('[ensureBillingCycleInvoice] existing invoice lookup failed:', existingError.message);
+      return null;
+    }
+    if (existing?.id) {
+      const { data: linked, error: linkError } = await admin
+        .from('payment_transactions')
+        .update({ invoice_id: existing.id })
+        .eq('id', transaction.id)
+        .is('invoice_id', null)
+        .select('id')
+        .maybeSingle();
+      if (linkError) {
+        console.error('[ensureBillingCycleInvoice] existing invoice link failed:', linkError.message);
+        return null;
+      }
+      // A concurrent process may already have linked the transaction. Reload to
+      // prove that it points to this invoice before reporting success.
+      if (!linked) {
+        const { data: reloaded, error: reloadError } = await admin
+          .from('payment_transactions')
+          .select('invoice_id')
+          .eq('id', transaction.id)
+          .maybeSingle();
+        if (reloadError || reloaded?.invoice_id !== existing.id) return null;
+      }
+      return existing.id;
+    }
 
     // Pull a friendly term label for the line item.
     let termLabel: string | null = null;
@@ -67,7 +94,17 @@ export async function ensureBillingCycleInvoice(
       return null;
     }
 
-    await admin.from('payment_transactions').update({ invoice_id: inv.id }).eq('id', transaction.id);
+    const { data: linked, error: linkError } = await admin
+      .from('payment_transactions')
+      .update({ invoice_id: inv.id })
+      .eq('id', transaction.id)
+      .is('invoice_id', null)
+      .select('id')
+      .maybeSingle();
+    if (linkError || !linked) {
+      console.error('[ensureBillingCycleInvoice] transaction link failed:', linkError?.message || 'transaction was not updated');
+      return null;
+    }
     return inv.id;
   } catch (err) {
     console.error('[ensureBillingCycleInvoice] failed:', err);

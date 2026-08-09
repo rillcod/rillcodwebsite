@@ -39,11 +39,12 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('portal_users')
       .select('role')
       .eq('id', user.id)
       .single();
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
     }
@@ -128,6 +129,7 @@ export async function GET(request: NextRequest) {
           findings: {},
         },
         findings: [],
+        complete: false,
         warning: rulesErr?.message || 'Findings engine failed',
       });
     }
@@ -146,6 +148,7 @@ export async function GET(request: NextRequest) {
         findings: rules.summary,
       },
       findings: rules.findings,
+      complete: true,
     });
   } catch (e: any) {
     console.error('[reconciliation] GET failed:', e?.message || e);
@@ -163,7 +166,8 @@ export async function DELETE(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  const { data: profile, error: profileError } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
 
   const id = new URL(request.url).searchParams.get('id');
@@ -180,10 +184,11 @@ export async function DELETE(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = adminClient();
-    const { data: profile } = await admin.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+    const { data: profile, error: profileError } = await admin.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
     if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '');
@@ -229,22 +234,27 @@ export async function POST(request: NextRequest) {
         }, { status: 409 });
       }
 
-      const { data: inv } = await admin
+      const { data: inv, error: invoiceError } = await admin
         .from('invoices')
         .select('id, invoice_number, status, amount_paid, amount_remaining, original_amount, amount')
         .eq('id', tx.invoice_id)
         .maybeSingle();
+      if (invoiceError) return NextResponse.json({ error: invoiceError.message }, { status: 500 });
+      if (!inv) return NextResponse.json({ error: 'Linked invoice not found' }, { status: 409 });
 
       // Legacy: invoice already marked paid with no allocation rows — backfill only.
       const remaining = Number(inv?.amount_remaining ?? 0);
       const alreadyPaid = String(inv?.status || '').toLowerCase() === 'paid' || remaining <= 0.01;
       if (alreadyPaid) {
-        const { data: existingAlloc } = await (admin as any)
+        const { data: existingAlloc, error: allocationLookupError } = await (admin as any)
           .from('payment_allocations')
           .select('id')
           .eq('payment_transaction_id', tx.id)
           .eq('invoice_id', tx.invoice_id)
           .maybeSingle();
+        if (allocationLookupError) {
+          return NextResponse.json({ error: allocationLookupError.message }, { status: 500 });
+        }
         if (existingAlloc?.id) {
           result = { status: 'already_allocated', allocation_id: existingAlloc.id, invoice_id: tx.invoice_id };
         } else {
@@ -259,9 +269,9 @@ export async function POST(request: NextRequest) {
             })
             .select('id')
             .maybeSingle();
-          if (insErr) {
+          if (insErr || !inserted?.id) {
             return NextResponse.json({
-              error: `Could not backfill allocation for paid invoice ${inv?.invoice_number || tx.invoice_id}: ${insErr.message}`,
+              error: `Could not backfill allocation for paid invoice ${inv?.invoice_number || tx.invoice_id}: ${insErr?.message || 'no allocation row returned'}`,
               code: 'backfill_failed',
             }, { status: 500 });
           }
@@ -302,19 +312,22 @@ export async function POST(request: NextRequest) {
     } else if (action === 'recover_missing_receipt') {
       try {
         // Fast path: receipt PDF exists but transaction.receipt_url was never linked.
-        const { data: existingReceipt } = await (admin as any)
+        const { data: existingReceipt, error: receiptLookupError } = await (admin as any)
           .from('receipts')
           .select('id, receipt_number, pdf_url')
           .eq('transaction_id', entityId)
           .maybeSingle();
+        if (receiptLookupError) throw new Error(`Receipt lookup failed: ${receiptLookupError.message}`);
         if (existingReceipt?.pdf_url) {
-          const { error: linkErr } = await admin
+          const { data: linked, error: linkErr } = await admin
             .from('payment_transactions')
             .update({ receipt_url: existingReceipt.pdf_url })
-            .eq('id', entityId);
-          if (linkErr) {
+            .eq('id', entityId)
+            .select('id')
+            .maybeSingle();
+          if (linkErr || !linked) {
             return NextResponse.json({
-              error: `Receipt PDF exists but could not link to payment: ${linkErr.message}`,
+              error: `Receipt PDF exists but could not link to payment: ${linkErr?.message || 'payment not found'}`,
               code: 'link_failed',
             }, { status: 500 });
           }

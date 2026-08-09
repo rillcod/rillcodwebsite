@@ -286,10 +286,13 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
 
     setSavingForm(true);
     try {
-      const payload = {
+      const ownerPayload = editingId ? {} : {
         owner_type: form.owner_type,
         owner_school_id: form.owner_type === 'school' ? form.owner_school_id : null,
         owner_user_id: form.owner_type === 'individual' ? form.owner_user_id : null,
+      };
+      const payload = {
+        ...ownerPayload,
         term_label: form.term_label.trim(),
         term_start_date: form.term_start_date,
         due_date: form.due_date,

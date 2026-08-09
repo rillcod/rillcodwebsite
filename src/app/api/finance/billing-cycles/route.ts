@@ -9,10 +9,22 @@ import { roleHasCapability } from '@/lib/auth/capabilities';
 
 async function getCaller() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return null;
+  const { data, error } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+  if (error) return null;
   return data as { id: string; role: string; school_id: string | null } | null;
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isIsoDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 async function teacherScopedSchoolIds(
@@ -22,11 +34,13 @@ async function teacherScopedSchoolIds(
 ) {
   const ids = new Set<string>();
   if (primarySchoolId) ids.add(primarySchoolId);
-  const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+  const { data: ts, error: teacherSchoolsError } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+  if (teacherSchoolsError) throw new Error(`Teacher school scope failed: ${teacherSchoolsError.message}`);
   (ts ?? []).forEach((r: { school_id: string | null }) => {
     if (r.school_id) ids.add(r.school_id);
   });
-  const { data: cls } = await db.from('classes').select('school_id').eq('teacher_id', teacherId);
+  const { data: cls, error: classesError } = await db.from('classes').select('school_id').eq('teacher_id', teacherId);
+  if (classesError) throw new Error(`Teacher class scope failed: ${classesError.message}`);
   (cls ?? []).forEach((r: { school_id: string | null }) => {
     if (r.school_id) ids.add(r.school_id);
   });
@@ -65,7 +79,15 @@ export async function GET(request: Request) {
     const sid = caller.school_id;
     q = q.or(`school_id.eq.${sid},owner_school_id.eq.${sid}`) as typeof q;
   } else if (caller.role === 'teacher') {
-    const ids = await teacherScopedSchoolIds(db, caller.id, caller.school_id);
+    let ids: string[];
+    try {
+      ids = await teacherScopedSchoolIds(db, caller.id, caller.school_id);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Teacher finance scope failed' },
+        { status: 500 },
+      );
+    }
     if (ids.length === 0) return NextResponse.json({ data: [] });
     const inList = ids.join(',');
     q = q.or(
@@ -92,18 +114,34 @@ export async function PATCH(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const { id } = body as { id?: string };
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ error: 'A valid billing cycle id is required' }, { status: 400 });
+  if (body.owner_type !== undefined || body.owner_school_id !== undefined || body.owner_user_id !== undefined) {
+    return NextResponse.json(
+      { error: 'Billing ownership cannot be changed after cycle creation; cancel and create a replacement cycle' },
+      { status: 409 },
+    );
+  }
 
   const allowedStatus = ['paid', 'cancelled', 'due', 'past_due', 'rolled_over'] as const;
-  const allowedOwnerType = ['school', 'individual'] as const;
   const allowedCurrencies = ['NGN', 'USD'] as const;
 
   const updates: any = { updated_at: new Date().toISOString() };
 
   if (typeof body.term_label === 'string' && body.term_label.trim()) updates.term_label = body.term_label.trim();
-  if (typeof body.term_start_date === 'string' && body.term_start_date) updates.term_start_date = body.term_start_date;
-  if (typeof body.due_date === 'string' && body.due_date) updates.due_date = body.due_date;
-  if (typeof body.amount_due === 'number' && Number.isFinite(body.amount_due)) updates.amount_due = body.amount_due;
+  if (body.term_start_date !== undefined) {
+    if (!isIsoDate(body.term_start_date)) return NextResponse.json({ error: 'Invalid term_start_date' }, { status: 400 });
+    updates.term_start_date = body.term_start_date;
+  }
+  if (body.due_date !== undefined) {
+    if (!isIsoDate(body.due_date)) return NextResponse.json({ error: 'Invalid due_date' }, { status: 400 });
+    updates.due_date = body.due_date;
+  }
+  if (body.amount_due !== undefined) {
+    if (typeof body.amount_due !== 'number' || !Number.isFinite(body.amount_due) || body.amount_due <= 0) {
+      return NextResponse.json({ error: 'amount_due must be greater than zero' }, { status: 400 });
+    }
+    updates.amount_due = body.amount_due;
+  }
 
   if (typeof body.currency === 'string') {
     const currency = body.currency.toUpperCase();
@@ -122,69 +160,29 @@ export async function PATCH(request: Request) {
 
   const db = createAdminClient();
 
-  if (typeof body.owner_type === 'string') {
-    if (!allowedOwnerType.includes(body.owner_type as (typeof allowedOwnerType)[number])) {
-      return NextResponse.json({ error: 'Invalid owner_type' }, { status: 400 });
-    }
-    updates.owner_type = body.owner_type;
-    if (body.owner_type === 'school') {
-      const ownerSchoolId = String(body.owner_school_id || '').trim();
-      if (!ownerSchoolId) {
-        return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
-      }
-      const { data: owner } = await db.from('schools').select('id').eq('id', ownerSchoolId).maybeSingle();
-      if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
-      updates.owner_school_id = ownerSchoolId;
-      updates.school_id = ownerSchoolId;
-      updates.owner_user_id = null;
-    } else {
-      const ownerUserId = String(body.owner_user_id || '').trim();
-      if (!ownerUserId) {
-        return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
-      }
-      const { data: owner } = await db
-        .from('portal_users')
-        .select('id, role')
-        .eq('id', ownerUserId)
-        .maybeSingle();
-      if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
-      const role = String(owner.role || '').toLowerCase();
-      if (!['student', 'parent'].includes(role)) {
-        return NextResponse.json(
-          { error: 'Individual billing owners must be a student or parent account' },
-          { status: 400 },
-        );
-      }
-      updates.owner_user_id = ownerUserId;
-      updates.owner_school_id = null;
-      updates.school_id = null;
-    }
-  }
-
   if (Object.keys(updates).length === 1) {
     return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
   }
 
   if (body.status === 'paid') {
-    const { data: cycle } = await db
+    if (Object.keys(updates).some((key) => !['status', 'updated_at'].includes(key))) {
+      return NextResponse.json(
+        { error: 'Save cycle edits before marking it paid; payment settlement must be a separate action' },
+        { status: 400 },
+      );
+    }
+    const { data: cycle, error: cycleError } = await db
       .from('billing_cycles')
       .select('id, invoice_id')
       .eq('id', id)
       .maybeSingle();
+    if (cycleError) return NextResponse.json({ error: cycleError.message }, { status: 500 });
     if (!cycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
     if (!cycle.invoice_id) {
       return NextResponse.json(
         { error: 'This billing cycle has no linked invoice. Create/link the invoice before marking it paid.' },
         { status: 409 },
       );
-    }
-
-    // Persist any non-status edits first (owner/term/amount) before payment verification.
-    const sideUpdates = { ...updates };
-    delete sideUpdates.status;
-    if (Object.keys(sideUpdates).length > 1) {
-      const { error: sideErr } = await db.from('billing_cycles').update(sideUpdates).eq('id', id);
-      if (sideErr) return NextResponse.json({ error: sideErr.message }, { status: 500 });
     }
 
     try {
@@ -196,11 +194,12 @@ export async function PATCH(request: Request) {
       });
       // verifyInvoicePayment → processSuccessfulPayment usually settles the cycle;
       // repair via the same atomic RPC the gateway uses if status lagged.
-      const { data: refreshed } = await db
+      const { data: refreshed, error: refreshError } = await db
         .from('billing_cycles')
         .select('id, status, invoice_id')
         .eq('id', id)
         .maybeSingle();
+      if (refreshError) throw new Error(`Payment verified but cycle reload failed: ${refreshError.message}`);
       if (refreshed?.status !== 'paid') {
         const settlement = await settleBillingCyclePayment(db as any, {
           billingCycleId: id,
@@ -241,8 +240,10 @@ export async function PATCH(request: Request) {
   if (existingCycleError) return NextResponse.json({ error: existingCycleError.message }, { status: 500 });
   if (!existingCycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
   if (existingCycle.status === 'paid') return NextResponse.json({ error: 'Paid billing cycles are financially locked' }, { status: 409 });
-  if (body.owner_type !== undefined || body.owner_school_id !== undefined || body.owner_user_id !== undefined) {
-    return NextResponse.json({ error: 'Billing ownership cannot be changed after cycle creation; cancel and create a replacement cycle' }, { status: 409 });
+  const resolvedTermStart = updates.term_start_date ?? existingCycle.term_start_date;
+  const resolvedDueDate = updates.due_date ?? existingCycle.due_date;
+  if (resolvedDueDate < resolvedTermStart) {
+    return NextResponse.json({ error: 'due_date cannot be before term_start_date' }, { status: 400 });
   }
   const { error } = await (db as any).rpc('update_billing_cycle_with_invoice', {
     p_cycle_id: id,
@@ -257,7 +258,19 @@ export async function PATCH(request: Request) {
     p_notes: typeof body.notes === 'string' ? body.notes : null,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const { data } = await db.from('billing_cycles').select('*').eq('id', id).single();
+  const { data, error: reloadError } = await db.from('billing_cycles').select('*').eq('id', id).single();
+  if (reloadError || !data) {
+    return NextResponse.json({ error: reloadError?.message || 'Billing cycle could not be reloaded' }, { status: 500 });
+  }
+  await logAudit(db as any, {
+    action: 'billing_cycle_updated',
+    actorId: caller.id,
+    resourceType: 'billing_cycle',
+    resourceId: id,
+    tableName: 'billing_cycles',
+    oldValues: existingCycle as unknown as Record<string, unknown>,
+    newValues: data as unknown as Record<string, unknown>,
+  });
   if (typeof body.status === 'string') {
     const rosterSync = await syncRosterBillingForCycle(db as any, id, body.status);
     if (rosterSync?.ok === false) return NextResponse.json({ data, warnings: [rosterSync.error] });
@@ -289,6 +302,12 @@ export async function POST(request: Request) {
   if (!term_label || !term_start_date || !due_date || !Number.isFinite(amount_due) || amount_due <= 0) {
     return NextResponse.json({ error: 'term_label, term_start_date, due_date, amount_due are required' }, { status: 400 });
   }
+  if (!isIsoDate(term_start_date) || !isIsoDate(due_date)) {
+    return NextResponse.json({ error: 'term_start_date and due_date must be valid dates' }, { status: 400 });
+  }
+  if (due_date < term_start_date) {
+    return NextResponse.json({ error: 'due_date cannot be before term_start_date' }, { status: 400 });
+  }
   if (!['NGN', 'USD'].includes(currency)) {
     return NextResponse.json({ error: 'currency must be NGN or USD' }, { status: 400 });
   }
@@ -307,18 +326,22 @@ export async function POST(request: Request) {
     if (!rawSchoolId) {
       return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
     }
-    const { data: owner } = await db.from('schools').select('id').eq('id', rawSchoolId).maybeSingle();
+    if (!isUuid(rawSchoolId)) return NextResponse.json({ error: 'Invalid owner_school_id' }, { status: 400 });
+    const { data: owner, error: ownerError } = await db.from('schools').select('id').eq('id', rawSchoolId).maybeSingle();
+    if (ownerError) return NextResponse.json({ error: ownerError.message }, { status: 500 });
     if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
     owner_school_id = rawSchoolId;
   } else {
     if (!rawUserId) {
       return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
     }
-    const { data: owner } = await db
+    if (!isUuid(rawUserId)) return NextResponse.json({ error: 'Invalid owner_user_id' }, { status: 400 });
+    const { data: owner, error: ownerError } = await db
       .from('portal_users')
       .select('id, role')
       .eq('id', rawUserId)
       .maybeSingle();
+    if (ownerError) return NextResponse.json({ error: ownerError.message }, { status: 500 });
     if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
     const role = String(owner.role || '').toLowerCase();
     if (!['student', 'parent'].includes(role)) {
@@ -374,10 +397,11 @@ export async function DELETE(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const { id } = body as { id?: string };
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ error: 'A valid billing cycle id is required' }, { status: 400 });
 
   const db = createAdminClient();
-  const { data: existing } = await db.from('billing_cycles').select('status').eq('id', id).single();
+  const { data: existing, error: existingError } = await db.from('billing_cycles').select('status').eq('id', id).maybeSingle();
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Safety: only allow deleting cancelled or rolled_over cycles
@@ -388,7 +412,24 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const { error } = await (db as any).from('billing_cycles').update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+  const { data: archived, error } = await (db as any)
+    .from('billing_cycles')
+    .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .in('status', ['cancelled', 'rolled_over'])
+    .is('archived_at', null)
+    .select('id')
+    .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!archived) return NextResponse.json({ error: 'Billing cycle was already archived or changed' }, { status: 409 });
+  await logAudit(db as any, {
+    action: 'billing_cycle_archived',
+    actorId: caller.id,
+    resourceType: 'billing_cycle',
+    resourceId: id,
+    tableName: 'billing_cycles',
+    oldValues: { status: existing.status, archived_at: null },
+    newValues: { status: existing.status, archived: true, record_preserved: true },
+  });
   return NextResponse.json({ success: true, action: 'archived', effects: ['billing_cycle_history_preserved'] });
 }

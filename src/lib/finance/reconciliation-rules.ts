@@ -110,12 +110,14 @@ export async function runReconciliationRules(opts?: {
   }
 
   // Allocation sum vs transaction amount (batched — no N+1)
-  const { data: txs, error: txErr } = await db
+  let transactionQ = db
     .from('payment_transactions')
     .select('id, amount, currency, invoice_id, invoices!invoice_id(invoice_number, status, amount_remaining)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .not('invoice_id', 'is', null)
     .limit(limit);
+  if (opts?.schoolId) transactionQ = transactionQ.eq('school_id', opts.schoolId) as typeof transactionQ;
+  const { data: txs, error: txErr } = await transactionQ;
   assertDbOk(txErr, 'reconciliation load transactions');
 
   const txIds = (txs ?? []).map((t) => t.id);
@@ -183,11 +185,13 @@ export async function runReconciliationRules(opts?: {
   }
 
   // Invoice balance self-check
-  const { data: invoices, error: invErr } = await db
+  let invoiceQ = db
     .from('invoices')
-    .select('id, invoice_number, original_amount, amount, amount_paid, amount_remaining, status')
+    .select('id, invoice_number, original_amount, amount, amount_paid, amount_remaining, status, school_id')
     .in('status', ['sent', 'partially_paid', 'paid', 'overdue'])
     .limit(limit);
+  if (opts?.schoolId) invoiceQ = invoiceQ.eq('school_id', opts.schoolId) as typeof invoiceQ;
+  const { data: invoices, error: invErr } = await invoiceQ;
   if (invErr && /amount_paid|original_amount|amount_remaining/i.test(invErr.message)) {
     // pre-migration
   } else {
@@ -222,15 +226,16 @@ export async function runReconciliationRules(opts?: {
   // that failed" in every count while actually being parents who walked away.
   // Superseded and voided attempts are excluded — those were retired on purpose
   // and are already explained by their own stamps.
-  const { data: retired, error: retiredError } = await db
+  let retiredQ = db
     .from('payment_transactions')
     .select('id, amount, currency, school_id, created_at, payment_status, payment_gateway_response')
     .eq('payment_status', 'failed')
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (opts?.schoolId) retiredQ = retiredQ.eq('school_id', opts.schoolId) as typeof retiredQ;
+  const { data: retired, error: retiredError } = await retiredQ;
   assertDbOk(retiredError, 'reconciliation abandoned attempts');
   for (const row of retired ?? []) {
-    if (opts?.schoolId && row.school_id !== opts.schoolId) continue;
     const meta = row.payment_gateway_response && typeof row.payment_gateway_response === 'object'
       && !Array.isArray(row.payment_gateway_response)
       ? row.payment_gateway_response as Record<string, any> : {};

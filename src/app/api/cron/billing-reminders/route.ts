@@ -8,7 +8,7 @@ import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
 import type { Json } from '@/types/supabase';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
-import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
+import { DEFAULT_CONFIG, parseBillingAutomationConfig } from '@/app/api/billing/automation/config';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 
@@ -102,21 +102,23 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
 
   for (const cycle of paidCycles ?? []) {
     if (!cycle.subscription_id) continue;
-    const { data: sub } = await db
+    const { data: sub, error: subscriptionError } = await db
       .from('subscriptions')
       .select('id, pricing_model, fixed_amount, price_per_student, school_id, auto_rollover')
       .eq('id', cycle.subscription_id)
       .maybeSingle();
+    if (subscriptionError) throw new Error(`Could not load subscription ${cycle.subscription_id}: ${subscriptionError.message}`);
     if (!sub || sub.auto_rollover === false) continue;
 
     let nextAmount = Number(cycle.amount_due ?? 0);
     if (sub.pricing_model === 'fixed_school') {
       nextAmount = Number(sub.fixed_amount ?? nextAmount);
     } else if (sub.pricing_model === 'per_student' && sub.school_id) {
-      const { count } = await db
+      const { count, error: studentCountError } = await db
         .from('students')
         .select('*', { count: 'exact', head: true })
         .eq('school_id', sub.school_id);
+      if (studentCountError) throw new Error(`Could not count billed students for ${sub.school_id}: ${studentCountError.message}`);
       nextAmount = Number(sub.price_per_student ?? 0) * Number(count ?? 0);
     }
 
@@ -141,12 +143,13 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
     const nextSession = nextAcademicSession(currentSession);
     const nextLabel = formatAcademicSession(nextSession);
 
-    const { data: exists } = await db
+    const { data: exists, error: existingCycleError } = await db
       .from('billing_cycles')
       .select('id')
       .eq('subscription_id', cycle.subscription_id)
       .eq('term_label', nextLabel)
       .maybeSingle();
+    if (existingCycleError) throw new Error(`Could not check rollover uniqueness: ${existingCycleError.message}`);
     if (exists?.id) continue;
 
     const schoolIdForRollup =
@@ -163,11 +166,12 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       itemsPayload = agg.items as Json;
       rollupTotal = agg.totalAmount;
       if (agg.items.length) cycleCurrency = agg.primaryCurrency;
-      const { data: schRow } = await db
+      const { data: schRow, error: schoolError } = await db
         .from('schools')
         .select('commission_rate')
         .eq('id', schoolIdForRollup)
         .maybeSingle();
+      if (schoolError) throw new Error(`Could not load school commission: ${schoolError.message}`);
       const commissionRate = Number(
         (schRow as { commission_rate?: number | null } | null)?.commission_rate ?? 15,
       );
@@ -193,26 +197,28 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       items: itemsPayload,
     });
     if (!created.ok) {
-      console.error('[billing-reminders] rollover failed', cycle.id, created.error.message);
-      continue;
+      if (created.error.code === 'conflict') continue;
+      throw new Error(`Rollover failed for ${cycle.id}: ${created.error.message}`);
     }
 
     const newCycleId = String(created.data.cycle.id);
-    const { error: newCycleUpdateError } = await db.from('billing_cycles').update({
+    const { data: finalizedCycle, error: newCycleUpdateError } = await db.from('billing_cycles').update({
       items: itemsPayload,
       rillcod_retain_amount: rillcodRetain,
       school_settlement_amount: schoolSettlement,
       amount_due: nextAmount,
       currency: cycleCurrency,
       updated_at: new Date().toISOString(),
-    }).eq('id', newCycleId);
-    if (newCycleUpdateError) throw new Error(`Could not finalize rollover cycle: ${newCycleUpdateError.message}`);
+    }).eq('id', newCycleId).select('id').maybeSingle();
+    if (newCycleUpdateError || !finalizedCycle) throw new Error(`Could not finalize rollover cycle: ${newCycleUpdateError?.message || 'row not updated'}`);
 
-    const { error: oldCycleUpdateError } = await db.from('billing_cycles')
+    const { data: closedCycle, error: oldCycleUpdateError } = await db.from('billing_cycles')
       .update({ status: 'rolled_over', updated_at: new Date().toISOString() })
       .eq('id', cycle.id)
-      .eq('status', 'paid');
-    if (oldCycleUpdateError) throw new Error(`Could not close rolled-over cycle: ${oldCycleUpdateError.message}`);
+      .eq('status', 'paid')
+      .select('id')
+      .maybeSingle();
+    if (oldCycleUpdateError || !closedCycle) throw new Error(`Could not close rolled-over cycle: ${oldCycleUpdateError?.message || 'row not updated'}`);
   }
 }
 
@@ -239,7 +245,10 @@ async function handleRequest(request: Request) {
     const { markOverdueInvoices } = await import('@/lib/finance/overdue');
     await markOverdueInvoices();
   } catch (e: any) {
-    console.error('[billing-reminders] overdue mark failed:', e?.message);
+    return NextResponse.json(
+      { success: false, error: `Could not update overdue invoices: ${e?.message || 'unknown error'}` },
+      { status: 500 },
+    );
   }
 
   // Promote overdue cycles: 'due' → 'past_due' once the due date has passed.
@@ -262,8 +271,14 @@ async function handleRequest(request: Request) {
   }
   let communicationConfig = DEFAULT_CONFIG;
   if (governanceRow?.setting_value) {
-    try { communicationConfig = { ...DEFAULT_CONFIG, ...JSON.parse(governanceRow.setting_value) }; }
+    let stored: unknown;
+    try { stored = JSON.parse(governanceRow.setting_value); }
     catch { return NextResponse.json({ success: false, error: 'Finance communication controls are invalid; no messages were sent.' }, { status: 503 }); }
+    const parsed = parseBillingAutomationConfig(stored);
+    if (!parsed.ok) {
+      return NextResponse.json({ success: false, error: `${parsed.error}; no messages were sent.` }, { status: 503 });
+    }
+    communicationConfig = parsed.config;
   }
   if (!communicationConfig.finance_messages_enabled || !communicationConfig.billing_cycle_reminders_enabled) {
     return NextResponse.json({ success: true, disabled: true, reason: !communicationConfig.finance_messages_enabled ? 'finance_master_switch' : 'billing_cycle_switch', processed: 0, stateMaintenance: true });
@@ -308,32 +323,36 @@ async function handleRequest(request: Request) {
     let schoolName: string | null = null;
 
     if (cycle.owner_type === 'school' && cycle.owner_school_id) {
-      const { data: contact } = await db
+      const { data: contact, error: contactError } = await db
         .from('billing_contacts')
         .select('representative_email, representative_whatsapp')
         .eq('school_id', cycle.owner_school_id)
         .maybeSingle();
-      const { data: school } = await db
+      if (contactError) return NextResponse.json({ error: `Could not load billing contact: ${contactError.message}`, cycle_id: cycle.id }, { status: 500 });
+      const { data: school, error: schoolError } = await db
         .from('schools')
         .select('name, email, phone')
         .eq('id', cycle.owner_school_id)
         .maybeSingle();
-      const { data: users } = await db
+      if (schoolError) return NextResponse.json({ error: `Could not load billed school: ${schoolError.message}`, cycle_id: cycle.id }, { status: 500 });
+      const { data: users, error: usersError } = await db
         .from('portal_users')
         .select('id')
         .eq('school_id', cycle.owner_school_id)
         .in('role', ['school', 'teacher', 'admin']);
+      if (usersError) return NextResponse.json({ error: `Could not load in-app recipients: ${usersError.message}`, cycle_id: cycle.id }, { status: 500 });
 
       emailTarget = contact?.representative_email || school?.email || null;
       whatsappTarget = contact?.representative_whatsapp || school?.phone || null;
       schoolName = school?.name || null;
       inAppUsers = (users ?? []).map((u: any) => u.id);
     } else if (cycle.owner_user_id) {
-      const { data: owner } = await db
+      const { data: owner, error: ownerError } = await db
         .from('portal_users')
         .select('id, email, phone')
         .eq('id', cycle.owner_user_id)
         .maybeSingle();
+      if (ownerError) return NextResponse.json({ error: `Could not load billing owner: ${ownerError.message}`, cycle_id: cycle.id }, { status: 500 });
       emailTarget = owner?.email || null;
       whatsappTarget = owner?.phone || null;
       inAppUsers = owner?.id ? [owner.id] : [];
@@ -486,12 +505,12 @@ async function handleRequest(request: Request) {
           ? { reminder_week7_sent_at: new Date().toISOString() }
           : { reminder_week8_sent_at: new Date().toISOString() };
 
-    const { error: markerError } = await db.from('billing_cycles').update({
+    const { data: markedCycle, error: markerError } = await db.from('billing_cycles').update({
       ...reminderField,
       ...(noticeId ? { sticky_notice_id: noticeId } : {}),
       updated_at: new Date().toISOString(),
-    }).eq('id', cycle.id);
-    if (markerError) return NextResponse.json({ error: 'Reminder delivered but cycle marker failed: ' + markerError.message, cycle_id: cycle.id }, { status: 500 });
+    }).eq('id', cycle.id).select('id').maybeSingle();
+    if (markerError || !markedCycle) return NextResponse.json({ error: 'Reminder delivered but cycle marker failed: ' + (markerError?.message || 'row not updated'), cycle_id: cycle.id }, { status: 500 });
 
     if (anyDelivered) processed += 1;
   }

@@ -22,7 +22,7 @@ interface PaymentAccount {
   bank_name: string;
   account_number: string;
   account_name: string;
-  account_type: 'checking' | 'savings' | null;
+  account_type: 'current' | 'savings' | 'checking' | null;
   payment_note: string | null;
   is_active: boolean;
   created_at: string;
@@ -41,7 +41,7 @@ interface AccountFormState {
   bank_name: string;
   account_number: string;
   account_name: string;
-  account_type: 'checking' | 'savings';
+  account_type: 'current' | 'savings';
   payment_note: string;
   is_active: boolean;
 }
@@ -53,7 +53,7 @@ const BLANK: AccountFormState = {
   bank_name: '',
   account_number: '',
   account_name: '',
-  account_type: 'checking',
+  account_type: 'current',
   payment_note: '',
   is_active: true,
 };
@@ -119,7 +119,7 @@ export function AccountsPanel() {
       bank_name: a.bank_name,
       account_number: a.account_number,
       account_name: a.account_name,
-      account_type: a.account_type ?? 'checking',
+      account_type: a.account_type === 'savings' ? 'savings' : 'current',
       payment_note: a.payment_note ?? '',
       is_active: a.is_active,
     });
@@ -459,11 +459,11 @@ function AccountForm({
               <select
                 value={form.account_type}
                 onChange={(e) =>
-                  setForm({ ...form, account_type: e.target.value as 'checking' | 'savings' })
+                  setForm({ ...form, account_type: e.target.value as 'current' | 'savings' })
                 }
                 className="w-full text-sm border border-border bg-background px-3 py-2 rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="checking">Checking / Current</option>
+                <option value="current">Current</option>
                 <option value="savings">Savings</option>
               </select>
             </div>

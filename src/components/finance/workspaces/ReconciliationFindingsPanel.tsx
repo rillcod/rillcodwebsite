@@ -31,6 +31,7 @@ export function ReconciliationFindingsPanel() {
   const [summary, setSummary] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [repairAllBusy, setRepairAllBusy] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
@@ -45,6 +46,7 @@ export function ReconciliationFindingsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const res = await fetch('/api/finance/reconciliation?limit=100', { cache: 'no-store' });
       const text = await res.text();
@@ -61,7 +63,9 @@ export function ReconciliationFindingsPanel() {
       if (!res.ok) throw new Error(j.error || `Failed to load reconciliation (HTTP ${res.status})`);
       setFindings(Array.isArray(j.findings) ? j.findings : []);
       setSummary(j.summary?.findings || {});
-      if (j.warning) toast.message(String(j.warning));
+      if (j.warning || j.complete === false) {
+        setWarning(String(j.warning || 'Reconciliation checks are incomplete'));
+      }
     } catch (e: any) {
       setError(e.message || 'Failed to load');
     } finally {
@@ -244,7 +248,13 @@ export function ReconciliationFindingsPanel() {
         </p>
       )}
 
-      {!error && visible.length === 0 && (
+      {warning && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          Checks are incomplete: {warning}. Do not treat an empty list as a clean ledger; refresh after the service recovers.
+        </p>
+      )}
+
+      {!error && !warning && visible.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {findings.length === 0
             ? 'No open findings — ledger looks consistent.'

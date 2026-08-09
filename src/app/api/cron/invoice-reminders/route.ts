@@ -18,7 +18,11 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
-import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
+import {
+  DEFAULT_CONFIG,
+  parseBillingAutomationConfig,
+  type BillingAutomationConfig,
+} from '@/app/api/billing/automation/config';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +44,12 @@ async function loadConfig(db: ReturnType<typeof createAdminClient>): Promise<Bil
     .maybeSingle();
   if (error) throw new Error(`Unable to read Finance communication settings: ${error.message}`);
   if (!data?.setting_value) return DEFAULT_CONFIG;
-  try { return { ...DEFAULT_CONFIG, ...JSON.parse(data.setting_value) }; }
+  let stored: unknown;
+  try { stored = JSON.parse(data.setting_value); }
   catch { throw new Error('Finance communication settings are invalid; no reminders were sent.'); }
+  const parsed = parseBillingAutomationConfig(stored);
+  if (!parsed.ok) throw new Error(`${parsed.error}; no reminders were sent.`);
+  return parsed.config;
 }
 
 async function run(triggeredBy: 'cron' | 'manual') {
@@ -51,7 +59,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
   const result = { invoices_scanned: 0, reminders_sent: 0, overdue_marked: 0, errors: 0, skipped: 0, details: [] as any[] };
 
   if ((!config.finance_messages_enabled || !config.invoice_reminders_enabled) && !config.auto_overdue_enabled) {
-    await db.from('invoice_automation_logs').insert({
+    const { error: disabledLogError } = await db.from('invoice_automation_logs').insert({
       triggered_by: triggeredBy,
       invoices_scanned: 0,
       reminders_sent: 0,
@@ -59,6 +67,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
       errors: 0,
       details: [{ info: 'Automation disabled — skipped' }],
     });
+    if (disabledLogError) throw new Error(`Could not record disabled automation run: ${disabledLogError.message}`);
     return result;
   }
 
@@ -72,8 +81,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
     .limit(200);
 
   if (error) {
-    console.error('[invoice-reminders cron] failed to load invoices:', error.message);
-    return result;
+    throw new Error(`Failed to load invoices: ${error.message}`);
   }
 
   result.invoices_scanned = (invoices ?? []).length;
@@ -85,8 +93,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
       const overdue = await markOverdueInvoices();
       result.overdue_marked = overdue.updated;
     } catch (e: any) {
-      console.error('[invoice-reminders] overdue mark failed:', e?.message);
-      result.errors++;
+      throw new Error(`Could not update overdue invoices: ${e?.message || 'unknown error'}`);
     }
   }
 
@@ -247,9 +254,8 @@ async function run(triggeredBy: 'cron' | 'manual') {
     }
   }
 
-  // Log the run
-  try {
-    await db.from('invoice_automation_logs').insert({
+  // Log the run. Per-message deduplication makes a retry safe if this write fails.
+  const { error: runLogError } = await db.from('invoice_automation_logs').insert({
       triggered_by: triggeredBy,
       invoices_scanned: result.invoices_scanned,
       reminders_sent: result.reminders_sent,
@@ -257,7 +263,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
       errors: result.errors,
       details: result.details,
     });
-  } catch { /* non-critical */ }
+  if (runLogError) throw new Error(`Automation completed but run log failed: ${runLogError.message}`);
 
   return result;
 }
@@ -276,10 +282,11 @@ async function handleRequest(req: NextRequest, type: 'cron' | 'manual') {
     if (type === 'manual') {
       const { createClient: createServerClient } = await import('@/lib/supabase/server');
       const supabase = await createServerClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       const db = createAdminClient();
-      const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).single();
+      const { data: profile, error: profileError } = await db.from('portal_users').select('role').eq('id', user.id).single();
+      if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
       if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     } else {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

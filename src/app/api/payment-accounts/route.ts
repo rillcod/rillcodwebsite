@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
+import { parsePaymentAccountInput } from '@/lib/finance/payment-account-input';
 
 function adminClient() {
   return createClient(
@@ -41,9 +42,9 @@ export async function GET() {
     .order('created_at', { ascending: false });
 
   if (caller.role === 'school') {
-    query = query.or(
-      `owner_type.eq.rillcod,and(owner_type.eq.school,school_id.eq.${caller.school_id})`,
-    );
+    query = caller.school_id
+      ? query.or(`owner_type.eq.rillcod,and(owner_type.eq.school,school_id.eq.${caller.school_id})`)
+      : query.eq('owner_type', 'rillcod');
   } else if (caller.role === 'student' || caller.role === 'parent' || caller.role === 'teacher') {
     query = query.eq('owner_type', 'rillcod').eq('is_active', true);
   }
@@ -62,46 +63,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  const parsed = parsePaymentAccountInput(body);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const raw = body as Record<string, unknown>;
 
   // School hardening
   if (caller.role === 'school') {
-    if (body.owner_type !== 'school') {
+    if (raw.owner_type !== 'school') {
       return NextResponse.json({ error: 'Schools can only create school-owned accounts' }, { status: 403 });
     }
-    if (!caller.school_id || body.school_id !== caller.school_id) {
+    if (!caller.school_id || raw.school_id !== caller.school_id) {
       return NextResponse.json({ error: 'school_id must match your school' }, { status: 403 });
     }
   }
   const ownerType = caller.role === 'school'
     ? 'school'
-    : body.owner_type === 'school' ? 'school' : 'rillcod';
-  const schoolId = ownerType === 'school'
-    ? (caller.role === 'school' ? caller.school_id : body.school_id)
-    : null;
-  const required = ['label', 'bank_name', 'account_number', 'account_name'] as const;
-  if (required.some((field) => !String(body[field] || '').trim())) {
-    return NextResponse.json({ error: 'Label, bank, account number, and account name are required' }, { status: 400 });
+    : raw.owner_type === 'school' ? 'school' : raw.owner_type === 'rillcod' ? 'rillcod' : null;
+  if (!ownerType) {
+    return NextResponse.json({ error: 'owner_type must be rillcod or school' }, { status: 400 });
   }
+  const schoolId = ownerType === 'school'
+    ? (caller.role === 'school' ? caller.school_id : String(raw.school_id || '').trim())
+    : null;
   if (ownerType === 'school' && !schoolId) {
     return NextResponse.json({ error: 'school_id is required for a school account' }, { status: 400 });
   }
+  const admin = adminClient();
+  if (schoolId) {
+    const { data: school, error: schoolError } = await admin
+      .from('schools')
+      .select('id')
+      .eq('id', schoolId)
+      .maybeSingle();
+    if (schoolError) return NextResponse.json({ error: schoolError.message }, { status: 500 });
+    if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 });
+  }
 
   const payload = {
+    ...parsed.value,
     owner_type: ownerType,
     school_id: schoolId,
-    label: String(body.label).trim(),
-    bank_name: String(body.bank_name).trim(),
-    account_number: String(body.account_number).trim(),
-    account_name: String(body.account_name).trim(),
-    account_type: body.account_type === 'current' ? 'current' : 'savings',
-    payment_note: body.payment_note ? String(body.payment_note).trim() : null,
-    is_active: body.is_active !== false,
     created_by: caller.id,
   };
 
-
-  const admin = adminClient();
   const { data, error } = await admin
     .from('payment_accounts')
     .insert(payload)
@@ -118,5 +123,5 @@ export async function POST(request: NextRequest) {
     newValues: { owner_type: data.owner_type, school_id: data.school_id, label: data.label },
   });
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data }, { status: 201 });
 }

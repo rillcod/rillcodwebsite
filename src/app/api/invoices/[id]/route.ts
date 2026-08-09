@@ -134,9 +134,17 @@ export async function PATCH(
   if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
 
   const cycleLinkedUpdate = [due_date, status, items, amount, metadata, notes].some((value) => value !== undefined);
-  const cycleId = cycleLinkedUpdate
-    ? await resolveBillingCycleIdForInvoice(admin, existing)
-    : null;
+  let cycleId: string | null = null;
+  if (cycleLinkedUpdate) {
+    try {
+      cycleId = await resolveBillingCycleIdForInvoice(admin, existing);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Linked billing-cycle lookup failed' },
+        { status: 500 },
+      );
+    }
+  }
 
   if (cycleId && cycleLinkedUpdate) {
     const requestedStatus = status === undefined ? undefined : normalizeInvoiceStatus(status);
@@ -340,7 +348,15 @@ export async function DELETE(
     );
   }
 
-  const cycleId = await resolveBillingCycleIdForInvoice(admin, existing);
+  let cycleId: string | null;
+  try {
+    cycleId = await resolveBillingCycleIdForInvoice(admin, existing);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Linked billing-cycle lookup failed' },
+      { status: 500 },
+    );
+  }
   if (cycleId) {
     const sync = await syncInvoiceFieldsThroughBillingCycle(admin, cycleId, {
       invoice_status: 'cancelled',

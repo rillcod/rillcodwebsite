@@ -23,11 +23,12 @@ export async function resolveBillingCycleIdForInvoice(
   invoice: { id: string; billing_cycle_id?: string | null },
 ): Promise<string | null> {
   if (invoice.billing_cycle_id) return invoice.billing_cycle_id;
-  const { data } = await admin
+  const { data, error } = await admin
     .from('billing_cycles')
     .select('id')
     .eq('invoice_id', invoice.id)
     .maybeSingle();
+  if (error) throw new Error(`Linked billing-cycle lookup failed: ${error.message}`);
   return data?.id ?? null;
 }
 

@@ -16,7 +16,7 @@ import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 import { resolveApprovedTemplate } from '@/lib/communication/template-registry';
-import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
+import { DEFAULT_CONFIG, parseBillingAutomationConfig } from '@/app/api/billing/automation/config';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { registeredProgrammeName } from '@/lib/registration/programme-label';
 import { cronInterval } from '@/lib/operations/cron-registry';
@@ -84,8 +84,14 @@ async function handle(req: NextRequest) {
   }
   let governance = DEFAULT_CONFIG;
   if (governanceRow?.setting_value) {
-    try { governance = { ...DEFAULT_CONFIG, ...JSON.parse(governanceRow.setting_value) }; }
+    let stored: unknown;
+    try { stored = JSON.parse(governanceRow.setting_value); }
     catch { return NextResponse.json({ success: false, error: 'Finance master control is invalid; no messages were sent.' }, { status: 503 }); }
+    const parsed = parseBillingAutomationConfig(stored);
+    if (!parsed.ok) {
+      return NextResponse.json({ success: false, error: `${parsed.error}; no messages were sent.` }, { status: 503 });
+    }
+    governance = parsed.config;
   }
   if (!governance.finance_messages_enabled) {
     return NextResponse.json({ success: true, disabled: true, reason: 'finance_master_switch', scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0 });
@@ -124,13 +130,16 @@ async function handle(req: NextRequest) {
 
   // Oldest-touched first: stamping a reminder bumps updated_at, so already-reminded
   // prospects sink to the back and each run advances to fresh ones (resumable batching).
-  const { data: prospects } = await admin
+  const { data: prospects, error: prospectsError } = await admin
     .from('prospective_students')
     .select('id, full_name, parent_name, parent_email, email, parent_phone, notes, preferred_schedule, course_interest')
     .eq('status', 'partially_paid')
     .eq('is_active', true)
     .order('updated_at', { ascending: true })
     .limit(100);
+  if (prospectsError) {
+    return NextResponse.json({ success: false, error: `Could not load balance-reminder recipients: ${prospectsError.message}` }, { status: 500 });
+  }
 
   // Stop ~10s before the 60s serverless cap so a partial run is saved and the next
   // scheduled run resumes — never killed mid-send.
@@ -159,19 +168,25 @@ async function handle(req: NextRequest) {
 
     // Resolve the outstanding balance from completed transactions, not stale
     // balance_due JSON on an old deposit transaction.
-    const { data: txs } = await admin
+    const { data: txs, error: transactionsError } = await admin
       .from('payment_transactions')
       .select('amount')
       .contains('payment_gateway_response', { prospect_id: p.id })
       .in('payment_status', ['completed', 'success', 'paid']);
+    if (transactionsError) throw new Error(`Could not calculate balance for ${p.id}: ${transactionsError.message}`);
     const amountPaid = (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
     const preferredMode = p.preferred_schedule || 'Online';
     const totalTuition = getSummerTotalTuition(preferredMode);
     const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
     if (balanceDue <= 0) {
-      await admin.from('prospective_students')
+      const { data: paidProspect, error: paidStatusError } = await admin.from('prospective_students')
         .update({ status: 'paid', updated_at: new Date().toISOString() })
-        .eq('id', p.id);
+        .eq('id', p.id)
+        .select('id')
+        .maybeSingle();
+      if (paidStatusError || !paidProspect) {
+        throw new Error(`Balance is clear but paid status could not be saved for ${p.id}: ${paidStatusError?.message || 'row not updated'}`);
+      }
       report.skipped++;
       continue;
     }
@@ -278,12 +293,17 @@ async function handle(req: NextRequest) {
       .replace(/\s*\[BalanceReminded:[^\]]*\]/gi, '')
       .replace(/\s*\[BalanceRemindCount:[^\]]*\]/gi, '')
       .trim();
-    await admin.from('prospective_students')
+    const { data: stamped, error: stampError } = await admin.from('prospective_students')
       .update({
         notes: `${cleanedNotes} [BalanceReminded: ${new Date().toISOString()}] [BalanceRemindCount: ${sentSoFar + 1}]`.trim(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', p.id);
+      .eq('id', p.id)
+      .select('id')
+      .maybeSingle();
+    if (stampError || !stamped) {
+      throw new Error(`Reminder delivered but recipient marker failed for ${p.id}: ${stampError?.message || 'row not updated'}`);
+    }
   }
 
   const { runTermBalanceReminders } = await import('@/lib/finance/reminders/term-balance-reminders');
