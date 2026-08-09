@@ -92,6 +92,39 @@ async function recordOutcome(input: {
   }
 }
 
+/**
+ * A failed run is reported inward, not outward.
+ *
+ * External schedulers disable a job that keeps answering 5xx. cron-job.org did
+ * exactly that to process-notifications: four runs failed inside twelve minutes
+ * on 7 Aug — all "fetch failed", an outbound WhatsApp/email call timing out —
+ * the endpoint answered 500 each time, and the schedule was switched off. The
+ * job then ran twice in the next 37 hours, only when another job's fan-out
+ * happened to reach it, against a queue that is meant to drain every minute.
+ *
+ * Nothing was wrong with the job. A transient upstream timeout had turned into a
+ * permanently disabled schedule, and it needed a person to notice and re-enable
+ * it — which is the failure mode this whole monitor exists to remove.
+ *
+ * So the HTTP status now answers the question the scheduler is actually asking:
+ * "were you reached, and did you handle it?" — not "did every downstream call
+ * succeed?". The second question is answered where it belongs, and already was:
+ * cron_run_history.success, cron_job_health.consecutive_failures, and an admin
+ * notification once a job fails twice in a row.
+ *
+ * 401 and 403 still pass through untouched. A bad or missing CRON_SECRET is a
+ * misconfiguration, not a transient fault, and a scheduler that keeps calling an
+ * endpoint it can never authenticate against SHOULD go red.
+ */
+function handledButFailed<T extends Response>(jobName: string, body: Record<string, unknown>): T {
+  return new Response(JSON.stringify({ ...body, ok: false, job: jobName, handled: true }), {
+    // 200 on purpose — see above. The failure is recorded, alerted on, and shown
+    // in the health workspace; it must not cost us the schedule as well.
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  }) as unknown as T;
+}
+
 export async function runMonitoredCron<T extends Response>(
   jobName: string,
   expectedIntervalMinutes: number,
@@ -109,10 +142,15 @@ export async function runMonitoredCron<T extends Response>(
       startedAt,
       finishedAt: new Date(),
       success,
+      // The status the handler produced is what gets recorded, so the history
+      // keeps the real story even though the caller is answered 200.
       statusCode: response.status,
       error: success ? null : String((result as any)?.error || `HTTP ${response.status}`),
       result,
     });
+    if (response.status >= 500) {
+      return handledButFailed<T>(jobName, { ...(result as object), upstream_status: response.status });
+    }
     return response;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -126,9 +164,6 @@ export async function runMonitoredCron<T extends Response>(
       statusCode: 500,
       error: errorMsg,
     });
-    return new Response(JSON.stringify({ error: errorMsg, ok: false, job: jobName }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    }) as unknown as T;
+    return handledButFailed<T>(jobName, { error: errorMsg, upstream_status: 500 });
   }
 }

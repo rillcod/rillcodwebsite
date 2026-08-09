@@ -12,9 +12,11 @@ const daysAgo = (n: number) =>
  */
 describe('currentDeliveryWeek', () => {
   it('counts a school plan from its term start, as before', () => {
-    expect(currentDeliveryWeek({ termStart: daysAgo(15) })).toBe(
-      currentTermWeek(daysAgo(15)),
-    );
+    // One instant, used twice. Calling daysAgo() separately for the input and
+    // the expectation puts a few microseconds between them, which is enough to
+    // cross a week boundary — see the note on the both-fields test below.
+    const termStart = daysAgo(15);
+    expect(currentDeliveryWeek({ termStart })).toBe(currentTermWeek(termStart));
   });
 
   it('counts a duration programme from its delivery window', () => {
@@ -32,8 +34,15 @@ describe('currentDeliveryWeek', () => {
   it('prefers the term when a plan somehow carries both', () => {
     // A school plan is the authority on its own week; the period is the
     // fallback for plans that have no term at all.
-    expect(currentDeliveryWeek({ termStart: daysAgo(7), periodStart: daysAgo(70) }))
-      .toBe(currentTermWeek(daysAgo(7)));
+    //
+    // termStart is captured once because seven days is EXACTLY one week, and
+    // currentTermWeek rounds up: ceil(1.0) is 1, but ceil(1.0000001) is 2. Two
+    // separate daysAgo(7) calls sit microseconds apart, straddling that
+    // boundary, so this test failed roughly one run in three for reasons that
+    // had nothing to do with the code under test.
+    const termStart = daysAgo(7);
+    expect(currentDeliveryWeek({ termStart, periodStart: daysAgo(70) }))
+      .toBe(currentTermWeek(termStart));
   });
 
   it('reports week 1 before a programme has started', () => {
