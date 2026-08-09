@@ -50,7 +50,23 @@ export async function resolveOfficialCurriculumDirection(
       .select(RELEASE_SELECT)
       .eq("id", scope.pinnedReleaseId)
       .maybeSingle();
-    if (data) return data as OfficialCurriculumDirection;
+    // A pin wins forever — but only while the edition is still standing.
+    //
+    // "Forever" used to include retired editions, and that left a class
+    // following curriculum the Academic Office had explicitly withdrawn, with no
+    // way out: the readiness sweep re-resolved to the same dead pin, the
+    // stranded tool only re-points school adoptions and never plans, and no
+    // screen exposes the pin at all. Nine Teen Developers plans sat on a
+    // withdrawn Python edition while a live replacement was already adopted by
+    // all 29 schools.
+    //
+    // Ignoring a retired pin falls through to the normal resolution below, which
+    // finds the live adoption. The reason to honour a pin in the first place —
+    // not yanking a class onto a new edition mid-term — only ever applied to an
+    // edition that still exists.
+    if (data && (data as { status?: string }).status !== "retired") {
+      return data as OfficialCurriculumDirection;
+    }
   }
 
   let offeringType: string | null = null;
