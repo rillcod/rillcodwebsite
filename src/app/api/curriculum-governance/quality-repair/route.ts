@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { geminiGenerateText } from '@/lib/gemini/client';
+import { generateTextFreeFirst } from '@/lib/ai/text-free-first';
 import { inspectCurriculumQuality } from '@/lib/curriculum/qualityGate';
 import { solidifyCurriculumQuality } from '@/lib/curriculum/quality-repair';
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   // Judged by the same engine the readiness screen shows, with the same context,
   // so "17 suggestions" on screen and what repair attempts are the same list.
-  const outcome = await solidifyCurriculumQuality(row.content, geminiGenerateText, {
+  const outcome = await solidifyCurriculumQuality(row.content, generateTextFreeFirst, {
     sourceMetadata: (body as any).source_metadata,
     academicSession: (body as any).academic_session ?? null,
     audienceLabel: (body as any).audience_label ?? null,
