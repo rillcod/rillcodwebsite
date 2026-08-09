@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 import { z } from 'zod';
+import { writtenQuestionDefinitionError } from '@/lib/exams/question-validation';
 
 const questionSchema = z.object({
   question_text: z.string().trim().min(1).max(10_000),
   question_type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'matching', 'fill_in_blank']).default('multiple_choice'),
   points: z.number().min(0).max(1000).default(1),
-  options: z.array(z.string().max(1000)).max(20).nullable().optional(),
+  options: z.array(z.string().trim().min(1).max(1000)).max(20).nullable().optional(),
   correct_answer: z.union([z.string().max(5000), z.number(), z.null()]).optional(),
   explanation: z.string().max(5000).nullable().optional(),
 }).strict();
@@ -56,6 +56,8 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 
   const { id } = await context.params;
   const db = createAdminClient();
+  // A learner only receives the sanitized paper from the attempt-start endpoint.
+  if (user.role === 'student') return NextResponse.json({ error: 'Start the exam to access its questions.' }, { status: 403 });
   let allowed = await canManageExam(user as any, id);
   if (!allowed && user.role === 'school' && user.school_id) {
     const { data: scopedExam } = await db
@@ -65,34 +67,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       .maybeSingle();
     allowed = (scopedExam as any)?.courses?.school_id === user.school_id;
   }
-  if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  if (user.role === 'student') {
-    const { data: exam } = await db
-      .from('exams')
-      .select('id, is_active, course_id, courses!course_id(school_id)')
-      .eq('id', id)
-      .maybeSingle();
-    const examSchoolId = (exam as any)?.courses?.school_id as string | null;
-    if (!exam?.is_active || (examSchoolId && user.school_id && examSchoolId !== user.school_id)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (exam.course_id) {
-      const scope = await resolveStudentProgramScope(db as any, user.id);
-      if (!scope.courseIds.has(exam.course_id)) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    }
-
-    const { data, error } = await db
-      .from('exam_questions')
-      .select('id, exam_id, question_text, question_type, points, options, order_index')
-      .eq('exam_id', id)
-      .order('order_index', { ascending: true });
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
-  }
+  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data, error } = await db
     .from('exam_questions')
@@ -118,6 +93,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const parsed = questionSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid question' }, { status: 400 });
   const { question_text, question_type, points, options, correct_answer, explanation } = parsed.data;
+  const definitionError = writtenQuestionDefinitionError({ id: 'new', question_type, points, options, correct_answer });
+  if (definitionError) return NextResponse.json({ error: definitionError }, { status: 400 });
 
   // Get next order_index
   const { data: existing } = await db.from('exam_questions').select('order_index').eq('exam_id', exam_id).order('order_index', { ascending: false }).limit(1);

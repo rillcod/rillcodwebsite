@@ -6,9 +6,13 @@ import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 
+const answersSchema = z.record(z.string().max(100), z.unknown())
+    .refine(value => Object.keys(value).length <= 1000, 'Too many answers')
+    .refine(value => JSON.stringify(value).length <= 1_000_000, 'Answer payload is too large');
+
 const submissionSchema = z.object({
     attemptId: z.string().uuid(),
-    answers: z.record(z.string(), z.unknown()),
+    answers: answersSchema,
 }).strict();
 
 async function postHandler(req: Request, ctx: ApiContext) {

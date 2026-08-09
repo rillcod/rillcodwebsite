@@ -4,6 +4,7 @@ import { questionService } from './question.service';
 import { examService } from './exam.service';
 import type { Database, Json } from '@/types/supabase';
 import { stripWrittenGradingMetadata } from '@/lib/exams/written-grading';
+import { writtenPaperDefinitionError } from '@/lib/exams/question-validation';
 
 type ExamAttemptUpdate = Database['public']['Tables']['exam_attempts']['Update'];
 
@@ -29,7 +30,8 @@ export class ExamTakingService {
         const exam = await examService.getExam(examId);
         if (!exam.is_active) throw new AppError('Exam is not active', 400);
         let questions = await questionService.listQuestions(examId);
-        if (!questions.length) throw new AppError('This written exam has no questions and cannot be started.', 422);
+        const definitionError = writtenPaperDefinitionError(questions);
+        if (definitionError) throw new AppError(definitionError, 422);
 
         const { data: activeAttempt, error: activeError } = await supabase
             .from('exam_attempts')
@@ -137,24 +139,25 @@ export class ExamTakingService {
 
     async recordTabSwitch(examId: string, attemptId: string, userId: string) {
         const supabase = createAdminClient();
-        const { data: attempt } = await supabase
+        const { data: attempt, error: attemptError } = await supabase
             .from('exam_attempts')
             .select('tab_switches')
             .eq('id', attemptId)
             .eq('exam_id', examId)
             .eq('portal_user_id', userId)
             .single();
-
-        if (attempt) {
-            const { error } = await supabase
-                .from('exam_attempts')
-                .update({ tab_switches: (attempt.tab_switches || 0) + 1 })
-                .eq('id', attemptId)
-                .eq('exam_id', examId)
-                .eq('portal_user_id', userId)
-                .eq('status', 'in_progress');
-            if (error) throw new AppError(error.message, 500);
-        }
+        if (attemptError || !attempt) throw new AppError('Active exam attempt not found', 404);
+        const { data: updated, error } = await supabase
+            .from('exam_attempts')
+            .update({ tab_switches: (attempt.tab_switches || 0) + 1 })
+            .eq('id', attemptId)
+            .eq('exam_id', examId)
+            .eq('portal_user_id', userId)
+            .eq('status', 'in_progress')
+            .select('id')
+            .maybeSingle();
+        if (error) throw new AppError(error.message, 500);
+        if (!updated) throw new AppError('Exam attempt is no longer in progress', 409);
     }
 }
 

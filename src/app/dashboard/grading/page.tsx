@@ -53,6 +53,18 @@ interface CbtQueueItem {
   };
 }
 
+interface WrittenQueueItem {
+  id: string;
+  exam_id: string;
+  status: string | null;
+  score: number | null;
+  total_points: number | null;
+  submitted_at: string | null;
+  tab_switches: number | null;
+  student?: { full_name: string | null; email: string | null } | null;
+  exam?: { title?: string; courses?: { title?: string } | null } | null;
+}
+
 interface Submission {
   id: string;
   portal_user_id: string;
@@ -251,9 +263,10 @@ export default function GradingQueuePage() {
   const classId = searchParams.get('class_id');
   const termId = searchParams.get('term_id');
 
-  const [tab, setTab] = useState<'assignments' | 'cbt'>('assignments');
+  const [tab, setTab] = useState<'assignments' | 'written' | 'cbt'>('assignments');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [cbtSessions, setCbtSessions] = useState<CbtQueueItem[]>([]);
+  const [writtenAttempts, setWrittenAttempts] = useState<WrittenQueueItem[]>([]);
   const [scope, setScope] = useState<GradingScope | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -279,19 +292,22 @@ export default function GradingQueuePage() {
     if (classId) cbtP.set('class_id', classId);
     if (termId) cbtP.set('term_id', termId);
 
-    const [aJson, cJson] = await Promise.all([
+    const [aJson, cJson, wJson] = await Promise.all([
       fetchJsonWithTimeout(`/api/grading/submissions?${queryString}`,
         { data: [], error: 'Assignment submissions timed out.' }, 'grading-assignments'),
       fetchJsonWithTimeout(`/api/grading/cbt-sessions${cbtP.toString() ? `?${cbtP}` : ''}`,
         { data: [], error: 'CBT sessions timed out.' }, 'grading-cbt'),
+      fetchJsonWithTimeout('/api/grading/written-attempts',
+        { data: [], error: 'Written exam reviews timed out.' }, 'grading-written'),
     ]);
 
-    const msgs = [aJson, cJson].map((r: any) => r.error).filter(Boolean);
+    const msgs = [aJson, cJson, wJson].map((r: any) => r.error).filter(Boolean);
     if (msgs.length) setError(msgs.join(' · '));
 
     const subs = (aJson.data ?? []) as Submission[];
     setSubmissions(subs);
     setCbtSessions((cJson.data ?? []) as CbtQueueItem[]);
+    setWrittenAttempts((wJson.data ?? []) as WrittenQueueItem[]);
     setScope((aJson as any).scope ?? (cJson as any).scope ?? null);
     setActiveIdx(0);
 
@@ -394,6 +410,21 @@ export default function GradingQueuePage() {
             {submissions.length > 0 && (
               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'assignments' ? 'bg-white/25' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}`}>
                 {submissions.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setTab('written')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black transition-all ${
+              tab === 'written' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            <DocumentTextIcon className="w-4 h-4" />
+            Written Exams
+            {writtenAttempts.length > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${tab === 'written' ? 'bg-white/25' : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
+                {writtenAttempts.length}
               </span>
             )}
           </button>
@@ -715,6 +746,51 @@ export default function GradingQueuePage() {
             {/* ══════════════════════════════════════════════════════════════
                 CBT TAB
             ══════════════════════════════════════════════════════════════ */}
+            {tab === 'written' && (
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-1 flex items-center gap-2">
+                    <DocumentTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Written Exam Review Queue</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Submitted essay and short-answer papers waiting for an authorised reviewer. Scores are validated against each question and publish only when the full paper is complete.</p>
+                </div>
+
+                {writtenAttempts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
+                    <CheckCircleIcon className="mx-auto mb-3 h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+                    <p className="font-black text-foreground">No written papers pending</p>
+                    <p className="mt-1 text-sm text-muted-foreground">All submitted written exams have been reviewed.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {writtenAttempts.map((attempt, index) => (
+                      <div key={attempt.id} className="rounded-2xl border border-blue-500/20 bg-card p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <ContextPill icon={<DocumentTextIcon className="h-3 w-3" />} label="Written exam" color="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+                              {(attempt.tab_switches ?? 0) > 0 && <ContextPill icon={null} label={`${attempt.tab_switches} tab switch${attempt.tab_switches === 1 ? '' : 'es'}`} color="border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400" />}
+                            </div>
+                            <p className="truncate font-black text-foreground">{attempt.student?.full_name || 'Learner'}</p>
+                            <p className="truncate text-xs text-muted-foreground">{attempt.student?.email || 'No email'}</p>
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">#{index + 1}</span>
+                        </div>
+                        <div className="mt-4 rounded-xl bg-muted/50 p-3">
+                          <p className="text-xs font-bold text-foreground">{attempt.exam?.title || 'Written examination'}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">{attempt.exam?.courses?.title || 'Course'}{attempt.submitted_at ? ` · Submitted ${fmtDate(attempt.submitted_at)}` : ''}</p>
+                        </div>
+                        <Link href={`/dashboard/exams/${attempt.exam_id}/attempts/${attempt.id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-blue-500">
+                          Review & Grade <ArrowRightIcon className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {tab === 'cbt' && (
               <div className="space-y-4">
                 <div>

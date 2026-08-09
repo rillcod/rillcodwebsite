@@ -18,7 +18,7 @@ const examSchema = z.object({
     randomize_questions: z.boolean().default(true),
     randomize_options: z.boolean().default(true),
     max_attempts: z.number().int().min(1).max(10).default(1),
-    is_active: z.boolean().default(true),
+    is_active: z.boolean().default(false),
 }).strict();
 
 async function courseIdsForSchools(schoolIds: string[]): Promise<string[]> {
@@ -40,10 +40,12 @@ async function listHandler(req: Request, ctx: ApiContext) {
         const { resolveStudentProgramScope } = await import('@/lib/assignments/visibility');
         const scope = await resolveStudentProgramScope(createAdminClient() as any, ctx.user.id);
         exams = await examService.listExams(courseId, undefined, Array.from(scope.courseIds));
+        exams = exams.filter((exam) => exam.is_active);
     } else if (role === 'teacher' && ctx.user?.id) {
         const schoolIds = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId ?? null);
         exams = await examService.listExams(courseId, undefined, await courseIdsForSchools(schoolIds));
     } else if (role === 'school') {
+        if (!ctx.user?.tenantId) throw new AppError('School account is not linked to a tenant', 403);
         exams = await examService.listExams(courseId, ctx.user?.tenantId);
     } else if (role === 'admin') {
         exams = await examService.listExams(courseId);
@@ -58,6 +60,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
 
     const { data, errorResponse } = await withValidation(req as any, examSchema);
     if (errorResponse) return errorResponse;
+    if (data!.is_active) throw new AppError('Create the written exam as a draft, add and validate its questions, then activate it.', 422);
 
     if (ctx.user.role === 'teacher') {
         const db = createAdminClient();

@@ -37,6 +37,17 @@ interface Question {
   explanation: string | null;
 }
 
+interface ExamAttempt {
+  id: string;
+  status: string | null;
+  score: number | null;
+  total_points: number | null;
+  percentage: number | null;
+  submitted_at: string | null;
+  tab_switches: number | null;
+  student?: { full_name: string | null; email: string | null } | null;
+}
+
 const Q_TYPES = ['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_in_blank'];
 
 function QuestionTypeTag({ type }: { type: string }) {
@@ -61,6 +72,7 @@ export default function ExamDetailPage() {
   const router = useRouter();
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editQ, setEditQ] = useState<Question | null>(null);
@@ -77,19 +89,23 @@ export default function ExamDetailPage() {
   });
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
+  const canReview = canManage || profile?.role === 'school';
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [examRes, qRes] = await Promise.all([
+      const [examRes, qRes, attemptRes] = await Promise.all([
         fetch(`/api/exams/${id}`),
         fetch(`/api/exams/${id}/questions`),
+        fetch(`/api/exams/${id}/attempts`, { cache: 'no-store' }),
       ]);
       if (!examRes.ok) throw new Error('Exam not found');
       const examJson = await examRes.json();
       const qJson = qRes.ok ? await qRes.json() : { data: [] };
+      const attemptJson = attemptRes.ok ? await attemptRes.json() : { data: [] };
       setExam(examJson.data);
       setQuestions(qJson.data ?? []);
+      setAttempts(attemptJson.data ?? []);
     } catch {
       toast.error('Failed to load exam');
     } finally {
@@ -145,7 +161,12 @@ export default function ExamDetailPage() {
 
   async function toggleActive() {
     if (!exam) return;
-    await fetch(`/api/exams/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !exam.is_active }) });
+    const response = await fetch(`/api/exams/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !exam.is_active }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toast.error(payload.error || 'Exam status could not be changed');
+      return;
+    }
     setExam(e => e ? { ...e, is_active: !e.is_active } : e);
     toast.success(`Exam ${exam.is_active ? 'deactivated' : 'activated'}`);
   }
@@ -299,6 +320,33 @@ ${questionRows}
           </div>
         ))}
       </div>
+
+      {canReview && (
+        <section className="space-y-3" aria-labelledby="written-attempts-heading">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 id="written-attempts-heading" className="text-lg font-black text-card-foreground">Learner attempts</h2>
+              <p className="text-sm text-muted-foreground">Review submitted papers and publish complete, auditable grades.</p>
+            </div>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">{attempts.length}</span>
+          </div>
+          {attempts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">No learner has started this paper.</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {attempts.map(attempt => (
+                <Link key={attempt.id} href={`/dashboard/exams/${id}/attempts/${attempt.id}`} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="truncate font-bold text-foreground">{attempt.student?.full_name || 'Learner'}</p><p className="truncate text-xs text-muted-foreground">{attempt.student?.email || 'No email'}</p></div>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${attempt.status === 'graded' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : attempt.status === 'submitted' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-muted text-muted-foreground'}`}>{attempt.status === 'submitted' ? 'Needs review' : attempt.status || 'In progress'}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{attempt.status === 'graded' ? `${Number(attempt.percentage ?? 0).toFixed(1)}% · ${attempt.score ?? 0}/${attempt.total_points ?? 0}` : attempt.submitted_at ? `Submitted ${new Date(attempt.submitted_at).toLocaleDateString()}` : 'Attempt in progress'}</span>{(attempt.tab_switches ?? 0) > 0 && <span>{attempt.tab_switches} tab switch{attempt.tab_switches === 1 ? '' : 'es'}</span>}</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Questions Header */}
       <div className="flex items-center justify-between">

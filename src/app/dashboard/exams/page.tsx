@@ -77,11 +77,16 @@ export default function ExamsPage() {
   }, [authLoading, profileLoading, profile, load]);
 
   async function toggleActive(exam: Exam) {
-    await fetch(`/api/exams/${exam.id}`, {
+    const response = await fetch(`/api/exams/${exam.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !exam.is_active }),
     });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toast.error(payload.error || 'Exam status could not be changed');
+      return;
+    }
     setExams(prev => prev.map(e => e.id === exam.id ? { ...e, is_active: !e.is_active } : e));
     toast.success(`Exam ${exam.is_active ? 'deactivated' : 'activated'}`);
   }
@@ -90,7 +95,10 @@ export default function ExamsPage() {
     if (!confirm('Delete this exam? This cannot be undone.')) return;
     const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
     if (res.ok) { toast.success('Exam deleted'); load(); }
-    else toast.error('Failed to delete');
+    else {
+      const payload = await res.json().catch(() => ({}));
+      toast.error(payload.error || 'Failed to delete exam');
+    }
   }
 
   if (authLoading || profileLoading || !profile) {
@@ -119,7 +127,7 @@ export default function ExamsPage() {
             Written Exams
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
-            {isStudent ? 'Written exams are managed by instructors. Use CBT Exams for online tests.' : 'Manage traditional exams — essays, matching, short answer'}
+            {isStudent ? 'Complete assigned written papers and return to unfinished attempts.' : 'Manage traditional exams — essays, matching, short answer'}
           </p>
         </div>
         {canManage && (
@@ -219,15 +227,15 @@ export default function ExamsPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-3 border-t border-white/[0.06]">
-                <Link href={`/dashboard/exams/${exam.id}`}
+                {canManage && <Link href={`/dashboard/exams/${exam.id}`}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-all">
                   <EyeIcon className="w-3.5 h-3.5" />
-                  {canManage ? 'Manage' : 'View'}
-                </Link>
+                  Manage
+                </Link>}
                 {isStudent && exam.is_active && (
-                  <Link href="/dashboard/cbt"
+                  <Link href={`/dashboard/exams/${exam.id}/take`}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-all">
-                    <CommandLineIcon className="w-3.5 h-3.5" /> Open CBT
+                    <DocumentCheckIcon className="w-3.5 h-3.5" /> Start or resume
                   </Link>
                 )}
                 {canManage && (

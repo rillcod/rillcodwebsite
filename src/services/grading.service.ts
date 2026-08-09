@@ -4,6 +4,7 @@ import { questionService } from './question.service';
 import { templatesService } from './templates.service';
 import { queueService } from './queue.service';
 import {
+    WRITTEN_GRADING_META_KEY,
     WrittenGradingError,
     gradeWrittenAnswers,
     readWrittenGradingMetadata,
@@ -132,6 +133,16 @@ export class GradingService {
         const questions = await questionService.listQuestions(attempt.exam_id);
         const answers = stripWrittenGradingMetadata(attempt.answers);
         const previous = readWrittenGradingMetadata(attempt.answers);
+        const rawAnswers = attempt.answers && typeof attempt.answers === 'object' && !Array.isArray(attempt.answers)
+            ? attempt.answers as Record<string, unknown>
+            : {};
+        const hasPerQuestionEvidence = !!rawAnswers[WRITTEN_GRADING_META_KEY];
+        if (attempt.status === 'graded' && !hasPerQuestionEvidence && questions.some((question) => {
+            const type = String(question.question_type ?? '').toLowerCase();
+            return ['essay', 'short_answer', 'fill_in_blank', 'fill_blank', 'coding_blocks'].includes(type);
+        })) {
+            throw new AppError('This legacy published grade is protected because it has no per-question score evidence. Do not overwrite it.', 409);
+        }
         let grade;
         try {
             grade = gradeWrittenAnswers(questions, answers, previous.manual_scores, rawScores);

@@ -4,12 +4,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
 import { z } from 'zod';
+import { writtenQuestionDefinitionError } from '@/lib/exams/question-validation';
 
 const questionPatchSchema = z.object({
   question_text: z.string().trim().min(1).max(10_000).optional(),
   question_type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'matching', 'fill_in_blank']).optional(),
   points: z.number().min(0).max(1000).optional(),
-  options: z.array(z.string().max(1000)).max(20).nullable().optional(),
+  options: z.array(z.string().trim().min(1).max(1000)).max(20).nullable().optional(),
   correct_answer: z.union([z.string().max(5000), z.number(), z.null()]).optional(),
   explanation: z.string().max(5000).nullable().optional(),
   order_index: z.number().int().min(1).max(10_000).optional(),
@@ -63,6 +64,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { data: before, error: beforeError } = await db.from('exam_questions').select('*').eq('id', qid).eq('exam_id', exam_id).maybeSingle();
   if (beforeError) return NextResponse.json({ error: beforeError.message }, { status: 500 });
   if (!before) return NextResponse.json({ error: 'Question not found' }, { status: 404 });
+  const definitionError = writtenQuestionDefinitionError({ ...before, ...parsed.data });
+  if (definitionError) return NextResponse.json({ error: definitionError }, { status: 400 });
 
   const { data, error } = await db.from('exam_questions')
     .update(parsed.data as any)

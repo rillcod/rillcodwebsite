@@ -1,277 +1,270 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Timer, AlertTriangle, ChevronRight, ChevronLeft, Save, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Save, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Question {
-    id: string;
-    question_text: string;
-    question_type: string;
-    points: number;
-    options?: any;
+  id: string;
+  question_text: string;
+  question_type: string;
+  points: number;
+  options?: unknown;
 }
 
 interface ExamProps {
-    exam: {
-        id: string;
-        title: string;
-        duration_minutes: number;
-    };
-    questions: Question[];
-    attemptId: string;
-    initialAnswers?: any;
+  exam: { id: string; title: string; duration_minutes: number };
+  questions: Question[];
+  attemptId: string;
+  initialAnswers?: Record<string, unknown>;
+  initialSeconds?: number;
 }
 
-export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} }: ExamProps) {
-    const router = useRouter();
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [answers, setAnswers] = useState(initialAnswers);
-    const [timeLeft, setTimeLeft] = useState(exam.duration_minutes * 60);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [tabSwitches, setTabSwitches] = useState(0);
+export function ExamInterface({
+  exam,
+  questions,
+  attemptId,
+  initialAnswers = {},
+  initialSeconds,
+}: ExamProps) {
+  const router = useRouter();
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
+  const [timeLeft, setTimeLeft] = useState(initialSeconds ?? exam.duration_minutes * 60);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const submittedRef = useRef(false);
 
-    // ── Auto-save logic ───────────────────────────────────────
-    const saveProgress = useCallback(async (currentAnswers: any) => {
-        try {
-            await fetch(`/api/exams/${exam.id}/save`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attemptId, answers: currentAnswers })
-            });
-        } catch (err) {
-            console.error('Auto-save failed', err);
-        }
-    }, [exam.id, attemptId]);
+  const saveProgress = useCallback(async (currentAnswers: Record<string, unknown>, announce = false) => {
+    setSaveState('saving');
+    try {
+      const response = await fetch(`/api/exams/${exam.id}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId, answers: currentAnswers }),
+      });
+      if (!response.ok) throw new Error('Save failed');
+      setSaveState('saved');
+      if (announce) toast.success('Progress saved');
+      return true;
+    } catch (error) {
+      setSaveState('error');
+      if (announce) toast.error('Progress could not be saved. Check your connection and try again.');
+      console.error('Auto-save failed', error);
+      return false;
+    }
+  }, [attemptId, exam.id]);
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            if (Object.keys(answers).length > 0) {
-                saveProgress(answers);
-            }
-        }, 30000); // 30 seconds
-        return () => clearInterval(timer);
-    }, [answers, saveProgress]);
+  const handleSubmit = useCallback(async () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/exams/${exam.id}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId, answers }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Submission failed.');
+      toast.success('Exam submitted successfully');
+      router.replace(`/dashboard/exams/${exam.id}/result/${attemptId}`);
+    } catch (error) {
+      submittedRef.current = false;
+      toast.error(error instanceof Error ? error.message : 'Submission failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [answers, attemptId, exam.id, router]);
 
-    // ── Timer ───────────────────────────────────────────────
-    useEffect(() => {
-        if (timeLeft <= 0) {
-            handleSubmit();
-            return;
-        }
-        const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-        return () => clearInterval(timer);
-    }, [timeLeft]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!submittedRef.current && Object.keys(answers).length > 0) void saveProgress(answers);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [answers, saveProgress]);
 
-    // ── Anti-cheat: Tab Switching ──────────────────────────
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                const newCount = tabSwitches + 1;
-                setTabSwitches(newCount);
-                toast.warning('Warning: Tab switching is monitored. This incident has been logged.');
-                fetch(`/api/exams/${exam.id}/track-cheat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ attemptId, type: 'tab_switch' })
-                });
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [tabSwitches, exam.id, attemptId]);
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      void handleSubmit();
+      return;
+    }
+    const timer = window.setTimeout(() => setTimeLeft(previous => Math.max(0, previous - 1)), 1_000);
+    return () => window.clearTimeout(timer);
+  }, [handleSubmit, timeLeft]);
 
-    const handleAnswer = (questionId: string, value: any) => {
-        setAnswers((prev: any) => ({ ...prev, [questionId]: value }));
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden' || submittedRef.current) return;
+      setTabSwitches(count => count + 1);
+      toast.warning('Leaving this exam tab is recorded.');
+      void fetch(`/api/exams/${exam.id}/track-cheat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId, type: 'tab_switch' }),
+      });
     };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [attemptId, exam.id]);
 
-    const handleSubmit = async () => {
-        setIsSubmitting(true);
-        try {
-            const res = await fetch(`/api/exams/${exam.id}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attemptId, answers })
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || 'Server error');
-            }
-            const data = await res.json();
-            if (data.success) {
-                toast.success('Exam submitted successfully!');
-                router.push(`/portal/student/exams/results/${attemptId}`);
-            } else {
-                toast.error(data.error || 'Submission failed. Please try again.');
-            }
-        } catch (err) {
-            toast.error('Submission failed. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    return `${hours > 0 ? `${hours}:` : ''}${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
+  };
 
-    const formatTime = (seconds: number) => {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
+  const currentQuestion = questions[currentQuestionIndex];
+  const answeredCount = questions.filter(question => (
+    Object.prototype.hasOwnProperty.call(answers, question.id)
+      && String(answers[question.id] ?? '').trim() !== ''
+  )).length;
+  const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
+  const options = Array.isArray(currentQuestion?.options)
+    ? currentQuestion.options.filter((option): option is string => typeof option === 'string')
+    : [];
+  const answerValue = currentQuestion ? String(answers[currentQuestion.id] ?? '') : '';
 
-    const currentQuestion = questions[currentQuestionIndex];
-    const progress = ((Object.keys(answers).length) / questions.length) * 100;
+  const setAnswer = (value: unknown) => {
+    if (!currentQuestion) return;
+    setAnswers(previous => ({ ...previous, [currentQuestion.id]: value }));
+    setSaveState('idle');
+  };
 
-    return (
-        <div className="min-h-screen bg-background dark:bg-slate-950 p-4 md:p-8 animate-in fade-in duration-500">
-            <div className="max-w-5xl mx-auto space-y-6">
+  const requestSubmit = () => {
+    if (window.confirm(`Submit this exam now? You answered ${answeredCount} of ${questions.length} questions.`)) {
+      void handleSubmit();
+    }
+  };
 
-                {/* Header Section */}
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border dark:border-slate-800 gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-primary bg-clip-text text-transparent">
-                            {exam.title}
-                        </h1>
-                        <p className="text-muted-foreground dark:text-muted-foreground/70 text-sm mt-1">
-                            Portal Session ID: {attemptId.substring(0, 8)}
-                        </p>
-                    </div>
+  if (!currentQuestion) return null;
 
-                    <div className="flex items-center gap-4">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold ${timeLeft < 300 ? 'bg-red-50 text-red-600 dark:text-red-400 animate-pulse' : 'bg-muted text-foreground/80 dark:bg-slate-800 dark:text-slate-200'}`}>
-                            <Timer className="w-5 h-5" />
-                            {formatTime(timeLeft)}
-                        </div>
-                        <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-lg shadow-teal-500/20">
-                            {isSubmitting ? 'Finalizing...' : 'Submit Exam'}
-                        </Button>
-                    </div>
-                </header>
-
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-                    {/* Main Question Area */}
-                    <main className="lg:col-span-3 space-y-6">
-                        <Progress value={progress} className="h-2" />
-
-                        <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
-                            <CardHeader className="bg-card dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
-                                <div className="flex justify-between items-center">
-                                    <Badge variant="outline" className="text-teal-600 dark:text-teal-400 border-teal-200 bg-teal-50">
-                                        Question {currentQuestionIndex + 1} of {questions.length}
-                                    </Badge>
-                                    <span className="text-sm font-medium text-muted-foreground">{currentQuestion.points} Points</span>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-8 bg-card dark:bg-slate-900 min-h-[400px]">
-                                <h3 className="text-xl font-medium leading-relaxed text-foreground dark:text-slate-100 mb-8">
-                                    {currentQuestion.question_text}
-                                </h3>
-
-                                {/* Question Types Rendering */}
-                                {currentQuestion.question_type === 'multiple_choice' && (
-                                    <div className="space-y-4">
-                                        {(currentQuestion.options as string[]).map((option, idx) => (
-                                            <label key={idx} className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:bg-teal-50/50 group ${answers[currentQuestion.id] === option ? 'border-teal-500 bg-teal-50/50 ring-2 ring-teal-500/10' : 'border-slate-100 dark:border-slate-800'}`}>
-                                                <input
-                                                    type="radio"
-                                                    name={currentQuestion.id}
-                                                    value={option}
-                                                    checked={answers[currentQuestion.id] === option}
-                                                    onChange={() => handleAnswer(currentQuestion.id, option)}
-                                                    className="w-5 h-5 text-teal-600 dark:text-teal-400 border-border focus:ring-teal-500"
-                                                />
-                                                <span className="ml-4 font-medium text-foreground/80 dark:text-slate-300 group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors uppercase mr-4 text-xs bg-muted dark:bg-slate-800 px-2 py-1 rounded w-8 text-center">
-                                                    {String.fromCharCode(65 + idx)}
-                                                </span>
-                                                <span className="text-foreground/80 dark:text-slate-300">{option}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {(currentQuestion.question_type === 'essay' || currentQuestion.question_type === 'short_answer') && (
-                                    <textarea
-                                        className="w-full h-64 p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/5 transition-all outline-none bg-background/50 dark:bg-slate-950/50"
-                                        placeholder="Type your answer here..."
-                                        value={answers[currentQuestion.id] || ''}
-                                        onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-                                    />
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <div className="flex justify-between items-center bg-card dark:bg-slate-900 p-4 rounded-2xl border border-border dark:border-slate-800 shadow-sm">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setCurrentQuestionIndex((prev: number) => Math.max(0, prev - 1))}
-                                disabled={currentQuestionIndex === 0}
-                                className="gap-2"
-                            >
-                                <ChevronLeft className="w-4 h-4" /> Previous
-                            </Button>
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => saveProgress(answers)} className="gap-2">
-                                    <Save className="w-4 h-4" /> Save Draft
-                                </Button>
-                            </div>
-                            <Button
-                                onClick={() => setCurrentQuestionIndex((prev: number) => Math.min(questions.length - 1, prev + 1))}
-                                disabled={currentQuestionIndex === questions.length - 1}
-                                className="bg-slate-900 dark:bg-card dark:text-foreground gap-2"
-                            >
-                                Next Question <ChevronRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    </main>
-
-                    {/* Sidebar Navigation */}
-                    <aside className="space-y-6">
-                        <Card className="border-none shadow-lg dark:shadow-none bg-card dark:bg-slate-900">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Navigation</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 grid grid-cols-5 gap-2">
-                                {questions.map((q, idx) => (
-                                    <button
-                                        key={q.id}
-                                        onClick={() => setCurrentQuestionIndex(idx)}
-                                        className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 ${currentQuestionIndex === idx
-                                            ? 'bg-teal-600 text-white'
-                                            : answers[q.id]
-                                                ? 'bg-teal-100 text-teal-700 dark:text-teal-300 border-2 border-teal-200'
-                                                : 'bg-muted text-muted-foreground/70 dark:bg-slate-800 hover:bg-slate-200'
-                                            }`}
-                                    >
-                                        {idx + 1}
-                                    </button>
-                                ))}
-                            </CardContent>
-                        </Card>
-
-                        {tabSwitches > 0 && (
-                            <Alert variant="destructive" className="animate-bounce border-red-200 bg-red-50 text-red-900 dark:text-red-200">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Warning</AlertTitle>
-                                <AlertDescription>
-                                    Your tab switching ({tabSwitches}) has been recorded.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
-                        <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30 text-center">
-                            <CheckCircle className="w-8 h-8 text-primary mx-auto mb-3" />
-                            <h4 className="font-bold text-blue-900 dark:text-blue-200">Auto-Save Enabled</h4>
-                            <p className="text-xs text-primary dark:text-primary mt-1">Your work is automatically saved every 30 seconds to the cloud.</p>
-                        </div>
-                    </aside>
-                </div>
+  return (
+    <div className="min-h-screen bg-muted/30 p-3 sm:p-6 mobile-page-root">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <header className="sticky top-0 z-20 flex flex-col gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold text-foreground sm:text-2xl">{exam.title}</h1>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {answeredCount} of {questions.length} answered · Saved securely to your attempt
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 font-mono text-sm font-bold ${timeLeft < 300 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-foreground'}`} aria-label={`${timeLeft} seconds remaining`}>
+              <Timer className="h-4 w-4" /> {formatTime(timeLeft)}
             </div>
+            <Button onClick={requestSubmit} disabled={isSubmitting} className="min-w-28">
+              {isSubmitting ? 'Submitting…' : 'Submit exam'}
+            </Button>
+          </div>
+        </header>
+
+        <Progress value={progress} className="h-2" aria-label={`${Math.round(progress)} percent answered`} />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+          <main className="space-y-4">
+            <Card className="overflow-hidden border-border shadow-sm">
+              <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border bg-muted/30 p-4">
+                <Badge variant="secondary">Question {currentQuestionIndex + 1} of {questions.length}</Badge>
+                <span className="text-sm font-semibold text-muted-foreground">{currentQuestion.points} point{currentQuestion.points === 1 ? '' : 's'}</span>
+              </CardHeader>
+              <CardContent className="min-h-[22rem] p-4 sm:p-7">
+                <h2 className="mb-6 text-lg font-semibold leading-relaxed text-foreground sm:text-xl">{currentQuestion.question_text}</h2>
+
+                {currentQuestion.question_type === 'multiple_choice' && (
+                  <fieldset className="space-y-3">
+                    <legend className="sr-only">Choose one answer</legend>
+                    {options.map((option, index) => (
+                      <label key={`${currentQuestion.id}-${index}`} className={`flex cursor-pointer items-center rounded-xl border p-3 transition-colors sm:p-4 ${answerValue === option ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}>
+                        <input type="radio" name={currentQuestion.id} checked={answerValue === option} onChange={() => setAnswer(option)} className="h-4 w-4 accent-primary" />
+                        <span className="mx-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold">{String.fromCharCode(65 + index)}</span>
+                        <span className="text-sm text-foreground sm:text-base">{option}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+
+                {currentQuestion.question_type === 'true_false' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {['True', 'False'].map(option => (
+                      <Button key={option} type="button" variant={answerValue.toLowerCase() === option.toLowerCase() ? 'default' : 'outline'} className="h-14 text-base" onClick={() => setAnswer(option)}>
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {!['multiple_choice', 'true_false'].includes(currentQuestion.question_type) && (
+                  <textarea
+                    className="min-h-52 w-full resize-y rounded-xl border border-input bg-background p-4 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder={currentQuestion.question_type === 'essay' ? 'Write your response…' : 'Enter your answer…'}
+                    value={answerValue}
+                    onChange={event => setAnswer(event.target.value)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <Button variant="ghost" onClick={() => setCurrentQuestionIndex(index => Math.max(0, index - 1))} disabled={currentQuestionIndex === 0}>
+                <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+              </Button>
+              <Button variant="outline" onClick={() => void saveProgress(answers, true)} disabled={saveState === 'saving'} className="hidden sm:inline-flex">
+                <Save className="mr-1 h-4 w-4" /> {saveState === 'saving' ? 'Saving…' : 'Save'}
+              </Button>
+              <Button onClick={() => setCurrentQuestionIndex(index => Math.min(questions.length - 1, index + 1))} disabled={currentQuestionIndex === questions.length - 1}>
+                Next <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </main>
+
+          <aside className="space-y-4">
+            <Card className="border-border shadow-sm">
+              <CardHeader className="p-4 pb-2 text-sm font-semibold">Question navigation</CardHeader>
+              <CardContent className="grid grid-cols-6 gap-2 p-4 pt-2 sm:grid-cols-10 lg:grid-cols-5">
+                {questions.map((question, index) => {
+                  const answered = Object.prototype.hasOwnProperty.call(answers, question.id) && String(answers[question.id] ?? '').trim() !== '';
+                  return (
+                    <button key={question.id} onClick={() => setCurrentQuestionIndex(index)} aria-label={`Go to question ${index + 1}${answered ? ', answered' : ''}`} className={`h-10 rounded-lg text-sm font-bold transition-colors ${currentQuestionIndex === index ? 'bg-primary text-primary-foreground' : answered ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {saveState === 'error' && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Not saved</AlertTitle>
+                <AlertDescription>Check your connection, then use Save before submitting.</AlertDescription>
+              </Alert>
+            )}
+
+            {tabSwitches > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Exam activity recorded</AlertTitle>
+                <AlertDescription>You left this tab {tabSwitches} time{tabSwitches === 1 ? '' : 's'}.</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-900 dark:bg-emerald-950/40">
+              <CheckCircle className="mx-auto h-6 w-6 text-emerald-600" />
+              <p className="mt-2 text-sm font-semibold text-emerald-900 dark:text-emerald-100">Auto-save is on</p>
+              <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">Your answers save every 30 seconds.</p>
+            </div>
+          </aside>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

@@ -4,9 +4,13 @@ import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { AppError } from '@/lib/errors';
 import { examTakingService } from '@/services/exam-taking.service';
 
+const answersSchema = z.record(z.string().max(100), z.unknown())
+  .refine(value => Object.keys(value).length <= 1000, 'Too many answers')
+  .refine(value => JSON.stringify(value).length <= 1_000_000, 'Answer payload is too large');
+
 const saveSchema = z.object({
   attemptId: z.string().uuid(),
-  answers: z.record(z.string(), z.unknown()),
+  answers: answersSchema,
 }).strict();
 
 async function postHandler(req: Request, ctx: ApiContext) {

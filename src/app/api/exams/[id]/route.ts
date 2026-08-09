@@ -7,6 +7,7 @@ import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 import { logAudit } from '@/lib/audit/log';
 import { z } from 'zod';
+import { writtenPaperDefinitionError } from '@/lib/exams/question-validation';
 
 const examUpdateSchema = z.object({
     course_id: z.string().uuid().optional(),
@@ -75,6 +76,12 @@ async function putHandler(req: Request, ctx: ApiContext) {
     if (attemptError) throw new AppError(attemptError.message, 500);
     if ((attemptCount ?? 0) > 0 && Object.keys(body).some((key) => key !== 'is_active')) {
         throw new AppError('This exam has learner attempts. Only its active status can be changed; the assessment definition is locked.', 409);
+    }
+    if (body.is_active === true) {
+        const { data: questions, error: questionError } = await db.from('exam_questions').select('id,question_type,points,options,correct_answer').eq('exam_id', id);
+        if (questionError) throw new AppError(questionError.message, 500);
+        const definitionError = writtenPaperDefinitionError(questions ?? []);
+        if (definitionError) throw new AppError(definitionError, 422);
     }
     if (ctx.user?.role === 'teacher' && body.course_id) {
         const { data: course } = await db.from('courses').select('school_id').eq('id', body.course_id).maybeSingle();
