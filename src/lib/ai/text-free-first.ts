@@ -20,6 +20,10 @@ import { FREE_FALLBACK_MODELS } from '@/lib/ai/openrouter';
  * Free-first is preserved exactly as the rest of the app does it — direct
  * Gemini before anything billable, then only `:free` OpenRouter variants
  * through modelQueueFor, which drops retired ids and puts healthy models first.
+ *
+ * This adds a fallback where there was none; it does not replace the per-route
+ * OpenRouter clients. Those work, and rewriting them would be churn for its own
+ * sake. Use this from any non-route caller that needs plain system+user text.
  */
 
 const openrouter = new OpenAI({
@@ -61,11 +65,18 @@ export async function generateTextFreeFirst(
 
   if (!process.env.OPENROUTER_API_KEY) return null;
 
-  // No `prefer` list of our own. modelQueueFor reads the LIVE OpenRouter
-  // catalogue and drops retired ids — the hardcoded queues copied around this
-  // codebase had rotted to the point where every id 404'd and "free first"
-  // silently meant "bill the paid model behind it". FREE_FALLBACK_MODELS is the
-  // one maintained list, used only if the catalogue itself cannot be reached.
+  // No `prefer` list of our own, for a reason worth stating precisely.
+  //
+  // modelQueueFor filters every preference — free and paid — against the live
+  // OpenRouter catalogue, so a retired id in a prefer list is dropped rather
+  // than called. That is why the stale queues elsewhere in this codebase are
+  // inert rather than broken, and why the ai-model-drift cron treats a
+  // retirement as a cost issue rather than an outage.
+  //
+  // A prefer list here would therefore buy nothing but future rot: checked at
+  // the time of writing, all six hardcoded ':free' ids across the AI routes had
+  // been retired. FREE_FALLBACK_MODELS is the one maintained list, and is used
+  // only when the catalogue itself cannot be reached.
   const queue = await modelQueueFor({ needsJson: Boolean(jsonMode) })
     .catch(() => [...FREE_FALLBACK_MODELS]);
 
