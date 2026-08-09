@@ -15,7 +15,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { geminiGenerateText } from '@/lib/gemini/client';
 import { inspectCurriculumQuality } from '@/lib/curriculum/qualityGate';
-import { repairCurriculumQuality } from '@/lib/curriculum/quality-repair';
+import { solidifyCurriculumQuality } from '@/lib/curriculum/quality-repair';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -59,11 +59,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const outcome = await repairCurriculumQuality(
-    row.content,
-    geminiGenerateText,
-    { includeWarnings: Boolean((body as any).include_warnings) },
-  );
+  // Judged by the same engine the readiness screen shows, with the same context,
+  // so "17 suggestions" on screen and what repair attempts are the same list.
+  const outcome = await solidifyCurriculumQuality(row.content, geminiGenerateText, {
+    sourceMetadata: (body as any).source_metadata,
+    academicSession: (body as any).academic_session ?? null,
+    audienceLabel: (body as any).audience_label ?? null,
+  });
 
   let saved = false;
   if (outcome.status === 'repaired' && (body as any).save === true) {
@@ -76,18 +78,25 @@ export async function POST(req: NextRequest) {
   }
 
   const finalQuality = inspectCurriculumQuality(outcome.content);
+  const settled = outcome.after ?? outcome.before;
   return NextResponse.json({
     status: outcome.status,
     saved,
     reason: outcome.reason ?? null,
     model: outcome.model ?? null,
-    // What the Academic Office needs to decide: is it publishable now, and what changed.
+    // What the Academic Office needs to decide: is it publishable now, and what
+    // actually moved. Reported on the readiness engine's own terms, so these
+    // numbers match the report shown beside the Publish button.
     publishable: finalQuality.passed,
-    faults_before: outcome.before.errors.length,
-    faults_after: outcome.after ? outcome.after.errors.length : outcome.before.errors.length,
-    warnings_after: outcome.after ? outcome.after.warnings.length : outcome.before.warnings.length,
-    errors: finalQuality.errors,
-    warnings: finalQuality.warnings,
+    readiness_before: outcome.before.readiness,
+    readiness_after: settled.readiness,
+    score_before: outcome.before.score,
+    score_after: settled.score,
+    must_fix_before: outcome.before.mustFix.length,
+    must_fix_after: settled.mustFix.length,
+    improvements_before: outcome.before.improvements.length,
+    improvements_after: settled.improvements.length,
+    quality: settled,
     content: saved ? undefined : outcome.content,
   });
 }

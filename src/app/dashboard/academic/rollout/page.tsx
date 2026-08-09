@@ -130,6 +130,16 @@ interface StrandedGroup {
 }
 
 const SECTION = 'rounded-3xl border border-border bg-card p-5 sm:p-6';
+
+/**
+ * Who stands behind the curriculum. The quality engine reads this, so review,
+ * repair and publish must all send the same thing — three inline copies meant a
+ * repair could be judged against different provenance than the review beside it.
+ */
+const SOURCE_METADATA = {
+  name: 'Rillcod Academic Office',
+  framework: 'Rillcod Coding and Robotics Academic Standard',
+} as const;
 const TERM_LABELS: Record<number, string> = { 1: 'First Term', 2: 'Second Term', 3: 'Third Term' };
 /**
  * The audience every edition is published to unless a narrower one is chosen.
@@ -400,7 +410,7 @@ function RolloutWorkspace() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           curriculum_id: curriculumId,
-          source_metadata: { name: 'Rillcod Academic Office', framework: 'Rillcod Coding and Robotics Academic Standard' },
+          source_metadata: SOURCE_METADATA,
           academic_session: session,
           audience_label: audience,
           effective_term_number: termNumber,
@@ -427,22 +437,32 @@ function RolloutWorkspace() {
       const response = await fetch('/api/curriculum-governance/quality-repair', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ curriculum_id: curriculumId, include_warnings: true, save: true }),
+        // Same context the review uses, so repair works from the identical
+        // findings the report on screen is showing.
+        body: JSON.stringify({
+          curriculum_id: curriculumId,
+          save: true,
+          academic_session: session,
+          audience_label: audience,
+          source_metadata: SOURCE_METADATA,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not repair this curriculum.');
 
       if (payload.status === 'repaired') {
-        const fixed = Number(payload.faults_before ?? 0) - Number(payload.faults_after ?? 0);
+        const before = Number(payload.must_fix_before ?? 0) + Number(payload.improvements_before ?? 0);
+        const after = Number(payload.must_fix_after ?? 0) + Number(payload.improvements_after ?? 0);
+        const closed = Math.max(0, before - after);
         setRepairNote(
-          `Fixed ${fixed} ${fixed === 1 ? 'fault' : 'faults'}. ${
-            payload.publishable
-              ? 'This curriculum is now ready to publish.'
-              : `${payload.faults_after} still need a person — the review below shows which.`
-          }`,
+          `Closed ${closed} of ${before} ${before === 1 ? 'finding' : 'findings'}. ` +
+          `Quality score ${payload.score_before} → ${payload.score_after}. ` +
+          (after === 0
+            ? 'Nothing is left outstanding.'
+            : `${after} still need a person — the review below shows which.`),
         );
       } else if (payload.status === 'not_needed') {
-        setRepairNote('Nothing to repair — this curriculum already passes the checks.');
+        setRepairNote('Nothing to strengthen — every week already has a topic, focus points, an activity and a way to check learning.');
       } else if (payload.status === 'unavailable') {
         setRepairNote('The AI service did not respond. Your curriculum is unchanged; try again shortly.');
       } else {
@@ -520,7 +540,7 @@ function RolloutWorkspace() {
           grade_key: '',
           effective_term_number: termNumber,
           change_summary: 'Approved curriculum direction.',
-          source_metadata: { name: 'Rillcod Academic Office', framework: 'Rillcod Coding and Robotics Academic Standard' },
+          source_metadata: SOURCE_METADATA,
         }),
       });
       const payload = await response.json();
@@ -873,11 +893,18 @@ function RolloutWorkspace() {
                   </p>
                 )}
 
-                {report.readiness === 'not_ready' && selected && (
+                {/* Offered whenever the report found anything at all — not only when
+                    publication is blocked. A curriculum can be publishable and still
+                    leave every week without a practical activity or a way to check
+                    what was learnt, which is exactly the state the live Python
+                    curriculum was in: ready to publish, 17 suggestions listed, and
+                    no button anywhere to act on a single one of them. */}
+                {((report.mustFix ?? []).length > 0 || (report.improvements ?? []).length > 0) && selected && (
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {/* The AI closes the mechanical gaps — missing topics, focus points, week
-                        numbering. Anything it cannot safely fix is left for a person, and the
-                        builder link stays for exactly that. */}
+                        numbering, practical activities and evidence of learning. Anything it
+                        cannot safely fix is left for a person, and the builder link stays for
+                        exactly that. */}
                     {isAdmin && (
                       <button
                         type="button"
@@ -886,7 +913,11 @@ function RolloutWorkspace() {
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <SparklesIcon className="h-5 w-5" />
-                        {repairing ? 'Repairing…' : 'Fix what can be fixed automatically'}
+                        {repairing
+                          ? 'Strengthening…'
+                          : report.readiness === 'not_ready'
+                            ? 'Fix what can be fixed automatically'
+                            : `Strengthen these ${report.improvements.length} weeks automatically`}
                       </button>
                     )}
                     <Link
