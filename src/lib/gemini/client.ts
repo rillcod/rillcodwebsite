@@ -76,6 +76,24 @@ const isKeyFailure = (s: number) => s === 401 || s === 403;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+/**
+ * How long to pause before retrying a transient failure.
+ *
+ * Tunable because the retry ladder is walked in full by the client's own tests —
+ * every key against every model — and each rung was sleeping for real. That put
+ * the file at 4.8s against vitest's 5s limit: green on its own, and seven
+ * timeouts the moment the rest of the suite competed for the CPU. A flake that
+ * only appears under load is the worst kind, because the failing test names have
+ * nothing to do with the change that exposed them.
+ *
+ * Production keeps the 400ms step. setup-env.ts sets this to 0 for tests, which
+ * exercises the same ladder without waiting on wall-clock time.
+ */
+const RETRY_BACKOFF_MS = (() => {
+    const configured = Number(process.env.AI_RETRY_BACKOFF_MS);
+    return Number.isFinite(configured) && configured >= 0 ? configured : 400;
+})();
+
 // ── Model ladder ────────────────────────────────────────────────────────────
 export interface TextModelSpec {
     id: string;
@@ -494,7 +512,7 @@ export async function geminiGenerateText(
                 if (isKeyFailure(status)) break;            // dead key — next key
                 if (status === 429) break;                   // quota gone on this key — next key
                 if (isTransient(status) && attempt === 0) {
-                    await sleep(400 * (attempt + 1));
+                    await sleep(RETRY_BACKOFF_MS * (attempt + 1));
                     continue;                                // brief blip — one retry
                 }
                 break;                                       // next key
