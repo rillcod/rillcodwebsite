@@ -26,6 +26,7 @@ export default function AccountabilityPage() {
       live_by_role: Record<string, number> | null;
       source: string;
     } | null;
+    data_quality?: { complete: boolean; warnings: string[]; checked_at: string };
   } | null>(null);
   const canViewAccountability = roleHasCapability(profile?.role, 'view_accountability');
   const [exceptionTotals, setExceptionTotals] = useState<Partial<Record<StudentExceptionKind, number>> | null>(null);
@@ -158,6 +159,7 @@ export default function AccountabilityPage() {
       loading={loading}
       refreshing={refreshing}
       error={error}
+      dataQualityWarnings={data?.data_quality?.warnings ?? []}
       syncFeedback={syncFeedback}
       syncingClasses={syncingClasses}
       pollInterval={pollInterval}

@@ -6,6 +6,7 @@ import type { Person } from '@/lib/accountability/types';
 import { collectHollowAccounts } from '@/lib/admin/platform-sanitation';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,9 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const hollowMinAge = Number(url.searchParams.get('hollow_min_age_days') || '90');
+  if (!Number.isInteger(hollowMinAge) || hollowMinAge < 1 || hollowMinAge > 3650) {
+    return NextResponse.json({ error: 'hollow_min_age_days must be a whole number from 1 to 3650.' }, { status: 400 });
+  }
   const classId = (url.searchParams.get('class_id') || '').trim();
 
   let db: ReturnType<typeof adminClient>;
@@ -53,22 +57,32 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Server error' }, { status: 500 });
   }
 
-  const [{ data: people, error: peopleErr }, hollowAccounts, classRow] = await Promise.all([
-    db.from('accountability_people_mv' as never).select('*').range(0, 99999),
-    collectHollowAccounts(db, { minAgeDays: hollowMinAge }),
-    classId
-      ? db.from('classes').select('id, name').eq('id', classId).maybeSingle()
-      : Promise.resolve({ data: null as { id: string; name: string } | null, error: null }),
-  ]);
+  let peopleResult: { data: Person[]; error: { message: string } | null };
+  let hollowAccounts;
+  let classRow;
+  try {
+    [peopleResult, hollowAccounts, classRow] = await Promise.all([
+      fetchAllSupabaseRows<Person>((from, to) => db.from('accountability_people_mv' as never).select('*').range(from, to)),
+      collectHollowAccounts(db, { minAgeDays: hollowMinAge }),
+      classId
+        ? db.from('classes').select('id, name').eq('id', classId).maybeSingle()
+        : Promise.resolve({ data: null as { id: string; name: string } | null, error: null }),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Accountability exception scan failed' }, { status: 500 });
+  }
 
-  if (peopleErr) {
-    return NextResponse.json({ error: peopleErr.message }, { status: 500 });
+  if (peopleResult.error) {
+    return NextResponse.json({ error: peopleResult.error.message }, { status: 500 });
+  }
+  if (classRow.error) {
+    return NextResponse.json({ error: classRow.error.message }, { status: 500 });
   }
   if (classId && !classRow.data) {
     return NextResponse.json({ error: 'Class not found' }, { status: 404 });
   }
 
-  let exceptions = buildStudentExceptionQueues((people ?? []) as Person[], hollowAccounts);
+  let exceptions = buildStudentExceptionQueues(peopleResult.data ?? [], hollowAccounts);
   if (classRow.data?.name) {
     exceptions = filterExceptionQueuesByClassName(exceptions, classRow.data.name);
   }
@@ -81,6 +95,7 @@ export async function GET(req: Request) {
     hollow_scan: {
       min_age_days: hollowMinAge,
       matched: hollowAccounts.length,
+      people_scanned: peopleResult.data.length,
     },
     automation: {
       engine: 'accountability-student-exceptions',

@@ -53,19 +53,24 @@ export async function PATCH(req: NextRequest) {
       }
       patch[key] = body[key];
     }
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ error: 'Supply at least one automation control to change.' }, { status: 400 });
+    }
     const controls = parseOfficeAutomationControls({ ...current, ...patch });
     const now = new Date().toISOString();
-    const { error } = await actor.db.from('system_settings').update({
+    const { data: saved, error } = await actor.db.from('system_settings').update({
       setting_value: JSON.stringify(controls),
       updated_at: now,
-    }).eq('setting_key', OFFICE_AUTOMATION_SETTING_KEY);
+    }).eq('setting_key', OFFICE_AUTOMATION_SETTING_KEY).select('id').maybeSingle();
     if (error) throw new Error(error.message);
+    if (!saved) throw new Error('Office automation controls are missing; no setting was changed.');
 
     await logAudit(actor.db, {
       action: 'office_automation_controls_updated',
       actorId: actor.user.id,
       tableName: 'system_settings',
       resourceType: 'system_settings',
+      oldValues: { controls: current },
       newValues: { changed: patch, resulting_controls: controls },
     });
 

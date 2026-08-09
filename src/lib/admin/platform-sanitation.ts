@@ -174,6 +174,55 @@ async function collectStaleUnpaidStudents(db: SupabaseClient) {
   return data ?? [];
 }
 
+async function markAllHollowAccountActivity(
+  db: SupabaseClient,
+  ids: string[],
+  mark: (rows: any[] | null, key: string) => void,
+) {
+  const studentRows: any[] = [];
+  for (let index = 0; index < ids.length; index += 200) {
+    const chunk = ids.slice(index, index + 200);
+    const sources = await Promise.all([
+      fetchAllSupabaseRows<any>((from, to) => db.from('assignment_submissions').select('user_id').in('user_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('student_progress_reports').select('student_id').in('student_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('identity_cards').select('holder_id').in('holder_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('attendance').select('student_id').in('student_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('cbt_sessions').select('user_id').in('user_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('parent_student_links').select('parent_id').in('parent_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('parent_student_links').select('student_id').in('student_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('students').select('user_id').in('user_id', chunk).not('registration_payment_at', 'is', null).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('students').select('user_id, id').in('user_id', chunk).range(from, to)),
+      fetchAllSupabaseRows<any>((from, to) => db.from('invoices').select('portal_user_id').in('portal_user_id', chunk).range(from, to)),
+    ]);
+    const names = ['submissions', 'reports', 'identity cards', 'attendance', 'CBT sessions', 'parent links', 'student links', 'paid registrations', 'student registry', 'invoices'];
+    sources.forEach((source, sourceIndex) => {
+      if (source.error) throw new Error(`Check hollow-account ${names[sourceIndex]}: ${source.error.message}`);
+    });
+    mark(sources[0].data, 'user_id');
+    mark(sources[1].data, 'student_id');
+    mark(sources[2].data, 'holder_id');
+    mark(sources[3].data, 'student_id');
+    mark(sources[4].data, 'user_id');
+    mark(sources[5].data, 'parent_id');
+    mark(sources[6].data, 'student_id');
+    mark(sources[7].data, 'user_id');
+    mark(sources[9].data, 'portal_user_id');
+    studentRows.push(...sources[8].data);
+  }
+
+  const cardHolders = new Set<string>();
+  const studentRowIds = studentRows.map((student) => student.id).filter(Boolean);
+  for (let index = 0; index < studentRowIds.length; index += 200) {
+    const chunk = studentRowIds.slice(index, index + 200);
+    const cards = await fetchAllSupabaseRows<any>((from, to) => db.from('identity_cards').select('holder_id').in('holder_id', chunk).range(from, to));
+    if (cards.error) throw new Error(`Check student identity cards: ${cards.error.message}`);
+    for (const card of cards.data) if (card.holder_id) cardHolders.add(card.holder_id);
+  }
+  for (const student of studentRows) {
+    if (student.user_id && cardHolders.has(student.id)) mark([{ user_id: student.user_id }], 'user_id');
+  }
+}
+
 /**
  * Very old portal accounts with zero real records — empty shells / placeholders.
  * Never touches admin / school / teacher roles.
@@ -186,14 +235,16 @@ export async function collectHollowAccounts(
   const minAgeDays = resolveHollowAgeDays(opts.minAgeDays);
   const cutoff = daysAgoIso(minAgeDays);
 
-  const { data: candidates } = await db
+  const candidateResult = await fetchAllSupabaseRows<any>((from, to) => db
     .from('portal_users')
     .select('id, full_name, email, role, created_at, last_login, class_id, school_id, is_active, is_deleted, primary_teacher_id')
     .in('role', ['student', 'parent'])
     .eq('is_deleted', false)
     .is('last_login', null)
     .lt('created_at', cutoff)
-    .limit(800);
+    .range(from, to));
+  if (candidateResult.error) throw new Error(`Load hollow-account candidates: ${candidateResult.error.message}`);
+  const candidates = candidateResult.data;
 
   if (!candidates?.length) return [];
 
@@ -272,6 +323,10 @@ export async function collectHollowAccounts(
     const { data: inv } = await db.from('invoices').select('portal_user_id').in('portal_user_id', ids).limit(500);
     mark(inv, 'portal_user_id');
   } catch { /* optional */ }
+
+  // Authoritative, paginated pass. Any missing evidence source aborts the scan;
+  // a database failure must never turn a real account into a deletion candidate.
+  await markAllHollowAccountActivity(db, ids, mark);
 
   const hollow: HollowAccount[] = [];
   for (const u of pool) {

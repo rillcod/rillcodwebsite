@@ -95,6 +95,7 @@ type Props = {
   loading: boolean;
   refreshing: boolean;
   error: string | null;
+  dataQualityWarnings: string[];
   syncFeedback: string | null;
   syncingClasses: boolean;
   pollInterval: number;
@@ -115,6 +116,7 @@ export default function AccountabilityDashboard({
   loading,
   refreshing,
   error,
+  dataQualityWarnings,
   syncFeedback,
   syncingClasses,
   pollInterval,
@@ -419,6 +421,14 @@ export default function AccountabilityDashboard({
 
       {error && (
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
+      )}
+      {dataQualityWarnings.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200" role="alert">
+          <p className="flex items-center gap-2 font-black"><ExclamationTriangleIcon className="h-4 w-4" /> Data quality needs attention</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs sm:text-sm">
+            {dataQualityWarnings.map(warning => <li key={warning}>{warning}</li>)}
+          </ul>
+        </div>
       )}
       {syncFeedback && (
         <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>

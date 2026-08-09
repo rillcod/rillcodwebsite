@@ -125,6 +125,12 @@ export async function GET() {
   const liveTotal = liveRoleCounts
     ? Object.values(liveRoleCounts).reduce((a, b) => a + b, 0)
     : null;
+  const dataQualityWarnings: string[] = [];
+  if (backlogRes.error) dataQualityWarnings.push(`Report backlog unavailable: ${backlogRes.error.message}`);
+  if (liveRoleRes.error) dataQualityWarnings.push(`Live account census unavailable: ${liveRoleRes.error.message}`);
+  if (liveTotal !== null && liveTotal !== people.length) {
+    dataQualityWarnings.push(`The accountability cache contains ${people.length} people while the live account source contains ${liveTotal}. Refresh the cache before acting on totals.`);
+  }
 
   return NextResponse.json(
     {
@@ -137,6 +143,11 @@ export async function GET() {
         live_total: liveTotal,
         live_by_role: liveRoleCounts,
         source: 'accountability_people_mv',
+      },
+      data_quality: {
+        complete: dataQualityWarnings.length === 0,
+        warnings: dataQualityWarnings,
+        checked_at: new Date().toISOString(),
       },
     },
     NO_STORE,

@@ -5,6 +5,7 @@ import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { auditContent, contentVerdict, type ContentAuditInput } from '@/lib/academic/content-inventory';
 import type { WeekPackageAsset } from '@/lib/academic/week-package';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,19 +114,22 @@ export async function GET() {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Server error' }, { status: 500 });
   }
 
-  const { data: term } = await db
+  const { data: term, error: termError } = await db
     .from('academic_terms')
     .select('id, academic_year, term_label')
     .eq('is_current', true)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (termError) return NextResponse.json({ error: `Load current academic term: ${termError.message}` }, { status: 500 });
 
-  const { data: teachers, error: teacherErr } = await db
+  const { data: teachers, error: teacherErr } = await fetchAllSupabaseRows((from, to) => db
     .from('portal_users')
     .select('id, full_name, email, is_active, school_name, school_id')
     .eq('role', 'teacher')
-    .order('full_name');
+    .eq('is_deleted', false)
+    .order('full_name')
+    .range(from, to));
 
   if (teacherErr) {
     return NextResponse.json({ error: teacherErr.message }, { status: 500 });
@@ -142,10 +146,12 @@ export async function GET() {
 
   const teacherIds = teacherList.map((t) => t.id);
 
-  const { data: classes } = await db
+  const { data: classes, error: classError } = await fetchAllSupabaseRows((from, to) => db
     .from('classes')
     .select('id, name, teacher_id, school_id, status, schools(name)')
-    .in('teacher_id', teacherIds);
+    .in('teacher_id', teacherIds)
+    .range(from, to));
+  if (classError) return NextResponse.json({ error: `Load teacher classes: ${classError.message}` }, { status: 500 });
 
   const classList = (classes ?? []).filter((c) => {
     const status = (c.status || 'active').toLowerCase();
@@ -173,11 +179,13 @@ export async function GET() {
     for (let i = 0; i < classIds.length; i += 100) {
       const chunk = classIds.slice(i, i + 100);
       const [lessons, slides, flashcards, assignments] = await Promise.all([
-        db.from('lessons').select('class_id, status, curriculum_week_number, metadata').in('class_id', chunk),
-        db.from('lesson_materials').select('class_id, curriculum_week_number').in('class_id', chunk),
-        db.from('flashcard_decks').select('class_id, is_public, curriculum_week_number').in('class_id', chunk),
-        db.from('assignments').select('class_id, assignment_type, is_active, curriculum_week_number, metadata').in('class_id', chunk),
+        fetchAllSupabaseRows((from, to) => db.from('lessons').select('class_id, status, curriculum_week_number, metadata').in('class_id', chunk).range(from, to)),
+        fetchAllSupabaseRows((from, to) => db.from('lesson_materials').select('class_id, curriculum_week_number').in('class_id', chunk).range(from, to)),
+        fetchAllSupabaseRows((from, to) => db.from('flashcard_decks').select('class_id, is_public, curriculum_week_number').in('class_id', chunk).range(from, to)),
+        fetchAllSupabaseRows((from, to) => db.from('assignments').select('class_id, assignment_type, is_active, curriculum_week_number, metadata').in('class_id', chunk).range(from, to)),
       ]);
+      const contentError = lessons.error || slides.error || flashcards.error || assignments.error;
+      if (contentError) return NextResponse.json({ error: `Load teacher content evidence: ${contentError.message}` }, { status: 500 });
       for (const row of lessons.data ?? []) bucket(row.class_id)?.lessons.push(row as never);
       for (const row of slides.data ?? []) bucket(row.class_id)?.slides.push(row as never);
       for (const row of flashcards.data ?? []) bucket(row.class_id)?.flashcards.push(row as never);
@@ -202,12 +210,14 @@ export async function GET() {
     const membership = new Map<string, string>();
     for (let i = 0; i < classIds.length; i += 100) {
       const chunk = classIds.slice(i, i + 100);
-      const { data } = await db
+      const { data, error } = await fetchAllSupabaseRows((from, to) => db
         .from('portal_users')
         .select('id, class_id')
         .eq('role', 'student')
         .eq('is_deleted', false)
-        .in('class_id', chunk);
+        .in('class_id', chunk)
+        .range(from, to));
+      if (error) return NextResponse.json({ error: `Load class membership: ${error.message}` }, { status: 500 });
       for (const row of data ?? []) {
         if (row.class_id) membership.set(row.id, row.class_id);
       }
@@ -216,9 +226,12 @@ export async function GET() {
     // Anyone the roster marks as gone for this term drops out, whichever class
     // their profile still points at.
     const departed = new Set<string>();
-    let rq = db.from('class_term_rosters').select('student_id, status').in('class_id', classIds);
-    if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
-    const { data: rosterStatuses } = await rq;
+    const { data: rosterStatuses, error: rosterError } = await fetchAllSupabaseRows((from, to) => {
+      let rq = db.from('class_term_rosters').select('student_id, status').in('class_id', classIds).range(from, to);
+      if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
+      return rq;
+    });
+    if (rosterError) return NextResponse.json({ error: `Load class roster status: ${rosterError.message}` }, { status: 500 });
     for (const r of rosterStatuses ?? []) {
       if (['removed', 'ended', 'withdrawn'].includes(String(r.status || 'active').toLowerCase())) {
         departed.add(r.student_id);
@@ -245,11 +258,13 @@ export async function GET() {
     // Chunk to avoid URL limits
     for (let i = 0; i < studentIds.length; i += 200) {
       const chunk = studentIds.slice(i, i + 200);
-      const { data } = await db
+      const { data, error } = await fetchAllSupabaseRows((from, to) => db
         .from('portal_users')
         .select('id, full_name, email, is_active, enrollment_type, role')
         .in('id', chunk)
-        .eq('role', 'student');
+        .eq('role', 'student')
+        .range(from, to));
+      if (error) return NextResponse.json({ error: `Load student accountability profiles: ${error.message}` }, { status: 500 });
       for (const s of data ?? []) {
         studentMap.set(s.id, {
           id: s.id,
@@ -277,12 +292,16 @@ export async function GET() {
   if (studentIds.length > 0) {
     for (let i = 0; i < studentIds.length; i += 200) {
       const chunk = studentIds.slice(i, i + 200);
-      let rq = db
-        .from('student_progress_reports')
-        .select('id, student_id, teacher_id, class_id, course_name, is_published, overall_grade, published_at')
-        .in('student_id', chunk);
-      if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
-      const { data } = await rq;
+      const { data, error } = await fetchAllSupabaseRows((from, to) => {
+        let rq = db
+          .from('student_progress_reports')
+          .select('id, student_id, teacher_id, class_id, course_name, is_published, overall_grade, published_at')
+          .in('student_id', chunk)
+          .range(from, to);
+        if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
+        return rq;
+      });
+      if (error) return NextResponse.json({ error: `Load student progress reports: ${error.message}` }, { status: 500 });
       for (const r of data ?? []) reports.push(r as ReportRow);
     }
   }
@@ -290,12 +309,16 @@ export async function GET() {
   // Also pull reports authored by these teachers (covers students not on their roster but they still wrote)
   for (let i = 0; i < teacherIds.length; i += 50) {
     const chunk = teacherIds.slice(i, i + 50);
-    let rq = db
-      .from('student_progress_reports')
-      .select('id, student_id, teacher_id, class_id, course_name, is_published, overall_grade, published_at')
-      .in('teacher_id', chunk);
-    if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
-    const { data } = await rq;
+    const { data, error } = await fetchAllSupabaseRows((from, to) => {
+      let rq = db
+        .from('student_progress_reports')
+        .select('id, student_id, teacher_id, class_id, course_name, is_published, overall_grade, published_at')
+        .in('teacher_id', chunk)
+        .range(from, to);
+      if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
+      return rq;
+    });
+    if (error) return NextResponse.json({ error: `Load teacher-authored reports: ${error.message}` }, { status: 500 });
     const seen = new Set(reports.map((r) => r.id));
     for (const r of data ?? []) {
       if (!seen.has(r.id)) reports.push(r as ReportRow);

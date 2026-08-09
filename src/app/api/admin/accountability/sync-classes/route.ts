@@ -4,7 +4,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
-import { requireSupabaseWrite } from '@/lib/supabase/require-result';
+import { requireSupabaseResult, requireSupabaseWrite } from '@/lib/supabase/require-result';
+import { resolveActiveRosterPlacements } from '@/lib/accountability/class-placement';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,47 +48,54 @@ export async function POST() {
 
   try {
     // 1. Fetch current active term
-    const { data: term } = await db
+    const { data: term, error: termError } = await db
       .from('academic_terms')
       .select('id')
       .eq('is_current', true)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
+    if (termError) throw new Error(`Load current term: ${termError.message}`);
+    if (!term?.id) {
+      return NextResponse.json({ error: 'No current academic term is configured. Class placement was not changed.' }, { status: 409 });
+    }
 
     // 2. Fetch active term rosters
-    let query = db.from('class_term_rosters').select('student_id, class_id, status');
-    if (term?.id) query = query.eq('term_id', term.id);
+    const query = db.from('class_term_rosters').select('student_id, class_id, status').eq('term_id', term.id);
     const { data: rosters, error: rosterErr } = await query;
     if (rosterErr) throw new Error(rosterErr.message);
 
     // Map student_id -> class_id for active rosters
-    const rosterMap = new Map<string, string>();
-    for (const r of rosters ?? []) {
-      if (r.student_id && r.class_id && COALESCE_STATUS(r.status)) {
-        rosterMap.set(r.student_id, r.class_id);
-      }
-    }
-
-    // Helper for status check
-    function COALESCE_STATUS(st: string | null) {
-      return !st || !['withdrawn', 'ended', 'removed'].includes(st.toLowerCase());
-    }
+    const { placements: rosterMap, conflicts } = resolveActiveRosterPlacements(rosters ?? []);
 
     // 3. Update portal_users for mismatched students
     let syncedCount = 0;
-    const failures: string[] = [];
+    const failures: string[] = [...conflicts].map(studentId => `Conflicting active roster classes for ${studentId}; no placement changed.`);
     for (const [studentId, classId] of rosterMap.entries()) {
-      const { data: pu } = await db
+      const { data: pu, error: userError } = await db
         .from('portal_users')
         .select('id, class_id, is_active, role')
         .eq('id', studentId)
         .maybeSingle();
+      if (userError) {
+        failures.push(`Load student ${studentId}: ${userError.message}`);
+        continue;
+      }
 
       if (pu && pu.role === 'student' && pu.is_active && pu.class_id !== classId) {
         try {
-          await requireSupabaseWrite(
-            db.from('portal_users').update({ class_id: classId }).eq('id', studentId),
+          const updated = await requireSupabaseResult(
+            db.from('portal_users')
+              .update({ class_id: classId })
+              .eq('id', studentId)
+              .eq('role', 'student')
+              .eq('is_active', true)
+              .eq('is_deleted', false)
+              .select('id')
+              .maybeSingle(),
             `synchronize class placement for ${studentId}`,
           );
+          if (!updated) throw new Error(`Student ${studentId} changed while class placement was being synchronized.`);
           syncedCount++;
         } catch (error) {
           failures.push(error instanceof Error ? error.message : `Could not place ${studentId}`);
@@ -113,6 +121,9 @@ export async function POST() {
       tableName: 'portal_users',
       newValues: {
         synced_count: syncedCount,
+        term_id: term.id,
+        roster_count: rosters?.length ?? 0,
+        conflict_count: conflicts.size,
         source: 'active_class_term_rosters',
         failures,
       },
@@ -121,10 +132,20 @@ export async function POST() {
       ok: failures.length === 0,
       partial: failures.length > 0,
       synced_count: syncedCount,
+      term_id: term.id,
+      roster_count: rosters?.length ?? 0,
+      conflict_count: conflicts.size,
       failed_count: failures.length,
       failures,
     });
   } catch (e) {
+    await logAudit(db as any, {
+      action: 'sync_accountability_classes_failed',
+      actorId: user.id,
+      resourceType: 'accountability',
+      resourceId: 'class-placement',
+      newValue: e instanceof Error ? e.message : 'Sync failed',
+    });
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Sync failed' }, { status: 500 });
   }
 }
