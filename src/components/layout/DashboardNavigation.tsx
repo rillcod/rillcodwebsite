@@ -681,20 +681,15 @@ export default function DashboardNavigation() {
             href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
-          // The week's material. Each of these already admits a teacher — the
-          // pages gate on admin/teacher/school — they were simply never linked,
-          // so a teacher had to know the URL to reach the lessons, resources and
-          // projects their own plan generates.
-          {
-            name: "Lessons",
-            href: "/dashboard/lessons",
-            icon: BookOpenIcon,
-          },
-          {
-            name: "Projects",
-            href: "/dashboard/projects",
-            icon: RocketLaunchIcon,
-          },
+          // Library is the one shared shelf that is NOT reached through a class.
+          // Its tabs are all / this school / global and it filters on school_id,
+          // so it holds material across every class a teacher teaches — and it
+          // appears nowhere in the class workspace.
+          //
+          // Lessons, assignments and tests deliberately do NOT sit here. They
+          // belong to a class and are reached through it: My Classes → a class →
+          // Teaching or Assessment. Listing them again at top level would offer a
+          // second, unscoped route to the same work.
           {
             name: "Library",
             href: "/dashboard/library",
@@ -718,23 +713,12 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Assessment" },
-          // Setting the work comes before marking it. Both pages gate on
-          // admin/teacher/school and neither was linked, so the two things a
-          // teacher does most often — give an assignment, run a test — were the
-          // only ones reachable purely by typing a URL. Grading Queue below is
-          // where that work comes back.
-          {
-            name: "Assignments",
-            href: "/dashboard/assignments",
-            icon: ClipboardDocumentListIcon,
-          },
-          {
-            // /dashboard/exams is the admin and learner view; cbt is the one a
-            // teacher authors and grades from.
-            name: "Tests & Exams",
-            href: "/dashboard/cbt",
-            icon: BeakerIcon,
-          },
+          // No Assignments or Tests entry here on purpose. Both are authored
+          // against a class and are reached through one — My Classes → a class →
+          // Assessment, which carries the assignments and cbt tabs. A top-level
+          // link would be a second route to the same work with none of the class
+          // scoping, and the cross-class list it lands on answers a question a
+          // teacher is not asking.
           {
             name: "Grading Queue",
             href: "/dashboard/grading",
