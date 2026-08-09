@@ -7,6 +7,7 @@ import {
 } from '@/lib/curriculum/official-direction';
 import { humanEntryPoint, humanTermLabel } from '@/lib/academic/labels';
 import { DEFAULT_AUTO_GENERATE_SETTINGS } from '@/lib/academic/auto-generate-settings';
+import { decideEntryPoint } from '@/lib/academic/entry-point';
 
 type DbClient = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -37,6 +38,8 @@ export type AcademicAutomationReport = {
   coursesInferred: number;
   plansCreated: number;
   plansRefreshed: number;
+  /** Schools whose real joining point was recorded for the first time. */
+  entryPointsRecorded: number;
   issues: AcademicAutomationIssue[];
 };
 
@@ -79,11 +82,15 @@ export async function runAcademicReadinessAutomation(
     coursesInferred: 0,
     plansCreated: 0,
     plansRefreshed: 0,
+    entryPointsRecorded: 0,
     issues: [],
   };
 
   let query = db.from('classes').select(
-    'id,name,school_id,teacher_id,program_id,current_course_id,term_id,offering_period_id,academic_offering_id,status,academic_terms(academic_year,term_number),academic_offering_periods(label)',
+    // start_date is what turns "joined in Third Term" into "joined in Third Term,
+    // Week 3" — without it every mid-year joiner would be recorded at week one
+    // and marked behind from its first day.
+    'id,name,school_id,teacher_id,program_id,current_course_id,term_id,offering_period_id,academic_offering_id,status,academic_terms(academic_year,term_number,start_date),academic_offering_periods(label)',
   ).or('status.is.null,status.neq.archived').limit(Math.min(Math.max(scope.limit ?? 200, 1), 500));
   if (scope.classIds?.length) query = query.in('id', scope.classIds);
   if (scope.offeringId) query = query.eq('academic_offering_id', scope.offeringId);
@@ -194,19 +201,73 @@ export async function runAcademicReadinessAutomation(
         continue;
       }
 
-      const schedule = (await resolveOfficialDeliverySchedule(db, {
+      const existingSchedule = await resolveOfficialDeliverySchedule(db, {
         schoolId: klass.school_id,
         classId: klass.id,
         courseId,
         releaseId: direction.id,
-      })) ?? {
+      });
+
+      // Record where this school joined, rather than assuming it every run.
+      //
+      // This fallback was computed in memory and discarded on every sweep, so a
+      // school that walked in during Third Term was taught as though it had been
+      // there since week one of that term — and nothing anywhere recorded
+      // otherwise. Across 58 adoptions exactly one delivery schedule existed,
+      // because a person had to type it on the Rollout screen.
+      //
+      // Written once and never rewritten: see decideEntryPoint. An entry point
+      // is the term a school walked in, and re-deriving it later would move it
+      // to today and shift every week they have already been taught.
+      let schedule = existingSchedule;
+      if (!schedule) {
+        const decision = decideEntryPoint({
+          existingSchedule: null,
+          term: term ? { term_number: term.term_number, start_date: term.start_date } : null,
+          releaseEffectiveTerm: direction.effective_term_number ?? null,
+        });
+        if (decision.create) {
+          const { error: scheduleError } = await db.from('academic_curriculum_delivery_schedules').insert({
+            school_id: klass.school_id,
+            class_id: null, // School default. A class override stays a human decision.
+            course_id: courseId,
+            release_id: direction.id,
+            academic_term_id: klass.term_id ?? null,
+            entry_term_number: decision.entry_term_number,
+            entry_week_number: decision.entry_week_number,
+            curriculum_year_number: decision.curriculum_year_number,
+            curriculum_term_number: decision.curriculum_term_number,
+            curriculum_week_number: decision.curriculum_week_number,
+            sessions_per_week: 1,
+            status: 'active',
+            created_by: teacherId,
+          });
+          if (scheduleError) {
+            // A losing race with another sweep is the expected failure here, and
+            // the plan below does not depend on the row existing — it uses the
+            // same values either way. Reported, not fatal.
+            issue(report, klass, 'automation_failed', `Entry point not recorded: ${scheduleError.message}`);
+          } else {
+            report.entryPointsRecorded += 1;
+          }
+          schedule = {
+            entry_term_number: decision.entry_term_number,
+            entry_week_number: decision.entry_week_number,
+            curriculum_year_number: decision.curriculum_year_number,
+            curriculum_term_number: decision.curriculum_term_number,
+            curriculum_week_number: decision.curriculum_week_number,
+            sessions_per_week: 1,
+          } as typeof schedule;
+        }
+      }
+      schedule = schedule ?? ({
         entry_term_number: direction.effective_term_number ?? term?.term_number ?? 1,
         entry_week_number: 1,
         curriculum_year_number: 1,
         curriculum_term_number: 1,
         curriculum_week_number: 1,
         sessions_per_week: 1,
-      };
+      } as typeof schedule);
 
       const { data: ensured, error: ensureError } = await db.rpc('ensure_class_teaching_plan', {
         p_class_id: klass.id,
