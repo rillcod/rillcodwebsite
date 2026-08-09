@@ -74,6 +74,9 @@ import {
   termNumberFromLabel,
 } from "@/lib/reports/academic-period";
 import { getCurriculumGenerationDefaults } from "@/lib/curriculum/generationDefaults";
+// One spelling of term and programme wording, shared with the direction API,
+// the readiness sweep and the printed reports.
+import { humanProgrammeYear, humanTermLabel } from "@/lib/curriculum/humanLabels";
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -5154,9 +5157,13 @@ export default function CurriculumPage() {
                                   const weekMin = term.weeks?.[0]?.week;
                                   const weekMax = term.weeks?.[term.weeks.length - 1]?.week;
                                   const weekRangeLabel = weekMin && weekMax ? ` (W${weekMin}–${weekMax})` : "";
+                                  // "Term 1 · W1–8", not "T1 (W1–8)". The tab is the
+                                  // main way anyone moves through a curriculum, and
+                                  // a single letter and a number is a code to be
+                                  // decoded rather than a label to be read.
                                   const tabLabel = isCohortFormat
                                     ? nationalLabel
-                                    : `${unitNoun.charAt(0)}${progTermNum}${weekRangeLabel}`;
+                                    : `${unitNoun} ${progTermNum}${weekRangeLabel.replace(/^ \((W[^)]*)\)$/, ' · $1')}`;
                                   const isSelected = activeTerm === term.term;
                                   return (
                                     <button
@@ -5171,7 +5178,12 @@ export default function CurriculumPage() {
                                           ? ` — ${termDone} of ${termWeeks} weeks taught`
                                           : ""
                                       }`}
-                                      className={`flex items-center gap-1 px-2.5 h-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap border-r border-border last:border-r-0 transition-colors cursor-pointer ${
+                                      // 9px uppercase at the widest tracking, then
+                                      // truncated at 9rem — the label was small,
+                                      // stretched and cut off at once. Sentence case
+                                      // at 11px fits more of the actual words in the
+                                      // same room.
+                                      className={`flex items-center gap-1.5 px-3 h-full text-[11px] font-bold whitespace-nowrap border-r border-border last:border-r-0 transition-colors cursor-pointer ${
                                         isSelected
                                           ? "bg-primary/15 text-primary"
                                           : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -5183,7 +5195,7 @@ export default function CurriculumPage() {
                                           aria-label="Current term"
                                         />
                                       )}
-                                      <span className="max-w-[9rem] truncate">
+                                      <span className="max-w-[12rem] truncate">
                                         {tabLabel}
                                       </span>
                                       {termWeeks > 0 && (
@@ -5614,21 +5626,44 @@ export default function CurriculumPage() {
                                 const theme = PROGRAMME_TERM_THEME[pt] ?? "";
                                 const pillCls = PILL_COLOR[pt] ?? PILL_COLOR[1];
                                 const dotCls = DOT_COLOR[pt] ?? DOT_COLOR[1];
+                                const schoolYear = effectiveAcademicYearForTerm(
+                                  currentTermData.term,
+                                  effectiveProgramStartTerm,
+                                  academicYear
+                                );
+                                // Both halves of the position, on one line and in
+                                // one size.
+                                //
+                                // This was two 9px pills in uppercase with the
+                                // widest tracking Tailwind offers — below any
+                                // readable floor, and it never showed the school's
+                                // own term at all. So the screen said "Prog. Term 1"
+                                // while the school was calling it Third Term, and
+                                // the reader had to hold the mapping in their head.
+                                //
+                                // Now it reads left to right the way it is spoken:
+                                // what the school calls this term, then where that
+                                // lands in the programme.
                                 return (
-                                  <div className="flex items-center gap-2 mt-1.5">
+                                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="text-[13px] font-bold text-foreground">
+                                      {humanTermLabel(currentTermData.term)} {schoolYear}
+                                    </span>
+                                    {/* "teaches", not "is": it states what happens
+                                        rather than asking the reader to work out
+                                        why two different terms name one thing. */}
+                                    <span className="text-[12px] text-muted-foreground">
+                                      teaches
+                                    </span>
                                     <span
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${pillCls}`}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-bold ${pillCls}`}
                                     >
                                       <span
                                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls}`}
                                       />
-                                      Prog. Term {pt} · {theme}
+                                      {humanProgrammeYear(activeYear)}, Term {pt}
+                                      {theme ? ` — ${theme}` : ""}
                                     </span>
-                                    {activeYear > 1 && (
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full border border-border bg-muted/40 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                        Year {activeYear}
-                                      </span>
-                                    )}
                                   </div>
                                 );
                               })()}
