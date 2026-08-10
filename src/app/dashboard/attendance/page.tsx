@@ -9,11 +9,12 @@ import {
   ClipboardDocumentCheckIcon, UserGroupIcon, CheckCircleIcon, XCircleIcon,
   ClockIcon, ExclamationCircleIcon, PlusIcon, ChevronDownIcon, CheckIcon,
   ArrowPathIcon, ArrowLeftIcon, PrinterIcon, TableCellsIcon, ChartPieIcon,
-  CalendarIcon, CalendarDaysIcon,
+  CalendarIcon, CalendarDaysIcon, SparklesIcon,
 } from '@/lib/icons';
 import { useSearchParams, useRouter } from 'next/navigation';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
+import { buildSessionSuggestion, reusePreviousAttendanceStatuses, sortSessionsNewestFirst } from '@/lib/attendance/predictive-entry';
 
 // Extract a scannable student code from a QR value. Handles the current card URL
 // (/result-check/RC-XXXXXXXX), the older /verify and /student/<uuid> URLs, and a bare
@@ -72,6 +73,9 @@ function AttendanceContent() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [classesLoaded, setClassesLoaded] = useState(false);
+  const [pageMessage, setPageMessage] = useState<{ type: 'info' | 'error'; text: string } | null>(null);
+  const [reusingPattern, setReusingPattern] = useState(false);
 
   // Student: own attendance
   const [myAttendance, setMyAttendance] = useState<any[]>([]);
@@ -104,8 +108,13 @@ function AttendanceContent() {
       // Load classes via the scoped API so ALL role rules apply centrally — admin: all;
       // teacher: own + assigned-school classes, or ONLY own classes when Class Privacy
       // (lms_teacher_isolation) is on; school: own school. No more direct, unscoped query.
+      setClassesLoaded(false);
       fetch('/api/classes', { cache: 'no-store' })
-        .then(r => r.json())
+        .then(async r => {
+          const json = await r.json();
+          if (!r.ok) throw new Error(json.error || 'Classes could not be loaded.');
+          return json;
+        })
         .then(({ data }) => {
           const rows = (data ?? []).map((c: any) => ({
             id: c.id,
@@ -118,23 +127,58 @@ function AttendanceContent() {
           }));
           rows.sort((a: any, b: any) => (a.name ?? '').localeCompare(b.name ?? ''));
           setClasses(rows);
+          setClassesLoaded(true);
         })
-        .catch(() => setClasses([]));
+        .catch((error) => {
+          setClasses([]);
+          setClassesLoaded(true);
+          setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Classes could not be loaded.' });
+        });
     } else {
       // Student: get own attendance with sessions
       db.from('attendance')
         .select('*, class_sessions(session_date, topic, start_time, classes!class_sessions_class_id_fkey(name))')
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
-        .then(({ data }) => setMyAttendance(data ?? []));
+        .then(({ data, error }) => {
+          if (error) {
+            setMyAttendance([]);
+            setPageMessage({ type: 'error', text: error.message || 'Attendance could not be loaded.' });
+            return;
+          }
+          setMyAttendance(data ?? []);
+        });
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   useEffect(() => {
-    if (classIdFromQuery && isStaff) {
-      setSelectedClass(classIdFromQuery);
+    if (!isStaff || !classesLoaded || classes.length === 0 || selectedClass) return;
+    const allowedIds = new Set(classes.map((item) => item.id));
+    const storageKey = profile?.id ? `attendance:last-class:${profile.id}` : '';
+    let remembered: string | null = null;
+    try {
+      remembered = storageKey ? window.localStorage.getItem(storageKey) : null;
+    } catch {
+      // Storage may be disabled in hardened browsers; selection still works normally.
     }
-  }, [classIdFromQuery, isStaff]);
+    const nextClass = classIdFromQuery && allowedIds.has(classIdFromQuery)
+      ? classIdFromQuery
+      : remembered && allowedIds.has(remembered)
+        ? remembered
+        : classes.length === 1
+          ? classes[0].id
+          : '';
+    if (nextClass) setSelectedClass(nextClass);
+  }, [classIdFromQuery, classes, classesLoaded, isStaff, profile?.id, selectedClass]);
+
+  useEffect(() => {
+    if (!selectedClass || !profile?.id || !classes.some((item) => item.id === selectedClass)) return;
+    try {
+      window.localStorage.setItem(`attendance:last-class:${profile.id}`, selectedClass);
+    } catch {
+      // Remembering context is an enhancement and must never block attendance.
+    }
+  }, [classes, profile?.id, selectedClass]);
 
   useEffect(() => {
     if (isCanMark && !selectedClass && activeTab === 'log') {
@@ -152,9 +196,10 @@ function AttendanceContent() {
       .eq('class_id', selectedClass)
       .order('session_date', { ascending: false });
     if (selectedClassTermId) sessionQuery = sessionQuery.eq('term_id', selectedClassTermId);
-    sessionQuery
-      .then(({ data }) => {
-        const sess = data ?? [];
+    Promise.resolve(sessionQuery)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        const sess = sortSessionsNewestFirst(data ?? []);
         setSessions(sess);
         setSelectedSession('');
         setStudents([]);
@@ -162,10 +207,16 @@ function AttendanceContent() {
         
         // If we entered via direct link, try to find/init today's session
         if (classIdFromQuery === selectedClass && sess.length === 0) {
-           quickMarkToday();
+           quickMarkToday(sess[0]);
         } else {
            setLoading(false);
         }
+      })
+      .catch((error) => {
+        setSessions([]);
+        setSelectedSession('');
+        setLoading(false);
+        setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Sessions could not be loaded.' });
       });
   }, [selectedClass, selectedClassTermId]);
 
@@ -184,6 +235,8 @@ function AttendanceContent() {
         ]);
 
         const studsJson = await studsHttpRes.json();
+        if (!studsHttpRes.ok) throw new Error(studsJson.error || 'Students could not be loaded.');
+        if (attRes.error) throw attRes.error;
         const studs: any[] = studsJson.students ?? [];
         setStudents(studs);
         
@@ -200,6 +253,7 @@ function AttendanceContent() {
         setSaved(false);
       } catch (err) {
         console.error('Attendance Load Error:', err);
+        setPageMessage({ type: 'error', text: err instanceof Error ? err.message : 'Attendance could not be loaded.' });
       } finally {
         setLoading(false);
       }
@@ -212,8 +266,16 @@ function AttendanceContent() {
   useEffect(() => {
     if (activeTab !== 'log' || !selectedClass) return;
     fetch(`/api/classes/${selectedClass}/students`, { cache: 'no-store' })
-      .then(r => r.json())
-      .then(json => setStudents(json.students ?? []));
+      .then(async r => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || 'Students could not be loaded.');
+        return json;
+      })
+      .then(json => setStudents(json.students ?? []))
+      .catch((error) => {
+        setStudents([]);
+        setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Students could not be loaded.' });
+      });
   }, [activeTab, selectedClass]);
 
   // Load ALL records for the Log view
@@ -226,10 +288,16 @@ function AttendanceContent() {
       .eq('class_sessions.class_id', selectedClass)
       .order('created_at', { ascending: false });
     if (selectedClassTermId) logQuery = logQuery.eq('term_id', selectedClassTermId);
-    logQuery
-      .then(({ data }) => {
+    Promise.resolve(logQuery)
+      .then(({ data, error }) => {
+        if (error) throw error;
         setFullAttendanceData(data ?? []);
         setLoading(false);
+      })
+      .catch((error) => {
+        setFullAttendanceData([]);
+        setLoading(false);
+        setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Attendance history could not be loaded.' });
       });
   }, [activeTab, selectedClass, selectedClassTermId]);
 
@@ -365,56 +433,158 @@ function AttendanceContent() {
   const handleSave = async () => {
     if (!selectedSession) return;
     setSaving(true);
-    const records = Object.entries(attendance).map(([user_id, val]) => ({
-      session_id: selectedSession,
-      user_id,
-      status: val.status,
-      notes: val.notes || null,
-    }));
-    const res = await fetch('/api/attendance/upsert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records }),
-    });
-    if (!res.ok) { const j = await res.json(); alert(j.error || 'Save failed'); }
-    else { setSaved(true); }
-    setSaving(false);
+    setPageMessage(null);
+    try {
+      const records = Object.entries(attendance).map(([user_id, val]) => ({
+        session_id: selectedSession,
+        user_id,
+        status: val.status,
+        notes: val.notes || null,
+      }));
+      const res = await fetch('/api/attendance/upsert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Attendance could not be saved.');
+      setSaved(true);
+      setPageMessage({ type: 'info', text: `${records.length} attendance record${records.length === 1 ? '' : 's'} saved.` });
+    } catch (error) {
+      setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Attendance could not be saved.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const quickMarkToday = async () => {
+  const applyPreviousPattern = async () => {
+    const currentIndex = sessions.findIndex((session) => session.id === selectedSession);
+    const previousSession = currentIndex >= 0 ? sessions[currentIndex + 1] : null;
+    if (!previousSession || students.length === 0) return;
+    setReusingPattern(true);
+    setPageMessage(null);
+    try {
+      const db = createClient();
+      const { data, error } = await db.from('attendance').select('user_id, status').eq('session_id', previousSession.id);
+      if (error) throw error;
+      const reusableRecords = (data ?? []).flatMap((record) =>
+        record.user_id && record.status
+          ? [{ user_id: record.user_id, status: record.status }]
+          : [],
+      );
+      const result = reusePreviousAttendanceStatuses(
+        students.map((student: any) => student.id),
+        reusableRecords,
+        attendance,
+      );
+      setAttendance(result.draft);
+      setSaved(false);
+      setPageMessage({
+        type: 'info',
+        text: result.applied > 0
+          ? `Drafted ${result.applied} status${result.applied === 1 ? '' : 'es'} from the previous session. Review and save when ready.`
+          : 'The previous session had no reusable attendance records.',
+      });
+    } catch (error) {
+      setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'The previous pattern could not be loaded.' });
+    } finally {
+      setReusingPattern(false);
+    }
+  };
+
+  const toggleCustomSession = () => {
+    if (!showNewSession) {
+      const suggestion = buildSessionSuggestion(sessions[0]);
+      setNewSession({
+        session_date: suggestion.session_date,
+        start_time: suggestion.start_time,
+        end_time: suggestion.end_time,
+        topic: '',
+      });
+    }
+    setShowNewSession((visible) => !visible);
+  };
+
+  const createCustomSession = async () => {
+    if (!newSession.session_date || !selectedClass) return;
+    setCreatingSession(true);
+    setPageMessage(null);
+    try {
+      const res = await fetch('/api/class-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          class_id: selectedClass,
+          term_id: selectedClassTermId,
+          session_date: newSession.session_date,
+          topic: newSession.topic || `Session on ${newSession.session_date}`,
+          start_time: newSession.start_time || null,
+          end_time: newSession.end_time || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Session could not be created.');
+      setSessions((previous) => sortSessionsNewestFirst([...previous, json.data]));
+      setSelectedSession(json.data.id);
+      setShowNewSession(false);
+      setPageMessage({ type: 'info', text: 'Session created. Attendance is ready to review.' });
+    } catch (error) {
+      setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Session could not be created.' });
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  const quickMarkToday = async (latestSession?: { start_time?: string | null; end_time?: string | null }) => {
     if (!selectedClass) return;
     setLoading(true);
-    const db = createClient();
-    const today = new Date().toISOString().split('T')[0];
+    setPageMessage(null);
+    const suggestion = buildSessionSuggestion(latestSession ?? sessions[0]);
+    try {
+      const db = createClient();
 
     // Check if today's session already exists (read-only — OK for teachers)
     let todaySessionQuery = db.from('class_sessions')
       .select('*')
       .eq('class_id', selectedClass)
-      .eq('session_date', today);
+      .eq('session_date', suggestion.session_date);
     if (selectedClassTermId) todaySessionQuery = todaySessionQuery.eq('term_id', selectedClassTermId);
-    const { data: existing } = await todaySessionQuery.maybeSingle();
+    const { data: existing, error: lookupError } = await todaySessionQuery.maybeSingle();
+    if (lookupError) {
+      throw new Error(lookupError.message || 'Today\'s session could not be prepared.');
+    }
 
     if (existing) {
       setSelectedSession(existing.id);
+      setPageMessage({ type: 'info', text: 'Today\'s session is ready.' });
     } else {
       // Create via API (bypasses RLS)
       const res = await fetch('/api/class-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: selectedClass, term_id: selectedClassTermId, session_date: today, topic: `Session on ${new Date().toLocaleDateString()}` }),
+        body: JSON.stringify({
+          class_id: selectedClass,
+          term_id: selectedClassTermId,
+          session_date: suggestion.session_date,
+          topic: `Session on ${new Date().toLocaleDateString()}`,
+          start_time: suggestion.start_time,
+          end_time: suggestion.end_time,
+        }),
       });
       if (!res.ok) {
         const j = await res.json();
-        alert(j.error || 'Failed to create session');
-        setLoading(false);
-        return;
+        throw new Error(j.error || 'Today\'s session could not be created.');
       }
       const { data: created } = await res.json();
-      setSessions(prev => [created, ...prev]);
+      setSessions(prev => sortSessionsNewestFirst([...prev, created]));
       setSelectedSession(created.id);
+      setPageMessage({ type: 'info', text: 'Today\'s session was created with your recent class time pattern.' });
     }
-    setLoading(false);
+    } catch (error) {
+      setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Today\'s session could not be prepared.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Auto-start camera when scanner opens (if BarcodeDetector supported)
@@ -613,6 +783,8 @@ function AttendanceContent() {
 
   // ── STAFF VIEW ───────────────────────────────────────────────────────────
   const currentSession = sessions.find(s => s.id === selectedSession);
+  const currentSessionIndex = sessions.findIndex((session) => session.id === selectedSession);
+  const previousSessionForDraft = currentSessionIndex >= 0 ? sessions[currentSessionIndex + 1] : null;
   const currentClass = classes.find(c => c.id === selectedClass);
   const currentClassTerm = [currentClass?.academic_terms?.term_label, currentClass?.academic_terms?.academic_year]
     .filter(Boolean)
@@ -667,7 +839,18 @@ function AttendanceContent() {
           />
         )}
 
-        {(!selectedClass || !isCanMark) && (
+        {pageMessage && (
+          <div
+            role={pageMessage.type === 'error' ? 'alert' : 'status'}
+            className={`rounded-2xl border px-4 py-3 text-sm ${pageMessage.type === 'error'
+              ? 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+              : 'border-teal-500/25 bg-teal-500/10 text-teal-700 dark:text-teal-300'}`}
+          >
+            {pageMessage.text}
+          </div>
+        )}
+
+        {!isCanMark && (
           <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Choose Attendance Scope</p>
@@ -797,12 +980,12 @@ function AttendanceContent() {
               {selectedClass && isCanMark && (
                 <div className="flex flex-col gap-4 pt-2">
                   <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <button onClick={quickMarkToday} disabled={loading}
+                    <button onClick={() => quickMarkToday()} disabled={loading}
                       className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-foreground font-extrabold rounded-xl transition-all shadow-lg shadow-teal-900/30">
                       <CalendarIcon className="w-5 h-5 text-teal-800 dark:text-teal-200" />
                       {loading ? 'Processing…' : 'Mark Today\'s Attendance'}
                     </button>
-                    <button onClick={() => setShowNewSession(!showNewSession)}
+                    <button onClick={toggleCustomSession}
                       className="w-full sm:w-auto px-4 py-3.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
                       Past / Custom Date
                     </button>
@@ -915,7 +1098,13 @@ function AttendanceContent() {
 
                   {showNewSession && (
                     <div className="bg-card shadow-sm border border-teal-500/10 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest px-1">Session Options</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                        <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">Session Options</p>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold text-violet-700 dark:text-violet-300">
+                          <SparklesIcon className="h-3 w-3" />
+                          {sessions[0]?.start_time && sessions[0]?.end_time ? 'Recent class time suggested' : 'Current time suggested'}
+                        </span>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input type="date" value={newSession.session_date}
                           onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
@@ -932,32 +1121,9 @@ function AttendanceContent() {
                           onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
                           placeholder="Topic / Lessons (optional)"
                           className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
-                        <button onClick={async () => {
-                          if (!newSession.session_date) return;
-                          setLoading(true);
-                          const res = await fetch('/api/class-sessions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              class_id: selectedClass,
-                              term_id: selectedClassTermId,
-                              session_date: newSession.session_date,
-                              topic: newSession.topic || `Session on ${newSession.session_date}`,
-                              start_time: newSession.start_time || null,
-                              end_time: newSession.end_time || null,
-                            }),
-                          });
-                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed'); }
-                          else {
-                            const { data } = await res.json();
-                            setSessions(prev => [data, ...prev]);
-                            setSelectedSession(data.id);
-                            setShowNewSession(false);
-                          }
-                          setLoading(false);
-                        }}
-                          className="px-4 py-2.5 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
-                          Confirm & Create
+                        <button onClick={createCustomSession} disabled={!newSession.session_date || creatingSession}
+                          className="px-4 py-2.5 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all disabled:cursor-not-allowed disabled:opacity-50">
+                          {creatingSession ? 'Creating…' : 'Confirm & Create'}
                         </button>
                       </div>
                       <p className="text-[10px] text-muted-foreground px-1">
@@ -1001,6 +1167,18 @@ function AttendanceContent() {
                     <p className="text-xs text-muted-foreground mt-0.5">{students.length} students</p>
                   </div>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                      {isCanMark && previousSessionForDraft && (
+                        <button
+                          type="button"
+                          onClick={applyPreviousPattern}
+                          disabled={reusingPattern}
+                          title="Copy only attendance statuses into this unsaved draft; session notes are never copied"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-700 transition-colors hover:bg-violet-500/20 disabled:opacity-50 dark:text-violet-300 sm:flex-none"
+                        >
+                          {reusingPattern ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
+                          Previous pattern
+                        </button>
+                      )}
                       {/* Mark all buttons */}
                       {isCanMark && ['present', 'absent'].map(s => (
                         <button key={s} onClick={() => {
