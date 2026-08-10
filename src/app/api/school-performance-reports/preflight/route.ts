@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'You cannot manage reports for this school.' }, { status: 403 });
   }
 
-  const { data: term } = await actor.admin
+  const { data: term, error: termError } = await actor.admin
     .from('academic_terms')
     .select('academic_year,term_label,term_number,start_date,end_date')
     .eq('id', academicTermId)
     .maybeSingle();
+
+  if (termError) return NextResponse.json({ error: termError.message }, { status: 500 });
 
   if (!term) {
     return NextResponse.json({ error: 'Academic term not found.' }, { status: 404 });

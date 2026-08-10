@@ -62,13 +62,14 @@ export async function recordSchoolReportEvent(
     payload?: Record<string, unknown>;
   },
 ): Promise<void> {
-  await admin.from('school_report_events').insert({
+  const { error } = await admin.from('school_report_events').insert({
     report_id: input.reportId,
     revision_id: input.revisionId ?? null,
     event_type: input.eventType,
     actor_id: input.actorId,
     payload: input.payload ?? {},
   });
+  if (error) throw new Error(`Report event could not be recorded: ${error.message}`);
 }
 
 export async function ensureWorkingRevision(
@@ -77,15 +78,28 @@ export async function ensureWorkingRevision(
   actorUserId: string,
 ): Promise<SchoolReportRevisionRow> {
   const workingNumber = report.working_revision_number;
-  if (workingNumber) {
-    const { data } = await admin
-      .from('school_report_revisions')
-      .select('*')
-      .eq('report_id', report.id)
-      .eq('revision_number', workingNumber)
-      .eq('status', 'working')
-      .maybeSingle();
-    if (data) return data as SchoolReportRevisionRow;
+  let workingQuery = admin
+    .from('school_report_revisions')
+    .select('*')
+    .eq('report_id', report.id)
+    .eq('status', 'working');
+  workingQuery = workingNumber
+    ? workingQuery.eq('revision_number', workingNumber)
+    : workingQuery.order('revision_number', { ascending: false }).limit(1);
+  const { data: existingWorking, error: existingWorkingError } = await workingQuery.maybeSingle();
+  if (existingWorkingError) throw new Error(existingWorkingError.message);
+  if (existingWorking) {
+    const revision = existingWorking as SchoolReportRevisionRow;
+    if (report.working_revision_number !== revision.revision_number) {
+      const { data: relinked, error: relinkError } = await admin
+        .from('school_performance_reports')
+        .update({ working_revision_number: revision.revision_number, updated_at: new Date().toISOString() })
+        .eq('id', report.id)
+        .select('id')
+        .maybeSingle();
+      if (relinkError || !relinked) throw new Error(relinkError?.message || 'Working report revision could not be linked.');
+    }
+    return revision;
   }
 
   const nextNumber = workingNumber ?? Math.max(1, (await maxRevisionNumber(admin, report.id)) + 1);
@@ -108,10 +122,13 @@ export async function ensureWorkingRevision(
 
   if (error) throw new Error(error.message);
 
-  await admin
+  const { data: linked, error: linkError } = await admin
     .from('school_performance_reports')
     .update({ working_revision_number: nextNumber, updated_at: new Date().toISOString() })
-    .eq('id', report.id);
+    .eq('id', report.id)
+    .select('id')
+    .maybeSingle();
+  if (linkError || !linked) throw new Error(linkError?.message || 'Working report revision could not be linked.');
 
   await recordSchoolReportEvent(admin, {
     reportId: report.id,
@@ -125,13 +142,14 @@ export async function ensureWorkingRevision(
 }
 
 async function maxRevisionNumber(admin: AnyClient, reportId: string): Promise<number> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from('school_report_revisions')
     .select('revision_number')
     .eq('report_id', reportId)
     .order('revision_number', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return Number(data?.revision_number) || 0;
 }
 
@@ -179,7 +197,7 @@ export async function publishSchoolReportRevision(
 
   if (error || !published) throw new Error(error?.message || 'Unable to publish revision.');
 
-  await admin
+  const { data: reportUpdated, error: reportUpdateError } = await admin
     .from('school_performance_reports')
     .update({
       status: 'published',
@@ -190,7 +208,10 @@ export async function publishSchoolReportRevision(
       verification_code: report.verification_code || schoolReportVerificationCode(report.id),
       updated_at: publishedAt,
     })
-    .eq('id', report.id);
+    .eq('id', report.id)
+    .select('id')
+    .maybeSingle();
+  if (reportUpdateError || !reportUpdated) throw new Error(reportUpdateError?.message || 'Published report state could not be saved.');
 
   await recordSchoolReportEvent(admin, {
     reportId: report.id,
@@ -248,7 +269,7 @@ export async function unlockSchoolReportForEditing(
 
   if (error || !working) throw new Error(error?.message || 'Unable to create working revision.');
 
-  await admin
+  const { data: reportUpdated, error: reportUpdateError } = await admin
     .from('school_performance_reports')
     .update({
       status: 'draft',
@@ -257,7 +278,10 @@ export async function unlockSchoolReportForEditing(
       working_revision_number: nextNumber,
       updated_at: now,
     })
-    .eq('id', report.id);
+    .eq('id', report.id)
+    .select('id')
+    .maybeSingle();
+  if (reportUpdateError || !reportUpdated) throw new Error(reportUpdateError?.message || 'Unlocked report state could not be saved.');
 
   await recordSchoolReportEvent(admin, {
     reportId: report.id,
@@ -292,13 +316,14 @@ export async function getPublishedRevision(
   report: Pick<SchoolPerformanceReportRow, 'id' | 'published_revision_number'>,
 ): Promise<SchoolReportRevisionRow | null> {
   if (!report.published_revision_number) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from('school_report_revisions')
     .select('*')
     .eq('report_id', report.id)
     .eq('revision_number', report.published_revision_number)
     .eq('status', 'published')
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return (data as SchoolReportRevisionRow) ?? null;
 }
 
@@ -321,7 +346,7 @@ export async function withdrawSchoolReportPublication(
   }
 
   const now = new Date().toISOString();
-  const { error: revisionError } = await admin
+  const { data: withdrawnRevision, error: revisionError } = await admin
     .from('school_report_revisions')
     .update({
       status: 'withdrawn',
@@ -330,11 +355,13 @@ export async function withdrawSchoolReportPublication(
     })
     .eq('report_id', report.id)
     .eq('revision_number', report.published_revision_number)
-    .eq('status', 'published');
+    .eq('status', 'published')
+    .select('id')
+    .maybeSingle();
 
-  if (revisionError) throw new Error(revisionError.message);
+  if (revisionError || !withdrawnRevision) throw new Error(revisionError?.message || 'Published report revision changed before withdrawal.');
 
-  const { error: reportError } = await admin
+  const { data: archivedReport, error: reportError } = await admin
     .from('school_performance_reports')
     .update({
       status: 'archived',
@@ -344,9 +371,11 @@ export async function withdrawSchoolReportPublication(
       updated_at: now,
       lock_version: Number(report.lock_version ?? 1) + 1,
     })
-    .eq('id', report.id);
+    .eq('id', report.id)
+    .select('id')
+    .maybeSingle();
 
-  if (reportError) throw new Error(reportError.message);
+  if (reportError || !archivedReport) throw new Error(reportError?.message || 'Report changed before withdrawal.');
 
   await recordSchoolReportEvent(admin, {
     reportId: report.id,

@@ -16,7 +16,13 @@ import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
 export const dynamic = 'force-dynamic';
 
 function validDate(value: unknown): value is string {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(new Date(`${value}T00:00:00Z`).getTime());
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function validId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function boundedInt(value: unknown, min: number, max: number): number | null {
@@ -33,12 +39,18 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(50, Math.max(1, boundedInt(params.get('limit'), 1, 50) ?? 12));
   const offset = (page - 1) * limit;
   const statusFilter = params.get('status');
-  const search = String(params.get('search') || '').trim().toLowerCase();
+  const requestedSearch = String(params.get('search') || '').trim();
+  if (requestedSearch.length > 100) return NextResponse.json({ error: 'Search is too long.' }, { status: 400 });
+  // Prevent PostgREST filter syntax from being interpreted as an operator.
+  const search = requestedSearch.replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   const academicTermId = params.get('academicTermId') || '';
   const schoolIdFilter = params.get('schoolId') || '';
   const createdByFilter = params.get('createdBy') || '';
   const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString();
+  if ((academicTermId && !validId(academicTermId)) || (schoolIdFilter && !validId(schoolIdFilter)) || (createdByFilter && !validId(createdByFilter))) {
+    return NextResponse.json({ error: 'Report filters contain an invalid id.' }, { status: 400 });
+  }
 
   if (actor.profile.role === 'school' && !actor.profile.school_id) {
     return NextResponse.json({
@@ -83,60 +95,69 @@ export async function GET(req: NextRequest) {
   if (academicTermId) query = query.eq('academic_term_id', academicTermId);
   if (schoolIdFilter && actor.profile.role === 'admin') query = query.eq('school_id', schoolIdFilter);
   if (createdByFilter) query = query.eq('created_by', createdByFilter);
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,term_label.ilike.%${search}%,academic_year.ilike.%${search}%`);
+  }
 
   const { data: reports, error, count } = await query.range(offset, offset + limit - 1);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let rows = (reports ?? []) as any[];
-  if (search) {
-    rows = rows.filter((row) =>
-      `${row.title} ${row.term_label} ${row.academic_year}`.toLowerCase().includes(search),
-    );
-  }
+  const rows = (reports ?? []) as any[];
 
   const schoolIds = Array.from(new Set(rows.map((row) => row.school_id)));
   const creatorIds = Array.from(new Set(rows.map((row) => row.created_by)));
-  const [{ data: schools }, { data: creators }] = await Promise.all([
+  const [schoolsResult, creatorsResult] = await Promise.all([
     schoolIds.length ? actor.admin.from('schools').select('id,name').in('id', schoolIds) : Promise.resolve({ data: [] }),
     creatorIds.length ? actor.admin.from('portal_users').select('id,full_name').in('id', creatorIds) : Promise.resolve({ data: [] }),
   ]);
+  if (schoolsResult.error || creatorsResult.error) {
+    return NextResponse.json({ error: schoolsResult.error?.message || creatorsResult.error?.message || 'Report references could not be loaded.' }, { status: 500 });
+  }
+  const schools = schoolsResult.data;
+  const creators = creatorsResult.data;
   const schoolNames = new Map((schools ?? []).map((row: any) => [row.id, row.name]));
   const creatorNames = new Map((creators ?? []).map((row: any) => [row.id, row.full_name]));
 
   let availableSchools = schools ?? [];
   if (actor.profile.role === 'admin') {
-    const { data } = await actor.admin
+    const { data, error: availableSchoolsError } = await actor.admin
       .from('schools')
       .select('id,name')
       .eq('status', 'approved')
       .or('is_deleted.is.null,is_deleted.eq.false')
       .order('name');
+    if (availableSchoolsError) return NextResponse.json({ error: availableSchoolsError.message }, { status: 500 });
     availableSchools = data ?? [];
   } else if (actor.profile.role === 'teacher' && actor.schoolIds.length) {
-    const { data } = await actor.admin.from('schools').select('id,name').in('id', actor.schoolIds).order('name');
+    const { data, error: availableSchoolsError } = await actor.admin.from('schools').select('id,name').in('id', actor.schoolIds).order('name');
+    if (availableSchoolsError) return NextResponse.json({ error: availableSchoolsError.message }, { status: 500 });
     availableSchools = data ?? [];
   }
 
-  const { data: terms } = await actor.admin
+  const { data: terms, error: termsError } = await actor.admin
     .from('academic_terms')
     .select('id,academic_year,term_label,term_number,start_date,end_date,is_current')
     .order('start_date', { ascending: false })
     .limit(30);
+  if (termsError) return NextResponse.json({ error: termsError.message }, { status: 500 });
 
   const activeBooks =
     actor.profile.role !== 'school' && actor.schoolIds.length
       ? await Promise.all(
           actor.schoolIds.slice(0, 50).map(async (schoolId) => {
-            const { data } = await actor.admin
+            const { data, error } = await actor.admin
               .from('school_performance_reports')
               .select('id,school_id,academic_term_id,status,term_label,academic_year,updated_at,title')
               .eq('school_id', schoolId)
               .in('status', ['draft', 'published'])
               .order('updated_at', { ascending: false })
               .limit(20);
+            if (error) throw new Error(`Active report lookup failed: ${error.message}`);
             return data ?? [];
           }),
-        ).then((groups) => groups.flat())
+        ).then((groups) => groups.flat()).catch((error) => {
+          throw error;
+        })
       : [];
 
   const total = count ?? rows.length;
@@ -170,7 +191,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const schoolId = typeof body.schoolId === 'string' ? body.schoolId : '';
   const title = typeof body.title === 'string' ? body.title.trim().slice(0, 180) : '';
-  if (!schoolId || !canManageSchoolReport(actor, schoolId)) return NextResponse.json({ error: 'Choose a school you are allowed to report on.' }, { status: 403 });
+  if (!validId(schoolId) || !canManageSchoolReport(actor, schoolId)) return NextResponse.json({ error: 'Choose a school you are allowed to report on.' }, { status: 403 });
   if (title.length < 3) return NextResponse.json({ error: 'Enter a clear report title.' }, { status: 400 });
   if (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate) return NextResponse.json({ error: 'Choose a valid report date range.' }, { status: 400 });
   const daySpan = (new Date(`${body.endDate}T00:00:00Z`).getTime() - new Date(`${body.startDate}T00:00:00Z`).getTime()) / 86400000;
@@ -183,11 +204,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Choose a valid curriculum term and week range.' }, { status: 400 });
   }
   const academicTermId = typeof body.academicTermId === 'string' ? body.academicTermId : '';
-  if (!academicTermId) return NextResponse.json({ error: 'Choose the academic term and year for this report.' }, { status: 400 });
+  if (!validId(academicTermId)) return NextResponse.json({ error: 'Choose the academic term and year for this report.' }, { status: 400 });
   const { data: academicTerm, error: academicTermError } = await actor.admin.from('academic_terms')
     .select('id,academic_year,term_label,term_number,start_date,end_date')
     .eq('id', academicTermId).maybeSingle();
-  if (academicTermError || !academicTerm) {
+  if (academicTermError) {
+    return NextResponse.json({ error: academicTermError.message }, { status: 500 });
+  }
+  if (!academicTerm) {
     return NextResponse.json({ error: 'The selected academic term is not available.' }, { status: 400 });
   }
 
@@ -218,8 +242,14 @@ export async function POST(req: NextRequest) {
       ? body.deliveryDeclaration as { selectedTopicKeys?: unknown; reportingWeeks?: unknown }
       : null;
   const setupTopicKeys = Array.isArray(setupDelivery?.selectedTopicKeys)
-    ? setupDelivery!.selectedTopicKeys.map(String).filter(Boolean)
+    ? setupDelivery!.selectedTopicKeys
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0 && value.length <= 160)
     : [];
+  if (Array.isArray(setupDelivery?.selectedTopicKeys) && setupTopicKeys.length !== setupDelivery!.selectedTopicKeys.length) {
+    return NextResponse.json({ error: 'Delivery topics must be short text values.' }, { status: 400 });
+  }
   const setupReportingWeeks = boundedInt(setupDelivery?.reportingWeeks, 1, 20) ?? undefined;
 
   const initialDesign = normalizeSchoolReportDesign({
@@ -317,26 +347,27 @@ export async function POST(req: NextRequest) {
           .single();
         if (error) {
           if (error.code === '23505') {
-            const { data: existing } = await actor.admin
+            const { data: existing, error: existingError } = await actor.admin
               .from('school_performance_reports')
               .select('id')
               .eq('school_id', schoolId)
               .eq('academic_term_id', academicTerm.id)
               .in('status', ['draft', 'published'])
               .maybeSingle();
+            if (existingError) throw new Error(existingError.message);
             if (existing?.id) return existing.id;
           }
           throw new Error(error.message);
         }
+        if (!data?.id) throw new Error('Report record was not created.');
         const reportId = data.id as string;
-        const { data: inserted } = await actor.admin
+        const { data: inserted, error: insertedError } = await actor.admin
           .from('school_performance_reports')
           .select('*')
           .eq('id', reportId)
           .single();
-        if (inserted) {
-          await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
-        }
+        if (insertedError || !inserted) throw new Error(insertedError?.message || 'Report record could not be reloaded.');
+        await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
         return reportId;
       },
     });

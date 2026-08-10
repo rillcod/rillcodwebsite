@@ -10,8 +10,8 @@ async function requireAdmin() {
   const actor = await getOfficeAdminActor();
   if (actor) return { user: actor.user, admin: actor.admin as any };
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: officeAdminUnauthorizedResponse(), user: null, admin: null };
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return { error: officeAdminUnauthorizedResponse(), user: null, admin: null };
   return { error: officeAdminForbiddenResponse(), user: null, admin: null };
 }
 
@@ -34,13 +34,16 @@ export async function PATCH(req: NextRequest) {
   }
   const body = await req.json().catch(() => ({}));
   const userId = typeof body.userId === 'string' ? body.userId : '';
-  if (!userId) return NextResponse.json({ error: 'A staff member is required.' }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+    return NextResponse.json({ error: 'A valid staff member is required.' }, { status: 400 });
+  }
 
-  const { data: staff } = await actor.admin
+  const { data: staff, error: staffError } = await actor.admin
     .from('portal_users')
     .select('id, role, is_active, is_deleted')
     .eq('id', userId)
     .maybeSingle();
+  if (staffError) return NextResponse.json({ error: staffError.message }, { status: 500 });
   if (!staff?.is_active || staff.is_deleted || !['admin', 'teacher'].includes(staff.role)) {
     return NextResponse.json({ error: 'Select an active staff member.' }, { status: 400 });
   }
@@ -56,22 +59,45 @@ export async function PATCH(req: NextRequest) {
     updates.max_active_cases = capacity;
   }
   if (Array.isArray(body.skillTags)) {
-    updates.skill_tags = body.skillTags.map(String).map((value: string) => value.trim()).filter(Boolean).slice(0, 20);
+    if (body.skillTags.some((value: unknown) => typeof value !== 'string' || value.trim().length > 40)) {
+      return NextResponse.json({ error: 'Skill tags must be short text values.' }, { status: 400 });
+    }
+    updates.skill_tags = [...new Set(body.skillTags.map((value: string) => value.trim()).filter(Boolean))].slice(0, 20);
+  }
+  if (Object.keys(updates).length === 3) {
+    return NextResponse.json({ error: 'No staff availability changes supplied.' }, { status: 400 });
   }
 
-  const { error } = await actor.admin.from('operations_staff_settings').upsert(updates, { onConflict: 'user_id' });
-  if (error) return NextResponse.json({ error: 'Unable to update staff availability.' }, { status: 500 });
+  const { data: previous, error: previousError } = await actor.admin
+    .from('operations_staff_settings')
+    .select('is_available, accepts_general_queue, max_active_cases, skill_tags')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (previousError) return NextResponse.json({ error: previousError.message }, { status: 500 });
+
+  const { data: saved, error } = await actor.admin
+    .from('operations_staff_settings')
+    .upsert(updates, { onConflict: 'user_id' })
+    .select('user_id, is_available, accepts_general_queue, max_active_cases, skill_tags')
+    .maybeSingle();
+  if (error || !saved) return NextResponse.json({ error: error?.message || 'Unable to update staff availability.' }, { status: 500 });
   await logAudit(actor.admin, {
     action: 'update_operations_staff_capacity',
     actorId: actor.user.id,
     resourceType: 'operations_staff_settings',
     resourceId: userId,
     newValue: 'Updated staff availability and service capacity',
+    oldValues: {
+      is_available: previous?.is_available ?? true,
+      accepts_general_queue: previous?.accepts_general_queue ?? true,
+      max_active_cases: previous?.max_active_cases ?? 8,
+      skill_tags: previous?.skill_tags ?? [],
+    },
     newValues: {
-      is_available: updates.is_available,
-      accepts_general_queue: updates.accepts_general_queue,
-      max_active_cases: updates.max_active_cases,
-      skill_tags: updates.skill_tags,
+      is_available: saved.is_available,
+      accepts_general_queue: saved.accepts_general_queue,
+      max_active_cases: saved.max_active_cases,
+      skill_tags: saved.skill_tags,
     },
   });
   return NextResponse.json({ success: true });
@@ -86,18 +112,19 @@ export async function POST(req: NextRequest) {
   const staffId = typeof body.staffId === 'string' ? body.staffId : '';
   const dutyKind = typeof body.dutyKind === 'string' ? body.dutyKind : 'general_service';
   const hours = Number(body.hours ?? 8);
-  if (!staffId || !DUTY_KINDS.includes(dutyKind as typeof DUTY_KINDS[number])) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(staffId) || !DUTY_KINDS.includes(dutyKind as typeof DUTY_KINDS[number])) {
     return NextResponse.json({ error: 'Valid staff and duty type are required.' }, { status: 400 });
   }
   if (!Number.isFinite(hours) || hours < 1 || hours > 24) {
     return NextResponse.json({ error: 'Duty length must be from 1 to 24 hours.' }, { status: 400 });
   }
 
-  const { data: staff } = await actor.admin
+  const { data: staff, error: staffError } = await actor.admin
     .from('portal_users')
     .select('id, role, is_active, is_deleted')
     .eq('id', staffId)
     .maybeSingle();
+  if (staffError) return NextResponse.json({ error: staffError.message }, { status: 500 });
   if (!staff?.is_active || staff.is_deleted || !['admin', 'teacher'].includes(staff.role)) {
     return NextResponse.json({ error: 'Select an active staff member.' }, { status: 400 });
   }
@@ -112,15 +139,18 @@ export async function POST(req: NextRequest) {
     p_created_by: actor.user.id,
     p_is_primary: body.isPrimary !== false,
   });
-  if (error) return NextResponse.json({ error: 'Unable to start this duty period.' }, { status: 500 });
+  if (error || !data || typeof data !== 'object' || !('id' in (data as Record<string, unknown>))) {
+    return NextResponse.json({ error: error?.message || 'Unable to start this duty period.' }, { status: 500 });
+  }
   await logAudit(actor.admin, {
     action: 'handover_primary_operations_duty',
     actorId: actor.user.id,
     resourceType: 'operations_duty_assignment',
-    resourceId: staffId,
+    resourceId: String((data as Record<string, unknown>).id),
     newValue: `Assigned ${dutyKind} duty for ${hours} hour${hours === 1 ? '' : 's'}`,
     newValues: {
       staff_id: staffId,
+      assignment_id: (data as Record<string, unknown>).id,
       duty_kind: dutyKind,
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),

@@ -190,15 +190,21 @@ function summariseFanout(rows: Array<Record<string, unknown>>) {
 
 async function requireAdmin() {
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return null;
   const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  const { data: profile, error } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  if (error) throw new Error(`Admin access lookup failed: ${error.message}`);
   return profile?.role === 'admin' && profile.is_active && !profile.is_deleted ? { user, db } : null;
 }
 
 export async function GET() {
-  const actor = await requireAdmin();
+  let actor: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    actor = await requireAdmin();
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Admin access lookup failed' }, { status: 500 });
+  }
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const [health, deadLetters, history, financeFailures, generationIncidents, fanout] = await Promise.all([
@@ -224,7 +230,7 @@ export async function GET() {
       .like('key', 'cron_%_last_%fanout'),
   ]);
 
-  const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error;
+  const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error || fanout.error;
   if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
   const incidents = (generationIncidents.data ?? []).flatMap((row: any) => {
     const errors = row?.metadata?.last_generation_errors;
@@ -255,7 +261,12 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const actor = await requireAdmin();
+  let actor: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    actor = await requireAdmin();
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Admin access lookup failed' }, { status: 500 });
+  }
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || '');
@@ -294,26 +305,35 @@ export async function PATCH(req: NextRequest) {
   }
 
   const id = String(body.id || '');
-  if (!id) return NextResponse.json({ error: 'Dead-letter id is required.' }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: 'A valid dead-letter id is required.' }, { status: 400 });
+  }
   const { data: row, error: loadError } = await actor.db.from('notification_dead_letters').select('*').eq('id', id).maybeSingle();
   if (loadError || !row) return NextResponse.json({ error: 'Dead-letter item not found.' }, { status: 404 });
   const now = new Date().toISOString();
 
   if (action === 'resolve' || action === 'ignore') {
+    if (['resolved', 'ignored'].includes(String(row.status))) {
+      return NextResponse.json({ error: 'This dead-letter item is already closed.' }, { status: 409 });
+    }
     const status = action === 'resolve' ? 'resolved' : 'ignored';
-    const { error } = await actor.db.from('notification_dead_letters').update({
+    const note = String(body.note || (status === 'ignored' ? 'Ignored by administrator.' : 'Resolved by administrator.')).trim().slice(0, 1000);
+    if (!note) return NextResponse.json({ error: 'A resolution note is required.' }, { status: 400 });
+    const { data: updated, error } = await actor.db.from('notification_dead_letters').update({
       status,
       resolved_at: now,
       resolved_by: actor.user.id,
-      resolution_note: String(body.note || (status === 'ignored' ? 'Ignored by administrator.' : 'Resolved by administrator.')).slice(0, 1000),
+      resolution_note: note,
       updated_at: now,
-    }).eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }).eq('id', id).eq('status', row.status).select('id,status').maybeSingle();
+    if (error || !updated) return NextResponse.json({ error: error?.message || 'Dead-letter item changed before it could be closed.' }, { status: error ? 500 : 409 });
     await logAudit(actor.db, {
       action: status === 'resolved' ? 'resolve_notification_dead_letter' : 'ignore_notification_dead_letter',
       actorId: actor.user.id, resourceType: 'notification_dead_letter', resourceId: id,
       tableName: 'notification_dead_letters',
       oldValue: String(row.status || 'pending'), newValue: status,
+      oldValues: { status: row.status, retry_count: row.retry_count, error: row.error },
+      newValues: { status, resolution_note: note },
     });
     return NextResponse.json({ success: true, status });
   }
