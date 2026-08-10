@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
 import {
@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
 import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET, PUBLIC_AMBIENT_BG } from "@/components/mobile/public-styles";
+import { withTimeoutOrThrow } from '@/lib/async-timeout';
 
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500"   },
@@ -49,7 +50,6 @@ function LoginContent() {
     () => searchParams?.get("clear") === "1" || searchParams?.get("signed_out") === "1"
   );
   const [signedOutNotice, setSignedOutNotice] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
@@ -113,7 +113,6 @@ function LoginContent() {
     });
 
     if (envMissing) setError("Configuration error. Please contact support.");
-    return () => abortRef.current?.abort();
   }, []); // eslint-disable-line
 
   const handleGoogleParentLogin = async () => {
@@ -152,22 +151,27 @@ function LoginContent() {
 
     setLoading(true);
     setError(null);
-    abortRef.current = new AbortController();
-    const timeout = setTimeout(() => abortRef.current?.abort(), 12000);
 
     try {
       const { data: authData, error: authError } =
-        await supabase.auth.signInWithPassword({ email, password });
-      clearTimeout(timeout);
+        await withTimeoutOrThrow(
+          supabase.auth.signInWithPassword({ email, password }),
+          'Sign in is taking longer than expected. Check your connection and try again.',
+          15_000,
+        );
 
       if (authError) throw authError;
       if (!authData?.user) throw new Error("Sign in failed. Please try again.");
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('portal_users')
-        .select('role, is_active, full_name, metadata')
-        .eq('id', authData.user.id)
-        .maybeSingle();
+      const { data: profileData, error: profileError } = await withTimeoutOrThrow(
+        supabase
+          .from('portal_users')
+          .select('role, is_active, full_name, metadata, school_id, class_id')
+          .eq('id', authData.user.id)
+          .maybeSingle(),
+        'Your account details could not be confirmed. Please try again.',
+        12_000,
+      );
 
       if (profileError) throw profileError;
       if (!profileData) {
@@ -175,16 +179,10 @@ function LoginContent() {
         throw new Error("No account found. Please contact your administrator.");
       }
       if (!profileData.is_active) {
-        // Distinguish pending placement vs staff deactivation.
-        const { data: structure } = await supabase
-          .from('portal_users')
-          .select('role, school_id, class_id')
-          .eq('id', authData.user.id)
-          .maybeSingle();
         await supabase.auth.signOut();
-        const role = structure?.role ?? '';
-        const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !structure?.school_id;
-        const needsClass = role === 'student' && !structure?.class_id;
+        const role = profileData.role ?? '';
+        const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !profileData.school_id;
+        const needsClass = role === 'student' && !profileData.class_id;
         if (needsSchool || needsClass) {
           throw new Error(
             needsClass
@@ -197,26 +195,19 @@ function LoginContent() {
         throw new Error("Your account is inactive. Please contact support.");
       }
 
-      // Active accounts must still satisfy structure (legacy rows may slip past is_active).
-      {
-        const { data: structure } = await supabase
-          .from('portal_users')
-          .select('role, school_id, class_id')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-        const role = structure?.role ?? profileData.role ?? '';
-        const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !structure?.school_id;
-        const needsClass = role === 'student' && !structure?.class_id;
-        if (needsSchool || needsClass) {
-          await supabase.auth.signOut();
-          throw new Error(
-            needsClass
-              ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
-              : role === 'teacher'
-                ? 'Your account is pending school placement. Ask a Rillcod admin to assign your school(s).'
-                : 'Your account is pending school placement. Ask your school or admin to assign your school.',
-          );
-        }
+      // Active legacy accounts must still satisfy the structural placement rules.
+      const role = profileData.role ?? '';
+      const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !profileData.school_id;
+      const needsClass = role === 'student' && !profileData.class_id;
+      if (needsSchool || needsClass) {
+        await supabase.auth.signOut();
+        throw new Error(
+          needsClass
+            ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
+            : role === 'teacher'
+              ? 'Your account is pending school placement. Ask a Rillcod admin to assign your school(s).'
+              : 'Your account is pending school placement. Ask your school or admin to assign your school.',
+        );
       }
 
       if (profileData.role !== selectedRole) {
@@ -229,31 +220,29 @@ function LoginContent() {
         const isNative = isCapacitorNative();
         
         // 1. Log the login event in the CRM timeline
-        await supabase.from('crm_interactions').insert({
-          contact_id:   authData.user.id,
-          contact_name: profileData.full_name || email,
-          contact_type: profileData.role === 'parent' ? 'parent' : profileData.role === 'student' ? 'student' : 'staff',
-          type:         'app_login',
-          direction:    'inbound',
-          content:      isNative 
-            ? 'Logged in from the native Android mobile application.' 
-            : 'Logged in from the web browser.',
-          created_at:   new Date().toISOString(),
-        });
-
-        // 2. Update metadata with login stats (total count and last active platform).
-        // Merged in the database, not here: spreading a client snapshot of metadata
-        // and writing it whole let DashboardAccessGuard's later write of the same
-        // column erase these keys on every single login.
         const loginPlatform = isNative ? 'Android App' : 'Web Browser';
-        await supabase.rpc('merge_my_metadata' as never, {
-          patch: {
-            last_login_platform: loginPlatform,
-            last_login_at: new Date().toISOString(),
-          },
-          increment_keys: [isNative ? 'app_login_count' : 'web_login_count'],
-          stamp_login: true,
-        } as never);
+        await withTimeoutOrThrow(Promise.all([
+          supabase.from('crm_interactions').insert({
+            contact_id: authData.user.id,
+            contact_name: profileData.full_name || email,
+            contact_type: profileData.role === 'parent' ? 'parent' : profileData.role === 'student' ? 'student' : 'staff',
+            type: 'app_login',
+            direction: 'inbound',
+            content: isNative
+              ? 'Logged in from the native Android mobile application.'
+              : 'Logged in from the web browser.',
+            created_at: new Date().toISOString(),
+          }),
+          // Merge in the database so parallel metadata updates cannot erase keys.
+          supabase.rpc('merge_my_metadata' as never, {
+            patch: {
+              last_login_platform: loginPlatform,
+              last_login_at: new Date().toISOString(),
+            },
+            increment_keys: [isNative ? 'app_login_count' : 'web_login_count'],
+            stamp_login: true,
+          } as never),
+        ]), 'Login audit deferred', 1_500);
 
       } catch (crmErr) {
         console.error('Failed to log native app login audit:', crmErr);
@@ -263,7 +252,6 @@ function LoginContent() {
       window.location.href = redirectTo;
 
     } catch (err: any) {
-      clearTimeout(timeout);
       const msg = err?.message || '';
       if (msg.toLowerCase().includes('invalid login credentials') || msg.toLowerCase().includes('invalid credentials')) {
         setError('Incorrect email or password. Please try again.');

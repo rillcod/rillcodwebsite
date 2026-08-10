@@ -25,6 +25,28 @@ export async function withTimeout(
   }
 }
 
+/**
+ * Use for customer actions where a fallback could be mistaken for success.
+ * Unlike `withTimeout`, this rejects with a safe, caller-supplied message.
+ */
+export async function withTimeoutOrThrow<T>(
+  promise: PromiseLike<T>,
+  message: string,
+  ms = DEFAULT_UI_TIMEOUT_MS,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
   url: string,
   fallback: T,

@@ -437,42 +437,67 @@ type ArchivedBillingDoc = {
   created_at?: string;
 };
 
+async function fetchAllFinanceInvoices(): Promise<Invoice[]> {
+  const pageSize = 500;
+  const rows: Invoice[] = [];
+  let offset = 0;
+
+  while (true) {
+    const response = await fetch(`/api/invoices?limit=${pageSize}&offset=${offset}`, { cache: 'no-store' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'Could not load invoices');
+    const page = Array.isArray(payload.data) ? payload.data as Invoice[] : [];
+    rows.push(...page);
+    if (payload.pagination?.has_more !== true || page.length === 0) break;
+    offset += page.length;
+  }
+
+  return rows;
+}
+
 function OverviewTab({ profile }: { profile: any }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [archivedDocs, setArchivedDocs] = useState<ArchivedBillingDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [archiveWarning, setArchiveWarning] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'admin';
   const isSchoolView = profile?.role === 'school';
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    setArchiveWarning(null);
     try {
-      const [invRes, analyticsRes, archiveRes] = await Promise.all([
-        fetch('/api/invoices?limit=200', { cache: 'no-store' }),
+      const [allInvoices, analyticsRes, archiveRes] = await Promise.all([
+        fetchAllFinanceInvoices(),
         fetch('/api/payments/analytics', { cache: 'no-store' }),
         isSchoolView
           ? fetch('/api/billing/docs/archive?limit=20', { cache: 'no-store' })
           : Promise.resolve(null),
       ]);
-      if (invRes.ok) {
-        const j = await invRes.json();
-        setInvoices((j.data ?? []) as Invoice[]);
-      }
-      if (analyticsRes.ok) {
-        const j = await analyticsRes.json();
-        // API wraps KPIs under `{ success, data }` — never read the envelope as metrics.
-        setAnalytics(j?.data ?? j);
-      }
+      const analyticsPayload = await analyticsRes.json().catch(() => ({}));
+      if (!analyticsRes.ok) throw new Error(analyticsPayload.error || 'Could not load finance analytics');
+      setInvoices(allInvoices);
+      // API wraps KPIs under `{ success, data }` — never read the envelope as metrics.
+      setAnalytics(analyticsPayload?.data ?? analyticsPayload);
       if (archiveRes?.ok) {
         const j = await archiveRes.json();
         setArchivedDocs((j.data ?? []) as ArchivedBillingDoc[]);
       } else if (isSchoolView) {
         setArchivedDocs([]);
+        setArchiveWarning('Statements could not be loaded. Invoice totals are still complete.');
       }
-    } catch { /* ignore */ }
-    setLoading(false);
+    } catch (error) {
+      console.error('[finance-summary] load failed', error);
+      setAnalytics(null);
+      setInvoices([]);
+      setLoadError('We could not refresh the latest finance records');
+    } finally {
+      setLoading(false);
+    }
   }, [profile?.id, isSchoolView]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
@@ -527,17 +552,42 @@ function OverviewTab({ profile }: { profile: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {loadError && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-rose-700 dark:text-rose-300">Finance totals are unavailable</p>
+            <p className="mt-0.5 text-xs text-rose-700/80 dark:text-rose-300/80">
+              {loadError}. Values are hidden so a service failure is never mistaken for zero revenue or zero debt.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="min-h-10 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {archiveWarning && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-700 dark:text-amber-300">
+          {archiveWarning}
+        </p>
+      )}
+
+      {!loadError && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Net Revenue" value={fmt('NGN', totalRevenue)} sub={refundedAmount ? `${fmt('NGN', refundedAmount)} refunded` : 'Completed payments less refunds'} color="bg-emerald-500" />
         <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${openInvoices.length} open invoices · NGN balance`} color="bg-amber-500" />
         <KpiCard label="Overdue" value={overdue.toString()} sub="Invoices past due date" color="bg-rose-500" />
         <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-primary" />
-      </div>
+      </div>}
 
       <div className="flex flex-wrap gap-3">
         <button
           onClick={exportInvoicesCsv}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+          disabled={Boolean(loadError)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Export CSV
         </button>
@@ -564,7 +614,11 @@ function OverviewTab({ profile }: { profile: any }) {
             View all <ArrowRightIcon className="w-3 h-3 inline" />
           </Link>
         </div>
-        {displayInvoices.length === 0 ? (
+        {loadError ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Invoice history is unavailable. Retry the finance summary above.
+          </p>
+        ) : displayInvoices.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             {isSchoolView ? 'No outstanding invoices' : 'No invoices found'}
           </p>
@@ -672,6 +726,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -684,18 +739,28 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const db = createClient();
-    if (isAdmin) {
-      const { data: sc } = await db.from('schools').select('id, name').eq('status', 'approved');
-      setSchools(sc ?? []);
+    setLoadError(null);
+    try {
+      const db = createClient();
+      if (isAdmin) {
+        const { data: sc, error: schoolError } = await db.from('schools').select('id, name').eq('status', 'approved');
+        if (schoolError) throw new Error(`Schools could not be loaded: ${schoolError.message}`);
+        setSchools(sc ?? []);
+      }
+      let q = db.from('subscriptions')
+        .select('*, schools(id, name, email)')
+        .order('created_at', { ascending: false });
+      if (!isAdmin && profile?.school_id) q = q.eq('school_id', profile.school_id);
+      const { data, error } = await q;
+      if (error) throw new Error(`Subscriptions could not be loaded: ${error.message}`);
+      setSubs(((data ?? []) as Record<string, unknown>[]).map((row) => normalizeSubscriptionRow(row)));
+    } catch (error) {
+      console.error('[finance-subscriptions] load failed', error);
+      setSubs([]);
+      setLoadError('We could not refresh plans and pricing');
+    } finally {
+      setLoading(false);
     }
-    let q = db.from('subscriptions')
-      .select('*, schools(id, name, email)')
-      .order('created_at', { ascending: false });
-    if (!isAdmin && profile?.school_id) q = q.eq('school_id', profile.school_id);
-    const { data } = await q;
-    setSubs(((data ?? []) as Record<string, unknown>[]).map((row) => normalizeSubscriptionRow(row)));
-    setLoading(false);
   }, [profile?.id]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
@@ -758,7 +823,11 @@ function SubscriptionsTab({ profile }: { profile: any }) {
     setSaving(true);
     try {
       let featuresObj: Record<string, any> = {};
-      try { featuresObj = JSON.parse(form.features || '{}'); } catch { /* ignore */ }
+      try {
+        featuresObj = JSON.parse(form.features || '{}');
+      } catch {
+        throw new Error('Features must be valid JSON. Nothing was saved.');
+      }
       if (form.billing_cycle_display === 'termly') {
         featuresObj.billing_cycle_display = 'termly';
         featuresObj.term = form.term;
@@ -816,6 +885,18 @@ function SubscriptionsTab({ profile }: { profile: any }) {
   }
 
   const academicYears = buildAcademicYears();
+
+  if (loadError && !loading) {
+    return (
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
+        <p className="font-black text-rose-700 dark:text-rose-300">Plans and pricing are unavailable</p>
+        <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-300/80">{loadError}</p>
+        <button type="button" onClick={() => void load()} className="mt-4 min-h-10 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white">
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1337,16 +1418,13 @@ function AutomationTab() {
       const cfgJson = await cfgRes.json();
       if (cfgJson.config) setConfig(cfgJson.config);
 
-      if (logRes.ok) {
-        const j = await logRes.json();
-        setLogs(j.logs ?? []);
-        setFailedAutomation(j.failed ?? []);
-      } else {
-        setLogs([]);
-        setFailedAutomation([]);
-      }
+      const logJson = await logRes.json().catch(() => ({}));
+      if (!logRes.ok) throw new Error(logJson.error || 'Automation history could not be loaded');
+      setLogs(logJson.logs ?? []);
+      setFailedAutomation(logJson.failed ?? []);
     } catch (e: any) {
-      setLoadError(e?.message || 'Failed to load automation');
+      console.error('[finance-automation] load failed', e);
+      setLoadError('We could not refresh the saved automation policy');
     } finally {
       setLoading(false);
     }
@@ -1412,6 +1490,20 @@ function AutomationTab() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
+        <p className="font-black text-rose-700 dark:text-rose-300">Automation controls are unavailable</p>
+        <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-300/80">
+          {loadError}. Controls are locked until the saved policy is known, preventing default values from overwriting production settings.
+        </p>
+        <button type="button" onClick={() => void load()} className="mt-4 min-h-10 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -1426,11 +1518,6 @@ function AutomationTab() {
         </p>
       </div>
 
-      {loadError && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
-          {loadError}
-        </p>
-      )}
       <div className={`border rounded-2xl p-5 ${config.finance_messages_enabled ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-rose-500/5 border-rose-500/30'}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -1641,14 +1728,13 @@ function SetupTab({ profile }: { profile: any }) {
     try {
       if (isAdmin) {
         const schoolsRes = await fetch('/api/schools', { cache: 'no-store' });
-        if (schoolsRes.ok) {
-          const j = await schoolsRes.json();
-          const list = ((j.data ?? []) as { id: string; name: string; status?: string }[])
-            .filter((s) => !s.status || s.status === 'approved')
-            .map((s) => ({ id: s.id, name: s.name }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-          setSchools(list);
-        }
+        const schoolsJson = await schoolsRes.json().catch(() => ({}));
+        if (!schoolsRes.ok) throw new Error(schoolsJson.error || 'Schools could not be loaded');
+        const list = ((schoolsJson.data ?? []) as { id: string; name: string; status?: string }[])
+          .filter((s) => !s.status || s.status === 'approved')
+          .map((s) => ({ id: s.id, name: s.name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setSchools(list);
       }
 
       const acctRes = await fetch('/api/payment-accounts', { cache: 'no-store' });
@@ -1663,28 +1749,28 @@ function SetupTab({ profile }: { profile: any }) {
       if (scopeId) {
         const q = isAdmin ? `?school_id=${encodeURIComponent(scopeId)}` : '';
         const res = await fetch(`/api/billing/settings${q}`, { cache: 'no-store' });
-        if (res.ok) {
-          const j = await res.json();
-          if (j.data) {
-            setContact(j.data);
-            setContactForm({
-              representative_name: j.data.representative_name ?? '',
-              representative_email: j.data.representative_email ?? '',
-              representative_whatsapp: j.data.representative_whatsapp ?? '',
-              notes: j.data.notes ?? '',
-            });
-          } else {
-            setContact(null);
-            setContactForm({
-              representative_name: '', representative_email: '', representative_whatsapp: '', notes: '',
-            });
-          }
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Billing contact could not be loaded');
+        if (j.data) {
+          setContact(j.data);
+          setContactForm({
+            representative_name: j.data.representative_name ?? '',
+            representative_email: j.data.representative_email ?? '',
+            representative_whatsapp: j.data.representative_whatsapp ?? '',
+            notes: j.data.notes ?? '',
+          });
+        } else {
+          setContact(null);
+          setContactForm({
+            representative_name: '', representative_email: '', representative_whatsapp: '', notes: '',
+          });
         }
       } else {
         setContact(null);
       }
     } catch (e: any) {
-      setLoadError(e?.message || 'Failed to load settings');
+      console.error('[finance-setup] load failed', e);
+      setLoadError('We could not refresh payment accounts and billing contacts');
     } finally {
       setLoading(false);
     }
@@ -1780,6 +1866,20 @@ function SetupTab({ profile }: { profile: any }) {
 
   if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
+  if (loadError) {
+    return (
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
+        <p className="font-black text-rose-700 dark:text-rose-300">Payment setup is unavailable</p>
+        <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-300/80">
+          {loadError}. Editing is locked until the current accounts and contacts load successfully.
+        </p>
+        <button type="button" onClick={() => void load()} className="mt-4 min-h-10 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -1789,12 +1889,6 @@ function SetupTab({ profile }: { profile: any }) {
           Bank accounts and school billing contacts. Invoice cron and balance-reminder rules are further down.
         </p>
       </div>
-
-      {loadError && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
-          {loadError}
-        </p>
-      )}
 
       {/* Payment Accounts */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">

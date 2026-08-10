@@ -11,6 +11,7 @@ import runtimeCaching from "next-pwa/cache";
  * and by .github/workflows/deploy-cloudflare.yml.
  */
 const isContainerBuild = process.env.DOCKER_BUILD === "1";
+const isProduction = process.env.NODE_ENV === "production";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -70,38 +71,43 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   experimental: {
-    // Lower peak RAM on memory-capped CI builders (large app + next-pwa webpack).
-    webpackMemoryOptimizations: true,
-    cpus: 1,
-    // Compile server / edge / client each in its own short-lived child process
-    // so each compilation's heap is freed before the next phase instead of
-    // accumulating in one process. Next disables this by default whenever a
-    // custom `webpack` config is present — and next-pwa always adds one — so it
-    // has to be opted into explicitly here.
-    webpackBuildWorker: true,
-    // Reduce duplicate module instances from barrel imports
-    optimizePackageImports: [
-      '@supabase/supabase-js',
-      '@livekit/components-react',
-      '@radix-ui/react-alert-dialog',
-      '@radix-ui/react-avatar',
-      '@radix-ui/react-dialog',
-      '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-label',
-      '@radix-ui/react-navigation-menu',
-      '@radix-ui/react-popover',
-      '@radix-ui/react-progress',
-      '@radix-ui/react-scroll-area',
-      '@radix-ui/react-select',
-      '@radix-ui/react-separator',
-      '@radix-ui/react-slot',
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-toast',
-      '@radix-ui/react-tooltip',
-      'recharts',
-      'date-fns',
-      'lucide-react',
-    ],
+    // These settings are for memory-capped production/CI builds. Applying them
+    // to `next dev` can split HMR compilation across workers and leave the
+    // browser with a client reference whose webpack factory was not registered.
+    ...(isProduction ? {
+      webpackMemoryOptimizations: true,
+      cpus: 1,
+      // Compile server / edge / client in short-lived child processes during
+      // production builds so each compiler's heap is released between phases.
+      webpackBuildWorker: true,
+    } : {}),
+    // Import rewriting is also production-only. In development, HMR must keep
+    // a single stable client-module graph; rewriting large client barrels can
+    // otherwise leave React Flight references pointing at a missing factory.
+    ...(isProduction ? {
+      optimizePackageImports: [
+        '@supabase/supabase-js',
+        '@livekit/components-react',
+        '@radix-ui/react-alert-dialog',
+        '@radix-ui/react-avatar',
+        '@radix-ui/react-dialog',
+        '@radix-ui/react-dropdown-menu',
+        '@radix-ui/react-label',
+        '@radix-ui/react-navigation-menu',
+        '@radix-ui/react-popover',
+        '@radix-ui/react-progress',
+        '@radix-ui/react-scroll-area',
+        '@radix-ui/react-select',
+        '@radix-ui/react-separator',
+        '@radix-ui/react-slot',
+        '@radix-ui/react-tabs',
+        '@radix-ui/react-toast',
+        '@radix-ui/react-tooltip',
+        'recharts',
+        'date-fns',
+        'lucide-react',
+      ],
+    } : {}),
     // instrumentation.ts is enabled by default in Next.js 15
   },
 
@@ -188,11 +194,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Long-lived cache for static assets
+        // Development chunks are not content-addressed and change during HMR;
+        // caching them as immutable causes stale module-factory crashes.
         source: '/_next/static/(.*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
+        headers: [{
+          key: 'Cache-Control',
+          value: isProduction
+            ? 'public, max-age=31536000, immutable'
+            : 'no-store, max-age=0, must-revalidate',
+        }],
       },
     ];
   },

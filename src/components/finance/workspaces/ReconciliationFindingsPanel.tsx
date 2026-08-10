@@ -34,6 +34,7 @@ export function ReconciliationFindingsPanel() {
   const [warning, setWarning] = useState<string | null>(null);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [repairAllBusy, setRepairAllBusy] = useState(false);
+  const [showAllAbandoned, setShowAllAbandoned] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
       const raw = sessionStorage.getItem('finance_recon_dismissed');
@@ -92,6 +93,17 @@ export function ReconciliationFindingsPanel() {
   const visible = useMemo(
     () => findings.filter((f) => !dismissed.has(findingKey(f))),
     [findings, dismissed],
+  );
+
+  const displayFindings = useMemo(() => {
+    const actionable = visible.filter((finding) => finding.kind !== 'abandoned_attempt');
+    const abandoned = visible.filter((finding) => finding.kind === 'abandoned_attempt');
+    return [...actionable, ...(showAllAbandoned ? abandoned : abandoned.slice(0, 5))];
+  }, [showAllAbandoned, visible]);
+
+  const hiddenAbandonedCount = Math.max(
+    0,
+    visible.filter((finding) => finding.kind === 'abandoned_attempt').length - 5,
   );
 
   const dismiss = (f: Finding) => {
@@ -220,7 +232,7 @@ export function ReconciliationFindingsPanel() {
         <div>
           <h3 className="font-black text-foreground">Reconciliation findings</h3>
           <p className="text-sm text-muted-foreground">
-            Concrete ledger gaps. Repair fixes what it can; Dismiss hides noise for this session only.
+            Verified ledger checks, ordered for review. Safe repairs preserve the financial audit trail.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -264,7 +276,7 @@ export function ReconciliationFindingsPanel() {
 
       {visible.length > 0 && (
         <ul className="space-y-2">
-          {visible.slice(0, 50).map((f, i) => (
+          {displayFindings.slice(0, 50).map((f, i) => (
             <li
               key={`${f.kind}-${f.entity_id ?? i}`}
               className="flex flex-col items-stretch gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-sm sm:flex-row sm:items-start"
@@ -284,11 +296,6 @@ export function ReconciliationFindingsPanel() {
                 {typeof f.meta?.fix === 'string' && (
                   <p className="text-[11px] text-primary/80 font-medium">Fix: {f.meta.fix}</p>
                 )}
-                {f.entity_id && (
-                  <p className="text-[10px] font-mono text-muted-foreground/70 truncate">
-                    {f.entity_type} · {f.entity_id}
-                  </p>
-                )}
               </div>
               <div className="flex flex-col gap-1.5 shrink-0">
                 {(actionFor(f) || f.kind === 'refund_needs_attention') && (
@@ -305,7 +312,7 @@ export function ReconciliationFindingsPanel() {
                     {repairing === f.entity_id
                       ? (f.kind === 'abandoned_attempt' ? 'Deleting…' : 'Repairing…')
                       : f.kind === 'abandoned_attempt'
-                        ? 'Delete'
+                        ? 'Clear attempt'
                         : f.kind === 'refund_needs_attention'
                           ? 'Fix refund'
                           : 'Repair'}
@@ -316,12 +323,24 @@ export function ReconciliationFindingsPanel() {
                   onClick={() => dismiss(f)}
                   className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
                 >
-                  Dismiss
+                  Hide
                 </button>
               </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {hiddenAbandonedCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAllAbandoned((current) => !current)}
+          className="min-h-10 rounded-xl border border-border px-3 py-2 text-xs font-black text-muted-foreground hover:text-foreground"
+        >
+          {showAllAbandoned
+            ? 'Show fewer unfinished attempts'
+            : `Show ${hiddenAbandonedCount} more unfinished attempts`}
+        </button>
       )}
 
       {Object.keys(summary).length > 0 && (

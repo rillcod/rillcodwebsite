@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
         },
         findings: [],
         complete: false,
-        warning: rulesErr?.message || 'Findings engine failed',
+        warning: 'Some reconciliation checks are temporarily unavailable',
       });
     }
 
