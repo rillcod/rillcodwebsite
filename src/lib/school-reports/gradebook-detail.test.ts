@@ -23,6 +23,23 @@ describe('gradebook detail', () => {
     ).toBe(80);
   });
 
+  it('never mistakes a legacy weighted contribution for a percentage', () => {
+    const row = {
+      grade: 16,
+      weighted_score: 8,
+      assignments: { max_points: 20, weight: 10 },
+    };
+    expect(submissionPercent(row)).toBe(80);
+    expect(formatSubmissionRawLabel(row)).toBe('16/20');
+
+    expect(submissionPercent({
+      grade: null,
+      weighted_score: 8,
+      assignments: { weight: 10 },
+    })).toBe(80);
+    expect(submissionPercent({ grade: null, weighted_score: 8, assignments: {} })).toBeNull();
+  });
+
   it('prefers published progress report components over class gradebook averages', () => {
     const detail = buildLearnerGradebookDetail(
       [

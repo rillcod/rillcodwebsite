@@ -15,6 +15,7 @@ import {
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
 import { extractPdfText } from '@/lib/pdf/extract-text';
+import { buildAssignmentEntrySuggestion } from '@/lib/assignments/predictive-entry';
 
 interface Question {
   question_text: string;
@@ -64,7 +65,6 @@ export default function NewAssignmentPage() {
     course_id: '',
     due_date: '',
     max_points: '100',
-    weight: '0',
     assignment_type: preAssignmentType === 'project' ? 'project' : 'homework',
     multi_step: false,
   });
@@ -89,6 +89,18 @@ export default function NewAssignmentPage() {
   const [aiLastModel, setAiLastModel] = useState<string | null>(null);
   const [aiJustGenerated, setAiJustGenerated] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const smartDefaults = useRef({ dueDateEdited: false, maxPointsEdited: false, multiStepEdited: false });
+  const aiTopicEdited = useRef(false);
+
+  useEffect(() => {
+    const suggestion = buildAssignmentEntrySuggestion(form.assignment_type);
+    setForm((current) => ({
+      ...current,
+      due_date: current.due_date || suggestion.dueDate,
+      max_points: String(suggestion.maxPoints),
+      multi_step: suggestion.multiStep,
+    }));
+  }, []); // Initial smart draft only; later changes are handled explicitly below.
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
@@ -109,7 +121,7 @@ export default function NewAssignmentPage() {
 
       if (isPuterAvailable()) {
         // Free path — Puter.js
-        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".${courseCtx}${srcCtx}
+        const prompt = `Generate a structured, age-appropriate assignment on this topic: "${aiTopic}".${courseCtx}${srcCtx}
 Return ONLY valid JSON (no markdown, no code fence) with this shape:
 {
   "title": "...",
@@ -120,7 +132,7 @@ Return ONLY valid JSON (no markdown, no code fence) with this shape:
     { "question_text": "...", "question_type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "points": 5 }
   ]
 }
-Include 3-5 questions. Match difficulty to JSS/SS level.`;
+Include 3-5 questions. Match the difficulty and language to the named programme and course. If no level is supplied, use a clear middle-school level.`;
         const raw = await puterChat(prompt);
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('AI returned unexpected format');
@@ -146,13 +158,20 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         setAiLastModel(result.model?.split('/')?.pop() ?? 'OpenRouter');
       }
 
-      setForm(prev => ({
-        ...prev,
-        title: data.title || prev.title,
-        description: data.description || prev.description,
-        instructions: data.instructions || prev.instructions,
-        assignment_type: data.assignment_type || prev.assignment_type,
-      }));
+      setForm(prev => {
+        const assignmentType = data.assignment_type || prev.assignment_type;
+        const suggestion = buildAssignmentEntrySuggestion(assignmentType);
+        return {
+          ...prev,
+          title: data.title || prev.title,
+          description: data.description || prev.description,
+          instructions: data.instructions || prev.instructions,
+          assignment_type: assignmentType,
+          due_date: smartDefaults.current.dueDateEdited ? prev.due_date : suggestion.dueDate,
+          max_points: smartDefaults.current.maxPointsEdited ? prev.max_points : String(suggestion.maxPoints),
+          multi_step: smartDefaults.current.multiStepEdited ? prev.multi_step : suggestion.multiStep,
+        };
+      });
       if (Array.isArray(data.questions) && data.questions.length > 0) {
         setQuestions(data.questions.map((q: any) => ({
           question_text: q.question_text || '',
@@ -183,7 +202,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
       const db = createClient();
 
       // Fetch programmes
-      const { data: progData } = await db.from('programs').select('id, name').eq('is_active', true).order('name');
+      const { data: progData, error: programError } = await db.from('programs').select('id, name').eq('is_active', true).order('name');
+      if (programError) throw programError;
       setPrograms(progData ?? []);
 
       let query = db
@@ -195,7 +215,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
       }
 
-      const { data } = await query.order('title');
+      const { data, error: courseError } = await query.order('title');
+      if (courseError) throw courseError;
       const courseList = data ?? [];
       setCourses(courseList);
 
@@ -204,17 +225,23 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         const c = courseList.find((x: any) => x.id === preCourseId);
         if (c?.program_id) setSelectedProgramId(c.program_id);
         setForm(prev => ({ ...prev, course_id: preCourseId }));
+        if (c?.title && !aiTopicEdited.current) setAiTopic(c.title);
       } else if (preProgramId && courseList.length > 0) {
         setSelectedProgramId(preProgramId);
         const matching = courseList.find((c: any) => c.program_id === preProgramId);
-        if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
+        if (matching) {
+          setForm(prev => ({ ...prev, course_id: matching.id }));
+          if (!aiTopicEdited.current) setAiTopic(matching.title);
+        }
       }
 
       // Fetch linked lesson title if lesson_id provided
       if (preLessonId) {
-        const { data: lessonRow } = await db.from('lessons').select('id, title, course_id').eq('id', preLessonId).single();
+        const { data: lessonRow, error: lessonError } = await db.from('lessons').select('id, title, course_id').eq('id', preLessonId).single();
+        if (lessonError) throw lessonError;
         if (lessonRow) {
           setLinkedLesson({ id: lessonRow.id, title: lessonRow.title });
+          if (!aiTopicEdited.current) setAiTopic(lessonRow.title);
           const lc = courseList.find((x: any) => x.id === lessonRow.course_id);
           if (lc?.program_id) setSelectedProgramId(lc.program_id);
           setForm(prev => ({ ...prev, course_id: lessonRow.course_id ?? prev.course_id }));
@@ -222,7 +249,9 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
       }
     };
 
-    fetchData();
+    fetchData().catch((cause) => {
+      setError(cause instanceof Error ? cause.message : 'Assignment context could not be loaded.');
+    });
   }, [profile?.id, authLoading, preProgramId, preCourseId, preLessonId, profile?.school_id]);
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
@@ -242,6 +271,17 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
   };
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  const handleAssignmentTypeChange = (assignmentType: string) => {
+    const suggestion = buildAssignmentEntrySuggestion(assignmentType);
+    setForm((current) => ({
+      ...current,
+      assignment_type: assignmentType,
+      due_date: smartDefaults.current.dueDateEdited ? current.due_date : suggestion.dueDate,
+      max_points: smartDefaults.current.maxPointsEdited ? current.max_points : String(suggestion.maxPoints),
+      multi_step: smartDefaults.current.multiStepEdited ? current.multi_step : suggestion.multiStep,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,7 +303,6 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         lesson_plan_id: preLessonPlanId ?? null,
         curriculum_week_number: preWeek && Number.isInteger(Number(preWeek)) ? Number(preWeek) : null,
         max_points: parseInt(form.max_points) || 100,
-        weight: parseInt(form.weight) || 0,
         assignment_type: form.assignment_type,
         is_active: true,
         created_by: profile?.id || '',
@@ -344,7 +383,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         </div>
 
         {preLessonPlanId && (
-          <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 p-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-primary/10 border border-primary/20 p-4">
             <span className="text-primary flex-shrink-0">📋</span>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">Linked to Lesson Plan</p>
@@ -359,7 +398,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         )}
 
         {linkedLesson && (
-          <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4">
             <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Linked to Lesson</p>
@@ -379,7 +418,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         )}
 
         {/* ── Premium AI Assignment Engine ── */}
-        <div className="relative bg-card border border-white/10 overflow-hidden group">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-card group">
           {/* Ambient glow */}
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000 pointer-events-none" />
 
@@ -389,24 +428,24 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-foreground uppercase italic tracking-tighter">Premium AI Assignment Engine</h3>
-                <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">
+                <h3 className="text-lg font-black text-foreground">AI assignment assistant</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
                   {aiLastModel
-                    ? <span>Generated with <span className="text-white">{aiLastModel}</span></span>
-                    : 'Intelligent Homework Architecture'}
+                    ? <span>Last draft generated with <span className="font-bold text-foreground">{aiLastModel}</span></span>
+                    : 'Create a reviewable draft from the course, topic, and optional source.'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
               {isPuterAvailable() && (
-                <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
+                <span className="rounded-full px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
               )}
               <button
                 type="button"
                 onClick={() => setAiOpen(o => !o)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all border border-white/10"
+                className="rounded-xl px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all border border-white/10"
               >
-                {aiOpen ? 'Hide Controls' : 'Open Designer'}
+                {aiOpen ? 'Close assistant' : 'Create with AI'}
               </button>
             </div>
           </div>
@@ -416,13 +455,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               <div className="border-t border-white/10 pt-4">
                 {/* Topic field */}
                 <div className="space-y-1 mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Assignment Topic / Domain</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-primary">Topic</label>
                   <input
                     value={aiTopic}
-                    onChange={e => setAiTopic(e.target.value)}
+                    onChange={e => { aiTopicEdited.current = true; setAiTopic(e.target.value); }}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Introduction to Python Functions & Loops"
-                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                   />
                 </div>
 
@@ -430,13 +469,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <div className="space-y-1 mb-4">
                   <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Base on a PDF (optional)</label>
                   {sourceName ? (
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
+                    <div className="flex items-center gap-2 rounded-xl px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
                       <span className="text-sm">📄</span>
                       <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
                       <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-white">Remove</button>
                     </div>
                   ) : (
-                    <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
+                    <label className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
                       <span className="text-sm">📄</span>
                       <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
                       <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
@@ -461,17 +500,16 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     type="button"
                     onClick={handleAiGenerate}
                     disabled={aiGenerating}
-                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                   >
                     <div className="text-[10px] font-black text-foreground uppercase tracking-widest">
-                      {aiGenerating ? 'Processing...' : 'Generate Assignment'}
+                      {aiGenerating ? 'Creating draft...' : 'Generate draft'}
                     </div>
-                    <div className="text-[8px] text-muted-foreground uppercase">Architecture Build</div>
                   </button>
                   {aiGenerating && (
                     <div className="flex items-center gap-3 text-primary animate-pulse border-l-2 border-primary pl-4">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Synthesising Assignment...</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Building a reviewable draft...</span>
                     </div>
                   )}
                 </div>
@@ -486,8 +524,18 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
         <form ref={formRef} onSubmit={handleSubmit} className={`bg-card shadow-sm border rounded-xl p-6 space-y-5 transition-all duration-700 ${aiJustGenerated ? 'border-amber-500/60 shadow-amber-500/10 shadow-lg' : 'border-border'}`}>
 
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-xs text-violet-700 dark:text-violet-300">
+            <span className="inline-flex items-center gap-1.5 font-black uppercase tracking-widest">
+              <SparklesIconOutline className="h-3.5 w-3.5" /> Smart draft
+            </span>
+            <span>{form.max_points} suggested points</span>
+            {form.due_date && <span>Due {new Date(form.due_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>}
+            <span>Central report weighting</span>
+            <span className="text-muted-foreground">All suggestions remain editable until publishing.</span>
+          </div>
+
           {aiJustGenerated && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold animate-in fade-in duration-300">
               <CheckIcon className="w-4 h-4" /> AI filled the form below — review and adjust as needed
             </div>
           )}
@@ -514,6 +562,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               onChange={(courseId, course) => {
                 setForm(f => ({ ...f, course_id: courseId }));
                 if (course?.programId) setSelectedProgramId(course.programId);
+                if (course?.title && !aiTopicEdited.current) setAiTopic(course.title);
               }}
             />
           ) : (
@@ -543,7 +592,10 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   programId={selectedProgramId}
                   schoolId={profile?.school_id}
                   value={form.course_id}
-                  onChange={courseId => setForm(f => ({ ...f, course_id: courseId }))}
+                  onChange={(courseId, course) => {
+                    setForm(f => ({ ...f, course_id: courseId }));
+                    if (course?.title && !aiTopicEdited.current) setAiTopic(course.title);
+                  }}
                 />
               </div>
             </div>
@@ -554,7 +606,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Type</label>
               <select value={form.assignment_type}
-                onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
+                onChange={e => handleAssignmentTypeChange(e.target.value)}
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                 <option value="homework">📚 Homework</option>
                 <option value="project">🛠 Project / Lab</option>
@@ -569,24 +621,16 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               </select>
             </div>
 
-            {/* Max Points + Report Weight */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
-                <input type="number" min="1" max="1000" value={form.max_points}
-                  onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Report Weight (pts)
-                </label>
-                <input type="number" min="0" max="200" value={form.weight}
-                  onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
-                  placeholder="0"
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-                <p className="text-[10px] text-muted-foreground mt-1">Points this counts toward final report (0 = excluded)</p>
-              </div>
+            {/* Max points are local; official report weighting comes from the central scheme. */}
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
+              <input type="number" min="1" max="1000" value={form.max_points}
+                onChange={e => {
+                  smartDefaults.current.maxPointsEdited = true;
+                  setForm(f => ({ ...f, max_points: e.target.value }));
+                }}
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+              <p className="mt-1 text-[10px] text-muted-foreground">Official report weighting is applied centrally.</p>
             </div>
 
             {/* Due Date */}
@@ -595,7 +639,10 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" /> Due Date</span>
               </label>
               <input type="datetime-local" value={form.due_date}
-                onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                onChange={e => {
+                  smartDefaults.current.dueDateEdited = true;
+                  setForm(f => ({ ...f, due_date: e.target.value }));
+                }}
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
             </div>
           </div>
@@ -603,7 +650,10 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           {/* Multi-step submission toggle — lets students attach multiple work snapshots */}
           <label className="flex items-start gap-3 p-4 bg-card shadow-sm border border-border rounded-xl cursor-pointer hover:border-amber-500/40 transition-colors">
             <input type="checkbox" checked={form.multi_step}
-              onChange={e => setForm(f => ({ ...f, multi_step: e.target.checked }))}
+              onChange={e => {
+                smartDefaults.current.multiStepEdited = true;
+                setForm(f => ({ ...f, multi_step: e.target.checked }));
+              }}
               className="mt-0.5 w-5 h-5 rounded border-border text-amber-600 dark:text-amber-400 focus:ring-amber-500 cursor-pointer" />
             <div>
               <p className="text-sm font-bold text-foreground">Multi-step submission</p>

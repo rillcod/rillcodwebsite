@@ -84,7 +84,7 @@ export async function loadSchoolReportEvidence(
       fetchAllReportRows((from, to) => admin
         .from('assignment_submissions')
         .select(
-          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(title,max_points,course_id,program_id,term_id,academic_offering_id,offering_period_id,courses(title,programs(name)))',
+          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(title,max_points,weight,course_id,program_id,term_id,academic_offering_id,offering_period_id,courses(title,programs(name)))',
         )
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
         .range(from, to)),

@@ -20,17 +20,14 @@ export {
   type WeekContentType,
 } from './auto-generate-settings';
 import { normaliseTypes } from './auto-generate-settings';
-
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+import {
+  currentDeliveryWeek as calculateDeliveryWeek,
+  currentTermWeek as calculateTermWeek,
+} from './delivery-calendar';
 
 /** Which teaching week a plan is in today. Week 1 starts on term_start. */
-export function currentTermWeek(termStart: string | null): number {
-  if (!termStart) return 1;
-  const started = new Date(termStart).getTime();
-  if (!Number.isFinite(started)) return 1;
-  const elapsed = Date.now() - started;
-  if (elapsed < 0) return 1; // term has not started yet
-  return Math.max(1, Math.ceil(elapsed / MS_PER_WEEK));
+export function currentTermWeek(termStart: string | null, now = new Date()): number {
+  return calculateTermWeek(termStart, now);
 }
 
 /**
@@ -45,8 +42,8 @@ export function currentTermWeek(termStart: string | null): number {
 export function currentDeliveryWeek(input: {
   termStart?: string | null;
   periodStart?: string | null;
-}): number {
-  return currentTermWeek(input.termStart ?? input.periodStart ?? null);
+}, now = new Date()): number {
+  return calculateDeliveryWeek(input, now);
 }
 
 export type WeekGenerationOutcome = {

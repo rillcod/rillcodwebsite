@@ -45,6 +45,10 @@ describe('currentTermWeek', () => {
     expect(currentTermWeek(twoWeeksIn)).toBe(2);
   });
 
+  it('starts week 2 on the seventh calendar day without a millisecond race', () => {
+    expect(currentTermWeek('2026-08-03T23:59:59.999Z', new Date('2026-08-10T00:00:00.001Z'))).toBe(2);
+  });
+
   it('is week 1 for a start date that will not parse', () => {
     expect(currentTermWeek('not-a-date')).toBe(1);
   });

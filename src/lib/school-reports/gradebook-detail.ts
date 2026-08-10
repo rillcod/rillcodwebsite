@@ -30,22 +30,36 @@ export type LearnerGradebookDetail = {
 };
 
 export function submissionPercent(row: any): number | null {
-  const raw = row.weighted_score ?? row.grade;
-  if (raw == null || !Number.isFinite(Number(raw))) return null;
-  const value = Number(raw);
+  const grade = Number(row.grade);
   const maxPoints = Number(row.assignments?.max_points || 0);
-  if (row.weighted_score == null && maxPoints > 0 && value <= maxPoints) return clampScore((value / maxPoints) * 100);
-  return clampScore(value);
+  if (row.grade != null && Number.isFinite(grade)) {
+    return maxPoints > 0 ? clampScore((grade / maxPoints) * 100) : clampScore(grade);
+  }
+
+  // Legacy weighted_score is a contribution (for example 16 out of a 20-point
+  // allocation), not a percentage. Use it only when its original denominator is
+  // available; otherwise returning null is safer than publishing a false mark.
+  const weighted = Number(row.weighted_score);
+  const legacyWeight = Number(row.assignments?.weight || 0);
+  if (row.weighted_score != null && Number.isFinite(weighted) && legacyWeight > 0) {
+    return clampScore((weighted / legacyWeight) * 100);
+  }
+  return null;
 }
 
 export function formatSubmissionRawLabel(row: any): string {
-  const raw = row.weighted_score ?? row.grade;
-  if (raw == null || !Number.isFinite(Number(raw))) return 'Not recorded';
-  const value = Number(raw);
+  const grade = Number(row.grade);
   const maxPoints = Number(row.assignments?.max_points || 0);
-  if (row.weighted_score != null) return `${value.toFixed(1)}%`;
-  if (maxPoints > 0) return `${value}/${maxPoints}`;
-  return String(value);
+  if (row.grade != null && Number.isFinite(grade)) {
+    if (maxPoints > 0) return `${grade}/${maxPoints}`;
+    return String(grade);
+  }
+  const weighted = Number(row.weighted_score);
+  const legacyWeight = Number(row.assignments?.weight || 0);
+  if (row.weighted_score != null && Number.isFinite(weighted) && legacyWeight > 0) {
+    return `${weighted}/${legacyWeight} legacy contribution`;
+  }
+  return 'Not recorded';
 }
 
 function assignmentTitle(row: any): string {

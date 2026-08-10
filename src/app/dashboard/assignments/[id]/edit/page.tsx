@@ -11,6 +11,7 @@ import {
     CheckIcon, ExclamationTriangleIcon, ArrowPathIcon, TrashIcon,
     PlusIcon, ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
 } from '@/lib/icons';
+import { formatDatetimeLocal } from '@/lib/assignments/predictive-entry';
 
 interface Question {
     question_text: string;
@@ -48,7 +49,6 @@ export default function EditAssignmentPage() {
         course_id: '',
         due_date: '',
         max_points: '100',
-        weight: '0',
         assignment_type: 'homework',
         is_active: true,
     });
@@ -60,10 +60,16 @@ export default function EditAssignmentPage() {
         if (authLoading || !profile || !id) return;
         const db = createClient();
         Promise.all([
-            fetch(`/api/assignments/${id}`, { cache: 'no-store' }).then(r => r.json()),
+            fetch(`/api/assignments/${id}`, { cache: 'no-store' }).then(async r => {
+                const json = await r.json();
+                if (!r.ok) throw new Error(json.error || 'Assignment could not be loaded.');
+                return json;
+            }),
             db.from('courses').select('id, title, program_id, programs(name)').eq('is_active', true).order('title'),
             db.from('programs').select('id, name').eq('is_active', true).order('name'),
         ]).then(([aJson, cRes, pRes]) => {
+            if (cRes.error) throw cRes.error;
+            if (pRes.error) throw pRes.error;
             const a = aJson.data;
             const courseList = cRes.data ?? [];
             if (a) {
@@ -72,9 +78,8 @@ export default function EditAssignmentPage() {
                     description: a.description ?? '',
                     instructions: a.instructions ?? '',
                     course_id: a.course_id ?? '',
-                    due_date: a.due_date ? new Date(a.due_date).toISOString().slice(0, 16) : '',
+                    due_date: a.due_date ? formatDatetimeLocal(new Date(a.due_date)) : '',
                     max_points: String(a.max_points ?? 100),
-                    weight: String(a.weight ?? 0),
                     assignment_type: a.assignment_type ?? 'homework',
                     is_active: a.is_active ?? true,
                 });
@@ -89,6 +94,9 @@ export default function EditAssignmentPage() {
             }
             setCourses(courseList);
             setPrograms(pRes.data ?? []);
+            setLoading(false);
+        }).catch((cause) => {
+            setError(cause instanceof Error ? cause.message : 'Assignment could not be loaded.');
             setLoading(false);
         });
     }, [profile?.id, authLoading, id]);
@@ -125,7 +133,6 @@ export default function EditAssignmentPage() {
                 course_id: form.course_id,
                 program_id: selectedProgramId || null,
                 max_points: parseInt(form.max_points) || 100,
-                weight: parseInt(form.weight) || 0,
                 assignment_type: form.assignment_type,
                 is_active: form.is_active,
                 updated_at: new Date().toISOString(),
@@ -260,22 +267,12 @@ export default function EditAssignmentPage() {
                             </select>
                         </div>
 
-                        {/* Max Points + Report Weight */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
-                                <input type="number" min="1" max="1000" value={form.max_points}
-                                    onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Report Weight (pts)</label>
-                                <input type="number" min="0" max="200" value={form.weight}
-                                    onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
-                                    placeholder="0"
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
-                                <p className="text-[10px] text-muted-foreground mt-1">Points toward final report (0 = excluded)</p>
-                            </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
+                            <input type="number" min="1" max="1000" value={form.max_points}
+                                onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                            <p className="mt-1 text-[10px] text-muted-foreground">Official report weighting is controlled by the active academic scheme.</p>
                         </div>
 
                         {/* Due Date */}

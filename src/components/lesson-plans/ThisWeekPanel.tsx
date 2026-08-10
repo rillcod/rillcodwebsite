@@ -8,6 +8,7 @@
  * Generation never publishes. It prepares draft content the teacher still reviews.
  */
 import { useCallback, useEffect, useState } from "react";
+import { currentTermWeek } from "@/lib/academic/delivery-calendar";
 
 type Props = {
   planId: string;
@@ -23,17 +24,6 @@ type Summary = {
   average_retry_count: number;
   completion_rate: number;
 };
-
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
-
-function currentTermWeek(termStart: string | null): number {
-  if (!termStart) return 1;
-  const started = new Date(termStart).getTime();
-  if (!Number.isFinite(started)) return 1;
-  const elapsed = Date.now() - started;
-  if (elapsed < 0) return 1;
-  return Math.max(1, Math.ceil(elapsed / MS_PER_WEEK));
-}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (

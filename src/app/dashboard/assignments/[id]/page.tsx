@@ -24,10 +24,7 @@ import UniversalFilePreviewModal from '@/components/submissions/UniversalFilePre
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
-import {
-    computeAssignmentWeightedScore,
-    gradeAssignmentAnswers,
-} from '@/lib/assignments/grading';
+import { gradeAssignmentAnswers } from '@/lib/assignments/grading';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 
 /** One file handed in with a submission. Mirrors assignment_submissions.attachments. */
@@ -283,15 +280,11 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         needsReview: sharedAutoGrade.needsReview,
     } : null;
 
-    const assignWeight: number = assignment?.weight ?? 0;
-
     const [grade, setGrade] = useState<string>(() => {
         if (sub.grade != null) return sub.grade.toString();
         if (autoGradeResult != null) return String(autoGradeResult.earned);
         return '';
     });
-    // Weighted contribution is derived from the final mark and assignment weight.
-    const weightedScore = computeAssignmentWeightedScore(grade === '' ? null : Number(grade), max, assignWeight);
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
     const [subText, setSubText] = useState(sub.submission_text ?? '');
@@ -828,22 +821,6 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                             </div>
                         </div>
 
-                        {/* Report weight contribution — only shown when assignment has a weight */}
-                        {assignWeight > 0 && (
-                            <div className="pt-2 border-t border-white/5">
-                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
-                                    Report Contribution (out of {assignWeight} pts)
-                                </p>
-                                <div className="flex items-center gap-3">
-                                    <output className="w-24 px-3 py-2 bg-black/30 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400 text-xl font-black text-center">
-                                        {weightedScore ?? '?'}
-                                    </output>
-                                    <p className="text-xs text-muted-foreground">
-                                        Calculated from the recorded mark by the shared grading policy.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     {/* Feedback */}
