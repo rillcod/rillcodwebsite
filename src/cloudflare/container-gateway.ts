@@ -88,7 +88,7 @@ function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
  */
 export class NextAppContainer extends Container {
   defaultPort = 3000;
-  sleepAfter = "15m";
+  sleepAfter = "3m";
   enableInternet = true;
 
   constructor(ctx: DurableObjectState<GatewayEnv>, env: GatewayEnv) {
