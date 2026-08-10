@@ -44,6 +44,7 @@ import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
+import { generateTempPassword } from '@/lib/utils/password';
 
 // Fix for jspdf-autotable types
 interface jsPDFWithPlugin extends jsPDF {
@@ -63,10 +64,7 @@ function extractFirstName(fullName: string): string {
   return t.toLowerCase().replace(/[^a-z]/g, '') || 'student';
 }
 
-function generatePassword(): string {
-  const digits = Math.floor(1000 + Math.random() * 9000);
-  return `Rillcod@${digits}`;
-}
+const generatePassword = generateTempPassword;
 
 /** Generate a unique and readable email including 3 random digits. */
 function makeEmail(firstName: string, taken: Set<string>, skipEmail?: string): string {

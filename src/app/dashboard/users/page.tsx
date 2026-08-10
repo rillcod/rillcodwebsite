@@ -13,6 +13,7 @@ import {
     BoltIcon, ExclamationTriangleIcon, KeyIcon, CheckCircleIcon,
     UserPlusIcon, ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
+import { generateTempPassword } from '@/lib/utils/password';
 
 type PortalUser = {
     id: string;
@@ -25,7 +26,7 @@ type PortalUser = {
     school_id?: string;
 };
 
-const ROLES = ['admin', 'teacher', 'school', 'student'];
+const ROLES = ['admin', 'teacher', 'school', 'parent', 'student'];
 
 export default function UsersPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -33,6 +34,7 @@ export default function UsersPage() {
     const [users, setUsers] = useState<PortalUser[]>([]);
     const [userTotal, setUserTotal] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
+    const [pageError, setPageError] = useState('');
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
 
@@ -50,6 +52,11 @@ export default function UsersPage() {
     const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: '', school_id: '', class_id: '' });
     const [creating, setCreating] = useState(false);
     const [createErr, setCreateErr] = useState('');
+    const [createSuccess, setCreateSuccess] = useState<{
+        name: string;
+        email: string;
+        password: string | null;
+    } | null>(null);
     const [createSchools, setCreateSchools] = useState<{ id: string; name: string }[]>([]);
     const [createClasses, setCreateClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
     const [createOptsLoading, setCreateOptsLoading] = useState(false);
@@ -91,17 +98,19 @@ export default function UsersPage() {
 
     const load = async () => {
         setLoading(true);
+        setPageError('');
         try {
             const res = await fetch('/api/portal-users', { cache: 'no-store' });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to load users');
             setUsers(json.data ?? []);
             setUserTotal(typeof json.total === 'number' ? json.total : (json.data?.length ?? 0));
-        } catch {
-            setUsers([]);
+        } catch (error) {
             setUserTotal(null);
+            setPageError(error instanceof Error ? error.message : 'Could not load user accounts.');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -132,6 +141,7 @@ export default function UsersPage() {
                 if (!cancelled) {
                     setCreateSchools([]);
                     setCreateClasses([]);
+                    setCreateErr('Could not load school and class options. Close this form and try again.');
                 }
             } finally {
                 if (!cancelled) setCreateOptsLoading(false);
@@ -192,6 +202,11 @@ export default function UsersPage() {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to create user');
+            setCreateSuccess({
+                name: createForm.fullName.trim(),
+                email: createForm.email.trim().toLowerCase(),
+                password: json.temporary_password_issued === false ? null : createForm.password,
+            });
             setShowCreate(false);
             setCreateForm({ email: '', password: '', fullName: '', role: '', school_id: '', class_id: '' });
             await load(); // refresh list
@@ -220,6 +235,7 @@ export default function UsersPage() {
         try {
             const res = await fetch('/api/admin/sync-users', { method: 'POST' });
             const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Account reconciliation failed');
             setSyncResult(json);
             await load();
             await checkGaps();
@@ -231,7 +247,7 @@ export default function UsersPage() {
 
     const handleRemoveOrphans = async () => {
         const typed = window.prompt(
-            'Permanently delete ALL portal rows with no matching Auth account.\n\nType DELETE ORPHANS to confirm:',
+            'Permanently remove only unused student portal rows with no matching Auth account. Accounts with scores/reports and all staff, school, or parent records will be skipped for manual review.\n\nType DELETE ORPHANS to confirm:',
         );
         if (typed !== 'DELETE ORPHANS') return;
         setSyncing(true);
@@ -361,7 +377,7 @@ export default function UsersPage() {
                             <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
                                 System Administration · Security
                             </span>
-                            <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">All Portal Users</h1>
+                            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">User administration</h1>
                             <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">
                                 Manage and verify all user accounts across the system
                                 {userTotal != null && userTotal > 0 && (
@@ -374,7 +390,14 @@ export default function UsersPage() {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => { setShowCreate(true); setCreateErr(''); }}
+                                onClick={() => {
+                                    setCreateForm(previous => ({
+                                        ...previous,
+                                        password: previous.password || generateTempPassword(),
+                                    }));
+                                    setShowCreate(true);
+                                    setCreateErr('');
+                                }}
                                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
                             >
                                 <PlusIcon className="w-4 h-4" /> Create User
@@ -394,10 +417,10 @@ export default function UsersPage() {
                                 onClick={handleRemoveOrphans}
                                 disabled={syncing}
                                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
-                                title="Delete portal rows with no auth account"
+                                title="Permanently remove unused student rows only; protected and ownership records are skipped"
                             >
                                 <TrashIcon className="w-4 h-4" />
-                                Delete orphan accounts
+                                Purge safe orphans
                             </button>
 
                             <div className="flex-1 sm:flex-none bg-card shadow-sm border border-border rounded-xl p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
@@ -432,6 +455,48 @@ export default function UsersPage() {
                     </div>
                 </div>
 
+                {pageError && (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-600 dark:text-rose-400" />
+                            <div>
+                                <p className="text-sm font-bold text-foreground">User accounts could not be loaded</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{pageError}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => void load()} className="rounded-xl border border-rose-500/30 px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400">
+                            Try again
+                        </button>
+                    </div>
+                )}
+
+                {createSuccess && (
+                    <div className="flex flex-col gap-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-bold text-foreground">Account ready for {createSuccess.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{createSuccess.email}</p>
+                            <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                {createSuccess.password
+                                    ? `Temporary password: ${createSuccess.password}`
+                                    : 'An existing authentication identity was linked; its password was not changed.'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {createSuccess.password && (
+                                <button
+                                    onClick={() => void navigator.clipboard.writeText(`${createSuccess.email}\n${createSuccess.password}`)}
+                                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white"
+                                >
+                                    Copy credentials
+                                </button>
+                            )}
+                            <button onClick={() => setCreateSuccess(null)} className="rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-muted-foreground">
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Conflict Details Panel */}
                 {showConflicts && gapData && (
                     <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -440,7 +505,7 @@ export default function UsersPage() {
                                 <h3 className="text-amber-600 dark:text-amber-400 font-black text-lg flex items-center gap-2 italic uppercase">
                                     <BoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" /> Conflict Audit
                                 </h3>
-                                <p className="text-muted-foreground text-xs mt-1">These users are in a broken state (e.g., Auth account exists but Portal profile is missing). Deleting them clears "Already Registered" errors.</p>
+                                <p className="text-muted-foreground text-xs mt-1">Repair safe gaps automatically. Identity-ID conflicts remain visible for evidence-aware review; records are never deleted merely because an authentication repair failed.</p>
                             </div>
                             <button onClick={() => setShowConflicts(false)} className="text-muted-foreground hover:text-foreground">
                                 <XMarkIcon className="w-5 h-5" />
@@ -460,10 +525,11 @@ export default function UsersPage() {
                                                     <p className="text-[9px] text-muted-foreground font-mono truncate">{u.id}</p>
                                                 </div>
                                                 <button
-                                                    onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    onClick={handleSync}
+                                                    disabled={syncing}
+                                                    className="p-1 px-3 text-[10px] font-black bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-xl hover:bg-amber-500/30 transition-all disabled:opacity-50"
                                                 >
-                                                    DELETE CONFLICT
+                                                    REPAIR
                                                 </button>
                                             </div>
                                         ))}
@@ -486,7 +552,7 @@ export default function UsersPage() {
                                                     onClick={() => handleDelete(u)}
                                                     className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
-                                                    PURGE
+                                                    ARCHIVE FOR REVIEW
                                                 </button>
                                             </div>
                                         ))}
@@ -509,7 +575,7 @@ export default function UsersPage() {
                                                     onClick={() => handleDelete(u)}
                                                     className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
-                                                    PURGE
+                                                    ARCHIVE FOR REVIEW
                                                 </button>
                                             </div>
                                         ))}
@@ -519,8 +585,8 @@ export default function UsersPage() {
                         </div>
 
                         <div className="mt-6 pt-4 border-t border-amber-500/20 flex items-center justify-between">
-                            <p className="text-[10px] text-amber-600/60 dark:text-amber-400/60 font-bold uppercase tracking-widest">Warning: Purging or deleting records here is permanent.</p>
-                            <button onClick={handleSync} className="text-[11px] font-black text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 underline underline-offset-4 decoration-2">RUN AUTO-REPAIR INSTEAD →</button>
+                            <p className="text-[10px] text-amber-600/60 dark:text-amber-400/60 font-bold uppercase tracking-widest">Archive questionable portal profiles; use auto-repair for safe structural gaps.</p>
+                            <button onClick={handleSync} className="text-[11px] font-black text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 underline underline-offset-4 decoration-2">RUN AUTO-REPAIR →</button>
                         </div>
                     </div>
                 )}
@@ -748,10 +814,20 @@ export default function UsersPage() {
                                     className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Password</label>
-                                <input type="password" autoComplete="new-password" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                                <div className="mb-1.5 flex items-center justify-between gap-3">
+                                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Temporary password</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCreateForm(previous => ({ ...previous, password: generateTempPassword() }))}
+                                        className="text-[10px] font-bold text-primary hover:underline"
+                                    >
+                                        Generate another
+                                    </button>
+                                </div>
+                                <input type="text" autoComplete="off" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
                                     placeholder="At least 8 characters"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl font-mono text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                                <p className="mt-1.5 text-xs text-muted-foreground">Shown once after creation so it can be shared securely.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
@@ -760,13 +836,13 @@ export default function UsersPage() {
                                     <option value="" className="bg-background">Select role…</option>
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
-                                {createForm.role !== 'admin' && (
+                                {createForm.role && createForm.role !== 'admin' && (
                                   <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                     Non-admin accounts need a school. Students get an auto class if none is selected.
                                   </p>
                                 )}
                             </div>
-                            {createForm.role !== 'admin' && (
+                            {createForm.role && createForm.role !== 'admin' && (
                               <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">School *</label>
                                 <select

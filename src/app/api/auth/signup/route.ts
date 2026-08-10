@@ -30,20 +30,29 @@ export async function POST(request: Request) {
     // Use adminClient to bypass RLS on portal_users
     const { data: callerProfile } = await admin
       .from('portal_users')
-      .select('role, school_id')
+      .select('role, school_id, is_active, is_deleted')
       .eq('id', user.id)
       .single();
 
-    if (!callerProfile || !roleHasCapability(callerProfile.role, 'create_accounts')) {
-      return NextResponse.json({ error: 'Unauthorized: only admin or school managers can create accounts' }, { status: 403 });
+    if (!callerProfile
+      || callerProfile.is_active === false
+      || callerProfile.is_deleted === true
+      || !roleHasCapability(callerProfile.role, 'create_accounts')) {
+      return NextResponse.json({ error: 'An active admin or school manager account is required' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { email, password, fullName, role, school_id, class_id, section_class, grade } = body;
+    const { email, password, fullName, role: rawRole, school_id, class_id, section_class, grade } = body;
+    const normalizedEmail = String(email ?? '').trim().toLowerCase();
+    const normalizedFullName = String(fullName ?? '').trim();
+    const role = String(rawRole ?? '').trim().toLowerCase();
 
     // Validate required fields first
-    if (!email || !password || !role) {
-      return NextResponse.json({ error: 'email, password, and role are required' }, { status: 400 });
+    if (!normalizedEmail || !password || !normalizedFullName || !role) {
+      return NextResponse.json({ error: 'Full name, email, password, and role are required' }, { status: 400 });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 });
     }
 
     const { isKnownPortalRole } = await import('@/lib/portal/structure');
@@ -57,6 +66,26 @@ export async function POST(request: Request) {
     // Minimum password length
     if (String(password).length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+    }
+
+    // Creation is not reconciliation. A portal profile already carrying this
+    // email may own grades, classes, payments, or family links under its UUID.
+    const { data: existingPortalRows, error: existingPortalError } = await admin
+      .from('portal_users')
+      .select('id, role, is_deleted')
+      .eq('email', normalizedEmail)
+      .limit(2);
+    if (existingPortalError) {
+      return NextResponse.json({ error: `Portal identity check failed: ${existingPortalError.message}` }, { status: 500 });
+    }
+    if ((existingPortalRows ?? []).length > 0) {
+      const existing = existingPortalRows![0];
+      return NextResponse.json({
+        error: existing.is_deleted
+          ? 'An archived portal profile already uses this email. Restore or reconcile it instead of creating a duplicate.'
+          : `This email is already registered as a ${existing.role} portal account.`,
+        code: (existingPortalRows ?? []).length > 1 ? 'DUPLICATE_PORTAL_EMAIL' : 'EMAIL_ALREADY_REGISTERED',
+      }, { status: 409 });
     }
 
     // School manager boundary checks
@@ -100,15 +129,16 @@ export async function POST(request: Request) {
     }
 
     const meta = {
-      full_name: fullName,
+      full_name: normalizedFullName,
       ...placed.authMetadata,
     };
 
     // Create or resolve existing auth user
     let authUserId: string | null = null;
+    let createdAuthUser = false;
 
     const { data: authData, error: signupErr } = await admin.auth.admin.createUser({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: meta,
@@ -116,11 +146,11 @@ export async function POST(request: Request) {
 
     if (signupErr) {
       if (signupErr.message.includes('already been registered') || signupErr.message.includes('already exists')) {
-        const existingId = await findAuthUserIdByEmail(admin as any, email.trim().toLowerCase());
+        const existingId = await findAuthUserIdByEmail(admin as any, normalizedEmail);
         if (existingId) {
           const { data: existingPortal } = await admin
             .from('portal_users')
-            .select('role')
+            .select('role, email')
             .eq('id', existingId)
             .maybeSingle();
           if (existingPortal && existingPortal.role !== role) {
@@ -129,11 +159,21 @@ export async function POST(request: Request) {
               code: 'EMAIL_ROLE_CONFLICT',
             }, { status: 409 });
           }
+          if (existingPortal && String(existingPortal.email ?? '').trim().toLowerCase() !== normalizedEmail) {
+            return NextResponse.json({
+              error: 'This authentication identity is already linked to a different portal email. Run account reconciliation.',
+              code: 'AUTH_PORTAL_EMAIL_CONFLICT',
+            }, { status: 409 });
+          }
           authUserId = existingId;
-          await admin.auth.admin.updateUserById(authUserId, {
-            password,
+          // Linking an existing Auth identity must never double as a silent
+          // password reset. Keep its credentials and only align safe metadata.
+          const { error: metadataError } = await admin.auth.admin.updateUserById(authUserId, {
             user_metadata: meta,
           });
+          if (metadataError) {
+            return NextResponse.json({ error: `Authentication metadata sync failed: ${metadataError.message}` }, { status: 400 });
+          }
         } else {
           return NextResponse.json({ error: 'User exists in Auth but could not be resolved. Contact support.' }, { status: 400 });
         }
@@ -142,6 +182,7 @@ export async function POST(request: Request) {
       }
     } else {
       authUserId = authData.user?.id ?? null;
+      createdAuthUser = !!authUserId;
     }
 
     if (!authUserId) {
@@ -149,26 +190,44 @@ export async function POST(request: Request) {
     }
 
     // Same-role reuse only — never overwrite a different portal role via upsert.
-    const { data: portalById } = await admin
+    const { data: portalById, error: portalByIdError } = await admin
       .from('portal_users')
       .select('role')
       .eq('id', authUserId)
       .maybeSingle();
+    if (portalByIdError) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
+      return NextResponse.json({ error: `Portal identity check failed: ${portalByIdError.message}` }, { status: 500 });
+    }
     if (portalById && portalById.role !== role) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
       return NextResponse.json({
         error: `This email is already registered as a ${portalById.role} account. Use a different email.`,
         code: 'EMAIL_ROLE_CONFLICT',
       }, { status: 409 });
     }
-    const { data: portalByEmail } = await admin
+    const { data: portalEmailRows, error: portalByEmailError } = await admin
       .from('portal_users')
       .select('id, role')
-      .eq('email', email.trim().toLowerCase())
-      .maybeSingle();
-    if (portalByEmail && portalByEmail.id !== authUserId && portalByEmail.role !== role) {
+      .eq('email', normalizedEmail)
+      .limit(2);
+    if (portalByEmailError) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
+      return NextResponse.json({ error: `Portal email check failed: ${portalByEmailError.message}` }, { status: 500 });
+    }
+    if ((portalEmailRows ?? []).length > 1) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
       return NextResponse.json({
-        error: `This email is already registered as a ${portalByEmail.role} account. Use a different email.`,
-        code: 'EMAIL_ROLE_CONFLICT',
+        error: 'Multiple portal profiles already use this email. Run account reconciliation before creating another account.',
+        code: 'DUPLICATE_PORTAL_EMAIL',
+      }, { status: 409 });
+    }
+    const portalByEmail = portalEmailRows?.[0] ?? null;
+    if (portalByEmail && portalByEmail.id !== authUserId) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
+      return NextResponse.json({
+        error: `This email already belongs to a ${portalByEmail.role} portal profile with a different identity. Run account reconciliation instead of creating a duplicate.`,
+        code: 'EMAIL_ID_CONFLICT',
       }, { status: 409 });
     }
 
@@ -176,8 +235,8 @@ export async function POST(request: Request) {
       .from('portal_users')
       .upsert({
         id: authUserId,
-        email: email.trim().toLowerCase(),
-        full_name: fullName || '',
+        email: normalizedEmail,
+        full_name: normalizedFullName,
         role,
         school_id: placed.schoolId,
         school_name: placed.schoolName || schoolName,
@@ -188,17 +247,29 @@ export async function POST(request: Request) {
       }, { onConflict: 'id' });
 
     if (profileError) {
+      if (createdAuthUser) await admin.auth.admin.deleteUser(authUserId).catch(() => {});
       return NextResponse.json({ error: `Profile sync failed: ${profileError.message}` }, { status: 400 });
     }
 
     if (role === 'teacher' && placed.schoolId) {
-      await admin.from('teacher_schools').upsert(
+      const { error: teacherSchoolError } = await admin.from('teacher_schools').upsert(
         {
           teacher_id: authUserId,
           school_id: placed.schoolId,
         },
         { onConflict: 'teacher_id,school_id' },
       );
+      if (teacherSchoolError) {
+        if (createdAuthUser) {
+          await admin.from('portal_users').delete().eq('id', authUserId);
+          await admin.auth.admin.deleteUser(authUserId).catch(() => {});
+        } else {
+          await admin.from('portal_users').update({ is_active: false }).eq('id', authUserId);
+        }
+        return NextResponse.json({
+          error: `Teacher school assignment failed: ${teacherSchoolError.message}. The incomplete account was not activated.`,
+        }, { status: 500 });
+      }
     }
     await logAudit(admin as any, {
       action: 'create_user',
@@ -207,7 +278,7 @@ export async function POST(request: Request) {
       resourceId: authUserId,
       tableName: 'portal_users',
       newValues: {
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         role,
         school_id: placed.schoolId,
         class_id: placed.classId,
@@ -221,6 +292,7 @@ export async function POST(request: Request) {
       message: 'Account created successfully',
       user_id: authUserId,
       class_id: placed.classId,
+      temporary_password_issued: createdAuthUser,
     });
   } catch (error: any) {
     console.error('[signup] error:', error);

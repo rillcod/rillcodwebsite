@@ -37,6 +37,14 @@ export async function getProtectedAcademicEvidence(
     admin.from('enrollments').select('id').eq('user_id', userId),
   ]);
 
+  const sourceError = assignmentResult.error
+    || cbtResult.error
+    || reportResult.error
+    || enrollmentResult.error;
+  if (sourceError) {
+    throw new Error(`Could not verify protected academic evidence: ${sourceError.message}`);
+  }
+
   const enrollmentIds = (enrollmentResult.data ?? [])
     .map((row: { id?: string }) => row.id)
     .filter((id: string | undefined): id is string => !!id);
@@ -46,6 +54,9 @@ export async function getProtectedAcademicEvidence(
       .select('id', { count: 'exact', head: true })
       .in('enrollment_id', enrollmentIds)
     : { count: 0 };
+  if ('error' in termGradeResult && termGradeResult.error) {
+    throw new Error(`Could not verify moderated term grades: ${termGradeResult.error.message}`);
+  }
 
   const assignmentScores = assignmentResult.count ?? 0;
   const cbtScores = cbtResult.count ?? 0;

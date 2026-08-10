@@ -20,6 +20,9 @@ import { findAuthUserIdByEmail, listAllAuthUsers, type ListedAuthUser } from '@/
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseWrite } from '@/lib/supabase/require-result';
+import { getProtectedAcademicEvidence } from '@/lib/students/protected-academic-evidence';
+import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import { decideAutomaticOrphanPurge } from '@/lib/admin/user-reconciliation';
 
 function adminClient() {
   return createClient(
@@ -57,14 +60,16 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
     school_name: string | null;
     date_of_birth: string | null;
     is_active: boolean | null;
+    is_deleted: boolean | null;
   }>((from, to) =>
     admin
       .from('portal_users')
-      .select('id, email, role, full_name, school_id, school_name, date_of_birth, is_active')
+      .select('id, email, role, full_name, school_id, school_name, date_of_birth, is_active, is_deleted')
       .range(from, to),
   );
   if (portalResult.error) throw new Error(portalResult.error.message);
   const portalUsers = portalResult.data;
+  const operationalPortalUsers = portalUsers.filter(user => user.is_deleted !== true);
   const portalById = new Map(portalUsers.map(u => [u.id, u]));
   const portalByEmail = new Map(portalUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
@@ -132,7 +137,7 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   const authWithoutPortal = authUsers.filter(u => !portalById.has(u.id));
 
   // --- Gap D: Portal users with no auth row ---
-  const portalWithoutAuth = portalUsers.filter(u => !authById.has(u.id));
+  const portalWithoutAuth = operationalPortalUsers.filter(u => !authById.has(u.id));
 
   // Split: those with an email match in auth (ID mismatch) vs truly missing auth
   const portalIdMismatches = portalWithoutAuth.filter(
@@ -166,6 +171,7 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   const studentsNeedingDataFix = allApprovedStudentsResult.data.filter(s => {
     const portal = portalById.get(s.user_id ?? '');
     if (!portal) return false;
+    if (portal.is_deleted === true) return false;
     // Check if school_id, name, or school_name mismatch
     return portal.school_id !== s.school_id ||
       portal.full_name !== s.full_name ||
@@ -458,24 +464,14 @@ export async function POST() {
   for (const pu of portalIdMismatches) {
     const email = pu.email?.trim().toLowerCase();
     if (!email) continue;
-    try {
-      const matchingAuth = authByEmail.get(email);
-      if (!matchingAuth || matchingAuth.id === pu.id) continue;
-      await requireSupabaseWrite(admin.from('portal_users').upsert({
-        ...pu, id: matchingAuth.id, updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' }), `replace mismatched portal id for ${email}`);
-      await requireSupabaseWrite(admin.auth.admin.updateUserById(matchingAuth.id, {
-        user_metadata: { full_name: pu.full_name, role: pu.role },
-      }), `synchronize auth metadata for ${email}`);
-      // Remove the stale wrong-ID row (clean up study group refs first)
-      await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink study-group messages for ${email}`);
-      await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink study-group membership for ${email}`);
-      await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink owned study groups for ${email}`);
-      await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove stale portal id for ${email}`);
-      results.id_mismatches_fixed.push(email);
-    } catch (err: any) {
-      results.errors.push(`mismatch ${email}: ${err.message}`);
-    }
+    const matchingAuth = authByEmail.get(email);
+    if (!matchingAuth || matchingAuth.id === pu.id) continue;
+    // Rekeying only portal_users disconnects every foreign-key record still
+    // attached to the old UUID. Keep the mismatch visible for a deliberate,
+    // evidence-aware migration instead of manufacturing an empty account.
+    results.errors.push(
+      `mismatch ${email}: portal ID ${pu.id} differs from Auth ID ${matchingAuth.id}; left unchanged for evidence-safe rekey review`,
+    );
   }
 
   // ── Gap D2: Portal rows with email but NO auth account — create auth ─────
@@ -505,12 +501,7 @@ export async function POST() {
           results.errors.push(`portal ${email}: ${authErr.message} — admin row left untouched (manual review required).`);
           continue;
         } else {
-          // Force delete the orphaned portal row if it can't be linked
-          await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink orphan messages for ${email}`);
-          await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink orphan membership for ${email}`);
-          await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink orphan study groups for ${email}`);
-          await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove orphan portal row for ${email}`);
-          results.errors.push(`portal ${email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
+          results.errors.push(`portal ${email}: ${authErr.message} — portal record preserved for retry`);
           continue;
         }
       } else {
@@ -520,14 +511,11 @@ export async function POST() {
       if (!newAuthId) continue;
 
       if (newAuthId !== pu.id) {
-        // Auth ID differs from portal row ID — update portal row to match
-        await requireSupabaseWrite(admin.from('portal_users').upsert({
-          ...pu, id: newAuthId, updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' }), `align portal id with auth for ${email}`);
-        await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink old-id messages for ${email}`);
-        await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink old-id membership for ${email}`);
-        await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink old-id study groups for ${email}`);
-        await requireSupabaseWrite(admin.from('portal_users').delete().eq('id', pu.id), `remove old portal id for ${email}`);
+        if (!usedExisting) await admin.auth.admin.deleteUser(newAuthId).catch(() => {});
+        results.errors.push(
+          `portal ${email}: Auth produced ID ${newAuthId}, but the portal ID is ${pu.id}; temporary Auth account rolled back and portal record preserved`,
+        );
+        continue;
       }
 
       results.portal_auth_created.push({
@@ -616,23 +604,21 @@ export async function DELETE() {
   const skipped: string[] = [];
 
   for (const pu of orphans) {
-    if (pu.role === 'admin') {
-      skipped.push(`${pu.email ?? pu.id} (admin — refuse delete)`);
-      continue;
-    }
     try {
-      await requireSupabaseWrite(admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id), `unlink orphan messages for ${pu.email ?? pu.id}`);
-      await requireSupabaseWrite(admin.from('study_group_members').delete().eq('user_id', pu.id), `unlink orphan membership for ${pu.email ?? pu.id}`);
-      await requireSupabaseWrite(admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id), `unlink orphan study groups for ${pu.email ?? pu.id}`);
+      const evidence = await getProtectedAcademicEvidence(admin, pu.id);
+      const decision = decideAutomaticOrphanPurge(pu.role, evidence.total);
+      if (!decision.allowed) {
+        skipped.push(`${pu.email ?? pu.id} (${decision.reason})`);
+        continue;
+      }
+      const wipe = await wipePortalUserCascade(admin as any, pu.id);
+      if (!wipe.ok) {
+        skipped.push(`${pu.email ?? pu.id} (${wipe.error})`);
+        continue;
+      }
+      deleted.push(pu.email ?? pu.id);
     } catch (error) {
       skipped.push(`${pu.email ?? pu.id} (${error instanceof Error ? error.message : String(error)})`);
-      continue;
-    }
-    const { error } = await admin.from('portal_users').delete().eq('id', pu.id);
-    if (error) {
-      skipped.push(`${pu.email ?? pu.id} (${error.message})`);
-    } else {
-      deleted.push(pu.email ?? pu.id);
     }
   }
 
