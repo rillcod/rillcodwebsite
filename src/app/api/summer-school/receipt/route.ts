@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) {
       console.error("Summer school receipt upload error:", uploadError);
-      return NextResponse.json({ error: uploadError.message || "Upload failed" }, { status: 500 });
+      return NextResponse.json({ error: "Could not upload your receipt. Please try again, or type your transfer reference instead." }, { status: 500 });
     }
 
     const { data: publicUrlData } = supabase.storage.from("portfolio-images").getPublicUrl(path);

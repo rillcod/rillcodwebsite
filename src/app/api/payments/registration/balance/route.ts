@@ -292,8 +292,7 @@ export async function POST(req: NextRequest) {
       balanceAfter,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Something went wrong';
     console.error('[registration/balance] error:', err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'We could not start the balance payment. Please try again.' }, { status: 500 });
   }
 }

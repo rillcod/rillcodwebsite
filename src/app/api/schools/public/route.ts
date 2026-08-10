@@ -16,6 +16,9 @@ export async function GET() {
     .eq('status', 'approved')
     .order('name');
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('Public school list query failed', error);
+    return NextResponse.json({ error: 'The school list is temporarily unavailable.' }, { status: 500 });
+  }
   return NextResponse.json({ schools: data ?? [] });
 }

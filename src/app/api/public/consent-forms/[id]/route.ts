@@ -410,7 +410,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   if (insertErr) {
     if (insertErr.code === '23505') return NextResponse.json({ success: true, duplicate: true });
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    console.error('Public consent submission insert failed', insertErr);
+    return NextResponse.json({ error: 'We could not save the form just now. Please try again.' }, { status: 500 });
   }
   await logAudit(sb as any, {
     action: 'consent_submitted',

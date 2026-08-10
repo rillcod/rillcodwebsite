@@ -33,27 +33,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only student or parent public signup is supported' }, { status: 400 });
     }
     if (!schoolId) {
-      return NextResponse.json({ error: 'school_id is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Please select a school.' }, { status: 400 });
     }
 
     const admin = adminClient();
     const { data: school } = await admin.from('schools').select('id, name').eq('id', schoolId).maybeSingle();
     if (!school) return NextResponse.json({ error: 'School not found' }, { status: 400 });
-
-    const placed = await preparePortalStructure(admin as any, {
-      role,
-      schoolId: school.id,
-      schoolName: school.name,
-      wantActive: true,
-      autoCreateClass: role === 'student',
-      classHints: role === 'student' ? ['General Placement'] : undefined,
-    });
-
-    if (!placed.isActive) {
-      return NextResponse.json({
-        error: placed.error || 'Could not complete signup with required school/class structure.',
-      }, { status: 400 });
-    }
 
     const { data: existingPortal } = await admin
       .from('portal_users')
@@ -65,6 +50,22 @@ export async function POST(request: Request) {
         error: `This account is already registered as a ${existingPortal.role}. Sign in with that role instead.`,
         code: 'EMAIL_ROLE_CONFLICT',
       }, { status: 409 });
+    }
+
+    const placed = await preparePortalStructure(admin as any, {
+      role,
+      schoolId: school.id,
+      schoolName: school.name,
+      wantActive: true,
+      autoCreateClass: role === 'student',
+      classHints: role === 'student' ? ['General Placement'] : undefined,
+    });
+
+    if (!placed.isActive) {
+      console.error('Public signup placement preparation failed', placed.error);
+      return NextResponse.json({
+        error: 'School access could not be prepared. Please try again or contact support.',
+      }, { status: 503 });
     }
 
     const { error: upsertErr } = await admin.from('portal_users').upsert({
@@ -83,10 +84,11 @@ export async function POST(request: Request) {
     }, { onConflict: 'id' });
 
     if (upsertErr) {
-      return NextResponse.json({ error: upsertErr.message }, { status: 400 });
+      console.error('Public signup portal profile upsert failed', upsertErr);
+      return NextResponse.json({ error: 'School access could not be linked. Please try again.' }, { status: 500 });
     }
 
-    await admin.auth.admin.updateUserById(user.id, {
+    const { error: metadataError } = await admin.auth.admin.updateUserById(user.id, {
       user_metadata: {
         full_name: fullName,
         role,
@@ -95,6 +97,9 @@ export async function POST(request: Request) {
       },
         ...(role === 'student' ? { enrollment_type: 'school' } : {}),
     });
+    if (metadataError) {
+      console.error('Public signup auth metadata update failed', metadataError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -102,7 +107,8 @@ export async function POST(request: Request) {
       class_id: placed.classId,
       class_name: placed.className,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    console.error('Public signup completion failed', err);
+    return NextResponse.json({ error: 'We could not complete school access just now. Please try again.' }, { status: 500 });
   }
 }

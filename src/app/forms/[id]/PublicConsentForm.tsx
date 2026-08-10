@@ -7,6 +7,7 @@ import { HD_QR_DISPLAY_PX } from '@/lib/qr/hd-qr';
 import { brandContact } from '@/config/brand';
 import { enrollmentTypeLabel } from '@/lib/registration/enrollment-types';
 import { useContactCapture } from '@/hooks/useContactCapture';
+import { fetchActionJson } from '@/lib/async-timeout';
 
 interface FormData {
   id: string;
@@ -313,7 +314,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     setError('');
     captureSubmitted();
     try {
-      const res = await fetch(`/api/public/consent-forms/${form.id}`, {
+      const { response, data: json } = await fetchActionJson<{ error: string }>(`/api/public/consent-forms/${form.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -352,14 +353,22 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             }),
           },
         }),
-      });
-      const json = await res.json();
-      if (!res.ok) { setError(json.error || 'Submission failed. Please try again.'); return; }
+      }, 'Submission is taking longer than expected. Your progress is saved, so please try again.');
+      if (!response.ok) {
+        if (response.status >= 500) console.error('Consent submission failed', { status: response.status, json });
+        setError(response.status < 500 && typeof json.error === 'string'
+          ? json.error
+          : 'We could not submit the form just now. Your progress is saved; please try again.');
+        return;
+      }
       // Clear saved session
       try { localStorage.removeItem(LS_KEY); } catch {}
       setStep('thanks');
-    } catch {
-      setError('Network error. Please check your connection and try again.');
+    } catch (submissionError) {
+      console.error('Consent submission request failed', submissionError);
+      setError(submissionError instanceof Error && submissionError.message.includes('taking longer')
+        ? submissionError.message
+        : 'We could not reach the service. Your progress is saved; check your connection and try again.');
     } finally {
       setSubmitting(false);
     }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CheckCircle2, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { summerFormStyles, useSummerSchoolRegistration } from '@/hooks/useSummerSchoolRegistration';
 import { SPECIAL_LEARNER_GRADE_OPTIONS } from '@/lib/special-programs/learner-path';
+import { fetchActionJson } from '@/lib/async-timeout';
 
 type Registration = ReturnType<typeof useSummerSchoolRegistration>;
 
@@ -48,21 +49,27 @@ export function NativeSummerRegistrationForm({
     setResending(true);
     setResendError('');
     try {
-      const response = await fetch('/api/payments/registration/resend-link', {
+      const { response, data } = await fetchActionJson<{ error: string; delivered: boolean }>('/api/payments/registration/resend-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reference: successInfo.reference,
           email: successInfo.parentEmail,
         }),
-      });
-      const data = await response.json();
+      }, 'Resending the payment email is taking longer than expected. Please try again.');
       if (!response.ok || data.delivered !== true) {
-        throw new Error(data.error || 'The payment email could not be resent.');
+        if (response.status >= 500) console.error('Payment email resend failed', { status: response.status, data });
+        setResendError(response.status < 500 && typeof data.error === 'string'
+          ? data.error
+          : 'The payment email could not be resent. Please try again or contact support.');
+        return;
       }
       setResent(true);
     } catch (error: unknown) {
-      setResendError(error instanceof Error ? error.message : 'The payment email could not be resent.');
+      console.error('Payment email resend request failed', error);
+      setResendError(error instanceof Error && error.message.includes('taking longer')
+        ? error.message
+        : 'The payment email could not be resent. Check your connection and try again.');
     } finally {
       setResending(false);
     }

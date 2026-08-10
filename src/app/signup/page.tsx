@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchActionJson, withTimeoutOrThrow } from "@/lib/async-timeout";
 
 type UserRole = 'student' | 'parent';
 
@@ -45,30 +46,37 @@ export default function SignUpPage() {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [schoolsError, setSchoolsError] = useState(false);
   const [childName, setChildName] = useState("");
 
   const loadSchools = async () => {
     if (schools.length > 0) return;
     setSchoolsLoading(true);
+    setSchoolsError(false);
     try {
-      const res = await fetch('/api/schools/public');
-      if (res.ok) { const { schools: list } = await res.json(); setSchools(list ?? []); }
-    } finally { setSchoolsLoading(false); }
+      const { response, data } = await fetchActionJson<{ schools: Array<{ id: string; name: string }> }>(
+        '/api/schools/public',
+        {},
+        'The school list is taking longer than expected. Please try again.',
+      );
+      if (!response.ok || !Array.isArray(data.schools)) {
+        console.error('Public school list failed', { status: response.status });
+        setSchoolsError(true);
+        return;
+      }
+      setSchools(data.schools);
+    } catch (error) {
+      console.error('Public school list request failed', error);
+      setSchoolsError(true);
+    } finally {
+      setSchoolsLoading(false);
+    }
   };
 
   const handleRoleSelect = async (role: UserRole) => {
     setRole(role);
     if ((role === 'student' || role === 'parent') && schools.length === 0) {
-      setSchoolsLoading(true);
-      try {
-        const res = await fetch('/api/schools/public');
-        if (res.ok) {
-          const { schools: list } = await res.json();
-          setSchools(list ?? []);
-        }
-      } finally {
-        setSchoolsLoading(false);
-      }
+      await loadSchools();
     }
   };
 
@@ -85,7 +93,7 @@ export default function SignUpPage() {
 
     try {
       const supabase = createClient();
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await withTimeoutOrThrow(supabase.auth.signUp({
         email,
         password,
         options: {
@@ -95,16 +103,19 @@ export default function SignUpPage() {
             school_id: selectedSchoolId,
           },
         },
-      });
+      }), 'Account creation is taking longer than expected. Please try again.');
 
       if (signUpError) throw new Error(signUpError.message);
 
       // Email confirmation is disabled — sign in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await withTimeoutOrThrow(
+        supabase.auth.signInWithPassword({ email, password }),
+        'Your account was created, but sign-in is taking longer than expected. Please use the sign-in page.',
+      );
       if (signInError) throw new Error(signInError.message);
 
       // Server places school (+ auto class for students) and activates safely.
-      const completeRes = await fetch('/api/auth/complete-public-signup', {
+      const { response: completeRes, data: completeJson } = await fetchActionJson<{ error: string }>('/api/auth/complete-public-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,10 +124,10 @@ export default function SignUpPage() {
           full_name: fullName,
           child_name: selectedRole === 'parent' ? childName.trim() || null : null,
         }),
-      });
-      const completeJson = await completeRes.json().catch(() => ({}));
+      }, 'Your account was created, but school access is taking longer than expected. Please sign in and try again.');
       if (!completeRes.ok) {
-        throw new Error(completeJson.error || 'Could not complete signup placement');
+        console.error('Public signup placement failed', { status: completeRes.status, completeJson });
+        throw new Error('Your account was created, but school access could not be linked. Please sign in again or contact support.');
       }
 
       if (selectedRole === 'parent') {
@@ -124,7 +135,7 @@ export default function SignUpPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'parent', childName: childName.trim() || null, schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
-        }).catch(() => {});
+        }).catch((syncError) => console.warn('Parent intake sync did not complete', syncError));
         toast.success("Parent access created. Use Parent Claim to link the learner record securely.");
         router.push('/parent-claim');
         return;
@@ -134,15 +145,19 @@ export default function SignUpPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'student', schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
-      }).catch(() => {});
+      }).catch((syncError) => console.warn('Student intake sync did not complete', syncError));
 
       toast.success("Partner-school portal access created successfully.");
       router.push('/dashboard');
-    } catch (error: any) {
-      if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
+    } catch (error: unknown) {
+      console.error('Public signup failed', error);
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('already registered') || message.includes('already exists')) {
         toast.error("An account with this email already exists");
+      } else if (message.includes('taking longer') || message.startsWith('Your account was created')) {
+        toast.error(message);
       } else {
-        toast.error(error.message || "An error occurred during signup");
+        toast.error("We could not create the account just now. Please check your details and try again.");
       }
     } finally {
       setLoading(false);
@@ -216,6 +231,21 @@ export default function SignUpPage() {
               ))}
             </div>
           </div>
+
+          {selectedRole && schoolsError && (
+            <div role="alert" className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <p className="font-semibold">The school list is unavailable right now.</p>
+              <p className="mt-1 text-xs text-amber-100/70">Check your connection, then try loading it again.</p>
+              <button
+                type="button"
+                onClick={() => void loadSchools()}
+                disabled={schoolsLoading}
+                className="mt-3 min-h-11 rounded-xl border border-amber-400/40 px-4 py-2 text-xs font-bold text-amber-100 transition-colors hover:bg-amber-400/10 disabled:opacity-50"
+              >
+                {schoolsLoading ? 'Trying again…' : 'Retry school list'}
+              </button>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSignUp} className="space-y-4">

@@ -16,6 +16,7 @@ import { resolveBankTransferSettlement } from "@/lib/summer-school/bank-transfer
 import { getSpecialTotalTuition, getSpecialDepositAmount, specialTuitionLabels } from "@/lib/special-programs/types";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { useContactCapture } from "@/hooks/useContactCapture";
+import { fetchActionJson } from "@/lib/async-timeout";
 
 export type SummerFormState = {
   studentName: string;
@@ -297,13 +298,21 @@ export function useSummerSchoolRegistration({
       if (form.paymentReference && form.paymentReference.startsWith("http")) {
         body.append("previousUrl", form.paymentReference);
       }
-      const res = await fetch("/api/summer-school/receipt", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const { response, data } = await fetchActionJson<{ error: string; url: string }>(
+        "/api/summer-school/receipt",
+        { method: "POST", body },
+        "The upload is taking longer than expected. Please try again.",
+      );
+      if (!response.ok || typeof data.url !== "string") {
+        if (response.status >= 500) console.error("Receipt upload failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not upload the receipt. Please try again.", { id: toastId });
+        return;
+      }
       setForm((prev) => ({ ...prev, paymentReference: data.url }));
       toast.success("Receipt uploaded successfully!", { id: toastId });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to upload receipt.", { id: toastId });
+      console.error("Receipt upload request failed", err);
+      toast.error(err instanceof Error && err.message.includes("taking longer") ? err.message : "We could not upload the receipt. Check your connection and try again.", { id: toastId });
     } finally {
       setUploadingReceipt(false);
     }
@@ -314,18 +323,22 @@ export function useSummerSchoolRegistration({
 
     const toastId = toast.loading("Removing receipt screenshot...");
     try {
-      const res = await fetch(`/api/summer-school/receipt?url=${encodeURIComponent(form.paymentReference)}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to remove file from storage");
+      const { response, data } = await fetchActionJson<{ error: string }>(
+        `/api/summer-school/receipt?url=${encodeURIComponent(form.paymentReference)}`,
+        { method: "DELETE" },
+        "Removing the receipt is taking longer than expected. Please try again.",
+      );
+      if (!response.ok) {
+        if (response.status >= 500) console.error("Receipt removal failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not remove the receipt. Please try again.", { id: toastId });
+        return;
+      }
 
       setForm((prev) => ({ ...prev, paymentReference: "" }));
       toast.success("Receipt screenshot removed successfully!", { id: toastId });
     } catch (err: unknown) {
       console.error("Receipt remove error:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to remove receipt from storage.", { id: toastId });
-      setForm((prev) => ({ ...prev, paymentReference: "" }));
+      toast.error(err instanceof Error && err.message.includes("taking longer") ? err.message : "We could not remove the receipt. Check your connection and try again.", { id: toastId });
     }
   };
 
@@ -362,7 +375,17 @@ export function useSummerSchoolRegistration({
       const consentNotes = `[Parental Consent: Yes] [WhatsApp Opt-in: ${form.whatsappConsent ? "Yes" : "No"}]`;
       const fullNotes = `[Track Choice: Full AI Explorer (All Tracks)] [Plan: ${form.paymentPlan}] [Method: ${effectivePaymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ""} ${consentNotes} ${form.additionalInfo}`;
 
-      const res = await fetch("/api/summer-school", {
+      const { response, data } = await fetchActionJson<{
+        error: string;
+        paymentUrl: string;
+        paymentEmailSent: boolean;
+        paymentEmailError: string;
+        effectivePlan: string;
+        reference: string;
+        amountPaid: number;
+        totalTuition: number;
+        balanceDue: number;
+      }>("/api/summer-school", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -388,11 +411,37 @@ export function useSummerSchoolRegistration({
           special_program_id: specialProgramId || undefined,
           special_program_slug: specialProgramSlug || undefined,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Registration failed");
+      }, "Registration is taking longer than expected. Your draft is saved, so please try again.");
+      if (!response.ok) {
+        if (response.status >= 500) console.error("Summer registration failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string"
+          ? data.error
+          : "We could not complete registration just now. Your draft is saved; please try again.");
+        return;
+      }
 
       try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
+
+      const paymentEmailFailed = data.paymentEmailSent !== true;
+      if (paymentEmailFailed && data.paymentEmailError) {
+        console.warn("Registration payment email was not delivered", data.paymentEmailError);
+      }
+      const savedRegistration: SummerSuccessInfo = {
+        studentName: form.studentName,
+        parentPhone: form.phone,
+        plan: data.effectivePlan || form.paymentPlan,
+        method: effectivePaymentMethod,
+        reference: typeof data.reference === "string" ? data.reference : "Registration saved",
+        parentEmail: form.email.trim().toLowerCase(),
+        paymentEmailSent: data.paymentEmailSent === true,
+        paymentEmailError: paymentEmailFailed
+          ? "Registration is saved, but the payment email has not arrived yet. Use Resend or contact support for help."
+          : null,
+        amountPaid: typeof data.amountPaid === "number" ? data.amountPaid : undefined,
+        totalTuition: typeof data.totalTuition === "number" ? data.totalTuition : undefined,
+        balanceDue: typeof data.balanceDue === "number" ? data.balanceDue : undefined,
+        effectivePlan: typeof data.effectivePlan === "string" ? data.effectivePlan : form.paymentPlan,
+      };
 
       if (data.paymentUrl && !isNativeApp) {
         capturePaymentStarted();
@@ -402,33 +451,18 @@ export function useSummerSchoolRegistration({
       }
 
       if (effectivePaymentMethod === "paystack" && !isNativeApp) {
-        throw new Error(
-          data.paymentEmailSent
-            ? "We emailed you a secure payment link. Open that email to complete payment."
-            : "Online payment could not start. Your registration is saved — try again or contact support.",
-        );
+        setSuccessInfo(savedRegistration);
+        setIsSuccess(true);
+        toast.warning(data.paymentEmailSent === true
+          ? "Registration saved. We emailed you a secure payment link."
+          : "Registration saved. Use Resend on the confirmation screen to request a payment link.");
+        return;
       }
 
-      setSuccessInfo({
-        studentName: form.studentName,
-        parentPhone: form.phone,
-        plan: data.effectivePlan || form.paymentPlan,
-        method: effectivePaymentMethod,
-        reference: data.reference,
-        parentEmail: form.email.trim().toLowerCase(),
-        paymentEmailSent: data.paymentEmailSent === true,
-        paymentEmailError: typeof data.paymentEmailError === 'string' ? data.paymentEmailError : null,
-        amountPaid: typeof data.amountPaid === 'number' ? data.amountPaid : undefined,
-        totalTuition: typeof data.totalTuition === 'number' ? data.totalTuition : undefined,
-        balanceDue: typeof data.balanceDue === 'number' ? data.balanceDue : undefined,
-        effectivePlan: typeof data.effectivePlan === 'string' ? data.effectivePlan : form.paymentPlan,
-      });
+      setSuccessInfo(savedRegistration);
       setIsSuccess(true);
       if (isNativeApp && data.paymentEmailSent !== true) {
-        toast.warning(
-          data.paymentEmailError ||
-          "Registration saved, but the payment email was not delivered. Use Resend on the confirmation screen.",
-        );
+        toast.warning("Registration saved, but the payment email was not delivered. Use Resend on the confirmation screen.");
       } else {
         toast.success(
           isNativeApp
@@ -441,13 +475,13 @@ export function useSummerSchoolRegistration({
         );
       }
       if (effectivePaymentMethod === "bank_transfer" && data.paymentEmailSent !== true) {
-        toast.warning(
-          data.paymentEmailError ||
-            "Registration saved, but the confirmation email could not be sent. Keep your reference and contact support if needed.",
-        );
+        toast.warning("Registration saved, but the confirmation email could not be sent. Keep your reference and contact support if needed.");
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      console.error("Summer registration request failed", err);
+      toast.error(err instanceof Error && err.message.includes("taking longer")
+        ? err.message
+        : "We could not reach the registration service. Your draft is saved; check your connection and try again.");
     } finally {
       setLoading(false);
       setSubmitLocked(false);

@@ -2,7 +2,7 @@
 
 This document is the visual and interaction contract for every Rillcod surface. It applies to dashboard routes, public marketing pages, authentication, registration and payment flows, shared-detail pages, and native/PWA layouts.
 
-The baseline audit covers 216 page routes: 173 dashboard pages and 43 public or utility pages. New routes inherit the same contract and must pass `npm run audit:ui`.
+The baseline audit covers 222 page routes: 179 dashboard pages and 43 public or utility pages. New routes inherit the same contract and must pass `npm run audit:ui`.
 
 ## Product principles
 
@@ -61,6 +61,28 @@ Every data surface must define:
 - success feedback close to the action that caused it.
 
 Use skeletons for card/list loading, not full-screen spinners, unless the whole application is booting.
+
+## Customer action reliability
+
+- A customer-triggered network or authentication action must have a deadline. Use
+  `fetchActionJson` for JSON HTTP actions and `withTimeoutOrThrow` for Supabase or other
+  promise-based actions. Never use a fallback-returning timeout where the fallback could
+  be mistaken for success.
+- Loading and duplicate-submission locks must always be released in `finally`. A stalled
+  provider must not leave a button disabled indefinitely.
+- Preserve drafts until the authoritative save succeeds. Once the server confirms a save,
+  show the saved/confirmation state even when a secondary checkout, email, CRM, or analytics
+  operation fails. Never invite a duplicate submission for a record that already exists.
+- Clear an uploaded-file reference only after remote deletion succeeds. On failure, retain
+  the reference and provide a retry path.
+- Public APIs log database, storage, gateway, and provider details on the server. Customer
+  surfaces receive plain-language recovery guidance and never raw SQL errors, UUIDs, stack
+  traces, provider payloads, internal route names, or configuration details.
+- Optional non-blocking work may not interrupt the primary journey, but its failure must be
+  logged for operations rather than swallowed silently.
+- If a control cannot work because required data failed to load, keep it unavailable with a
+  visible reason and a retry action. Do not replace failed data with believable empty totals,
+  defaults, or success states.
 
 ## Accessibility and international readiness
 

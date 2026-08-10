@@ -47,6 +47,44 @@ export async function withTimeoutOrThrow<T>(
   }
 }
 
+/**
+ * Use for browser requests that must never leave a customer action spinning.
+ * The request is aborted at the deadline and rejects with customer-safe copy.
+ */
+export async function fetchWithTimeoutOrThrow(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMessage = 'This is taking longer than expected. Please check your connection and try again.',
+  ms = DEFAULT_UI_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (timedOut) throw new Error(timeoutMessage);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchActionJson<T extends Record<string, unknown>>(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMessage?: string,
+  ms?: number,
+): Promise<{ response: Response; data: Partial<T> }> {
+  const response = await fetchWithTimeoutOrThrow(input, init, timeoutMessage, ms);
+  const data = await response.json().catch(() => ({})) as Partial<T>;
+  return { response, data };
+}
+
 export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
   url: string,
   fallback: T,

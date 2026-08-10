@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Lock, Mail, Eye, EyeOff, GraduationCap, ArrowLeft, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { withTimeoutOrThrow } from "@/lib/async-timeout";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -27,14 +28,21 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await createClient().auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password?step=reset`,
-      });
-      if (error) throw error;
+      const { error } = await withTimeoutOrThrow(
+        createClient().auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password?step=reset`,
+        }),
+        'Sending the reset link is taking longer than expected. Please try again.',
+      );
+      if (error) {
+        console.error('Password reset email request failed', error);
+        throw new Error('We could not send the reset link just now. Please try again.');
+      }
       toast.success("Reset link sent — check your inbox!");
       setDone(true);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send reset link");
+    } catch (err: unknown) {
+      console.error('Password reset email action failed', err);
+      toast.error(err instanceof Error ? err.message : "We could not send the reset link. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -46,12 +54,22 @@ export default function ResetPasswordPage() {
     if (password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
     setLoading(true);
     try {
-      const { error } = await createClient().auth.updateUser({ password });
-      if (error) throw error;
+      const { error } = await withTimeoutOrThrow(
+        createClient().auth.updateUser({ password }),
+        'Updating the password is taking longer than expected. Please try again.',
+      );
+      if (error) {
+        console.error('Password update failed', error);
+        const expired = /session|expired|token/i.test(error.message);
+        throw new Error(expired
+          ? 'This reset link is no longer valid. Request a new reset link and try again.'
+          : 'We could not update the password just now. Please try again.');
+      }
       toast.success("Password updated! Redirecting to login…");
       setTimeout(() => router.push('/login'), 2000);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update password");
+    } catch (err: unknown) {
+      console.error('Password update action failed', err);
+      toast.error(err instanceof Error ? err.message : "We could not update the password. Please try again.");
     } finally {
       setLoading(false);
     }

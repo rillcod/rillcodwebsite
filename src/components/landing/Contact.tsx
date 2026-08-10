@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, ShieldCheck, HelpCircle, Command, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { contactInfo } from '@/config/brand';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 
 const contactCards = [
   { icon: Mail, title: 'Email Us', value: contactInfo.email, sub: 'Partnership Inquiries', accent: 'text-primary', bg: 'bg-primary/10' },
@@ -27,19 +28,22 @@ const Contact: React.FC = () => {
     e.preventDefault();
     setSending(true);
     try {
-      const response = await fetch('https://formspree.io/f/mqakeevn', {
+      const response = await fetchWithTimeoutOrThrow('https://formspree.io/f/mqakeevn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-      });
+      }, 'Sending your message is taking longer than expected. Please try again.');
       if (response.ok) {
         toast.success('Message sent! Our team will get back to you within 12 business hours.');
         setFormData({ name: '', email: '', message: '' });
       } else {
         throw new Error();
       }
-    } catch {
-      toast.error('Failed to send message. Please try again or contact us directly.');
+    } catch (error) {
+      console.error('Public contact form submission failed', error);
+      toast.error(error instanceof Error && error.message.includes('taking longer')
+        ? error.message
+        : 'We could not send your message. Please try again or contact us directly.');
     } finally {
       setSending(false);
     }

@@ -10,6 +10,7 @@ import { resolveBalanceTransferSettlement } from "@/lib/summer-school/bank-trans
 import { BankTransferAmountField } from "@/components/summer-school/BankTransferAmountField";
 import { NativeBillingNotice } from "@/components/billing/NativeBillingNotice";
 import { STUDENT_REGISTRATION_PATH, TERM_BALANCE_PATH } from "@/lib/registration/enrollment-types";
+import { fetchActionJson } from "@/lib/async-timeout";
 
 const BANK_DETAILS = {
   bankName: "Zenith Bank",
@@ -67,26 +68,37 @@ export default function TermPayBalancePage() {
 
     setVerifyingReturn(true);
     (async () => {
-      const res = await fetch(
-        `/api/payments/registration/balance/verify?reference=${encodeURIComponent(reference)}`,
-      );
-      const result = await res.json();
-      if (!result.ok) {
-        toast.error(result.error || "Payment could not be verified yet.");
+      try {
+        const { response, data: result } = await fetchActionJson<{ ok: boolean; error: string }>(
+          `/api/payments/registration/balance/verify?reference=${encodeURIComponent(reference)}`,
+          {},
+          "Payment verification is taking longer than expected. Please try again.",
+        );
+        if (!response.ok || result.ok !== true) {
+          if (response.status >= 500) console.error("Term balance verification failed", { status: response.status, result });
+          toast.error(response.status < 500 && typeof result.error === "string"
+            ? result.error
+            : "Payment could not be verified yet. Please try again.");
+          return;
+        }
+        setVerified(true);
+        toast.success("Balance payment received. Thank you!");
+        if (prefill) setEmail(prefill);
+        window.history.replaceState(
+          {},
+          document.title,
+          prefill
+            ? `${TERM_BALANCE_PATH}?email=${encodeURIComponent(prefill)}`
+            : TERM_BALANCE_PATH,
+        );
+      } catch (error) {
+        console.error("Term balance verification request failed", error);
+        toast.error(error instanceof Error && error.message.includes("taking longer")
+          ? error.message
+          : "We could not verify the payment. Check your connection and try again.");
+      } finally {
         setVerifyingReturn(false);
-        return;
       }
-      setVerified(true);
-      toast.success("Balance payment received. Thank you!");
-      if (prefill) setEmail(prefill);
-      window.history.replaceState(
-        {},
-        document.title,
-        prefill
-          ? `${TERM_BALANCE_PATH}?email=${encodeURIComponent(prefill)}`
-          : TERM_BALANCE_PATH,
-      );
-      setVerifyingReturn(false);
     })();
   }, []);
 
@@ -99,12 +111,29 @@ export default function TermPayBalancePage() {
     setBalanceInfo(null);
     setSubmitted(false);
     try {
-      const res = await fetch(
-        `/api/payments/registration/balance?email=${encodeURIComponent(email.trim())}`,
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not find balance");
-      setBalanceInfo(data);
+      const { response, data } = await fetchActionJson<{
+        error: string; studentName: string; balanceDue: number; balanceLabel: string;
+        amountPaid: number; totalTuition: number; status: string; programName: string | null;
+      }>(`/api/payments/registration/balance?email=${encodeURIComponent(email.trim())}`, {}, "The balance lookup is taking longer than expected. Please try again.");
+      if (!response.ok) {
+        if (response.status >= 500) console.error("Term balance lookup failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not check the balance. Please try again.");
+        return;
+      }
+      if (typeof data.balanceDue !== "number" || typeof data.studentName !== "string") {
+        console.error("Term balance response was incomplete", data);
+        toast.error("We could not read the balance. Please try again.");
+        return;
+      }
+      setBalanceInfo({
+        studentName: data.studentName,
+        balanceDue: data.balanceDue,
+        balanceLabel: typeof data.balanceLabel === "string" ? data.balanceLabel : "Balance due",
+        amountPaid: typeof data.amountPaid === "number" ? data.amountPaid : 0,
+        totalTuition: typeof data.totalTuition === "number" ? data.totalTuition : data.balanceDue,
+        status: typeof data.status === "string" ? data.status : "pending",
+        programName: typeof data.programName === "string" ? data.programName : null,
+      });
       if (data.balanceDue > 0 && !transferAmount) {
         setTransferAmount(String(data.balanceDue));
       }
@@ -112,17 +141,23 @@ export default function TermPayBalancePage() {
         toast.success("Registration tuition is fully paid — no balance due.");
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Lookup failed");
+      console.error("Term balance lookup request failed", err);
+      toast.error(err instanceof Error && err.message.includes("taking longer") ? err.message : "We could not check the balance. Check your connection and try again.");
     } finally {
       setChecking(false);
     }
   };
 
-  const copyAccountNumber = () => {
-    navigator.clipboard.writeText(BANK_DETAILS.accountNumber);
-    setCopiedAccount(true);
-    toast.success("Account number copied to clipboard!");
-    setTimeout(() => setCopiedAccount(false), 2500);
+  const copyAccountNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(BANK_DETAILS.accountNumber);
+      setCopiedAccount(true);
+      toast.success("Account number copied to clipboard!");
+      setTimeout(() => setCopiedAccount(false), 2500);
+    } catch (error) {
+      console.error("Account number copy failed", error);
+      toast.error("Copy is unavailable. Select and copy the account number manually.");
+    }
   };
 
   const handleReceiptUpload = async (file: File) => {
@@ -138,13 +173,17 @@ export default function TermPayBalancePage() {
       if (paymentReference.startsWith("http") || paymentReference.startsWith("/")) {
         body.append("previousUrl", paymentReference);
       }
-      const res = await fetch("/api/summer-school/receipt", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const { response, data } = await fetchActionJson<{ error: string; url: string }>("/api/summer-school/receipt", { method: "POST", body }, "The receipt upload is taking longer than expected. Please try again.");
+      if (!response.ok || typeof data.url !== "string") {
+        if (response.status >= 500) console.error("Term balance receipt upload failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not upload the receipt. Please try again.", { id: toastId });
+        return;
+      }
       setPaymentReference(data.url);
       toast.success("Receipt uploaded successfully.", { id: toastId });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to upload receipt.", { id: toastId });
+      console.error("Term balance receipt upload request failed", err);
+      toast.error(err instanceof Error && err.message.includes("taking longer") ? err.message : "We could not upload the receipt. Check your connection and try again.", { id: toastId });
     } finally {
       setUploadingReceipt(false);
     }
@@ -166,7 +205,7 @@ export default function TermPayBalancePage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/payments/registration/balance", {
+      const { response, data } = await fetchActionJson<{ error: string; message: string; paymentUrl: string }>("/api/payments/registration/balance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,24 +214,30 @@ export default function TermPayBalancePage() {
           payment_reference: paymentMethod === "bank_transfer" ? paymentReference.trim() : undefined,
           transfer_amount: paymentMethod === "bank_transfer" ? transferAmount : undefined,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Payment failed to start");
+      }, "Payment setup is taking longer than expected. Please try again.");
+      if (!response.ok) {
+        if (response.status >= 500) console.error("Term balance payment setup failed", { status: response.status, data });
+        toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not start the payment. Please try again.");
+        return;
+      }
 
       if (paymentMethod === "bank_transfer") {
         setSubmitted(true);
         toast.success(data.message || "Balance payment submitted for verification.");
-        setLoading(false);
         return;
       }
 
       if (!data.paymentUrl) {
-        throw new Error("Payment link was not returned. Please try again or contact support.");
+        console.error("Term balance payment response omitted paymentUrl", data);
+        toast.error("We could not open secure checkout. Please try again or contact support.");
+        return;
       }
       toast.message("Redirecting to secure checkout…");
       window.location.href = data.paymentUrl;
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Payment failed");
+      console.error("Term balance payment request failed", err);
+      toast.error(err instanceof Error && err.message.includes("taking longer") ? err.message : "We could not start the payment. Check your connection and try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -503,4 +548,3 @@ export default function TermPayBalancePage() {
     </div>
   );
 }
-
