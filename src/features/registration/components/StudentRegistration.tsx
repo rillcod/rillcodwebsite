@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { fetchActionJson } from '@/lib/async-timeout';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -274,17 +275,18 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     }
     let active = true;
     const qs = programIdParam ? `?program_id=${encodeURIComponent(programIdParam)}` : '';
-    fetch(`/api/payments/registration/instalment-options${qs}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        const enabled = data.instalmentsEnabled === true;
-        setInstalmentsEnabled(enabled);
-        if (!enabled) setPaymentPlan('full');
-      })
-      .catch(() => {
-        if (active) setInstalmentsEnabled(false);
-      });
+    fetchActionJson<{ instalmentsEnabled: boolean }>(
+      `/api/payments/registration/instalment-options${qs}`,
+      {},
+      'Could not load payment options.',
+    ).then(({ data }) => {
+      if (!active) return;
+      const enabled = data.instalmentsEnabled === true;
+      setInstalmentsEnabled(enabled);
+      if (!enabled) setPaymentPlan('full');
+    }).catch(() => {
+      if (active) setInstalmentsEnabled(false);
+    });
     return () => { active = false; };
   }, [programIdParam, form.enrollmentType, isNativeApp]);
 
@@ -358,23 +360,31 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         setErr('');
         setRcVerified('verifying');
         try {
-          const res = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(form.rcCode.trim())}`);
-          const data = await res.json();
-          if (res.ok && data.valid && data.result === 'ok') {
+          const { response, data } = await fetchActionJson<{
+            valid: boolean; result: string; error: string;
+            card: { holder_name: string };
+          }>(`/api/cards/verify-public?code=${encodeURIComponent(form.rcCode.trim())}`);
+          if (response.ok && data.valid && data.result === 'ok') {
             setRcVerified('valid');
-            setRcCardName(data.card.holder_name || 'Active Partner Student');
+            setRcCardName(data.card?.holder_name || 'Active Partner Student');
           } else {
             setRcVerified('invalid');
-            const errorMsg = data.error || 'Invalid or inactive Registration Code (RC). Only active partner students qualify for the subsidy.';
+            const errorMsg = (typeof data.error === 'string' && data.error)
+              ? data.error
+              : 'Invalid or inactive Registration Code (RC). Only active partner students qualify for the subsidy.';
             setRcError(errorMsg);
             setErr(errorMsg);
             setLoading(false);
             return;
           }
         } catch (err) {
+          console.error('RC code verification request failed', err);
+          const msg = err instanceof Error && err.message.includes('taking longer')
+            ? err.message
+            : 'Could not verify your Registration Code. Please check your connection and try again.';
           setRcVerified('invalid');
-          setRcError('Failed to verify Registration Code. Please try again.');
-          setErr('Failed to verify Registration Code. Please try again.');
+          setRcError(msg);
+          setErr(msg);
           setLoading(false);
           return;
         }
@@ -389,7 +399,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       (isSelf && contactEmail ? contactEmail : null);
 
     try {
-      const res = await fetch('/api/payments/registration', {
+      const { response, data } = await fetchActionJson<{
+        code: string; next: string; error: string; paymentMethod: string;
+        reference: string; paymentEmailSent: boolean; paymentEmailError: string;
+        paymentUrl: string; balanceDue: number; amountPaid: number;
+      }>('/api/payments/registration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -420,12 +434,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           ...(programId ? { program_id: programId } : {}),
           return_path: STUDENT_REGISTRATION_PATH,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok && data.code === 'EXISTING_LEARNER' && typeof data.next === 'string') {
+        // Generous timeout — registration writes take longer than reads.
+      }, 'Registration is taking longer than expected. Your details are saved; please check your connection and try again.', 20_000);
+      if (!response.ok && data.code === 'EXISTING_LEARNER' && typeof data.next === 'string') {
         setExistingLearnerNext(data.next);
       }
-      if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
+      if (!response.ok) {
+        if (response.status >= 500) console.error('Registration submission failed', { status: response.status, data });
+        throw new Error(typeof data.error === 'string' && data.error ? data.error : 'Submission failed. Please try again.');
+      }
       if (isNativeApp || data.paymentMethod === 'bank_transfer') {
         setRegistrationReference(String(data.reference || ''));
         setPaymentEmailSent(data.paymentEmailSent === true);
@@ -443,10 +460,17 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         setLoading(false);
       } else {
         capturePaymentStarted();
-        window.location.href = data.paymentUrl;
+        window.location.href = data.paymentUrl as string;
       }
-    } catch (e: any) {
-      setErr(e.message ?? 'Submission failed.');
+    } catch (e: unknown) {
+      console.error('Student registration submission request failed', e);
+      setErr(
+        e instanceof Error && (e.message.includes('taking longer') || e.message.includes('connection'))
+          ? e.message
+          : e instanceof Error && e.message
+            ? e.message
+            : 'We could not submit your registration. Please check your connection and try again.',
+      );
       setLoading(false);
     }
   };
@@ -456,22 +480,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     setResendingPaymentEmail(true);
     setEmailDeliveryError('');
     try {
-      const response = await fetch('/api/payments/registration/resend-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reference: registrationReference,
-          email: form.parentEmail.trim().toLowerCase(),
-        }),
-      });
-      const data = await response.json();
+      const { response, data } = await fetchActionJson<{ delivered: boolean; error: string }>(
+        '/api/payments/registration/resend-link',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: registrationReference,
+            email: form.parentEmail.trim().toLowerCase(),
+          }),
+        },
+        'The resend request is taking longer than expected. Please try again.',
+      );
       if (!response.ok || data.delivered !== true) {
-        throw new Error(data.error || 'The payment email could not be resent.');
+        if (response.status >= 500) console.error('Resend payment email failed', { status: response.status, data });
+        throw new Error('The payment email could not be resent. Please try again.');
       }
       setPaymentEmailSent(true);
     } catch (error: unknown) {
+      console.error('Resend payment email request failed', error);
       setEmailDeliveryError(
-        error instanceof Error ? error.message : 'The payment email could not be resent.',
+        error instanceof Error && error.message
+          ? error.message
+          : 'The payment email could not be resent.',
       );
     } finally {
       setResendingPaymentEmail(false);
@@ -533,12 +564,24 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       if (paymentReference.startsWith('http') || paymentReference.startsWith('/')) {
         body.append('previousUrl', paymentReference);
       }
-      const res = await fetch('/api/summer-school/receipt', { method: 'POST', body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      setPaymentReference(data.url);
+      const { response, data } = await fetchActionJson<{ url: string; error: string }>(
+        '/api/summer-school/receipt',
+        { method: 'POST', body },
+        'Receipt upload is taking longer than expected. Please try again.',
+        30_000,
+      );
+      if (!response.ok) {
+        if (response.status >= 500) console.error('Receipt upload failed', { status: response.status, data });
+        throw new Error('Receipt upload failed. Please try a smaller file or check your connection.');
+      }
+      setPaymentReference(data.url as string);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Receipt upload failed.');
+      console.error('Receipt upload request failed', e);
+      setErr(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Receipt upload failed. Please try again.',
+      );
     } finally {
       setUploadingReceipt(false);
     }
@@ -550,23 +593,40 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
     setVerifyingPayment(true);
     setPaymentError('');
-    fetch(`/api/payments/registration/verify?reference=${encodeURIComponent(paymentRef)}`)
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Payment could not be verified.');
+
+    void (async () => {
+      try {
+        const { response, data } = await fetchActionJson<{
+          ok: boolean; error: string; autoOnboarded: boolean;
+        }>(
+          `/api/payments/registration/verify?reference=${encodeURIComponent(paymentRef)}`,
+          {},
+          'Payment verification is taking longer than expected. Please wait or contact support.',
+        );
+        if (cancelled) return;
+        if (!response.ok || !data.ok) {
+          if (response.status >= 500) console.error('Payment verify backend error', { status: response.status, data });
+          setPaymentError(
+            response.status < 500 && typeof data.error === 'string' && data.error
+              ? data.error
+              : 'Payment could not be verified. Please contact support if you were charged.',
+          );
+          return;
         }
-        if (!cancelled) {
-          setPaymentVerified(true);
-          setAutoOnboarded(!!data.autoOnboarded);
-        }
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setPaymentError(e.message || 'Payment verification failed.');
-      })
-      .finally(() => {
+        setPaymentVerified(true);
+        setAutoOnboarded(!!data.autoOnboarded);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        console.error('Payment verify request failed', e);
+        setPaymentError(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Payment verification failed. Please contact support.',
+        );
+      } finally {
         if (!cancelled) setVerifyingPayment(false);
-      });
+      }
+    })();
 
     return () => { cancelled = true; };
   }, [paymentStatus, paymentRef]);

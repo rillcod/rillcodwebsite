@@ -308,7 +308,7 @@ export function useSummerSchoolRegistration({
         toast.error(response.status < 500 && typeof data.error === "string" ? data.error : "We could not upload the receipt. Please try again.", { id: toastId });
         return;
       }
-      setForm((prev) => ({ ...prev, paymentReference: data.url }));
+      setForm((prev) => ({ ...prev, paymentReference: data.url ?? '' }));
       toast.success("Receipt uploaded successfully!", { id: toastId });
     } catch (err: unknown) {
       console.error("Receipt upload request failed", err);

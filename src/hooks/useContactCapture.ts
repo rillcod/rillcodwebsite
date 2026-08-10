@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 
 export type ContactCapturePayload = {
   fullName?: string;
@@ -91,14 +92,23 @@ export function useContactCapture({
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch('/api/customer-book/capture', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        const res = await fetchWithTimeoutOrThrow(
+          '/api/customer-book/capture',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          },
+          'Contact capture timed out',
+          5_000,
+        );
         if (res.ok || res.status === 429) return;
       } catch {
-        if (attempt === 1) return;
+        // Silent fail — this is a background hook; never block or throw to the form.
+        if (attempt === 1) {
+          console.warn('[useContactCapture] capture failed after 2 attempts');
+          return;
+        }
         await new Promise((r) => setTimeout(r, 450));
       }
     }
