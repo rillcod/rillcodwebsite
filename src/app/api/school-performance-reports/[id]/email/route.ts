@@ -14,6 +14,7 @@ import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REPORT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getSchoolReportActor();
@@ -22,13 +23,15 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!REPORT_ID.test(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
     .select('id,school_id')
     .eq('id', id)
     .maybeSingle();
 
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot email this report.' }, { status: 403 });
   }
@@ -44,13 +47,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!REPORT_ID.test(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
     .select('*')
     .eq('id', id)
     .maybeSingle();
 
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot email this report.' }, { status: 403 });
   }
@@ -62,8 +67,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const body = await req.json();
     to = String(body.to || '').trim().toLowerCase();
-    toName = String(body.toName || body.to_name || '').trim();
-    message = String(body.message || '').trim();
+    toName = String(body.toName || body.to_name || '').trim().slice(0, 160);
+    message = String(body.message || '').trim().slice(0, 4_000);
     revision = body.revision != null && body.revision !== '' ? String(body.revision) : null;
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
@@ -103,14 +108,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     });
 
     if (isInAppEmail(to)) {
-      const { data: recipient } = await actor.admin
+      const { data: recipient, error: recipientError } = await actor.admin
         .from('portal_users')
         .select('id')
         .ilike('email', to)
         .maybeSingle();
+      if (recipientError) throw new Error(recipientError.message);
 
       if (recipient?.id) {
-        await actor.admin.from('notifications').insert({
+        const { error: notificationError } = await actor.admin.from('notifications').insert({
           user_id: recipient.id,
           title: subject,
           message: `${senderName} shared the ${termLabel} performance report for ${schoolName}. Open the report in your dashboard to view or download the PDF.`,
@@ -120,6 +126,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+        if (notificationError) throw new Error(`In-app notification could not be saved: ${notificationError.message}`);
       } else {
         return NextResponse.json(
           { error: 'No portal user found for this in-app address. Use an external email to attach the PDF.' },
@@ -140,25 +147,30 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       });
     }
 
-    await recordSchoolReportEvent(actor.admin, {
-      reportId: id,
-      eventType: 'emailed',
-      actorId: actor.profile.id,
-      payload: {
+    let auditWarning: string | null = null;
+    try {
+      await recordSchoolReportEvent(actor.admin, {
+        reportId: id,
+        eventType: 'emailed',
+        actorId: actor.profile.id,
+        payload: {
+          to,
+          toName: toName || null,
+          filename,
+          revision: revision ? Number(revision) : null,
+          channel: isInAppEmail(to) ? 'in_app' : 'smtp',
+        },
+      });
+      logAuditEvent('report.email', {
+        reportId: id,
+        schoolId: row.school_id,
         to,
-        toName: toName || null,
-        filename,
-        revision: revision ? Number(revision) : null,
-        channel: isInAppEmail(to) ? 'in_app' : 'smtp',
-      },
-    });
-
-    logAuditEvent('report.email', {
-      reportId: id,
-      schoolId: row.school_id,
-      to,
-      actorId: actor.profile.id,
-    });
+        actorId: actor.profile.id,
+      });
+    } catch (error) {
+      auditWarning = error instanceof Error ? error.message : 'Delivery was completed but its report event could not be recorded.';
+      console.error('[school-report/email] delivery audit failed:', auditWarning);
+    }
 
     return NextResponse.json({
       data: {
@@ -166,6 +178,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         to,
         subject,
         filename,
+        ...(auditWarning ? { auditWarning } : {}),
       },
     });
   } catch (sendError) {

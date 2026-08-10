@@ -7,17 +7,26 @@ import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
 
+const REPORT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getSchoolReportActor();
   if (!actor) return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
   const { id } = await context.params;
+  if (!REPORT_ID.test(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canViewSchoolReport(actor, report)) return NextResponse.json({ error: 'You cannot view this report.' }, { status: 403 });
-  const [{ data: school }, { data: creator }] = await Promise.all([
+  const [schoolResult, creatorResult] = await Promise.all([
     actor.admin.from('schools').select('name').eq('id', report.school_id).maybeSingle(),
     actor.admin.from('portal_users').select('full_name').eq('id', report.created_by).maybeSingle(),
   ]);
+  if (schoolResult.error || creatorResult.error) {
+    return NextResponse.json({ error: schoolResult.error?.message || creatorResult.error?.message || 'Report references could not be loaded.' }, { status: 500 });
+  }
+  const school = schoolResult.data;
+  const creator = creatorResult.data;
   return NextResponse.json({
     data: shapeSchoolReportForAudience(
       { ...report, school_name: school?.name || 'School', creator_name: creator?.full_name || 'Staff' } as SchoolPerformanceReportRow,
@@ -33,7 +42,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Only authorised staff can update reports.' }, { status: 403 });
   }
   const { id } = await context.params;
-  const { data: report } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
+  if (!REPORT_ID.test(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  const { data: report, error: reportError } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
+  if (reportError) return NextResponse.json({ error: reportError.message }, { status: 500 });
   if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
@@ -79,7 +90,9 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
     return NextResponse.json({ error: 'Only authorised staff can delete reports.' }, { status: 403 });
   }
   const { id } = await context.params;
-  const { data: report } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
+  if (!REPORT_ID.test(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  const { data: report, error: reportError } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
+  if (reportError) return NextResponse.json({ error: reportError.message }, { status: 500 });
   if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
