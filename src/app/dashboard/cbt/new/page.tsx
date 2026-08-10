@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,6 +20,10 @@ import {
 } from '@/lib/cbt/print-utils';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
+import {
+  buildCbtEntrySuggestion,
+  type CbtExamType,
+} from '@/lib/cbt/predictive-entry';
 
 interface Question {
   question_text: string;
@@ -54,6 +58,8 @@ export default function NewExamPage() {
   const preLessonId = searchParams?.get('lesson_id');
   const preExamType = searchParams?.get('exam_type') as 'examination' | 'evaluation' | null;
   const isMinimal = searchParams?.get('minimal') === 'true';
+  const initialExamType: CbtExamType = preExamType === 'evaluation' ? 'evaluation' : 'examination';
+  const initialSuggestion = buildCbtEntrySuggestion(initialExamType);
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [assignedSchools, setAssignedSchools] = useState<Array<{ id: string; name: string }>>([]);
@@ -67,13 +73,13 @@ export default function NewExamPage() {
     description: '',
     program_id: '',
     course_id: '',
-    duration_minutes: '60',
-    passing_score: '70',
+    duration_minutes: initialSuggestion.durationMinutes.toString(),
+    passing_score: initialSuggestion.passingScore.toString(),
     start_date: '',
     end_date: '',
-    access_window_minutes: '60',
+    access_window_minutes: initialSuggestion.accessWindowMinutes.toString(),
     is_active: true,
-    exam_type: preExamType === 'evaluation' ? 'evaluation' : 'examination',
+    exam_type: initialExamType,
     school_id: preSchoolId || '',
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
@@ -89,14 +95,78 @@ export default function NewExamPage() {
   const [sourceName, setSourceName] = useState('');
   const [extractingPdf, setExtractingPdf] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
-  const [aiMcqCount, setAiMcqCount] = useState(preExamType === 'evaluation' ? '0' : '10');
-  const [aiTheoryCount, setAiTheoryCount] = useState(preExamType === 'evaluation' ? '10' : '0');
-  // Track which questions are selected (all selected by default)
-  const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
+  const [aiMcqCount, setAiMcqCount] = useState(initialSuggestion.mcqCount.toString());
+  const [aiTheoryCount, setAiTheoryCount] = useState(initialSuggestion.theoryCount.toString());
+  const teacherEdits = useRef({
+    title: false,
+    description: false,
+    duration: false,
+    passingScore: false,
+    accessWindow: false,
+    questionMix: false,
+  });
+  const topicPriority = useRef(preTopic ? 100 : 0);
+  // Track the paper explicitly: a deselected question is never silently restored on save.
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set([0]));
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
-  const examBoundary = form.exam_type === 'evaluation'
-    ? { label: 'Evaluation/Test', min: 5, max: 20, duration: '20-45 min', note: 'Focused check for recent class learning.' }
-    : { label: 'Main Examination', min: 5, max: 40, duration: '45-120 min', note: 'Broader assessment with realistic coverage.' };
+  const examSuggestion = buildCbtEntrySuggestion(form.exam_type);
+  const examBoundary = {
+    label: examSuggestion.label,
+    min: examSuggestion.minimumQuestions,
+    max: examSuggestion.maximumQuestions,
+    duration: form.exam_type === 'evaluation' ? '20-45 min' : '45-120 min',
+    note: examSuggestion.boundaryNote,
+  };
+
+  const suggestAiTopic = useCallback((candidate: string | null | undefined, priority: number) => {
+    const clean = candidate?.trim();
+    if (!clean || priority <= topicPriority.current) return;
+    topicPriority.current = priority;
+    setAiTopic(clean);
+  }, []);
+
+  const handleExamTypeChange = (examType: CbtExamType) => {
+    const suggestion = buildCbtEntrySuggestion(examType);
+    setForm(previous => ({
+      ...previous,
+      exam_type: examType,
+      ...(!teacherEdits.current.duration
+        ? { duration_minutes: suggestion.durationMinutes.toString() }
+        : {}),
+      ...(!teacherEdits.current.passingScore
+        ? { passing_score: suggestion.passingScore.toString() }
+        : {}),
+      ...(!teacherEdits.current.accessWindow
+        ? { access_window_minutes: suggestion.accessWindowMinutes.toString() }
+        : {}),
+    }));
+    if (!teacherEdits.current.questionMix) {
+      setAiMcqCount(suggestion.mcqCount.toString());
+      setAiTheoryCount(suggestion.theoryCount.toString());
+    }
+  };
+
+  const handleQuestionMixChange = (field: 'mcq' | 'theory', value: string) => {
+    teacherEdits.current.questionMix = true;
+    const mcq = field === 'mcq' ? parseInt(value, 10) || 0 : parseInt(aiMcqCount, 10) || 0;
+    const theory = field === 'theory' ? parseInt(value, 10) || 0 : parseInt(aiTheoryCount, 10) || 0;
+    if (field === 'mcq') setAiMcqCount(value);
+    else setAiTheoryCount(value);
+
+    const suggestion = buildCbtEntrySuggestion(form.exam_type, {
+      mcqCount: mcq,
+      theoryCount: theory,
+    });
+    setForm(previous => ({
+      ...previous,
+      ...(!teacherEdits.current.duration
+        ? { duration_minutes: suggestion.durationMinutes.toString() }
+        : {}),
+      ...(!teacherEdits.current.accessWindow
+        ? { access_window_minutes: suggestion.accessWindowMinutes.toString() }
+        : {}),
+    }));
+  };
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
@@ -135,12 +205,22 @@ export default function NewExamPage() {
       if (result.error) throw new Error(result.error);
 
       const data = result.data;
+      const generatedDuration = Number(data.duration_minutes) || examSuggestion.durationMinutes;
       setForm(prev => ({
         ...prev,
-        title: data.title || prev.title,
-        description: data.description || prev.description,
-        duration_minutes: (data.duration_minutes || 60).toString(),
-        passing_score: (data.passing_score || 70).toString(),
+        title: !teacherEdits.current.title && data.title ? data.title : prev.title,
+        description: !teacherEdits.current.description && data.description
+          ? data.description
+          : prev.description,
+        duration_minutes: !teacherEdits.current.duration
+          ? generatedDuration.toString()
+          : prev.duration_minutes,
+        passing_score: !teacherEdits.current.passingScore
+          ? (Number(data.passing_score) || examSuggestion.passingScore).toString()
+          : prev.passing_score,
+        access_window_minutes: !teacherEdits.current.accessWindow
+          ? (generatedDuration + 15).toString()
+          : prev.access_window_minutes,
       }));
       if (data.questions?.length > 0) {
         const qs = data.questions.map((q: any) => ({
@@ -194,6 +274,7 @@ export default function NewExamPage() {
         if (preCourseId) {
           const c = cList.find((x: any) => x.id === preCourseId);
           setForm(prev => ({ ...prev, course_id: c ? preCourseId : '', program_id: c?.program_id || prev.program_id }));
+          if (c?.title) suggestAiTopic(c.title, 2);
         }
       });
     };
@@ -236,19 +317,44 @@ export default function NewExamPage() {
 
     // Pre-fill programme and lock school when launched from a class page.
     if (preClassId) {
-      db.from('classes').select('id, name, program_id, school_id').eq('id', preClassId).maybeSingle()
-        .then(({ data: cls }) => {
+      db.from('classes').select('id, name, program_id, school_id, current_course_id').eq('id', preClassId).maybeSingle()
+        .then(({ data: cls, error: classError }) => {
+          if (classError) {
+            setError('Could not load the selected class context.');
+            return;
+          }
           if (!cls) return;
           setClassId(cls.id);
           setClassName(cls.name || '');
+          suggestAiTopic(cls.name, 1);
           setForm(prev => ({
             ...prev,
             program_id: cls.program_id || prev.program_id,
             school_id: cls.school_id || prev.school_id,
+            course_id: cls.current_course_id || prev.course_id,
           }));
         });
     }
-  }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId, preSchoolId]);
+
+    // A lesson title is the strongest automatic topic because it preserves the
+    // class-plan -> lesson -> assessment spine without asking the teacher twice.
+    if (preLessonId) {
+      db.from('lessons').select('id, title, course_id').eq('id', preLessonId).maybeSingle()
+        .then(({ data: lesson, error: lessonError }) => {
+          if (lessonError) {
+            setError('Could not load the linked lesson context.');
+            return;
+          }
+          if (!lesson) return;
+          suggestAiTopic(lesson.title, 3);
+          setForm(previous => ({
+            ...previous,
+            course_id: lesson.course_id || previous.course_id,
+          }));
+          setAiOpen(true);
+        });
+    }
+  }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId, preSchoolId, preLessonId, suggestAiTopic]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const selectedSchoolName = assignedSchools.find(s => s.id === form.school_id)?.name || '';
@@ -256,8 +362,18 @@ export default function NewExamPage() {
     ? new Date(new Date(form.start_date).getTime() + ((parseInt(form.access_window_minutes, 10) || parseInt(form.duration_minutes, 10) || 60) * 60_000))
     : null;
 
-  const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
-  const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
+  const addQuestion = () => setQuestions(current => {
+    setSelectedQuestions(selected => new Set(selected).add(current.length));
+    return [...current, emptyQuestion()];
+  });
+  const removeQuestion = (i: number) => setQuestions(current => {
+    setSelectedQuestions(selected => new Set(
+      [...selected]
+        .filter(index => index !== i)
+        .map(index => index > i ? index - 1 : index),
+    ));
+    return current.filter((_, index) => index !== i);
+  });
   const updateQuestion = (i: number, patch: Partial<Question>) =>
     setQuestions(q => q.map((item, idx) => idx === i ? { ...item, ...patch } : item));
   const updateOption = (qi: number, oi: number, val: string) =>
@@ -277,13 +393,40 @@ export default function NewExamPage() {
       setError('Section weights must total exactly 100%.');
       return;
     }
-    // Use selected questions if any selection was made, otherwise use all filled questions
-    const hasSelection = selectedQuestions.size > 0;
     const validQuestions = questions.filter((q, i) =>
-      q.question_text.trim() && (!hasSelection || selectedQuestions.has(i))
+      q.question_text.trim() && selectedQuestions.has(i)
     );
     if (validQuestions.length === 0) {
       setError('Add at least one question (or tick the questions you want to include).');
+      return;
+    }
+    if (form.is_active && (validQuestions.length < examBoundary.min || validQuestions.length > examBoundary.max)) {
+      setError(`${examBoundary.label} must contain ${examBoundary.min}-${examBoundary.max} questions before publishing. Save it as inactive while it is still a draft.`);
+      return;
+    }
+    const invalidObjective = validQuestions.find(question => {
+      if (!['multiple_choice', 'true_false'].includes(question.question_type)) return false;
+      const options = question.options.filter(option => option.trim());
+      return options.length < 2 || !question.correct_answer.trim()
+        || !options.includes(question.correct_answer);
+    });
+    if (form.is_active && invalidObjective) {
+      setError('Every objective question needs at least two options and one selected correct answer.');
+      return;
+    }
+    const durationMinutes = parseInt(form.duration_minutes, 10);
+    const accessWindowMinutes = parseInt(form.access_window_minutes, 10);
+    const passingScore = parseInt(form.passing_score, 10);
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
+      setError('Enter a valid assessment duration of at least 5 minutes.');
+      return;
+    }
+    if (!Number.isFinite(passingScore) || passingScore < 1 || passingScore > 100) {
+      setError('Passing score must be between 1% and 100%.');
+      return;
+    }
+    if (form.start_date && (!Number.isFinite(accessWindowMinutes) || accessWindowMinutes < durationMinutes)) {
+      setError('The open window must be at least as long as the assessment so students can finish.');
       return;
     }
     setSaving(true);
@@ -295,9 +438,10 @@ export default function NewExamPage() {
         description: form.description.trim() || null,
         program_id: form.program_id,
         course_id: form.course_id || null,
-        duration_minutes: parseInt(form.duration_minutes) || 60,
-        passing_score: parseInt(form.passing_score) || 70,
+        duration_minutes: durationMinutes,
+        passing_score: passingScore,
         total_questions: validQuestions.length,
+        is_active: form.is_active,
         metadata: {
             exam_type: form.exam_type,
             ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
@@ -408,8 +552,8 @@ export default function NewExamPage() {
               <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Exam'}</span>
             </div>
-            <h1 className="text-3xl font-extrabold italic tracking-tight">Create CBT Exam</h1>
-            {!isMinimal && <p className="text-muted-foreground text-sm mt-1 font-medium italic">Architect your assessment environment</p>}
+            <h1 className="text-3xl font-extrabold tracking-tight">Create assessment</h1>
+            {!isMinimal && <p className="text-muted-foreground text-sm mt-1">Build, review, and publish one class-ready assessment.</p>}
           </div>
           <div className="flex items-center gap-2">
             {questions.some(q => q.question_text.trim()) && (
@@ -443,7 +587,7 @@ export default function NewExamPage() {
             )}
             <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH EXAM')}
+              {saving ? 'Creating...' : (isMinimal ? 'CREATE' : (form.is_active ? 'PUBLISH ASSESSMENT' : 'SAVE DRAFT'))}
             </button>
           </div>
         </div>
@@ -455,8 +599,22 @@ export default function NewExamPage() {
           </div>
         )}
 
-        {/* Premium AI Exam Engine Panel */}
-        <div className="p-8 bg-gradient-to-br from-primary/20 to-primary/70/10 border border-primary/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <SparklesIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div>
+              <p className="text-xs font-bold text-foreground">Smart draft prepared</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {examSuggestion.label}: {aiMcqCount || 0} objective + {aiTheoryCount || 0} written questions,
+                {' '}{form.duration_minutes} minutes, {form.passing_score}% pass mark.
+                {className ? ` Linked to ${className}.` : ''} Official report contribution follows the active academic grading scheme.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* AI-assisted assessment design */}
+        <div className="p-5 sm:p-6 bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 rounded-2xl space-y-5 relative overflow-hidden group">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000" />
             
             <div className="flex items-center justify-between relative">
@@ -465,15 +623,15 @@ export default function NewExamPage() {
                         <SparklesIcon className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-foreground uppercase italic tracking-tighter">Premium AI Exam Engine</h3>
-                        <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">High-Precision Assessment Synthesis</p>
+                        <h3 className="text-base font-bold text-foreground">AI question designer</h3>
+                        <p className="text-xs text-muted-foreground">Uses the linked lesson, course, and assessment boundary.</p>
                     </div>
                 </div>
                 <button 
                   onClick={() => setAiOpen(!aiOpen)}
                   className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all rounded-xl border border-white/10"
                 >
-                  {aiOpen ? 'Hide Controls' : 'Open Designer'}
+                  {aiOpen ? 'Hide' : 'Design questions'}
                 </button>
             </div>
 
@@ -484,7 +642,10 @@ export default function NewExamPage() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">What topic is this exam on?</label>
                       <input
                           value={aiTopic}
-                          onChange={e => setAiTopic(e.target.value)}
+                          onChange={e => {
+                            topicPriority.current = 100;
+                            setAiTopic(e.target.value);
+                          }}
                           placeholder="e.g. Introduction to Python, Basic Electronics, Algebra"
                           className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                       />
@@ -534,7 +695,7 @@ export default function NewExamPage() {
                           <input
                             type="number" min="0" max={examBoundary.max}
                             value={aiMcqCount}
-                            onChange={e => setAiMcqCount(e.target.value)}
+                            onChange={e => handleQuestionMixChange('mcq', e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
@@ -545,7 +706,7 @@ export default function NewExamPage() {
                           <input
                             type="number" min="0" max={examBoundary.max}
                             value={aiTheoryCount}
-                            onChange={e => setAiTheoryCount(e.target.value)}
+                            onChange={e => handleQuestionMixChange('theory', e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
@@ -565,8 +726,8 @@ export default function NewExamPage() {
                           disabled={aiGenerating}
                           className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                       >
-                          <div className="text-[10px] font-black text-foreground uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
-                          <div className="text-[8px] text-muted-foreground uppercase">Architecture Build</div>
+                          <div className="text-[10px] font-black text-foreground uppercase tracking-widest">{aiGenerating ? 'Generating...' : 'Generate draft'}</div>
+                          <div className="text-[8px] text-muted-foreground uppercase">Review before publishing</div>
                       </button>
                   </div>
 
@@ -574,7 +735,7 @@ export default function NewExamPage() {
                   {aiGenerating && (
                       <div className="flex items-center gap-3 text-primary animate-pulse pl-2 border-l-2 border-primary">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Accessing OpenRouter Neural Clusters...</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">Building questions from your teaching context...</span>
                       </div>
                   )}
               </div>
@@ -591,7 +752,10 @@ export default function NewExamPage() {
                 Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
               </label>
               <input type="text" required value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                onChange={e => {
+                  teacherEdits.current.title = true;
+                  setForm(f => ({ ...f, title: e.target.value }));
+                }}
                 placeholder="e.g. Python Programming Midterm"
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
@@ -599,7 +763,7 @@ export default function NewExamPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Programme <span className="text-rose-600 dark:text-rose-400">*</span>
+                  Programme {classId ? <span className="text-muted-foreground">(from class)</span> : <span className="text-rose-600 dark:text-rose-400">*</span>}
                 </label>
                 <select required value={form.program_id}
                   onChange={e => {
@@ -611,7 +775,8 @@ export default function NewExamPage() {
                       course_id: currentCourse?.program_id === pid ? f.course_id : '',
                     }));
                   }}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                  disabled={!!classId}
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                   <option value="">Select programme…</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -627,11 +792,14 @@ export default function NewExamPage() {
                   programId={form.program_id}
                   schoolId={form.school_id}
                   value={form.course_id}
-                  onChange={(courseId, course) => setForm(f => ({
-                    ...f,
-                    course_id: courseId,
-                    program_id: course?.programId || f.program_id,
-                  }))}
+                  onChange={(courseId, course) => {
+                    suggestAiTopic(course?.title, 2);
+                    setForm(f => ({
+                      ...f,
+                      course_id: courseId,
+                      program_id: course?.programId || f.program_id,
+                    }));
+                  }}
                 />
               </div>
             </div>
@@ -670,21 +838,21 @@ export default function NewExamPage() {
             {/* Exam Type — critical for score routing */}
             <div className="grid grid-cols-2 gap-3">
               <button type="button"
-                onClick={() => setForm(f => ({ ...f, exam_type: 'examination' }))}
-                className={`flex items-start gap-3 px-4 py-3 border text-left transition-all ${form.exam_type === 'examination' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-card border-border hover:border-indigo-500/30'}`}>
+                onClick={() => handleExamTypeChange('examination')}
+                className={`flex items-start gap-3 rounded-xl px-4 py-3 border text-left transition-all ${form.exam_type === 'examination' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-card border-border hover:border-indigo-500/30'}`}>
                 <div className={`w-3 h-3 rounded-full mt-0.5 flex-shrink-0 border-2 ${form.exam_type === 'examination' ? 'bg-indigo-500 border-indigo-500' : 'border-muted-foreground'}`} />
                 <div>
                   <p className="text-xs font-black text-foreground uppercase tracking-widest">Examination</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">40% of final grade · main end-of-term exam</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Broad end-of-term assessment. Report weighting comes from the active academic scheme.</p>
                 </div>
               </button>
               <button type="button"
-                onClick={() => setForm(f => ({ ...f, exam_type: 'evaluation' }))}
-                className={`flex items-start gap-3 px-4 py-3 border text-left transition-all ${form.exam_type === 'evaluation' ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-card border-border hover:border-cyan-500/30'}`}>
+                onClick={() => handleExamTypeChange('evaluation')}
+                className={`flex items-start gap-3 rounded-xl px-4 py-3 border text-left transition-all ${form.exam_type === 'evaluation' ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-card border-border hover:border-cyan-500/30'}`}>
                 <div className={`w-3 h-3 rounded-full mt-0.5 flex-shrink-0 border-2 ${form.exam_type === 'evaluation' ? 'bg-cyan-500 border-cyan-500' : 'border-muted-foreground'}`} />
                 <div>
                   <p className="text-xs font-black text-foreground uppercase tracking-widest">Evaluation (Test)</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">20% of final grade · compulsory class test</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Focused check of recent learning. Report weighting comes from the active academic scheme.</p>
                 </div>
               </button>
             </div>
@@ -693,13 +861,19 @@ export default function NewExamPage() {
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Duration (min)</label>
                 <input type="number" min="5" value={form.duration_minutes}
-                  onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
+                  onChange={e => {
+                    teacherEdits.current.duration = true;
+                    setForm(f => ({ ...f, duration_minutes: e.target.value }));
+                  }}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Passing Score (%)</label>
                 <input type="number" min="1" max="100" value={form.passing_score}
-                  onChange={e => setForm(f => ({ ...f, passing_score: e.target.value }))}
+                  onChange={e => {
+                    teacherEdits.current.passingScore = true;
+                    setForm(f => ({ ...f, passing_score: e.target.value }));
+                  }}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
@@ -707,8 +881,8 @@ export default function NewExamPage() {
                 <select value={form.is_active ? 'active' : 'inactive'}
                   onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'active' }))}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">Publish when saved</option>
+                  <option value="inactive">Keep as draft</option>
                 </select>
               </div>
             </div>
@@ -723,7 +897,10 @@ export default function NewExamPage() {
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Open Window (min)</label>
                 <input type="number" min="5" value={form.access_window_minutes}
-                  onChange={e => setForm(f => ({ ...f, access_window_minutes: e.target.value }))}
+                  onChange={e => {
+                    teacherEdits.current.accessWindow = true;
+                    setForm(f => ({ ...f, access_window_minutes: e.target.value }));
+                  }}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div className="rounded-xl border border-border bg-card px-4 py-3">
@@ -740,18 +917,21 @@ export default function NewExamPage() {
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
               <textarea rows={2} value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                onChange={e => {
+                  teacherEdits.current.description = true;
+                  setForm(f => ({ ...f, description: e.target.value }));
+                }}
                 placeholder="Optional exam description…"
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
             </div>
           </div>
 
-          {/* Section Weights */}
+          {/* Within-paper section weights */}
           <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Section Weighting</h2>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Assign % weight per section. Total must equal 100%.</p>
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Within-paper section weighting</h2>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Optional: change how sections combine inside this paper only. Official report weighting remains central.</p>
               </div>
               <button type="button" onClick={() => setUseWeights(w => !w)}
                 className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
@@ -789,11 +969,9 @@ export default function NewExamPage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                  Questions ({selectedQuestions.size > 0 ? `${selectedQuestions.size} selected / ` : ''}{questions.length} total)
+                  Questions ({selectedQuestions.size} selected / {questions.length} total)
                 </h2>
-                {selectedQuestions.size > 0 && (
-                  <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">Only ticked questions will be included in the exam</p>
-                )}
+                <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">Only ticked questions will be included in the assessment</p>
               </div>
               <div className="flex items-center gap-2">
                 {questions.length > 0 && (
@@ -872,12 +1050,15 @@ export default function NewExamPage() {
                   <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                     <select value={q.question_type}
-                      onChange={e => updateQuestion(qi, {
-                        question_type: e.target.value,
-                        options: e.target.value === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
-                        correct_answer: '',
-                        section: e.target.value === 'essay' ? 'subjective' : q.section,
-                      })}
+                      onChange={e => {
+                        const questionType = e.target.value;
+                        updateQuestion(qi, {
+                          question_type: questionType,
+                          options: questionType === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
+                          correct_answer: '',
+                          section: ['essay', 'fill_blank', 'coding_blocks'].includes(questionType) ? 'subjective' : 'objective',
+                        });
+                      }}
                       className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                       <option value="multiple_choice">Multiple Choice</option>
                       <option value="true_false">True / False</option>

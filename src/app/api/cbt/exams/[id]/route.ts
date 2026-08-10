@@ -140,6 +140,16 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
+  if (isStaff) {
+    const { data: startedSession, error: sessionError } = await admin
+      .from('cbt_sessions')
+      .select('id,answers,score,manual_scores,start_time,end_time,status')
+      .eq('exam_id', id)
+      .limit(1)
+      .maybeSingle();
+    if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 });
+    (data as any).definition_locked = hasCbtAttemptEvidence(startedSession);
+  }
   if (!isStaff && !(studentHasSubmitted && answerReviewReleased)) {
     data.cbt_questions = (data.cbt_questions ?? []).map((question: any) => ({
       ...question,
@@ -184,7 +194,8 @@ export async function PATCH(
 
   const changesAssessmentDefinition = questions !== undefined
     || deletedQuestionIds.length > 0
-    || ['passing_score', 'total_questions'].some((field) => field in examFields);
+    || ['program_id', 'course_id', 'duration_minutes', 'passing_score', 'total_questions']
+      .some((field) => field in examFields);
   if (changesAssessmentDefinition) {
     const { data: startedSession, error: sessionError } = await admin
       .from('cbt_sessions')

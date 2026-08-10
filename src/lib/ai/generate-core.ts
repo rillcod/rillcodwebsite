@@ -20,6 +20,7 @@ import {
   OPENROUTER_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/openrouter";
 import { modelQueueFor } from "@/lib/ai/model-policy";
+import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
 
 export const MODELS = [
   // ── Tier 1: Premium (best quality) ─────────────────────────────
@@ -281,26 +282,27 @@ function clampInt(
 
 function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
   const examType = req.examType === "evaluation" ? "evaluation" : "examination";
-  const maxQuestions = examType === "evaluation" ? 20 : 40;
+  const entryDefaults = buildCbtEntrySuggestion(examType);
+  const maxQuestions = entryDefaults.maximumQuestions;
   const requestedMcq = clampInt(
     req.mcqCount,
     0,
     80,
-    req.questionCount ?? (examType === "evaluation" ? 10 : 20)
+    req.questionCount ?? entryDefaults.mcqCount
   );
   const requestedOpen = clampInt(
     req.theoryCount,
     0,
     80,
-    examType === "evaluation" ? 0 : 5
+    entryDefaults.theoryCount
   );
   const requestedTotal =
     requestedMcq + requestedOpen ||
     clampInt(
       req.questionCount,
-      5,
+      entryDefaults.minimumQuestions,
       maxQuestions,
-      examType === "evaluation" ? 10 : 20
+      entryDefaults.mcqCount + entryDefaults.theoryCount
     );
 
   let mcqCount = requestedMcq;
@@ -316,25 +318,23 @@ function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
     }
   }
 
-  if (mcqCount + openCount < 5) {
-    const needed = 5 - (mcqCount + openCount);
+  if (mcqCount + openCount < entryDefaults.minimumQuestions) {
+    const needed = entryDefaults.minimumQuestions - (mcqCount + openCount);
     if (mcqCount > 0 || openCount === 0) mcqCount += needed;
     else openCount += needed;
   }
 
   const totalQ = mcqCount + openCount;
-  const durationMinutes =
-    examType === "evaluation"
-      ? clampInt(totalQ * 2 + openCount * 3, 20, 45, 30)
-      : clampInt(totalQ * 2 + openCount * 4, 45, 120, 60);
+  const generatedDefaults = buildCbtEntrySuggestion(examType, {
+    mcqCount,
+    theoryCount: openCount,
+  });
+  const durationMinutes = generatedDefaults.durationMinutes;
 
   const objectivePoints = examType === "evaluation" ? 2 : 2;
   const theoryPoints = examType === "evaluation" ? 5 : 6;
-  const passingScore = examType === "evaluation" ? 60 : 70;
-  const boundaryNote =
-    examType === "evaluation"
-      ? "Evaluation/test boundary: 5-20 questions, 20-45 minutes, focused on recent learning."
-      : "Main examination boundary: 10-40 questions, 45-120 minutes, broad coverage with balanced difficulty.";
+  const passingScore = generatedDefaults.passingScore;
+  const boundaryNote = `${generatedDefaults.label} boundary: ${generatedDefaults.minimumQuestions}-${generatedDefaults.maximumQuestions} questions. ${generatedDefaults.boundaryNote}`;
 
   return {
     examType,

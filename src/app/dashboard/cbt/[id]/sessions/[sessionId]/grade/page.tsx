@@ -23,11 +23,15 @@ export default function GradeSessionPage() {
     const [session, setSession] = useState<any>(null);
     const [exam, setExam] = useState<any>(null);
     const [questions, setQuestions] = useState<any[]>([]);
-    const [manualScores, setManualScores] = useState<Record<string, number>>({});
+    const [manualScores, setManualScores] = useState<Record<string, number | null>>({});
     const [gradingNotes, setGradingNotes] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [aiDraft, setAiDraft] = useState<{ scores: Record<string, number>; feedback: string }>({
+        scores: {},
+        feedback: '',
+    });
 
     useEffect(() => {
         if (authLoading || !profile) return;
@@ -98,9 +102,23 @@ export default function GradeSessionPage() {
             const payload = await res.json();
             if (!res.ok) throw new Error(payload.error || 'AI Grading failed');
 
-            const { scores, feedback } = payload.data;
-            setManualScores(prev => ({ ...prev, ...scores }));
-            if (feedback) setGradingNotes(prev => prev ? `${prev}\n\nAI Insight: ${feedback}` : `AI Insight: ${feedback}`);
+            const manualQuestionMap = new Map(
+                questions.filter(isManualCbtQuestion).map(question => [question.id, question]),
+            );
+            const safeScores = Object.fromEntries(
+                Object.entries(payload.data?.scores ?? {})
+                    .filter(([questionId]) => manualQuestionMap.has(questionId))
+                    .map(([questionId, value]) => {
+                        const question = manualQuestionMap.get(questionId);
+                        const maximum = Math.max(0, Number(question?.points ?? 0));
+                        const numeric = Number(value);
+                        return [questionId, Math.max(0, Math.min(maximum, Number.isFinite(numeric) ? numeric : 0))];
+                    }),
+            );
+            setAiDraft({
+                scores: safeScores,
+                feedback: typeof payload.data?.feedback === 'string' ? payload.data.feedback.trim() : '',
+            });
         } catch (e: any) {
             setError(`AI Grading Error: ${e.message}`);
         } finally {
@@ -108,88 +126,59 @@ export default function GradeSessionPage() {
         }
     };
 
+    const applyAiDraft = () => {
+        setManualScores(previous => {
+            const next = { ...previous };
+            for (const [questionId, score] of Object.entries(aiDraft.scores)) {
+                if (next[questionId] === undefined || next[questionId] === null) {
+                    next[questionId] = score;
+                }
+            }
+            return next;
+        });
+        if (aiDraft.feedback) {
+            setGradingNotes(previous => previous.trim()
+                ? `${previous.trim()}\n\nAI draft: ${aiDraft.feedback}`
+                : aiDraft.feedback);
+        }
+        setAiDraft({ scores: {}, feedback: '' });
+    };
+
     const handleSaveGrade = async () => {
         setSaving(true);
         setError(null);
         try {
             const db = createClient();
-
-            // Calculate final score
-            const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
-            const hasWeights = Object.values(sectionWeights).some((w: any) => w > 0);
-            let finalScore: number;
-            if (hasWeights) {
-              const sections = ['objective', 'subjective', 'practical'] as const;
-              const activeTotal = sections.reduce((s, sec) => {
-                const qs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
-                return qs.length > 0 ? s + (sectionWeights[sec] ?? 0) : s;
-              }, 0);
-              let weightedScore = 0;
-              for (const sec of sections) {
-                const secQs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
-                const secWeight = sectionWeights[sec] ?? 0;
-                if (secQs.length === 0 || secWeight === 0) continue;
-                const secTotal = secQs.reduce((s, q) => s + (q.points ?? 0), 0);
-                let secEarned = 0;
-                secQs.forEach(q => {
-                  if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) {
-                    secEarned += manualScores[q.id] ?? 0;
-                  } else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) {
-                    secEarned += q.points ?? 0;
-                  }
-                });
-                const normalizedWeight = activeTotal > 0 ? (secWeight / activeTotal) * 100 : secWeight;
-                weightedScore += secTotal > 0 ? (secEarned / secTotal) * normalizedWeight : 0;
-              }
-              finalScore = Math.round(weightedScore);
-            } else {
-              let autoPoints = 0, manualPoints = 0, totalMaxPoints = 0;
-              questions.forEach(q => {
-                totalMaxPoints += (q.points ?? 0);
-                if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) {
-                  manualPoints += manualScores[q.id] ?? 0;
-                } else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) {
-                  autoPoints += q.points ?? 0;
-                }
-              });
-              const totalEarned = autoPoints + manualPoints;
-              finalScore = totalMaxPoints > 0 ? Math.round((totalEarned / totalMaxPoints) * 100) : 0;
+            const grade = gradeCbtWithManualScores(exam, questions, session.answers ?? {}, manualScores);
+            if (grade.needsGrading) {
+                setError('Score every written response before finalizing this grade. A zero must be entered explicitly.');
+                return;
             }
-            const passed = finalScore >= (exam.passing_score ?? 70);
 
             const gradeRes = await fetch(`/api/cbt/sessions/${params.sessionId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    score: finalScore,
-                    status: passed ? 'passed' : 'failed',
-                    manual_scores: manualScores,
+                    manual_scores: grade.manualScores,
                     grading_notes: gradingNotes,
-                    needs_grading: false,
                 }),
             });
+            const savedPayload = await gradeRes.json();
             if (!gradeRes.ok) {
-                const j = await gradeRes.json();
-                throw new Error(j.error || 'Grade could not be saved.');
+                throw new Error(savedPayload.error || 'Grade could not be saved.');
             }
 
             // AUTO-ASSIGN CERTIFICATE IF PASSED
-            if (passed && session.user_id) {
+            const savedSession = Array.isArray(savedPayload.data) ? savedPayload.data[0] : savedPayload.data;
+            if (savedSession?.status === 'passed' && session.user_id && exam.course_id) {
               try {
-                // 1. Get first course for this program
-                const { data: course } = await db.from('courses').select('id').eq('program_id', exam.program_id).order('order_index').limit(1).single();
-                
-                if (course) {
-                  // 2. Check if student already has a certificate for this course
-                  const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', session.user_id).eq('course_id', course.id).maybeSingle();
-                  
-                  if (!existing) {
-                    await fetch('/api/certificates', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ studentId: session.user_id, courseId: course.id })
-                    });
-                  }
+                const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', session.user_id).eq('course_id', exam.course_id).maybeSingle();
+                if (!existing) {
+                  await fetch('/api/certificates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ studentId: session.user_id, courseId: exam.course_id })
+                  });
                 }
               } catch (certErr) {
                 console.error('Auto-certificate issuance failed:', certErr);
@@ -241,7 +230,7 @@ export default function GradeSessionPage() {
                             </div>
                             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em]">{exam.title}</span>
                         </div>
-                        <h1 className="text-4xl font-black italic tracking-tighter">Evaluation Canvas</h1>
+                        <h1 className="text-3xl font-black tracking-tight">Grade assessment</h1>
                         <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground">
                             <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
                                 <UserCircleIcon className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" /> {session.portal_users?.full_name}
@@ -252,14 +241,14 @@ export default function GradeSessionPage() {
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                         <button
                             onClick={handleAiGrade}
                             disabled={aiGrading || saving}
                             className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/20 hover:bg-primary border border-primary/50 text-primary hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-xl transition-all disabled:opacity-50 group"
                         >
                             {aiGrading ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
-                            {aiGrading ? 'AI Evaluating...' : 'Magic Auto-Grade'}
+                            {aiGrading ? 'Preparing draft...' : 'Generate AI draft'}
                         </button>
                         <button
                             onClick={handleSaveGrade}
@@ -272,27 +261,51 @@ export default function GradeSessionPage() {
                     </div>
                 </div>
 
+                {Object.keys(aiDraft.scores).length > 0 && (
+                    <div className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-bold text-foreground">AI grading draft ready</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {Object.keys(aiDraft.scores).length} written response suggestion{Object.keys(aiDraft.scores).length === 1 ? '' : 's'} prepared. Existing teacher-entered marks will not be replaced.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={applyAiDraft}
+                            className="flex-shrink-0 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90"
+                        >
+                            Fill unscored responses
+                        </button>
+                    </div>
+                )}
+
                 {/* Live Score Preview */}
                 {(() => {
                    const preview = gradeCbtWithManualScores(exam, questions, session.answers ?? {}, manualScores);
                    const pct = preview.score;
                    const totalP = preview.totalPoints;
                    const total = preview.earnedPoints;
-                   const passes = preview.status === 'passed';
+                   const complete = !preview.needsGrading;
+                   const passes = complete && preview.status === 'passed';
+                   const scoreTone = !complete
+                     ? 'text-amber-600 dark:text-amber-400'
+                     : passes
+                       ? 'text-emerald-600 dark:text-emerald-400'
+                       : 'text-rose-600 dark:text-rose-400';
                   return (
-                    <div className="bg-white/[0.02] border border-white/10 p-6 flex flex-col sm:flex-row items-center gap-6">
+                    <div className="rounded-2xl bg-white/[0.02] border border-white/10 p-6 flex flex-col sm:flex-row items-center gap-6">
                       <ChartBarIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <div className="flex-1 w-full">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Live Score Preview</p>
-                          <span className={`text-2xl font-black ${passes ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{pct}%</span>
+                          <span className={`text-2xl font-black ${scoreTone}`}>{pct}%</span>
                         </div>
                         <div className="h-2 w-full bg-white/5 overflow-hidden">
-                          <div className={`h-full transition-all duration-500 ${passes ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct,100)}%` }} />
+                          <div className={`h-full transition-all duration-500 ${!complete ? 'bg-amber-500' : passes ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct,100)}%` }} />
                         </div>
                         <div className="flex items-center justify-between mt-2 text-[9px] font-black uppercase tracking-widest">
                           <span className="text-muted-foreground">{total}/{totalP} pts · Pass: {exam?.passing_score ?? 70}%</span>
-                          <span className={passes ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{passes ? 'WILL PASS' : 'WILL FAIL'}</span>
+                          <span className={scoreTone}>{!complete ? 'AWAITING MARKS' : passes ? 'WILL PASS' : 'WILL FAIL'}</span>
                         </div>
                       </div>
                     </div>
@@ -376,7 +389,8 @@ export default function GradeSessionPage() {
                                                     type="number"
                                                     min="0"
                                                     max={q.points}
-                                                    value={manualScores[q.id] ?? 0}
+                                                    value={manualScores[q.id] ?? ''}
+                                                    placeholder="—"
                                                     onChange={(e) => {
                                                         const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
                                                         setManualScores({ ...manualScores, [q.id]: val });

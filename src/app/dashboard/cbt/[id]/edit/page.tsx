@@ -20,6 +20,7 @@ interface Question {
     correct_answer: string;
     points: number;
     order_index: number;
+    metadata?: Record<string, unknown> | null;
     _new?: boolean;
     _deleted?: boolean;
 }
@@ -34,6 +35,7 @@ export default function EditExamPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState('');
+    const [definitionLocked, setDefinitionLocked] = useState(false);
 
     const [form, setForm] = useState({
         title: '',
@@ -57,11 +59,16 @@ export default function EditExamPage() {
         
         // Fetch Exam + Questions via admin API; Programs via client
         Promise.all([
-            fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(r => r.json()),
+            fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(async response => {
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Exam not found');
+                return payload;
+            }),
             db.from('programs').select('id, name').eq('is_active', true).order('name'),
         ]).then(([examJson, progRes]) => {
             const e = examJson.data;
             if (e) {
+                setDefinitionLocked(e.definition_locked === true);
                 setForm({
                     title: e.title ?? '',
                     description: e.description ?? '',
@@ -81,8 +88,9 @@ export default function EditExamPage() {
                 setError('Exam not found.');
             }
             setPrograms(progRes.data ?? []);
-            setLoading(false);
-        });
+        }).catch((loadError: any) => {
+            setError(loadError.message || 'Could not load this assessment.');
+        }).finally(() => setLoading(false));
 
         // Fetch courses for linking
         let courseQuery = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
@@ -123,11 +131,15 @@ export default function EditExamPage() {
             ? { ...item, options: item.options.map((o, j) => j === oi ? val : o) } : item));
 
     const moveQuestion = (i: number, dir: -1 | 1) => {
+        const deleted = questions.filter(q => q._deleted);
         const newArr = [...questions.filter(q => !q._deleted)];
         const target = i + dir;
         if (target < 0 || target >= newArr.length) return;
         [newArr[i], newArr[target]] = [newArr[target], newArr[i]];
-        setQuestions(newArr.map((q, idx) => ({ ...q, order_index: idx + 1 })));
+        setQuestions([
+            ...newArr.map((q, idx) => ({ ...q, order_index: idx + 1 })),
+            ...deleted,
+        ]);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -137,28 +149,58 @@ export default function EditExamPage() {
             return;
         }
         const activeQuestions = questions.filter(q => !q._deleted);
-        if (activeQuestions.length === 0) {
+        if (!definitionLocked && activeQuestions.length === 0) {
             setError('Add at least one question.');
+            return;
+        }
+        if (!definitionLocked && activeQuestions.some(question => !question.question_text.trim())) {
+            setError('Every question needs question text before this assessment can be saved.');
+            return;
+        }
+        if (!definitionLocked && form.is_active && activeQuestions.some(question => {
+            if (!['multiple_choice', 'true_false'].includes(question.question_type)) return false;
+            const options = question.options.filter(option => option.trim());
+            return options.length < 2 || !question.correct_answer.trim()
+                || !options.includes(question.correct_answer);
+        })) {
+            setError('Every objective question needs at least two options and one selected correct answer before publishing.');
+            return;
+        }
+        const durationMinutes = parseInt(form.duration_minutes, 10);
+        const passingScore = parseInt(form.passing_score, 10);
+        if (!definitionLocked && (!Number.isFinite(durationMinutes) || durationMinutes < 5)) {
+            setError('Enter a valid assessment duration of at least 5 minutes.');
+            return;
+        }
+        if (!definitionLocked && (!Number.isFinite(passingScore) || passingScore < 1 || passingScore > 100)) {
+            setError('Passing score must be between 1% and 100%.');
+            return;
+        }
+        if (form.start_date && form.end_date && new Date(form.end_date) <= new Date(form.start_date)) {
+            setError('End date and time must be after the start date and time.');
             return;
         }
         setSaving(true);
         setError(null);
         setSuccess('');
         try {
-            const deletedIds = questions.filter((q: any) => q._deleted && q.id).map((q: any) => q.id);
-            const payload = {
+            const payload: Record<string, unknown> = {
                 title: form.title.trim(),
                 description: form.description.trim() || null,
-                program_id: form.program_id,
-                course_id: form.course_id || null,
-                duration_minutes: parseInt(form.duration_minutes) || 60,
-                passing_score: parseInt(form.passing_score) || 70,
-                total_questions: activeQuestions.length,
                 is_active: form.is_active,
                 start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
                 end_date: form.end_date ? new Date(form.end_date).toISOString() : null,
-                deletedQuestionIds: deletedIds,
-                questions: activeQuestions.map((q: any, i: number) => ({
+            };
+            if (!definitionLocked) {
+              payload.program_id = form.program_id;
+              payload.course_id = form.course_id || null;
+              payload.duration_minutes = durationMinutes;
+              payload.passing_score = passingScore;
+              payload.total_questions = activeQuestions.length;
+              payload.deletedQuestionIds = questions
+                .filter((q: any) => q._deleted && q.id)
+                .map((q: any) => q.id);
+              payload.questions = activeQuestions.map((q: any, i: number) => ({
                     id: q._new ? undefined : q.id,
                     question_text: q.question_text.trim(),
                     question_type: q.question_type,
@@ -169,8 +211,8 @@ export default function EditExamPage() {
                     points: q.points,
                     order_index: q.order_index ?? i + 1,
                     metadata: q.metadata ?? null,
-                })),
-            };
+                }));
+            }
 
             const res = await fetch(`/api/cbt/exams/${id}`, {
                 method: 'PATCH',
@@ -236,6 +278,17 @@ export default function EditExamPage() {
                         <p className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">{success}</p>
                     </div>
                 )}
+                {definitionLocked && (
+                    <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
+                        <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div>
+                            <p className="text-sm font-bold text-foreground">Assessment definition protected</p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                A learner has started this assessment. Questions, points, course, duration, and pass mark are locked to preserve evidence. You may still update the title, description, schedule, or publication status.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Exam Details */}
@@ -266,7 +319,8 @@ export default function EditExamPage() {
                                             course_id: currentCourse?.program_id === pid ? f.course_id : '',
                                         }));
                                     }}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    disabled={definitionLocked}
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                                     <option value="">Select programme…</option>
                                     {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
@@ -274,11 +328,11 @@ export default function EditExamPage() {
 
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                    Course {form.program_id ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(select programme first)</span>}
+                                    Course {form.program_id ? <span className="text-muted-foreground">(optional for programme-wide assessments)</span> : <span className="text-muted-foreground">(select programme first)</span>}
                                 </label>
                                 <select value={form.course_id}
                                     onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                                    disabled={!form.program_id}
+                                    disabled={!form.program_id || definitionLocked}
                                     className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
                                     <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
                                     {courses.filter(c => c.program_id === form.program_id)
@@ -292,21 +346,23 @@ export default function EditExamPage() {
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Duration (min)</label>
                                 <input type="number" min="5" value={form.duration_minutes}
                                     onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    disabled={definitionLocked}
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors disabled:cursor-not-allowed disabled:opacity-60" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Passing Score (%)</label>
                                 <input type="number" min="1" max="100" value={form.passing_score}
                                     onChange={e => setForm(f => ({ ...f, passing_score: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    disabled={definitionLocked}
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors disabled:cursor-not-allowed disabled:opacity-60" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Status</label>
                                 <select value={form.is_active ? 'active' : 'inactive'}
                                     onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'active' }))}
                                     className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="active">Published</option>
+                                    <option value="inactive">Draft / inactive</option>
                                 </select>
                             </div>
                         </div>
@@ -335,7 +391,7 @@ export default function EditExamPage() {
                     </div>
 
                     {/* ── Question Canvas ── */}
-                    <div className="space-y-4">
+                    <fieldset disabled={definitionLocked} className="space-y-4 disabled:opacity-70">
                         <div className="flex items-center justify-between bg-white/3 border border-border rounded-xl px-5 py-4">
                             <div>
                                 <h2 className="font-bold text-foreground">Question Bank</h2>
@@ -406,7 +462,19 @@ export default function EditExamPage() {
                                         <div>
                                             <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                                             <select value={q.question_type}
-                                                onChange={e => updateQuestion(questions.indexOf(q), { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
+                                                onChange={e => {
+                                                    const questionType = e.target.value;
+                                                    const manual = ['essay', 'fill_blank', 'coding_blocks'].includes(questionType);
+                                                    updateQuestion(questions.indexOf(q), {
+                                                        question_type: questionType,
+                                                        options: questionType === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
+                                                        correct_answer: '',
+                                                        metadata: {
+                                                            ...(q.metadata ?? {}),
+                                                            section: manual ? 'subjective' : 'objective',
+                                                        },
+                                                    });
+                                                }}
                                                 className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                                 <option value="multiple_choice">Multiple Choice</option>
                                                 <option value="true_false">True / False</option>
@@ -414,7 +482,21 @@ export default function EditExamPage() {
                                                 <option value="essay">Essay</option>
                                             </select>
                                         </div>
-                                        <div className="sm:col-span-1">
+                                        <div>
+                                            <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Section</label>
+                                            <select
+                                                value={String(q.metadata?.section ?? (['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type) ? 'subjective' : 'objective'))}
+                                                onChange={e => updateQuestion(questions.indexOf(q), {
+                                                    metadata: { ...(q.metadata ?? {}), section: e.target.value },
+                                                })}
+                                                className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer"
+                                            >
+                                                <option value="objective">Objective</option>
+                                                <option value="subjective">Subjective</option>
+                                                <option value="practical">Practical</option>
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                                             <input type="number" min="1" value={q.points}
                                                 onChange={e => updateQuestion(questions.indexOf(q), { points: parseInt(e.target.value) || 1 })}
@@ -500,7 +582,7 @@ export default function EditExamPage() {
                                 </div>
                             </div>
                         ))}
-                    </div>
+                    </fieldset>
 
                     {/* Actions */}
                     <div className="flex items-center gap-3 pt-2">
@@ -511,7 +593,7 @@ export default function EditExamPage() {
                         <button type="submit" disabled={saving}
                             className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                            {saving ? 'Saving…' : 'Save Exam'}
+                            {saving ? 'Saving…' : 'Save changes'}
                         </button>
                     </div>
                 </form>
