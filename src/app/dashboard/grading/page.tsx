@@ -26,6 +26,7 @@ import { GradingAssessmentView } from '@/components/grading/GradingAssessmentVie
 import Link from 'next/link';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { buildGradingReviewQueue, type GradingReviewFilter } from '@/lib/grading-review-queue';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -275,6 +276,7 @@ export default function GradingQueuePage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [assignmentView, setAssignmentView] = useState<GradingReviewFilter>('priority');
 
   const mayGrade = roleHasCapability(profile?.role, 'grade');
 
@@ -311,12 +313,13 @@ export default function GradingQueuePage() {
     setScope((aJson as any).scope ?? (cJson as any).scope ?? null);
     setActiveIdx(0);
 
-    // Pre-fill AI suggestions
+    // Preserve any existing teacher draft. AI suggestions remain visibly separate
+    // until the teacher explicitly chooses Use AI draft or Accept AI.
     const g: Record<string, string> = {};
     const f: Record<string, string> = {};
     for (const s of subs) {
-      if (s.ai_suggested_grade != null) g[s.id] = String(s.ai_suggested_grade);
-      if (s.ai_suggested_feedback) f[s.id] = s.ai_suggested_feedback;
+      if (s.grade != null) g[s.id] = String(s.grade);
+      if (s.feedback) f[s.id] = s.feedback;
     }
     setGrade(g);
     setFeedback(f);
@@ -329,6 +332,7 @@ export default function GradingQueuePage() {
 
   async function doGrade(id: string, action: 'accept_ai' | 'override', andNext = false) {
     setSaving(id);
+    setError(null);
     const body: Record<string, unknown> = { action };
     if (action === 'override') {
       const g = Number(grade[id]);
@@ -336,27 +340,31 @@ export default function GradingQueuePage() {
       body.grade = g;
       body.feedback = feedback[id] || null;
     }
-    const res = await fetch(`/api/grading/submissions/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.error || 'Grading failed. Please try again.');
-      setSaving(null);
-      return;
-    }
-    setSaved(prev => new Set([...prev, id]));
-    setSaving(null);
-    setTimeout(() => {
-      setSubmissions(prev => {
-        const next = prev.filter(s => s.id !== id);
-        if (andNext) setActiveIdx(i => Math.min(i, Math.max(0, next.length - 1)));
-        return next;
+    try {
+      const res = await fetch(`/api/grading/submissions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-      setSaved(prev => { const n = new Set(prev); n.delete(id); return n; });
-    }, 700);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Grading failed. Please try again.');
+      }
+      setSaved(prev => new Set([...prev, id]));
+      setTimeout(() => {
+        setSubmissions(prev => {
+          const next = prev.filter(s => s.id !== id);
+          const nextVisible = buildGradingReviewQueue(next, assignmentView);
+          setActiveIdx(index => Math.min(index, Math.max(0, nextVisible.length - 1)));
+          return next;
+        });
+        setSaved(prev => { const n = new Set(prev); n.delete(id); return n; });
+      }, andNext ? 500 : 700);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Grading failed. Please try again.');
+    } finally {
+      setSaving(null);
+    }
   }
 
   // ── Derived state ────────────────────────────────────────────────────────
@@ -370,7 +378,10 @@ export default function GradingQueuePage() {
   }
 
   const scoped = Boolean(scope?.class_id || scope?.term_label);
-  const sub = submissions[activeIdx] ?? null;
+  const reviewSubmissions = buildGradingReviewQueue(submissions, assignmentView);
+  const aiReadyCount = submissions.filter((item) => item.ai_suggested_grade != null).length;
+  const manualCount = submissions.length - aiReadyCount;
+  const sub = reviewSubmissions[activeIdx] ?? null;
 
   return (
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
@@ -499,11 +510,47 @@ export default function GradingQueuePage() {
             ══════════════════════════════════════════════════════════════ */}
             {tab === 'assignments' && (
               submissions.length === 0 ? <EmptyQueue scoped={scoped} /> : (
-                <div className="flex gap-5 items-start">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-2">
+                    {([
+                      { value: 'priority', label: 'Priority review', count: submissions.length },
+                      { value: 'manual', label: 'Manual judgement', count: manualCount },
+                      { value: 'ai_ready', label: 'AI-ready', count: aiReadyCount },
+                    ] as const).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { setAssignmentView(option.value); setActiveIdx(0); }}
+                        className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors ${assignmentView === option.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                      >
+                        {option.value === 'ai_ready' && <SparklesIcon className="h-3.5 w-3.5" />}
+                        {option.label}
+                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${assignmentView === option.value ? 'bg-white/20' : 'bg-muted'}`}>
+                          {option.count}
+                        </span>
+                      </button>
+                    ))}
+                    <p className="ml-auto px-2 text-[10px] text-muted-foreground">
+                      Suggestions stay separate until you explicitly use or accept them.
+                    </p>
+                  </div>
+
+                  {reviewSubmissions.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-card py-16 text-center">
+                      <CheckCircleIcon className="mx-auto mb-3 h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                      <p className="font-black text-foreground">No submissions in this review lane</p>
+                      <button type="button" onClick={() => { setAssignmentView('priority'); setActiveIdx(0); }} className="mt-2 text-xs font-bold text-primary hover:underline">
+                        Return to priority review
+                      </button>
+                    </div>
+                  ) : (
+                  <div className="flex gap-5 items-start">
 
                   {/* Sidebar queue list (xl+) */}
                   <QueueSidebar
-                    submissions={submissions}
+                    submissions={reviewSubmissions}
                     activeIdx={activeIdx}
                     saved={saved}
                     onSelect={setActiveIdx}
@@ -526,23 +573,23 @@ export default function GradingQueuePage() {
                       <div className="flex-1 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Submission {activeIdx + 1} of {submissions.length}
+                            Submission {activeIdx + 1} of {reviewSubmissions.length}
                           </span>
                           <span className="text-[10px] font-bold text-muted-foreground">
-                            {submissions.length - activeIdx - 1} remaining
+                            {reviewSubmissions.length - activeIdx - 1} remaining
                           </span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                           <div
                             className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                            style={{ width: `${((activeIdx + 1) / submissions.length) * 100}%` }}
+                            style={{ width: `${((activeIdx + 1) / reviewSubmissions.length) * 100}%` }}
                           />
                         </div>
                       </div>
 
                       <button
-                        disabled={activeIdx >= submissions.length - 1}
-                        onClick={() => setActiveIdx(i => Math.min(submissions.length - 1, i + 1))}
+                        disabled={activeIdx >= reviewSubmissions.length - 1}
+                        onClick={() => setActiveIdx(i => Math.min(reviewSubmissions.length - 1, i + 1))}
                         className="rounded-lg border border-border bg-background p-2 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all"
                       >
                         <ArrowRightIcon className="w-4 h-4" />
@@ -739,6 +786,8 @@ export default function GradingQueuePage() {
                       );
                     })()}
                   </div>
+                  </div>
+                  )}
                 </div>
               )
             )}
