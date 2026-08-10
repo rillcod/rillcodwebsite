@@ -46,9 +46,9 @@ const GRADE_TRACK_TO_LANE: Record<string, number> = {
 
 /** Descriptive label per lane for display in the UI */
 export const LANE_LABELS: Record<number, string> = {
-  1:  'Beginner A — Computer Awareness & ScratchJr',
-  2:  'Beginner B — Digital Skills & Scratch',
-  3:  'Beginner C — Computing Concepts & Text Coding Intro',
+  1:  'Beginner A — Computer Awareness & ScratchJr (Sprites, Motion, Sounds & Simple Loops)',
+  2:  'Beginner B — Scratch 3.0 Foundations (Costumes, Backdrops, Events, Broadcast Messaging & Nested Loops)',
+  3:  'Beginner C — Scratch 3.0 Advanced Logic (Variables, Scorekeeping, Sensing, Cloning, Custom Blocks & Game Physics)',
   4:  'Intermediate A — Python Foundations',
   5:  'Intermediate A — HTML/CSS Foundations',
   6:  'Intermediate B — Python (APIs, Data, Testing)',

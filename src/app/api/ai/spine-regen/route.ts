@@ -59,7 +59,7 @@ const GRADE_CONTEXT: Record<string, string> = {
 const TRACK_LABELS: Record<string, string> = {
   python:           'Python programming (scripts, data structures, functions, OOP)',
   html_css:         'HTML/CSS/JavaScript web development (UI, DOM, responsive design)',
-  young_innovator:  'ScratchJr / Scratch visual programming (block coding, animation, games)',
+  young_innovator:  'ScratchJr & Scratch 3.0 visual programming (sprite motion, costumes/backdrops, events, broadcast messaging, variables, scorekeeping, cloning, collision sensing, custom blocks, and interactive game projects)',
   jss_web_app:      'Full-stack web application development (React, Node.js, databases)',
   ui_ux_design:     'UI/UX Design (Figma, Adobe XD, user research, prototyping)',
   mobile_development: 'Mobile app development (Dart, Flutter, Capacitor)',
