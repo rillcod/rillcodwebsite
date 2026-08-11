@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { brandContact } from '@/config/brand';
+import { consentAccessUrl } from '@/lib/consent/access-code';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
   MagnifyingGlassIcon, CheckCircleIcon, ArrowDownTrayIcon,
@@ -18,6 +19,7 @@ import {
 
 interface ConsentForm {
   id: string;
+  access_code: string;
   title: string;
   body: string;
   form_type: string;
@@ -65,6 +67,45 @@ type AdditionalLink = {
   studentId: string;
   studentName: string;
 };
+
+type WorkflowFilter = 'all' | 'needs_action' | 'review' | 'contact_details' | 'create_portal' | 'link_child' | 'send_login' | 'complete';
+
+function getLeadWorkflowState(lead: FormLead): {
+  key: Exclude<WorkflowFilter, 'all' | 'needs_action'>;
+  label: string;
+  description: string;
+  rank: number;
+  tone: string;
+} {
+  const rd = (lead.response_data ?? {}) as Record<string, unknown>;
+  const activeChildIndices = new Set(
+    (lead.child_links ?? [])
+      .filter(link => ['approved', 'onboarded'].includes(link.link_status))
+      .map(link => link.child_index),
+  );
+  if (lead.matched_student_id) activeChildIndices.add(0);
+
+  const children = Array.isArray(rd.children) ? rd.children : null;
+  const childCount = children?.length || 1;
+  const credentialsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
+
+  if (lead.match_status === 'pending_review') {
+    return { key: 'review', label: 'Review match', description: 'Confirm the suggested student record.', rank: 0, tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300' };
+  }
+  if (!(lead.email || rd.parent_email)) {
+    return { key: 'contact_details', label: 'Contact details needed', description: 'Add a parent email before creating portal access.', rank: 1, tone: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300' };
+  }
+  if (!lead.matched_parent_id) {
+    return { key: 'create_portal', label: 'Set up portal', description: 'Create or connect the family portal.', rank: 2, tone: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300' };
+  }
+  if (activeChildIndices.size < childCount) {
+    return { key: 'link_child', label: 'Link child', description: 'Connect every child to the correct record.', rank: 3, tone: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300' };
+  }
+  if (!credentialsSent) {
+    return { key: 'send_login', label: 'Send login', description: 'Deliver secure portal access to the parent.', rank: 4, tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' };
+  }
+  return { key: 'complete', label: 'Ready', description: 'Portal access and child records are connected.', rank: 5, tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -371,7 +412,7 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
       </div>
       <div class="ack-field">
         <div class="ack-field-lbl">Submitted On</div>
-        <div class="ack-field-val">${dateStr}<br/><span style="font-weight:400;font-size:8.5pt;color:#166534">at ${timeStr} via rillcod.com/forms</span></div>
+        <div class="ack-field-val">${dateStr}<br/><span style="font-weight:400;font-size:8.5pt;color:#166534">at ${timeStr} via rillcod.com/consent</span></div>
       </div>
       <div class="ack-field">
         <div class="ack-field-lbl">Reference</div>
@@ -558,12 +599,14 @@ export default function ResponsesPage() {
   const [leads, setLeads]     = useState<FormLead[]>([]);
   const [sigs, setSigs]       = useState<Signatory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [progFilter, setProgFilter]     = useState<string>('all');
   const [schoolFilter, setSchoolFilter] = useState<string>('all');
   const [classFilter, setClassFilter]   = useState<string>('all');
+  const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>('all');
   const [activeTab, setActiveTab]       = useState<'leads' | 'signed' | 'portal-log'>('leads');
 
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
@@ -656,14 +699,21 @@ export default function ResponsesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res  = await fetch(`/api/consent-forms/${id}`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof json.error === 'string' ? json.error : `Request failed with status ${res.status}`);
+      }
       setForm(json.form ?? null);
       setLeads(json.leads ?? []);
       setSigs(json.data  ?? []);
 
       setAdditionalLinks(hydrateAdditionalLinks((json.leads ?? []) as FormLead[]));
+    } catch (error) {
+      console.error('Unable to load consent responses', error);
+      setLoadError('We could not load these responses. Your existing information is safe; try again.');
     } finally {
       setLoading(false);
     }
@@ -687,8 +737,9 @@ export default function ResponsesPage() {
         else delete next[leadId];
         return next;
       });
-    } catch {
+    } catch (error) {
       // Keep the successful optimistic action visible if a background refresh fails.
+      console.warn('Consent response refreshed in the background with an error', error);
     }
   }, [id]);
 
@@ -1145,7 +1196,7 @@ export default function ResponsesPage() {
   // ── Branded QR PNG download ───────────────────────────────────────────────
   async function downloadBrandedQr() {
     if (!form) return;
-    const publicUrl = `${appBase}/forms/${id}`;
+    const publicUrl = consentAccessUrl(appBase, form.access_code);
     setDownloadingQr(true);
     try {
       await downloadQrCard(
@@ -1153,6 +1204,10 @@ export default function ResponsesPage() {
         form.schools?.name ?? 'Rillcod Technologies',
         form.title,
         `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`,
+        {
+          accessCode: form.access_code,
+          actionLabel: form.form_type === 'assessment' ? 'START ASSESSMENT' : form.form_type === 'registration' ? 'REGISTER' : 'OPEN FORM',
+        },
       );
     } catch { /* non-fatal */ } finally {
       setDownloadingQr(false);
@@ -1279,8 +1334,10 @@ export default function ResponsesPage() {
 
   const filteredLeads = useMemo(() => {
     const q = search.toLowerCase();
+    const formHasFixedSchool = Boolean(form?.schools?.name);
     return leads.filter(lead => {
       const rd  = lead.response_data as Record<string, string>;
+      const workflow = getLeadWorkflowState(lead);
       const matchSearch = !q
         || (rd.parent_name ?? '').toLowerCase().includes(q)
         || (rd.child_name  ?? '').toLowerCase().includes(q)
@@ -1289,11 +1346,16 @@ export default function ResponsesPage() {
         || (rd.parent_whatsapp ?? '').includes(q);
       const matchStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchProg   = progFilter   === 'all' || (rd.program_category ?? '') === progFilter;
-      const matchSchool = schoolFilter === 'all' || (lead.child_current_school ?? rd.child_current_school ?? '') === schoolFilter;
+      const matchSchool = formHasFixedSchool || schoolFilter === 'all' || (lead.child_current_school ?? rd.child_current_school ?? '') === schoolFilter;
       const matchClass  = classFilter  === 'all' || (rd.child_class ?? '') === classFilter;
-      return matchSearch && matchStatus && matchProg && matchSchool && matchClass;
+      const matchWorkflow = workflowFilter === 'all'
+        || (workflowFilter === 'needs_action' ? workflow.key !== 'complete' : workflow.key === workflowFilter);
+      return matchSearch && matchStatus && matchProg && matchSchool && matchClass && matchWorkflow;
+    }).sort((a, b) => {
+      const priority = getLeadWorkflowState(a).rank - getLeadWorkflowState(b).rank;
+      return priority || b.submitted_at.localeCompare(a.submitted_at);
     });
-  }, [leads, search, statusFilter, progFilter, schoolFilter, classFilter]);
+  }, [leads, search, statusFilter, progFilter, schoolFilter, classFilter, workflowFilter, form?.schools?.name]);
 
   const filteredSigs = useMemo(() => {
     const q = search.toLowerCase();
@@ -1313,6 +1375,22 @@ export default function ResponsesPage() {
   const contacted  = leads.filter(l => l.status === 'contacted').length;
   const youngCount = leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'young_innovators').length;
   const teenCount  = leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'teen_developers').length;
+
+  function openLeadQueue(status: 'all' | FormLead['status']) {
+    setActiveTab('leads');
+    setStatusFilter(status);
+    setWorkflowFilter('all');
+    setSearch('');
+    setProgFilter('all');
+    setSchoolFilter('all');
+    setClassFilter('all');
+  }
+
+  function openPortalLog() {
+    setActiveTab('portal-log');
+    setSearch('');
+    setClassFilter('all');
+  }
 
   // ── Guard ────────────────────────────────────────────────────────────────
 
@@ -1456,6 +1534,13 @@ export default function ResponsesPage() {
           )
         )}
 
+        {!hasEmail && (
+          <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 px-3 py-2">
+            <p className={metaWarn}>Parent email required</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Portal setup is paused until a valid email is added. You can still contact the parent by phone or WhatsApp.</p>
+          </div>
+        )}
+
         {lead.matched_parent_id && (
           <div className="space-y-1.5 border-t border-border/60 pt-2">
             <p className={metaLabel}>{childCount > 1 ? 'Children' : 'Child'}</p>
@@ -1524,13 +1609,13 @@ export default function ResponsesPage() {
                 <ArrowLeftIcon className="w-4 h-4" />
               </button>
               <div className="flex-1 min-w-0">
-                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
-                  Digital Consent &amp; Submissions
+                <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[10px] font-semibold tracking-wide rounded-full shadow-sm mb-2">
+                  Form response workspace
                 </span>
                 {loading ? (
                   <div className="h-7 w-48 sm:w-64 bg-muted animate-pulse rounded-md" />
                 ) : (
-                  <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">{form?.title ?? 'Responses'}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">{form?.title ?? 'Responses'}</h1>
                 )}
                 {form && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-medium text-muted-foreground">
@@ -1545,6 +1630,9 @@ export default function ResponsesPage() {
                         Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     )}
+                    <span className="font-mono font-semibold text-primary" title="Parents can type this at rillcod.com/consent">
+                      {form.access_code}
+                    </span>
                     {form.is_public && <span className="text-emerald-600 dark:text-emerald-400 font-bold">Public Form</span>}
                   </div>
                 )}
@@ -1557,7 +1645,7 @@ export default function ResponsesPage() {
               title="Refresh"
             >
               <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
+              <span>Refresh</span>
             </button>
             {form && (
               <>
@@ -1568,44 +1656,60 @@ export default function ResponsesPage() {
                   title="Download leads as CSV"
                 >
                   <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                  {exporting ? 'Exporting…' : <span className="hidden sm:inline">Export</span>}
-                  <span className="sm:hidden">{exporting ? '…' : 'CSV'}</span>
+                  {exporting ? 'Exporting…' : <span>Export</span>}
                 </button>
-                <button
-                  onClick={() => printDataSheet(form, leads, sigs, appBase)}
-                  className={btnSecondary}
-                  title="Print data sheet"
-                >
-                  <PrinterIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Data sheet</span>
-                  <span className="sm:hidden">Sheet</span>
-                </button>
-                <button
-                  onClick={downloadBrandedQr}
-                  disabled={downloadingQr || !form}
-                  className={btnSecondary}
-                  title="Download branded QR code for this form"
-                >
-                  {downloadingQr ? '…' : 'QR'}
-                </button>
+                <details className="group w-full sm:w-auto rounded-xl border border-border bg-background/80">
+                  <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-foreground flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <span>More tools</span>
+                    <span className="text-muted-foreground group-open:rotate-180 transition-transform">▾</span>
+                  </summary>
+                  <div className="grid grid-cols-2 gap-2 border-t border-border p-2 sm:min-w-64">
+                    <button
+                      onClick={() => printDataSheet(form, leads, sigs, appBase)}
+                      className={btnSecondary}
+                      title="Print data sheet"
+                    >
+                      <PrinterIcon className="w-3.5 h-3.5" />
+                      Data sheet
+                    </button>
+                    <button
+                      onClick={downloadBrandedQr}
+                      disabled={downloadingQr || !form}
+                      className={btnSecondary}
+                      title="Download branded QR code for this form"
+                    >
+                      {downloadingQr ? 'Preparing…' : 'QR code'}
+                    </button>
+                    {profile?.role === 'admin' && (
+                      <button
+                        onClick={runDedup}
+                        disabled={deduping}
+                        className={`${btnSecondary} col-span-2`}
+                        title="Merge duplicate contacts"
+                      >
+                        {deduping ? 'Checking contacts…' : 'Merge duplicate contacts'}
+                      </button>
+                    )}
+                  </div>
+                </details>
               </>
             )}
-            {profile?.role === 'admin' && (
-              <button
-                onClick={runDedup}
-                disabled={deduping}
-                className={`${btnSecondary} hidden sm:inline-flex`}
-                title="Merge duplicate CRM contacts"
-              >
-                {deduping ? 'Deduping…' : 'Dedup CRM'}
-              </button>
-            )}
             {dedupResult && (
-              <span className="text-xs text-emerald-700 dark:text-emerald-400">{dedupResult.merged} merged</span>
+              <span className="text-xs text-emerald-700 dark:text-emerald-400">{dedupResult.merged} duplicate contact{dedupResult.merged === 1 ? '' : 's'} merged</span>
             )}
           </div>
         </div>
       </div>
+
+        {loadError && (
+          <div role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Responses are temporarily unavailable</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{loadError}</p>
+            </div>
+            <button onClick={load} className={btnSecondary}>Try again</button>
+          </div>
+        )}
 
         {/* Stats + Funnel */}
         {!loading && leads.length > 0 && (() => {
@@ -1621,18 +1725,24 @@ export default function ResponsesPage() {
               {/* Stat tiles */}
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
                 {[
-                  { label: 'Total',     value: total,      cls: 'text-foreground' },
-                  { label: 'New',       value: newCount,   cls: 'text-amber-600 dark:text-amber-400' },
-                  { label: 'Contacted', value: contacted2, cls: 'text-blue-600 dark:text-blue-400' },
-                  { label: 'Enrolled',  value: enrolled2,  cls: 'text-emerald-600 dark:text-emerald-400' },
-                  { label: 'Lost',      value: lost2,      cls: 'text-muted-foreground', hideMobile: true },
-                  { label: 'Portals',   value: hasPortal,  cls: 'text-primary', hideMobile: true },
-                  { label: 'Conv. %',   value: `${convRate}%`, cls: convRate >= 30 ? 'text-emerald-600 dark:text-emerald-400' : convRate >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400' },
+                  { label: 'Total',     value: total,      cls: 'text-foreground', action: () => openLeadQueue('all'), active: activeTab === 'leads' && statusFilter === 'all' },
+                  { label: 'New',       value: newCount,   cls: 'text-amber-600 dark:text-amber-400', action: () => openLeadQueue('new'), active: activeTab === 'leads' && statusFilter === 'new' },
+                  { label: 'Contacted', value: contacted2, cls: 'text-blue-600 dark:text-blue-400', action: () => openLeadQueue('contacted'), active: activeTab === 'leads' && statusFilter === 'contacted' },
+                  { label: 'Enrolled',  value: enrolled2,  cls: 'text-emerald-600 dark:text-emerald-400', action: () => openLeadQueue('enrolled'), active: activeTab === 'leads' && statusFilter === 'enrolled' },
+                  { label: 'Lost',      value: lost2,      cls: 'text-muted-foreground', action: () => openLeadQueue('lost'), active: activeTab === 'leads' && statusFilter === 'lost' },
+                  { label: 'Portals',   value: hasPortal,  cls: 'text-primary', action: openPortalLog, active: activeTab === 'portal-log' },
+                  { label: 'Conv. %',   value: `${convRate}%`, cls: convRate >= 30 ? 'text-emerald-600 dark:text-emerald-400' : convRate >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400', action: () => openLeadQueue('enrolled'), active: false },
                 ].map(s => (
-                  <div key={s.label} className={`bg-card border border-border rounded-lg sm:rounded-xl px-2 py-2.5 sm:p-3 text-center ${s.hideMobile ? 'hidden sm:block' : ''}`}>
+                  <button
+                    type="button"
+                    key={s.label}
+                    onClick={s.action}
+                    aria-label={`${s.label}: ${s.value}. Open matching contacts`}
+                    className={`bg-card border rounded-lg sm:rounded-xl px-2 py-2.5 sm:p-3 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${s.active ? 'border-primary/50 ring-1 ring-primary/20' : 'border-border'}`}
+                  >
                     <p className={`text-lg sm:text-xl font-semibold tabular-nums ${s.cls}`}>{s.value}</p>
                     <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5 leading-tight">{s.label}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
               {/* Conversion funnel — desktop only */}
@@ -1715,6 +1825,21 @@ export default function ResponsesPage() {
             {activeTab === 'leads' && (
               <>
                 <select
+                  value={workflowFilter}
+                  onChange={e => setWorkflowFilter(e.target.value as WorkflowFilter)}
+                  className="w-full sm:w-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
+                  aria-label="Filter by next step"
+                >
+                  <option value="all">All work</option>
+                  <option value="needs_action">Needs action</option>
+                  <option value="review">Review matches</option>
+                  <option value="contact_details">Contact details needed</option>
+                  <option value="create_portal">Set up portals</option>
+                  <option value="link_child">Link children</option>
+                  <option value="send_login">Send logins</option>
+                  <option value="complete">Ready</option>
+                </select>
+                <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
                   className="w-full sm:w-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
@@ -1734,7 +1859,7 @@ export default function ResponsesPage() {
                   <option value="young_innovators">Young Innovators</option>
                   <option value="teen_developers">Teen Developers</option>
                 </select>
-                {uniqueSchools.length > 0 && (
+                {!form?.schools?.name && uniqueSchools.length > 1 && (
                   <select
                     value={schoolFilter}
                     onChange={e => setSchoolFilter(e.target.value)}
@@ -1833,9 +1958,9 @@ export default function ResponsesPage() {
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <UserGroupIcon className="w-10 h-10 text-muted-foreground/30" />
                 <p className="text-muted-foreground text-sm font-medium">No registrations match your filters</p>
-                {(search || statusFilter !== 'all' || progFilter !== 'all') && (
+                {(search || statusFilter !== 'all' || progFilter !== 'all' || workflowFilter !== 'all' || schoolFilter !== 'all' || classFilter !== 'all') && (
                   <button
-                    onClick={() => { setSearch(''); setStatusFilter('all'); setProgFilter('all'); setSchoolFilter('all'); setClassFilter('all'); }}
+                    onClick={() => { setSearch(''); setStatusFilter('all'); setProgFilter('all'); setWorkflowFilter('all'); setSchoolFilter('all'); setClassFilter('all'); }}
                     className="text-xs text-primary hover:underline mt-1"
                   >
                     Clear filters
@@ -1844,8 +1969,8 @@ export default function ResponsesPage() {
               </div>
             ) : (
               <>
-                {/* Mobile sheet rows */}
-                <div className="md:hidden divide-y divide-border">
+                {/* One scannable card workflow across phone, tablet and desktop. */}
+                <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
                   {filteredLeads.map((lead, i) => {
                     const rd = lead.response_data as Record<string, string>;
                     const status = lead.status ?? 'new';
@@ -1853,6 +1978,7 @@ export default function ResponsesPage() {
                     const isPending = lead.match_status === 'pending_review';
                     const isApproved = lead.match_status === 'approved';
                     const { label: scoreLabel, tone: scoreTone } = leadScore(lead);
+                    const workflow = getLeadWorkflowState(lead);
                     const prog =
                       rd.program_category === 'young_innovators'
                         ? 'Young Innovators'
@@ -1863,8 +1989,14 @@ export default function ResponsesPage() {
                     return (
                       <article
                         key={lead.id}
-                        className={`p-3.5 space-y-3 ${isPending ? 'bg-amber-500/5' : ''} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}
+                        className={`rounded-xl border border-border bg-background p-3.5 space-y-3 shadow-sm transition-colors ${isPending ? 'border-amber-500/30 bg-amber-500/5' : ''} ${selected.has(lead.id) ? 'border-primary/40 bg-primary/5' : ''}`}
                       >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${workflow.tone}`}>
+                            {workflow.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">Next step</span>
+                        </div>
                         <div className="flex items-start gap-3">
                           <input
                             type="checkbox"
@@ -1972,6 +2104,7 @@ export default function ResponsesPage() {
                             <span className="text-muted-foreground group-open:rotate-180 transition-transform">▾</span>
                           </summary>
                           <div className="px-3 pb-3 border-t border-border pt-3">
+                            <p className="mb-3 text-xs text-muted-foreground">{workflow.description}</p>
                             {renderLeadActions(lead)}
                           </div>
                         </details>
@@ -1980,8 +2113,8 @@ export default function ResponsesPage() {
                   })}
                 </div>
 
-                {/* Desktop datasheet */}
-                <div className="hidden md:block overflow-x-auto">
+                {/* Legacy datasheet is retained as a non-rendered print-safe fallback while cards are the canonical workspace. */}
+                <div className="hidden" aria-hidden="true">
                 <table className="w-full min-w-[1100px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
@@ -2989,7 +3122,7 @@ export default function ResponsesPage() {
           style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
           aria-hidden="true"
         >
-          <HdQrCode value={`${appBase}/forms/${id}`} size={HD_QR_PRINT_LARGE_PX} />
+          <HdQrCode value={consentAccessUrl(appBase, form.access_code)} size={HD_QR_PRINT_LARGE_PX} />
         </div>
       )}
     </div>

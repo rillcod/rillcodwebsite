@@ -23,11 +23,13 @@ import {
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 import { fetchActionJson } from '@/lib/async-timeout';
+import { consentAccessUrl } from '@/lib/consent/access-code';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface ConsentForm {
   id: string;
+  access_code: string;
   title: string;
   body: string;
   form_type: string;
@@ -66,6 +68,12 @@ interface FormLead {
   matched_parent_id: string | null;
   contact_id: string | null;
   prospect_id: string | null;
+}
+
+function formActionLabel(formType: string): string {
+  if (formType === 'assessment') return 'START ASSESSMENT';
+  if (formType === 'registration') return 'REGISTER';
+  return 'OPEN FORM';
 }
 
 interface RegistrationData {
@@ -299,7 +307,7 @@ ${isAssessment ? assessmentBody : registrationBody}
 function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orientation: 'portrait' | 'landscape' = 'portrait') {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
-  const publicUrl = `${appBase}/forms/${form.id}`;
+  const publicUrl = consentAccessUrl(appBase, form.access_code);
   const title      = esc(form.title);
   const schoolName = form.schools?.name ? esc(form.schools.name) : 'Rillcod Technologies';
 
@@ -334,7 +342,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
         </div>
         <div class="title">${title}</div>
         ${qrContent}
-        <div class="scan-text">Scan to register</div>
+        <div class="scan-text">${formActionLabel(form.form_type)} · scan or enter ${esc(form.access_code)}</div>
         <div class="card-footer">${schoolName}</div>
       </div>
     </div>
@@ -604,7 +612,7 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
     <div class="stamp-text">
       <strong>Digitally submitted and accepted</strong><br/>
       This form was completed online by the parent/guardian on <strong>${dateStr} at ${timeStr}</strong>
-      via <strong>rillcod.com/forms</strong>. Submission of this form constitutes the parent/guardian&rsquo;s
+      via <strong>rillcod.com/consent</strong>. Submission of this form constitutes the parent/guardian&rsquo;s
       acknowledgement and acceptance of the consent statement above.
     </div>
   </div>
@@ -901,7 +909,7 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
 function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
-  const publicUrl = `${appBase}/forms/${form.id}`;
+  const publicUrl = consentAccessUrl(appBase, form.access_code);
   const title = esc(form.title);
   const qrContent = qrSvg
     ? `<div class="qr-wrap">${qrSvg}</div>`
@@ -926,6 +934,7 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   .qr-wrap svg { width: 390px; height: 390px; }
   .scan-text { font-size: 48pt; font-weight: 900; color: #000; margin-top: 50px; text-transform: uppercase; letter-spacing: 2px; }
   .sub-scan { font-size: 18pt; color: #444; font-weight: bold; font-family: Arial, sans-serif; margin-top: 10px; }
+  .access-code { font-size: 30pt; color: #000; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 3px; margin-top: 18px; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
   @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr-wrap { box-shadow: none; border: 8px solid #000; } .print-btn { display: none !important; } }
@@ -941,8 +950,9 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
     </div>
     <div class="title">${title}</div>
     ${qrContent}
-    <div class="scan-text">Scan To Register</div>
-    <div class="sub-scan">Open your phone camera and point it at the code</div>
+    <div class="scan-text">${formActionLabel(form.form_type)}</div>
+    <div class="sub-scan">Or visit rillcod.com/consent and type</div>
+    <div class="access-code">${esc(form.access_code)}</div>
   </div>
 </body></html>`);
   win.document.close();
@@ -1218,9 +1228,16 @@ export default function ConsentFormsPage() {
   // ── Copy public link ──────────────────────────────────────────────────────
 
   async function copyLink(id: string) {
-    const url = `${appBase}/forms/${id}`;
+    const form = forms.find(item => item.id === id);
+    const url = form?.access_code ? consentAccessUrl(appBase, form.access_code) : `${appBase}/forms/${id}`;
     await navigator.clipboard.writeText(url).catch(() => { });
     setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  async function copyReference(form: ConsentForm) {
+    await navigator.clipboard.writeText(form.access_code).catch(() => { });
+    setCopiedId(`code-${form.id}`);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
@@ -1341,7 +1358,7 @@ export default function ConsentFormsPage() {
   // ── Branded QR download ───────────────────────────────────────────────────
 
   async function downloadBrandedQr(form: ConsentForm) {
-    const publicUrl = `${appBase}/forms/${form.id}`;
+    const publicUrl = consentAccessUrl(appBase, form.access_code);
     setDownloadingQr(true);
     try {
       await downloadQrCard(
@@ -1349,6 +1366,7 @@ export default function ConsentFormsPage() {
         form.schools?.name ?? 'Rillcod Technologies',
         form.title,
         `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`,
+        { accessCode: form.access_code, actionLabel: formActionLabel(form.form_type) },
       );
     } catch { /* non-fatal */ } finally {
       setDownloadingQr(false);
@@ -1822,15 +1840,17 @@ export default function ConsentFormsPage() {
                           {qrForm.schools?.name ?? 'Rillcod Technologies'}
                         </p>
                         <p style={{ color: '#ffffff', fontSize: '18px', fontWeight: 900, lineHeight: 1.1, margin: '4px 0 0', letterSpacing: '-0.5px' }}>
-                          SCAN TO<br />REGISTER
+                          {qrForm.form_type === 'assessment' ? 'START' : qrForm.form_type === 'registration' ? 'SCAN TO' : 'OPEN'}<br />
+                          {qrForm.form_type === 'assessment' ? 'ASSESSMENT' : qrForm.form_type === 'registration' ? 'REGISTER' : 'FORM'}
                         </p>
                       </div>
                       <div ref={qrSvgWrapperRef} style={{ background: '#ffffff', borderRadius: '14px', padding: '14px', boxShadow: '0 0 0 1px rgba(245,166,35,0.25), 0 8px 24px rgba(0,0,0,0.6)' }}>
-                        <HdQrCode value={`${appBase}/forms/${qrForm.id}`} size={HD_QR_DISPLAY_PX} />
+                        <HdQrCode value={consentAccessUrl(appBase, qrForm.access_code)} size={HD_QR_DISPLAY_PX} />
                       </div>
                       <div className="self-start">
                         <p style={{ color: '#e4e4e7', fontSize: '11px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{qrForm.title}</p>
-                        <p style={{ color: '#52525b', fontSize: '9px', margin: '3px 0 0' }}>Point your camera at this code to open</p>
+                        <p style={{ color: '#71717a', fontSize: '9px', margin: '3px 0 0' }}>Scan or type at rillcod.com/consent</p>
+                        <p style={{ color: '#f5a623', fontFamily: 'monospace', fontSize: '15px', fontWeight: 900, letterSpacing: '2px', margin: '5px 0 0' }}>{qrForm.access_code}</p>
                       </div>
                       <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '2px 0' }} />
                       <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1843,7 +1863,7 @@ export default function ConsentFormsPage() {
 
                   {/* URL + copy */}
                   <div className="w-full bg-muted/50 rounded-xl px-3 py-2 flex items-center gap-2">
-                    <p className="text-[10px] text-muted-foreground truncate flex-1 font-mono">{appBase}/forms/{qrForm.id}</p>
+                    <p className="text-[10px] text-muted-foreground truncate flex-1 font-mono">{appBase}/consent · {qrForm.access_code}</p>
                     <button
                       onClick={() => copyLink(qrForm.id)}
                       className="shrink-0 text-[10px] font-black text-primary hover:opacity-80 transition-opacity"
@@ -1851,6 +1871,13 @@ export default function ConsentFormsPage() {
                       {copiedId === qrForm.id ? '✓ Copied' : 'Copy'}
                     </button>
                   </div>
+
+                  <button
+                    onClick={() => copyReference(qrForm)}
+                    className="w-full rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs font-bold text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    {copiedId === `code-${qrForm.id}` ? 'Reference copied' : `Copy reference ${qrForm.access_code}`}
+                  </button>
 
                   {/* Action buttons */}
                   <div className="w-full flex gap-2">
@@ -1863,7 +1890,7 @@ export default function ConsentFormsPage() {
                       {downloadingQr ? 'Generating…' : 'Download PNG'}
                     </button>
                     <a
-                      href={`${appBase}/forms/${qrForm.id}`}
+                      href={consentAccessUrl(appBase, qrForm.access_code)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 px-3 py-2.5 bg-muted hover:bg-muted/80 text-muted-foreground font-bold text-xs rounded-xl transition-colors"
@@ -2088,7 +2115,7 @@ export default function ConsentFormsPage() {
               const sigs = signatories[cf.id] ?? [];
               const formLeads = leads[cf.id] ?? [];
               const totalCount = responseCount + (leads[cf.id] ? formLeads.length : initialLeadCount);
-              const publicUrl = `${appBase}/forms/${cf.id}`;
+              const publicUrl = consentAccessUrl(appBase, cf.access_code);
 
               return (
                 <motion.div key={cf.id} layout className={`bg-card border rounded-2xl overflow-hidden transition-colors ${cf.has_signed ? 'border-emerald-500/20' : cf.is_public ? 'border-primary/20' : 'border-border/60'}`}>
@@ -2253,7 +2280,7 @@ export default function ConsentFormsPage() {
                           {cf.is_public && (
                             <>
                               <a
-                                href={`${appBase}/forms/${cf.id}`}
+                                href={publicUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"

@@ -1293,7 +1293,7 @@ export default function DashboardNavigation() {
             />
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="text-[11px] font-semibold text-muted-foreground">Rillcod Academy</p>
+            <p className="text-[11px] font-semibold text-muted-foreground">Rillcod Technologies</p>
             <p className="text-[15px] font-bold text-foreground truncate">{mobileTitle}</p>
           </div>
         </Link>

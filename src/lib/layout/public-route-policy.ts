@@ -11,6 +11,7 @@ export const APP_UTILITY_ROUTE_PREFIXES = [
   '/portal',
   '/verify',
   '/forms',
+  '/consent',
   '/result-check',
   '/parent-claim',
   '/account-deletion',

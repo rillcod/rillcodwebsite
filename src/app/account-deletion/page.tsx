@@ -26,9 +26,9 @@ export default function AccountDeletionPage() {
 
   return <main className="min-h-dvh bg-background px-[max(1rem,var(--safe-area-left))] py-[max(2rem,var(--safe-area-top))] text-foreground public-page-root overflow-x-clip">
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/login" className="text-sm font-bold text-primary">← Back to Rillcod Academy</Link>
+      <Link href="/login" className="text-sm font-bold text-primary">← Back to Rillcod Technologies</Link>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-xl sm:p-8">
-        <div className="mb-6 flex items-start gap-4"><div className="rounded-xl bg-rose-500/10 p-3"><ShieldAlert className="h-6 w-6 text-rose-500" /></div><div><h1 className="text-2xl font-black">Request account deletion</h1><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Request deletion of your Rillcod Academy account and associated personal data. We verify requests to protect students and school records.</p></div></div>
+        <div className="mb-6 flex items-start gap-4"><div className="rounded-xl bg-rose-500/10 p-3"><ShieldAlert className="h-6 w-6 text-rose-500" /></div><div><h1 className="text-2xl font-black">Request account deletion</h1><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Request deletion of your Rillcod Technologies account and associated personal data. We verify requests to protect students and school records.</p></div></div>
         {done ? <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5"><CheckCircle className="mb-3 h-7 w-7 text-emerald-500" /><h2 className="font-black">Request received</h2><p className="mt-2 text-sm text-muted-foreground">We will verify the account, explain any legally required retention, and process the request as soon as reasonably possible. Contact privacy@rillcodacademy.com if you need help.</p></div> :
         <form onSubmit={submit} className="space-y-4">
           <div className="hidden"><label>Website<input value={website} onChange={e => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" /></label></div>

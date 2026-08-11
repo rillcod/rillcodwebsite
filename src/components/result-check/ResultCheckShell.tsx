@@ -11,10 +11,13 @@ import type { ReactNode } from 'react';
 export default function ResultCheckShell({
   children,
   compact,
+  portalLabel = 'Official Result Portal',
 }: {
   children: ReactNode;
   /** Tighter top padding when content is dense (report view). */
   compact?: boolean;
+  /** Reuse the secure public shell without leaking result-specific wording. */
+  portalLabel?: string;
 }) {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors">
@@ -32,12 +35,12 @@ export default function ResultCheckShell({
             </span>
             <div className="min-w-0">
               <p className="truncate text-lg font-black tracking-tight text-foreground sm:text-xl">
-                RILLCOD ACADEMY
+                RILLCOD TECHNOLOGIES
               </p>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-red-accent animate-ping" />
                 <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-foreground">
-                  Official Result Portal
+                  {portalLabel}
                 </p>
               </div>
             </div>

@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 interface PublicForm {
   id: string;
+  access_code: string;
   title: string;
   body: string;
   form_type: string;
@@ -24,12 +25,13 @@ async function fetchForm(id: string): Promise<PublicForm | null> {
   );
   const { data } = await sb
     .from('consent_forms')
-    .select('id, title, body, form_type, due_date, is_public, enrollment_type, schools(name)')
+    .select('id, access_code, title, body, form_type, due_date, is_public, enrollment_type, schools(name)')
     .eq('id', id)
     .single();
   if (!data) return null;
   return {
     id: data.id,
+    access_code: data.access_code,
     title: data.title,
     body: data.body,
     form_type: data.form_type,
@@ -98,7 +100,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
   const schoolsList = (schoolsData ?? []).map((s: any) => s.name).filter(Boolean);
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  const publicUrl = `${appUrl}/forms/${id}`;
+  const publicUrl = `${appUrl}/consent/${encodeURIComponent(form.access_code)}?via=qr`;
 
   return (
     <div className="min-h-screen bg-[#0b0c0e] text-white public-page-root overflow-x-clip">

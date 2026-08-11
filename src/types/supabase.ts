@@ -5153,6 +5153,7 @@ export type Database = {
       }
       consent_forms: {
         Row: {
+          access_code: string
           academic_offering_id: string | null
           body: string
           class_id: string | null
@@ -5167,6 +5168,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          access_code?: string
           academic_offering_id?: string | null
           body: string
           class_id?: string | null
@@ -5181,6 +5183,7 @@ export type Database = {
           title: string
         }
         Update: {
+          access_code?: string
           academic_offering_id?: string | null
           body?: string
           class_id?: string | null

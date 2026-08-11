@@ -26,6 +26,7 @@ const NATIVE_PATH_PREFIXES = [
   '/summer-school',
   '/special',
   '/forms',
+  '/consent',
   '/result-check',
   '/verify',
   '/reset-password',

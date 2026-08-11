@@ -12,6 +12,7 @@ describe('public route policy', () => {
     '/verify/example',
     '/forms/example',
     '/result-check/example',
+    '/consent/CF-AB12-CD34',
   ])('keeps navigation out of utility flow %s', (pathname) => {
     expect(isAppUtilityRoute(pathname)).toBe(true);
   });

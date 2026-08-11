@@ -1,11 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveStudentRowId } from '@/lib/parents/links';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { consentAccessUrl } from '@/lib/consent/access-code';
 
 type AnySupabase = SupabaseClient<any>;
 
 export type RequiredConsentForm = {
   id: string;
+  access_code: string;
   title: string;
   form_type: string | null;
   school_id: string;
@@ -55,7 +57,7 @@ export async function resolveRequiredConsentForm(
 
   const { data, error } = await admin
     .from('consent_forms')
-    .select('id, title, form_type, school_id, class_id, enrollment_type, academic_offering_id, created_at')
+    .select('id, access_code, title, form_type, school_id, class_id, enrollment_type, academic_offering_id, created_at')
     .eq('school_id', params.schoolId)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
@@ -157,7 +159,7 @@ export async function getResultConsentAccessStatus(
     required: true,
     complete: Boolean(matched || signedInPortal),
     form,
-    formUrl: `${appBaseUrl()}/forms/${form.id}`,
+    formUrl: consentAccessUrl(appBaseUrl(), form.access_code),
     matchedLeadId: matched?.id ?? null,
   };
 }

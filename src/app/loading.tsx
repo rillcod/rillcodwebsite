@@ -37,7 +37,7 @@ export default function Loading() {
             <div className="absolute inset-y-0 bg-primary animate-[loading_2s_ease-in-out_infinite]" style={{ width: '40%' }}></div>
           </div>
           <div className="flex justify-between mt-3">
-            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Rillcod Academy</span>
+            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Rillcod Technologies</span>
             <span className="text-[8px] font-black text-primary uppercase tracking-widest animate-pulse">Please wait</span>
           </div>
         </div>

@@ -13,7 +13,7 @@ export default function ForceRefreshBanner({ visible }: { visible: boolean }) {
 
   return (
     <div className="fixed top-0 inset-x-0 z-[9998] flex items-center justify-between gap-4 bg-primary px-4 py-2 text-sm text-white">
-      <span>A new version of Rillcod Academy is available.</span>
+      <span>A new version of Rillcod Technologies is available.</span>
       <button
         type="button"
         disabled={busy}

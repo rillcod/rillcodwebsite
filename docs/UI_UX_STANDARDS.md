@@ -44,6 +44,7 @@ The baseline audit covers 222 page routes: 179 dashboard pages and 43 public or 
 - Show each KPI set once. A page hero and a second desktop-only row must not repeat the same totals.
 - Collection cards expose the two to four actions used in the normal workflow. Sharing, printing, exporting, publishing settings, cloning, and destructive actions belong under a clearly labelled `More tools` disclosure.
 - Staff collection pages are work queues, not archives: provide one scoped search, actionable status filters, deterministic priority ordering, a visible result count, and a recoverable empty/error state. Items needing review sort ahead of passive history without hiding the full list.
+- Public consent onboarding has one canonical entrance with two equivalent methods: scan the printed QR or type the short `CF-XXXX-XXXX` reference at `/consent`. Both resolve to the same form and response pipeline; handouts and posters must display both.
 - Mobile forms stack fields and actions. Do not force an input and button into a row below `sm`.
 
 ## Navigation and route shells

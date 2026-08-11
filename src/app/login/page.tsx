@@ -475,7 +475,7 @@ function LoginContent() {
 
                     {isNativeApp && (
                       <div className="mt-8 pt-6 border-t border-border/40 text-center">
-                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">New to Rillcod Academy?</p>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">New to Rillcod Technologies?</p>
                         <Link
                           href="/student-registration"
                           className="inline-flex items-center justify-center gap-2 px-6 py-3 w-full bg-gradient-to-r from-cyan-500 to-primary text-white font-black text-xs uppercase tracking-wider rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-primary/10 hover:shadow-primary/20"

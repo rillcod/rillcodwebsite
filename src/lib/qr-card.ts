@@ -34,12 +34,13 @@ export async function downloadQrCard(
   schoolName: string,
   formTitle: string,
   filename: string,
+  options?: { accessCode?: string; actionLabel?: string },
 ): Promise<void> {
   const qrPng = await qrToDataUrl(targetUrl, HD_QR_PRINT_LARGE_PX);
   const qrImg = await loadImg(qrPng);
 
   // 2. Canvas (3× DPI for crisp print / social media)
-  const S = 3, W = 480, H = 624;
+  const S = 3, W = 480, H = options?.accessCode ? 668 : 624;
   const canvas = document.createElement('canvas');
   canvas.width  = W * S;
   canvas.height = H * S;
@@ -95,7 +96,13 @@ export async function downloadQrCard(
   ctx.font = '900 38px Arial';
   ctx.fillText('SCAN TO', 36, 95);
   ctx.fillStyle = '#f5a623';
-  ctx.fillText('REGISTER.', 36, 138);
+  const actionText = `${options?.actionLabel ?? 'REGISTER'}.`;
+  let actionFontSize = 38;
+  while (ctx.measureText(actionText).width > W - 72 && actionFontSize > 24) {
+    actionFontSize -= 2;
+    ctx.font = `900 ${actionFontSize}px Arial`;
+  }
+  ctx.fillText(actionText, 36, 138);
 
   // ── QR white card ────────────────────────────────────────────────
   const qrSize = 300, qrPad = 22;
@@ -122,10 +129,16 @@ export async function downloadQrCard(
 
   ctx.fillStyle = '#4b5563';
   ctx.font = '500 12px Arial';
-  ctx.fillText('Open your camera app · point and scan', 36, tyBase + 20);
+  ctx.fillText(options?.accessCode ? 'Scan the QR or type this reference at rillcod.com/consent' : 'Open your camera app · point and scan', 36, tyBase + 20);
+
+  if (options?.accessCode) {
+    ctx.fillStyle = '#f5a623';
+    ctx.font = '900 24px Arial';
+    ctx.fillText(options.accessCode, 36, tyBase + 50);
+  }
 
   // ── Divider ──────────────────────────────────────────────────────
-  const divY = tyBase + 40;
+  const divY = tyBase + (options?.accessCode ? 70 : 40);
   ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1;
   ctx.beginPath();

@@ -18,7 +18,7 @@ export default function MaintenanceBanner({ visible }: { visible: boolean }) {
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-3">Under Maintenance</h1>
         <p className="text-muted-foreground">
-          Rillcod Academy is currently undergoing scheduled maintenance. We&apos;ll be back shortly.
+          Rillcod Technologies is currently undergoing scheduled maintenance. We&apos;ll be back shortly.
         </p>
       </div>
     </div>

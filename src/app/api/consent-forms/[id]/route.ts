@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   const [formRes, { data: responses }, leadsResult] = await Promise.all([
-    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, school_id, class_id, enrollment_type, academic_offering_id, schools(name)').eq('id', id).single(),
+    supabase.from('consent_forms').select('id, access_code, title, body, form_type, due_date, is_public, school_id, class_id, enrollment_type, academic_offering_id, schools(name)').eq('id', id).single(),
     supabase
       .from('consent_responses')
       // consent_responses is keyed by (form_id, parent_id) and has no id column. Selecting one

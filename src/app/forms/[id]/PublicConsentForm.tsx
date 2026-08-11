@@ -11,6 +11,7 @@ import { fetchActionJson } from '@/lib/async-timeout';
 
 interface FormData {
   id: string;
+  access_code: string;
   title: string;
   body: string;
   form_type: string;
@@ -961,7 +962,8 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
         {showQr && (
           <div className="mt-4 flex flex-col items-center gap-3">
             <div className="bg-white p-4 rounded-2xl"><HdQrCode value={publicUrl} size={HD_QR_DISPLAY_PX} /></div>
-            <p className="text-xs text-[#52525b]">Scan to open this form on any device</p>
+            <p className="text-xs text-[#71717a]">Scan, or type this reference at rillcod.com/consent</p>
+            <p className="font-mono text-lg font-black tracking-widest text-amber-400">{form.access_code}</p>
           </div>
         )}
       </div>

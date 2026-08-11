@@ -97,7 +97,7 @@ export default function PWAInstaller() {
               Install App
             </p>
             <p className="text-xs text-muted-foreground mt-1 leading-snug">
-              Add Rillcod Academy to your home screen for quick, offline access.
+              Add Rillcod Technologies to your home screen for quick, offline access.
             </p>
           </div>
 
