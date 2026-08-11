@@ -17,7 +17,6 @@ import { fetchActionJson } from '@/lib/async-timeout';
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
   created_at: string | null;
-  password?: string | null;
 }
 
 interface StudentRow {
@@ -31,7 +30,6 @@ interface StudentRow {
   user_id: string | null;
   created_at: string | null;
   credEmail?: CredentialStatus | null;
-  parentCred?: CredentialStatus | null;
 }
 
 type FilterType = 'all' | 'not_activated' | 'activated';
@@ -50,27 +48,20 @@ export default function ResendCredentialsPage() {
   const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
   const [sendingWa, setSendingWa] = useState<Record<string, boolean>>({});
 
-  // Send the EXISTING student/parent login to the parent by WhatsApp + email.
-  // Does NOT reset the password (unlike "Resend") — the stored password still stands.
+  // Ask the server to deliver existing credentials. Passwords never cross the
+  // listing API or enter the page DOM; the server resolves the authorised student.
   const handleWhatsApp = async (s: StudentRow) => {
     setSendingWa(p => ({ ...p, [s.id]: true }));
     try {
       const res = await fetch('/api/students/send-credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentEmail: s.student_email || undefined,
-          studentPassword: s.credEmail?.password || undefined,
-          parentEmail: s.parent_email || undefined,
-          parentPassword: (s as any).parentCred?.password || undefined,
-          fullName: s.full_name || undefined,
-          schoolName: s.school_name || undefined,
-        }),
+        body: JSON.stringify({ studentId: s.id }),
       });
       const j = await res.json();
       if (!res.ok) { alert(j.error || 'Failed to send'); return; }
       const via = [j.whatsapp ? 'WhatsApp' : null, j.email ? 'Email' : null].filter(Boolean).join(' + ');
-      alert(via ? `Login sent via ${via} — password unchanged.` : 'Login sent — password unchanged.');
+      alert(via ? `Login sent securely via ${via}.` : 'Login sent securely.');
     } catch { alert('Failed to send'); } finally {
       setSendingWa(p => ({ ...p, [s.id]: false }));
     }
@@ -636,17 +627,11 @@ export default function ResendCredentialsPage() {
                           <div>
                             <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Student Login</div>
                             <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.student_email || '—'}</div>
-                            {s.credEmail?.password && (
-                              <div className="text-[11px] text-violet-600 dark:text-violet-400 font-mono select-all mt-0.5">Password: {s.credEmail.password}</div>
-                            )}
                           </div>
-                          {(s.parent_email || (s as any).parentCred?.password) && (
+                          {s.parent_email && (
                             <div>
                               <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Parent Login</div>
                               <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.parent_email || '—'}</div>
-                              {(s as any).parentCred?.password && (
-                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono select-all mt-0.5">Password: {(s as any).parentCred.password}</div>
-                              )}
                             </div>
                           )}
                         </div>
@@ -739,21 +724,19 @@ export default function ResendCredentialsPage() {
                                 studentId: s.id,
                                 studentName: s.full_name || 'Student',
                                 studentEmail: s.student_email || '',
-                                studentPassword: s.credEmail?.password || undefined,
                                 parentEmail: s.parent_email || undefined,
-                                parentPassword: (s as any).parentCred?.password || undefined,
                               })}
-                              title="View parent + student login details"
+                              title="View parent and student account details"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-lg text-xs font-semibold transition-colors"
                             >
                               <EyeIcon className="w-3.5 h-3.5" /> View
                             </button>
                           )}
-                          {isActivated && (s.credEmail?.password || (s as any).parentCred?.password) && (
+                          {isActivated && !!s.parent_email && (
                             <button
                               onClick={() => handleWhatsApp(s)}
                               disabled={sendingWa[s.id]}
-                              title="Send the EXISTING login to the parent by WhatsApp + email — does NOT reset the password"
+                              title="Securely resend the existing login by WhatsApp and email"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
                               {sendingWa[s.id] ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span aria-hidden>💬</span>}
@@ -810,7 +793,7 @@ export default function ResendCredentialsPage() {
         <strong className="text-blue-800 dark:text-blue-200">Which button shows depends on the student's state:</strong>{' '}
         <span className="text-muted-foreground">
           <strong className="text-emerald-600 dark:text-emerald-400">Activate</strong> appears only for students with <em>no portal account yet</em> — it creates the <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it.{' '}
-          Once a student is activated you'll instead see <strong className="text-foreground">View</strong> (see the parent + student logins anytime) and <strong className="text-foreground">Resend</strong> (reset the password &amp; re-email both logins).{' '}
+          Once a student is activated you'll instead see <strong className="text-foreground">View</strong> (see account usernames without exposing passwords) and <strong className="text-foreground">Resend</strong> (reset the password &amp; re-email both logins).{' '}
           So if you don't see "Activate", that student is <strong className="text-blue-800 dark:text-blue-200">already activated</strong> — nothing is lacking; use View or Resend.{' '}
           The emailed credentials include <strong className="text-blue-800 dark:text-blue-200">both parent and student logins</strong>. Students are auto-assigned to a school + class if none is on record.{' '}
           "Activate All Unactivated" ({notActivatedCount}) processes every not-yet-activated student in one go.
@@ -832,7 +815,7 @@ export default function ResendCredentialsPage() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Parent & student logins. Copy or share below, or use "Resend" to email a fresh password to the parent.
+              Parent and student account details. Existing passwords are never displayed. Use "Resend" to issue and email a fresh temporary password.
             </p>
 
             <div className="space-y-3">
@@ -845,7 +828,7 @@ export default function ResendCredentialsPage() {
                   {lastCreatedCredentials.studentPassword ? (
                     <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
                   ) : (
-                    <p className="text-[11px] text-muted-foreground italic">Not stored — click "Resend" to reset &amp; reveal a fresh password.</p>
+                    <p className="text-[11px] text-muted-foreground italic">Protected — use "Resend" to issue a fresh temporary password.</p>
                   )}
                 </div>
               </div>
@@ -856,11 +839,11 @@ export default function ResendCredentialsPage() {
                   <div className="text-xs space-y-1">
                     <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
                     <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentEmail}</p>
-                    {lastCreatedCredentials.parentPassword && (
-                      <>
-                        <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
-                        <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
-                      </>
+                    <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
+                    {lastCreatedCredentials.parentPassword ? (
+                      <p className="font-mono text-amber-600 dark:text-amber-400 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground italic">Protected — use "Resend" to issue a fresh temporary password.</p>
                     )}
                   </div>
                 </div>

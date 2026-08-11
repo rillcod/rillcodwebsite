@@ -11,7 +11,7 @@ function adminClient() {
   );
 }
 
-type CredentialStatus = { status: string | null; created_at: string | null; password: string | null };
+type CredentialStatus = { status: string | null; created_at: string | null };
 
 // GET /api/students/credentials-list
 // Approved students with their latest credential status, for the Resend Login Credentials page.
@@ -57,46 +57,47 @@ export async function GET() {
     }
 
     const { data: rows, error } = await q;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[students/credentials-list] student query failed:', error);
+      return NextResponse.json({ error: 'Student credentials could not be loaded. Please retry.' }, { status: 500 });
+    }
     const students = rows ?? [];
 
-    // Enrich with latest credential status/password from registration_results — CHUNKED so the
-    // request URL never blows up (the bug that hung the page).
+    // Enrich with delivery status only. Passwords stay server-side and are never
+    // returned by this bulk listing or rendered into the dashboard DOM.
     const emails = Array.from(new Set(
-      students.flatMap((s: any) => [s.student_email, s.parent_email]).filter(Boolean) as string[],
+      students.map((s: any) => s.student_email).filter(Boolean) as string[],
     ));
     const latestByEmail: Record<string, CredentialStatus> = {};
     const CHUNK = 200;
     for (let i = 0; i < emails.length; i += CHUNK) {
       const batch = emails.slice(i, i + CHUNK);
-      const { data: results } = await admin
+      const { data: results, error: credentialError } = await admin
         .from('registration_results')
-        .select('email, status, password, created_at')
+        .select('email, status, created_at')
         .in('email', batch)
         .order('created_at', { ascending: false });
+      if (credentialError) throw credentialError;
       for (const r of results ?? []) {
         const key = (r.email || '').trim().toLowerCase();
         if (!key) continue;
         if (!latestByEmail[key]) {
-          latestByEmail[key] = { status: r.status, created_at: r.created_at, password: r.password ?? null };
-        } else if (!latestByEmail[key].password && r.password) {
-          latestByEmail[key].password = r.password;
+          latestByEmail[key] = { status: r.status, created_at: r.created_at };
         }
       }
     }
 
     const enriched = students.map((s: any) => {
       const sKey = (s.student_email || '').trim().toLowerCase();
-      const pKey = (s.parent_email || '').trim().toLowerCase();
       return {
         ...s,
         credEmail: sKey && latestByEmail[sKey] ? latestByEmail[sKey] : null,
-        parentCred: pKey && latestByEmail[pKey] ? latestByEmail[pKey] : null,
       };
     });
 
     return NextResponse.json({ students: enriched }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    console.error('[students/credentials-list] load failed:', err);
+    return NextResponse.json({ error: 'Student credentials could not be loaded. Please retry.' }, { status: 500 });
   }
 }
