@@ -136,6 +136,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
   const [showQr,     setShowQr]     = useState(false);
   const [attempted,  setAttempted]  = useState(false);   // highlight missing fields
   const [restored,   setRestored]   = useState(false);   // show "session restored" banner
+  const [delivery, setDelivery] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
 
   const [childCount, setChildCount] = useState(1);
   const [children,   setChildren]   = useState<ChildEntry[]>([emptyChild()]);
@@ -315,7 +316,11 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     setError('');
     captureSubmitted();
     try {
-      const { response, data: json } = await fetchActionJson<{ error: string }>(`/api/public/consent-forms/${form.id}`, {
+      const { response, data: json } = await fetchActionJson<{
+        error: string;
+        duplicate?: boolean;
+        delivery?: { email?: boolean; whatsapp?: boolean };
+      }>(`/api/public/consent-forms/${form.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -364,6 +369,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       }
       // Clear saved session
       try { localStorage.removeItem(LS_KEY); } catch {}
+      setDelivery({ email: json.delivery?.email === true, whatsapp: json.delivery?.whatsapp === true });
       setStep('thanks');
     } catch (submissionError) {
       console.error('Consent submission request failed', submissionError);
@@ -440,11 +446,16 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
               </div>
             )}
           </div>
-          {data.parent_email && (
-            <p className="text-xs text-[#71717a]">
-              A confirmation email has been sent to <strong className="text-amber-400">{data.parent_email}</strong>
-            </p>
-          )}
+          <div className="rounded-xl border border-[#2a2d33] bg-[#101214] px-4 py-3 text-left text-xs leading-relaxed text-[#a1a1aa]">
+            <p className="font-bold text-white">Your submission is safely recorded.</p>
+            {delivery?.email && data.parent_email ? (
+              <p className="mt-1">Email confirmation sent to <strong className="text-amber-400">{data.parent_email}</strong>.</p>
+            ) : delivery?.whatsapp ? (
+              <p className="mt-1">A WhatsApp confirmation was sent to <strong className="text-amber-400">{data.parent_whatsapp}</strong>.</p>
+            ) : (
+              <p className="mt-1">Our team can still see your form even if a confirmation message is delayed.</p>
+            )}
+          </div>
         </div>
 
         {isAssessment && (
@@ -535,8 +546,8 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             {daysLeft <= 0 ? 'Deadline passed' :
-             daysLeft === 1 ? 'Last day to register!' :
-             daysLeft <= 7 ? `${daysLeft} days left — register now` :
+             daysLeft === 1 ? (isAssessment ? 'Last day to complete the assessment!' : 'Last day to register!') :
+             daysLeft <= 7 ? `${daysLeft} days left — ${isAssessment ? 'complete the assessment' : 'register now'}` :
              `Deadline: ${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`}
           </div>
         )}

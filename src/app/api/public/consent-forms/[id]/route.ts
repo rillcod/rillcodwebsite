@@ -149,7 +149,9 @@ async function findStudentMatch(
         .from('students').select('user_id').ilike('parent_email', parentEmail).not('user_id', 'is', null);
       for (const r of byEmail ?? []) if (r.user_id) parentChildUserIds.add(r.user_id);
     }
-  } catch { /* non-fatal — fall back to no parent boost */ }
+  } catch (error) {
+    console.warn('[consent-submit] parent-child match boost was unavailable', { error });
+  }
 
   let best: StudentCandidate | null = null;
 
@@ -376,7 +378,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             confidence:   childMatch.confidence,
           });
         }
-      } catch { /* non-fatal */ }
+      } catch (error) {
+        console.warn('[consent-submit] additional child match was unavailable', {
+          childIndex: ci,
+          error,
+        });
+      }
     }
   }
 
@@ -413,32 +420,36 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     console.error('Public consent submission insert failed', insertErr);
     return NextResponse.json({ error: 'We could not save the form just now. Please try again.' }, { status: 500 });
   }
-  await logAudit(sb as any, {
-    action: 'consent_submitted',
-    resourceType: 'form_lead',
-    resourceId: lead.id,
-    newValue: [
-      `Consent form submitted`,
-      response_data.parent_name ? `by ${response_data.parent_name}` : null,
-      response_data.child_name ? `for child: ${response_data.child_name}` : null,
-      email ? `(${email})` : null,
-      `— match status: ${matchStatus}`,
-      matchResult?.candidate?.full_name ? `— candidate match: ${matchResult.candidate.full_name} (${matchResult.confidence} confidence)` : null,
-    ].filter(Boolean).join(' '),
-    newValues: {
-      form_id: id,
-      school_id: form.school_id,
-      match_status: matchStatus,
-      parent_name: response_data.parent_name ?? null,
-      child_name: response_data.child_name ?? null,
-      parent_email: email ?? null,
-      match_confidence: matchResult?.confidence ?? null,
-      match_candidate_name: matchResult?.candidate?.full_name ?? null,
-      viewer: 'Public consent form submission (anonymous visitor)',
-    },
-    ip: null,
-    userAgent: req.headers.get('user-agent'),
-  });
+  try {
+    await logAudit(sb as any, {
+      action: 'consent_submitted',
+      resourceType: 'form_lead',
+      resourceId: lead.id,
+      newValue: [
+        `Consent form submitted`,
+        response_data.parent_name ? `by ${response_data.parent_name}` : null,
+        response_data.child_name ? `for child: ${response_data.child_name}` : null,
+        email ? `(${email})` : null,
+        `— match status: ${matchStatus}`,
+        matchResult?.candidate?.full_name ? `— candidate match: ${matchResult.candidate.full_name} (${matchResult.confidence} confidence)` : null,
+      ].filter(Boolean).join(' '),
+      newValues: {
+        form_id: id,
+        school_id: form.school_id,
+        match_status: matchStatus,
+        parent_name: response_data.parent_name ?? null,
+        child_name: response_data.child_name ?? null,
+        parent_email: email ?? null,
+        match_confidence: matchResult?.confidence ?? null,
+        match_candidate_name: matchResult?.candidate?.full_name ?? null,
+        viewer: 'Public consent form submission (anonymous visitor)',
+      },
+      ip: null,
+      userAgent: req.headers.get('user-agent'),
+    });
+  } catch (error) {
+    console.warn('[consent-submit] audit event will need reconciliation', { leadId: lead.id, error });
+  }
 
   // Persist match suggestions as relational candidate slots — never as live child_matches.
   try {
@@ -466,7 +477,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         linked_by: null,
       });
     }
-  } catch { /* non-fatal — staff can still review via match_candidate_id */ }
+  } catch (error) {
+    console.warn('[consent-submit] relational match suggestions were not saved', { leadId: lead.id, error });
+  }
 
   // Auto-link existing students when parent ownership + name plausibly match (fixes spelling, no duplicate account).
   let autoMatched = false;
@@ -477,19 +490,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     confidence: matchResult.confidence,
     parentPortalVerified,
   })) {
-    const autoResult = await resolveConsentLeadMatch(sb as any, {
-      leadId: lead.id,
-      studentPortalUserId: matchResult.candidate.id,
-      childIndex: 0,
-      actorId: null,
-      source: 'auto',
-      parentMatch: matchResult.candidate.parentMatch,
-      confidence: matchResult.confidence,
-    });
-    if (autoResult.ok) {
-      autoMatched = true;
-      needsReview = false;
-      try {
+    try {
+      const autoResult = await resolveConsentLeadMatch(sb as any, {
+        leadId: lead.id,
+        studentPortalUserId: matchResult.candidate.id,
+        childIndex: 0,
+        actorId: null,
+        source: 'auto',
+        parentMatch: matchResult.candidate.parentMatch,
+        confidence: matchResult.confidence,
+      });
+      if (autoResult.ok) {
+        autoMatched = true;
+        needsReview = false;
         await (sb as any).from('form_leads').update({
           // 'approved', not 'auto_matched': the column permits approved,
           // new_prospect, pending_review, rejected and unreviewed. 'auto_matched'
@@ -501,7 +514,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           match_status: 'approved',
           match_notes: `${matchNotes ?? ''}\nAuto-linked to existing student; consent name applied for spelling.`.trim(),
         }).eq('id', lead.id);
-      } catch { /* non-fatal */ }
+      }
+    } catch (error) {
+      console.warn('[consent-submit] automatic student link was deferred', { leadId: lead.id, error });
     }
   }
 
@@ -530,37 +545,51 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const allChildrenDisplay = listChildNames(childrenArr, response_data.child_name);
 
   // ── CRM reconciliation (primary child / child 1) ──────────────────────────
-  const { contactId, prospectId } = await reconcileLeadWithCrm(sb, {
-    parentName:       response_data.parent_name || 'Parent/Guardian',
-    parentEmail:      response_data.parent_email || toEmail || '',
-    parentWhatsapp:   response_data.parent_whatsapp || '',
-    childName:        response_data.child_name,
-    childAge:         response_data.child_age || '',
-    childGender:      response_data.child_gender || undefined,
-    childClass:       response_data.child_class || '',
-    programCategory:  response_data.program_category || '',
-    currentSchool:    child_current_school?.trim() || null,
-    matchedSchoolId:  matched_school_id,
-    schoolId:         form.school_id ?? null,
-    schoolName,
-    formId:           lead!.id,
-    formTitle:        form.title,
-    referralSource:    response_data.referral_source,
-    preferredSchedule: response_data.preferred_schedule,
-    hearAboutUs:       response_data.hear_about_us,
-    whatsappOptIn:       response_data.whatsapp_consent === true,
-    marketingEmailOptIn: response_data.marketing_email_consent === true,
-    priorCoding:       response_data.prior_coding,
-    priorPlatform:     response_data.prior_platform,
-    devices:           Array.isArray(response_data.devices) ? response_data.devices : undefined,
-    learningGoal:      response_data.learning_goal,
-    specialNotes:      response_data.special_notes,
-  });
+  let contactId: string | null = null;
+  let prospectId: string | null = null;
+  try {
+    const crmResult = await reconcileLeadWithCrm(sb, {
+      parentName:       response_data.parent_name || 'Parent/Guardian',
+      parentEmail:      response_data.parent_email || toEmail || '',
+      parentWhatsapp:   response_data.parent_whatsapp || '',
+      childName:        response_data.child_name,
+      childAge:         response_data.child_age || '',
+      childGender:      response_data.child_gender || undefined,
+      childClass:       response_data.child_class || '',
+      programCategory:  response_data.program_category || '',
+      currentSchool:    child_current_school?.trim() || null,
+      matchedSchoolId:  matched_school_id,
+      schoolId:         form.school_id ?? null,
+      schoolName,
+      formId:           lead.id,
+      formTitle:        form.title,
+      referralSource:    response_data.referral_source,
+      preferredSchedule: response_data.preferred_schedule,
+      hearAboutUs:       response_data.hear_about_us,
+      whatsappOptIn:       response_data.whatsapp_consent === true,
+      marketingEmailOptIn: response_data.marketing_email_consent === true,
+      priorCoding:       response_data.prior_coding,
+      priorPlatform:     response_data.prior_platform,
+      devices:           Array.isArray(response_data.devices) ? response_data.devices : undefined,
+      learningGoal:      response_data.learning_goal,
+      specialNotes:      response_data.special_notes,
+    });
+    contactId = crmResult.contactId;
+    prospectId = crmResult.prospectId;
+  } catch (error) {
+    console.warn('[consent-submit] CRM reconciliation was deferred', { leadId: lead.id, error });
+  }
 
   if (contactId || prospectId) {
-    await (sb as any).from('form_leads')
+    const { error: linkError } = await (sb as any).from('form_leads')
       .update({ contact_id: contactId, prospect_id: prospectId })
-      .eq('id', lead!.id);
+      .eq('id', lead.id);
+    if (linkError) {
+      console.warn('[consent-submit] CRM ids could not be attached to the response', {
+        leadId: lead.id,
+        error: linkError,
+      });
+    }
   }
 
   // ── Additional children (multi-child) → CRM entries ─────────────────────
@@ -587,7 +616,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             .update({ metadata: { ...meta, children: kids }, updated_at: now })
             .eq('id', contactId);
         }
-      } catch { /* non-fatal */ }
+      } catch (error) {
+        console.warn('[consent-submit] additional child contact metadata was not synchronized', {
+          leadId: lead.id,
+          childName: child.name,
+          error,
+        });
+      }
 
       // Create / update prospective_students row for this child
       try {
@@ -620,11 +655,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           await (sb as any).from('prospective_students')
             .insert({ ...payload, created_at: now, is_active: true, is_deleted: false });
         }
-      } catch { /* non-fatal */ }
+      } catch (error) {
+        console.warn('[consent-submit] additional prospective child was not synchronized', {
+          leadId: lead.id,
+          childName: child.name,
+          error,
+        });
+      }
     }
   }
 
   // ── Parent confirmation email (SMTP — send first) ─────────────────────────
+  let parentEmailDelivered = false;
   if (toEmail && toEmail.includes('@')) {
     try {
       await deliverConsentParentConfirmationEmail({
@@ -638,7 +680,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         childrenCount: childrenArr?.length,
         replyTo: SMTP_FROM_EMAIL,
       });
-    } catch { /* non-fatal */ }
+      parentEmailDelivered = true;
+    } catch (error) {
+      console.warn('[consent-submit] parent confirmation email was not delivered', { leadId: lead.id, error });
+    }
   }
 
   // ── Staff email + in-app notifications ────────────────────────────────────
@@ -671,12 +716,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       matchedSchoolName: (matchedSchool as any)?.name ?? matchedSchoolName,
       appUrl,
     });
-  } catch { /* non-fatal */ }
+  } catch (error) {
+    console.warn('[consent-submit] staff notification was not delivered', { leadId: lead.id, error });
+  }
 
   // ── Immediate WhatsApp confirmation to parent ─────────────────────────────
+  let parentWhatsAppDelivered = false;
   try {
     await deliverConsentParentWhatsAppAck({ responseData: response_data });
-  } catch { /* non-fatal */ }
+    parentWhatsAppDelivered = Boolean(response_data.parent_whatsapp && response_data.whatsapp_consent === true);
+  } catch (error) {
+    console.warn('[consent-submit] parent WhatsApp acknowledgement was not delivered', { leadId: lead.id, error });
+  }
 
   // ── Staff follow-up task (CRM interaction) ────────────────────────────────
   try {
@@ -696,7 +747,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         created_at:   now,
       });
     }
-  } catch { /* non-fatal */ }
+  } catch (error) {
+    console.warn('[consent-submit] CRM follow-up task was not created', { leadId: lead.id, error });
+  }
 
-  return NextResponse.json({ success: true, id: lead?.id, matchPending: needsReview });
+  return NextResponse.json({
+    success: true,
+    id: lead?.id,
+    matchPending: needsReview,
+    delivery: {
+      email: parentEmailDelivered,
+      whatsapp: parentWhatsAppDelivered,
+    },
+  });
 }
