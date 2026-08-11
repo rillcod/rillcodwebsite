@@ -113,24 +113,34 @@ export async function GET(request: NextRequest) {
     const summaryView = url.searchParams.get('view') === 'summary';
 
     const admin = adminClient();
-    let query = admin
-      .from('assignments')
-      .select(summaryView ? `
+
+    // Each branch is a separate function call so TypeScript resolves the select
+    // return type independently — avoids TS2589 (instantiation too deep) that
+    // occurs when a ternary forces the compiler to unify two large generic shapes.
+    function buildSummaryQuery() {
+      return admin.from('assignments').select(`
         id, title, due_date, max_points, assignment_type, is_active, created_at, created_by,
         course_id, program_id, class_id, school_id, school_name, metadata, term_id, lesson_plan_id,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
-      ` : `
+      `).order('due_date', { ascending: true });
+    }
+    function buildFullQuery() {
+      return admin.from('assignments').select(`
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
         course_id, program_id, class_id, school_id, school_name, metadata, term_id,
         lesson_plan_id, curriculum_release_id, curriculum_year_number, curriculum_term_number, curriculum_week_number, learning_outcomes,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
-      `)
-      .order('due_date', { ascending: true });
+      `).order('due_date', { ascending: true });
+    }
+
+    type AssignmentQuery = ReturnType<typeof buildSummaryQuery> | ReturnType<typeof buildFullQuery>;
+    let query: AssignmentQuery = summaryView ? buildSummaryQuery() : buildFullQuery();
 
     if (lessonPlanIdFilter) {
+
       // Prefer the canonical FK while retaining metadata-only historical work.
       query = query.or(`lesson_plan_id.eq.${lessonPlanIdFilter},metadata->>lesson_plan_id.eq.${lessonPlanIdFilter}`) as any;
     }
