@@ -7,7 +7,7 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
-import { buildAssignmentGradeTransition } from '@/lib/assignments/grading';
+import { buildAssignmentGradeTransition, gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,9 @@ async function getCaller(): Promise<Caller | null> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/assignment-submissions/[id]
-// Update grade, feedback, status, submission_text on a submission.
+// Update grading state and teacher feedback on a submission.
+// Student-authored evidence is immutable here; students update ungraded work through
+// the assignment submit route, which applies the learner visibility and score guards.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
@@ -73,19 +75,40 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    if ('submission_text' in body && hasProtectedAssignmentScoreEvidence(sub)) {
+    if ('submission_text' in body) {
       return NextResponse.json({
-        error: 'Submitted work cannot be replaced after score evidence exists. Update only the grade or teacher feedback.',
-        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+        error: 'Student work is read-only in the grading workflow. Ask the learner to update the ungraded submission instead.',
+        code: 'IMMUTABLE_SUBMISSION_EVIDENCE',
       }, { status: 409 });
     }
     const assignMax = assignment?.max_points ?? 100;
     const assignWeight = assignment?.weight ?? 0;
-    const gradeResult = normalizeGradeValueWithMax(body.grade, assignMax);
-    if ('grade' in body && gradeResult.error) {
+    const rubric = Array.isArray(assignment?.metadata?.rubric) ? assignment.metadata.rubric : [];
+    let requestedGrade = body.grade;
+    let gradingDetails: Record<string, unknown> | null | undefined;
+    if ('rubric_scores' in body) {
+      const rubricResult = gradeAssignmentRubric(rubric, body.rubric_scores, assignMax);
+      if (rubricResult.error) {
+        return NextResponse.json({ error: rubricResult.error, field: 'rubric_scores' }, { status: 400 });
+      }
+      requestedGrade = rubricResult.grade;
+      gradingDetails = {
+        source: 'rubric',
+        rubric_scores: rubricResult.rows,
+        earned_points: rubricResult.earnedPoints,
+        possible_points: rubricResult.possiblePoints,
+        normalized_grade: rubricResult.grade,
+        assignment_max_points: assignMax,
+      };
+    } else if ('grade' in body && body.grade == null) {
+      gradingDetails = null;
+    }
+    const gradeWasProvided = 'grade' in body || 'rubric_scores' in body;
+    const gradeResult = normalizeGradeValueWithMax(requestedGrade, assignMax);
+    if (gradeWasProvided && gradeResult.error) {
       return NextResponse.json({ error: gradeResult.error, field: 'grade' }, { status: 400 });
     }
-    if ('grade' in body && gradeResult.value === undefined) {
+    if (gradeWasProvided && gradeResult.value === undefined) {
       return NextResponse.json({ error: 'grade must be a number or null', field: 'grade' }, { status: 400 });
     }
     const statusResult = normalizeSubmissionStatus(body.status);
@@ -97,12 +120,12 @@ export async function PATCH(
     // graded_by and graded_at are NOT client-settable — always set server-side
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
-    if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
+    if (gradingDetails !== undefined) allowed.grading_details = gradingDetails;
 
     const transition = buildAssignmentGradeTransition({
       currentGrade: sub.grade ?? null,
       currentStatus: sub.status ?? null,
-      grade: 'grade' in body ? gradeResult.value ?? null : undefined,
+      grade: gradeWasProvided ? gradeResult.value ?? null : undefined,
       status: statusResult.value,
       maxPoints: assignMax,
       weight: assignWeight,
@@ -116,29 +139,56 @@ export async function PATCH(
 
     // Keep submitted files after grading so the grade remains auditable.
 
-    const { data, error } = await admin
+    let updateResult = await admin
       .from('assignment_submissions')
       .update(allowed)
       .eq('id', id)
       .select('id, grade, status, file_url, portal_user_id, weighted_score')
       .single();
 
+    // Rolling-deploy compatibility: the final mark must never be blocked while an
+    // additive migration is waiting to reach a database. The same rubric evidence
+    // is included in the audit event below and storage activates automatically once
+    // the column exists.
+    const missingDetailsColumn = updateResult.error && gradingDetails !== undefined
+      && (updateResult.error.code === '42703'
+        || updateResult.error.code === 'PGRST204'
+        || /grading_details/i.test(updateResult.error.message));
+    if (missingDetailsColumn) {
+      delete allowed.grading_details;
+      console.warn('[assignment-grade] rubric storage migration is pending; preserving the rubric in the audit event', { submissionId: id });
+      updateResult = await admin
+        .from('assignment_submissions')
+        .update(allowed)
+        .eq('id', id)
+        .select('id, grade, status, file_url, portal_user_id, weighted_score')
+        .single();
+    }
+
+    const { data, error } = updateResult;
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    await logAudit(admin as any, {
-      action: transition.finalized ? 'grade_assignment_submission' : 'update_assignment_submission_review',
-      actorId: caller.id,
-      resourceType: 'assignment_submission',
-      resourceId: id,
-      tableName: 'assignment_submissions',
-      oldValues: { grade: sub.grade ?? null, status: sub.status ?? null },
-      newValues: {
-        grade: data.grade ?? null,
-        status: data.status ?? null,
-        weighted_score: data.weighted_score ?? null,
-        feedback_updated: 'feedback' in body,
-      },
-    });
+    try {
+      await logAudit(admin as any, {
+        action: transition.finalized ? 'grade_assignment_submission' : 'update_assignment_submission_review',
+        actorId: caller.id,
+        resourceType: 'assignment_submission',
+        resourceId: id,
+        tableName: 'assignment_submissions',
+        oldValues: { grade: sub.grade ?? null, status: sub.status ?? null },
+        newValues: {
+          grade: data.grade ?? null,
+          status: data.status ?? null,
+          weighted_score: data.weighted_score ?? null,
+          feedback_updated: 'feedback' in body,
+          grading_source: gradingDetails ? 'rubric' : 'direct',
+          grading_details: gradingDetails ?? null,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[assignment-grade] audit event needs reconciliation', { submissionId: id, auditError });
+    }
 
     // Send grade email when a submission is marked graded
     if (transition.finalized && data?.portal_user_id) {

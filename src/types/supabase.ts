@@ -33,6 +33,7 @@ export type Database = {
           evidence_type: string
           graded_at: string | null
           graded_by: string | null
+          grading_details: Json | null
           grading_mode: string | null
           id: string
           lesson_id: string | null
@@ -64,6 +65,7 @@ export type Database = {
           evidence_type: string
           graded_at?: string | null
           graded_by?: string | null
+          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           lesson_id?: string | null
@@ -95,6 +97,7 @@ export type Database = {
           evidence_type?: string
           graded_at?: string | null
           graded_by?: string | null
+          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           lesson_id?: string | null

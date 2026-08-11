@@ -24,7 +24,7 @@ import UniversalFilePreviewModal from '@/components/submissions/UniversalFilePre
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
-import { gradeAssignmentAnswers } from '@/lib/assignments/grading';
+import { gradeAssignmentAnswers, gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 
 /** One file handed in with a submission. Mirrors assignment_submissions.attachments. */
@@ -287,7 +287,6 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     });
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
-    const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
@@ -295,7 +294,14 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [err, setErr] = useState('');
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [filePreviewOpen, setFilePreviewOpen] = useState(false);
-    const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+    const [rubricScores, setRubricScores] = useState<Record<number, number>>(() => {
+        const saved = Array.isArray(sub.grading_details?.rubric_scores)
+            ? sub.grading_details.rubric_scores
+            : [];
+        return Object.fromEntries(saved
+            .filter((row: any) => Number.isInteger(row?.criterionIndex) && Number.isFinite(Number(row?.earned)))
+            .map((row: any) => [row.criterionIndex, Number(row.earned)]));
+    });
     const [briefOpen, setBriefOpen] = useState(false);
 
     const handleGradeChange = (val: string) => {
@@ -308,11 +314,12 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     };
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
+    const rubricMaximum = rubric.reduce((sum, criterion) => sum + Number(criterion.maxPoints || 0), 0);
     const handleRubricScore = (idx: number, val: number) => {
         const updated = { ...rubricScores, [idx]: val };
         setRubricScores(updated);
-        const total = Object.values(updated).reduce((a, b) => a + b, 0);
-        handleGradeChange(String(Math.min(total, max)));
+        const result = gradeAssignmentRubric(rubric, updated, max);
+        if (!result.error) handleGradeChange(String(result.grade));
     };
 
     const info = grade !== '' ? pctInfo(Number(grade), max) : null;
@@ -321,13 +328,18 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const save = async () => {
         const g = Number(grade);
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
+        const hasRubricScores = Object.keys(rubricScores).length > 0;
+        if (hasRubricScores) {
+            const rubricResult = gradeAssignmentRubric(rubric, rubricScores, max);
+            if (rubricResult.error) { setErr(rubricResult.error); return; }
+        }
         setSaving(true); setErr('');
         try {
             const payload: any = {
                 grade: grade === '' ? null : g,
                 feedback, status,
-                submission_text: subText || null,
             };
+            if (hasRubricScores) payload.rubric_scores = rubricScores;
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
             });
@@ -595,12 +607,17 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         )}
                     </div>
 
-                    {/* Submission text */}
+                    {/* Learner evidence is immutable in the grading workspace. */}
                     <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student's Written Work</p>
-                        <textarea value={subText} rows={5} onChange={e => setSubText(e.target.value)}
-                            className="w-full bg-transparent text-sm text-muted-foreground focus:outline-none resize-none leading-relaxed placeholder:text-white/20"
-                            placeholder="No text submission…" />
+                        {sub.submission_text ? (
+                            <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-sm leading-relaxed text-muted-foreground">
+                                {sub.submission_text}
+                            </div>
+                        ) : (
+                            <p className="text-sm italic text-muted-foreground">No written response was submitted.</p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">Learner evidence is locked here; only the score and teacher feedback can be changed.</p>
                     </div>
 
                     {/* Submitted attachment */}
@@ -733,7 +750,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-4 space-y-3">
                             <div className="flex items-center justify-between">
                                 <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
-                                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">Total: {rubricTotal} / {max}</span>
+                                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">Rubric: {rubricTotal} / {rubricMaximum}</span>
                             </div>
                             {rubric.map((r, ri) => (
                                 <div key={ri} className="flex items-center gap-3">
@@ -744,7 +761,17 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <input type="number" min={0} max={r.maxPoints}
                                             value={rubricScores[ri] ?? ''}
-                                            onChange={e => handleRubricScore(ri, Math.min(parseInt(e.target.value) || 0, r.maxPoints))}
+                                            onChange={e => {
+                                                if (e.target.value === '') {
+                                                    setRubricScores((current) => {
+                                                        const next = { ...current };
+                                                        delete next[ri];
+                                                        return next;
+                                                    });
+                                                    return;
+                                                }
+                                                handleRubricScore(ri, Math.min(Number(e.target.value), r.maxPoints));
+                                            }}
                                             className="w-14 px-2 py-1.5 bg-black/30 border border-amber-500/30 rounded-lg text-xs text-center text-foreground font-bold focus:outline-none focus:border-amber-500" />
                                         <span className="text-[10px] text-muted-foreground">/{r.maxPoints}</span>
                                     </div>
@@ -754,7 +781,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                     )}
 
                     {/* AI grading trigger — for open-ended text submissions with no suggestion yet */}
-                    {sub.ai_suggested_grade == null && (sub.submission_text || subText) && (
+                    {sub.ai_suggested_grade == null && sub.submission_text && (
                         <button type="button" onClick={handleAiSuggest} disabled={aiLoading}
                             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[11px] font-black text-violet-700 dark:text-violet-300 uppercase tracking-widest bg-violet-500/10 border border-violet-500/25 hover:bg-violet-500/20 disabled:opacity-50 transition-all rounded-xl">
                             {aiLoading ? 'Grading with AI…' : '✨ Grade this submission with AI'}
@@ -884,6 +911,9 @@ export default function AssignmentDetailPage() {
 
     const [assignment, setAssignment] = useState<any>(null);
     const [submission, setSubmission] = useState<any>(null);
+    const [editingSubmission, setEditingSubmission] = useState(false);
+    const [draftHydrated, setDraftHydrated] = useState(false);
+    const [draftRestored, setDraftRestored] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [text, setText] = useState('');
@@ -942,6 +972,35 @@ export default function AssignmentDetailPage() {
                         setAssignment(asgn);
                         const mySub = asgn?.assignment_submissions?.[0] ?? null;
                         setSubmission(mySub);
+                        setEditingSubmission(false);
+                        if (mySub) {
+                            const storedAnswers = mySub.answers && typeof mySub.answers === 'object'
+                                ? mySub.answers
+                                : {};
+                            setAnswers(Object.fromEntries(
+                                Object.entries(storedAnswers)
+                                    .filter(([key]) => /^\d+$/.test(key))
+                                    .map(([key, value]) => [Number(key), String(value ?? '')]),
+                            ));
+                            setSnapshots(Array.isArray(storedAnswers.snapshots) ? storedAnswers.snapshots : []);
+                            const savedAttachments = Array.isArray(mySub.attachments)
+                                ? mySub.attachments.filter((item: any) => item?.url)
+                                : mySub.file_url
+                                    ? [{ url: mySub.file_url, name: 'Submitted file', type: null, size: null }]
+                                    : [];
+                            setAttachments(savedAttachments);
+                            setFileUrl(savedAttachments[0]?.url ?? mySub.file_url ?? null);
+
+                            const written = String(mySub.submission_text ?? '');
+                            const codingMatch = written.match(/^```\n([\s\S]*?)\n```\n\n(?:Output:\n([\s\S]*?)\n\n)?([\s\S]*)$/);
+                            if (asgn.assignment_type === 'coding' && codingMatch) {
+                                setCodeAnswer(codingMatch[1] ?? '');
+                                setCodeOutput(codingMatch[2] ?? '');
+                                setText(codingMatch[3] ?? '');
+                            } else {
+                                setText(written);
+                            }
+                        }
                     }
                 }
             } catch (e: any) {
@@ -953,6 +1012,50 @@ export default function AssignmentDetailPage() {
         load();
         return () => { cancelled = true; };
     }, [authLoading, profile, id, isStaff, refreshKey]);
+
+    const draftKey = profile?.id && id ? `rillcod-assignment-draft:${profile.id}:${id}` : null;
+
+    // Restore unfinished learner work after refresh, browser restarts, or a weak
+    // connection. Uploaded URLs are safe to retain; raw local files are never stored.
+    useEffect(() => {
+        if (loading || isStaff || submission || !draftKey || draftHydrated) return;
+        setDraftHydrated(true);
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            setText(typeof draft.text === 'string' ? draft.text : '');
+            setCodeAnswer(typeof draft.codeAnswer === 'string' ? draft.codeAnswer : '');
+            setCodeOutput(typeof draft.codeOutput === 'string' ? draft.codeOutput : '');
+            setAnswers(draft.answers && typeof draft.answers === 'object' ? draft.answers : {});
+            setAttachments(Array.isArray(draft.attachments) ? draft.attachments : []);
+            setSnapshots(Array.isArray(draft.snapshots) ? draft.snapshots : []);
+            setFileUrl(Array.isArray(draft.attachments) ? draft.attachments[0]?.url ?? null : null);
+            setDraftRestored(true);
+        } catch (draftError) {
+            console.warn('[assignment-draft] saved work could not be restored', draftError);
+        }
+    }, [draftHydrated, draftKey, isStaff, loading, submission]);
+
+    useEffect(() => {
+        if (!draftHydrated || isStaff || !draftKey || (submission && !editingSubmission)) return;
+        const timer = window.setTimeout(() => {
+            try {
+                localStorage.setItem(draftKey, JSON.stringify({
+                    text,
+                    codeAnswer,
+                    codeOutput,
+                    answers,
+                    attachments,
+                    snapshots,
+                    savedAt: new Date().toISOString(),
+                }));
+            } catch (draftError) {
+                console.warn('[assignment-draft] work could not be saved locally', draftError);
+            }
+        }, 400);
+        return () => window.clearTimeout(timer);
+    }, [answers, attachments, codeAnswer, codeOutput, draftHydrated, draftKey, editingSubmission, isStaff, snapshots, submission, text]);
 
     // Compress image via Canvas API — reduces phone photos from 8-15 MB down to ~300 KB
     const compressImage = (file: File): Promise<File> => new Promise((resolve) => {
@@ -1087,6 +1190,7 @@ export default function AssignmentDetailPage() {
         if (!profile || !assignment) return;
         if (uploadingFile || uploadingSnap) return;
         setSubmitting(true);
+        setError(null);
         // For coding assignments, combine code + notes as submission_text
         const _isCoding = assignment?.assignment_type === 'coding';
         const submissionText = _isCoding
@@ -1108,8 +1212,16 @@ export default function AssignmentDetailPage() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to submit');
             setSubmission(json.data);
+            setEditingSubmission(false);
             setSubmitDone(true);
-            setText('');
+            setDraftRestored(false);
+            if (draftKey) {
+                try {
+                    localStorage.removeItem(draftKey);
+                } catch (draftError) {
+                    console.warn('[assignment-draft] completed draft could not be cleared', draftError);
+                }
+            }
         } catch (e: any) {
             setError(e.message ?? 'Failed to submit');
         } finally {
@@ -1387,6 +1499,13 @@ export default function AssignmentDetailPage() {
     if (!assignment) return null;
 
     const isCodingAssignment = assignment.assignment_type === 'coding';
+    const submissionActionLabel = submission
+        ? 'Save updated submission'
+        : assignment.assignment_type === 'project'
+            ? 'Submit project'
+            : assignment.assignment_type === 'coding'
+                ? 'Submit code'
+                : 'Submit assignment';
 
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
@@ -1501,11 +1620,12 @@ export default function AssignmentDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            {/* Open in Playground */}
-                            <Link href={`/dashboard/playground?assignmentId=${id}`}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-colors border border-emerald-500/20">
-                                <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
-                            </Link>
+                            {isCodingAssignment && (
+                                <Link href={`/dashboard/playground?assignmentId=${id}`}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-colors border border-emerald-500/20">
+                                    <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
+                                </Link>
+                            )}
                             {/* Staff edit + print + share buttons */}
                             {canGrade && (
                                 <>
@@ -1619,6 +1739,23 @@ export default function AssignmentDetailPage() {
                                 </p>
                             </div>
                         </div>
+                        {Array.isArray(submission.grading_details?.rubric_scores) && submission.grading_details.rubric_scores.length > 0 && (
+                            <div className="px-6 pb-6">
+                                <div className="overflow-hidden rounded-xl border border-border">
+                                    <div className="border-b border-border bg-muted/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        How your rubric score was calculated
+                                    </div>
+                                    <div className="divide-y divide-border">
+                                        {submission.grading_details.rubric_scores.map((row: any) => (
+                                            <div key={row.criterionIndex} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
+                                                <span className="text-muted-foreground">{row.criterion}</span>
+                                                <span className="font-bold text-foreground">{row.earned} / {row.maximum}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {/* Feedback */}
                         {submission.feedback && (
                             <div className="px-6 pb-6">
@@ -1728,16 +1865,6 @@ export default function AssignmentDetailPage() {
                     </div>
                 )}
 
-                {/* Teacher Feedback (student view) */}
-                {!isStaff && submission?.feedback && (
-                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6">
-                        <h2 className="font-bold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
-                            <CheckCircleIcon className="w-4 h-4" /> Teacher Feedback
-                        </h2>
-                        <p className="text-muted-foreground text-sm leading-relaxed">{submission.feedback}</p>
-                    </div>
-                )}
-
                 {/* ── STUDENT SUBMISSION FORM ── */}
                 {!isStaff && (
                     <div className="bg-card shadow-sm border border-border rounded-xl p-6">
@@ -1751,30 +1878,38 @@ export default function AssignmentDetailPage() {
                                 <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
                                     <CheckCircleIcon className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
                                 </div>
-                                <p className="text-emerald-600 dark:text-emerald-400 font-black text-base">Submitted successfully!</p>
+                                <p className="text-emerald-600 dark:text-emerald-400 font-black text-base">Submission saved successfully!</p>
                                 <p className="text-emerald-600/60 dark:text-emerald-400/60 text-xs">Your teacher will review and grade your work. Check back here for your result.</p>
                             </div>
                         )}
 
-                        {submission?.status && ['graded', 'submitted', 'late', 'pending_review'].includes(submission.status) ? (
+                        {submission?.status && ['graded', 'submitted', 'late', 'pending_review'].includes(submission.status) && !editingSubmission ? (
                             <div className="space-y-4">
-                                {/* Submitted attachment */}
-                                {submission.file_url && (
+                                {/* Every submitted attachment, not only the legacy primary file. */}
+                                {(Array.isArray(submission.attachments) && submission.attachments.length > 0
+                                    ? submission.attachments
+                                    : submission.file_url
+                                        ? [{ url: submission.file_url, name: 'Submitted file' }]
+                                        : []).length > 0 && (
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                            Your attachment
+                                            Your files
                                         </p>
-                                        <SubmissionAttachmentCard
-                                            url={submission.file_url}
-                                            onOpenPreview={
-                                                isSubmissionImageUrl(submission.file_url)
-                                                    ? () => setLightboxUrl(submission.file_url)
-                                                    : undefined
-                                            }
-                                        />
-                                        {submission.status !== 'graded' && isSubmissionImageUrl(submission.file_url) && (
-                                            <p className="text-[10px] text-muted-foreground italic">Photo may be cleared after grading.</p>
-                                        )}
+                                        {(Array.isArray(submission.attachments) && submission.attachments.length > 0
+                                            ? submission.attachments
+                                            : [{ url: submission.file_url, name: 'Submitted file' }]
+                                        ).map((attachment: SubmissionAttachment) => (
+                                            <SubmissionAttachmentCard
+                                                key={attachment.url}
+                                                url={attachment.url}
+                                                name={attachment.name}
+                                                onOpenPreview={
+                                                    isSubmissionImageUrl(attachment.url)
+                                                        ? () => setLightboxUrl(attachment.url)
+                                                        : undefined
+                                                }
+                                            />
+                                        ))}
                                     </div>
                                 )}
                                 {/* Show which questions were attempted */}
@@ -1782,7 +1917,7 @@ export default function AssignmentDetailPage() {
                                     <div className="border border-white/8 rounded-xl overflow-hidden">
                                         <div className="px-4 py-2.5 bg-white/3 border-b border-white/8">
                                             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                                Questions Attempted: {Object.keys(submission.answers).filter(k => submission.answers[k] !== '' && submission.answers[k] != null).length} / {assignment.questions.length}
+                                                Questions Attempted: {Object.keys(submission.answers).filter(k => /^\d+$/.test(k) && submission.answers[k] !== '' && submission.answers[k] != null).length} / {assignment.questions.length}
                                             </p>
                                         </div>
                                         <div className="divide-y divide-white/5">
@@ -1810,9 +1945,35 @@ export default function AssignmentDetailPage() {
                                         ? 'This assignment has been graded. No further submissions accepted.'
                                         : 'Your assignment has been submitted and is awaiting teacher review. Grade will appear here once marked.'}
                                 </div>
+                                {submission.status !== 'graded' && assignment.is_active !== false && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setSubmitDone(false); setEditingSubmission(true); }}
+                                        className="w-full rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/15"
+                                    >
+                                        Update submission before grading
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className={`space-y-6 ${MOBILE_STICKY_ACTIONS_BOTTOM} sm:pb-0`}>
+
+                                {editingSubmission && (
+                                    <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                                        <div>
+                                            <p className="text-sm font-bold text-foreground">Updating your submission</p>
+                                            <p className="text-xs text-muted-foreground">Your previous work is restored below. Save again when ready.</p>
+                                        </div>
+                                        <button type="button" onClick={() => setEditingSubmission(false)} className="text-xs font-bold text-primary hover:underline">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
+                                {draftRestored && !editingSubmission && (
+                                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-300">
+                                        Your unfinished work was restored automatically.
+                                    </div>
+                                )}
 
                                 {/* ── Sticky submit bar (top of form) ── */}
                                 {(() => {
@@ -1837,7 +1998,7 @@ export default function AssignmentDetailPage() {
                                                 )}
                                                 <button type="submit" disabled={isDisabled}
                                                     className="flex items-center gap-2 px-6 py-2.5 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-lg text-sm transition-all flex-shrink-0 shadow-lg shadow-red-900/30">
-                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit'}</>}
+                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submissionActionLabel}</>}
                                                 </button>
                                             </div>
 
@@ -1857,7 +2018,7 @@ export default function AssignmentDetailPage() {
                                                 )}
                                                 <button type="submit" disabled={isDisabled}
                                                     className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-all shadow-lg shadow-red-900/40">
-                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit Exam'}</>}
+                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submissionActionLabel}</>}
                                                 </button>
                                             </div>
                                         </>
@@ -2083,7 +2244,7 @@ export default function AssignmentDetailPage() {
                                     className="hidden sm:flex items-center gap-2 px-6 py-3 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-xl transition-all shadow-lg shadow-red-900/30">
                                     {submitting
                                         ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</>
-                                        : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit Exam'}</>
+                                        : <><ArrowUpTrayIcon className="w-4 h-4" /> {submissionActionLabel}</>
                                     }
                                 </button>
                             </form>

@@ -91,7 +91,7 @@ export async function GET(
         .maybeSingle(),
       admin
         .from('assignment_submissions')
-        .select('id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers')
+        .select('id, status, grade, feedback, submitted_at, graded_at, updated_at, portal_user_id, submission_text, file_url, attachments, answers')
         .eq('assignment_id', id)
         .eq('portal_user_id', targetStudentId)
         .maybeSingle(),
@@ -145,10 +145,23 @@ export async function GET(
       ? asgn.questions.map(({ correct_answer: _ca, ...q }: any) => q)
       : asgn.questions;
 
+    let submission = subRes.data ? { ...subRes.data } as any : null;
+    if (submission?.id) {
+      const { data: detail, error: detailError } = await admin
+        .from('assignment_submissions')
+        .select('grading_details')
+        .eq('id', submission.id)
+        .maybeSingle();
+      if (!detailError && detail) submission.grading_details = detail.grading_details;
+      else if (detailError && !['42703', 'PGRST204'].includes(detailError.code) && !/grading_details/i.test(detailError.message)) {
+        console.warn('[assignment-student] rubric details were unavailable', { submissionId: submission.id, detailError });
+      }
+    }
+
     const data = {
       ...asgn,
       questions: safeQuestions,
-      assignment_submissions: subRes.data ? [subRes.data] : [],
+      assignment_submissions: submission ? [submission] : [],
     };
 
     return NextResponse.json({ data });

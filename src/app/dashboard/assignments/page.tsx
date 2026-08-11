@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchJsonWithTimeout } from '@/lib/async-timeout';
+import { fetchJsonWithTimeout, fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
@@ -73,6 +73,21 @@ function isOverdue(due?: string | null) {
   return dueDateUTC < nowUTC;
 }
 
+function studentStatusLabel(status: string, overdue: boolean) {
+  if (status === 'missing') return overdue ? 'Overdue' : 'Not started';
+  if (status === 'pending_review') return 'Awaiting review';
+  if (status === 'submitted') return 'Submitted';
+  if (status === 'graded') return 'Graded';
+  if (status === 'late') return 'Submitted late';
+  return status || 'Not started';
+}
+
+function dueTime(value?: string | null) {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : Number.MAX_SAFE_INTEGER;
+}
+
 // ─── Skeleton loader ─────────────────────────────────────────
 function Skeleton() {
   return (
@@ -93,12 +108,10 @@ function Skeleton() {
 
 const STATUS_PILLS = [
   { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'submitted', label: 'Submitted' },
+  { value: 'pending', label: 'To do' },
+  { value: 'awaiting', label: 'Awaiting review' },
   { value: 'graded', label: 'Graded' },
-  { value: 'late', label: 'Late' },
-  { value: 'missing', label: 'Missing' },
-  { value: 'pending_review', label: 'AI Review' },
+  { value: 'missing', label: 'Overdue' },
 ];
 
 const STAFF_FILTER_TABS = [
@@ -138,6 +151,7 @@ function AssignmentsPageInner() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sharing, setSharing] = useState<any | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const initialPlanId = searchParams?.get('lesson_plan_id') ?? '';
   const [lessonPlans, setLessonPlans] = useState<any[]>([]);
@@ -184,13 +198,20 @@ function AssignmentsPageInner() {
       setError(null);
       try {
         let data: any[];
+        const listUrl = filterPlanId
+          ? `/api/assignments?view=summary&lesson_plan_id=${encodeURIComponent(filterPlanId)}`
+          : '/api/assignments?view=summary';
+        const response = await fetchWithTimeoutOrThrow(
+          listUrl,
+          { cache: 'no-store' },
+          'Assignments are taking longer than expected. Please try again.',
+          25_000,
+        );
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(json.error || 'Assignments could not be loaded.');
         if (isStaff) {
-          const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
-          const json = await fetchJsonWithTimeout(url, { data: [] }, 'staff assignments');
           data = json.data ?? [];
         } else {
-          const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
-          const json = await fetchJsonWithTimeout(url, { data: [] }, 'student assignments');
           let rawData = (json.data ?? []).map(toStudentAssignmentItem);
           if (filterPlanId) {
             rawData = rawData.filter((a: any) => {
@@ -209,7 +230,7 @@ function AssignmentsPageInner() {
     }
     load();
     return () => { cancelled = true; };
-  }, [profile?.id, isStaff, authLoading, filterPlanId]);
+  }, [profile?.id, isStaff, authLoading, filterPlanId, refreshKey]);
 
   /** search + filter */
   const filtered = items.filter((a: any) => {
@@ -238,19 +259,38 @@ function AssignmentsPageInner() {
       mf = status === 'missing' && !isOverdue(a.assignments?.due_date);
     } else if (filter === 'missing') {
       mf = status === 'missing' && isOverdue(a.assignments?.due_date);
+    } else if (filter === 'awaiting') {
+      mf = ['submitted', 'pending_review', 'late'].includes(status);
     } else {
       mf = status === filter;
     }
     return ms && mf && mt;
+  }).sort((a: any, b: any) => {
+    if (isStaff) {
+      const actionable = (item: any) => (item.assignment_submissions ?? [])
+        .filter((sub: any) => ['submitted', 'pending_review', 'late'].includes(sub.status)).length;
+      return actionable(b) - actionable(a) || dueTime(a.due_date) - dueTime(b.due_date);
+    }
+    const priority = (item: any) => {
+      const status = item.status ?? 'missing';
+      if (status === 'missing' && isOverdue(item.assignments?.due_date)) return 0;
+      if (status === 'missing') return 1;
+      if (['submitted', 'pending_review', 'late'].includes(status)) return 2;
+      return 3;
+    };
+    return priority(a) - priority(b)
+      || dueTime(a.assignments?.due_date) - dueTime(b.assignments?.due_date);
   });
 
   // Stats derived from real data
   const totalItems = items.length;
   const pendingCount = isStaff
-    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'submitted' || s.status === 'pending_review' || s.status === 'late')).length
+    ? items.reduce((count: number, assignment: any) => count + (assignment.assignment_submissions ?? [])
+        .filter((submission: any) => ['submitted', 'pending_review', 'late'].includes(submission.status)).length, 0)
     : items.filter((a: any) => a.status === 'submitted' || a.status === 'pending_review' || a.status === 'late').length;
   const gradedCount = isStaff
-    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'graded')).length
+    ? items.reduce((count: number, assignment: any) => count + (assignment.assignment_submissions ?? [])
+        .filter((submission: any) => submission.status === 'graded').length, 0)
     : items.filter((a: any) => a.status === 'graded').length;
   const overdueCount = isStaff
     ? items.filter((a: any) => isOverdue(a.due_date) && a.is_active !== false).length
@@ -330,17 +370,17 @@ function AssignmentsPageInner() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Assignments & Exams Tab Bar ── */}
-        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+        <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-border bg-card p-1 sm:flex sm:w-fit">
+          <span className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
           </span>
           <Link href="/dashboard/projects"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
             <RocketLaunchIcon className="w-4 h-4" /> Projects
           </Link>
           <Link href="/dashboard/cbt"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <CommandLineIcon className="w-4 h-4" /> CBT Exams
+            className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            <CommandLineIcon className="w-4 h-4" /> CBT
           </Link>
         </div>
 
@@ -369,19 +409,20 @@ function AssignmentsPageInner() {
 
             {/* Right: stats + create */}
             <div className="flex w-full sm:w-auto flex-col items-stretch sm:items-end gap-3 flex-shrink-0">
-              <div className="flex gap-px border border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-px sm:border sm:border-border">
                 {[
-                  { label: 'Total', value: totalItems, color: 'text-primary' },
-                  { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-primary' },
-                  { label: 'Graded', value: gradedCount, color: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Total', value: totalItems, color: 'text-primary', action: () => isStaff ? setStaffTab('all') : setFilter('all') },
+                  { label: 'Awaiting Review', value: pendingCount, color: 'text-primary', action: () => isStaff ? setStaffTab('needs_grading') : setFilter('awaiting') },
+                  { label: 'Graded', value: gradedCount, color: 'text-emerald-600 dark:text-emerald-400', action: () => isStaff ? setStaffTab('all') : setFilter('graded') },
                   {
                     label: 'Overdue',
                     value: overdueCount,
                     color: overdueCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground',
                     pulse: overdueCount > 0,
+                    action: () => isStaff ? setStaffTab('overdue') : setFilter('missing'),
                   },
                 ].map((stat, idx) => (
-                  <div key={stat.label} className={`bg-background px-4 sm:px-5 py-3 text-center min-w-[76px] ${idx > 0 ? 'border-l border-border' : ''}`}>
+                  <button type="button" onClick={stat.action} key={stat.label} className={`min-w-0 rounded-xl border border-border bg-background px-3 sm:px-5 py-3 text-center transition-colors hover:bg-muted/50 sm:rounded-none sm:border-0 ${idx > 0 ? 'sm:border-l sm:border-border' : ''}`}>
                     <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
                     <div className="flex items-center justify-center gap-1.5">
                       {(stat as any).pulse && (
@@ -389,7 +430,7 @@ function AssignmentsPageInner() {
                       )}
                       <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
               {isStaff && (
@@ -408,7 +449,10 @@ function AssignmentsPageInner() {
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
-            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+            <p className="flex-1 text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+            <button type="button" onClick={() => setRefreshKey((key) => key + 1)} className="rounded-lg border border-rose-500/25 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/10">
+              Try again
+            </button>
           </div>
         )}
 
@@ -592,7 +636,7 @@ function AssignmentsPageInner() {
           <div className="space-y-2">
             {filtered.map((a: any) => {
               const subs = a.assignment_submissions ?? [];
-              const submittedCnt = subs.filter((s: any) => s.status === 'submitted').length;
+              const submittedCnt = subs.filter((s: any) => ['submitted', 'pending_review', 'late'].includes(s.status)).length;
               const gradedCnt = subs.filter((s: any) => s.status === 'graded').length;
               const totalSubs = subs.length;
               const overdue = isOverdue(a.due_date) && a.is_active !== false;
@@ -739,7 +783,21 @@ function AssignmentsPageInner() {
             {filtered.map((sub: any) => {
               const a = sub.assignments ?? {};
               const overdue = isOverdue(a.due_date) && sub.status === 'missing';
-              const accentColor = SUB_ACCENT[sub.status ?? 'pending'] ?? 'bg-muted';
+              const accentColor = sub.status === 'missing' && !overdue
+                ? 'bg-primary'
+                : SUB_ACCENT[sub.status ?? 'pending'] ?? 'bg-muted';
+              const statusBadgeClass = sub.status === 'missing' && !overdue
+                ? 'bg-primary/10 text-primary border-primary/20'
+                : SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-muted text-muted-foreground border-border';
+              const statusLabel = studentStatusLabel(sub.status ?? 'missing', overdue);
+              const detailHref = `/dashboard/assignments/${sub.assignment_id ?? a.id}`;
+              const primaryLabel = sub.status === 'graded'
+                ? 'View feedback'
+                : ['submitted', 'pending_review', 'late'].includes(sub.status)
+                  ? 'View submission'
+                  : overdue
+                    ? 'Submit now'
+                    : 'Start assignment';
 
               return (
                 <div
@@ -755,8 +813,8 @@ function AssignmentsPageInner() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h4 className="font-black text-foreground text-base">{a.title ?? 'Assignment'}</h4>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                            {sub.status ?? 'Pending'}
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${statusBadgeClass}`}>
+                            {statusLabel}
                           </span>
                           {a.assignment_type && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground border-border'}`}>
@@ -808,8 +866,9 @@ function AssignmentsPageInner() {
                         )}
                       </div>
 
-                      {/* Right: action buttons */}
-                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      {/* One clear next action per learner; specialist tools remain
+                          available only when they are the correct assignment pathway. */}
+                      <div className="flex w-full flex-col gap-1.5 sm:w-auto flex-shrink-0">
                         {sub.status === 'missing' && a.assignment_type === 'cbt' && (
                           <Link
                             href={`/dashboard/cbt/${sub.assignment_id ?? a.id}/take`}
@@ -826,20 +885,13 @@ function AssignmentsPageInner() {
                             <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
                           </Link>
                         )}
-                        {sub.status === 'missing' && a.assignment_type !== 'coding' && a.assignment_type !== 'cbt' && (
+                        {a.assignment_type !== 'cbt' && !(sub.status === 'missing' && a.assignment_type === 'coding') && (
                           <Link
-                            href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                            className="flex items-center gap-2 bg-primary hover:bg-primary text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                            href={detailHref}
+                            className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 border border-primary text-primary-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2.5 rounded-lg transition-colors"
                           >
-                            <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Submit
-                          </Link>
-                        )}
-                        {a.assignment_type !== 'cbt' && (
-                          <Link
-                            href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                            className="flex items-center gap-2 bg-card hover:bg-muted border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
-                          >
-                            <EyeIcon className="w-3.5 h-3.5" /> View
+                            {sub.status === 'missing' ? <ArrowUpTrayIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                            {primaryLabel}
                           </Link>
                         )}
                         {a.assignment_type === 'cbt' && (

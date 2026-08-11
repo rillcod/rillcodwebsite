@@ -110,11 +110,17 @@ export async function GET(request: NextRequest) {
     const lessonPlanIdFilter = url.searchParams.get('lesson_plan_id');
     const termIdFilter = url.searchParams.get('term_id');
     const allSessions = url.searchParams.get('all_sessions') === '1';
+    const summaryView = url.searchParams.get('view') === 'summary';
 
     const admin = adminClient();
     let query = admin
       .from('assignments')
-      .select(`
+      .select(summaryView ? `
+        id, title, due_date, max_points, assignment_type, is_active, created_at, created_by,
+        course_id, program_id, class_id, school_id, school_name, metadata, term_id, lesson_plan_id,
+        courses ( id, title, programs ( name ) ),
+        assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
+      ` : `
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
         course_id, program_id, class_id, school_id, school_name, metadata, term_id,

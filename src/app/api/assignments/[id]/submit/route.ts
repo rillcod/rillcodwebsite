@@ -29,6 +29,21 @@ function adminClient() {
   );
 }
 
+async function safeAssignmentAudit(
+  admin: ReturnType<typeof adminClient>,
+  event: Parameters<typeof logAudit>[1],
+) {
+  try {
+    await logAudit(admin as any, event);
+  } catch (error) {
+    console.warn('[assignment-submit] audit event needs reconciliation', {
+      action: event.action,
+      resourceId: event.resourceId,
+      error,
+    });
+  }
+}
+
 async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, classId: string | null): Promise<string | null> {
   if (!classId) return null;
   const { data } = await admin
@@ -265,7 +280,7 @@ export async function POST(
           if (gradedError) throw new Error(gradedError.message);
 
           if (gradedRow) {
-            await logAudit(admin as any, {
+            await safeAssignmentAudit(admin, {
               action: 'submit_and_auto_grade_assignment',
               actorId: caller.id,
               resourceType: 'assignment_submission',
@@ -337,15 +352,13 @@ export async function POST(
           .eq('assignment_id', assignment_id)
           .eq('portal_user_id', effectiveUserId);
         if (recoveryError) {
-          return NextResponse.json({
-            error: 'Submission was saved, but it could not be placed in the teacher review queue.',
-            detail: recoveryError.message,
-          }, { status: 500 });
+          console.error('[assignment-submit] auto-grade recovery update failed; submission remains in the teacher queue', recoveryError);
+        } else {
+          data.status = 'pending_review';
         }
-        data.status = 'pending_review';
         data.grade = null;
         data.weighted_score = null;
-        await logAudit(admin as any, {
+        await safeAssignmentAudit(admin, {
           action: 'assignment_auto_grading_failed', actorId: caller.id,
           resourceType: 'assignment_submission', resourceId: data.id,
           newValue: autoErr instanceof Error ? autoErr.message : 'Automatic grading failed',
@@ -390,13 +403,11 @@ export async function POST(
           .eq('assignment_id', assignment_id)
           .eq('portal_user_id', effectiveUserId);
         if (recoveryError) {
-          return NextResponse.json({
-            error: 'Submission was saved, but it could not be placed in the teacher review queue.',
-            detail: recoveryError.message,
-          }, { status: 500 });
+          console.error('[assignment-submit] AI-grade recovery update failed; submission remains in the teacher queue', recoveryError);
+        } else {
+          data.status = 'pending_review';
         }
-        data.status = 'pending_review';
-        await logAudit(admin as any, {
+        await safeAssignmentAudit(admin, {
           action: 'assignment_ai_grading_failed', actorId: caller.id,
           resourceType: 'assignment_submission', resourceId: data.id,
           newValue: aiErr instanceof Error ? aiErr.message : 'AI-assisted grading failed',
@@ -436,7 +447,7 @@ export async function POST(
       awardSubmissionXP(engAdmin, effectiveUserId, assignment_id, assignment).catch(console.error);
     }
 
-    await logAudit(admin as any, {
+    await safeAssignmentAudit(admin, {
       action: isStaff ? 'submit_assignment_for_student' : 'submit_assignment',
       actorId: caller.id,
       resourceType: 'assignment_submission',
@@ -453,8 +464,9 @@ export async function POST(
     });
 
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  } catch (error) {
+    console.error('[assignment-submit] unexpected failure', error);
+    return NextResponse.json({ error: 'We could not save this submission just now. Your work remains on this device; please try again.' }, { status: 500 });
   }
 }
 

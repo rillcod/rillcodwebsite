@@ -3,6 +3,7 @@ import {
   buildAssignmentGradeTransition,
   computeAssignmentWeightedScore,
   gradeAssignmentAnswers,
+  gradeAssignmentRubric,
 } from './grading';
 
 describe('assignment grading policy', () => {
@@ -88,5 +89,29 @@ describe('assignment auto-grading', () => {
     expect(result?.grade).toBe(10);
     expect(result?.needsReview).toBe(true);
     expect(result?.results).toEqual(['correct', 'manual']);
+  });
+});
+
+describe('assignment rubric grading', () => {
+  const rubric = [
+    { criterion: 'Research', maxPoints: 20 },
+    { criterion: 'Build quality', maxPoints: 30 },
+  ];
+
+  it('retains criterion evidence and normalizes to the assignment maximum', () => {
+    expect(gradeAssignmentRubric(rubric, { 0: 15, 1: 24 }, 100)).toEqual({
+      grade: 78,
+      earnedPoints: 39,
+      possiblePoints: 50,
+      rows: [
+        { criterionIndex: 0, criterion: 'Research', earned: 15, maximum: 20 },
+        { criterionIndex: 1, criterion: 'Build quality', earned: 24, maximum: 30 },
+      ],
+    });
+  });
+
+  it('rejects partial or out-of-range rubric scores', () => {
+    expect(gradeAssignmentRubric(rubric, { 0: 15 }, 100).error).toMatch(/criterion 2/i);
+    expect(gradeAssignmentRubric(rubric, { 0: 21, 1: 20 }, 100).error).toMatch(/0 to 20/i);
   });
 });

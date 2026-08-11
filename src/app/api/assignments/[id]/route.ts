@@ -114,8 +114,10 @@ export async function GET(
       *, courses ( id, title, programs ( name ) ),
       assignment_submissions (
         id, status, grade, portal_user_id,
-        submission_text, answers, file_url,
-        submitted_at, graded_at, feedback,
+        submission_text, answers, file_url, attachments,
+        submitted_at, graded_at, updated_at, feedback,
+        weighted_score, grading_mode,
+        ai_suggested_grade, ai_suggested_feedback,
         portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email )
       )
     `)
@@ -130,6 +132,23 @@ export async function GET(
     const canAccess = await callerCanManageAssignmentWork(admin as any, caller, data as any);
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied: assignment is outside your class/school scope' }, { status: 403 });
+    }
+  }
+
+  const submissions = Array.isArray((data as any).assignment_submissions)
+    ? (data as any).assignment_submissions
+    : [];
+  const submissionIds = submissions.map((submission: any) => submission.id).filter(Boolean);
+  if (submissionIds.length > 0) {
+    const { data: details, error: detailsError } = await admin
+      .from('assignment_submissions')
+      .select('id, grading_details')
+      .in('id', submissionIds);
+    if (!detailsError) {
+      const byId = new Map((details ?? []).map((detail) => [detail.id, detail.grading_details]));
+      for (const submission of submissions) submission.grading_details = byId.get(submission.id) ?? null;
+    } else if (!['42703', 'PGRST204'].includes(detailsError.code) && !/grading_details/i.test(detailsError.message)) {
+      console.warn('[assignment-detail] rubric details were unavailable', { assignmentId: id, detailsError });
     }
   }
 

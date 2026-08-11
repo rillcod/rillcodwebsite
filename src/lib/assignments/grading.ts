@@ -93,6 +93,74 @@ export type AssignmentAutoGradeResult = {
   results: Array<'correct' | 'wrong' | 'skipped' | 'manual'>;
 };
 
+export type AssignmentRubricCriterion = {
+  criterion?: string | null;
+  description?: string | null;
+  maxPoints?: number | null;
+};
+
+export type AssignmentRubricGradeResult = {
+  grade: number;
+  earnedPoints: number;
+  possiblePoints: number;
+  rows: Array<{
+    criterionIndex: number;
+    criterion: string;
+    earned: number;
+    maximum: number;
+  }>;
+  error?: string;
+};
+
+/**
+ * Canonical rubric calculation. Criterion marks remain auditable while the final
+ * grade is normalized to assignment.max_points when a legacy rubric total differs.
+ */
+export function gradeAssignmentRubric(
+  rubric: AssignmentRubricCriterion[],
+  scores: Record<string, unknown> | unknown[],
+  maxPoints: number,
+): AssignmentRubricGradeResult {
+  const invalid: AssignmentRubricGradeResult = {
+    grade: 0,
+    earnedPoints: 0,
+    possiblePoints: 0,
+    rows: [],
+    error: 'A complete, valid rubric is required.',
+  };
+  if (!Array.isArray(rubric) || rubric.length === 0 || !Number.isFinite(maxPoints) || maxPoints <= 0) {
+    return invalid;
+  }
+
+  const rows: AssignmentRubricGradeResult['rows'] = [];
+  for (let index = 0; index < rubric.length; index += 1) {
+    const maximum = Number(rubric[index]?.maxPoints ?? 0);
+    const raw = Array.isArray(scores) ? scores[index] : scores?.[String(index)];
+    const earned = Number(raw);
+    if (!Number.isFinite(maximum) || maximum <= 0) {
+      return { ...invalid, error: `Rubric criterion ${index + 1} must have a positive maximum score.` };
+    }
+    if (raw === '' || raw == null || !Number.isFinite(earned) || earned < 0 || earned > maximum) {
+      return { ...invalid, error: `Enter a score from 0 to ${maximum} for rubric criterion ${index + 1}.` };
+    }
+    rows.push({
+      criterionIndex: index,
+      criterion: String(rubric[index]?.criterion ?? `Criterion ${index + 1}`),
+      earned: roundToTwo(earned),
+      maximum: roundToTwo(maximum),
+    });
+  }
+
+  const earnedPoints = roundToTwo(rows.reduce((sum, row) => sum + row.earned, 0));
+  const possiblePoints = roundToTwo(rows.reduce((sum, row) => sum + row.maximum, 0));
+  return {
+    grade: roundToTwo((earnedPoints / possiblePoints) * maxPoints),
+    earnedPoints,
+    possiblePoints,
+    rows,
+  };
+}
+
 export function isAutoGradableAssignmentQuestion(question: AssignmentAutoGradeQuestion): boolean {
   return AUTO_GRADED_ASSIGNMENT_TYPES.has(String(question.question_type ?? '').toLowerCase())
     && Boolean(String(question.correct_answer ?? '').trim());
