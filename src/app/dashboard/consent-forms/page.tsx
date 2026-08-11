@@ -185,7 +185,8 @@ function printForm(form: ConsentForm, appBase: string) {
     </tr>
   </table>
   <div class="form-title">${esc(form.title)}</div>
-  <div class="deadline" style="text-align:center;margin-top:-8px;margin-bottom:12px;">Academic session: ${esc(LIVE_SESSION_LABEL)}</div>`;
+  <div class="deadline" style="text-align:center;margin-top:-8px;margin-bottom:6px;">Academic session: ${esc(LIVE_SESSION_LABEL)}</div>
+  <div style="text-align:center;font-size:9.5pt;font-weight:bold;color:#000;margin-bottom:12px;">Online Form: https://rillcod.com/consent &nbsp;·&nbsp; Access Code: ${esc(form.access_code)}</div>`;
 
   const childInfo = `
   <div class="section">Child's Information</div>
@@ -342,6 +343,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
         </div>
         <div class="title">${title}</div>
         ${qrContent}
+        <div style="font-size:${scanPt}pt;font-weight:bold;color:#111;margin:2px 0 1px;font-family:monospace;">https://rillcod.com/consent</div>
         <div class="scan-text">${formActionLabel(form.form_type)} · scan or enter ${esc(form.access_code)}</div>
         <div class="card-footer">${schoolName}</div>
       </div>
@@ -951,7 +953,7 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
     <div class="title">${title}</div>
     ${qrContent}
     <div class="scan-text">${formActionLabel(form.form_type)}</div>
-    <div class="sub-scan">Or visit rillcod.com/consent and type</div>
+    <div class="sub-scan">Or visit <strong>https://rillcod.com/consent</strong> and type reference</div>
     <div class="access-code">${esc(form.access_code)}</div>
   </div>
 </body></html>`);
