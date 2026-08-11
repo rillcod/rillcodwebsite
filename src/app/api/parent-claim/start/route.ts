@@ -8,6 +8,7 @@ import { generateOtp, hashOtp, otpExpiry, OTP_TTL_MINUTES } from '@/lib/parent-c
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
     if (err instanceof RateLimitError) {
       return NextResponse.json({ error: 'Too many attempts. Please wait a moment and try again.' }, { status: 429 });
     }
+    console.error('[parent-claim/start] rate-limit check failed:', err);
+    return NextResponse.json({ error: 'Verification is temporarily unavailable. Please try again.' }, { status: 503 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -90,11 +93,18 @@ export async function POST(request: Request) {
     .select('id')
     .single();
   if (insErr || !claim) {
+    console.error('[parent-claim/start] failed to create verification:', insErr);
     return NextResponse.json({ error: 'Could not start verification. Please try again.' }, { status: 500 });
   }
 
   // Housekeeping (drop expired codes) — best-effort, non-blocking.
-  (admin as any).from('parent_claim_otps').delete().lt('expires_at', new Date().toISOString()).then(() => {}).catch(() => {});
+  void (async () => {
+    const { error } = await (admin as any)
+      .from('parent_claim_otps')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+    if (error) console.warn('[parent-claim/start] expired-code cleanup failed:', error);
+  })();
 
   const message =
     `Rillcod: Your verification code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`;
@@ -120,20 +130,25 @@ export async function POST(request: Request) {
 
   // Audit: code sent — with human-readable note showing who initiated and via which channel.
   const sentChannels = [emailSent && 'email', whatsappSent && 'WhatsApp'].filter(Boolean).join(' + ') || 'none';
-  (admin as any).from('parent_claim_audit')
-    .insert({
-      student_id: guard.studentId,
+  if (!whatsappSent && !emailSent) {
+    await recordParentClaimAudit(admin, {
+      studentId: guard.studentId,
       email,
       phone,
-      action: 'code_sent',
+      action: 'code_delivery_failed',
       ip: getClientIp(request as any),
-      note: `Parent claim started — ${fullName} (${relationship ?? 'Guardian'}) — code sent via ${sentChannels}`,
-    })
-    .then(() => {}).catch(() => {});
-
-  if (!whatsappSent && !emailSent) {
+      note: `Verification code delivery failed for ${fullName} (${relationship ?? 'Guardian'}).`,
+    });
     return NextResponse.json({ error: 'Could not send the code to your email. Check your address and try again.' }, { status: 502 });
   }
+  await recordParentClaimAudit(admin, {
+    studentId: guard.studentId,
+    email,
+    phone,
+    action: 'code_sent',
+    ip: getClientIp(request as any),
+    note: `Parent claim started — ${fullName} (${relationship ?? 'Guardian'}) — code sent via ${sentChannels}`,
+  });
 
   return NextResponse.json({
     claimId: claim.id,

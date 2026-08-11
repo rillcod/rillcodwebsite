@@ -9,6 +9,7 @@ import { applyParentRecordEnrichment, normaliseChildAge, validateParentSuppliedR
 import { upsertResultCheckerLead } from '@/lib/parent-claim/upsert-lead';
 import { harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 import { getExistingParentLink, resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 type Db = SupabaseClient<Database>;
 
@@ -29,6 +30,7 @@ export interface ClaimResult {
   error?: string;
   status?: number;
   childName?: string | null;
+  parentId?: string;
   accountCreated?: boolean;
   siblingsLinked?: number;
   siblingNames?: string[];
@@ -65,20 +67,6 @@ export async function resolveAndGuardChild(
   }
 
   return { studentId };
-}
-
-/** Best-effort accountability log for the claim (never blocks the flow). */
-async function logClaimAudit(admin: Db, row: {
-  student_id: string; parent_id?: string | null; email: string; phone: string | null;
-  action: 'linked' | 'blocked'; siblings_linked?: number; note?: string;
-}): Promise<void> {
-  try {
-    await (admin as any).from('parent_claim_audit').insert({
-      student_id: row.student_id, parent_id: row.parent_id ?? null,
-      email: row.email, phone: row.phone, action: row.action,
-      siblings_linked: row.siblings_linked ?? 0, note: row.note ?? null,
-    });
-  } catch { /* best-effort */ }
 }
 
 /** In-app notification to the school's staff + admins when a parent self-links via QR. */
@@ -143,7 +131,10 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
       || (!!exPhone && !!inPhone && exPhone === inPhone)
       || (!!linkedParentPhone && !!inPhone && linkedParentPhone === inPhone);
     if (hasParent && !matchesExisting) {
-      await logClaimAudit(admin, { student_id: studentId, email, phone, action: 'blocked', note: 'child already linked to a different parent' });
+      await recordParentClaimAudit(admin, {
+        studentId, email, phone, action: 'blocked',
+        note: 'Child is already linked to a different parent account.',
+      });
       return {
         ok: false,
         status: 409,
@@ -232,15 +223,16 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     enrichment.whatsappOptInSet && 'whatsapp_opt_in',
   ].filter(Boolean).join(', ');
 
-  await logClaimAudit(admin, {
-    student_id: studentId, parent_id: prov.parentId, email, phone,
-    action: 'linked', siblings_linked: siblingNames.length,
+  await recordParentClaimAudit(admin, {
+    studentId, parentId: prov.parentId, email, phone,
+    action: 'linked', siblingsLinked: siblingNames.length,
     note: enrichNote ? `enriched: ${enrichNote}` : undefined,
   });
   await notifyStaffOfClaim(admin, prov.schoolId ?? null, prov.childName ?? null, fullName);
 
   return {
     ok: true,
+    parentId: prov.parentId,
     childName: prov.childName,
     accountCreated: !!prov.accountCreated,
     siblingsLinked: siblingNames.length,

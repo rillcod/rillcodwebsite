@@ -646,7 +646,10 @@ export async function GET(
     db.from('report_settings').select('*').limit(1).maybeSingle(),
   ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[result-check] published report query failed:', error);
+    return NextResponse.json({ error: 'Could not load the published report. Please try again.' }, { status: 500 });
+  }
 
   const ordered = (reports ?? []).slice().sort(compareReportsByPeriodDesc);
   const publicReports = toPublicProgressReportList(ordered);

@@ -4,6 +4,7 @@ import { resolveAndGuardChild, completeParentClaim } from '@/lib/parent-claim/co
 import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
     if (err instanceof RateLimitError) {
       return NextResponse.json({ error: 'Too many attempts. Please wait a moment and try again.' }, { status: 429 });
     }
+    console.error('[parent-claim/intake] rate-limit check failed:', err);
+    return NextResponse.json({ error: 'Verification is temporarily unavailable. Please try again.' }, { status: 503 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -63,7 +66,17 @@ export async function POST(request: Request) {
   const result = await completeParentClaim(admin, guard.studentId, {
     fullName, email, phone, relationship, childName, childGender, childAge, childDob, whatsappOptIn,
   });
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
+  if (!result.ok) {
+    await recordParentClaimAudit(admin, {
+      studentId: guard.studentId,
+      email,
+      phone,
+      action: 'completion_failed',
+      note: `Approved direct claim did not complete: ${result.error}`,
+      ip: getClientIp(request as any),
+    });
+    return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
+  }
 
   return NextResponse.json({
     success: true,

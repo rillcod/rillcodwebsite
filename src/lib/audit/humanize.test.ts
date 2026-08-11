@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAuditWho, getAuditViewerRole } from './humanize';
+import { formatAuditWho, getAuditViewerRole, humanizeAuditAction } from './humanize';
 
 /**
  * Result-check viewer attribution.
@@ -81,5 +81,13 @@ describe('result-check viewer attribution', () => {
     const who = formatAuditWho(row('Admin · Mrs Grace Ogbebor', 'admin'));
     expect(who.title).toBe('Admin · Mrs Grace Ogbebor');
     expect(getAuditViewerRole(row('Admin · Mrs Grace Ogbebor', 'admin'))).toBe('admin');
+  });
+});
+
+describe('parent claim activity labels', () => {
+  it('uses professional labels instead of internal action keys', () => {
+    expect(humanizeAuditAction('parent_claim_completion_failed')).toBe('Parent setup needs attention');
+    expect(humanizeAuditAction('parent_claim_otp_verified')).toBe('Parent identity verified');
+    expect(humanizeAuditAction('parent_claim_code_delivery_failed')).toBe('Verification code delivery needs attention');
   });
 });

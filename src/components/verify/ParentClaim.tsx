@@ -6,6 +6,7 @@ import { PortalAccessBar } from './PortalAccessBar';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
 import { formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { isValidParentPhone, isValidParentName, isValidParentRelationship } from '@/lib/parents/contact';
+import { fetchActionJson, withTimeoutOrThrow } from '@/lib/async-timeout';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
@@ -18,6 +19,19 @@ const GOOGLE_CLAIM_STASH = 'rc:parent-claim:google';
 const SKIP_OTP = process.env.NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP === 'true';
 
 type Step = 'cta' | 'form' | 'otp' | 'done';
+type ClaimCompletionResponse = {
+  error: string;
+  childName?: string | null;
+  accountCreated?: boolean;
+  siblingsLinked?: number;
+  credentials?: ParentClaimLinkedResult['credentials'];
+  enrichment?: { genderRecorded?: boolean; ageRecorded?: boolean; dobRecorded?: boolean; whatsappOptInSet?: boolean } | null;
+};
+
+function claimRequestError(error: unknown): string {
+  if (error instanceof Error && /taking longer than expected/i.test(error.message)) return error.message;
+  return 'We could not connect. Check your connection and try again.';
+}
 
 function otpDeliveryHint(sentVia: { email: boolean; whatsapp: boolean } | null): string {
   if (!sentVia) return 'Check your email for a 6-digit code.';
@@ -36,6 +50,7 @@ function absoluteUrl(path: string): string {
 
 function CopyLinkRow({ label, url, accent = 'text-foreground' }: { label: string; url: string; accent?: string }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   return (
     <div className="rounded-lg border border-border bg-background p-3 space-y-2">
       <p className={`text-[10px] font-black uppercase tracking-widest ${accent}`}>{label}</p>
@@ -46,16 +61,18 @@ function CopyLinkRow({ label, url, accent = 'text-foreground' }: { label: string
         <button
           type="button"
           onClick={() => {
+            setCopyError(false);
             void navigator.clipboard.writeText(url).then(() => {
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
-            });
+            }).catch(() => setCopyError(true));
           }}
           className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
         >
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
+      {copyError && <p className="text-xs text-rose-600 dark:text-rose-400">Could not copy automatically. Select the link and copy it manually.</p>}
     </div>
   );
 }
@@ -150,7 +167,8 @@ export default function ParentClaim({
     };
 
     if (googleError) {
-      setError(googleError);
+      console.warn('[parent-claim] Google verification did not complete:', googleError);
+      setError('Google verification did not complete. Please try again or use the emailed code.');
       clearQuery();
       return;
     }
@@ -206,20 +224,30 @@ export default function ParentClaim({
   }
 
   async function sendCode(): Promise<boolean> {
-    const res = await fetch('/api/parent-claim/start', {
+    const { response, data } = await fetchActionJson<{
+      error: string;
+      claimId: string;
+      sentVia: { email: boolean; whatsapp: boolean };
+    }>('/api/parent-claim/start', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, ...form }),
     });
-    const j = await res.json();
-    if (!res.ok) { setError(j.error || 'Could not send code'); return false; }
-    setClaimId(j.claimId); setSentVia(j.sentVia || null); setCooldown(RESEND_COOLDOWN);
+    if (!response.ok) {
+      setError(response.status < 500 && data.error ? data.error : 'Could not send the verification code. Please try again.');
+      return false;
+    }
+    if (!data.claimId) {
+      setError('Verification could not start. Please try again.');
+      return false;
+    }
+    setClaimId(data.claimId); setSentVia(data.sentVia || null); setCooldown(RESEND_COOLDOWN);
     return true;
   }
 
   async function resend() {
     if (cooldown > 0) return;
     setError(null); setLoading(true);
-    try { await sendCode(); } catch { setError('Network error — please try again.'); }
+    try { await sendCode(); } catch (err) { setError(claimRequestError(err)); }
     finally { setLoading(false); }
   }
 
@@ -227,31 +255,35 @@ export default function ParentClaim({
     setError(null); setLoading(true);
     try {
       if (SKIP_OTP) {
-        const res = await fetch('/api/parent-claim/intake', {
+        const { response, data } = await fetchActionJson<ClaimCompletionResponse>('/api/parent-claim/intake', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, ...form }),
         });
-        const j = await res.json();
-        if (!res.ok) { setError(j.error || 'Something went wrong'); return; }
-        applyDone(j);
+        if (!response.ok) {
+          setError(response.status < 500 && data.error ? data.error : 'Could not finish setting up access. Please try again.');
+          return;
+        }
+        applyDone(data);
       } else {
         if (await sendCode()) setStep('otp');
       }
-    } catch { setError('Network error — please try again.'); }
+    } catch (err) { setError(claimRequestError(err)); }
     finally { setLoading(false); }
   }
 
   async function verify() {
     setError(null); setLoading(true);
     try {
-      const res = await fetch('/api/parent-claim/verify', {
+      const { response, data } = await fetchActionJson<ClaimCompletionResponse>('/api/parent-claim/verify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ claimId, otp }),
       });
-      const j = await res.json();
-      if (!res.ok) { setError(j.error || 'Verification failed'); return; }
-      applyDone(j);
-    } catch { setError('Network error — please try again.'); }
+      if (!response.ok) {
+        setError(response.status < 500 && data.error ? data.error : 'Verification could not finish. Please try again.');
+        return;
+      }
+      applyDone(data);
+    } catch (err) { setError(claimRequestError(err)); }
     finally { setLoading(false); }
   }
 
@@ -273,13 +305,17 @@ export default function ParentClaim({
       const callback = new URL('/auth/callback', window.location.origin);
       callback.searchParams.set('flow', 'claim');
       callback.searchParams.set('claim_code', code);
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: callback.toString(), queryParams: { prompt: 'select_account' } },
-      });
+      const { error: oauthError } = await withTimeoutOrThrow(
+        supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: callback.toString(), queryParams: { prompt: 'select_account' } },
+        }),
+        'Google is taking longer than expected. Please try again or use the emailed code.',
+      );
       if (oauthError) throw oauthError;
-    } catch (err: any) {
-      setError(err?.message || 'Google sign-in failed. Please use the emailed code instead.');
+    } catch (err) {
+      console.warn('[parent-claim] Google sign-in failed:', err);
+      setError('Google sign-in could not start. Please try again or use the emailed code.');
       setGoogleLoading(false);
     }
   }
@@ -287,19 +323,18 @@ export default function ParentClaim({
   async function completeWithGoogle(stashed: typeof form) {
     setError(null); setLoading(true);
     try {
-      const res = await fetch('/api/parent-claim/google/complete', {
+      const { response, data } = await fetchActionJson<ClaimCompletionResponse>('/api/parent-claim/google/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // No email field — the server takes it from the verified Google session.
         body: JSON.stringify({ code, ...stashed, email: undefined }),
       });
-      const j = await res.json();
-      if (!res.ok) {
-        setError(j.error || 'Could not finish linking with Google. Try the emailed code instead.');
+      if (!response.ok) {
+        setError(response.status < 500 && data.error ? data.error : 'Could not finish linking with Google. Try the emailed code instead.');
         return;
       }
-      applyDone(j);
-    } catch { setError('Network error — please try again.'); }
+      applyDone(data);
+    } catch (err) { setError(claimRequestError(err)); }
     finally { setLoading(false); }
   }
 

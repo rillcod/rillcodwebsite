@@ -6,6 +6,7 @@ import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enri
 import { resolveVerifiedGoogleEmail } from '@/lib/auth/google-identity';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
     if (err instanceof RateLimitError) {
       return NextResponse.json({ error: 'Too many attempts. Please wait and try again.' }, { status: 429 });
     }
+    console.error('[parent-claim/google] rate-limit check failed:', err);
+    return NextResponse.json({ error: 'Verification is temporarily unavailable. Please try again.' }, { status: 503 });
   }
 
   const supabase = await createServerClient();
@@ -70,19 +73,29 @@ export async function POST(request: Request) {
   });
   if (gapError) return NextResponse.json({ error: gapError }, { status: 400 });
 
-  (admin as any).from('parent_claim_audit')
-    .insert({
-      student_id: guard.studentId, email, phone,
-      action: 'otp_verified',
-      note: `Email ownership proven via Google — parent: ${fullName} (${relationship ?? 'Guardian'}) — proceeding to link child account`,
-      ip: getClientIp(request as any),
-    })
-    .then(() => {}).catch(() => {});
-
   const result = await completeParentClaim(admin, guard.studentId, {
     fullName, email, phone, relationship, childName, childGender, childAge, childDob, whatsappOptIn,
   });
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
+  if (!result.ok) {
+    await recordParentClaimAudit(admin, {
+      studentId: guard.studentId,
+      email,
+      phone,
+      action: 'completion_failed',
+      note: `Google email verified, but account linking did not complete: ${result.error}`,
+      ip: getClientIp(request as any),
+    });
+    return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
+  }
+  await recordParentClaimAudit(admin, {
+    studentId: guard.studentId,
+    parentId: result.parentId,
+    email,
+    phone,
+    action: 'otp_verified',
+    note: `Email ownership proven via Google — parent: ${fullName} (${relationship ?? 'Guardian'}) — child account linked`,
+    ip: getClientIp(request as any),
+  });
 
   return NextResponse.json({
     success: true,

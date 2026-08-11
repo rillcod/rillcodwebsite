@@ -10,6 +10,11 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { isStaffRole } from '@/lib/dashboard/route-access';
+import { fetchActionJson } from '@/lib/async-timeout';
+
+function customerError(response: Response, error: unknown, fallback: string): string {
+  return response.status < 500 && typeof error === 'string' && error.trim() ? error : fallback;
+}
 
 type AuditRow = {
   id: string;
@@ -18,6 +23,8 @@ type AuditRow = {
   email: string | null;
   phone: string | null;
   action: string;
+  action_label?: string;
+  next_action?: string | null;
   siblings_linked: number;
   note: string | null;
   created_at: string;
@@ -29,8 +36,10 @@ const ACTION_STYLE: Record<string, string> = {
   linked: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
   blocked: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   code_sent: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  code_delivery_failed: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   otp_verified: 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30',
   otp_failed: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
+  completion_failed: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
   unlinked: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
 };
 
@@ -67,16 +76,25 @@ function PersonPicker({ kind, value, onChange, placeholder }: {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Person[]>([]);
   const [open, setOpen] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   useEffect(() => {
     if (value) return;
     const t = q.trim();
     if (t.length < 2) { setResults([]); return; }
-    const ctrl = new AbortController();
+    let cancelled = false;
     const id = setTimeout(() => {
-      fetch(`/api/parent-claim/links?find=${kind}&q=${encodeURIComponent(t)}`, { signal: ctrl.signal })
-        .then(r => r.json()).then(j => setResults(j.rows ?? [])).catch(() => {});
+      setSearchError(false);
+      void fetchActionJson<{ rows: Person[] }>(`/api/parent-claim/links?find=${kind}&q=${encodeURIComponent(t)}`)
+        .then(({ response, data }) => {
+          if (cancelled) return;
+          if (!response.ok) throw new Error('Search unavailable');
+          setResults(data.rows ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) { setResults([]); setSearchError(true); }
+        });
     }, 250);
-    return () => { clearTimeout(id); ctrl.abort(); };
+    return () => { cancelled = true; clearTimeout(id); };
   }, [q, kind, value]);
 
   if (value) {
@@ -100,6 +118,7 @@ function PersonPicker({ kind, value, onChange, placeholder }: {
         placeholder={placeholder}
         className="w-full px-3 py-2 rounded-xl border border-border bg-card text-sm"
       />
+      {searchError && <p className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400">Search is temporarily unavailable. Try again.</p>}
       {open && results.length > 0 && (
         <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-xl border border-border bg-card shadow-xl">
           {results.map(r => (
@@ -133,21 +152,24 @@ export default function ParentClaimsAuditPage() {
   const [action, setAction] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [auditError, setAuditError] = useState('');
   const LIMIT = 50;
 
   const load = useCallback(async () => {
     setLoading(true);
+    setAuditError('');
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
       if (search.trim()) params.set('search', search.trim());
       if (action) params.set('action', action);
-      const res = await fetch(`/api/parent-claim/audit?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to load');
-      setRows(json.rows ?? []);
-      setTotal(json.total ?? 0);
+      const { response, data } = await fetchActionJson<{ rows: AuditRow[]; total: number; error: string }>(`/api/parent-claim/audit?${params}`);
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not load parent claim activity.'));
+      setRows(data.rows ?? []);
+      setTotal(data.total ?? 0);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load audit trail');
+      const message = e instanceof Error ? e.message : 'Could not load parent claim activity.';
+      setAuditError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -156,10 +178,9 @@ export default function ParentClaimsAuditPage() {
   const loadUnlinked = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/parent-claim/unlinked?limit=100');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to load');
-      setUnlinked(json.rows ?? []);
+      const { response, data } = await fetchActionJson<{ rows: UnlinkedRow[]; error: string }>('/api/parent-claim/unlinked?limit=100');
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not load unlinked students.'));
+      setUnlinked(data.rows ?? []);
       setSelected(new Set());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not load unlinked students');
@@ -173,10 +194,9 @@ export default function ParentClaimsAuditPage() {
     try {
       const params = new URLSearchParams();
       if (linksSearch.trim()) params.set('search', linksSearch.trim());
-      const res = await fetch(`/api/parent-claim/links?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to load');
-      setLinks(json.rows ?? []);
+      const { response, data } = await fetchActionJson<{ rows: LinkRow[]; error: string }>(`/api/parent-claim/links?${params}`);
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not load parent links.'));
+      setLinks(data.rows ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not load links');
     } finally {
@@ -188,12 +208,11 @@ export default function ParentClaimsAuditPage() {
     if (!pickParent || !pickStudent) return;
     setLinkBusy(true);
     try {
-      const res = await fetch('/api/parent-claim/links', {
+      const { response, data } = await fetchActionJson<{ error: string }>('/api/parent-claim/links', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parentId: pickParent.id, studentUserId: pickStudent.id }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to link');
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not create the parent link.'));
       toast.success(`Linked ${pickStudent.full_name} → ${pickParent.full_name}`);
       setPickParent(null); setPickStudent(null);
       void loadLinks();
@@ -207,12 +226,11 @@ export default function ParentClaimsAuditPage() {
   async function unlinkLink(id: string, label: string) {
     if (!confirm(`Remove this parent–child link?\n\n${label}\n\nThe result gate will re-lock for this child until a parent claims again.`)) return;
     try {
-      const res = await fetch('/api/parent-claim/links', {
+      const { response, data } = await fetchActionJson<{ error: string }>('/api/parent-claim/links', {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ linkId: id }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to unlink');
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not remove the parent link.'));
       toast.success('Link removed');
       void loadLinks();
     } catch (e) {
@@ -230,10 +248,9 @@ export default function ParentClaimsAuditPage() {
 
   useEffect(() => {
     if (!authLoading && profile && isStaffRole(profile.role)) {
-      fetch('/api/parent-claim/unlinked?limit=100')
-        .then(r => r.ok ? r.json() : { rows: [] })
-        .then(j => setUnlinked(j.rows ?? []))
-        .catch(() => {});
+      void fetchActionJson<{ rows: UnlinkedRow[] }>('/api/parent-claim/unlinked?limit=100')
+        .then(({ response, data }) => { if (response.ok) setUnlinked(data.rows ?? []); })
+        .catch((error) => console.warn('[parent-claims] unlinked summary unavailable:', error));
     }
   }, [authLoading, profile]);
 
@@ -241,14 +258,13 @@ export default function ParentClaimsAuditPage() {
     if (ids.length === 0) return;
     setInviting(true);
     try {
-      const res = await fetch('/api/parent-claim/unlinked', {
+      const { response, data } = await fetchActionJson<{ sent: number; failed: number; error: string }>('/api/parent-claim/unlinked', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentUserIds: ids }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Invite failed');
-      toast.success(`Sent ${json.sent} invite(s)${json.failed ? ` · ${json.failed} failed` : ''}`);
+      if (!response.ok) throw new Error(customerError(response, data.error, 'Could not send parent invitations.'));
+      toast.success(`Sent ${data.sent ?? 0} invite(s)${data.failed ? ` · ${data.failed} failed` : ''}`);
       void loadUnlinked();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not send invites');
@@ -508,7 +524,9 @@ export default function ParentClaimsAuditPage() {
           <option value="">All actions</option>
           <option value="linked">Linked</option>
           <option value="code_sent">Code sent</option>
+          <option value="code_delivery_failed">Code delivery failed</option>
           <option value="blocked">Blocked</option>
+          <option value="completion_failed">Setup failed</option>
           <option value="unlinked">Unlinked</option>
         </select>
       </div>
@@ -516,6 +534,13 @@ export default function ParentClaimsAuditPage() {
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-muted-foreground text-sm">Loading audit entries…</div>
+        ) : auditError ? (
+          <div className="p-8 text-center space-y-3" role="alert">
+            <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{auditError}</p>
+            <button type="button" onClick={() => void load()} className="px-4 py-2 rounded-xl border border-border text-xs font-black uppercase tracking-widest hover:bg-muted">
+              Try again
+            </button>
+          </div>
         ) : rows.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground text-sm">No parent claim activity yet.</div>
         ) : (
@@ -539,7 +564,7 @@ export default function ParentClaimsAuditPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${ACTION_STYLE[row.action] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                        {row.action.replace('_', ' ')}
+                        {row.action_label || 'Parent claim activity'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -550,6 +575,7 @@ export default function ParentClaimsAuditPage() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {row.siblings_linked > 0 && <span>{row.siblings_linked} sibling(s) linked · </span>}
                       {row.note || '—'}
+                      {row.next_action && <p className="mt-1 font-semibold text-foreground">Next: {row.next_action}</p>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {row.action === 'linked' && row.student_id ? (

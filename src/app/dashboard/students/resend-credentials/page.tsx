@@ -12,6 +12,7 @@ import {
   DocumentTextIcon, EyeIcon,
 } from '@/lib/icons';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { fetchActionJson } from '@/lib/async-timeout';
 
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
@@ -89,13 +90,18 @@ export default function ResendCredentialsPage() {
   const [migratingParents, setMigratingParents] = useState(false);
   const [mergingDupes, setMergingDupes] = useState(false);
   const [health, setHealth] = useState<Record<string, number> | null>(null);
+  const [healthError, setHealthError] = useState('');
 
   const loadHealth = useCallback(async () => {
+    setHealthError('');
     try {
-      const res = await fetch('/api/admin/onboarding-health');
-      const data = await res.json();
-      if (res.ok) setHealth(data.health);
-    } catch { /* non-fatal */ }
+      const { response, data } = await fetchActionJson<{ health: Record<string, number>; error: string }>('/api/admin/onboarding-health');
+      if (!response.ok || !data.health) throw new Error('Onboarding health is temporarily unavailable.');
+      setHealth(data.health);
+    } catch (error) {
+      console.warn('[onboarding-health] dashboard load failed:', error);
+      setHealthError('Onboarding health is temporarily unavailable. Retry to confirm there are no blocked families.');
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -470,15 +476,20 @@ export default function ResendCredentialsPage() {
               <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold"><CheckCircleIcon className="w-3.5 h-3.5" /> All clear</span>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-2">
             {([
               ['awaitingVerification', 'Awaiting verify'],
               ['unonboardedPaid', 'Paid, not onboarded'],
+              ['termPaidNotOnboarded', 'Term paid, pending'],
               ['failedEmails', 'Failed emails'],
               ['studentsNoClass', 'No class'],
+              ['consentPendingReview', 'Consent review'],
+              ['claimDeliveryFailures24h', 'Code failed (24h)'],
+              ['claimCompletionFailures24h', 'Claim failed (24h)'],
               ['parentsZeroChildren', 'Parents 0 kids'],
               ['legacyCollisions', 'Legacy accounts'],
               ['paymentsNoReceipt', 'No receipt'],
+              ['duplicatePaymentInvoices', 'Duplicate invoices'],
             ] as [string, string][]).map(([key, label]) => {
               const v = health[key] ?? 0;
               return (
@@ -489,7 +500,14 @@ export default function ResendCredentialsPage() {
               );
             })}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">"Paid, not onboarded" clears automatically via the scheduled sweep. Use "Repair Onboarding" and "Fix Legacy Parents" above for the rest.</p>
+          <p className="text-[11px] text-muted-foreground mt-2">Paid onboarding and credential gaps are retried by the scheduled sweep. Consent reviews and recent claim failures remain visible for staff action instead of silently blocking families.</p>
+        </div>
+      )}
+
+      {isAdmin && healthError && (
+        <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span>{healthError}</span>
+          <button type="button" onClick={() => void loadHealth()} className="px-4 py-2 rounded-xl border border-rose-500/30 text-xs font-black uppercase tracking-widest hover:bg-rose-500/10">Retry health check</button>
         </div>
       )}
 

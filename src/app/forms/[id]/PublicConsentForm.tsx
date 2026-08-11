@@ -424,7 +424,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             )}
             {bodyHasFee && (
               <div className="flex justify-between gap-3 text-sm pt-2 mt-1 border-t border-[#2a2d33]">
-                <span className="text-[#71717a] font-bold w-24 shrink-0">Total Fee</span>
+                <span className="text-[#71717a] font-bold w-24 shrink-0">Fee estimate</span>
                 <span className="text-amber-400 font-black text-right text-base">{fmtNaira(totalAmount)}</span>
               </div>
             )}
@@ -482,6 +482,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             ] : [
               'Your registration details have been received',
               "Our team confirms your child's placement within 24 hours",
+              ...(bodyHasFee ? ['Your official payment step is sent only after placement is confirmed'] : []),
               "You'll receive class schedule and onboarding details via WhatsApp",
             ]).map((s, i) => (
               <div key={i} className="flex items-start gap-3">
@@ -571,12 +572,13 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       {/* ── Fee calculator ── */}
       {bodyHasFee && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-2">
-          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Programme Fee</p>
+          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Programme fee estimate</p>
           <div className="flex items-center justify-between">
             <span className="text-sm text-[#a1a1aa]">{fmtNaira(feePerChild)} × {childCount} {childCount === 1 ? 'child' : 'children'}</span>
             <span className="text-white font-black text-xl">{fmtNaira(totalAmount)}</span>
           </div>
           {childCount > 1 && <p className="text-[10px] text-[#71717a]">Total programme fee for {childCount} children</p>}
+          <p className="text-[10px] leading-relaxed text-[#a1a1aa]">No payment is taken on this form. The official payment step is issued after placement is confirmed.</p>
         </div>
       )}
 

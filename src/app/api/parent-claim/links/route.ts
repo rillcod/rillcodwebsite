@@ -7,6 +7,7 @@ import {
   syncExplicitParentStudentLink,
   unlinkExplicitParentStudentLink,
 } from '@/lib/parents/links';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,8 @@ async function requireStaff() {
 function inScope(profile: any, schoolId: string | null, schoolName: string | null): boolean {
   if (profile.role === 'admin') return true;
   if (profile.role === 'school') return !!schoolId && schoolId === profile.school_id;
-  // teacher: match by school name (their assignment denormalised on the profile)
+  if (profile.role === 'teacher' && profile.school_id) return schoolId === profile.school_id;
+  // Compatibility fallback for older teacher profiles without a school ID.
   return !!schoolName && !!profile.school_name && schoolName.trim().toLowerCase() === profile.school_name.trim().toLowerCase();
 }
 
@@ -81,14 +83,17 @@ export async function GET(req: NextRequest) {
     .select('id, parent_id, student_id, created_at')
     .order('created_at', { ascending: false })
     .limit(2000);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[parent-claim/links] failed to load links:', error);
+    return NextResponse.json({ error: 'Could not load parent links.' }, { status: 500 });
+  }
 
   const parentIds = [...new Set((links ?? []).map((l: any) => l.parent_id).filter(Boolean))];
   const studentRowIds = [...new Set((links ?? []).map((l: any) => l.student_id).filter(Boolean))];
 
   const [{ data: parents }, { data: students }] = await Promise.all([
     parentIds.length ? admin.from('portal_users').select('id, full_name, email, phone').in('id', parentIds) : Promise.resolve({ data: [] as any[] }),
-    studentRowIds.length ? admin.from('students').select('id, full_name, school_id, school_name, user_id, section') : Promise.resolve({ data: [] as any[] }),
+    studentRowIds.length ? admin.from('students').select('id, full_name, school_id, school_name, user_id, section').in('id', studentRowIds) : Promise.resolve({ data: [] as any[] }),
   ]);
   const parentMap = new Map((parents ?? []).map((p: any) => [p.id, p]));
   const studentMap = new Map((students ?? []).map((s: any) => [s.id, s]));
@@ -166,16 +171,15 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   }).eq('id', studentRowId);
 
-  try {
-    await (admin as any).from('parent_claim_audit').insert({
-      student_id: studentUserId,
-      parent_id: parentId,
-      email: (parent as any).email ?? null,
-      phone: (parent as any).phone ?? null,
-      action: 'linked',
-      note: `manual link by ${(profile as any).school_name || 'staff'}`,
-    });
-  } catch { /* best-effort */ }
+  await recordParentClaimAudit(admin as any, {
+    studentId: studentUserId,
+    parentId,
+    actorId: profile.id,
+    email: (parent as any).email ?? null,
+    phone: (parent as any).phone ?? null,
+    action: 'linked',
+    note: `Manual link by ${(profile as any).school_name || 'staff'}`,
+  });
 
   return NextResponse.json({ success: true });
 }
@@ -216,12 +220,16 @@ export async function DELETE(req: NextRequest) {
   const studentUserId = (srow as any)?.user_id as string | null;
   await unlinkExplicitParentStudentLink(admin as any, link.parent_id, link.student_id);
 
-  try {
-    await (admin as any).from('parent_claim_audit').insert({
-      student_id: studentUserId, parent_id: link.parent_id, email: parentEmail ?? null,
-      action: 'unlinked', note: `manual unlink by ${(profile as any).school_name || 'staff'}`,
+  if (studentUserId) {
+    await recordParentClaimAudit(admin as any, {
+      studentId: studentUserId,
+      parentId: link.parent_id,
+      actorId: profile.id,
+      email: parentEmail ?? null,
+      action: 'unlinked',
+      note: `Manual unlink by ${(profile as any).school_name || 'staff'}`,
     });
-  } catch { /* best-effort */ }
+  }
 
   return NextResponse.json({ success: true });
 }

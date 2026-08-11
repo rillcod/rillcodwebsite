@@ -97,6 +97,14 @@ const ACTION_PHRASES: Record<string, string> = {
   // Parents
   parent_student_linked: 'Linked a parent to a student',
   parent_student_unlinked: 'Unlinked a parent from a student',
+  parent_claim_code_sent: 'Verification code sent',
+  parent_claim_code_delivery_failed: 'Verification code delivery needs attention',
+  parent_claim_otp_failed: 'Verification attempt unsuccessful',
+  parent_claim_otp_verified: 'Parent identity verified',
+  parent_claim_completion_failed: 'Parent setup needs attention',
+  parent_claim_linked: 'Linked a parent to a student',
+  parent_claim_blocked: 'Parent claim safely blocked',
+  parent_claim_unlinked: 'Removed a parent-student link',
 
   // Academic decisions — what a school is answerable for
   'curriculum.certified': 'Certified a curriculum as the official edition',

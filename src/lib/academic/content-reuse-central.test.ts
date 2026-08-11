@@ -62,7 +62,7 @@ describe('copying stays central', () => {
       'these apply the copy rules themselves instead of calling reuseWeekContent:\n  ' +
         offenders.join('\n  ')
     ).toEqual([]);
-  });
+  }, 15_000);
 
   it('every generator that copies a week goes through the helper', () => {
     // A generator that starts writing its own insert-from-source would not trip

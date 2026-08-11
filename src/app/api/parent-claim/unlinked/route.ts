@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { listUnlinkedStudents, sendUnlinkedParentInvite } from '@/lib/parent-claim/portal-access';
+import { recordParentClaimAudit } from '@/lib/parent-claim/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ async function requireStaff() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('portal_users')
-    .select('role, school_id, school_name')
+    .select('id, role, school_id, school_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -77,15 +78,14 @@ export async function POST(req: NextRequest) {
       continue;
     }
     const sent = await sendUnlinkedParentInvite(guard.admin as any, row);
-    try {
-      await (guard.admin as any).from('parent_claim_audit').insert({
-        student_id: row.studentUserId,
-        email: row.parentEmail,
-        phone: row.parentPhone,
-        action: 'code_sent',
-        note: `staff invite: ${sent.email ? 'email' : ''}${sent.email && sent.whatsapp ? '+' : ''}${sent.whatsapp ? 'whatsapp' : ''}`,
-      });
-    } catch { /* best-effort */ }
+    await recordParentClaimAudit(guard.admin as any, {
+      studentId: row.studentUserId,
+      actorId: guard.profile.id,
+      email: row.parentEmail,
+      phone: row.parentPhone,
+      action: 'code_sent',
+      note: `Staff invite: ${sent.email ? 'email' : ''}${sent.email && sent.whatsapp ? '+' : ''}${sent.whatsapp ? 'WhatsApp' : ''}`,
+    });
     results.push({ studentUserId: uid, ok: sent.email || sent.whatsapp, ...sent });
   }
 
