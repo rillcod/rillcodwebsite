@@ -18,10 +18,11 @@ import {
   ArrowPathIcon, PrinterIcon, DocumentTextIcon,
   EyeIcon, PencilSquareIcon, GlobeAltIcon, LockClosedIcon,
   ArrowTopRightOnSquareIcon, LinkIcon, QrCodeIcon, TableCellsIcon,
-  DocumentDuplicateIcon,
+  DocumentDuplicateIcon, MagnifyingGlassIcon,
 } from '@/lib/icons';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import { fetchActionJson } from '@/lib/async-timeout';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -954,6 +955,9 @@ export default function ConsentFormsPage() {
   const router = useRouter();
   const [forms, setForms] = useState<ConsentForm[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [search, setSearch] = useState('');
+  const [viewFilter, setViewFilter] = useState<'all' | 'needs_review' | 'public' | 'private' | 'overdue'>('all');
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -1014,8 +1018,6 @@ export default function ConsentFormsPage() {
   const [cloneSchoolsLoading, setCloneSchoolsLoading] = useState(false);
   const [cloneError, setCloneError]                 = useState('');
 
-  const [strippingCopy, setStrippingCopy]   = useState(false);
-  const [stripResult, setStripResult]       = useState('');
 
   const isAdmin  = profile?.role === 'admin';
   const isStaff  = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
@@ -1036,21 +1038,31 @@ export default function ConsentFormsPage() {
 
   const loadForms = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
-      const [formsRes, schoolsRes, pathwaysRes] = await Promise.all([
-        fetch('/api/consent-forms'),
-        fetch('/api/schools'),
-        isStaff ? fetch('/api/academic-spine/pathways') : Promise.resolve(null),
-      ]);
-      const formsJson = await formsRes.json();
-      const schoolsJson = await schoolsRes.json();
-      const pathwaysJson = pathwaysRes ? await pathwaysRes.json() : null;
-      setForms(formsJson.data ?? []);
-      setSchools(schoolsJson.schools ?? schoolsJson.data ?? []);
-      setPathways(pathwaysJson?.data?.offerings ?? []);
+      const formsResult = await fetchActionJson<{ data?: ConsentForm[]; error?: string }>('/api/consent-forms');
+      if (!formsResult.response.ok) throw new Error('Consent forms could not be loaded.');
+      setForms(formsResult.data.data ?? []);
+    } catch (error) {
+      console.error('[consent-forms] load failed:', error);
+      setLoadError('Consent forms are temporarily unavailable. Retry to continue your review work.');
+      return;
     } finally {
       setLoading(false);
     }
+
+    // Creation helpers are secondary to the review queue. Load them after the
+    // forms are visible so teachers never wait on an optional directory call.
+    const [schoolsResult, pathwaysResult] = await Promise.all([
+      fetchActionJson<{ schools?: { id: string; name: string }[]; data?: { id: string; name: string }[] }>('/api/schools').catch(() => null),
+      isStaff
+        ? fetchActionJson<{ data?: { offerings?: typeof pathways } }>('/api/academic-spine/pathways').catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    if (!schoolsResult?.response.ok) console.warn('[consent-forms] school choices are temporarily unavailable.');
+    if (isStaff && !pathwaysResult?.response.ok) console.warn('[consent-forms] pathway choices are temporarily unavailable.');
+    setSchools(schoolsResult?.response.ok ? schoolsResult.data.schools ?? schoolsResult.data.data ?? [] : []);
+    setPathways(pathwaysResult?.response.ok ? pathwaysResult.data.data?.offerings ?? [] : []);
   }, [isStaff]);
 
   useEffect(() => { loadForms(); }, [loadForms]);
@@ -1252,19 +1264,6 @@ export default function ConsentFormsPage() {
     }
   }
 
-  // ── Strip "(Copy)" from form titles ──────────────────────────────────────
-
-  async function stripCopySuffix() {
-    setStrippingCopy(true); setStripResult('');
-    try {
-      const res = await fetch('/api/consent-forms/strip-copy-suffix', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok) { setStripResult(json.error || 'Failed'); return; }
-      setStripResult(json.message || 'Done');
-      if (json.updated > 0) loadForms();
-    } catch { setStripResult('Request failed'); } finally { setStrippingCopy(false); }
-  }
-
   // ── Lead match review ─────────────────────────────────────────────────────
 
   async function reviewLead(formId: string, leadId: string, action: 'approve' | 'reject') {
@@ -1362,6 +1361,33 @@ export default function ConsentFormsPage() {
   const qrForm = forms.find(f => f.id === qrFormId);
   const totalResponses = forms.reduce((s, f) => s + (f.consent_responses?.[0]?.count ?? 0) + (f.form_leads?.[0]?.count ?? 0), 0);
   const signedCount = forms.filter(f => f.has_signed).length;
+  const needsReviewCount = forms.filter(f => (f.pending_review_count ?? 0) > 0).length;
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleForms = forms
+    .filter(form => {
+      const isOverdue = !!form.due_date && new Date(form.due_date).getTime() < Date.now();
+      const matchesFilter =
+        viewFilter === 'all' ||
+        (viewFilter === 'needs_review' && (form.pending_review_count ?? 0) > 0) ||
+        (viewFilter === 'public' && form.is_public) ||
+        (viewFilter === 'private' && !form.is_public) ||
+        (viewFilter === 'overdue' && isOverdue);
+      if (!matchesFilter) return false;
+      if (!normalizedSearch) return true;
+      return [
+        form.title,
+        form.schools?.name,
+        form.form_type,
+        enrollmentTypeLabel(form.enrollment_type),
+      ].some(value => value?.toLowerCase().includes(normalizedSearch));
+    })
+    .sort((a, b) => {
+      const reviewPriority = Number((b.pending_review_count ?? 0) > 0) - Number((a.pending_review_count ?? 0) > 0);
+      if (reviewPriority !== 0) return reviewPriority;
+      const overduePriority = Number(!!b.due_date && new Date(b.due_date).getTime() < Date.now()) - Number(!!a.due_date && new Date(a.due_date).getTime() < Date.now());
+      if (overduePriority !== 0) return overduePriority;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1373,7 +1399,11 @@ export default function ConsentFormsPage() {
           badge="Digital consent"
           title="Consent forms"
           description={
-            isStaff ? 'Create, share, and manage consent forms for parents.' : 'Sign consent forms from your school.'
+            profile?.role === 'teacher'
+              ? 'Review parent submissions, follow up, and share the right form without leaving this workspace.'
+              : isStaff
+                ? 'Create, share, and manage consent forms for parents.'
+                : 'Sign consent forms from your school.'
           }
           icon={ClipboardDocumentCheckIcon}
           stats={
@@ -1382,7 +1412,7 @@ export default function ConsentFormsPage() {
                   { label: 'Forms', value: forms.length },
                   { label: 'Responses', value: totalResponses, tone: 'primary' },
                   ...(isStaff
-                    ? [{ label: 'Pending', value: forms.length - signedCount }]
+                    ? [{ label: 'Needs review', value: needsReviewCount }]
                     : [{ label: 'Signed', value: signedCount, tone: 'emerald' as const }]),
                 ]
               : undefined
@@ -1397,18 +1427,6 @@ export default function ConsentFormsPage() {
               >
                 <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={stripCopySuffix}
-                  disabled={strippingCopy}
-                  title='Remove "(Copy)" suffix from all form titles'
-                  className={`${MOBILE_TOUCH_BTN} hidden sm:inline-flex border border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 disabled:opacity-50`}
-                >
-                  {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
-                  <span>{strippingCopy ? 'Cleaning…' : 'Clean titles'}</span>
-                </button>
-              )}
               {isStaff && (
                 <button
                   type="button"
@@ -1421,35 +1439,6 @@ export default function ConsentFormsPage() {
             </div>
           }
         />
-        {stripResult && (
-          <p className="w-full text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
-            {stripResult}{' '}
-            <button type="button" onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">
-              ×
-            </button>
-          </p>
-        )}
-
-        {/* Stats — desktop detail row; hero shows summary on all sizes */}
-        {!loading && forms.length > 0 && (
-          <div className="hidden sm:grid grid-cols-3 gap-3">
-            {(isStaff ? [
-              { label: 'Forms', value: forms.length },
-              { label: 'Responses', value: totalResponses },
-              { label: 'Overdue', value: forms.filter(f => f.due_date && new Date(f.due_date) < new Date()).length },
-            ] : [
-              { label: 'Forms', value: forms.length },
-              { label: 'Signed', value: signedCount },
-              { label: 'Pending', value: forms.length - signedCount },
-            ]).map(s => (
-              <div key={s.label} className="bg-card border border-border/50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-black text-foreground">{s.value}</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* ── Create modal ─────────────────────────────────────────────── */}
         <AnimatePresence>
           {showCreate && (
@@ -2011,9 +2000,62 @@ export default function ConsentFormsPage() {
         </AnimatePresence>
 
         {/* ── Forms list ────────────────────────────────────────────────── */}
+        {!loading && !loadError && isStaff && forms.length > 0 && (
+          <section aria-label="Consent form work queue" className="space-y-3 rounded-2xl border border-border bg-card p-3 sm:p-4">
+            <div className="relative">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search forms or schools"
+                aria-label="Search consent forms or schools"
+                className="min-h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="-mx-1 overflow-x-auto px-1 pb-1" role="group" aria-label="Filter consent forms">
+              <div className="flex min-w-max gap-2">
+                {([
+                  ['all', 'All', forms.length],
+                  ['needs_review', 'Needs review', needsReviewCount],
+                  ['public', 'Public', forms.filter(form => form.is_public).length],
+                  ['private', 'Private', forms.filter(form => !form.is_public).length],
+                  ['overdue', 'Overdue', forms.filter(form => !!form.due_date && new Date(form.due_date).getTime() < Date.now()).length],
+                ] as const).map(([value, label, count]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setViewFilter(value)}
+                    aria-pressed={viewFilter === value}
+                    className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition-colors ${
+                      viewFilter === value
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {label} <span className="tabular-nums opacity-75">{count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Showing {visibleForms.length} of {forms.length}. Forms needing review are kept at the top.
+            </p>
+          </section>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-center">
+            <ExclamationTriangleIcon className="mx-auto h-8 w-8 text-rose-600 dark:text-rose-400" />
+            <p className="mt-3 font-bold text-foreground">Consent forms could not be loaded</p>
+            <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+            <button type="button" onClick={loadForms} className="mt-4 min-h-11 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+              Retry
+            </button>
           </div>
         ) : forms.length === 0 ? (
           <div className="text-center py-20 bg-card border border-border rounded-2xl">
@@ -2023,9 +2065,22 @@ export default function ConsentFormsPage() {
               {isStaff ? 'Create your first form and share it publicly or with parents.' : 'No forms from your school yet.'}
             </p>
           </div>
+        ) : visibleForms.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-card p-8 text-center">
+            <MagnifyingGlassIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
+            <p className="mt-3 font-bold text-foreground">No forms match this view</p>
+            <p className="mt-1 text-sm text-muted-foreground">Clear the search or choose another status.</p>
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setViewFilter('all'); }}
+              className="mt-4 min-h-11 rounded-xl border border-border bg-background px-4 text-sm font-bold text-foreground hover:bg-muted"
+            >
+              Show all forms
+            </button>
+          </div>
         ) : (
           <div className="space-y-3">
-            {forms.map(cf => {
+            {visibleForms.map(cf => {
               const responseCount = cf.consent_responses?.[0]?.count ?? 0;
               const initialLeadCount = cf.form_leads?.[0]?.count ?? 0;
               const badge = dueBadge(cf.due_date);
@@ -2157,11 +2212,21 @@ export default function ConsentFormsPage() {
                           </button>
                         )}
 
-                        {isStaff && (
+                      </div>
+
+                      {/* Secondary tools stay available without overwhelming every card. */}
+                      {isStaff && (
+                        <details className="group border-t border-border/40 bg-background">
+                          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                            <span>More tools</span>
+                            <ChevronDownIcon className="h-4 w-4 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-px border-t border-border/40 bg-border/30 text-[10px]">
+
                           <button
                             onClick={() => togglePublic(cf.id, cf.is_public)}
                             disabled={togglingPublicId === cf.id}
-                            className={`flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 ${
+                            className={`flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 font-black uppercase tracking-widest transition-colors disabled:opacity-50 ${
                               cf.is_public
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
                                 : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
@@ -2174,22 +2239,16 @@ export default function ConsentFormsPage() {
                                 ? <><GlobeAltIcon className="w-3.5 h-3.5" /> Public</>
                                 : <><LockClosedIcon className="w-3.5 h-3.5" /> Private</>}
                           </button>
-                        )}
 
-                        {isEditor && (
-                          <button
-                            onClick={() => setConfirmDeleteId(cf.id)}
-                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[11px] font-bold transition-colors"
-                            title="Delete form"
-                          >
-                            <TrashIcon className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Tools — wrap grid on mobile */}
-                      {isStaff && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-px border-t border-border/40 bg-border/30 text-[10px]">
+                          {isEditor && (
+                            <button
+                              onClick={() => setConfirmDeleteId(cf.id)}
+                              className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold transition-colors"
+                              title="Delete form"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" /> Delete
+                            </button>
+                          )}
 
                           {cf.is_public && (
                             <>
@@ -2274,7 +2333,8 @@ export default function ConsentFormsPage() {
                             <DocumentDuplicateIcon className="w-3 h-3" />
                             {cloningId === cf.id ? 'Copying…' : 'Copy to School'}
                           </button>
-                        </div>
+                          </div>
+                        </details>
                       )}
                     </div>
                   </div>

@@ -41,6 +41,9 @@ The baseline audit covers 222 page routes: 179 dashboard pages and 43 public or 
 - The dashboard command palette remains available by keyboard; the top bar must not duplicate local page search.
 - Filters must either change results or be removed. Empty filter buttons are prohibited.
 - Primary actions use the primary brand treatment. Secondary actions use a neutral or outline treatment. Destructive actions require a destructive treatment and confirmation proportional to impact.
+- Show each KPI set once. A page hero and a second desktop-only row must not repeat the same totals.
+- Collection cards expose the two to four actions used in the normal workflow. Sharing, printing, exporting, publishing settings, cloning, and destructive actions belong under a clearly labelled `More tools` disclosure.
+- Staff collection pages are work queues, not archives: provide one scoped search, actionable status filters, deterministic priority ordering, a visible result count, and a recoverable empty/error state. Items needing review sort ahead of passive history without hiding the full list.
 - Mobile forms stack fields and actions. Do not force an input and button into a row below `sm`.
 
 ## Navigation and route shells
@@ -100,8 +103,10 @@ Use skeletons for card/list loading, not full-screen spinners, unless the whole 
   `src/lib/auth/capabilities.ts`, then use the same capability in the page and its API.
 - Accountability remains a separate cross-school admin control centre. It may link to
   Records, Reports, Users, and Finance, but those workspaces keep their distinct jobs.
-- Records is a scoped directory. Temporary passwords are available only to platform
-  administrators and the relevant school manager, and standard exports omit passwords.
+- Persisted passwords never appear in bulk/list APIs, table rows, page source, exports, or
+  reusable client state. A newly issued temporary password may be shown once in the
+  action confirmation to authorised staff; later delivery resolves the canonical account
+  and secret entirely on the server.
 - Account removal means archive by default. A learner with assignment grades, CBT results,
   progress reports, or moderated term grades cannot be hard-deleted.
 - Saved student scores are protected evidence. Official report totals are always re-derived
