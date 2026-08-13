@@ -95,7 +95,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     session,
     types: (body as any).types ?? settings.types,
     cookie: req.headers.get('cookie') ?? undefined,
-    cronSecret: extractCronSecret(req) ?? undefined,
+    cronSecret: extractCronSecret(req) || undefined,
     autoPublish,
   });
 

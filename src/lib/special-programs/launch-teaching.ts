@@ -59,7 +59,6 @@ function firstPlanWeekNumber(planData: unknown, periodStart: string | null): num
 export async function launchSpecialProgramTeaching(input: {
   pageId: string;
   createdBy: string;
-  baseUrl: string;
   cookie?: string;
   cronSecret?: string;
   /** Always rebuild every track from the current page write-up. */

@@ -20,7 +20,7 @@ import { cronInterval } from '@/lib/operations/cron-registry';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
 import { claimDailyGuard, claimHourlyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
-import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
+import { queuePrepareTeaching } from '@/lib/academic/prepare-teaching';
 import {
   retryPaidCredentialDelivery,
   retryUnonboardedPaidStudent,
@@ -105,7 +105,7 @@ async function handle(req: NextRequest) {
 
       // Activation email (both logins + next steps + receipt PDF) and WhatsApp.
       await sendSpecialProgramActivation(onboard, prospect);
-      if (onboard.classId) after(() => runClassAcademicReadiness(onboard.classId!));
+      queuePrepareTeaching({ pathway: 'school', classId: onboard.classId });
 
       report.onboarded++;
     } catch (err: any) {
@@ -154,7 +154,7 @@ async function handle(req: NextRequest) {
         console.error('[onboarding-sweep] drift CRM sync failed:', crmErr);
       }
       await sendSpecialProgramActivation(onboard, prospect);
-      if (onboard.classId) after(() => runClassAcademicReadiness(onboard.classId!));
+      queuePrepareTeaching({ pathway: 'school', classId: onboard.classId });
       report.repaired++;
     } catch (err: any) {
       report.failed++;

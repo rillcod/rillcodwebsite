@@ -77,19 +77,39 @@ export function formatSpecialPrepBlock(
 }
 
 export function launchContextFromRequest(request: NextRequest): {
-  baseUrl: string;
   cookie?: string;
   cronSecret?: string;
 } {
-  const baseUrl = (
-    request.nextUrl?.origin ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
-  ).replace(/\/$/, '');
   const cookie = request.headers.get('cookie') ?? undefined;
   const cronSecret =
     process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || undefined;
-  return { baseUrl, cookie, cronSecret };
+  return { cookie, cronSecret };
+}
+
+/**
+ * Run teaching preparation after the response, without letting it fail the caller.
+ *
+ * Two things this has to survive. `runClassAcademicReadiness` rethrows so the
+ * awaited path can report `ok: false` — queued callers must not inherit that, or a
+ * failed prep becomes an unhandled rejection on the payment success path. And
+ * `after()` needs a request scope: preparation is reached from webhooks and routes
+ * (which have one) and from cron repair sweeps (which do not), where calling it
+ * throws. Preparation is a best-effort follow-up the nightly sweep retries, so it
+ * must never be able to fail the thing that triggered it.
+ */
+function runInBackground(label: string, work: () => Promise<void>): void {
+  const guarded = async () => {
+    try {
+      await work();
+    } catch (err) {
+      console.error(`${label} preparation gave up`, err);
+    }
+  };
+  try {
+    after(guarded);
+  } catch {
+    void guarded();
+  }
 }
 
 /** In-process lock so publish + Prepare cannot run the same page twice. */
@@ -105,7 +125,6 @@ export async function prepareTeaching(
         pathway: 'special';
         pageId: string;
         actorId: string;
-        baseUrl: string;
         cookie?: string;
         cronSecret?: string;
         forceRebuild?: boolean;
@@ -256,7 +275,6 @@ export async function prepareTeaching(
     const result = await launchSpecialProgramTeaching({
       pageId: input.pageId,
       createdBy: input.actorId,
-      baseUrl: input.baseUrl,
       cookie: input.cookie,
       cronSecret: input.cronSecret,
       forceRebuild: input.forceRebuild === true,
@@ -283,7 +301,7 @@ export function queuePrepareTeaching(input: {
 }): void;
 export function queuePrepareTeaching(input: {
   pathway: 'school';
-  classId: string;
+  classId: string | null | undefined;
 }): void;
 export function queuePrepareTeaching(
   input:
@@ -295,41 +313,41 @@ export function queuePrepareTeaching(
         forceRebuild?: boolean;
         schoolId?: string | null;
       }
-    | { pathway: 'school'; classId: string },
+    | { pathway: 'school'; classId: string | null | undefined },
 ): void {
   if (input.pathway === 'school') {
-    after(() => runClassAcademicReadiness(input.classId));
+    const classId = input.classId;
+    if (!classId) return;
+    runInBackground(`[prepare-teaching] school ${classId}`, () =>
+      runClassAcademicReadiness(classId),
+    );
     return;
   }
 
   const ctx = launchContextFromRequest(input.request);
-  after(async () => {
-    try {
-      const result = await prepareTeaching({
-        pathway: 'special',
-        pageId: input.pageId,
-        actorId: input.actorId,
-        ...ctx,
-        forceRebuild: input.forceRebuild === true,
-        notifyAdminId: input.actorId,
-        schoolId: input.schoolId,
-      });
-      if (result.pathway === 'special' && result.error) {
-        console.error(
-          '[prepare-teaching]',
-          input.pageId,
-          result.error,
-          result.detail,
-        );
-      } else if (result.pathway === 'special') {
-        console.info(
-          '[prepare-teaching]',
-          input.pageId,
-          `bridge built=${result.bridge?.built} skipped=${result.bridge?.skipped} weeks=${result.weeksStarted.length}`,
-        );
-      }
-    } catch (err) {
-      console.error('[prepare-teaching] failed', input.pageId, err);
+  runInBackground(`[prepare-teaching] special ${input.pageId}`, async () => {
+    const result = await prepareTeaching({
+      pathway: 'special',
+      pageId: input.pageId,
+      actorId: input.actorId,
+      ...ctx,
+      forceRebuild: input.forceRebuild === true,
+      notifyAdminId: input.actorId,
+      schoolId: input.schoolId,
+    });
+    if (result.pathway === 'special' && result.error) {
+      console.error(
+        '[prepare-teaching]',
+        input.pageId,
+        result.error,
+        result.detail,
+      );
+    } else if (result.pathway === 'special') {
+      console.info(
+        '[prepare-teaching]',
+        input.pageId,
+        `bridge built=${result.bridge?.built} skipped=${result.bridge?.skipped} weeks=${result.weeksStarted.length}`,
+      );
     }
   });
 }

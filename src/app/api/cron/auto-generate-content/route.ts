@@ -52,18 +52,13 @@ async function handleRequest(req: NextRequest) {
   }
 
   const db = adminClient();
-  // The sweep calls this app's own generator routes, so it must call the
-  // deployment it is running in. NEXT_PUBLIC_APP_URL names production wherever
-  // it is read, so preview and local runs were reaching across to production,
-  // asking it to generate for plans it has never heard of and recording four
-  // 404s as "types failed". The request's own origin is the only value that is
-  // correct in every environment; the env var stays as a last resort for
-  // invocations that arrive without one.
-  const appBaseUrl = (
-    req.nextUrl?.origin ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
-  ).replace(/\/$/, '');
+
+  // No base URL here on purpose. The sweep used to reach its own generator routes
+  // over HTTP, which meant guessing which deployment it was running in —
+  // NEXT_PUBLIC_APP_URL names production everywhere, so preview and local runs
+  // generated against production and recorded the 404s as "types failed".
+  // generatePlanWeek now calls those handlers in-process, so there is no URL to
+  // get wrong.
 
   // The delivery period comes along so a duration programme can be advanced.
   // Counting a holiday programme from term_start gave week 1 forever, because

@@ -1,10 +1,10 @@
-import { NextResponse, after } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { sendTermRegistrationActivation } from '@/lib/registration/term-activation';
 import { sendSchoolPartnershipActivation } from '@/lib/registration/school-activation';
 import { sendSpecialProgramActivation, onboardSummerStudent } from '@/lib/summer-school/onboard';
-import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
+import { queuePrepareTeaching } from '@/lib/academic/prepare-teaching';
 import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   try {
     const onboard = await onboardSummerStudent(admin, prospect as any, { approvedBy: caller.id });
     const activation = await sendSpecialProgramActivation(onboard, prospect as any, { force: true });
-    after(() => runClassAcademicReadiness(onboard.classId));
+    queuePrepareTeaching({ pathway: 'school', classId: onboard.classId });
     await logAudit(admin as any, {
       action: activation.email ? 'resend_special_program_activation' : 'resend_special_program_activation_failed',
       actorId: caller.id, resourceType: 'prospective_student', resourceId: prospect.id,

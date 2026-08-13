@@ -71,8 +71,6 @@ export async function generatePlanWeek(input: {
    */
   session?: number | null;
   types?: unknown;
-  /** Legacy — in-process generators ignore this. Kept for callers that still pass it. */
-  baseUrl?: string;
   /** Cron secret for unattended runs; omit and pass `cookie` for a signed-in teacher. */
   cronSecret?: string;
   cookie?: string;
