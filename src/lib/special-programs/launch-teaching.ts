@@ -198,7 +198,6 @@ export async function launchSpecialProgramTeaching(input: {
   ];
 
   const weeksStarted: LaunchTeachingResult['weeksStarted'] = [];
-  const baseUrl = input.baseUrl.replace(/\/$/, '');
   let missingClass = false;
   /** Weeks the engine returned nothing for — reported, never faked. */
   const emptyWeeks: number[] = [];
@@ -236,7 +235,6 @@ export async function launchSpecialProgramTeaching(input: {
       week,
       session: 1,
       types: ags.types,
-      baseUrl,
       cookie: input.cookie,
       cronSecret: input.cronSecret,
       autoPublish: false,
@@ -291,9 +289,7 @@ export async function launchSpecialProgramTeaching(input: {
         : emptyWeeks.length
           ? `Curriculum is ready, but the content engine returned nothing for week${
               emptyWeeks.length === 1 ? '' : 's'
-            } ${[...new Set(emptyWeeks)].sort((a, b) => a - b).join(', ')}. The nightly week generator will pick ${
-              emptyWeeks.length === 1 ? 'it' : 'them'
-            } up, or press Prepare teaching again.`
+            } ${[...new Set(emptyWeeks)].sort((a, b) => a - b).join(', ')}. Check AI configuration and press Prepare teaching again.`
           : cohort.created
             ? `Cohort class "${cohort.cohort?.name}" was created automatically for teachers.`
             : undefined),

@@ -34,9 +34,10 @@ describe('parseAutoGenerateSettings', () => {
     expect(parseAutoGenerateSettings({ auto_publish: true }).auto_publish).toBe(true);
   });
 
-  it('treats a missing enabled flag as off', () => {
-    expect(parseAutoGenerateSettings({}).enabled).toBe(false);
+  it('defaults auto-generate to on unless explicitly turned off', () => {
+    expect(parseAutoGenerateSettings({}).enabled).toBe(true);
     expect(parseAutoGenerateSettings({ enabled: true }).enabled).toBe(true);
+    expect(parseAutoGenerateSettings({ enabled: false }).enabled).toBe(false);
   });
 
   it('adds slides to the settings every existing plan was seeded with', () => {

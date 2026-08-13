@@ -10,6 +10,7 @@
  * see them — high automation, but the quality gate stays with the teacher.
  */
 import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
+import { invokePlanWeekGenerator } from '@/lib/academic/plan-week-generators';
 
 // The content types and their order are settings, not generator trivia — see
 // auto-generate-settings, which the cron, the plan page and the readiness
@@ -70,7 +71,8 @@ export async function generatePlanWeek(input: {
    */
   session?: number | null;
   types?: unknown;
-  baseUrl: string;
+  /** Legacy — in-process generators ignore this. Kept for callers that still pass it. */
+  baseUrl?: string;
   /** Cron secret for unattended runs; omit and pass `cookie` for a signed-in teacher. */
   cronSecret?: string;
   cookie?: string;
@@ -101,32 +103,14 @@ export async function generatePlanWeek(input: {
 
   for (const type of types) {
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (input.cronSecret) headers['x-cron-secret'] = input.cronSecret;
-      if (input.cookie) headers.cookie = input.cookie;
-
-      // Slides and flashcards are single-week endpoints that answer with JSON;
-      // the other routes are multi-week and stream progress.
-      const isJsonEndpoint = type === 'slides' || type === 'flashcards';
-
-      const res = await fetch(`${input.baseUrl}/api/lesson-plans/${input.planId}/generate-${type}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(
-          isJsonEndpoint
-            ? {
-                week: input.week,
-                auto_publish: autoPublish,
-                ...(session != null ? { session } : {}),
-              }
-            : {
-                only_weeks: [input.week],
-                max_weeks: 1,
-                auto_publish: autoPublish,
-                ...(session != null ? { only_session: session } : {}),
-              },
-        ),
-        cache: 'no-store',
+      const res = await invokePlanWeekGenerator({
+        planId: input.planId,
+        type,
+        week: input.week,
+        session,
+        autoPublish,
+        cronSecret: input.cronSecret,
+        cookie: input.cookie,
       });
 
       if (!res.ok) {
@@ -146,6 +130,7 @@ export async function generatePlanWeek(input: {
 
       let generated = 0;
       let skipped = 0;
+      const isJsonEndpoint = type === 'slides' || type === 'flashcards';
       if (isJsonEndpoint) {
         const body = await res.json().catch(() => ({}));
         generated = Number(body?.generated) || 0;

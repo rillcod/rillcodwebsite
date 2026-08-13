@@ -23,6 +23,7 @@ import {
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
 import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
+import { extractCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -88,14 +89,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const autoPublish =
     (body as any).auto_publish === true || settings.auto_publish === true;
 
-  const baseUrl = (req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
   const outcome = await generatePlanWeek({
     planId,
     week,
     session,
     types: (body as any).types ?? settings.types,
-    baseUrl,
     cookie: req.headers.get('cookie') ?? undefined,
+    cronSecret: extractCronSecret(req) ?? undefined,
     autoPublish,
   });
 

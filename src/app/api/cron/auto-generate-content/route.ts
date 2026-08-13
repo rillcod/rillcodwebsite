@@ -81,8 +81,7 @@ async function handleRequest(req: NextRequest) {
 
   const enabledPlans = (plans ?? []).filter((p) => {
     const meta = p.metadata as Record<string, unknown> | null;
-    const ags = meta?.auto_generate_settings as AutoGenSettings | undefined;
-    return ags?.enabled === true;
+    return parseAutoGenerateSettings(meta?.auto_generate_settings).enabled;
   });
 
   // Hobby-safe batching (no extra cron jobs): each run handles only the few
@@ -238,7 +237,6 @@ async function handleRequest(req: NextRequest) {
           week: meeting.week,
           session: meeting.session,
           types: ags.types,
-          baseUrl: appBaseUrl,
           cronSecret,
           autoPublish: ags.auto_publish,
         });

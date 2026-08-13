@@ -94,7 +94,7 @@ export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
   const batch = Number(source.maxWeeksPerBatch);
   const ahead = Number(source.prep_ahead_weeks);
   return {
-    enabled: source.enabled === true,
+    enabled: source.enabled === false ? false : true,
     types: normaliseTypes(source.types),
     maxWeeksPerBatch:
       Number.isFinite(batch) && batch > 0 ? Math.min(10, Math.floor(batch)) : 0,
