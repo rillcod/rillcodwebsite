@@ -26,6 +26,69 @@ function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
 }
 
+async function ensureSpecialPaymentOwnership(
+    supabase: ReturnType<typeof createAdminClient>,
+    transaction: { id: string; invoice_id?: string | null },
+    gatewayResponse: Record<string, any>,
+    knownProspect?: Record<string, any> | null,
+): Promise<{ prospect: Record<string, any>; portalUserId: string; schoolId: string | null }> {
+    const prospectId = String(gatewayResponse?.prospect_id || '');
+    if (!prospectId) throw new Error('Special-programme payment is missing its registration reference.');
+
+    let prospect = knownProspect ?? null;
+    if (!prospect) {
+        const { data, error } = await supabase
+            .from('prospective_students')
+            .select('*')
+            .eq('id', prospectId)
+            .maybeSingle();
+        if (error) throw new Error(`Failed to load special-programme registration: ${error.message}`);
+        prospect = data;
+    }
+    if (!prospect) throw new Error('Special-programme registration could not be found for this payment.');
+
+    const { data: existingLearner, error: learnerError } = await supabase
+        .from('students')
+        .select('user_id, school_id')
+        .eq('prospect_id', prospectId)
+        .eq('is_deleted', false)
+        .maybeSingle();
+    if (learnerError) throw new Error(`Failed to resolve the learner for this payment: ${learnerError.message}`);
+
+    let portalUserId = existingLearner?.user_id ?? null;
+    let schoolId = existingLearner?.school_id ?? null;
+    if (!portalUserId || !schoolId) {
+        const onboard = await onboardSummerStudent(supabase, prospect as any);
+        portalUserId = onboard.student.id;
+        schoolId = onboard.schoolId;
+        if (onboard.student.created) {
+            try {
+                await sendSpecialProgramActivation(onboard, prospect as any);
+            } catch (activationErr) {
+                console.error('[payment] Special programme repair activation email failed:', activationErr);
+            }
+        }
+        void runClassAcademicReadiness(onboard.classId);
+    }
+
+    const { error: ownerError } = await supabase
+        .from('payment_transactions')
+        .update({ portal_user_id: portalUserId, school_id: schoolId, updated_at: new Date().toISOString() })
+        .eq('id', transaction.id);
+    if (ownerError) throw new Error(`Failed to attribute the special-programme payment: ${ownerError.message}`);
+
+    if (transaction.invoice_id) {
+        const { error: invoiceOwnerError } = await supabase
+            .from('invoices')
+            .update({ portal_user_id: portalUserId, school_id: schoolId, updated_at: new Date().toISOString() })
+            .eq('id', transaction.invoice_id)
+            .or(`portal_user_id.is.null,school_id.is.null`);
+        if (invoiceOwnerError) throw new Error(`Failed to attribute the special-programme invoice: ${invoiceOwnerError.message}`);
+    }
+
+    return { prospect, portalUserId, schoolId };
+}
+
 /**
  * The SINGLE source of truth for "a payment succeeded → grant access + record finance".
  *
@@ -57,6 +120,9 @@ export async function processSuccessfulPayment(reference: string, method: string
         const repairMetadata = existingTx?.payment_gateway_response && typeof existingTx.payment_gateway_response === 'object'
             ? existingTx.payment_gateway_response as any
             : {};
+        if (isSpecialProgramPaymentType(repairMetadata?.payment_type)) {
+            await ensureSpecialPaymentOwnership(supabase, existingTx!, repairMetadata);
+        }
         if (repairMetadata?.payment_type === 'billing_cycle' && repairMetadata?.billing_cycle_id) {
             const cycleRepair = await settleBillingCyclePayment(supabase as any, {
                 billingCycleId: String(repairMetadata.billing_cycle_id), transactionId: existingTx!.id,
@@ -373,11 +439,20 @@ export async function processSuccessfulPayment(reference: string, method: string
     } else if (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)) {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
-            const { data: prospect } = await supabase
+            const { data: prospect, error: prospectError } = await supabase
                 .from('prospective_students')
-                .select('id, full_name, parent_name, parent_email, preferred_schedule, notes, course_interest, status')
+                .select('*')
                 .eq('id', prospectId)
                 .maybeSingle();
+            if (prospectError) throw new Error(`Failed to load special-programme registration: ${prospectError.message}`);
+            const ownership = await ensureSpecialPaymentOwnership(
+                supabase,
+                transaction,
+                gatewayResponse,
+                prospect as Record<string, any> | null,
+            );
+            const learnerPortalId = ownership.portalUserId;
+            const learnerSchoolId = ownership.schoolId;
 
             const { computeBalanceSnapshot } = await import('@/lib/summer-school/balance-prospect');
             const snapshot = prospect
@@ -399,17 +474,23 @@ export async function processSuccessfulPayment(reference: string, method: string
 
             const { data: existingBalInv } = await supabase
                 .from('invoices')
-                .select('id')
+                .select('id, portal_user_id, school_id')
                 .eq('payment_transaction_id', transaction.id)
                 .maybeSingle();
 
-            if (!existingBalInv) {
-                const { data: prospect } = await supabase
-                    .from('prospective_students')
-                    .select('full_name, parent_name, parent_email')
-                    .eq('id', prospectId)
-                    .maybeSingle();
+            if (existingBalInv && learnerPortalId && (!existingBalInv.portal_user_id || !existingBalInv.school_id)) {
+                const { error: invoiceOwnerError } = await supabase
+                    .from('invoices')
+                    .update({
+                        portal_user_id: learnerPortalId,
+                        school_id: learnerSchoolId,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', existingBalInv.id);
+                if (invoiceOwnerError) throw new Error(`Failed to attribute the balance invoice: ${invoiceOwnerError.message}`);
+            }
 
+            if (!existingBalInv) {
                 const displayName = String(prospect?.full_name || gatewayResponse?.student_name || 'Student');
                 const programTitle = String(gatewayResponse?.program_title || GENERIC_PROGRAMME_TITLE);
                 const rawRef = String(transaction.transaction_reference || transaction.id);
@@ -420,6 +501,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                     invoiceNumber,
                     amount: Number(transaction.amount),
                     currency: transaction.currency || 'NGN',
+                    portalUserId: learnerPortalId,
+                    schoolId: learnerSchoolId,
                     items: [{
                         description: `${programTitle} — Remaining Tuition Balance`,
                         program_name: programTitle,

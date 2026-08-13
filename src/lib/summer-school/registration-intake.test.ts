@@ -77,10 +77,12 @@ describe('registration intake', () => {
       preferredMode: 'Online',
       totalTuition: 50000,
       amountPaidSoFar: 25000,
+      specialProgramPageId: '80897ba0-5204-489a-95c3-5478607ca664',
       charge: { chargeAmount: 25000, balanceDue: 0, totalTuition: 50000 },
     });
     expect(meta.payment_type).toBe('special_program_balance');
     expect(meta.balance_payment).toBe(true);
     expect(meta.amount_paid_before).toBe(25000);
+    expect(meta.special_program_page_id).toBe('80897ba0-5204-489a-95c3-5478607ca664');
   });
 });

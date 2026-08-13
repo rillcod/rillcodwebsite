@@ -238,6 +238,7 @@ export type BalancePaymentGatewayMeta = {
   amount_charged: number;
   balance_due: number;
   amount_paid_before: number;
+  special_program_page_id: string | null;
 };
 
 export function resolveBalancePaymentCharge(params: {
@@ -289,6 +290,7 @@ export function buildBalancePaymentGatewayMeta(params: {
   preferredMode: string;
   totalTuition: number;
   amountPaidSoFar: number;
+  specialProgramPageId?: string | null;
   charge: BalancePaymentCharge;
 }): BalancePaymentGatewayMeta {
   return {
@@ -302,6 +304,7 @@ export function buildBalancePaymentGatewayMeta(params: {
     amount_charged: params.charge.chargeAmount,
     balance_due: params.charge.balanceDue,
     amount_paid_before: params.amountPaidSoFar,
+    special_program_page_id: params.specialProgramPageId || null,
   };
 }
 

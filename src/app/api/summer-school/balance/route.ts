@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
-import { findProspectForBalancePayment } from "@/lib/summer-school/balance-prospect";
+import { findProspectForBalancePayment, taggedSpecialPageId } from "@/lib/summer-school/balance-prospect";
 import { checkCustomRateLimit, getClientIp } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
 import { validateEmail } from "@/lib/validation";
@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
       preferredMode,
       totalTuition,
       amountPaidSoFar: amountPaid,
+      specialProgramPageId: taggedSpecialPageId(prospect.notes),
       charge: chargeResult.charge,
     });
 

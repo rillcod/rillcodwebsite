@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -50,15 +52,17 @@ export async function GET() {
   async function collectReports(column: 'class_id' | 'student_id', ids: string[]) {
     for (let i = 0; i < ids.length; i += 120) {
       const batch = ids.slice(i, i + 120);
-      const { data, error } = await db
-        .from('student_progress_reports')
-        .select(reportSelect)
-        .in(column, batch)
-        .order('updated_at', { ascending: false })
-        .limit(400);
+      const { data, error } = await fetchAllReportRows<Record<string, unknown>>((from, to) => db
+          .from('student_progress_reports')
+          .select(reportSelect)
+          .in(column, batch)
+          .order('updated_at', { ascending: false })
+          .range(from, to),
+        400,
+      );
       if (error) throw new Error(error.message);
       for (const row of data ?? []) {
-        if (row?.id) byId.set(row.id as string, row);
+        if (typeof row?.id === 'string') byId.set(row.id, row);
       }
     }
   }
@@ -133,16 +137,26 @@ export async function POST(req: NextRequest) {
   if (user.role === 'teacher' && klass.teacher_id !== user.id) return NextResponse.json({ error: 'You can only prepare results for your assigned class.' }, { status: 403 });
   if (!klass.academic_offering_id || !klass.offering_period_id) return NextResponse.json({ error: 'Choose the class academic pathway and reporting period first.' }, { status: 409 });
   const offering = one<any>(klass.academic_offerings);
-  if (!student.enrollment_type || student.enrollment_type !== offering?.enrollment_type) {
+  const studentEnrollmentType = student.enrollment_type
+    ? normalizeEnrollmentType(student.enrollment_type)
+    : null;
+  const offeringEnrollmentType = offering?.enrollment_type
+    ? normalizeEnrollmentType(offering.enrollment_type)
+    : null;
+  if (!studentEnrollmentType || !offeringEnrollmentType || studentEnrollmentType !== offeringEnrollmentType) {
     return NextResponse.json({
       error: 'The learner enrollment type does not match this class pathway. Correct the enrollment or class placement before preparing a result.',
     }, { status: 409 });
   }
 
-  let planQuery = db.from('lesson_plans').select('id,curriculum_release_id,status')
+  let planQuery = db.from('lesson_plans').select('id,curriculum_release_id,status,updated_at')
     .eq('class_id', classId).eq('course_id', courseId).eq('offering_period_id', klass.offering_period_id).neq('status', 'archived');
   if (klass.term_id) planQuery = planQuery.eq('term_id', klass.term_id);
-  const { data: plan } = await planQuery.maybeSingle();
+  const { data: plan, error: planError } = await planQuery
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (planError) return NextResponse.json({ error: `The teaching plan could not be checked: ${planError.message}` }, { status: 500 });
   if (!plan?.curriculum_release_id) return NextResponse.json({ error: 'Assign an official academic direction and teaching plan before preparing this result.' }, { status: 409 });
 
   const period = one<any>(klass.academic_offering_periods);

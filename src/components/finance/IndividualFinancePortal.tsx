@@ -75,16 +75,18 @@ function ProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUploaded:
     const fd = new FormData();
     fd.append('file', file);
     fd.append('note', note);
-    const res = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
-    setUploading(false);
-    if (res.ok) {
-      toast.success('Payment proof uploaded! We will verify within 24 hours.');
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Upload failed');
+      toast.success('Payment proof uploaded. We will verify it within 24 hours.');
       setOpen(false);
       setNote('');
       onUploaded();
-    } else {
-      const j = await res.json();
-      toast.error(j.error ?? 'Upload failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -123,6 +125,7 @@ export default function MyPaymentsPage() {
   const [transactions, setTransactions] = useState<PaymentTx[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<'invoices' | 'history' | 'pay'>('invoices');
   const [busyReceipt, setBusyReceipt] = useState<string | null>(null);
 
@@ -130,11 +133,17 @@ export default function MyPaymentsPage() {
     if (!profile) return;
     setLoading(true);
     try {
-      const [invRes, txRes, bankRes] = await Promise.all([
-        fetch('/api/invoices?limit=100').then((r) => (r.ok ? r.json() : { data: [] })),
-        fetch('/api/payments/transactions?limit=30').then((r) => (r.ok ? r.json() : { data: [] })),
+      const [invoiceResponse, transactionResponse, bankRes] = await Promise.all([
+        fetch('/api/invoices?limit=100', { cache: 'no-store' }),
+        fetch('/api/payments/transactions?limit=30', { cache: 'no-store' }),
         fetch('/api/payment-accounts').then((r) => (r.ok ? r.json() : { data: [] })).catch(() => ({ data: [] })),
       ]);
+      const [invRes, txRes] = await Promise.all([
+        invoiceResponse.json().catch(() => ({})),
+        transactionResponse.json().catch(() => ({})),
+      ]);
+      if (!invoiceResponse.ok) throw new Error(invRes.error || 'Invoices could not be loaded.');
+      if (!transactionResponse.ok) throw new Error(txRes.error || 'Payment history could not be loaded.');
       setInvoices((invRes.data as Invoice[]) ?? []);
       setTransactions((txRes.data as PaymentTx[]) ?? []);
       const accounts = Array.isArray(bankRes.data) ? bankRes.data : [];
@@ -148,8 +157,11 @@ export default function MyPaymentsPage() {
           payment_note: a.payment_note,
         })),
       );
-    } catch {
-      toast.error('Failed to load payment data');
+      setLoadError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Payment information could not be loaded.';
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -227,6 +239,19 @@ export default function MyPaymentsPage() {
 
       {isNativeApp && <NativeBillingNotice />}
 
+      {loadError && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300 sm:flex-row sm:items-center sm:justify-between">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => void loadData()}
+            className="min-h-10 rounded-xl border border-rose-500/30 bg-background px-4 py-2 font-bold text-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-card border border-white/[0.08] rounded-xl p-4">
@@ -269,7 +294,7 @@ export default function MyPaymentsPage() {
           {/* ── Invoices ── */}
           {tab === 'invoices' && (
             <div className="space-y-4">
-              {invoices.length === 0 ? (
+              {invoices.length === 0 && !loadError ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <DocumentTextIcon className="w-14 h-14 text-card-foreground/10" />
                   <p className="text-card-foreground/40 font-semibold">No invoices yet</p>
@@ -351,7 +376,7 @@ export default function MyPaymentsPage() {
           {/* ── History ── */}
           {tab === 'history' && (
             <div className="space-y-3">
-              {transactions.length === 0 ? (
+              {transactions.length === 0 && !loadError ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <ReceiptPercentIcon className="w-14 h-14 text-card-foreground/10" />
                   <p className="text-card-foreground/40 font-semibold">No payment records yet</p>

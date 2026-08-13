@@ -21,6 +21,7 @@ type Report = {
   id: string;
   student_id?: string;
   class_id?: string;
+  course_id?: string;
   student_name: string;
   course_name: string;
   report_term: string;
@@ -73,13 +74,17 @@ function CentralResultsPageInner() {
   const [listLimit, setListLimit] = useState(60);
 
   const load = useCallback(async () => {
-    const response = await fetch('/api/academic-spine/results', { cache: 'no-store' });
-    const body = await response.json();
-    if (!response.ok) return setError(body.error || 'Unable to open results.');
-    setData(body.data);
-    setError('');
-    if (linkedClassId) setClassId((current) => current || linkedClassId);
-    if (linkedCourseId) setCourseId((current) => current || linkedCourseId);
+    try {
+      const response = await fetch('/api/academic-spine/results', { cache: 'no-store' });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to open results.');
+      setData(body.data);
+      setError('');
+      if (linkedClassId) setClassId((current) => current || linkedClassId);
+      if (linkedCourseId) setCourseId((current) => current || linkedCourseId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to open results. Please try again.');
+    }
   }, [linkedClassId, linkedCourseId]);
 
   useEffect(() => {
@@ -97,6 +102,31 @@ function CentralResultsPageInner() {
   const activeClass = data.classes.find((item) => item.id === classId);
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
   const plans = useMemo(() => data.plans.filter((item) => item.class_id === classId), [data.plans, classId]);
+  const courseOptions = useMemo(
+    () => [...new Map(plans.map((plan) => [plan.course_id, plan])).values()],
+    [plans],
+  );
+
+  useEffect(() => {
+    if (!classId) return;
+    setCourseId((current) => {
+      if (current && courseOptions.some((plan) => plan.course_id === current)) return current;
+      return courseOptions.length === 1 ? courseOptions[0].course_id : '';
+    });
+  }, [classId, courseOptions]);
+
+  useEffect(() => {
+    if (!classId || students.length === 0) return;
+    setStudentId((current) => {
+      if (current && students.some((student) => student.id === current)) return current;
+      const learnerWithoutResult = courseId
+        ? students.find((student) => !data.reports.some((report) =>
+            report.student_id === student.id && report.course_id === courseId,
+          ))
+        : null;
+      return learnerWithoutResult?.id ?? students[0].id;
+    });
+  }, [classId, courseId, courseOptions, data.reports, students]);
 
   const classStudentIds = useMemo(
     () => new Set(students.map((s) => s.id)),
@@ -310,7 +340,7 @@ function CentralResultsPageInner() {
               className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-normal"
             >
               <option value="">Choose planned course</option>
-              {plans.map((item) => (
+              {courseOptions.map((item) => (
                 <option key={item.id} value={item.course_id}>
                   {item.courses?.title || 'Course'}
                   {item.curriculum_release_id ? '' : ' (direction needed)'}
