@@ -13171,6 +13171,7 @@ export type Database = {
           document_kind: string
           id: string
           pdf_r2_key: string | null
+          reference: string | null
           school_id: string
           sent_at: string | null
           signature_ip: string | null
@@ -13179,7 +13180,7 @@ export type Database = {
           signed_by_role: string | null
           signed_by_user_id: string | null
           status: string
-          terms_id: string
+          terms_id: string | null
           terms_snapshot: Json
           updated_at: string
           version: number
@@ -13191,6 +13192,7 @@ export type Database = {
           document_kind: string
           id?: string
           pdf_r2_key?: string | null
+          reference?: string | null
           school_id: string
           sent_at?: string | null
           signature_ip?: string | null
@@ -13199,7 +13201,7 @@ export type Database = {
           signed_by_role?: string | null
           signed_by_user_id?: string | null
           status?: string
-          terms_id: string
+          terms_id?: string | null
           terms_snapshot: Json
           updated_at?: string
           version?: number
@@ -13211,6 +13213,7 @@ export type Database = {
           document_kind?: string
           id?: string
           pdf_r2_key?: string | null
+          reference?: string | null
           school_id?: string
           sent_at?: string | null
           signature_ip?: string | null
@@ -13219,7 +13222,7 @@ export type Database = {
           signed_by_role?: string | null
           signed_by_user_id?: string | null
           status?: string
-          terms_id?: string
+          terms_id?: string | null
           terms_snapshot?: Json
           updated_at?: string
           version?: number
