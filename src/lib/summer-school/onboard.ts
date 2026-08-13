@@ -809,6 +809,23 @@ export async function onboardSummerStudent(
         if (!invoice.ok) throw new Error(invoice.error.message);
       }
     }
+    const { error: successLogError } = await admin.from('finance_automation_log').insert({
+      stream: 'special_program',
+      action: 'onboarding_finance_sync',
+      entity_type: 'prospective_student',
+      entity_id: prospect.id,
+      stage: 'portal_activation',
+      channel: 'in_app',
+      status: 'success',
+      attempt: 1,
+      error: null,
+      metadata: { student_portal_id: studentPortalId, school_id: school.id },
+    });
+    if (successLogError && !/duplicate|unique/i.test(successLogError.message)) {
+      // Finance is already repaired; a secondary audit-write failure must not
+      // roll back access or be mislabeled as a finance-sync failure.
+      console.error('[onboardSummerStudent] finance success could not be recorded:', successLogError.message);
+    }
   } catch (financeError) {
     console.error('[onboardSummerStudent] finance sync failed:', financeError);
     // Identity and academic access stay available after payment, but finance

@@ -39,6 +39,7 @@ import {
 } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
+import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 
 export async function POST(
@@ -576,30 +577,16 @@ export async function POST(
         }
       }
 
-      if (failures.length > 0) {
-        const currentMetadata =
-          (plan as any)?.metadata && typeof (plan as any).metadata === "object"
-            ? ((plan as any).metadata as Record<string, unknown>)
-            : {};
-        const existingErrors =
-          currentMetadata.last_generation_errors &&
-          typeof currentMetadata.last_generation_errors === "object"
-            ? (currentMetadata.last_generation_errors as Record<string, unknown>)
-            : {};
-        await supabase
-          .from("lesson_plans")
-          .update({
-            metadata: {
-              ...currentMetadata,
-              last_generation_errors: {
-                ...existingErrors,
-                projects: failures,
-                generated_at: new Date().toISOString(),
-              },
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any)
-          .eq("id", id);
+      const { error: incidentError } = await supabase
+        .from("lesson_plans")
+        .update({
+          metadata: nextGenerationIncidentMetadata((plan as any)?.metadata, "projects", failures),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .eq("id", id);
+      if (incidentError) {
+        console.error("Could not update project generation incident state:", incidentError);
+        emit({ warning: "The projects finished, but their health status could not be refreshed." });
       }
 
       emit({

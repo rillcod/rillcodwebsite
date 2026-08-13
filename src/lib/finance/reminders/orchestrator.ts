@@ -1,10 +1,14 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertDbOk } from '@/lib/finance/write-result';
+import {
+  FINANCE_REMINDER_MAX_ATTEMPTS,
+  financeReminderRetryState,
+} from '@/lib/finance/reminders/retry-policy';
 
 export type ReminderStream = 'invoice' | 'school_billing' | 'individual_billing' | 'special_program';
 export type ReminderChannel = 'email' | 'whatsapp' | 'in_app' | 'sms';
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = FINANCE_REMINDER_MAX_ATTEMPTS;
 
 export type DeliverReminderInput = {
   stream: ReminderStream | 'summer_school';
@@ -34,6 +38,7 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
   const stage = input.stage ?? null;
   const dedupe = input.dedupe !== false;
   let failCount = 0;
+  let attempt = 1;
 
   if (dedupe) {
     let successQuery = (db as any)
@@ -52,35 +57,42 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
 
     let failureQuery = (db as any)
       .from('finance_automation_log')
-      .select('id')
+      .select('id,attempt,created_at')
       .eq('stream', stream)
       .eq('entity_id', input.entityId)
       .eq('channel', input.channel)
       .eq('status', 'failed')
+      .order('created_at', { ascending: false })
       .limit(MAX_ATTEMPTS);
     failureQuery = stage === null ? failureQuery.is('stage', null) : failureQuery.eq('stage', stage);
     const { data: failures, error: failuresError } = await failureQuery;
     assertDbOk(failuresError, 'finance reminder failure history');
     failCount = failures?.length ?? 0;
+    const retryState = financeReminderRetryState(failures ?? []);
+    attempt = retryState.attempt;
 
     if (failCount >= MAX_ATTEMPTS) {
-      await logAutomation({
-        stream,
-        action: input.action,
-        entityType: input.entityType,
-        entityId: input.entityId,
-        stage,
-        channel: input.channel,
-        status: 'skipped',
-        attempt: failCount + 1,
-        error: `Retry limit (${MAX_ATTEMPTS}) reached`,
-        metadata: input.metadata,
-      });
-      return { status: 'skipped', attempt: failCount + 1, error: 'retry_limit' };
+      if (retryState.cooldownActive) {
+        // Pause a noisy provider for a few hours, then automatically try again.
+        // The old lifetime cap locked the work forever after three failures.
+        await logAutomation({
+          stream,
+          action: input.action,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          stage,
+          channel: input.channel,
+          status: 'skipped',
+          attempt,
+          error: `Retry limit (${MAX_ATTEMPTS}) reached; automatic retry resumes after the cooldown`,
+          metadata: input.metadata,
+        });
+        return { status: 'skipped', attempt, error: 'retry_limit_cooldown' };
+      }
     }
   }
 
-  const attempt = failCount + 1;
+  if (!dedupe) attempt = 1;
   try {
     await input.deliver();
   } catch (err: unknown) {

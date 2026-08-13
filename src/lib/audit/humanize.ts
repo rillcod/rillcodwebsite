@@ -39,6 +39,17 @@ const ACTION_PHRASES: Record<string, string> = {
   publish_progress_reports: 'Published progress reports',
   queue_class_broadcast: 'Queued a class broadcast',
 
+  // Operations and recovery
+  run_automation_job_now: 'Ran scheduled work now',
+  run_automation_job_now_failed: 'Scheduled work needs attention',
+  resolve_notification_dead_letter: 'Closed a failed message after review',
+  ignore_notification_dead_letter: 'Closed a message that should not be retried',
+  retry_notification_dead_letter: 'Retried and delivered a failed message',
+  retry_notification_dead_letter_skipped: 'Respected a customer communication preference',
+  retry_notification_dead_letter_failed: 'Message retry needs attention',
+  refresh_accountability_cache: 'Refreshed the accountability census',
+  refresh_accountability_cache_failed: 'Accountability refresh needs attention',
+
   // Result check
   result_check_verified: 'Report opened',
   parent_link_verified: 'Parent verified their own link',

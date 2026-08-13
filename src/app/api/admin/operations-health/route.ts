@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
-import { cronPathMap, monitoredCronJobs } from '@/lib/operations/cron-registry';
+import { cronPathMap } from '@/lib/operations/cron-registry';
+import {
+  currentFinanceIncidents,
+  generationIncidentsFromPlans,
+  summariseFanoutState,
+  withRegisteredCronJobs,
+} from '@/lib/operations/health-state';
+import { fanoutOriginCandidates } from '@/lib/server/cron-fanout';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 
@@ -10,33 +17,6 @@ export const dynamic = 'force-dynamic';
 
 // Derived from the registry so this map can no longer drift from the jobs that actually exist.
 const CRON_PATHS: Record<string, string> = cronPathMap();
-
-/**
- * `cron_job_health` only gains a row once a job has run at least once, so a job that lost its
- * schedule — or never got one — was simply absent from the panel rather than alarming. Fill in a
- * placeholder for every scheduled job with no row yet; `healthState` renders a null
- * `last_finished_at` as "Waiting for first run".
- */
-function withNeverRunJobs(rows: Array<Record<string, unknown>>) {
-  const seen = new Set(rows.map((row) => String(row.job_name)));
-  const placeholders = monitoredCronJobs()
-    .filter((job) => !seen.has(job.name))
-    .map((job) => ({
-      job_name: job.name,
-      expected_interval_minutes: job.intervalMinutes,
-      last_started_at: null,
-      last_finished_at: null,
-      last_success_at: null,
-      next_expected_at: null,
-      last_status_code: null,
-      last_duration_ms: null,
-      last_error: null,
-      last_result: {},
-      consecutive_failures: 0,
-      never_run: true,
-    }));
-  return [...rows, ...placeholders].sort((a, b) => String(a.job_name).localeCompare(String(b.job_name)));
-}
 
 /**
  * Work that is finished and waiting on a person.
@@ -144,50 +124,6 @@ async function waitingOnYou(db: any) {
   ].filter((row) => row.count === null || row.count > 0);
 }
 
-/**
- * Flatten the dispatcher's own record into one row per child job.
- *
- * Stored as `{ host, at, result: { 'academic-readiness': 'ok' | 'http_500' | 'unreachable:…' } }`
- * under a handful of app_settings keys. Reported per child rather than per host
- * because "onboarding-sweep's fan-out failed" is not actionable, while
- * "academic-readiness was unreachable at 18:00" names the job that stopped.
- */
-function summariseFanout(rows: Array<Record<string, unknown>>) {
-  const children: Array<{ job: string; status: string; host: string; at: string | null }> = [];
-
-  for (const row of rows) {
-    let parsed: { host?: string; at?: string; result?: Record<string, string> } | null = null;
-    try {
-      const raw = row.value;
-      parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as typeof parsed);
-    } catch {
-      continue; // A malformed record must not take the whole panel down.
-    }
-    if (!parsed?.result) continue;
-
-    for (const [job, status] of Object.entries(parsed.result)) {
-      children.push({
-        job,
-        status: String(status),
-        host: String(parsed.host ?? row.key ?? 'unknown'),
-        at: parsed.at ?? (row.updated_at as string) ?? null,
-      });
-    }
-  }
-
-  children.sort((a, b) => a.job.localeCompare(b.job));
-  const failing = children.filter((c) => c.status !== 'ok');
-
-  return {
-    children,
-    failing,
-    // True when the dispatcher is reaching nothing at all — the shape of the
-    // 2026-08-07 outage, and a different problem from one job returning 500.
-    allUnreachable:
-      children.length > 0 && children.every((c) => c.status.startsWith('unreachable')),
-  };
-}
-
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -211,7 +147,13 @@ export async function GET() {
     actor.db.from('cron_job_health').select('*').order('job_name'),
     actor.db.from('notification_dead_letters').select('*').in('status', ['pending', 'retrying']).order('created_at', { ascending: false }).limit(100),
     actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(100),
-    actor.db.from('finance_automation_log').select('id,stream,action,entity_id,channel,error,created_at').eq('status', 'failed').order('created_at', { ascending: false }).limit(25),
+    // Read state transitions, not only failure rows. A later success closes the
+    // incident and must remove the old failure from the staff action queue.
+    actor.db.from('finance_automation_log')
+      .select('id,stream,action,entity_type,entity_id,stage,channel,status,error,attempt,created_at')
+      .in('status', ['failed', 'success', 'skipped'])
+      .order('created_at', { ascending: false })
+      .limit(500),
     actor.db
       .from('lesson_plans')
       .select('id,metadata,classes!lesson_plans_class_id_fkey(name),courses(title)')
@@ -232,28 +174,26 @@ export async function GET() {
 
   const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error || fanout.error;
   if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
-  const incidents = (generationIncidents.data ?? []).flatMap((row: any) => {
-    const errors = row?.metadata?.last_generation_errors;
-    if (!errors || typeof errors !== 'object') return [];
-    const generatedAt = typeof errors.generated_at === 'string' ? errors.generated_at : null;
-    return ['lessons', 'slides', 'flashcards', 'assignments', 'projects']
-      .filter((key) => Array.isArray((errors as Record<string, unknown>)[key]))
-      .map((key) => ({
-        planId: row.id,
-        className: row?.classes?.name ?? null,
-        courseTitle: row?.courses?.title ?? null,
-        type: key,
-        failures: ((errors as Record<string, unknown>)[key] as unknown[]).length,
-        generatedAt,
-      }));
-  });
+  const incidents = generationIncidentsFromPlans(generationIncidents.data ?? []);
   return NextResponse.json({
-    health: withNeverRunJobs(health.data ?? []),
-    deadLetters: deadLetters.data ?? [],
+    health: withRegisteredCronJobs(health.data ?? []),
+    // The UI needs an action decision, not the original message payload. Keep
+    // customer content and delivery credentials out of this administrative response.
+    deadLetters: (deadLetters.data ?? []).map((row: any) => ({
+      id: row.id,
+      source: row.source,
+      job_type: row.job_type,
+      error: row.error,
+      attempts: row.attempts,
+      retry_count: row.retry_count,
+      status: row.status,
+      created_at: row.created_at,
+      can_retry: row.job_type === 'email' && Boolean(row.user_id || row.payload?.to),
+    })),
     history: history.data ?? [],
-    financeFailures: financeFailures.data ?? [],
+    financeFailures: currentFinanceIncidents(financeFailures.data ?? []).slice(0, 25),
     generationIncidents: incidents,
-    fanout: summariseFanout(fanout.data ?? []),
+    fanout: summariseFanoutState(fanout.data ?? []),
     waiting: await waitingOnYou(actor.db),
     cronPaths: CRON_PATHS,
     generatedAt: new Date().toISOString(),
@@ -277,13 +217,26 @@ export async function PATCH(req: NextRequest) {
     if (!path) return NextResponse.json({ error: 'Unknown cron job.' }, { status: 400 });
     const secret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET;
     if (!secret) return NextResponse.json({ error: 'CRON_SECRET is not configured.' }, { status: 503 });
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
     try {
-      const response = await fetch(`${baseUrl}${path}`, {
-        method: 'POST',
-        headers: { 'x-cron-secret': secret },
-        cache: 'no-store',
-      });
+      // A Cloudflare container cannot reliably leave the edge and call its own
+      // public origin. Use the same loopback-first strategy as scheduled fan-out.
+      let response: Response | null = null;
+      let lastError: unknown = null;
+      for (const origin of fanoutOriginCandidates(req.url)) {
+        try {
+          response = await fetch(`${origin}${path}`, {
+            method: 'POST',
+            headers: { 'x-cron-secret': secret },
+            cache: 'no-store',
+          });
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (!response) {
+        throw lastError instanceof Error ? lastError : new Error('The scheduled job could not be reached.');
+      }
       const result = await response.json().catch(() => ({}));
       const succeeded = cronResultSucceeded(response.status, result);
       await logAudit(actor.db, {

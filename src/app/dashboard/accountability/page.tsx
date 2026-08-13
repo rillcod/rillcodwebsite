@@ -30,6 +30,7 @@ export default function AccountabilityPage() {
   } | null>(null);
   const canViewAccountability = roleHasCapability(profile?.role, 'view_accountability');
   const [exceptionTotals, setExceptionTotals] = useState<Partial<Record<StudentExceptionKind, number>> | null>(null);
+  const [exceptionWarning, setExceptionWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +61,11 @@ export default function AccountabilityPage() {
       if (excRes.ok) {
         const excJson = await excRes.json();
         setExceptionTotals(excJson.exceptions?.totals ?? null);
+        setExceptionWarning(null);
       } else {
         setExceptionTotals(null);
+        const excJson = await excRes.json().catch(() => ({}));
+        setExceptionWarning(excJson.error || 'Student exception counts could not be refreshed.');
       }
       setError(null);
       return json as {
@@ -120,7 +124,9 @@ export default function AccountabilityPage() {
   useEffect(() => {
     if (pollInterval <= 0) return;
     const interval = setInterval(() => {
-      void load(true);
+      // Automatic refresh reads the latest cache. Only the explicit Refresh
+      // button runs the expensive materialized-view rebuild.
+      void load(false);
     }, pollInterval);
     return () => clearInterval(interval);
   }, [pollInterval, load]);
@@ -159,7 +165,10 @@ export default function AccountabilityPage() {
       loading={loading}
       refreshing={refreshing}
       error={error}
-      dataQualityWarnings={data?.data_quality?.warnings ?? []}
+      dataQualityWarnings={[
+        ...(data?.data_quality?.warnings ?? []),
+        ...(exceptionWarning ? [exceptionWarning] : []),
+      ]}
       syncFeedback={syncFeedback}
       syncingClasses={syncingClasses}
       pollInterval={pollInterval}

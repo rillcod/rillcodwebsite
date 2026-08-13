@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
 import { cronLabel } from '@/lib/operations/cron-registry';
+import { cronHealthCode } from '@/lib/operations/health-state';
 
 type HealthRow = {
   job_name: string;
@@ -20,12 +21,12 @@ type DeadLetter = {
   id: string;
   source: string;
   job_type: string;
-  user_id: string | null;
   error: string;
   attempts: number;
   retry_count: number;
   status: string;
   created_at: string;
+  can_retry: boolean;
 };
 type RunRow = {
   id: string;
@@ -42,6 +43,7 @@ type FinanceFailure = {
   action: string;
   entity_id: string | null;
   channel: string | null;
+  status: string;
   error: string | null;
   created_at: string;
 };
@@ -76,13 +78,18 @@ type FanoutSummary = {
 const friendlyJob = cronLabel;
 
 function healthState(row: HealthRow) {
-  if (row.consecutive_failures > 0) return { label: 'Failing', cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30' };
-  if (!row.last_finished_at) return { label: 'Waiting for first run', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30' };
-  const grace = Math.max(10, Math.ceil(row.expected_interval_minutes * 0.25)) * 60000;
-  if (row.next_expected_at && Date.now() > new Date(row.next_expected_at).getTime() + grace) {
+  const code = cronHealthCode(row);
+  if (code === 'failing') return { label: 'Failing', cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30' };
+  if (code === 'never_run') return { label: 'Waiting for first run', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30' };
+  if (code === 'late') {
     return { label: 'Late', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30' };
   }
   return { label: 'Healthy', cls: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
+}
+
+function friendlyOperationalName(value: string): string {
+  const words = value.replace(/[-_.]+/g, ' ').trim();
+  return words ? words.replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Automated work';
 }
 
 type Props = { embedded?: boolean };
@@ -159,11 +166,15 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
     const states = health.map(healthState);
     return {
       healthy: states.filter((s) => s.label === 'Healthy').length,
-      attention: states.filter((s) => s.label !== 'Healthy').length,
+      attention:
+        states.filter((s) => s.label !== 'Healthy').length
+        + (fanout?.failing.length ?? 0)
+        + financeFailures.length
+        + generationIncidents.length,
       dead: deadLetters.length,
       jobs: health.length,
     };
-  }, [health, deadLetters]);
+  }, [health, deadLetters, fanout, financeFailures, generationIncidents]);
 
   return (
     <div className="space-y-6">
@@ -352,7 +363,8 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
               <div key={row.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <p className="font-bold">
-                    {row.job_type} | {row.source}
+                    {friendlyOperationalName(row.job_type)} <span aria-hidden="true">&middot;</span>{' '}
+                    {friendlyOperationalName(row.source)}
                   </p>
                   <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{row.error}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
@@ -360,14 +372,16 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={busy === row.id}
-                    onClick={() => void act({ action: 'retry', id: row.id })}
-                    className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
-                  >
-                    Try again
-                  </button>
+                  {row.can_retry ? (
+                    <button
+                      type="button"
+                      disabled={busy === row.id}
+                      onClick={() => void act({ action: 'retry', id: row.id })}
+                      className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
+                    >
+                      Try again
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     disabled={busy === row.id}
@@ -431,13 +445,14 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
             {financeFailures.map((row) => (
               <div key={row.id} className="p-4">
                 <p className="text-sm font-bold">
-                  {row.stream} | {row.action}
-                  {row.channel ? ` | ${row.channel}` : ''}
+                  {friendlyOperationalName(row.stream)} <span aria-hidden="true">&middot;</span>{' '}
+                  {friendlyOperationalName(row.action)}
+                  {row.channel ? ` · ${friendlyOperationalName(row.channel)}` : ''}
                 </p>
                 <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{row.error || 'Delivery failed without a provider message.'}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {new Date(row.created_at).toLocaleString()}
-                  {row.entity_id ? ` | ${row.entity_id}` : ''}
+                  {row.status === 'skipped' ? ' · Automatic retry is temporarily paused' : ' · Automatic recovery will retry safely'}
                 </p>
               </div>
             ))}
