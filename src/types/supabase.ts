@@ -12974,6 +12974,255 @@ export type Database = {
           },
         ]
       }
+      partnership_agreements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_html: string | null
+          document_kind: string
+          id: string
+          pdf_r2_key: string | null
+          school_id: string
+          sent_at: string | null
+          signature_ip: string | null
+          signed_at: string | null
+          signed_by_name: string | null
+          signed_by_role: string | null
+          signed_by_user_id: string | null
+          status: string
+          terms_id: string
+          terms_snapshot: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_html?: string | null
+          document_kind: string
+          id?: string
+          pdf_r2_key?: string | null
+          school_id: string
+          sent_at?: string | null
+          signature_ip?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          signed_by_role?: string | null
+          signed_by_user_id?: string | null
+          status?: string
+          terms_id: string
+          terms_snapshot: Json
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_html?: string | null
+          document_kind?: string
+          id?: string
+          pdf_r2_key?: string | null
+          school_id?: string
+          sent_at?: string | null
+          signature_ip?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          signed_by_role?: string | null
+          signed_by_user_id?: string | null
+          status?: string
+          terms_id?: string
+          terms_snapshot?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partnership_agreements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_signed_by_user_id_fkey"
+            columns: ["signed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_signed_by_user_id_fkey"
+            columns: ["signed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_signed_by_user_id_fkey"
+            columns: ["signed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_signed_by_user_id_fkey"
+            columns: ["signed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_agreements_terms_id_fkey"
+            columns: ["terms_id"]
+            isOneToOne: false
+            referencedRelation: "partnership_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partnership_terms: {
+        Row: {
+          agreed_at: string | null
+          amount_per_student: number | null
+          billing_cycle: string
+          billing_model: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          deposit_amount: number | null
+          effective_from: string | null
+          effective_to: string | null
+          fixed_package_price: number | null
+          id: string
+          notes: string | null
+          rillcod_share_percent: number | null
+          school_id: string
+          school_share_percent: number | null
+          status: string
+          supersedes_id: string | null
+          tiers: Json | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          agreed_at?: string | null
+          amount_per_student?: number | null
+          billing_cycle?: string
+          billing_model: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deposit_amount?: number | null
+          effective_from?: string | null
+          effective_to?: string | null
+          fixed_package_price?: number | null
+          id?: string
+          notes?: string | null
+          rillcod_share_percent?: number | null
+          school_id: string
+          school_share_percent?: number | null
+          status?: string
+          supersedes_id?: string | null
+          tiers?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          agreed_at?: string | null
+          amount_per_student?: number | null
+          billing_cycle?: string
+          billing_model?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deposit_amount?: number | null
+          effective_from?: string | null
+          effective_to?: string | null
+          fixed_package_price?: number | null
+          id?: string
+          notes?: string | null
+          rillcod_share_percent?: number | null
+          school_id?: string
+          school_share_percent?: number | null
+          status?: string
+          supersedes_id?: string | null
+          tiers?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partnership_terms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_terms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_terms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_terms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "partnership_terms_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partnership_terms_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "partnership_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_accounts: {
         Row: {
           account_name: string
