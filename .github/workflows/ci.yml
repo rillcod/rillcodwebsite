@@ -32,6 +32,16 @@ jobs:
       - name: Encoding check
         run: npm run lint:encoding
 
+      # ESLint ran nowhere for a long time: next.config.ts sets
+      # `eslint: { ignoreDuringBuilds: true }` with a comment saying it runs in CI,
+      # there is no pre-commit hook, and `next lint` (the old script) is deprecated
+      # and printed nothing. The config deliberately keeps the bug-catching rules —
+      # react-hooks/rules-of-hooks, prefer-const, no-unused-expressions — as ERRORS,
+      # and that whole tier was unenforced. Errors fail this step; the ~7.8k
+      # type-hygiene warnings do not, so the legacy cleanup stays incremental.
+      - name: Lint
+        run: npm run lint
+
       - name: UI standards audit
         run: npm run audit:ui
 

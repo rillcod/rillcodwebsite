@@ -146,7 +146,7 @@ export async function GET(
       ? asgn.questions.map(({ correct_answer: _ca, ...q }: any) => q)
       : asgn.questions;
 
-    let submission = subRes.data ? { ...subRes.data } as any : null;
+    const submission = subRes.data ? { ...subRes.data } as any : null;
     if (submission?.id) {
       const { data: detail, error: detailError } = await admin
         .from('assignment_submissions')

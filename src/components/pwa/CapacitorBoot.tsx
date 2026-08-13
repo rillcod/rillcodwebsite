@@ -106,7 +106,6 @@ export default function CapacitorBoot() {
 
     let removeBack: (() => void) | undefined;
     let removeDeepLink: (() => void) | undefined;
-    let restoreWindowOpen: (() => void) | undefined;
 
     const originalWindowOpen = window.open.bind(window);
     window.open = ((url?: string | URL, target?: string, features?: string) => {
@@ -125,7 +124,7 @@ export default function CapacitorBoot() {
       }
       return originalWindowOpen(url as string | URL | undefined, target, features);
     }) as typeof window.open;
-    restoreWindowOpen = () => { window.open = originalWindowOpen; };
+    const restoreWindowOpen = () => { window.open = originalWindowOpen; };
 
     const boot = async () => {
       try {

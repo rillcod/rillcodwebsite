@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       academic_assessment_evidence: {
@@ -33,7 +58,6 @@ export type Database = {
           evidence_type: string
           graded_at: string | null
           graded_by: string | null
-          grading_details: Json | null
           grading_mode: string | null
           id: string
           lesson_id: string | null
@@ -65,7 +89,6 @@ export type Database = {
           evidence_type: string
           graded_at?: string | null
           graded_by?: string | null
-          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           lesson_id?: string | null
@@ -97,7 +120,6 @@ export type Database = {
           evidence_type?: string
           graded_at?: string | null
           graded_by?: string | null
-          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           lesson_id?: string | null
@@ -1728,6 +1750,7 @@ export type Database = {
           grade: number | null
           graded_at: string | null
           graded_by: string | null
+          grading_details: Json | null
           grading_mode: string | null
           id: string
           portal_user_id: string | null
@@ -1750,6 +1773,7 @@ export type Database = {
           grade?: number | null
           graded_at?: string | null
           graded_by?: string | null
+          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           portal_user_id?: string | null
@@ -1772,6 +1796,7 @@ export type Database = {
           grade?: number | null
           graded_at?: string | null
           graded_by?: string | null
+          grading_details?: Json | null
           grading_mode?: string | null
           id?: string
           portal_user_id?: string | null
@@ -5156,8 +5181,8 @@ export type Database = {
       }
       consent_forms: {
         Row: {
-          access_code: string
           academic_offering_id: string | null
+          access_code: string
           body: string
           class_id: string | null
           created_at: string
@@ -5171,8 +5196,8 @@ export type Database = {
           title: string
         }
         Insert: {
-          access_code?: string
           academic_offering_id?: string | null
+          access_code?: string
           body: string
           class_id?: string | null
           created_at?: string
@@ -5186,8 +5211,8 @@ export type Database = {
           title: string
         }
         Update: {
-          access_code?: string
           academic_offering_id?: string | null
+          access_code?: string
           body?: string
           class_id?: string | null
           created_at?: string
@@ -12495,7 +12520,64 @@ export type Database = {
           siblings_linked?: number
           student_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "parent_claim_audit_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_claim_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
       }
       parent_claim_otps: {
         Row: {
@@ -12511,6 +12593,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string | null
+          processing_at: string | null
           relationship: string | null
           student_id: string
           verified: boolean
@@ -12529,6 +12612,7 @@ export type Database = {
           full_name: string
           id?: string
           phone?: string | null
+          processing_at?: string | null
           relationship?: string | null
           student_id: string
           verified?: boolean
@@ -12547,6 +12631,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          processing_at?: string | null
           relationship?: string | null
           student_id?: string
           verified?: boolean
@@ -18102,6 +18187,7 @@ export type Database = {
       }
       timetable_slots: {
         Row: {
+          class_id: string | null
           course_id: string | null
           created_at: string
           day_of_week: string
@@ -18116,6 +18202,7 @@ export type Database = {
           timetable_id: string
         }
         Insert: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string
           day_of_week: string
@@ -18130,6 +18217,7 @@ export type Database = {
           timetable_id: string
         }
         Update: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string
           day_of_week?: string
@@ -18144,6 +18232,13 @@ export type Database = {
           timetable_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "timetable_slots_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "timetable_slots_course_id_fkey"
             columns: ["course_id"]
@@ -19453,6 +19548,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_constraint_allowed_values: {
+        Args: never
+        Returns: {
+          allowed_value: string
+          column_name: string
+          table_name: string
+        }[]
+      }
       check_course_completion: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: boolean
@@ -19490,6 +19593,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      class_active_for_term: {
+        Args: { p_class_term_id: string; p_term_id: string }
+        Returns: boolean
       }
       class_qa_path_offset: {
         Args: { p_class_id: string; p_school_id: string }
@@ -19594,6 +19701,18 @@ export type Database = {
       current_academic_term: { Args: never; Returns: string }
       current_user_email: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
+      curriculum_project_shape: { Args: { prompt: string }; Returns: string }
+      curriculum_project_shapes: {
+        Args: { p_program?: string; p_track?: string }
+        Returns: {
+          avg_length: number
+          rows: number
+          sample_prompt: string
+          sample_title: string
+          shape: string
+          tracks: string[]
+        }[]
+      }
       curriculum_release_quality_report: {
         Args: { p_content: Json }
         Returns: Json
@@ -19925,6 +20044,15 @@ export type Database = {
         Args: { p_term: string; p_year: string }
         Returns: string
       }
+      rewrite_curriculum_project_shape: {
+        Args: {
+          p_program?: string
+          p_prompt: string
+          p_shape: string
+          p_track?: string
+        }
+        Returns: number
+      }
       settle_billing_cycle_payment_atomic: {
         Args: {
           p_actor_id?: string
@@ -20006,6 +20134,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      valid_academic_assessment_components: {
+        Args: { p_components: Json }
+        Returns: boolean
       }
       withdraw_receipt_atomic: {
         Args: { p_actor_id: string; p_reason: string; p_receipt_id: string }
@@ -20139,6 +20271,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

@@ -63,11 +63,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const sb = adminClient();
 
   // Fetch lead
-  let { data: lead, error: leadErr } = await (sb as any)
+  const { data: initialLead, error: leadErr } = await (sb as any)
     .from('form_leads')
     .select('id, form_id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id, match_status, match_candidate_id')
     .eq('id', leadId)
     .single();
+  let lead = initialLead;
 
   if (leadErr || !lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
 
