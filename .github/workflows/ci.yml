@@ -6,9 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+# A force-push or a quick follow-up commit used to leave the older run going. Superseded
+# PR runs are cancelled; main is not, so every commit on main keeps its own verdict.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Read-only: nothing here writes to the repo, and the default token is broader.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # The build is the long pole at a few minutes. Without a cap, one wedged step
+    # sits on the runner for GitHub's six-hour default.
+    timeout-minutes: 30
     env:
       CI: 'true'
       NEXT_PUBLIC_APP_URL: https://www.rillcod.com
@@ -18,6 +31,18 @@ jobs:
       CRON_SECRET: ci-cron-secret
       BILLING_CRON_SECRET: ci-billing-cron-secret
       ENABLE_PAYMENTS: 'false'
+      # NEXT_PUBLIC_* values are inlined into the client bundle at build time, so a
+      # variable CI does not define is compiled in as undefined. CI defined three of
+      # them and deploy-cloudflare.yml defines nine, which meant the build step here
+      # green-lit a bundle the deploy then built differently. These are the same
+      # publishable values that workflow already commits — they are public by design
+      # (anon, publishable, pk_live, VAPID public), not secrets — so the check builds
+      # what actually ships. Supabase URL/anon stay placeholders above: the schema
+      # checks key off them to tell a real credential from a stand-in.
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs
+      NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz
     steps:
       - uses: actions/checkout@v7
 
@@ -64,11 +89,19 @@ jobs:
       # NEXT_PUBLIC_SUPABASE_URL — resolved to empty, the placeholder in the job env won,
       # and the check went on skipping while looking configured. That failure is the exact
       # one these two steps exist to catch, and it would have been invisible.
+      #
+      # STRICT is on exactly when the service-role secret exists. That splits the two
+      # states these steps used to collapse into one green tick: a repo that never
+      # configured credentials (skip, with a ::warning on the run summary) and a repo
+      # that configured them and *still* could not run the check — a wrong secret name,
+      # an unreachable database, a crash in the checker. The second is a
+      # misconfiguration silently hiding ~1600 queries, and it now fails the build.
       - name: Schema drift check
         run: npm run check:schema
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRICT_SCHEMA_DRIFT: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '1' || '0' }}
 
       # The sibling of the drift check, for writes. A value a CHECK constraint
       # forbids compiles, typechecks and passes the suite — a Supabase client
@@ -80,6 +113,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRICT_WRITE_CONSTRAINTS: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '1' || '0' }}
 
       - name: Production build
         run: npm run build

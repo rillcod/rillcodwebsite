@@ -167,6 +167,24 @@ type Violation = {
   allowed: string[];
 };
 
+/**
+ * Give up without failing, unless the caller said this check must run.
+ *
+ * STRICT_WRITE_CONSTRAINTS=1 is the sibling of STRICT_SCHEMA_DRIFT=1. CI turns it
+ * on whenever the service-role secret is configured, which separates the two cases
+ * that used to look the same on a green run: "this repo never set credentials"
+ * (fine, skip) and "this repo set them and the check still could not run" (a
+ * misconfiguration hiding every write from the only thing that inspects them).
+ */
+function giveUp(reason: string, annotation?: string): never {
+  const strict = process.env.STRICT_WRITE_CONSTRAINTS === '1';
+  console.log(`[write-constraints] ${strict ? 'FAILED' : 'skipped'} — ${reason}`);
+  if (process.env.GITHUB_ACTIONS === 'true' && annotation) {
+    console.log(`::${strict ? 'error' : 'warning'} title=Write constraint check did not run::${annotation}`);
+  }
+  process.exit(strict ? 1 : 0);
+}
+
 async function main() {
   const env = loadEnv();
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -175,26 +193,26 @@ async function main() {
   const placeholder =
     !url || !key || /placeholder|example\.com|localhost/i.test(url) || /placeholder/i.test(key);
   if (placeholder) {
-    console.log('[write-constraints] skipped — no real Supabase credentials.');
     // See the same note in check-schema-drift: a step that skipped and a step
     // that passed are indistinguishable on a green run, and that is precisely
     // how the three constraint violations this script exists to catch reached
     // main in the first place.
-    if (process.env.GITHUB_ACTIONS === 'true') {
-      console.log(
-        '::warning title=Write constraint check did not run::' +
-          'No Supabase credentials, so every literal write went unchecked. ' +
-          'Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets to enforce it.',
-      );
-    }
-    return;
+    giveUp(
+      'no real Supabase credentials.',
+      'No Supabase credentials, so every literal write went unchecked. ' +
+        'Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets to enforce it.',
+    );
   }
 
   const db = createClient(url, key, { auth: { persistSession: false } });
   const { data, error } = await db.rpc('check_constraint_allowed_values');
   if (error) {
-    console.log(`[write-constraints] skipped — ${error.message}`);
-    return;
+    // Credentials were good enough to build a client, so reaching here in CI means
+    // the check is configured and still not running — the case strict mode exists for.
+    giveUp(
+      error.message,
+      `Credentials are configured but check_constraint_allowed_values failed: ${error.message}`,
+    );
   }
 
   // table -> column -> permitted values
@@ -274,6 +292,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  // Never fail a build over the checker itself.
-  console.log(`[write-constraints] skipped — ${err instanceof Error ? err.message : err}`);
+  // A crash in the checker does not fail an unconfigured build — but where the
+  // check is meant to be enforced, a checker that cannot finish is a failure, not
+  // a pass. Otherwise the one step that inspects writes is silenced by its own bug.
+  giveUp(err instanceof Error ? err.message : String(err), 'The write constraint checker crashed before it could finish.');
 });
