@@ -6,11 +6,44 @@ const complete = { id: 'r1', student_id: 's1', student_name: 'Ada', section_clas
 function mockAdmin(report: any) {
   const writes: any[] = [];
   const selectChain: any = { eq: () => selectChain, maybeSingle: async () => ({ data: report, error: null }) };
-  const updateChain: any = { eq: () => updateChain, select: () => updateChain, single: async () => ({ data: { ...report, ...writes[0] }, error: null }) };
+  const updateChain: any = { eq: () => updateChain, or: () => updateChain, select: () => updateChain, maybeSingle: async () => ({ data: { ...report, ...writes[0] }, error: null }) };
   return { writes, admin: { from: () => ({ select: () => selectChain, update: (payload: any) => { writes.push(payload); return updateChain; } }) } };
 }
 
 describe('publishProgressReport', () => {
   it('rejects an incomplete report without writing', async () => { const mock = mockAdmin({ ...complete, key_strengths: '' }); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(false); expect(mock.writes).toHaveLength(0); });
-  it('publishes a valid report through one guarded update', async () => { const mock = mockAdmin(complete); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(true); expect(mock.writes).toHaveLength(1); expect(mock.writes[0]).toMatchObject({ is_published: true, verification_code: 'RPT-EXISTING' }); expect(mock.writes[0].published_at).toEqual(expect.any(String)); });
+  it('publishes a valid report through one guarded update', async () => { const mock = mockAdmin(complete); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(true); if (!result.ok) throw new Error('Expected publish success'); expect(result.newlyPublished).toBe(true); expect(mock.writes).toHaveLength(1); expect(mock.writes[0]).toMatchObject({ is_published: true, verification_code: 'RPT-EXISTING' }); expect(mock.writes[0].published_at).toEqual(expect.any(String)); });
+
+  it('does not claim a second delivery transition for an already-published report', async () => {
+    const mock = mockAdmin({ ...complete, is_published: true, published_at: '2026-10-02T00:00:00.000Z' });
+    const result = await publishProgressReport(mock.admin, 'r1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected publish success');
+    expect(result.newlyPublished).toBe(false);
+    expect(mock.writes).toHaveLength(0);
+  });
+
+  it('returns the live report without a second delivery when another publisher wins the transition', async () => {
+    let loadCount = 0;
+    const updateChain: any = {
+      eq: () => updateChain,
+      or: () => updateChain,
+      select: () => updateChain,
+      maybeSingle: async () => ({ data: null, error: null }),
+    };
+    const selectChain: any = {
+      eq: () => selectChain,
+      maybeSingle: async () => {
+        loadCount += 1;
+        return { data: loadCount === 1 ? complete : { ...complete, is_published: true }, error: null };
+      },
+    };
+    const admin = { from: () => ({ select: () => selectChain, update: () => updateChain }) };
+
+    const result = await publishProgressReport(admin, 'r1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected publish success');
+    expect(result.newlyPublished).toBe(false);
+    expect(result.report.is_published).toBe(true);
+  });
 });

@@ -71,7 +71,12 @@ async function handleRequest(req: Request) {
 
         try {
             if (job.type === 'email') {
-                await notificationsService.sendEmail(job.userId, job.payload);
+                if (job.payload?.external === true) {
+                    const { external: _external, ...payload } = job.payload;
+                    await notificationsService.sendExternalEmail(payload);
+                } else {
+                    await notificationsService.sendEmail(job.userId, job.payload);
+                }
             } else {
                 // Req 14: only 'email' jobs are supported — discard anything else
                 const deadLetterId = await recordDeadLetter({

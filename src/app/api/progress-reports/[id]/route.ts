@@ -2,14 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, TablesUpdate } from '@/types/supabase';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { queueService } from '@/services/queue.service';
-import { buildReportEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
-import { buildEmailTrackingPixelUrl } from '@/lib/email/email-tracking-token';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { publishProgressReport } from '@/lib/reports/publish-service';
+import { queueProgressReportPublicationDelivery, type ProgressReportDeliveryResult } from '@/lib/reports/publication-delivery';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { canAccessProgressReport } from '@/lib/reports/access';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
 import {
   resolveSessionForWrite,
 } from '@/lib/reports/academic-period';
@@ -37,61 +33,33 @@ async function requireStaff() {
   return profile;
 }
 
-async function syncStudentProfile(
-  admin: ReturnType<typeof adminClient>,
-  studentId: string,
-  fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
-) {
-  const { data: current } = await admin
-    .from('portal_users')
-    .select('full_name, section_class, gender')
-    .eq('id', studentId)
-    .maybeSingle();
-  const blank = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
-  const portalUpdate: Record<string, unknown> = {};
-  const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
+type ReportAccessResult = { ok: true } | { ok: false; status: number; error: string };
 
-  if (fields.sectionClass && blank(current?.section_class)) {
-    portalUpdate.section_class = fields.sectionClass;
-    studentsUpdate.current_class = fields.sectionClass;
-    studentsUpdate.section = fields.sectionClass;
-  }
-  if (fields.studentName && blank(current?.full_name)) {
-    portalUpdate.full_name   = fields.studentName;
-    studentsUpdate.full_name = fields.studentName;
-  }
-  if (fields.gender && blank(current?.gender)) {
-    portalUpdate.gender   = fields.gender;
-    studentsUpdate.gender = fields.gender;
-  }
-
-  if (Object.keys(portalUpdate).length > 0) {
-    await (admin as any).from('portal_users').update(portalUpdate).eq('id', studentId);
-    // Keep Supabase auth metadata in sync
-    await (admin as any).auth.admin.updateUserById(studentId, { user_metadata: portalUpdate });
-  }
-  if (Object.keys(studentsUpdate).length > 1) {
-    await (admin as any).from('students').update(studentsUpdate).eq('user_id', studentId);
-  }
-}
-
-async function canModifyReport(caller: any, reportId: string) {
-  if (caller.role === 'admin') return true;
+async function canModifyReport(caller: any, reportId: string): Promise<ReportAccessResult> {
+  if (caller.role === 'admin') return { ok: true };
   const admin = adminClient();
-  const { data: report } = await admin.from('student_progress_reports')
+  const { data: report, error: reportError } = await admin.from('student_progress_reports')
     .select('id, school_id, student_id, teacher_id').eq('id', reportId).maybeSingle();
-  if (!report) return false;
+  if (reportError) {
+    console.error('[progress-reports] report access verification failed:', reportError);
+    return { ok: false, status: 503, error: 'Report access could not be verified. Please try again.' };
+  }
+  if (!report) return { ok: false, status: 404, error: 'Report not found' };
 
   const access = await canAccessProgressReport(admin, caller, report as any, { transferOwnership: true });
-  if (!access.ok) return false;
+  if (!access.ok) return { ok: false, status: 403, error: 'This report is outside your assigned class or school.' };
 
   // Class-owner takeover: transfer authorship so publish/unpublish stays unblocked.
   if ((report as any).teacher_id !== caller.id) {
-    await admin.from('student_progress_reports')
+    const { error: transferError } = await admin.from('student_progress_reports')
       .update({ teacher_id: caller.id, updated_at: new Date().toISOString() } as any)
       .eq('id', reportId);
+    if (transferError) {
+      console.error('[progress-reports] report ownership transfer failed:', transferError);
+      return { ok: false, status: 503, error: 'Current teacher ownership could not be recorded. Please try again.' };
+    }
   }
-  return true;
+  return { ok: true };
 }
 
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)
@@ -103,9 +71,8 @@ export async function PATCH(
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await context.params;
-  if (!(await canModifyReport(caller, id))) {
-    return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
-  }
+  const access = await canModifyReport(caller, id);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const body = await request.json();
 
   const allowed: Record<string, any> = {};
@@ -144,19 +111,26 @@ export async function PATCH(
     allowed.report_term = session.termLabel;
     allowed.report_period = session.periodLabel;
     if (allowed.report_term && allowed.report_period) {
-      const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+      const { data: canonicalTerm, error: canonicalTermError } = await admin.from('academic_terms').select('id')
         .eq('term_label', allowed.report_term)
         .eq('academic_year', allowed.report_period)
         .maybeSingle();
+      if (canonicalTermError) {
+        return NextResponse.json({ error: 'The academic term could not be verified. Please try again.' }, { status: 503 });
+      }
       if (canonicalTerm?.id) allowed.term_id = canonicalTerm.id;
     }
   }
 
-  const { data: currentReport } = await admin
+  const { data: currentReport, error: currentReportError } = await admin
     .from('student_progress_reports')
     .select('student_id, student_name, section_class, school_id, course_id, course_name, term_id, academic_offering_id, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
     .eq('id', id)
     .maybeSingle();
+  if (currentReportError) {
+    return NextResponse.json({ error: 'The report could not be verified before saving. Please try again.' }, { status: 503 });
+  }
+  if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
   if (touchesProgressReportScores(body as Record<string, unknown>)) {
     try {
@@ -202,10 +176,12 @@ export async function PATCH(
 
   let data: any;
   let error: any;
+  let newlyPublished = false;
   if (allowed.is_published === true) {
     const publishResult = await publishProgressReport(admin, id, allowed as Record<string, unknown>);
     if (!publishResult.ok) return NextResponse.json({ error: publishResult.error, issues: publishResult.issues }, { status: publishResult.status });
     data = publishResult.report;
+    newlyPublished = publishResult.newlyPublished;
   } else {
     const updateResult = await admin
     .from('student_progress_reports')
@@ -265,132 +241,12 @@ export async function PATCH(
     }
   }
 
-  // Sync name / class / gender corrections back to the student profile
-  if ((allowed.section_class || allowed.student_name || allowed.gender) && data?.student_id) {
-    await syncStudentProfile(admin, data.student_id, {
-      sectionClass: allowed.section_class ?? null,
-      studentName:  allowed.student_name  ?? null,
-      gender:       allowed.gender        ?? null,
-    });
+  let delivery: ProgressReportDeliveryResult | null = null;
+  if (newlyPublished && data?.student_id) {
+    delivery = await queueProgressReportPublicationDelivery(admin as any, data, caller.id);
   }
 
-  // Email alert when report is published — notify student AND their parent(s)
-  if (body.is_published && data?.student_id) {
-    (async () => {
-      const db = adminClient();
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      const studentPortalUrl = `${appUrl}/dashboard/results?student=${data.student_id}`;
-      const parentPortalUrl  = `${appUrl}/dashboard/parent-results`;
-      // Public QR/verify link — opens the full result hub with NO login required, so a
-      // parent can view (and verify) the result straight from the message.
-      const verifyUrl = data.verification_code ? `${appUrl}/result-check/${data.verification_code}` : parentPortalUrl;
-      const subject   = `Progress Report Published — Rillcod Technologies`;
-      const grade     = data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined);
-      const term      = data.course_name || 'Current Term';
-
-      // 1 — Fetch student portal profile
-      const { data: student } = await db
-        .from('portal_users')
-        .select('id, email, full_name, school_id')
-        .eq('id', data.student_id)
-        .maybeSingle();
-
-      const studentName = student?.full_name || 'Student';
-
-      // 2 — Email the student (skip @rillcod.com in-app handles — use in-app notification instead)
-      if (student?.email && !isInAppEmail(student.email)) {
-        const trackingPixelUrl = buildEmailTrackingPixelUrl({ appUrl, reportId: id, email: student.email });
-        const html = buildReportEmail({
-          recipientName: studentName,
-          studentName,
-          term,
-          overallGrade: grade,
-          portalUrl: studentPortalUrl,
-          appUrl,
-          trackingPixelUrl,
-        });
-        await queueService.queueNotification(data.student_id!, 'email', {
-          to:        student.email,
-          subject,
-          fromName:  'Rillcod Technologies',
-          fromEmail: SMTP_FROM_EMAIL,
-          html,
-        });
-      } else if (student?.id) {
-        // In-app notification for @rillcod.com handle users
-        await db.from('notifications').insert({
-          user_id:    student.id,
-          title:      subject,
-          message:    `Your progress report for ${term} is now available. Log in to view your results.`,
-          type:       'info',
-          is_read:    false,
-          action_url: `/dashboard/results?student=${data.student_id}`,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-
-      // 3 — Collect parent contacts (email + phone) from two sources and deduplicate
-      const parentEmails = new Map<string, string>();          // email → name
-      const parentPhones = new Map<string, string>();          // phone → name
-
-      // 3a — students table parent_email / parent_phone (non-portal parents)
-      const { data: studentRow } = await db
-        .from('students')
-        .select('parent_email, parent_name, parent_phone')
-        .eq('user_id', data.student_id)
-        .maybeSingle();
-      if (studentRow?.parent_email) {
-        parentEmails.set(studentRow.parent_email.toLowerCase(), studentRow.parent_name || 'Parent/Guardian');
-      }
-      if (studentRow?.parent_phone) {
-        parentPhones.set(studentRow.parent_phone, studentRow.parent_name || 'Parent/Guardian');
-      }
-
-      // 3b — portal parents via junction (resolve portal user id → students.id first)
-      const { getParentsForStudentPortalId } = await import('@/lib/parents/links');
-      const portalParents = await getParentsForStudentPortalId(db as any, data.student_id);
-      for (const p of portalParents) {
-        if (p.email) parentEmails.set(p.email.toLowerCase(), p.full_name || 'Parent/Guardian');
-        if (p.phone) parentPhones.set(p.phone, p.full_name || 'Parent/Guardian');
-      }
-
-      // 4 — Email each parent (external addresses only) — button opens the public verify
-      //     result page (no login), so parents see the result straight away.
-      const { notificationsService } = await import('@/services/notifications.service');
-      for (const [email, parentName] of parentEmails) {
-        if (isInAppEmail(email)) continue; // in-app handle — no SMTP mailbox
-        const trackingPixelUrl = buildEmailTrackingPixelUrl({ appUrl, reportId: id, email });
-        const html = buildReportEmail({
-          recipientName: parentName,
-          studentName,
-          term,
-          overallGrade: grade,
-          portalUrl: verifyUrl,
-          appUrl,
-          trackingPixelUrl,
-        });
-        await notificationsService.sendExternalEmail({
-          to:        email,
-          subject,
-          fromName:  'Rillcod Technologies',
-          fromEmail: SMTP_FROM_EMAIL,
-          html,
-        }).catch(console.error);
-      }
-
-      // 5 — WhatsApp each parent the same result link (best-effort; no-ops if unconfigured)
-      for (const [phone, parentName] of parentPhones) {
-        const waMessage =
-          `Hello ${parentName}, ${studentName}'s ${term} progress report has been published` +
-          `${grade ? ` (Overall: ${grade})` : ''}.\n\n` +
-          `View & verify it here: ${verifyUrl}\n\n— Rillcod Technologies`;
-        await sendWhatsApp(phone, waMessage);
-      }
-    })().catch(console.error);
-  }
-
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, delivery });
 }
 
 // DELETE /api/progress-reports/[id] — delete a report
@@ -402,9 +258,8 @@ export async function DELETE(
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await context.params;
-  if (!(await canModifyReport(caller, id))) {
-    return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
-  }
+  const access = await canModifyReport(caller, id);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const admin = adminClient();
   const { data: existing } = await admin
     .from('student_progress_reports')

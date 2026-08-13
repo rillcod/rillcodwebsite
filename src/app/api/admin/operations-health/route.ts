@@ -292,7 +292,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === 'retry') {
-    if (row.job_type !== 'email') {
+    if (!['email', 'whatsapp', 'in_app', 'progress_report_delivery'].includes(String(row.job_type))) {
       return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
     }
     const rawPayload = (row.payload && typeof row.payload === 'object' ? row.payload : {}) as Record<string, unknown>;
@@ -301,7 +301,7 @@ export async function PATCH(req: NextRequest) {
         ? rawPayload.retry
         : rawPayload
     ) as Record<string, unknown>;
-    if (!row.user_id && !payload.to) {
+    if (row.job_type === 'email' && !row.user_id && !payload.to) {
       return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
     }
     try {
@@ -315,10 +315,46 @@ export async function PATCH(req: NextRequest) {
     try {
       const { notificationsService } = await import('@/services/notifications.service');
       let delivered = true;
-      if (row.user_id) {
-        delivered = await notificationsService.sendEmail(row.user_id, payload as any) === true;
+      if (row.job_type === 'email') {
+        if (row.user_id) {
+          delivered = await notificationsService.sendEmail(row.user_id, payload as any) === true;
+        } else {
+          await notificationsService.sendExternalEmail(payload as any);
+        }
+      } else if (row.job_type === 'whatsapp') {
+        const { enqueueWhatsApp } = await import('@/lib/whatsapp/send');
+        const queued = await enqueueWhatsApp(actor.db as any, payload as any);
+        if (!queued.queued) throw new Error(queued.error || 'WhatsApp alert could not be queued.');
+      } else if (row.job_type === 'in_app') {
+        const userId = String(payload.userId || row.user_id || '');
+        const title = String(payload.title || 'Progress Report Published — Rillcod Technologies');
+        const message = String(payload.message || 'A progress report is now available.');
+        if (!userId) throw new Error('The in-app recipient is missing.');
+        await requireSupabaseWrite(actor.db.from('notifications').insert({
+          user_id: userId,
+          title,
+          message,
+          type: 'info',
+          is_read: false,
+          action_url: payload.actionUrl ? String(payload.actionUrl) : null,
+          created_at: now,
+          updated_at: now,
+        }), 'Retry in-app notification');
       } else {
-        await notificationsService.sendExternalEmail(payload as any);
+        const reportId = String(payload.reportId || '');
+        if (!reportId) throw new Error('The progress report reference is missing.');
+        const { data: report, error: reportError } = await actor.db
+          .from('student_progress_reports')
+          .select('id,student_id,verification_code,overall_grade,overall_score,course_name,report_term,report_period,school_id,is_published')
+          .eq('id', reportId)
+          .maybeSingle();
+        if (reportError) throw reportError;
+        if (!report?.is_published || !report.student_id) throw new Error('The published progress report is no longer available for delivery.');
+        const { queueProgressReportPublicationDelivery } = await import('@/lib/reports/publication-delivery');
+        const result = await queueProgressReportPublicationDelivery(actor.db as any, report as any, actor.user.id);
+        if (result.status === 'delivery_failed' || result.status === 'recovery_required') {
+          throw new Error('Progress report delivery still requires recovery.');
+        }
       }
       if (!delivered) {
         await requireSupabaseWrite(

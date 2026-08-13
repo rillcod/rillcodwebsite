@@ -61,6 +61,7 @@ export interface EmailPayload {
     campaignKey?: string;
     eventType?: string;
     referenceId?: string;
+    category?: NotificationCategory;
 }
 
 export type EmailDispatchResult = { provider: 'resend' | 'sendpulse'; providerMessageId: string };
@@ -618,6 +619,11 @@ export class NotificationsService {
 
     // Task 26.1: Create SendPulse integration for SendEmail
     async sendEmail(userId: string, payload: EmailPayload) {
+        if (payload.category && !(await this.checkCategoryPreference(userId, payload.category))) {
+            console.log(`User ${userId} has disabled ${payload.category} notifications. Skipping.`);
+            await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
+            return false;
+        }
         if (!(await this.checkPreferences(userId, 'email'))) {
             console.log(`User ${userId} has disabled email notifications. Skipping.`);
             await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
@@ -675,6 +681,7 @@ export class NotificationsService {
                     campaignKey: payload.campaignKey,
                     eventType: payload.eventType,
                     referenceId: payload.referenceId,
+                    category: payload.category,
                     automated: payload.automated,
                     replyTo: payload.replyTo ? `${String(payload.replyTo).slice(0, 2)}***` : undefined,
                     // Retry payload kept separately for ops-health (full content).
@@ -688,6 +695,7 @@ export class NotificationsService {
                       campaignKey: payload.campaignKey,
                       eventType: payload.eventType,
                       referenceId: payload.referenceId,
+                      category: payload.category,
                       automated: payload.automated,
                       replyTo: payload.replyTo,
                     },
@@ -746,6 +754,7 @@ export class NotificationsService {
                     campaignKey: payload.campaignKey,
                     eventType: payload.eventType,
                     referenceId: payload.referenceId,
+                    category: payload.category,
                     automated: payload.automated,
                     replyTo: payload.replyTo ? `${String(payload.replyTo).slice(0, 2)}***` : undefined,
                     // Retry payload kept separately for ops-health (full content).
@@ -759,6 +768,7 @@ export class NotificationsService {
                       campaignKey: payload.campaignKey,
                       eventType: payload.eventType,
                       referenceId: payload.referenceId,
+                      category: payload.category,
                       automated: payload.automated,
                       replyTo: payload.replyTo,
                     },

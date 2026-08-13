@@ -783,18 +783,26 @@ function ResultsPageInner() {
     // Publish ALL draft reports at once (no per-report preview) — for when there are many to push.
     const [bulkPublishing, setBulkPublishing] = useState(false);
     const handleBulkPublish = async () => {
+        if (!confirmedPeriod) {
+            alert('Choose and confirm an academic term before publishing reports.');
+            return;
+        }
         if (!confirm('Validate and publish all ready drafts now? Incomplete drafts will stay unpublished and be reported back to you.')) return;
         setBulkPublishing(true);
         try {
             const res = await fetch('/api/progress-reports/bulk-publish', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ term: confirmedPeriod.term, report_period: confirmedPeriod.year }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to publish');
             const skipped = Number(j.skipped ?? 0);
+            const deliveryWarnings = Number(j.deliveryWarnings?.length ?? 0);
             const summary = j.published ? `Published ${j.published} report${j.published !== 1 ? 's' : ''}.` : 'No ready drafts were published.';
             const skippedDetail = skipped ? ` ${skipped} incomplete draft${skipped !== 1 ? 's were' : ' was'} left unpublished.${j.failures?.[0]?.issues?.[0] ? ` First issue: ${j.failures[0].issues[0]}` : ''}` : '';
-            alert(summary + skippedDetail);
+            const deliveryDetail = deliveryWarnings ? ` ${deliveryWarnings} family alert${deliveryWarnings !== 1 ? 's are' : ' is'} preserved in the recovery queue.` : '';
+            alert(summary + skippedDetail + deliveryDetail);
             setRefreshTick(t => t + 1);
             if (selectedStudent) loadStudentReport(selectedStudent);
         } catch (e: any) {

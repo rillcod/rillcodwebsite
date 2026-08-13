@@ -343,16 +343,6 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Sync corrected fields back to student profile (report builder is authoritative, second only to consent form data)
-    const upGender = (updatePayload as any).gender;
-    if ((updatePayload.section_class || updatePayload.student_name || upGender) && updatePayload.student_id) {
-      await syncStudentProfile(admin, String(updatePayload.student_id), {
-        sectionClass: updatePayload.section_class ? String(updatePayload.section_class) : null,
-        studentName:  updatePayload.student_name  ? String(updatePayload.student_name)  : null,
-        gender:       upGender                    ? String(upGender)                    : null,
-      });
-    }
-
     await logAudit(admin as any, {
       action: 'save_progress_report',
       actorId: caller.id,
@@ -382,16 +372,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Sync corrected fields back to student profile
-    const insGender = (insertPayload as any).gender;
-    if ((insertPayload.section_class || insertPayload.student_name || insGender) && insertPayload.student_id) {
-      await syncStudentProfile(admin, String(insertPayload.student_id), {
-        sectionClass: insertPayload.section_class ? String(insertPayload.section_class) : null,
-        studentName:  insertPayload.student_name  ? String(insertPayload.student_name)  : null,
-        gender:       insGender                   ? String(insGender)                   : null,
-      });
-    }
-
     await logAudit(admin as any, {
       action: 'create_progress_report',
       actorId: caller.id,
@@ -402,51 +382,5 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ data });
-  }
-}
-
-async function syncStudentProfile(
-  admin: ReturnType<typeof adminClient>,
-  studentId: string,
-  fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
-) {
-  // IDENTITY SAFETY: grading must NEVER silently rename or re-identify an account.
-  // Previously this overwrote portal_users.full_name (and class/gender) with the
-  // report's typed values — so a report saved against the wrong account renamed
-  // that account, cascading student-identity corruption. We now only FILL blanks:
-  // a field is written only when the account currently has no value for it. Real
-  // identity edits must be made deliberately in student management, not as a
-  // side-effect of grading.
-  const { data: current } = await admin
-    .from('portal_users')
-    .select('full_name, section_class, gender')
-    .eq('id', studentId)
-    .maybeSingle();
-  const blank = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
-
-  const portalUpdate: Record<string, unknown> = {};
-  const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
-
-  if (fields.sectionClass && blank(current?.section_class)) {
-    portalUpdate.section_class = fields.sectionClass;
-    studentsUpdate.current_class = fields.sectionClass;
-    studentsUpdate.section = fields.sectionClass;
-  }
-  if (fields.studentName && blank(current?.full_name)) {
-    portalUpdate.full_name   = fields.studentName;
-    studentsUpdate.full_name = fields.studentName;
-  }
-  if (fields.gender && blank(current?.gender)) {
-    portalUpdate.gender   = fields.gender;
-    studentsUpdate.gender = fields.gender;
-  }
-
-  if (Object.keys(portalUpdate).length > 0) {
-    await admin.from('portal_users').update(portalUpdate as any).eq('id', studentId);
-    // Keep Supabase auth metadata in sync
-    await admin.auth.admin.updateUserById(studentId, { user_metadata: portalUpdate });
-  }
-  if (Object.keys(studentsUpdate).length > 1) {
-    await admin.from('students').update(studentsUpdate as any).eq('user_id', studentId);
   }
 }

@@ -2443,17 +2443,11 @@ function ReportBuilderInner() {
                 id: savedReportId,
                 verification_code: savedVerificationCode,
             } as unknown as StudentReport));
-            if (publish) {
-                setReportedIds(current => new Set(current).add(selectedStudent.id));
-                setDraftedIds(current => {
-                    const next = new Set(current);
-                    next.delete(selectedStudent.id);
-                    return next;
-                });
-            } else if (!reportedIds.has(selectedStudent.id)) {
+            if (!publish && !reportedIds.has(selectedStudent.id)) {
                 setDraftedIds(current => new Set(current).add(selectedStudent.id));
             }
 
+            let deliveryStatus: string | null = null;
             if (publish && savedReportId && !isManual) {
                 const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
                     method: 'PATCH',
@@ -2462,42 +2456,26 @@ function ReportBuilderInner() {
                 });
                 const publishJson = await publishRes.json().catch(() => ({}));
                 if (!publishRes.ok) {
-                    throw new Error(publishJson.error || 'Report was saved, but publish notification failed');
+                    throw new Error(publishJson.error || 'The report draft was saved, but publication did not complete. Please try Publish again.');
                 }
+                deliveryStatus = publishJson.delivery?.status ?? null;
+                setReportedIds(current => new Set(current).add(selectedStudent.id));
+                setDraftedIds(current => {
+                    const next = new Set(current);
+                    next.delete(selectedStudent.id);
+                    return next;
+                });
             }
 
-            // Propagate profile updates back to the student's root record. The teacher is the
-            // authority here, so a deliberately edited Full Name / Class / Gender OVERWRITES the
-            // student everywhere (portal, records, login) — the "teacher can mutate identity from
-            // the report builder" behaviour. (Gender still only fills when blank, to avoid a
-            // stray toggle silently flipping it.)
-            if (!isManual && selectedStudent.id) {
-                const origName = selectedStudent.full_name ?? '';
-                const origClass = (selectedStudent as any).section_class ?? '';
-                const origGender = (selectedStudent as any).gender ?? '';
-                const newName = form.student_name.trim();
-                const newClass = (form.section_class || sessionConfig.section_class || '').trim();
-                const profilePatch: Record<string, string> = {};
-                if (newName && newName !== origName.trim()) profilePatch.full_name = newName;   // teacher edit overwrites
-                if (newClass && newClass !== origClass) profilePatch.section_class = newClass;   // class can change
-                if (form.gender && !String(origGender).trim()) profilePatch.gender = form.gender; // fill-only
-                if (Object.keys(profilePatch).length > 0) {
-                    fetch(`/api/portal-users/${selectedStudent.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(profilePatch),
-                    }).then(r => {
-                        if (r.ok) {
-                            // Update local state so future comparisons are correct
-                            (selectedStudent as any).full_name = profilePatch.full_name ?? selectedStudent.full_name;
-                            (selectedStudent as any).section_class = profilePatch.section_class ?? (selectedStudent as any).section_class;
-                            if (profilePatch.gender) (selectedStudent as any).gender = profilePatch.gender;
-                        }
-                    }).catch(() => { /* non-critical — report was saved */ });
-                }
-            }
-
-            setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
+            setSuccessMsg(
+                publish
+                    ? deliveryStatus === 'delivery_failed'
+                        ? 'Report published, but family alert recovery could not be recorded. Use the Results sharing tools or contact an administrator.'
+                        : deliveryStatus === 'recovery_required' || deliveryStatus === 'partial'
+                            ? 'Report published. One or more family alerts are safely queued for recovery.'
+                        : 'Report published — visible to the student and family alerts queued.'
+                    : 'Draft saved!',
+            );
             if (publish) setForm(f => ({ ...f, is_published: true }));
             snapForm.current = { ...form, is_published: publish ? true : form.is_published };
             setIsDirty(false);
