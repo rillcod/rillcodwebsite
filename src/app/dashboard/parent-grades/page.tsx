@@ -8,9 +8,11 @@ import {
   AcademicCapIcon,
   ArrowsUpDownIcon,
   ChartBarIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 
 interface Child { id: string; full_name: string; school_name: string | null }
 interface GradeItem {
@@ -95,6 +97,10 @@ function ParentGradesContent() {
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loadingChildren, setLoadingChildren] = useState(true);
   const [loadingGrades, setLoadingGrades] = useState(false);
+  const [childrenError, setChildrenError] = useState('');
+  const [gradesError, setGradesError] = useState('');
+  const [childrenRevision, setChildrenRevision] = useState(0);
+  const [gradesRevision, setGradesRevision] = useState(0);
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('date');
@@ -102,10 +108,17 @@ function ParentGradesContent() {
   // ── Fetch children ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
     setLoadingChildren(true);
-    fetch('/api/parents/portal?section=children')
-      .then(res => res.json())
+    setChildrenError('');
+    fetchWithTimeoutOrThrow('/api/parents/portal?section=children', { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to load children');
+        return data;
+      })
       .then(data => {
+        if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
@@ -113,29 +126,46 @@ function ParentGradesContent() {
         setLoadingChildren(false);
       })
       .catch(err => {
+        if (cancelled) return;
+        setChildren([]);
+        setSelectedId(null);
+        setChildrenError(err instanceof Error ? err.message : 'Could not load student list.');
         toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
-  }, [profile]);
+    return () => { cancelled = true; };
+  }, [profile, childrenRevision]);
 
   // ── Fetch grades ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedId) return;
+    let cancelled = false;
     setLoadingGrades(true);
-    fetch(`/api/parents/portal?section=grades&child_id=${selectedId}`)
-      .then(res => res.json())
+    setGrades([]);
+    setGradesError('');
+    fetchWithTimeoutOrThrow(`/api/parents/portal?section=grades&child_id=${selectedId}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to load grades');
+        return data;
+      })
       .then(data => {
+        if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load grades');
         setGrades((data.grades ?? []) as GradeItem[]);
         setLoadingGrades(false);
       })
       .catch(err => {
+        if (cancelled) return;
+        setGrades([]);
+        setGradesError(err instanceof Error ? err.message : 'Could not load grades.');
         toast.error('Could not load grades for this student.');
         console.error('Failed to load grades:', err);
         setLoadingGrades(false);
       });
-  }, [selectedId]);
+    return () => { cancelled = true; };
+  }, [selectedId, gradesRevision]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
@@ -202,6 +232,25 @@ function ParentGradesContent() {
         <p className="text-sm text-muted-foreground mt-1">Assignment and exam grades for your children.</p>
       </div>
 
+      {childrenError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <p className="text-sm font-bold text-foreground">We could not verify your linked students.</p>
+              <p className="mt-1 text-xs text-muted-foreground">{childrenError} No unlinked-student state is shown until this check succeeds.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setChildrenRevision(value => value + 1)}
+            className="min-h-10 rounded-xl bg-foreground px-4 py-2 text-xs font-black uppercase tracking-wider text-background"
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
+
       {/* Child Selector */}
       {!loadingChildren && children.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -226,7 +275,7 @@ function ParentGradesContent() {
       )}
 
       {/* Empty state — no children */}
-      {!loadingChildren && children.length === 0 && (
+      {!loadingChildren && !childrenError && children.length === 0 && (
         <div className="bg-card border border-border rounded-xl p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
@@ -336,8 +385,27 @@ function ParentGradesContent() {
             </div>
           )}
 
+          {!loadingGrades && gradesError ? (
+            <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-bold text-foreground">Grades are temporarily unavailable.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{gradesError} No empty gradebook state is shown until the complete check succeeds.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGradesRevision(value => value + 1)}
+                className="min-h-10 rounded-xl bg-foreground px-4 py-2 text-xs font-black uppercase tracking-wider text-background"
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
+
           {/* ── Empty state — no grades ───────────────────────────────────── */}
-          {!loadingGrades && grades.length === 0 && (
+          {!loadingGrades && !gradesError && grades.length === 0 && (
             <div className="bg-card border border-border rounded-xl p-8 text-center">
               <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">No grades yet</p>
@@ -348,7 +416,7 @@ function ParentGradesContent() {
           )}
 
           {/* ── Empty state — filtered to zero ───────────────────────────── */}
-          {!loadingGrades && grades.length > 0 && filteredGrades.length === 0 && (
+          {!loadingGrades && !gradesError && grades.length > 0 && filteredGrades.length === 0 && (
             <div className="bg-card border border-border rounded-xl p-8 text-center">
               <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">
@@ -361,7 +429,7 @@ function ParentGradesContent() {
           )}
 
           {/* ── Grade List ────────────────────────────────────────────────── */}
-          {!loadingGrades && filteredGrades.length > 0 && (
+          {!loadingGrades && !gradesError && filteredGrades.length > 0 && (
             <div className="space-y-3 mobile-page-root">
               {filteredGrades.map(item => {
                 const pct = getPct(item.grade, item.max_score);

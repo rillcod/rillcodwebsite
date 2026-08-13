@@ -2,19 +2,32 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope, healParentEmailLinks } from '@/lib/parents/links';
-import { withTimeout } from '@/lib/async-timeout';
+import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
+import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
+
+function assertQueryResults(results: Array<{ error?: { message?: string } | null }>, label: string) {
+  const failed = results.find(result => result.error);
+  if (failed?.error) {
+    throw new Error(`${label}: ${failed.error.message || 'database request failed'}`);
+  }
+}
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
 async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized', status: 401 as const };
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('portal_users')
     .select('id, role, email, full_name, is_active')
     .eq('id', user.id)
     .single();
+
+  if (profileError) {
+    console.error('[parents/portal] parent profile verification failed:', profileError);
+    return { error: 'Unable to verify the parent account right now. Please try again.', status: 503 as const };
+  }
 
   if (!profile || profile.role !== 'parent') {
     return { error: 'Forbidden: parent accounts only', status: 403 as const };
@@ -48,10 +61,12 @@ export async function GET(req: Request) {
     // ── Self-heal links ──────────────────────────────────────────────────────
     // Promote legacy parent_email matches onto parent_student_links only when
     // no other parent already owns the child (fail-closed ownership).
+    let linkHealingError: unknown = null;
     try {
       await healParentEmailLinks(admin as any, { id: profile.id, email: profile.email }, { actorId: profile.id });
     } catch (healErr) {
       console.error('[parents/portal] link self-heal failed:', healErr);
+      linkHealingError = healErr;
     }
 
     const linkScope = await getParentLinkScope(admin as any, {
@@ -60,6 +75,9 @@ export async function GET(req: Request) {
     });
     const linkedIds = linkScope.studentIds;
     const linkedUserIds = linkScope.studentUserIds;
+    if (linkHealingError && linkedIds.length === 0) {
+      throw new Error('Parent/student link verification failed before a complete ownership result was available.');
+    }
 
     // ── Summary for all children ───────────────────────────────────────────
     if (section === 'summary') {
@@ -79,9 +97,10 @@ export async function GET(req: Request) {
 
       // Pre-load teachers for these schools
       const uniqueSchools = [...new Set((children as any[]).map((k: any) => k.school_name).filter(Boolean))] as string[];
-      const { data: teachers } = uniqueSchools.length > 0
+      const { data: teachers, error: teachersError } = uniqueSchools.length > 0
         ? await admin.from('portal_users').select('full_name, phone, section_class, school_name').eq('role', 'teacher').in('school_name', uniqueSchools)
-        : { data: [] };
+        : { data: [], error: null };
+      if (teachersError) throw teachersError;
 
       const teachersBySchool: Record<string, any[]> = {};
       (teachers ?? []).forEach((t: any) => {
@@ -91,9 +110,10 @@ export async function GET(req: Request) {
       });
 
       // Pre-load WhatsApp groups for these schools to enable automated class chat onboarding
-      const { data: waGroups } = uniqueSchools.length > 0
+      const { data: waGroups, error: waGroupsError } = uniqueSchools.length > 0
         ? await admin.from('whatsapp_groups').select('class_name, link, school_name, name').eq('status', 'active')
-        : { data: [] };
+        : { data: [], error: null };
+      if (waGroupsError) throw waGroupsError;
 
       const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
       const { liveAcademicSession } = await import('@/lib/reports/academic-period');
@@ -137,13 +157,14 @@ export async function GET(req: Request) {
           .eq('report_period', live.periodLabel) as typeof prePortalGradeQuery;
       }
 
-      const [attRes, invRes, certRes, gradeRes, prePortalGradeRes] = await withTimeout(Promise.all([
-        attQuery ?? Promise.resolve({ data: [] }),
-        userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'sent', 'overdue', 'partially_paid']) : Promise.resolve({ data: [] }),
-        userIds.length > 0 ? admin.from('certificates').select('portal_user_id').in('portal_user_id', userIds) : Promise.resolve({ data: [] }),
-        gradeQuery ?? Promise.resolve({ data: [] }),
-        prePortalGradeQuery ?? Promise.resolve({ data: [] }),
-      ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent summary stats');
+      const [attRes, invRes, certRes, gradeRes, prePortalGradeRes] = await withTimeoutOrThrow(Promise.all([
+        attQuery ?? Promise.resolve({ data: [], error: null }),
+        userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'sent', 'overdue', 'partially_paid']) : Promise.resolve({ data: [], error: null }),
+        userIds.length > 0 ? admin.from('certificates').select('portal_user_id').in('portal_user_id', userIds) : Promise.resolve({ data: [], error: null }),
+        gradeQuery ?? Promise.resolve({ data: [], error: null }),
+        prePortalGradeQuery ?? Promise.resolve({ data: [], error: null }),
+      ]), 'The parent summary is taking too long. Please try again.');
+      assertQueryResults([attRes, invRes, certRes, gradeRes, prePortalGradeRes], 'Could not load the complete parent summary');
 
       const results = (children as any[]).map((child: any) => {
         const childAtt = (attRes.data ?? []).filter((a: any) =>
@@ -240,31 +261,34 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
 
-      const [asgnRes, cbtRes] = await withTimeout(Promise.all([
-        admin
+      const [asgnRes, cbtRes] = await withTimeoutOrThrow(Promise.all([
+        fetchAllReportRows<any>((from, to) => admin
           .from('assignment_submissions')
           .select('id, status, grade, feedback, submitted_at, assignments(id, title, max_points, course_id, term_id, courses(title))')
           .eq('portal_user_id', child.user_id)
           .not('grade', 'is', null)
           .order('submitted_at', { ascending: false })
-          .limit(80),
-        admin
+          .order('id', { ascending: false })
+          .range(from, to)),
+        fetchAllReportRows<any>((from, to) => admin
           .from('cbt_sessions')
           .select('id, status, score, end_time, needs_grading, cbt_exams(id, title, course_id, program_id, metadata)')
           .eq('user_id', child.user_id)
           .not('score', 'is', null)
           .order('end_time', { ascending: false })
-          .limit(50),
-      ]), [{ data: [] }, { data: [] }], 'parent grades');
+          .order('id', { ascending: false })
+          .range(from, to)),
+      ]), 'The complete grade history is taking too long. Please try again.');
+      assertQueryResults([asgnRes, cbtRes], 'Could not load the complete grade history');
 
       const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
       const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
       const liveTermId = await resolveAssignmentTermId(admin as any, {});
       const termBounds = await loadAcademicTermBounds(admin as any, liveTermId);
-      const asgnRows = filterByAssignmentSession((asgnRes.data ?? []) as any[], liveTermId).slice(0, 50);
+      const asgnRows = filterByAssignmentSession((asgnRes.data ?? []) as any[], liveTermId);
       const cbtRows = filterCbtByAcademicTerm((cbtRes.data ?? []) as any[], liveTermId, termBounds, {
         includeUntagged: true,
-      }).slice(0, 30);
+      });
 
       const grades = [
         ...asgnRows.map((r: any) => ({
@@ -308,12 +332,14 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
 
-      const { data: reports, error } = await withTimeout(admin
+      const { data: reports, error } = await withTimeoutOrThrow(fetchAllReportRows<any>((from, to) => admin
         .from('student_progress_reports')
         .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
         .eq('student_id', child.user_id)
         .eq('is_published', true)
-        .order('report_date', { ascending: false }), { data: [], error: null }, 'parent reports by portal id');
+        .order('report_date', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)), 'Published reports are taking too long to load. Please try again.');
 
       if (error) throw error;
       let finalReports = reports ?? [];
@@ -326,7 +352,11 @@ export async function GET(req: Request) {
           .eq('is_published', true)
           .order('report_date', { ascending: false });
         if ((child as any).school_id) fallbackQuery = fallbackQuery.eq('school_id', (child as any).school_id) as typeof fallbackQuery;
-        const { data: fallbackReports } = await withTimeout(fallbackQuery, { data: [], error: null }, 'parent pre-portal reports');
+        const { data: fallbackReports, error: fallbackError } = await withTimeoutOrThrow<{ data: any[] | null; error: any }>(
+          fallbackQuery,
+          'Earlier published reports are taking too long to load. Please try again.',
+        );
+        if (fallbackError) throw fallbackError;
         finalReports = fallbackReports ?? [];
       }
       return NextResponse.json({
@@ -358,10 +388,9 @@ export async function GET(req: Request) {
             .limit(50)
         : Promise.resolve({ data: [], error: null });
 
-      const [invRes, payRes] = await withTimeout(
+      const [invRes, payRes] = await withTimeoutOrThrow(
         Promise.all([invoiceQuery, paymentQuery]),
-        [{ data: [], error: null }, { data: [], error: null }],
-        'parent invoices and payments',
+        'Invoices and payments are taking too long to load. Please try again.',
       );
       if (invRes.error) throw invRes.error;
       if (payRes.error) throw payRes.error;
@@ -395,7 +424,11 @@ export async function GET(req: Request) {
       if (liveTermId) {
         attQuery = attQuery.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof attQuery;
       }
-      const { data } = await withTimeout(attQuery, { data: [], error: null }, 'parent attendance');
+      const { data, error } = await withTimeoutOrThrow<{ data: any[] | null; error: any }>(
+        attQuery,
+        'Attendance is taking too long to load. Please try again.',
+      );
+      if (error) throw error;
 
       const records = ((data ?? []) as any[])
         .filter((r) => !liveTermId || r.term_id === liveTermId || !r.term_id)
@@ -418,11 +451,12 @@ export async function GET(req: Request) {
       if (!linkedUserIds.includes(child.user_id)) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
-      const { data } = await withTimeout(admin
+      const { data, error } = await withTimeoutOrThrow<{ data: any[] | null; error: any }>(admin
         .from('certificates')
         .select('id, certificate_number, verification_code, issued_date, pdf_url, courses(title)')
         .eq('portal_user_id', child.user_id)
-        .order('issued_date', { ascending: false }), { data: [], error: null }, 'parent certificates');
+        .order('issued_date', { ascending: false }), 'Certificates are taking too long to load. Please try again.');
+      if (error) throw error;
 
       const certs = (data ?? []).map((c: any) => ({
         id: c.id,
@@ -450,7 +484,7 @@ export async function GET(req: Request) {
       const liveTermId = await resolveAssignmentTermId(admin as any, {});
       const termBounds = await loadAcademicTermBounds(admin as any, liveTermId);
 
-      const [attRes, subRes, certRes, cbtRes] = await withTimeout(Promise.all([
+      const [attRes, subRes, certRes, cbtRes] = await withTimeoutOrThrow(Promise.all([
         (() => {
           let q = admin.from('attendance').select('id, status, created_at, term_id, class_sessions!attendance_session_id_fkey(session_date, topic, classes!class_sessions_class_id_fkey(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(40);
           if (liveTermId) q = q.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof q;
@@ -459,7 +493,8 @@ export async function GET(req: Request) {
         admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points, term_id)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(40),
         admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
         admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(20),
-      ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent activity');
+      ]), 'Recent activity is taking too long to load. Please try again.');
+      assertQueryResults([attRes, subRes, certRes, cbtRes], 'Could not load complete recent activity');
 
       const scopedSubs = filterByAssignmentSession((subRes.data ?? []) as any[], liveTermId).slice(0, 20);
       const scopedCbt = filterCbtByAcademicTerm((cbtRes.data ?? []) as any[], liveTermId, termBounds, {
@@ -504,6 +539,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: `Unknown section: ${section}` }, { status: 400 });
   } catch (err: any) {
     console.error('GET /api/parents/portal error:', err);
-    return NextResponse.json({ error: err.message ?? 'Server error' }, { status: 500 });
+    return NextResponse.json({
+      error: 'We could not load this parent portal section right now. Please try again.',
+      code: 'PARENT_PORTAL_UNAVAILABLE',
+    }, { status: 500 });
   }
 }

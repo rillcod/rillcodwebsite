@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 
 const db = () => createClient();
 
@@ -272,17 +273,19 @@ export async function fetchSubmissionsForGrading(opts: {
     const client = db();
 
     // Step 1: Fetch submissions without portal_users join (avoids FK ambiguity)
-    const { data: rawSubs, error } = await client
+    const { data: rawSubs, error } = await fetchAllReportRows<any>((from, to) => client
         .from('assignment_submissions')
         .select(`
-      id, grade, weighted_score, feedback, status, submitted_at, graded_at,
-      submission_text, file_url, portal_user_id, user_id,
-      assignments (
-        id, title, max_points, weight, due_date, created_by, course_id, term_id,
-        courses ( title, teacher_id, programs ( name ) )
-      )
-    `)
-        .order('submitted_at', { ascending: false });
+          id, grade, weighted_score, feedback, status, submitted_at, graded_at,
+          submission_text, file_url, portal_user_id, user_id,
+          assignments (
+            id, title, max_points, weight, due_date, created_by, course_id, term_id,
+            courses ( title, teacher_id, programs ( name ) )
+          )
+        `)
+        .order('submitted_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to));
 
     if (error) throw error;
     if (!rawSubs || rawSubs.length === 0) return [];
@@ -293,10 +296,11 @@ export async function fetchSubmissionsForGrading(opts: {
     )];
 
     // Step 3: Batch-fetch portal_users for those IDs
-    const { data: users } = await client
+    const { data: users, error: usersError } = await client
         .from('portal_users')
         .select('id, full_name, email, school_id, school_name')
         .in('id', userIds);
+    if (usersError) throw usersError;
 
     const userMap: Record<string, any> = {};
     (users ?? []).forEach((u: any) => { userMap[u.id] = u; });
@@ -333,7 +337,8 @@ export async function fetchSubmissionsForGrading(opts: {
 
 // Student's own grades (optionally session-scoped)
 export async function fetchStudentGrades(portalUserId: string, opts: { termId?: string | null; includeUntagged?: boolean } = {}) {
-    const { data, error } = await db()
+    const client = db();
+    const { data, error } = await fetchAllReportRows<any>((from, to) => client
         .from('assignment_submissions')
         .select(`
       id, grade, weighted_score, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
@@ -344,7 +349,9 @@ export async function fetchStudentGrades(portalUserId: string, opts: { termId?: 
     `)
         // Match on either column — some older submissions use user_id, newer use portal_user_id
         .or(`portal_user_id.eq.${portalUserId},user_id.eq.${portalUserId}`)
-        .order('graded_at', { ascending: false });
+        .order('graded_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to));
     if (error) throw error;
     let rows = data ?? [];
     if (opts.termId) {

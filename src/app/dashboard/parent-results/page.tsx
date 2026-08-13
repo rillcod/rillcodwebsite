@@ -7,8 +7,10 @@ import { createClient } from '@/lib/supabase/client';
 import {
   DocumentChartBarIcon, AcademicCapIcon, ClipboardDocumentCheckIcon,
   TrophyIcon, UserIcon, HeartIcon, CheckCircleIcon, ShareIcon, PrinterIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 
 interface Child { id: string; full_name: string; school_name: string | null; user_id: string | null }
 interface Report {
@@ -90,7 +92,7 @@ function buildReportShareText(child: { full_name: string }, report: Report): str
     ``,
     report.instructor_name ? `👨‍🏫 Instructor: ${report.instructor_name}` : null,
     ``,
-    `_Shared from Rillcod Academy Portal_`,
+    `_Shared from Rillcod Technologies Portal_`,
   ].filter(Boolean).join('\n');
   return lines;
 }
@@ -106,13 +108,24 @@ function ParentResultsContent() {
   const [loadingChildren, setLoadingChildren] = useState(true);
   const [loadingReports, setLoadingReports] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [childrenError, setChildrenError] = useState('');
+  const [reportsError, setReportsError] = useState('');
+  const [childrenRevision, setChildrenRevision] = useState(0);
+  const [reportsRevision, setReportsRevision] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
     setLoadingChildren(true);
-    fetch('/api/parents/portal?section=children')
-      .then(res => res.json())
+    setChildrenError('');
+    fetchWithTimeoutOrThrow('/api/parents/portal?section=children', { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to load children');
+        return data;
+      })
       .then(data => {
+        if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
@@ -120,28 +133,45 @@ function ParentResultsContent() {
         setLoadingChildren(false);
       })
       .catch(err => {
+        if (cancelled) return;
+        setChildren([]);
+        setSelectedId(null);
+        setChildrenError(err instanceof Error ? err.message : 'Could not load student list.');
         toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
-  }, [profile]); // eslint-disable-line
+    return () => { cancelled = true; };
+  }, [profile, childrenRevision]); // eslint-disable-line
 
   useEffect(() => {
     if (!selectedId) return;
+    let cancelled = false;
     setLoadingReports(true);
-    fetch(`/api/parents/portal?section=results&child_id=${selectedId}`)
-      .then(res => res.json())
+    setReports([]);
+    setReportsError('');
+    fetchWithTimeoutOrThrow(`/api/parents/portal?section=results&child_id=${selectedId}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to load report cards');
+        return data;
+      })
       .then(data => {
+        if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load report cards');
         setReports((data.reports ?? []) as Report[]);
         setLoadingReports(false);
       })
       .catch(err => {
+        if (cancelled) return;
+        setReports([]);
+        setReportsError(err instanceof Error ? err.message : 'Could not load progress reports.');
         toast.error('Could not load progress reports for this student.');
         console.error('Failed to load reports:', err);
         setLoadingReports(false);
       });
-  }, [selectedId]);
+    return () => { cancelled = true; };
+  }, [selectedId, reportsRevision]);
 
   if (profile?.role !== 'parent') {
     return (
@@ -152,8 +182,11 @@ function ParentResultsContent() {
   }
 
   const selectedChild = children.find(c => c.id === selectedId);
-  const avgScore = reports.length > 0
-    ? Math.round(reports.reduce((s, r) => s + (r.overall_score ?? 0), 0) / reports.length)
+  const scoredReports = reports.filter(report =>
+    report.overall_score != null && Number.isFinite(Number(report.overall_score)),
+  );
+  const avgScore = scoredReports.length > 0
+    ? Math.round(scoredReports.reduce((sum, report) => sum + Number(report.overall_score), 0) / scoredReports.length)
     : null;
 
   return (
@@ -164,6 +197,12 @@ function ParentResultsContent() {
       </div>
 
       {/* Child Selector */}
+      {childrenError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span>{childrenError} No unlinked-child state is shown until this check succeeds.</span>
+          <button type="button" onClick={() => setChildrenRevision((value) => value + 1)} className="min-h-11 rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black">Try again</button>
+        </div>
+      ) : null}
       {!loadingChildren && children.length > 1 && (
         <div className="flex flex-wrap gap-2">
           {children.map(child => (
@@ -180,7 +219,7 @@ function ParentResultsContent() {
         </div>
       )}
 
-      {!loadingChildren && children.length === 0 && (
+      {!loadingChildren && !childrenError && children.length === 0 && (
         <div className="bg-card border border-border p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
@@ -222,7 +261,15 @@ function ParentResultsContent() {
             </div>
           )}
 
-          {!loadingReports && reports.length === 0 && (
+          {!loadingReports && reportsError ? (
+            <div role="alert" className="flex flex-col items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-8 text-center">
+              <ExclamationTriangleIcon className="h-8 w-8 text-rose-600 dark:text-rose-400" />
+              <p className="text-sm text-rose-700 dark:text-rose-300">{reportsError} No empty report state is shown until this check succeeds.</p>
+              <button type="button" onClick={() => setReportsRevision((value) => value + 1)} className="min-h-11 rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black">Try again</button>
+            </div>
+          ) : null}
+
+          {!loadingReports && !reportsError && reports.length === 0 && (
             <div className="bg-card border border-border p-8 text-center">
               <DocumentChartBarIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">No published reports</p>
@@ -230,7 +277,7 @@ function ParentResultsContent() {
             </div>
           )}
 
-          {!loadingReports && reports.length > 0 && (
+          {!loadingReports && !reportsError && reports.length > 0 && (
             <div className="space-y-3 mobile-page-root">
               {reports.map(report => {
                 const isOpen = expandedId === report.id;

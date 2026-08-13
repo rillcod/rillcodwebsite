@@ -17,7 +17,7 @@ import {
     TrashIcon
 } from '@/lib/icons';
 import { toast } from 'sonner';
-import { withTimeout } from '@/lib/async-timeout';
+import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions, isStaleAcademicSession, formatAcademicSession } from '@/lib/reports/academic-period';
 import { getWAECGrade } from '@/lib/grading';
 import { resolveLinkedCourseForClass } from '@/lib/reports/class-course';
@@ -252,7 +252,6 @@ function GradeModal({ sub, onClose, onSaved }: {
     const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
-    const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -276,7 +275,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                     subject: sub.assignments?.courses?.title || 'Coding',
                     attendance: '100%', // Placeholder or from sub
                     assignments: `${grade}/${max} score achieved`,
-                    currentContent: subText || 'Standard submission'
+                    currentContent: sub.submission_text || 'Standard submission'
                 })
             });
             const d = await res.json();
@@ -311,11 +310,10 @@ function GradeModal({ sub, onClose, onSaved }: {
                 grade: grade === '' ? null : g,
                 feedback,
                 status,
-                submission_text: subText || null,
             };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
 
-            const res = await fetch(`/api/submissions/${sub.id}`, {
+            const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -334,7 +332,7 @@ function GradeModal({ sub, onClose, onSaved }: {
     const handleDelete = async () => {
         setDeleting(true); setErr('');
         try {
-            const res = await fetch(`/api/submissions/${sub.id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/assignment-submissions/${sub.id}`, { method: 'DELETE' });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Failed to delete submission');
             onSaved();
@@ -454,12 +452,10 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 {showContent && (
                                     <div className="mt-2 space-y-3">
                                         <div className="bg-card shadow-sm border border-border rounded-xl p-3">
-                                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Edit Student Text</label>
-                                            <textarea value={subText} rows={4}
-                                                onChange={e => setSubText(e.target.value)}
-                                                className="w-full bg-transparent text-sm text-muted-foreground focus:outline-none resize-none leading-relaxed"
-                                                placeholder="Student text submission..."
-                                            />
+                                            <p className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Student text · read-only evidence</p>
+                                            <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                                                {sub.submission_text}
+                                            </div>
                                         </div>
                                         {sub.file_url && (
                                             <SubmissionAttachmentCard url={sub.file_url} compact />
@@ -892,13 +888,15 @@ export default function GradesPage() {
             setLoading(true); setError(null);
             try {
                 const db = createClient();
-                const [{ data: termsRows }, live] = await Promise.all([
+                const [termsResult, live] = await Promise.all([
                     db.from('academic_terms')
                       .select('id, academic_year, term_label, is_current')
                       .order('academic_year', { ascending: false })
                       .order('term_number', { ascending: false }),
                     Promise.resolve(liveAcademicSession()),
                 ]);
+                if (termsResult.error) throw new Error(`Academic terms could not be loaded: ${termsResult.error.message}`);
+                const termsRows = termsResult.data;
                 const terms = (termsRows ?? []) as Array<{ id: string; academic_year: string; term_label: string; is_current?: boolean }>;
                 const liveRow = terms.find((t) => t.academic_year === live.periodLabel && t.term_label === live.termLabel)
                   ?? terms.find((t) => t.is_current)
@@ -911,7 +909,7 @@ export default function GradesPage() {
                 }
 
                 const includeUntagged = !selectedId || selectedId === liveRow?.id;
-                const [subData, progData, courseData, classesRes] = await withTimeout(Promise.all([
+                const [subData, progData, courseData, classesRes] = await withTimeoutOrThrow(Promise.all([
                     isStaff
                         ? fetchSubmissionsForGrading({
                             teacherId: role === 'teacher' ? profile?.id : undefined,
@@ -927,9 +925,14 @@ export default function GradesPage() {
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('courses').select('id, title, program_id').eq('is_active', true).order('title'),
                     fetch(profile?.role === 'teacher' ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' })
-                        .then(r => r.json())
-                        .catch(() => ({ data: [] })),
-                ]), [[], { data: [] }, { data: [] }, { data: [] }], 'gradebook startup');
+                        .then(async (response) => {
+                            const body = await response.json().catch(() => ({}));
+                            if (!response.ok) throw new Error(body.error || 'Classes could not be loaded.');
+                            return body;
+                        }),
+                ]), 'Gradebook data is taking longer than expected. Please try again.');
+                if (progData.error) throw new Error(`Programmes could not be loaded: ${progData.error.message}`);
+                if (courseData.error) throw new Error(`Courses could not be loaded: ${courseData.error.message}`);
                 if (!cancelled) {
                     setItems(subData);
                     setPrograms(progData.data ?? []);
@@ -937,7 +940,10 @@ export default function GradesPage() {
                     setTeacherClasses(classesRes.data ?? []);
                 }
             } catch (e: any) {
-                if (!cancelled) setError(e.message ?? 'Failed to load');
+                if (!cancelled) {
+                    setItems([]);
+                    setError(e.message ?? 'Failed to load');
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
