@@ -65,34 +65,42 @@ export function DutyBoardPanel({ embedded = false }: Props) {
 
   async function updateAvailability(row: StaffRow) {
     setSaving(row.id);
-    const response = await fetch('/api/admin/operations-duty', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: row.id, isAvailable: !row.isAvailable }),
-    });
-    const json = await response.json();
-    if (!response.ok) setError(json.error || 'Unable to update availability.');
-    else {
+    setError('');
+    try {
+      const response = await fetch('/api/admin/operations-duty', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: row.id, isAvailable: !row.isAvailable }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Unable to update availability.');
       await load();
       notify?.('duty');
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to update availability.');
+    } finally {
+      setSaving('');
     }
-    setSaving('');
   }
 
   async function startDuty(row: StaffRow, isPrimary: boolean) {
     setSaving(row.id);
-    const response = await fetch('/api/admin/operations-duty', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ staffId: row.id, dutyKind: 'general_service', hours: 8, isPrimary }),
-    });
-    const json = await response.json();
-    if (!response.ok) setError(json.error || 'Unable to start duty.');
-    else {
+    setError('');
+    try {
+      const response = await fetch('/api/admin/operations-duty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffId: row.id, dutyKind: 'general_service', hours: 8, isPrimary }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Unable to start duty.');
       await load();
       notify?.('duty');
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Unable to start duty.');
+    } finally {
+      setSaving('');
     }
-    setSaving('');
   }
 
   return (
@@ -125,7 +133,7 @@ export function DutyBoardPanel({ embedded = false }: Props) {
       )}
 
       {loading ? <p className="text-sm text-muted-foreground">Loading current capacity...</p> : null}
-      {error ? <p className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {board ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

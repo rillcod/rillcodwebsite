@@ -112,5 +112,7 @@ export function chooseDutyAssignee(
   candidates: DutyCandidate[],
   context: DutyRoutingContext,
 ): RankedDutyCandidate | null {
-  return rankDutyCandidates(candidates, context)[0] ?? null;
+  // Capacity is a hard guard, not merely a scoring penalty. Returning the
+  // least-overloaded full person silently defeats the configured limit.
+  return rankDutyCandidates(candidates, context).find((candidate) => !candidate.atCapacity) ?? null;
 }

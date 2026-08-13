@@ -49,6 +49,11 @@ const ACTION_PHRASES: Record<string, string> = {
   retry_notification_dead_letter_failed: 'Message retry needs attention',
   refresh_accountability_cache: 'Refreshed the accountability census',
   refresh_accountability_cache_failed: 'Accountability refresh needs attention',
+  update_operations_staff_capacity: 'Updated staff availability and capacity',
+  handover_primary_operations_duty: 'Assigned the duty owner',
+  reset_user_password: 'Reset an account password',
+  archive_user: 'Archived an account',
+  update_user: 'Updated an account',
 
   // Result check
   result_check_verified: 'Report opened',

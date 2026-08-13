@@ -81,7 +81,9 @@ export async function loadDutyCapacity(
   }
   const activeCases = new Map<string, number>();
   for (const staffId of staffIds) {
-    activeCases.set(staffId, Math.max(feedbackWorkload.get(staffId) ?? 0, caseWorkload.get(staffId) ?? 0));
+    // Feedback and Help Requests are separate work queues. Taking the maximum
+    // understated a person who owned items in both and could route past capacity.
+    activeCases.set(staffId, (feedbackWorkload.get(staffId) ?? 0) + (caseWorkload.get(staffId) ?? 0));
   }
   const nextSession = new Map<string, number>();
   for (const row of sessionsResult.data ?? []) {
@@ -129,7 +131,7 @@ export async function loadDutyCapacity(
     totalEligible: candidates.length,
     expectedActiveStaff: 8,
     staffingDifference: candidates.length - 8,
-    available: ranked.length,
+    available: ranked.filter((row) => !row.atCapacity).length,
     atCapacity: ranked.filter((row) => row.atCapacity).length,
     primaryDuty: ranked.filter((row) => row.isPrimaryDuty).length,
     backupDuty: ranked.filter((row) => row.isBackupDuty).length,

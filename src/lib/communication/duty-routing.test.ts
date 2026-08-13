@@ -90,4 +90,10 @@ describe('database-sized duty routing', () => {
     expect(chooseDutyAssignee([dualRole, teacher], { now })?.id).toBe('dual-role');
     expect(chooseDutyAssignee([dualRole, teacher], { now, restrictedToAdmin: true })?.id).toBe('dual-role');
   });
+
+  it('leaves work visibly unassigned when every eligible owner is at capacity', () => {
+    const full = candidate({ id: 'full', fullName: 'Full queue', activeCases: 8, maxActiveCases: 8 });
+    expect(rankDutyCandidates([full], { now })[0]?.atCapacity).toBe(true);
+    expect(chooseDutyAssignee([full], { now })).toBeNull();
+  });
 });

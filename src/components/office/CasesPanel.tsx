@@ -67,32 +67,37 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAssignTo, setBulkAssignTo] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function load() {
-    const response = await fetch('/api/communication-cases', { cache: 'no-store' });
-    const json = await response.json();
-    if (!response.ok) {
-      setError(json.error || 'Unable to load requests.');
-      return;
+    try {
+      const response = await fetch('/api/communication-cases', { cache: 'no-store' });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Unable to load requests.');
+      setRows(json.data || []);
+      setRole(json.role || '');
+      setStaff(json.staff || []);
+      setError('');
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load requests.');
     }
-    setRows(json.data || []);
-    setRole(json.role || '');
-    setStaff(json.staff || []);
   }
 
   async function openCase(id: string, syncUrl = true) {
-    const response = await fetch(`/api/communication-cases?id=${id}`, { cache: 'no-store' });
-    const json = await response.json();
-    if (!response.ok) {
-      setError(json.error || 'Unable to open this request.');
-      return;
+    try {
+      const response = await fetch(`/api/communication-cases?id=${id}`, { cache: 'no-store' });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Unable to open this request.');
+      setSelected(json.data);
+      setCanManage(Boolean(json.canManage));
+      if (json.staff) setStaff(json.staff.filter((person: Staff) => !json.data.restricted || person.role === 'admin'));
+      setNextAction(json.data.next_action || '');
+      setNextActionDue(json.data.next_action_due_at ? new Date(json.data.next_action_due_at).toISOString().slice(0, 16) : '');
+      setError('');
+      if (syncUrl && office && office.caseId !== id) office.openCase(id);
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : 'Unable to open this request.');
     }
-    setSelected(json.data);
-    setCanManage(Boolean(json.canManage));
-    if (json.staff) setStaff(json.staff.filter((person: Staff) => !json.data.restricted || person.role === 'admin'));
-    setNextAction(json.data.next_action || '');
-    setNextActionDue(json.data.next_action_due_at ? new Date(json.data.next_action_due_at).toISOString().slice(0, 16) : '');
-    if (syncUrl && office && office.caseId !== id) office.openCase(id);
   }
 
   useEffect(() => {
@@ -111,19 +116,24 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
   async function save(payload: Record<string, unknown>) {
     if (!selected) return;
     setError('');
-    const response = await fetch('/api/communication-cases', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: selected.id, ...payload }),
-    });
-    const json = await response.json();
-    if (!response.ok) {
-      setError(json.error || 'Unable to save.');
-      return;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/communication-cases', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selected.id, ...payload }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Unable to save.');
+      await load();
+      await openCase(selected.id, false);
+      if (json.warning) setError(json.warning);
+      office?.notifyOfficeChange('cases');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save.');
+    } finally {
+      setSaving(false);
     }
-    await load();
-    await openCase(selected.id, false);
-    office?.notifyOfficeChange('cases');
   }
 
   async function bulkAssign() {
@@ -141,6 +151,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
       setSelectedIds([]);
       setBulkAssignTo('');
       await load();
+      if (json.warning) setError(json.warning);
       office?.notifyOfficeChange('cases');
     } catch (bulkError) {
       setError(bulkError instanceof Error ? bulkError.message : 'Unable to bulk-assign.');
@@ -332,6 +343,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                       <label className="text-xs font-black uppercase text-muted-foreground">Choose the real staff owner</label>
                       <select
                         value={selected.assigned_to || ''}
+                        disabled={saving}
                         onChange={(event) => void save({ assignedTo: event.target.value })}
                         className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
                       >
@@ -349,6 +361,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                       {!selected.assigned_to && office?.duty?.primaryId ? (
                         <button
                           type="button"
+                          disabled={saving}
                           onClick={() => void save({ assignedTo: office.duty!.primaryId })}
                           className="mt-3 min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
                         >
@@ -364,6 +377,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                         <button
                           key={status}
                           type="button"
+                          disabled={saving}
                           onClick={() => void save({ status })}
                           className="min-h-11 touch-manipulation rounded-lg border border-border px-3 py-2 text-xs font-black"
                         >
@@ -390,6 +404,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                     />
                     <button
                       type="button"
+                      disabled={saving || !nextAction.trim()}
                       onClick={() =>
                         void save({
                           nextAction: nextAction.trim(),
@@ -398,7 +413,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                       }
                       className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-3 text-sm font-black text-primary-foreground"
                     >
-                      Save next step
+                      {saving ? 'Saving...' : 'Save next step'}
                     </button>
                   </div>
                 </>
@@ -436,11 +451,11 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                   />
                   <button
                     type="button"
-                    disabled={!score}
+                    disabled={!score || saving}
                     onClick={() => void save({ satisfactionScore: score, outcome })}
                     className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-2 text-sm font-black text-primary-foreground disabled:opacity-50"
                   >
-                    Save my answer
+                    {saving ? 'Saving...' : 'Save my answer'}
                   </button>
                 </div>
               ) : null}

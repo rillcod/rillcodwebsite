@@ -66,6 +66,7 @@ export default function UsersPage() {
     const [syncResult, setSyncResult] = useState<any | null>(null);
     const [gapData, setGapData] = useState<any | null>(null);
     const [gapCount, setGapCount] = useState<number | null>(null);
+    const [gapError, setGapError] = useState('');
     const [showConflicts, setShowConflicts] = useState(false);
 
     // Reset password state
@@ -217,15 +218,19 @@ export default function UsersPage() {
     };
 
     const checkGaps = async () => {
+        setGapError('');
         try {
-            const res = await fetch('/api/admin/sync-users');
-            const json = await res.json();
-            if (res.ok) {
-                const total = Object.values(json.gaps as Record<string, number>).reduce((a, b) => a + b, 0);
-                setGapCount(total);
-                setGapData(json.details);
-            }
-        } catch { /* ignore */ }
+            const res = await fetch('/api/admin/sync-users', { cache: 'no-store' });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Account consistency check failed.');
+            const total = Object.values((json.gaps ?? {}) as Record<string, number>).reduce((a, b) => a + b, 0);
+            setGapCount(total);
+            setGapData(json.details);
+        } catch (error) {
+            setGapCount(null);
+            setGapData(null);
+            setGapError(error instanceof Error ? error.message : 'Account consistency check failed.');
+        }
     };
 
     const handleSync = async () => {
@@ -303,6 +308,7 @@ export default function UsersPage() {
         { id: 'admin', label: 'Admins', icon: ShieldCheckIcon },
         { id: 'teacher', label: 'Teachers', icon: AcademicCapIcon },
         { id: 'school', label: 'Partners', icon: BuildingOfficeIcon },
+        { id: 'parent', label: 'Parents', icon: UserGroupIcon },
         { id: 'student', label: 'Students', icon: UserIcon },
     ];
 
@@ -311,6 +317,7 @@ export default function UsersPage() {
             admin: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
             teacher: 'bg-primary/10 text-primary border-primary/20',
             school: 'bg-primary/10 text-primary border-primary/20',
+            parent: 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20',
             student: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
         };
         return map[role] ?? 'bg-card shadow-sm text-muted-foreground border-border';
@@ -320,8 +327,9 @@ export default function UsersPage() {
         const map: Record<string, string> = {
             admin: 'from-rose-600 to-rose-400',
             teacher: 'from-primary to-primary',
-            school: 'from-primary to-primary from-primary to-primary',
-            student: 'from-primary to-primary from-primary to-primary',
+            school: 'from-sky-600 to-sky-400',
+            parent: 'from-violet-600 to-violet-400',
+            student: 'from-emerald-600 to-emerald-400',
         };
         return map[role] ?? 'from-muted to-background';
     };
@@ -466,6 +474,18 @@ export default function UsersPage() {
                         </div>
                         <button onClick={() => void load()} className="rounded-xl border border-rose-500/30 px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400">
                             Try again
+                        </button>
+                    </div>
+                )}
+
+                {gapError && !pageError && (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                        <div>
+                            <p className="text-sm font-bold text-foreground">Account health could not be checked</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{gapError} No accounts were changed.</p>
+                        </div>
+                        <button onClick={() => void checkGaps()} className="rounded-xl border border-amber-500/30 px-4 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                            Check again
                         </button>
                     </div>
                 )}
