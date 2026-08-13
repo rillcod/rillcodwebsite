@@ -907,6 +907,7 @@ export default function AssignmentDetailPage() {
     const id = params?.id as string;
     const searchParams = useSearchParams();
     const classId = searchParams?.get('class_id');
+    const parentStudentId = searchParams?.get('student');
     const { profile, loading: authLoading } = useAuth();
 
     const [assignment, setAssignment] = useState<any>(null);
@@ -940,6 +941,8 @@ export default function AssignmentDetailPage() {
     const [emailError, setEmailError] = useState<string | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const isParent = profile?.role === 'parent';
+    const isLearner = profile?.role === 'student';
     const canGrade = roleHasCapability(profile?.role, 'grade');
 
     // Called when a grade is successfully saved — refetch from server to sync counters
@@ -964,7 +967,10 @@ export default function AssignmentDetailPage() {
                     if (!cancelled) setAssignment(json.data);
                 } else {
                     // Student: use admin-client API with student query param to get own submission
-                    const res = await fetch(`/api/assignments/${id}/student`, { cache: 'no-store' });
+                    const studentQuery = isParent && parentStudentId
+                        ? `?studentId=${encodeURIComponent(parentStudentId)}`
+                        : '';
+                    const res = await fetch(`/api/assignments/${id}/student${studentQuery}`, { cache: 'no-store' });
                     const json = await res.json();
                     if (!res.ok) throw new Error(json.error || 'Failed to load');
                     const asgn = json.data;
@@ -1011,7 +1017,7 @@ export default function AssignmentDetailPage() {
         }
         load();
         return () => { cancelled = true; };
-    }, [authLoading, profile, id, isStaff, refreshKey]);
+    }, [authLoading, profile, id, isStaff, isParent, parentStudentId, refreshKey]);
 
     const draftKey = profile?.id && id ? `rillcod-assignment-draft:${profile.id}:${id}` : null;
 
@@ -1489,8 +1495,8 @@ export default function AssignmentDetailPage() {
             <div className="text-center">
                 <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-rose-600 dark:text-rose-400 mb-3" />
                 <p className="text-rose-600 dark:text-rose-400 font-semibold">{error}</p>
-                <Link href="/dashboard/assignments" className="mt-4 inline-block text-primary hover:text-primary text-sm underline">
-                    ← Back to Assignments
+                <Link href={isParent ? '/dashboard/parent-grades' : '/dashboard/assignments'} className="mt-4 inline-block text-primary hover:text-primary text-sm underline">
+                    {isParent ? 'Back to grades' : 'Back to assignments'}
                 </Link>
             </div>
         </div>
@@ -1572,10 +1578,10 @@ export default function AssignmentDetailPage() {
             {/* Sticky top navigation bar */}
             <div className="sticky top-0 z-30 bg-[#0B132B]/95 backdrop-blur-sm border-b border-white/10 shadow-lg">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
-                    <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/assignments`}
+                    <Link href={isParent ? '/dashboard/parent-grades' : classId ? `/dashboard/classes/${classId}` : `/dashboard/assignments`}
                         className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-foreground font-semibold transition-colors flex-shrink-0">
                         <ArrowLeftIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">{classId ? 'Back to Class' : 'Assignments'}</span>
+                        <span className="hidden sm:inline">{isParent ? 'Back to grades' : classId ? 'Back to Class' : 'Assignments'}</span>
                     </Link>
                     <div className="h-5 w-px bg-white/10" />
                     <div className="flex-1 min-w-0">
@@ -1728,7 +1734,7 @@ export default function AssignmentDetailPage() {
                             {/* Score details */}
                             <div className="flex-1 space-y-2 min-w-[160px]">
                                 <div>
-                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Your Score</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">{isParent ? "Child's score" : 'Your score'}</p>
                                     <p className="text-2xl font-black text-foreground">{submission.grade} <span className="text-sm font-bold text-muted-foreground">/ {effectiveMax} pts</span></p>
                                 </div>
                                 <div className="w-full h-2 bg-white/8 rounded-full overflow-hidden">
@@ -1763,6 +1769,55 @@ export default function AssignmentDetailPage() {
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Teacher's Feedback</p>
                                     <p className="text-sm text-muted-foreground leading-relaxed">{submission.feedback}</p>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {isParent && submission && (
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Submitted work</p>
+                                <p className="mt-1 text-sm text-foreground">Read-only view of your child&apos;s submission.</p>
+                            </div>
+                            <Badge status={submission.status || 'submitted'} />
+                        </div>
+                        {submission.submission_text && (
+                            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-border bg-muted/20 p-4 text-sm leading-relaxed text-foreground">
+                                {submission.submission_text}
+                            </div>
+                        )}
+                        {assignment.questions?.length > 0 && submission.answers && (
+                            <div className="mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border">
+                                {assignment.questions.map((question: any, index: number) => {
+                                    const answer = submission.answers[index];
+                                    if (answer === undefined || answer === null || answer === '') return null;
+                                    return (
+                                        <div key={index} className="space-y-1 p-4">
+                                            <p className="text-xs font-semibold text-muted-foreground">{index + 1}. {question.question_text}</p>
+                                            <p className="text-sm text-foreground">{String(answer)}</p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {(Array.isArray(submission.attachments) && submission.attachments.length > 0
+                            ? submission.attachments
+                            : submission.file_url
+                                ? [{ url: submission.file_url, name: 'Submitted file' }]
+                                : []).length > 0 && (
+                            <div className="mt-4 space-y-2">
+                                {(Array.isArray(submission.attachments) && submission.attachments.length > 0
+                                    ? submission.attachments
+                                    : [{ url: submission.file_url, name: 'Submitted file' }]
+                                ).map((attachment: SubmissionAttachment) => (
+                                    <SubmissionAttachmentCard
+                                        key={attachment.url}
+                                        url={attachment.url}
+                                        name={attachment.name}
+                                        onOpenPreview={isSubmissionImageUrl(attachment.url) ? () => setLightboxUrl(attachment.url) : undefined}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
@@ -1866,7 +1921,7 @@ export default function AssignmentDetailPage() {
                 )}
 
                 {/* ── STUDENT SUBMISSION FORM ── */}
-                {!isStaff && (
+                {isLearner && (
                     <div className="bg-card shadow-sm border border-border rounded-xl p-6">
                         <h2 className="font-bold text-foreground mb-4 flex items-center gap-2">
                             <ArrowUpTrayIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />

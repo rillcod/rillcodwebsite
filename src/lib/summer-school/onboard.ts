@@ -404,38 +404,50 @@ export async function resolveSpecialCohortPlacement(
   const tagged = String(notes || '').match(/\[SpecialPage:\s*([0-9a-f-]{36})\]/i);
   if (!tagged?.[1]) return null;
 
-  const { data: page } = await admin
+  const { data: page, error: pageError } = await admin
     .from('special_program_pages')
     .select('academic_offering_id')
     .eq('id', tagged[1])
     .maybeSingle();
+  if (pageError) {
+    throw new Error(`Could not resolve the learner's special programme: ${pageError.message}`);
+  }
   const offeringId = page?.academic_offering_id ? String(page.academic_offering_id) : null;
   if (!offeringId) return null;
 
   // The learner's school has to be the school teaching sits on, or the
   // guard_portal_student_class_pathway trigger rejects the placement.
-  const { data: offering } = await admin
+  const { data: offering, error: offeringError } = await admin
     .from('academic_offerings')
     .select('id, school_id')
     .eq('id', offeringId)
     .maybeSingle();
+  if (offeringError) {
+    throw new Error(`Could not resolve the programme delivery school: ${offeringError.message}`);
+  }
   const schoolId = offering?.school_id ? String(offering.school_id) : null;
   if (!schoolId) return null;
 
-  const { data: classes } = await admin
+  const { data: classes, error: classError } = await admin
     .from('classes')
     .select('id, name, status, created_at')
     .eq('academic_offering_id', offeringId)
     .order('created_at', { ascending: false });
+  if (classError) {
+    throw new Error(`Could not resolve the programme cohort: ${classError.message}`);
+  }
   const rows = (classes ?? []) as Array<{ id: string; name: string | null; status: string | null }>;
   const cohort = rows.find((c) => c.status === 'active') ?? rows[0];
   if (!cohort?.id) return null;
 
-  const { data: school } = await admin
+  const { data: school, error: schoolError } = await admin
     .from('schools')
     .select('name')
     .eq('id', schoolId)
     .maybeSingle();
+  if (schoolError) {
+    throw new Error(`Could not resolve the programme school: ${schoolError.message}`);
+  }
 
   return {
     classId: String(cohort.id),
@@ -688,16 +700,15 @@ export async function onboardSummerStudent(
   let preferredProgramId: string | null = null;
   const specialMatch = String(prospect.notes || '').match(/\[SpecialPage:\s*([0-9a-f-]{36})\]/i);
   if (specialMatch?.[1]) {
-    try {
-      const { data: sp } = await admin
-        .from('special_program_pages')
-        .select('program_id')
-        .eq('id', specialMatch[1])
-        .maybeSingle();
-      preferredProgramId = sp?.program_id || null;
-    } catch {
-      /* non-critical */
+    const { data: sp, error: specialProgramError } = await admin
+      .from('special_program_pages')
+      .select('program_id')
+      .eq('id', specialMatch[1])
+      .maybeSingle();
+    if (specialProgramError) {
+      throw new Error(`Could not link the learner to the selected programme: ${specialProgramError.message}`);
     }
+    preferredProgramId = sp?.program_id || null;
   }
 
   const programmeEnrollment = await ensureDefaultEnrollment(admin, studentPortalId, {
@@ -800,6 +811,29 @@ export async function onboardSummerStudent(
     }
   } catch (financeError) {
     console.error('[onboardSummerStudent] finance sync failed:', financeError);
+    // Identity and academic access stay available after payment, but finance
+    // repair must never disappear into server logs. Operations Health already
+    // surfaces failed finance_automation_log rows for staff follow-up.
+    const message = financeError instanceof Error ? financeError.message : String(financeError);
+    const { error: repairLogError } = await admin.from('finance_automation_log').insert({
+      stream: 'special_program',
+      action: 'onboarding_finance_sync',
+      entity_type: 'prospective_student',
+      entity_id: prospect.id,
+      stage: 'portal_activation',
+      channel: 'in_app',
+      status: 'failed',
+      attempt: 1,
+      error: message.slice(0, 4000),
+      metadata: {
+        student_portal_id: studentPortalId,
+        school_id: school.id,
+        programme: programmeLabel,
+      },
+    });
+    if (repairLogError) {
+      console.error('[onboardSummerStudent] finance repair alert could not be recorded:', repairLogError.message);
+    }
   }
   return {
     parent,

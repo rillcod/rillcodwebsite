@@ -6,6 +6,7 @@ import {
   resolveStudentProgramScope,
   type AssignmentStudentScope,
 } from '@/lib/assignments/visibility';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ export async function GET(
     // Fetch caller profile — class_id needed for class-scoped visibility check
     const { data: caller } = await admin
       .from('portal_users')
-      .select('role, id, school_id, school_name, class_id, section_class')
+      .select('role, id, email, school_id, school_name, class_id, section_class')
       .eq('id', user.id)
       .single();
 
@@ -60,28 +61,43 @@ export async function GET(
     const searchParams = _request.nextUrl.searchParams;
     const studentIdParam = searchParams.get('studentId');
 
-    // Who are we fetching for?
-    const targetStudentId = (caller.role === 'parent' && studentIdParam) ? studentIdParam : user.id;
+    let targetStudentId = user.id;
+    if (caller.role === 'parent') {
+      if (!studentIdParam) {
+        return NextResponse.json({ error: 'Choose a child to view this assignment.' }, { status: 400 });
+      }
 
-    // If parent is asking for a student, verify link
-    if (caller.role === 'parent' && studentIdParam) {
-      const { data: link } = await admin
-        .from('parent_student_links')
-        .select('id')
-        .eq('parent_id', user.id)
-        .eq('student_id', studentIdParam)
-        .maybeSingle();
-
-      if (!link) return NextResponse.json({ error: 'Student not linked to this parent' }, { status: 403 });
+      const parentScope = await getParentLinkScope(admin, { id: user.id, email: caller.email });
+      if (parentScope.studentUserIds.includes(studentIdParam)) {
+        targetStudentId = studentIdParam;
+      } else if (parentScope.studentIds.includes(studentIdParam)) {
+        const { data: linkedStudent, error: linkedStudentError } = await admin
+          .from('students')
+          .select('user_id')
+          .eq('id', studentIdParam)
+          .maybeSingle();
+        if (linkedStudentError) {
+          return NextResponse.json({ error: 'We could not verify this child right now. Please try again.' }, { status: 503 });
+        }
+        if (!linkedStudent?.user_id) {
+          return NextResponse.json({ error: 'This child’s learning account is not ready yet.' }, { status: 409 });
+        }
+        targetStudentId = linkedStudent.user_id;
+      } else {
+        return NextResponse.json({ error: 'Student not linked to this parent' }, { status: 403 });
+      }
     }
 
     const { data: targetStudent } = await admin
       .from('portal_users')
-      .select('id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
+      .select('id, role, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
       .eq('id', targetStudentId)
       .single();
 
     if (!targetStudent) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    if (targetStudent.role !== 'student') {
+      return NextResponse.json({ error: 'This account is not a student account.' }, { status: 403 });
+    }
 
     const [asgnRes, subRes] = await Promise.all([
       admin
@@ -108,21 +124,6 @@ export async function GET(
     }
     const scope = await resolveStudentProgramScope(admin, targetStudentId, targetStudent.class_id);
     const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
-
-    // Fetch class course focus if student is assigned to a class
-    let currentCourseId: string | null = null;
-    if (targetStudent.class_id) {
-      const { data: clsData } = await admin
-        .from('classes')
-        .select('current_course_id')
-        .eq('id', targetStudent.class_id)
-        .maybeSingle();
-      currentCourseId = clsData?.current_course_id ?? null;
-    }
-
-    if (currentCourseId && asgn.course_id && asgn.course_id !== currentCourseId) {
-      return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
-    }
 
     const creatorRoles: Record<string, string> = {};
     if (asgn.created_by) {

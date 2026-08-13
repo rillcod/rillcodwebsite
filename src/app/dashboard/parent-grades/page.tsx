@@ -10,10 +10,12 @@ import {
   ChartBarIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface Child { id: string; full_name: string; school_name: string | null }
 interface GradeItem {
   id: string;
+  resource_id: string | null;
   type: 'assignment' | 'exam';
   title: string;
   grade: number | string | null;
@@ -443,6 +445,14 @@ function ParentGradesContent() {
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Feedback</p>
                         <p className="text-xs text-foreground leading-relaxed">{item.feedback}</p>
                       </div>
+                    )}
+                    {item.type === 'assignment' && item.resource_id && selectedId && (
+                      <Link
+                        href={`/dashboard/assignments/${item.resource_id}?student=${selectedId}`}
+                        className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/15"
+                      >
+                        View assignment and submitted work
+                      </Link>
                     )}
                   </div>
                 );

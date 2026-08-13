@@ -243,14 +243,14 @@ export async function GET(req: Request) {
       const [asgnRes, cbtRes] = await withTimeout(Promise.all([
         admin
           .from('assignment_submissions')
-          .select('id, status, grade, feedback, submitted_at, assignments(title, max_points, course_id, term_id, courses(title))')
+          .select('id, status, grade, feedback, submitted_at, assignments(id, title, max_points, course_id, term_id, courses(title))')
           .eq('portal_user_id', child.user_id)
           .not('grade', 'is', null)
           .order('submitted_at', { ascending: false })
           .limit(80),
         admin
           .from('cbt_sessions')
-          .select('id, status, score, end_time, needs_grading, cbt_exams(title, course_id, program_id, metadata)')
+          .select('id, status, score, end_time, needs_grading, cbt_exams(id, title, course_id, program_id, metadata)')
           .eq('user_id', child.user_id)
           .not('score', 'is', null)
           .order('end_time', { ascending: false })
@@ -269,6 +269,7 @@ export async function GET(req: Request) {
       const grades = [
         ...asgnRows.map((r: any) => ({
           id: r.id,
+          resource_id: r.assignments?.id ?? null,
           type: 'assignment' as const,
           title: r.assignments?.title ?? 'Assignment',
           course_title: r.assignments?.courses?.title ?? null,
@@ -280,6 +281,7 @@ export async function GET(req: Request) {
         })),
         ...cbtRows.map((r: any) => ({
           id: r.id,
+          resource_id: r.cbt_exams?.id ?? null,
           type: 'exam' as const,
           title: r.cbt_exams?.title ?? 'CBT Exam',
           exam_type: r.cbt_exams?.metadata?.exam_type ?? 'examination',

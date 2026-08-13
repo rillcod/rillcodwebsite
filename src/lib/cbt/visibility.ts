@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 export interface CbtStudentScope {
   id: string;
@@ -22,36 +23,7 @@ export async function resolveStudentCbtScope(
   studentId: string,
   classId: string | null,
 ): Promise<StudentCbtProgramScope> {
-  const { data: enrollments } = await admin
-    .from('enrollments')
-    .select('program_id')
-    .eq('user_id', studentId)
-    .in('status', ['active', 'enrolled', 'approved']);
-
-  const programIds = new Set(
-    (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[],
-  );
-
-  if (classId) {
-    const { data: cls } = await admin
-      .from('classes')
-      .select('program_id')
-      .eq('id', classId)
-      .maybeSingle();
-    if (cls?.program_id) programIds.add(cls.program_id);
-  }
-
-  if (programIds.size === 0) return { programIds, courseIds: new Set() };
-
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id')
-    .in('program_id', Array.from(programIds));
-
-  return {
-    programIds,
-    courseIds: new Set((courses ?? []).map((c: any) => c.id).filter(Boolean) as string[]),
-  };
+  return resolveStudentProgramScope(admin, studentId, classId);
 }
 
 /** Whether an active CBT exam should appear for this student. */
