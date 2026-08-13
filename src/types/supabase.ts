@@ -6307,6 +6307,195 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_progression_levels: {
+        Row: {
+          capstone: string | null
+          created_at: string
+          grade: string
+          id: string
+          portfolio: string | null
+          progression_id: string
+          terms: Json
+          theme: string
+          updated_at: string
+          year_number: number
+        }
+        Insert: {
+          capstone?: string | null
+          created_at?: string
+          grade: string
+          id?: string
+          portfolio?: string | null
+          progression_id: string
+          terms: Json
+          theme: string
+          updated_at?: string
+          year_number: number
+        }
+        Update: {
+          capstone?: string | null
+          created_at?: string
+          grade?: string
+          id?: string
+          portfolio?: string | null
+          progression_id?: string
+          terms?: Json
+          theme?: string
+          updated_at?: string
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_progression_levels_progression_id_fkey"
+            columns: ["progression_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_progressions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_progressions: {
+        Row: {
+          change_summary: string | null
+          created_at: string
+          created_by: string | null
+          edition: number
+          id: string
+          published_at: string | null
+          published_by: string | null
+          retired_at: string | null
+          retired_by: string | null
+          slug: string
+          source: string | null
+          status: string
+          subtitle: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          edition?: number
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          retired_at?: string | null
+          retired_by?: string | null
+          slug: string
+          source?: string | null
+          status?: string
+          subtitle?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          edition?: number
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          retired_at?: string | null
+          retired_by?: string | null
+          slug?: string
+          source?: string | null
+          status?: string
+          subtitle?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_progressions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_retired_by_fkey"
+            columns: ["retired_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_retired_by_fkey"
+            columns: ["retired_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_retired_by_fkey"
+            columns: ["retired_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_progressions_retired_by_fkey"
+            columns: ["retired_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       curriculum_project_registry: {
         Row: {
           classwork_prompt: string | null
