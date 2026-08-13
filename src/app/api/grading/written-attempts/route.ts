@@ -12,7 +12,7 @@ async function courseIdsForSchools(schoolIds: string[]) {
   return (data ?? []).map(course => course.id);
 }
 
-async function getHandler(_req: Request, ctx: ApiContext) {
+async function getHandler(req: Request, ctx: ApiContext) {
   if (!ctx.user || !['admin', 'teacher', 'school'].includes(ctx.user.role)) throw new AppError('Grading access required', 403);
 
   let exams;
@@ -26,7 +26,16 @@ async function getHandler(_req: Request, ctx: ApiContext) {
     exams = await examService.listExams(undefined, undefined, await courseIdsForSchools(schoolIds));
   }
   const examIds = exams.map(exam => exam.id);
-  if (!examIds.length) return NextResponse.json({ success: true, data: [] });
+  const url = new URL(req.url);
+  const offset = Math.max(0, Number.parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+  const limit = Math.min(200, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '100', 10) || 100));
+  if (!examIds.length) {
+    return NextResponse.json({
+      success: true,
+      data: [],
+      pagination: { offset, limit, returned: 0, has_more: false },
+    });
+  }
 
   const db = createAdminClient();
   const { data: attempts, error } = await db
@@ -34,7 +43,8 @@ async function getHandler(_req: Request, ctx: ApiContext) {
     .select('id,exam_id,portal_user_id,status,score,total_points,percentage,submitted_at,tab_switches')
     .in('exam_id', examIds)
     .eq('status', 'submitted')
-    .order('submitted_at', { ascending: true });
+    .order('submitted_at', { ascending: true })
+    .range(offset, offset + limit - 1);
   if (error) throw new AppError(error.message, 500);
 
   const userIds = [...new Set((attempts ?? []).map(attempt => attempt.portal_user_id).filter(Boolean))] as string[];
@@ -52,6 +62,12 @@ async function getHandler(_req: Request, ctx: ApiContext) {
       student: attempt.portal_user_id ? usersById.get(attempt.portal_user_id) ?? null : null,
       exam: attempt.exam_id ? examsById.get(attempt.exam_id) ?? null : null,
     })),
+    pagination: {
+      offset,
+      limit,
+      returned: (attempts ?? []).length,
+      has_more: (attempts ?? []).length === limit,
+    },
   });
 }
 

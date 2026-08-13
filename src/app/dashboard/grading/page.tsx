@@ -116,6 +116,68 @@ function initials(name?: string) {
   return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
+const MAX_QUEUE_PAGES = 100;
+
+async function fetchAllAssignmentQueue(url: string) {
+  const rows: Submission[] = [];
+  const seen = new Set<string>();
+  let cursor: string | null = null;
+  let scope: GradingScope | null = null;
+
+  for (let page = 0; page < MAX_QUEUE_PAGES; page += 1) {
+    const pageUrl = new URL(url, window.location.origin);
+    if (cursor) pageUrl.searchParams.set('cursor', cursor);
+    const result = await fetchJsonWithTimeout(
+      `${pageUrl.pathname}${pageUrl.search}`,
+      { data: [], error: 'Assignment submissions timed out.' },
+      'grading-assignments',
+    ) as { data?: Submission[]; error?: string; nextCursor?: string | null; scope?: GradingScope };
+    if (result.error) return { data: [] as Submission[], error: result.error, scope };
+    rows.push(...(result.data ?? []));
+    if (!scope && result.scope) scope = result.scope;
+    if (!result.nextCursor) return { data: rows, scope };
+    if (seen.has(result.nextCursor)) {
+      return { data: [] as Submission[], error: 'Assignment queue pagination repeated a page.', scope };
+    }
+    seen.add(result.nextCursor);
+    cursor = result.nextCursor;
+  }
+
+  return { data: [] as Submission[], error: 'Assignment queue is too large to load safely. Apply a class or term filter.', scope };
+}
+
+async function fetchAllOffsetQueue<T>(url: string, label: string, timeoutMessage: string) {
+  const rows: T[] = [];
+  const pageSize = 200;
+  let scope: GradingScope | null = null;
+
+  for (let page = 0; page < MAX_QUEUE_PAGES; page += 1) {
+    const pageUrl = new URL(url, window.location.origin);
+    pageUrl.searchParams.set('limit', String(pageSize));
+    pageUrl.searchParams.set('offset', String(page * pageSize));
+    const result = await fetchJsonWithTimeout(
+      `${pageUrl.pathname}${pageUrl.search}`,
+      { data: [], error: timeoutMessage },
+      label,
+    ) as {
+      data?: T[];
+      error?: string;
+      pagination?: { has_more?: boolean };
+      scope?: GradingScope;
+    };
+    if (result.error) return { data: [] as T[], error: result.error, scope };
+    const pageRows = result.data ?? [];
+    rows.push(...pageRows);
+    if (!scope && result.scope) scope = result.scope;
+    if (!result.pagination?.has_more) return { data: rows, scope };
+    if (pageRows.length === 0) {
+      return { data: [] as T[], error: `${label} stopped before the complete queue was loaded.`, scope };
+    }
+  }
+
+  return { data: [] as T[], error: `${label} is too large to load safely. Apply a class or term filter.`, scope };
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ContextPill({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
@@ -256,6 +318,21 @@ function EmptyQueue({ scoped }: { scoped: boolean }) {
   );
 }
 
+function QueueUnavailable({ label, onRetry }: { label: string; onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-16 text-center">
+      <ExclamationTriangleIcon className="h-10 w-10 text-rose-600 dark:text-rose-400" />
+      <div>
+        <p className="font-black text-foreground">{label} is temporarily unavailable</p>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">No empty or all-clear state is shown until the complete queue loads.</p>
+      </div>
+      <button type="button" onClick={onRetry} className="min-h-11 rounded-xl border border-rose-500/30 bg-card px-4 py-2 text-xs font-black text-rose-700 dark:text-rose-300">
+        Try again
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GradingQueuePage() {
@@ -276,6 +353,11 @@ export default function GradingQueuePage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [sourceErrors, setSourceErrors] = useState<Record<'assignments' | 'written' | 'cbt', string | null>>({
+    assignments: null,
+    written: null,
+    cbt: null,
+  });
   const [assignmentView, setAssignmentView] = useState<GradingReviewFilter>('priority');
 
   const mayGrade = roleHasCapability(profile?.role, 'grade');
@@ -295,22 +377,33 @@ export default function GradingQueuePage() {
     if (termId) cbtP.set('term_id', termId);
 
     const [aJson, cJson, wJson] = await Promise.all([
-      fetchJsonWithTimeout(`/api/grading/submissions?${queryString}`,
-        { data: [], error: 'Assignment submissions timed out.' }, 'grading-assignments'),
-      fetchJsonWithTimeout(`/api/grading/cbt-sessions${cbtP.toString() ? `?${cbtP}` : ''}`,
-        { data: [], error: 'CBT sessions timed out.' }, 'grading-cbt'),
-      fetchJsonWithTimeout('/api/grading/written-attempts',
-        { data: [], error: 'Written exam reviews timed out.' }, 'grading-written'),
+      fetchAllAssignmentQueue(`/api/grading/submissions?${queryString}`),
+      fetchAllOffsetQueue<CbtQueueItem>(
+        `/api/grading/cbt-sessions${cbtP.toString() ? `?${cbtP}` : ''}`,
+        'CBT response queue',
+        'CBT sessions timed out.',
+      ),
+      fetchAllOffsetQueue<WrittenQueueItem>(
+        '/api/grading/written-attempts',
+        'Written exam queue',
+        'Written exam reviews timed out.',
+      ),
     ]);
 
-    const msgs = [aJson, cJson, wJson].map((r: any) => r.error).filter(Boolean);
+    const nextSourceErrors = {
+      assignments: aJson.error ?? null,
+      cbt: cJson.error ?? null,
+      written: wJson.error ?? null,
+    };
+    setSourceErrors(nextSourceErrors);
+    const msgs = Object.values(nextSourceErrors).filter(Boolean);
     if (msgs.length) setError(msgs.join(' · '));
 
     const subs = (aJson.data ?? []) as Submission[];
     setSubmissions(subs);
     setCbtSessions((cJson.data ?? []) as CbtQueueItem[]);
     setWrittenAttempts((wJson.data ?? []) as WrittenQueueItem[]);
-    setScope((aJson as any).scope ?? (cJson as any).scope ?? null);
+    setScope(aJson.scope ?? cJson.scope ?? null);
     setActiveIdx(0);
 
     // Preserve any existing teacher draft. AI suggestions remain visibly separate
@@ -509,7 +602,9 @@ export default function GradingQueuePage() {
                 ASSIGNMENT TAB
             ══════════════════════════════════════════════════════════════ */}
             {tab === 'assignments' && (
-              submissions.length === 0 ? <EmptyQueue scoped={scoped} /> : (
+              sourceErrors.assignments ? (
+                <QueueUnavailable label="Assignment grading queue" onRetry={() => void loadAll()} />
+              ) : submissions.length === 0 ? <EmptyQueue scoped={scoped} /> : (
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-2">
                     {([
@@ -805,7 +900,9 @@ export default function GradingQueuePage() {
                   <p className="text-sm text-muted-foreground">Submitted essay and short-answer papers waiting for an authorised reviewer. Scores are validated against each question and publish only when the full paper is complete.</p>
                 </div>
 
-                {writtenAttempts.length === 0 ? (
+                {sourceErrors.written ? (
+                  <QueueUnavailable label="Written exam review queue" onRetry={() => void loadAll()} />
+                ) : writtenAttempts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
                     <CheckCircleIcon className="mx-auto mb-3 h-12 w-12 text-emerald-600 dark:text-emerald-400" />
                     <p className="font-black text-foreground">No written papers pending</p>
@@ -853,7 +950,9 @@ export default function GradingQueuePage() {
                   </p>
                 </div>
 
-                {cbtSessions.length === 0 ? (
+                {sourceErrors.cbt ? (
+                  <QueueUnavailable label="CBT written-response queue" onRetry={() => void loadAll()} />
+                ) : cbtSessions.length === 0 ? (
                   <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl">
                     <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-600 dark:text-emerald-400 mb-3" />
                     <p className="font-black text-foreground">No CBT responses pending</p>

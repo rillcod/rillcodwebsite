@@ -10,13 +10,16 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const db: any = createAdminClient();
-  const { data: profile } = await db.from('portal_users').select('id,role,school_id').eq('id', user.id).maybeSingle();
+  const { data: profile, error: profileError } = await db.from('portal_users').select('id,role,school_id').eq('id', user.id).maybeSingle();
+  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
   if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
     return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
   const url = new URL(req.url);
   const termIdParam = url.searchParams.get('term_id');
   const classIdParam = url.searchParams.get('class_id');
+  const offset = Math.max(0, Number.parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+  const limit = Math.min(200, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '100', 10) || 100));
   const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
   const termId = termIdParam || await resolveAssignmentTermId(db, { classId: classIdParam });
 
@@ -29,18 +32,21 @@ export async function GET(req: NextRequest) {
     let examQ = db.from('cbt_exams').select('id').eq('school_id', profile.school_id);
     if (termId) examQ = examQ.eq('term_id', termId);
     if (classIdParam) examQ = examQ.eq('class_id', classIdParam);
-    const { data: exams } = await examQ.limit(2000);
+    const { data: exams, error: examsError } = await examQ.limit(2000);
+    if (examsError) return NextResponse.json({ error: examsError.message }, { status: 500 });
     examIds = (exams ?? []).map((e: { id: string }) => e.id);
   } else if (profile.role === 'teacher') {
-    const [{ data: classes }, schoolIds] = await Promise.all([
+    const [{ data: classes, error: classesError }, schoolIds] = await Promise.all([
       db.from('classes').select('id').eq('teacher_id', user.id),
-      getTeacherSchoolIds(user.id, profile.school_id),
+      getTeacherSchoolIds(user.id, profile.school_id, db),
     ]);
+    if (classesError) return NextResponse.json({ error: classesError.message }, { status: 500 });
     const classIds = (classes ?? []).map((row: { id: string }) => row.id);
     let examQ = db.from('cbt_exams').select('id, created_by, class_id, school_id, metadata');
     if (termId) examQ = examQ.eq('term_id', termId);
     if (classIdParam) examQ = examQ.eq('class_id', classIdParam);
-    const { data: exams } = await examQ.limit(2000);
+    const { data: exams, error: examsError } = await examQ.limit(2000);
+    if (examsError) return NextResponse.json({ error: examsError.message }, { status: 500 });
     const classSet = new Set(classIds);
     const schoolSet = new Set(schoolIds);
     examIds = (exams ?? [])
@@ -64,7 +70,7 @@ export async function GET(req: NextRequest) {
     portal_users!cbt_sessions_user_id_fkey(id,full_name,email,school_id,school_name),
     cbt_exams(id,title,class_id,school_id,created_by,course_id,term_id,metadata,
       classes!cbt_exams_class_id_fkey(id, name))
-  `).eq('needs_grading', true).order('end_time', { ascending: true }).limit(40);
+  `).eq('needs_grading', true).order('end_time', { ascending: true }).range(offset, offset + limit - 1);
   if (examIds) query = query.in('exam_id', examIds);
   else if (termId) query = query.eq('cbt_exams.term_id', termId);
   if (classIdParam && !examIds) query = query.eq('cbt_exams.class_id', classIdParam);
@@ -91,7 +97,8 @@ export async function GET(req: NextRequest) {
 
   const cbtSchoolMap = new Map<string, string>();
   if (cbtSchoolIds.length > 0) {
-    const { data: schoolRows } = await db.from('schools').select('id, name').in('id', cbtSchoolIds);
+    const { data: schoolRows, error: schoolRowsError } = await db.from('schools').select('id, name').in('id', cbtSchoolIds);
+    if (schoolRowsError) return NextResponse.json({ error: schoolRowsError.message }, { status: 500 });
     (schoolRows ?? []).forEach((s: any) => { if (s.id && s.name) cbtSchoolMap.set(s.id, s.name); });
   }
   rows = rows.map((r: any) => {
@@ -111,6 +118,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     data: rows,
+    pagination: {
+      offset,
+      limit,
+      returned: rows.length,
+      has_more: rows.length === limit,
+    },
     scope: {
       term_id: termId,
       term_label: scopeLabel,

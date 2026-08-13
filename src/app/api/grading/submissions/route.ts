@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       )
     `)
     .order('submitted_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(40);
 
   // SQL-first isolation: never fetch a global page then hope post-filter keeps enough rows.
@@ -66,17 +67,31 @@ export async function GET(req: NextRequest) {
   if (status === 'actionable') query = query.in('status', ['submitted', 'late', 'pending_review']);
   else if (status !== 'all') query = query.eq('status', status);
   if (assignmentId) query = query.eq('assignment_id', assignmentId);
-  if (cursor) query = query.lt('submitted_at', cursor);
+  if (cursor) {
+    const separator = cursor.lastIndexOf('|');
+    const cursorAt = separator > 0 ? cursor.slice(0, separator) : cursor;
+    const cursorId = separator > 0 ? cursor.slice(separator + 1) : '';
+    query = cursorId
+      ? query.or(`submitted_at.lt.${cursorAt},and(submitted_at.eq.${cursorAt},id.lt.${cursorId})`)
+      : query.lt('submitted_at', cursorAt);
+  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let rows = data ?? [];
+  const rawRows = data ?? [];
+  let rows = rawRows;
   if (role === 'teacher') {
-    const [{ data: ownedClasses }, { data: schoolLinks }] = await Promise.all([
+    const [{ data: ownedClasses, error: ownedClassesError }, { data: schoolLinks, error: schoolLinksError }] = await Promise.all([
       supabase.from('classes').select('id').eq('teacher_id', user.id),
       supabase.from('teacher_schools').select('school_id').eq('teacher_id', user.id),
     ]);
+    if (ownedClassesError || schoolLinksError) {
+      return NextResponse.json(
+        { error: ownedClassesError?.message || schoolLinksError?.message || 'Teacher scope could not be loaded.' },
+        { status: 500 },
+      );
+    }
     const classIds = new Set((ownedClasses ?? []).map((row: any) => row.id));
     const schoolIds = new Set([profile?.school_id, ...(schoolLinks ?? []).map((row: any) => row.school_id)].filter(Boolean));
     rows = rows.filter((row: any) => {
@@ -106,7 +121,16 @@ export async function GET(req: NextRequest) {
   if (classIdParam) {
     rows = rows.filter((row: any) => row.assignments?.class_id === classIdParam);
   }
-  rows = rows.slice(0, 20);
+  const eligibleRows = rows;
+  const cursorRow = eligibleRows.length > 20
+    ? eligibleRows[19]
+    : rawRows.length === 40
+      ? rawRows[rawRows.length - 1]
+      : null;
+  const nextCursor = cursorRow?.submitted_at && cursorRow?.id
+    ? `${cursorRow.submitted_at}|${cursorRow.id}`
+    : null;
+  rows = eligibleRows.slice(0, 20);
 
   let scopeLabel: string | null = null;
   if (resolvedTermId) {
@@ -129,7 +153,8 @@ export async function GET(req: NextRequest) {
   const schoolIds = [...new Set(rows.map((r: any) => r.portal_users?.school_id || r.assignments?.school_id).filter(Boolean))];
   const schoolMap = new Map<string, string>();
   if (schoolIds.length > 0) {
-    const { data: schoolRows } = await supabase.from('schools').select('id, name').in('id', schoolIds);
+    const { data: schoolRows, error: schoolRowsError } = await supabase.from('schools').select('id, name').in('id', schoolIds);
+    if (schoolRowsError) return NextResponse.json({ error: schoolRowsError.message }, { status: 500 });
     (schoolRows ?? []).forEach((s: any) => { if (s.id && s.name) schoolMap.set(s.id, s.name); });
   }
   rows = rows.map((r: any) => {
@@ -146,7 +171,6 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const nextCursor = rows.length === 20 ? rows[rows.length - 1].submitted_at : null;
   return NextResponse.json({
     data: rows,
     nextCursor,

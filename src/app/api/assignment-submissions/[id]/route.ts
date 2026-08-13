@@ -59,7 +59,7 @@ export async function PATCH(
     // Fetch submission + its assignment school for boundary check (single query)
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, grade, status, file_url, assignments(school_id, created_by, class_id, metadata, weight, max_points)')
+      .select('id, assignment_id, grade, status, file_url, ai_suggested_grade, ai_suggested_feedback, grading_mode, assignments(school_id, created_by, class_id, metadata, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
@@ -84,9 +84,39 @@ export async function PATCH(
     const assignMax = assignment?.max_points ?? 100;
     const assignWeight = assignment?.weight ?? 0;
     const rubric = Array.isArray(assignment?.metadata?.rubric) ? assignment.metadata.rubric : [];
+    const action = body.action;
+    if (action !== undefined && action !== 'accept_ai' && action !== 'override') {
+      return NextResponse.json(
+        { error: 'Invalid grading action. Use accept_ai or override.', field: 'action' },
+        { status: 400 },
+      );
+    }
     let requestedGrade = body.grade;
+    let requestedFeedback = body.feedback;
+    let gradingSource = 'direct';
     let gradingDetails: Record<string, unknown> | null | undefined;
-    if ('rubric_scores' in body) {
+    if (action === 'accept_ai') {
+      requestedGrade = sub.ai_suggested_grade;
+      requestedFeedback = sub.ai_suggested_feedback;
+      gradingSource = 'ai_accepted';
+      gradingDetails = {
+        source: gradingSource,
+        suggested_grade: sub.ai_suggested_grade ?? null,
+        suggested_feedback: sub.ai_suggested_feedback ?? null,
+        assignment_max_points: assignMax,
+      };
+      if (requestedGrade == null) {
+        return NextResponse.json(
+          { error: 'AI suggested grade is missing. Enter a teacher score instead.', field: 'ai_suggested_grade' },
+          { status: 400 },
+        );
+      }
+    } else if (action === 'override') {
+      gradingSource = 'manual_override';
+      if (!('grade' in body) || body.grade == null || body.grade === '') {
+        return NextResponse.json({ error: 'grade is required for override', field: 'grade' }, { status: 400 });
+      }
+    } else if ('rubric_scores' in body) {
       const rubricResult = gradeAssignmentRubric(rubric, body.rubric_scores, assignMax);
       if (rubricResult.error) {
         return NextResponse.json({ error: rubricResult.error, field: 'rubric_scores' }, { status: 400 });
@@ -100,10 +130,11 @@ export async function PATCH(
         normalized_grade: rubricResult.grade,
         assignment_max_points: assignMax,
       };
+      gradingSource = 'rubric';
     } else if ('grade' in body && body.grade == null) {
       gradingDetails = null;
     }
-    const gradeWasProvided = 'grade' in body || 'rubric_scores' in body;
+    const gradeWasProvided = action === 'accept_ai' || 'grade' in body || 'rubric_scores' in body;
     const gradeResult = normalizeGradeValueWithMax(requestedGrade, assignMax);
     if (gradeWasProvided && gradeResult.error) {
       return NextResponse.json({ error: gradeResult.error, field: 'grade' }, { status: 400 });
@@ -119,8 +150,10 @@ export async function PATCH(
     // ── Whitelisted update fields ──────────────────────────────────────────
     // graded_by and graded_at are NOT client-settable — always set server-side
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
+    if ('feedback' in body || action === 'accept_ai') allowed.feedback = requestedFeedback ?? null;
     if (gradingDetails !== undefined) allowed.grading_details = gradingDetails;
+    if (action === 'accept_ai') allowed.grading_mode = 'auto';
+    if (action === 'override') allowed.grading_mode = 'manual';
 
     const transition = buildAssignmentGradeTransition({
       currentGrade: sub.grade ?? null,
@@ -181,8 +214,8 @@ export async function PATCH(
           grade: data.grade ?? null,
           status: data.status ?? null,
           weighted_score: data.weighted_score ?? null,
-          feedback_updated: 'feedback' in body,
-          grading_source: gradingDetails ? 'rubric' : 'direct',
+          feedback_updated: 'feedback' in body || action === 'accept_ai',
+          grading_source: gradingSource,
           grading_details: gradingDetails ?? null,
         },
       });

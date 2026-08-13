@@ -52,16 +52,17 @@ export async function callerCanManageAssignmentWork(
   if (createdBy === caller.id) return true;
 
   if (targetClassId) {
-    const { data: cls } = await admin
+    const { data: cls, error: classError } = await admin
       .from('classes')
       .select('teacher_id')
       .eq('id', targetClassId)
       .maybeSingle();
+    if (classError) throw new Error(`Assignment class scope could not be verified: ${classError.message}`);
     return cls?.teacher_id === caller.id;
   }
 
   if (!schoolId) return false;
-  const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+  const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id, admin);
   return schoolIds.includes(schoolId);
 }
 
@@ -79,8 +80,12 @@ export async function listManageableAssignmentIds(
     if (!caller.school_id) return [];
     query = query.eq('school_id', caller.school_id);
   } else if (caller.role === 'teacher') {
-    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-    const { data: ownedClasses } = await admin.from('classes').select('id').eq('teacher_id', caller.id);
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id, admin);
+    const { data: ownedClasses, error: ownedClassesError } = await admin
+      .from('classes')
+      .select('id')
+      .eq('teacher_id', caller.id);
+    if (ownedClassesError) throw new Error(`Teacher class scope could not be loaded: ${ownedClassesError.message}`);
     const classIds = (ownedClasses ?? []).map((c: { id: string }) => c.id);
 
     // Creator OR school-wide at assigned schools OR class-targeted to owned classes.
@@ -102,15 +107,18 @@ export async function listManageableAssignmentIds(
 
   const { data, error } = await query.limit(2000);
   if (error) {
-    console.error('[listManageableAssignmentIds]', error.message);
-    return [];
+    throw new Error(`Manageable assignments could not be loaded: ${error.message}`);
   }
 
   // Extra post-filter for metadata.target_class_id (not expressible cleanly in or-filter alone).
   if (caller.role === 'teacher') {
-    const { data: ownedClasses } = await admin.from('classes').select('id').eq('teacher_id', caller.id);
+    const { data: ownedClasses, error: ownedClassesError } = await admin
+      .from('classes')
+      .select('id')
+      .eq('teacher_id', caller.id);
+    if (ownedClassesError) throw new Error(`Teacher class scope could not be loaded: ${ownedClassesError.message}`);
     const classIds = new Set((ownedClasses ?? []).map((c: { id: string }) => c.id));
-    const schoolIds = new Set(await getTeacherSchoolIds(caller.id, caller.school_id));
+    const schoolIds = new Set(await getTeacherSchoolIds(caller.id, caller.school_id, admin));
     return (data ?? [])
       .filter((row: any) => {
         if (row.created_by === caller.id) return true;

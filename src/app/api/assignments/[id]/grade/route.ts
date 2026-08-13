@@ -4,7 +4,7 @@ import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
-import type { Database, TablesUpdate } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import {
@@ -17,6 +17,7 @@ import {
   buildAssignmentGradeTransition,
   computeAssignmentWeightedScore,
 } from '@/lib/assignments/grading';
+import { PATCH as updateAssignmentSubmission } from '@/app/api/assignment-submissions/[id]/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,6 +144,34 @@ export async function POST(
     const body = await request.json();
     const { submission_id, student_id, grade, feedback, status, submission_text } = body;
 
+    // Existing submissions always use the canonical grading workflow. This keeps
+    // score normalization, evidence protection, weighted marks, audit, and learner
+    // notification behavior identical across Class, Project, Assignment and Queue UI.
+    if (submission_id) {
+      const { data: targetSubmission, error: targetSubmissionError } = await admin
+        .from('assignment_submissions')
+        .select('id, assignment_id')
+        .eq('id', submission_id)
+        .maybeSingle();
+      if (targetSubmissionError) {
+        return NextResponse.json({ error: targetSubmissionError.message }, { status: 500 });
+      }
+      if (!targetSubmission || targetSubmission.assignment_id !== assignment_id) {
+        return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
+      }
+      const headers = new Headers(request.headers);
+      headers.set('Content-Type', 'application/json');
+      headers.delete('Content-Length');
+      const canonicalRequest = new NextRequest(request.url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
+      return updateAssignmentSubmission(canonicalRequest, {
+        params: Promise.resolve({ id: String(submission_id) }),
+      });
+    }
+
     const assignWeight = assignment.weight ?? 0;
     const assignMax    = assignment.max_points ?? 100;
     const gradeResult = normalizeGradeValueWithMax(grade, assignMax);
@@ -208,66 +237,6 @@ export async function POST(
       if (!assignmentVisibleToStudent(assignment, targetStudent as unknown as AssignmentStudentScope, scope, creatorRoles, classTeacherId)) {
         return NextResponse.json({ error: 'Target student is not in this assignment audience' }, { status: 403 });
       }
-    }
-
-    if (submission_id) {
-      const updatePayload: TablesUpdate<'assignment_submissions'> = {
-        updated_at: new Date().toISOString(),
-      };
-      if (normalizedGrade !== undefined) updatePayload.grade = normalizedGrade;
-      if (feedback !== undefined) updatePayload.feedback = feedback ?? null;
-      if (status !== undefined) updatePayload.status = statusResult.value;
-      if (submission_text !== undefined) updatePayload.submission_text = submission_text ?? null;
-      if (statusResult.value === 'graded' || normalizedGrade !== undefined) {
-        updatePayload.graded_by = caller.id;
-        updatePayload.graded_at = new Date().toISOString();
-        updatePayload.weighted_score = computeWeightedScore(normalizedGrade);
-
-        // Keep submitted files attached after grading so teachers, students, and
-        // parents can still review the evidence behind the mark.
-      }
-      const transition = buildAssignmentGradeTransition({
-        currentGrade: existingSub?.grade ?? null,
-        currentStatus: existingSub?.status ?? null,
-        grade: 'grade' in body ? normalizedGrade ?? null : undefined,
-        status: statusResult.value,
-        maxPoints: assignMax,
-        weight: assignWeight,
-        graderId: caller.id,
-      });
-      if (transition.error) {
-        return NextResponse.json({ error: transition.error, field: 'grade' }, { status: 400 });
-      }
-      Object.assign(updatePayload, transition.fields);
-
-
-      const { data, error } = await admin
-        .from('assignment_submissions')
-        .update(updatePayload)
-        .eq('id', submission_id)
-        .select('id, grade, status, weighted_score, portal_user_id')
-        .single();
-
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      
-      // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
-      await logAudit(admin as any, {
-        action: 'grade_submission',
-        actorId: caller.id,
-        resourceType: 'assignment_submission',
-        resourceId: data.id,
-        oldValue: String(existingSub?.grade ?? ''),
-        newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
-      });
-
-      if (transition.finalized && data?.portal_user_id) {
-        sendGradeNotifications(
-          admin, data.portal_user_id, assignment.title || 'Assignment',
-          data.grade, assignMax, data.weighted_score, feedback,
-        ).catch(console.error);
-      }
-
-      return NextResponse.json({ data });
     }
 
     if (student_id) {
