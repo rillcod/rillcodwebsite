@@ -75,28 +75,33 @@ export function AccountsPanel() {
   const [editing, setEditing] = useState<PaymentAccount | null>(null);
   const [form, setForm] = useState<AccountFormState>({ ...BLANK });
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch('/api/payment-accounts');
-    if (res.ok) {
-      const json = await res.json();
+    setLoadError('');
+    try {
+      const res = await fetch('/api/payment-accounts', { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Payment accounts could not be loaded.');
       setAccounts(json.data ?? []);
+      if (isAdmin) {
+        const { data, error } = await db.from('schools').select('id, name').order('name');
+        if (error) throw new Error(`Schools could not be loaded: ${error.message}`);
+        setSchools(data ?? []);
+      }
+    } catch (error) {
+      setAccounts([]);
+      setSchools([]);
+      setLoadError(error instanceof Error ? error.message : 'Payment accounts could not be loaded.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     if (!profile) return;
     load();
-    if (isAdmin) {
-      db.from('schools')
-        .select('id, name')
-        .order('name')
-        .then(({ data }) => {
-          if (data) setSchools(data);
-        });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
@@ -157,6 +162,8 @@ export function AccountsPanel() {
       toast.success(editing ? 'Account updated' : 'Account created');
       setShowForm(false);
       await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Payment account could not be saved.');
     } finally {
       setSaving(false);
     }
@@ -164,14 +171,17 @@ export function AccountsPanel() {
 
   const del = async (acct: PaymentAccount) => {
     if (!confirm(`Deactivate the account "${acct.label}"? Its history will be preserved.`)) return;
-    const res = await fetch(`/api/payment-accounts/${acct.id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error || 'Deactivation failed');
-      return;
+    try {
+      const res = await fetch(`/api/payment-accounts/${acct.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Deactivation failed');
+      }
+      toast.success('Account deactivated');
+      setAccounts((prev) => prev.filter((a) => a.id !== acct.id));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Payment account could not be deactivated.');
     }
-    toast.success('Account deactivated');
-    setAccounts((prev) => prev.filter((a) => a.id !== acct.id));
   };
 
   const rillcodAccounts = useMemo(() => accounts.filter((a) => a.owner_type === 'rillcod'), [accounts]);
@@ -193,17 +203,25 @@ export function AccountsPanel() {
         </div>
         <button
           onClick={openNew}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90"
+          disabled={loading || Boolean(loadError)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <PlusIcon className="w-4 h-4" /> Add account
         </button>
       </div>
 
+      {loadError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span>{loadError} Existing collection accounts are not being shown.</span>
+          <button type="button" onClick={() => void load()} className="min-h-11 rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black">Try again</button>
+        </div>
+      ) : null}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : (
+      ) : !loadError ? (
         <>
           {isAdmin && (
             <AccountGroup
@@ -229,7 +247,7 @@ export function AccountsPanel() {
             }
           />
         </>
-      )}
+      ) : null}
 
       {showForm && (
         <AccountForm

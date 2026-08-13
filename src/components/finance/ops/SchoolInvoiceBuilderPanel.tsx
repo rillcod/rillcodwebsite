@@ -174,6 +174,10 @@ export function SchoolInvoiceBuilderPanel({
   const [saving, setSaving] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoiceSummary | null>(null);
   const [copyingLastTerm, setCopyingLastTerm] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState('');
+  const [bootstrapRevision, setBootstrapRevision] = useState(0);
+  const [contextError, setContextError] = useState('');
+  const [contextRevision, setContextRevision] = useState(0);
 
   const hydrateFromInvoicePayload = useCallback((inv: any) => {
     if (!inv) return;
@@ -198,8 +202,13 @@ export function SchoolInvoiceBuilderPanel({
 
   useEffect(() => {
     if (!profile || !isAdmin) return;
+    setBootstrapError('');
     fetch('/api/billing/docs/data?bootstrap=1', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : { data: {} }))
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || 'Schools and payment accounts could not be loaded.');
+        return body;
+      })
       .then((j) => {
         setSchools((j.data?.schools ?? []) as SchoolRow[]);
         const banks = (j.data?.bankAccounts ?? []) as PaymentAccount[];
@@ -210,15 +219,23 @@ export function SchoolInvoiceBuilderPanel({
           return first?.id ? { ...f, pay_to_account_id: first.id } : f;
         });
       })
-      .catch(() => {/* ignore */});
-  }, [profile?.id, isAdmin]);
+      .catch((error) => {
+        setSchools([]);
+        setAccounts([]);
+        setBootstrapError(error instanceof Error ? error.message : 'Schools and payment accounts could not be loaded.');
+      });
+  }, [profile?.id, isAdmin, bootstrapRevision]);
 
   // Load existing invoice when editInvoiceId prop arrives
   useEffect(() => {
     if (!editInvoiceId || !isAdmin) return;
     setLoadingEdit(true);
     fetch(`/api/invoices/${editInvoiceId}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || 'Failed to load invoice for editing');
+        return body;
+      })
       .then((j) => {
         hydrateFromInvoicePayload(j.data);
       })
@@ -245,17 +262,23 @@ export function SchoolInvoiceBuilderPanel({
     if (!form.school_id || !isAdmin) {
       setStudentCount(null);
       setLinkedInvoice(null);
+      setContextError('');
       return;
     }
     let cancelled = false;
     setLoadingCount(true);
+    setContextError('');
     const url =
       `/api/billing/docs/data?mode=school-context` +
       `&schoolId=${encodeURIComponent(form.school_id)}` +
       `&academicYear=${encodeURIComponent(form.academic_year)}` +
       `&termNumber=${encodeURIComponent(form.term_number)}`;
     fetch(url, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : { data: {} }))
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || 'School term billing context could not be loaded.');
+        return body;
+      })
       .then((j) => {
         if (cancelled) return;
         setStudentCount(typeof j.data?.studentCount === 'number' ? j.data.studentCount : 0);
@@ -293,8 +316,13 @@ export function SchoolInvoiceBuilderPanel({
           return next;
         });
       })
-      .catch(() => {
-        if (!cancelled) setStudentCount(0);
+      .catch((error) => {
+        if (cancelled) return;
+        setStudentCount(null);
+        setLinkedInvoice(null);
+        setContextError(
+          error instanceof Error ? error.message : 'School term billing context could not be loaded.',
+        );
       })
       .finally(() => {
         if (!cancelled) setLoadingCount(false);
@@ -303,7 +331,7 @@ export function SchoolInvoiceBuilderPanel({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.school_id, form.academic_year, form.term_number, isAdmin, editingInvoiceId, schools]);
+  }, [form.school_id, form.academic_year, form.term_number, isAdmin, editingInvoiceId, schools, contextRevision]);
 
   const copyLastTermFigures = async () => {
     if (!form.school_id) {
@@ -441,7 +469,11 @@ export function SchoolInvoiceBuilderPanel({
   }, [form, computed, schools, accounts, editingInvoiceId]);
 
   const canProceed =
+    !bootstrapError &&
+    !contextError &&
+    !loadingCount &&
     !!form.school_id &&
+    (form.payment_method !== 'bank_transfer' || !!form.pay_to_account_id) &&
     (form.pricing_mode === 'per_student'
       ? computed.ratePerChild > 0
       : form.pricing_mode === 'tiered'
@@ -472,6 +504,12 @@ export function SchoolInvoiceBuilderPanel({
   };
 
   const handleSave = async (opts?: { silent?: boolean; docRef?: string }) => {
+    if (bootstrapError || contextError || loadingCount) {
+      if (!opts?.silent) {
+        toast.error('Reload the billing context before saving this invoice.');
+      }
+      return;
+    }
     if (!canProceed) {
       if (!opts?.silent) toast.error('Complete required fields before saving.');
       return;
@@ -640,6 +678,12 @@ export function SchoolInvoiceBuilderPanel({
             ? 'Update amount, line items, due date, and notes — term reminders stay in sync automatically.'
             : 'Build a school term invoice — figures, reminders, and payment tracking stay on one record.'}
         </p>
+        {bootstrapError ? (
+          <div role="alert" className="mt-3 flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 sm:flex-row sm:items-center sm:justify-between">
+            <span>{bootstrapError} Invoice creation is paused to prevent a duplicate or misdirected payment record.</span>
+            <button type="button" onClick={() => setBootstrapRevision((value) => value + 1)} className="min-h-10 shrink-0 rounded-lg border border-rose-500/30 px-3 py-2 font-black">Try again</button>
+          </div>
+        ) : null}
         {editingInvoiceId && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest">
             Editing existing invoice
@@ -974,6 +1018,11 @@ export function SchoolInvoiceBuilderPanel({
                   </option>
                 ))}
               </select>
+              {form.payment_method === 'bank_transfer' && !form.pay_to_account_id ? (
+                <p className="mt-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  Select an active Rillcod account so it appears on the saved PDF and every resend.
+                </p>
+              ) : null}
             </div>
 
             <div className="sm:col-span-2 lg:col-span-4">
@@ -1006,7 +1055,12 @@ export function SchoolInvoiceBuilderPanel({
           {/* Computation summary */}
           {form.school_id && (
             <div className="bg-card border border-border rounded-xl p-4">
-              {loadingCount ? (
+              {contextError ? (
+                <div role="alert" className="flex flex-col gap-3 text-sm text-rose-700 dark:text-rose-300 sm:flex-row sm:items-center sm:justify-between">
+                  <span>{contextError} Saving is paused until the existing invoice check succeeds.</span>
+                  <button type="button" onClick={() => setContextRevision((value) => value + 1)} className="min-h-10 shrink-0 rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black">Try again</button>
+                </div>
+              ) : loadingCount ? (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
                   <ArrowPathIcon className="w-4 h-4 animate-spin" /> Counting students…
                 </div>

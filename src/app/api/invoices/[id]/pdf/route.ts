@@ -6,6 +6,10 @@ import { classifyInvoiceStream, splitSchoolAmount, DEFAULT_COMMISSION_RATE } fro
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { getParentLinkScope } from '@/lib/parents/links';
 import { brandContact } from '@/config/brand';
+import {
+  loadInvoicePaymentAccounts,
+  type InvoicePaymentAccount,
+} from '@/lib/finance/invoice-payment-accounts';
 
 function adminClient() {
   return createClient(
@@ -126,11 +130,31 @@ export async function GET(
         billing_cycle_id: invoice.billing_cycle_id ?? cycle?.id ?? null,
       });
 
+  let paymentAccounts: InvoicePaymentAccount[];
+  try {
+    paymentAccounts = await loadInvoicePaymentAccounts(adminClient(), invoice, 1);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Payment instructions could not be loaded.' },
+      { status: 409 },
+    );
+  }
+  const payToAccount = paymentAccounts[0] ?? null;
+  const expectsBankDetails = !invoice.metadata?.payment_method || invoice.metadata.payment_method === 'bank_transfer';
+  if (expectsBankDetails && !payToAccount) {
+    return NextResponse.json(
+      { error: 'No active Rillcod payment account is available. Add an account or edit the invoice before creating its PDF.' },
+      { status: 409 },
+    );
+  }
+
   // School builder invoices (stream=school, no billing cycle) use the builder HTML template.
   // Billing-cycle school invoices (cycle present) use the cycle-breakdown template.
   const html = stream === 'school'
-    ? (cycle ? renderSchoolInvoiceHtml(invoice, cycle) : renderSchoolBuilderInvoiceHtml(invoice))
-    : renderIndividualInvoiceHtml(invoice);
+    ? (cycle
+        ? renderSchoolInvoiceHtml(invoice, cycle, payToAccount)
+        : renderSchoolBuilderInvoiceHtml(invoice, payToAccount))
+    : renderIndividualInvoiceHtml(invoice, payToAccount);
 
   return new NextResponse(html, {
     headers: {
@@ -145,7 +169,7 @@ export async function GET(
 // SCHOOL BUILDER TEMPLATE (direct school invoice, no billing cycle)
 // Reconstructs buildSchoolInvoiceHTML params from stored line items.
 // ──────────────────────────────────────────────────────────────
-function renderSchoolBuilderInvoiceHtml(invoice: any): string {
+function renderSchoolBuilderInvoiceHtml(invoice: any, payToAcc: InvoicePaymentAccount | null): string {
   type Item = { description?: string; quantity?: number; unit_price?: number; total?: number };
   const rawItems: Item[] = Array.isArray(invoice.items) ? invoice.items : [];
 
@@ -211,7 +235,7 @@ function renderSchoolBuilderInvoiceHtml(invoice: any): string {
     dateStr: fmtDate(invoice.created_at),
     dueStr: invoice.due_date ? fmtDate(invoice.due_date) : '—',
     docRef: invoice.invoice_number,
-    payToAcc: null,
+    payToAcc,
     showRevenueShare: revenueShareOn,
     showWhatsapp: false,
     paymentMethod: invoice.metadata?.payment_method,
@@ -223,7 +247,7 @@ function renderSchoolBuilderInvoiceHtml(invoice: any): string {
 // ──────────────────────────────────────────────────────────────
 // INDIVIDUAL TEMPLATE
 // ──────────────────────────────────────────────────────────────
-function renderIndividualInvoiceHtml(invoice: any): string {
+function renderIndividualInvoiceHtml(invoice: any, payToAcc: InvoicePaymentAccount | null): string {
   const student = invoice.portal_users as any;
   const school = invoice.schools as any;
   const currencySymbol = invoice.currency === 'NGN' ? '₦' : (invoice.currency ?? '₦');
@@ -378,6 +402,8 @@ function renderIndividualInvoiceHtml(invoice: any): string {
 
   ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
 
+  ${renderPaymentAccountBlock(payToAcc)}
+
   <!-- Proof of payment note -->
   <div class="proof-note">
     <strong>Paid via bank transfer?</strong> Log in to your Rillcod dashboard and upload your payment receipt or evidence under <em>Invoices &amp; Payments</em>. Our team will verify and confirm within 24 hours. You may also reply to ${brandContact.email} with your proof and include invoice number <strong>${invoiceNumber}</strong>.
@@ -410,7 +436,7 @@ function renderIndividualInvoiceHtml(invoice: any): string {
 // A deliberately different document: indigo accent, term headline,
 // aggregated student line items, and a commission / settlement
 // breakdown the school accountant can tie back to the payout.
-function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
+function renderSchoolInvoiceHtml(invoice: any, cycle: any, payToAcc: InvoicePaymentAccount | null): string {
   const school = invoice.schools as any;
   const currencySymbol = invoice.currency === 'NGN' ? '₦' : (invoice.currency ?? '₦');
   const invoiceNumber = invoice.invoice_number ?? `INV-SCH-${String(invoice.id).slice(0, 8).toUpperCase()}`;
@@ -587,6 +613,8 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
     </div>
   </div>
 
+  ${renderPaymentAccountBlock(payToAcc)}
+
   ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
 
   <div class="footer">
@@ -604,4 +632,27 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
 </div>
 </body>
 </html>`;
+}
+
+function renderPaymentAccountBlock(account: InvoicePaymentAccount | null): string {
+  if (!account) return '';
+  return `
+  <div style="margin-top:20px;background:#f5f3ff;border:1px solid #c4b5fd;padding:14px 16px;color:#312e81;">
+    <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Payment Instructions</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+      <div><div style="font-size:9px;text-transform:uppercase;color:#6d28d9;">Bank</div><strong>${escapeInvoiceHtml(account.bank_name)}</strong></div>
+      <div><div style="font-size:9px;text-transform:uppercase;color:#6d28d9;">Account number</div><strong style="font-family:monospace;letter-spacing:1px;">${escapeInvoiceHtml(account.account_number)}</strong></div>
+      <div><div style="font-size:9px;text-transform:uppercase;color:#6d28d9;">Account name</div><strong>${escapeInvoiceHtml(account.account_name)}</strong></div>
+    </div>
+    ${account.payment_note ? `<div style="font-size:10px;color:#6b7280;margin-top:8px;">${escapeInvoiceHtml(account.payment_note)}</div>` : ''}
+  </div>`;
+}
+
+function escapeInvoiceHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

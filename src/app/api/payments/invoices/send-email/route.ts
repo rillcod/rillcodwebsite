@@ -8,6 +8,7 @@ import { env } from '@/config/env';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { loadInvoicePaymentAccounts } from '@/lib/finance/invoice-payment-accounts';
 
 
 export async function POST(req: Request) {
@@ -186,18 +187,21 @@ export async function POST(req: Request) {
         }
 
         // Fetch bank accounts for transfer details ──────────────────
-        const { data: bankAccounts } = await (db as any)
-            .from('payment_accounts')
-            .select('label, bank_name, account_number, account_name, payment_note')
-            .eq('is_active', true)
-            .or(invoice.school_id ? `school_id.eq.${invoice.school_id},owner_type.eq.global` : 'owner_type.eq.global')
-            .limit(3);
+        let bankAccounts;
+        try {
+            bankAccounts = await loadInvoicePaymentAccounts(db as any, invoice, 3);
+        } catch (accountError) {
+            return NextResponse.json({
+                success: false,
+                message: accountError instanceof Error ? accountError.message : 'Payment instructions could not be loaded',
+            }, { status: 409 });
+        }
 
         const { html, subject } = buildInvoiceIssueEmail(invoice, {
             recipientName,
             isSchool: isSchoolStream,
             paymentUrl: paystackUrl,
-            bankAccounts: bankAccounts ?? [],
+            bankAccounts,
             appUrl: appBase,
         });
 

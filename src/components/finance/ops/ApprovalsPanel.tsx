@@ -85,6 +85,67 @@ interface InvoiceRow {
 
 type TabKey = 'pending_tx' | 'proof_queue' | 'all_tx';
 
+const MAX_FINANCE_PAGES = 100;
+
+async function fetchAllTransactions(): Promise<TxRow[]> {
+  const rows: TxRow[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: { created_at: string; id: string } | null = null;
+
+  for (let page = 0; page < MAX_FINANCE_PAGES; page++) {
+    const params = new URLSearchParams({ limit: '200' });
+    if (cursor) {
+      params.set('cursor_created_at', cursor.created_at);
+      params.set('cursor_id', cursor.id);
+    }
+    const response = await fetch(`/api/payments/transactions?${params.toString()}`, {
+      cache: 'no-store',
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || 'Payment transactions could not be loaded.');
+    }
+    rows.push(...(((body.data as TxRow[] | undefined) ?? [])));
+
+    const next = body.nextCursor as { created_at?: unknown; id?: unknown } | null | undefined;
+    if (!next) return rows;
+    if (typeof next.created_at !== 'string' || typeof next.id !== 'string') {
+      throw new Error('Payment history returned an invalid continuation marker.');
+    }
+    const cursorKey = `${next.created_at}:${next.id}`;
+    if (seenCursors.has(cursorKey)) {
+      throw new Error('Payment history pagination repeated a page. Refresh before reviewing approvals.');
+    }
+    seenCursors.add(cursorKey);
+    cursor = { created_at: next.created_at, id: next.id };
+  }
+
+  throw new Error('Payment history is too large to review safely in one queue. Narrow the review scope.');
+}
+
+async function fetchAllInvoices(): Promise<InvoiceRow[]> {
+  const rows: InvoiceRow[] = [];
+  const pageSize = 500;
+
+  for (let page = 0; page < MAX_FINANCE_PAGES; page++) {
+    const offset = page * pageSize;
+    const response = await fetch(`/api/invoices?limit=${pageSize}&offset=${offset}`, {
+      cache: 'no-store',
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'Invoices could not be loaded.');
+
+    const pageRows = (body.data as InvoiceRow[] | undefined) ?? [];
+    rows.push(...pageRows);
+    if (!body.pagination?.has_more) return rows;
+    if (pageRows.length === 0) {
+      throw new Error('Invoice pagination stopped before the complete approvals queue was loaded.');
+    }
+  }
+
+  throw new Error('Invoice history is too large to review safely in one queue. Narrow the review scope.');
+}
+
 /**
  * ApprovalsPanel — manual approval of payments.
  *
@@ -103,6 +164,8 @@ export function ApprovalsPanel() {
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [proofLoadFailures, setProofLoadFailures] = useState(0);
   const [search, setSearch] = useState('');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -121,17 +184,22 @@ export function ApprovalsPanel() {
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError('');
+    setProofLoadFailures(0);
     try {
-      const [txRes, invRes] = await Promise.all([
-        fetch('/api/payments/transactions?limit=200').then((r) => (r.ok ? r.json() : { data: [] })),
-        fetch('/api/invoices?limit=200').then((r) => (r.ok ? r.json() : { data: [] })),
+      const [transactionRows, invoiceRows] = await Promise.all([
+        fetchAllTransactions(),
+        fetchAllInvoices(),
       ]);
-      const invoiceRows = ((invRes.data as InvoiceRow[]) ?? []);
       const openInvoices = invoiceRows.filter((inv) => ['sent', 'overdue', 'pending', 'partially_paid'].includes(inv.status));
+      let proofFailures = 0;
       const proofMeta = await Promise.all(openInvoices.map(async (inv) => {
         try {
           const res = await fetch(`/api/invoices/${inv.id}/proofs`);
-          if (!res.ok) return { id: inv.id, proof_count: 0 };
+          if (!res.ok) {
+            proofFailures++;
+            return { id: inv.id, proof_count: 0 };
+          }
           const json = await res.json().catch(() => ({}));
           const proofs = Array.isArray(json.data) ? json.data : [];
           return {
@@ -141,15 +209,21 @@ export function ApprovalsPanel() {
             latest_proof_status: proofs[0]?.status ?? null,
           };
         } catch {
+          proofFailures++;
           return { id: inv.id, proof_count: 0 };
         }
       }));
       const proofMetaById = new Map(proofMeta.map((meta) => [meta.id, meta]));
 
-      setTxs((txRes.data as TxRow[]) ?? []);
+      setTxs(transactionRows);
       setInvoices(invoiceRows.map((inv) => ({ ...inv, ...(proofMetaById.get(inv.id) ?? {}) })));
+      setProofLoadFailures(proofFailures);
     } catch (e: unknown) {
-      toast.error((e as Error).message || 'Failed to load');
+      const message = (e as Error).message || 'Failed to load finance approvals.';
+      setTxs([]);
+      setInvoices([]);
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -363,8 +437,19 @@ export function ApprovalsPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-<div className="flex flex-wrap items-center gap-2">
+      {loadError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span>{loadError} Nothing is shown as all clear until this succeeds.</span>
+          <button type="button" onClick={() => void loadAll()} className="min-h-11 rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black">Try again</button>
+        </div>
+      ) : null}
+      {proofLoadFailures > 0 ? (
+        <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+          Proof status could not be checked for {proofLoadFailures} invoice{proofLoadFailures === 1 ? '' : 's'}. Refresh before treating the proof queue as complete.
+        </p>
+      ) : null}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Queue filter</span>
           <div className="inline-flex border border-border rounded-xl overflow-hidden">
           {[
@@ -535,7 +620,7 @@ export function ApprovalsPanel() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : list.length === 0 ? (
+      ) : loadError ? null : list.length === 0 ? (
         <div className="border border-dashed border-border rounded-xl p-10 text-center">
           <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-600/60 dark:text-emerald-400/60" />
           <p className="text-sm font-bold text-foreground mt-2">All clear</p>
