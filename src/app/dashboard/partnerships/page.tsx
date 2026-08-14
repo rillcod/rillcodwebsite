@@ -29,6 +29,8 @@ import { PartnershipDocumentArchive } from "@/components/partnerships/Partnershi
 import { PartnershipDocumentComposer } from "@/components/partnerships/PartnershipDocumentComposer";
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
+import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
+import { defaultStudioConfig, type ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type {
   IssuedDocument,
   IssuedDocumentRow,
@@ -65,6 +67,10 @@ export default function PartnershipsPage() {
   const [preview, setPreview] = useState<Preview | null>(null);
   // Bumped when a blocked MoU sends the user to record terms.
   const [openTerms, setOpenTerms] = useState(0);
+  // What the studio decided. Read from the browser after mount, never during
+  // render — localStorage on the server is a hydration mismatch.
+  const [studio, setStudio] = useState<ProposalStudioConfig>(() => defaultStudioConfig());
+  useEffect(() => setStudio(loadStudioConfig()), []);
 
   const canView = profile?.role === "admin" || profile?.role === "teacher";
   const canWrite = profile?.role === "admin";
@@ -388,10 +394,15 @@ export default function PartnershipsPage() {
               />
               </div>
 
+              {canWrite && (
+                <ProposalStudio config={studio} onChange={setStudio} />
+              )}
+
               <PartnershipDocumentComposer
                 school={selected}
                 agreed={agreed}
                 canWrite={canWrite}
+                studio={studio}
                 onRecordTerms={() => {
                   setOpenTerms((n) => n + 1);
                   document.getElementById("partnership-terms")?.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -21,6 +21,7 @@ import {
   previewPartnershipDocument,
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
+import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +107,9 @@ export async function POST(req: NextRequest) {
         body.validity_days == null || body.validity_days === ''
           ? null
           : Number(body.validity_days),
+      // Studio settings ride with the request so a preview and the issue that
+      // follows it describe the same document.
+      studio: body.studio ? normaliseStudioConfig(body.studio) : null,
     };
 
     if (previewOnly) {

@@ -25,6 +25,7 @@ import {
 import { PARTNERSHIP_OFFERS, offerPriceLabel } from "@/lib/partnerships/offers";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
+import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 
 const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
@@ -37,6 +38,7 @@ export function PartnershipDocumentComposer({
   onIssued,
   onPreview,
   onRecordTerms,
+  studio,
 }: {
   school: SchoolRow;
   agreed: TermsRow | null;
@@ -46,6 +48,8 @@ export function PartnershipDocumentComposer({
   onPreview: (doc: IssuedDocument) => void | Promise<void>;
   /** Opens the terms editor, so a blocked MoU has somewhere to go. */
   onRecordTerms: () => void;
+  /** What the studio decided prints. Sent with preview and issue alike. */
+  studio?: ProposalStudioConfig | null;
 }) {
   const [kind, setKind] = useState<DocumentKind>("proposal");
   const [offerCode, setOfferCode] = useState<string>("");
@@ -100,6 +104,8 @@ export function PartnershipDocumentComposer({
       commencement: kind === 'mou' ? commencement.trim() || null : null,
       duration_label: kind === 'mou' ? durationLabel.trim() || null : null,
       illustrative_students: kind === 'mou' ? Number(students) || undefined : undefined,
+      // The same settings on both paths, so what was previewed is what issues.
+      studio: kind === 'proposal' ? studio : null,
     };
   }
 

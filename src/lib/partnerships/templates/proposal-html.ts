@@ -595,16 +595,23 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
   .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
+  /* The cover closes on the same dark panel the last page uses, so the
+     document opens and closes on one identity. Formal rather than an ask:
+     a cover says who is writing, it does not solicit yet. */
   .cover-foot {
-    border-top: 1px solid #d9dee7; padding-top: 5mm; font-size: 9.4pt; color: #475569;
-    display: flex; gap: 6mm; align-items: flex-start; line-height: 1.5;
+    background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 7mm 13mm 8mm;
+    border-top: 3px solid #991b1b;
   }
-  .cover-foot-l {
-    font-size: 8pt; text-transform: uppercase; letter-spacing: .1em;
-    color: #991b1b; font-weight: 800; white-space: nowrap; padding-top: .8mm;
+  .cover-foot-name {
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-size: 13pt; font-weight: 800; letter-spacing: -.3px; color: #fff;
   }
-  .cover-foot b { color: #0f172a; font-size: 10.4pt; }
-  .cover-foot-reg { font-size: 8.4pt; color: #94a3b8; }
+  .cover-foot-rule { width: 16mm; height: 2px; background: #991b1b; margin: 2.5mm 0 3mm; }
+  .cover-foot-lines { font-size: 9.6pt; line-height: 1.6; color: #cbd5e1; }
+  .cover-foot-reg {
+    margin-top: 3mm; padding-top: 2.5mm; border-top: 1px solid rgba(255,255,255,.12);
+    font-size: 8.4pt; color: #94a3b8; letter-spacing: .02em;
+  }
 
   /* Proof Band */
   .proof { display: flex; gap: 3.5mm; margin: 9mm 0 0; }
@@ -842,13 +849,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </div>
 
   <div class="cover-foot">
-    <div class="cover-foot-l">Speak to us</div>
-    <div>
-      <b>${esc(brandContact.displayName)}</b> — STEM, robotics and AI for schools<br>
+    <div class="cover-foot-name">${esc(brandContact.displayName)}</div>
+    <div class="cover-foot-rule"></div>
+    <div class="cover-foot-lines">
       ${esc(brandContact.address)}<br>
-      ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}<br>
-      <span class="cover-foot-reg">${esc(brandContact.registeredName)} · ${esc(brandContact.rcNumber)} · trading as ${esc(brandContact.displayName)}</span>
+      ${esc(brandContact.phone)} &nbsp;·&nbsp; ${esc(brandContact.email)} &nbsp;·&nbsp; ${esc(brandContact.web)}
     </div>
+    <div class="cover-foot-reg">${esc(brandContact.registeredName)} &nbsp;·&nbsp; ${esc(brandContact.rcNumber)} &nbsp;·&nbsp; trading as ${esc(brandContact.displayName)}</div>
   </div>
 </div>
 
@@ -975,7 +982,7 @@ ${on('sideBySide') ? `  <section>
 </div>
 
 ${
-  primary.length
+  on('curriculum') && primary.length
     ? `<div class="page">
   <div class="pagehead"><span><b>Primary Pathway</b> · Basic 1 to Basic 6</span><span>${esc(curriculum?.title ?? '')}</span></div>
   <section>
@@ -989,7 +996,7 @@ ${
 }
 
 ${
-  secondary.length
+  on('curriculum') && secondary.length
     ? `<div class="page">
   <div class="pagehead"><span><b>Secondary Pathway</b> · JSS 1 to SS 3</span><span>${esc(curriculum?.title ?? '')}</span></div>
   <section>

@@ -25,6 +25,7 @@ import { buildPartnershipProposalHTML } from './templates/proposal-html';
 import { buildProposalNarrative, type ProposalNarrative } from './proposal-narrative';
 import { loadProofPoints } from './proof-points';
 import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
+import { normaliseStudioConfig, type ProposalStudioConfig } from './studio-config';
 import { findOffer, PARTNERSHIP_OFFERS } from './offers';
 import {
   MissingPartnershipTermsError,
@@ -65,6 +66,11 @@ export type IssueInput = {
   notes?: string | null;
   /** How long a proposal's quoted fees stand. Ignored for an MoU. */
   validityDays?: number | null;
+  /**
+   * What the studio decided this school should see. Absent renders the whole
+   * document, which is what every caller before the studio expects.
+   */
+  studio?: ProposalStudioConfig | null;
 };
 
 /** A quote with no expiry is a quote forever. Long enough for a school term to turn over. */
@@ -296,6 +302,9 @@ async function renderDocument(ctx: {
       proof: await loadProofPoints(db, schoolId),
       upside,
       photos: PARTNERSHIP_PHOTOS,
+      // The studio owns which sections print and in whose words. Normalised
+      // here rather than trusted, because it arrives from a browser.
+      studio: input.studio ? normaliseStudioConfig(input.studio, PARTNERSHIP_PHOTOS) : null,
       // Read from the brand record, not typed again. "Rillcod Academy" is not a
       // company we have; the MoU already learned that lesson.
     });
