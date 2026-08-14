@@ -14,6 +14,7 @@
  * rather than the proposal's year cards, and no part of it is AI-written.
  */
 import { brandContact } from '@/config/brand';
+import { SIGNATURE_ANCHOR } from '../signing';
 import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
 import { levelsForStage, splitByStage } from '../curriculum';
 import { computeCharge, describeTerms, type PartnershipTerms } from '../terms';
@@ -406,6 +407,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           <div class="muted">${esc(school.signatoryRole || 'Date')}</div>
         </div>
         <div class="stamp">Official stamp</div>
+        ${SIGNATURE_ANCHOR}
       </div>
     </div>
   </section>

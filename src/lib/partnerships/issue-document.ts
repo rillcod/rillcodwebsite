@@ -43,6 +43,8 @@ export type IssuedDocument = {
   html: string;
   schoolId: string;
   schoolName: string;
+  /** Secret for the public /p/<token> link. Never the reference: that is sequential and printed. */
+  shareToken: string | null;
   termsId: string | null;
   narrativeSource: ProposalNarrative['source'] | null;
   curriculumEdition: number | null;
@@ -71,6 +73,16 @@ export type IssueInput = {
    * document, which is what every caller before the studio expects.
    */
   studio?: ProposalStudioConfig | null;
+  /** Option to pass details for an unregistered prospect school. */
+  prospectSchool?: {
+    name: string;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    email?: string | null;
+    contactPerson?: string | null;
+    studentCount?: number | null;
+  } | null;
 };
 
 /** A quote with no expiry is a quote forever. Long enough for a school term to turn over. */
@@ -92,21 +104,25 @@ function todayLabel(): string {
  * printed number and the stored number cannot drift apart.
  */
 export async function issuePartnershipDocument(input: IssueInput): Promise<IssuedDocument> {
-  const { db, schoolId, kind } = input;
+  // Creating the school happens here and only here. It used to happen inside
+  // `prepareDocument`, which preview also calls — so looking at a draft for a
+  // school not yet on the system silently inserted it, and every click of
+  // Preview inserted another. Issuing is the moment a prospect becomes a record.
+  const targetSchoolId = await resolveSchoolForIssue(input);
+  const prepared = await prepareDocument(input, targetSchoolId);
+  const kind = input.kind;
 
-  const prepared = await prepareDocument(input);
-
-  const { data: row, error } = await db
+  const { data: row, error } = await input.db
     .from('partnership_agreements')
     .insert({
-      school_id: schoolId,
+      school_id: targetSchoolId,
       terms_id: prepared.agreedTerms?.id ?? null,
       document_kind: kind,
       terms_snapshot: prepared.snapshot,
       status: 'draft',
       created_by: input.actorId ?? null,
     })
-    .select('id, reference')
+    .select('id, reference, share_token')
     .single();
 
   if (error) throw new Error(error.message);
@@ -116,7 +132,7 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
 
   // The document is written back rather than inserted with the row, because it
   // has to contain the reference the insert produced.
-  const { error: saveError } = await db
+  const { error: saveError } = await input.db
     .from('partnership_agreements')
     .update({ document_html: html })
     .eq('id', row.id);
@@ -127,8 +143,9 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     reference,
     kind,
     html,
-    schoolId,
+    schoolId: targetSchoolId,
     schoolName: String(prepared.school.name),
+    shareToken: row.share_token ? String(row.share_token) : null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
     curriculumEdition: prepared.curriculum?.edition ?? null,
@@ -156,8 +173,10 @@ export async function previewPartnershipDocument(
     reference,
     kind: input.kind,
     html,
-    schoolId: input.schoolId,
+    schoolId: prepared.school.id,
     schoolName: String(prepared.school.name),
+    // A preview has no row, so there is no link to share yet.
+    shareToken: null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
     curriculumEdition: prepared.curriculum?.edition ?? null,
@@ -170,19 +189,100 @@ export async function previewPartnershipDocument(
  * Returns a `render` the caller invokes with whatever reference the document
  * will carry, so preview and issue cannot drift into two different documents.
  */
-async function prepareDocument(input: IssueInput) {
-  const { db, schoolId, kind } = input;
+/**
+ * The school a document is being issued to, creating it if this is a prospect
+ * we have not met before.
+ *
+ * Only the issue path calls this. A school row is a permanent record, and
+ * preview must be free to render as many drafts as somebody wants to look at
+ * without leaving any behind.
+ *
+ * The match is case-insensitive on name and takes the first hit rather than
+ * insisting on exactly one: this codebase already has a duplicate-name problem
+ * serious enough to have its own gate, and `maybeSingle()` throws outright when
+ * two schools share a name — which would block issuing to a school that plainly
+ * exists.
+ */
+async function resolveSchoolForIssue(input: IssueInput): Promise<string> {
+  const { db, schoolId, prospectSchool } = input;
+  if (schoolId && schoolId !== 'new') return schoolId;
 
-  const { data: school } = await db
+  const name = prospectSchool?.name?.trim();
+  if (!name) throw new Error('That school does not exist.');
+
+  const { data: existing } = await db
     .from('schools')
-    .select('id, name, address, city, state, student_count')
-    .eq('id', schoolId)
-    .maybeSingle();
+    .select('id')
+    .ilike('name', name)
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (existing?.length) return String(existing[0].id);
+
+  const { data: created, error: createError } = await db
+    .from('schools')
+    .insert({
+      name,
+      address: prospectSchool?.address?.trim() || null,
+      city: prospectSchool?.city?.trim() || null,
+      state: prospectSchool?.state?.trim() || null,
+      email: prospectSchool?.email?.trim() || null,
+      contact_person: prospectSchool?.contactPerson?.trim() || null,
+      student_count: Number(prospectSchool?.studentCount) || 0,
+      // 'pending' is what `schools_status_check` permits, alongside 'approved'
+      // and 'rejected'. 'prospect' is not a value the column accepts, so every
+      // insert here was rejected outright and the whole path threw.
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (createError) throw new Error(`Could not register prospect school: ${createError.message}`);
+  return String(created.id);
+}
+
+async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
+  const { db, kind, prospectSchool } = input;
+  const schoolId = resolvedSchoolId ?? input.schoolId;
+
+  type SchoolRecord = {
+    id: string;
+    name: string;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    student_count?: number | null;
+  };
+  let school: SchoolRecord | null = null;
+
+  if (schoolId && schoolId !== 'new') {
+    const { data } = await db
+      .from('schools')
+      .select('id, name, address, city, state, student_count')
+      .eq('id', schoolId)
+      .maybeSingle();
+    school = data as SchoolRecord | null;
+  }
+
+  // A prospect being previewed has no row yet, and must not get one here. The
+  // document renders against the details typed into the form; the empty id says
+  // "nothing stored", which is exactly what a preview is.
+  if (!school && prospectSchool?.name) {
+    school = {
+      id: '',
+      name: prospectSchool.name.trim(),
+      address: prospectSchool.address?.trim() || null,
+      city: prospectSchool.city?.trim() || null,
+      state: prospectSchool.state?.trim() || null,
+      student_count: Number(prospectSchool.studentCount) || null,
+    };
+  }
+
   if (!school) throw new Error('That school does not exist.');
 
-  const agreedTerms = await getAgreedTerms(db, schoolId);
+  // No id means nothing is stored yet, so there is nothing agreed to look up.
+  const agreedTerms = school.id ? await getAgreedTerms(db, school.id) : null;
   if (kind === 'mou' && !agreedTerms) {
-    throw new MissingPartnershipTermsError(schoolId, school.name);
+    throw new MissingPartnershipTermsError(school.id, school.name);
   }
 
   const curriculum: CurriculumProgression | null = await getPublishedProgression(db);
@@ -215,7 +315,10 @@ async function renderDocument(ctx: {
   let html: string;
   let narrativeSource: ProposalNarrative['source'] | null = null;
   const db = input.db;
-  const schoolId = input.schoolId;
+  // The resolved id, not the raw input: a prospect arrives as the sentinel
+  // 'new' or as nothing, and neither is a uuid the proof-band exclusion can be
+  // filtered on. An unstored prospect has nothing to exclude itself from.
+  const schoolId = school.id || undefined;
 
   if (kind === 'mou') {
     html = buildPartnershipMouHTML({

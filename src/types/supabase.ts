@@ -13174,6 +13174,7 @@ export type Database = {
           reference: string | null
           school_id: string
           sent_at: string | null
+          share_token: string
           signature_ip: string | null
           signed_at: string | null
           signed_by_name: string | null
@@ -13195,6 +13196,7 @@ export type Database = {
           reference?: string | null
           school_id: string
           sent_at?: string | null
+          share_token?: string
           signature_ip?: string | null
           signed_at?: string | null
           signed_by_name?: string | null
@@ -13216,6 +13218,7 @@ export type Database = {
           reference?: string | null
           school_id?: string
           sent_at?: string | null
+          share_token?: string
           signature_ip?: string | null
           signed_at?: string | null
           signed_by_name?: string | null
