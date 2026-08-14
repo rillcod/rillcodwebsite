@@ -7,8 +7,6 @@ import {
   getSummerTotalTuition,
   SUMMER_ONSITE_FEE,
   SUMMER_ONLINE_FEE,
-  SUMMER_BATCH_LABEL,
-  SUMMER_BATCH_B_CLASS_DAYS,
 } from '@/lib/summer-school/pricing';
 
 export type FeaturedSpecialCta = {
@@ -23,8 +21,17 @@ export type FeaturedSpecialCta = {
   onsiteFeeLabel: string;
   depositLabel: string;
   deadlineLabel: string | null;
-  batchLabel: string;
-  classDays: string;
+  /**
+   * The programme's own season badge and duration, or null.
+   *
+   * These used to be the summer school's constants, stamped onto whatever came
+   * back from the server — so a spring cohort would have advertised "Batch B"
+   * and summer's class days on the homepage. Null when the record does not say,
+   * and a surface that prints them omits what is missing rather than inventing
+   * it.
+   */
+  batchLabel: string | null;
+  classDays: string | null;
   ageMin: number;
   ageMax: number;
 };
@@ -42,11 +49,26 @@ const FALLBACK: FeaturedSpecialCta = {
   onsiteFeeLabel: formatNaira(SUMMER_ONSITE_FEE),
   depositLabel: formatNaira(getSummerDepositAmount('Online')),
   deadlineLabel: null,
-  batchLabel: SUMMER_BATCH_LABEL,
-  classDays: SUMMER_BATCH_B_CLASS_DAYS,
+  batchLabel: null,
+  classDays: null,
   ageMin: 8,
   ageMax: 99,
 };
+
+/** "3 Aug – 4 Sep", when a programme has no badge of its own. */
+function dateRange(from: string | null | undefined, to: string | null | undefined): string | null {
+  const day = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
+    return Number.isNaN(d.getTime())
+      ? null
+      : d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+  };
+  const a = day(from);
+  const b = day(to);
+  if (!a && !b) return null;
+  return a && b ? `${a} – ${b}` : (a ?? b);
+}
 
 function shortDeadline(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -104,8 +126,9 @@ export function useFeaturedSpecialProgram() {
           onsiteFeeLabel: formatNaira(totalOnsite),
           depositLabel: formatNaira(deposit),
           deadlineLabel: shortDeadline(j.data.registration_deadline),
-          batchLabel: SUMMER_BATCH_LABEL,
-          classDays: SUMMER_BATCH_B_CLASS_DAYS,
+          // From this programme's record, never from the summer constants.
+          batchLabel: j.data.season_badge || dateRange(j.data.starts_on, j.data.ends_on),
+          classDays: j.data.duration_label || null,
           ageMin: Number(j.data.age_min) || FALLBACK.ageMin,
           ageMax: Number(j.data.age_max) || FALLBACK.ageMax,
         });

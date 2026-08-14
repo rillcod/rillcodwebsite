@@ -20,7 +20,11 @@ import {
   stashStudentPrefill,
   openWhatsAppChat,
 } from "@/lib/whatsapp/mini-intake";
-import { STUDENT_REGISTRATION_PATH, SCHOOL_REGISTRATION_PATH } from "@/lib/registration/enrollment-types";
+import {
+  STUDENT_REGISTRATION_PATH,
+  SCHOOL_REGISTRATION_PATH,
+  SPECIAL_LEGACY_PUBLIC_PATH,
+} from "@/lib/registration/enrollment-types";
 
 const HIDE_ON = [
   "/dashboard",
@@ -34,8 +38,14 @@ const HIDE_ON = [
 
 type Step = "intent" | "details";
 
+/**
+ * The `summer` intent is the featured special programme, whichever one that is.
+ * Its label is filled in from the live programme rather than written here — the
+ * id is historical, the copy must not be, or a spring bootcamp offers the
+ * visitor a "Summer seat".
+ */
 const INTENTS: { id: WaIntent; title: string; desc: string }[] = [
-  { id: "summer", title: "Secure a Summer seat", desc: "AI / special cohort — quick intake" },
+  { id: "summer", title: "Secure a seat", desc: "Special cohort — quick intake" },
   { id: "enrol", title: "Term enrolment", desc: "Partner school or online live classes" },
   { id: "school", title: "School partnership", desc: "Bring Rillcod to your school" },
   { id: "help", title: "Quick help", desc: "Ask support anything" },
@@ -163,7 +173,9 @@ export default function SmartWhatsAppWidget() {
 
     if (ready.intent === "summer") {
       applyIntakeToSpecialDraft(cta.slug, ready);
-      window.location.assign(cta.registerHref || "/special/ai-summer-school-2026#register");
+      // Whatever programme is featured, not a slug written here — a hardcoded
+      // one sends next year's intake to last year's page.
+      window.location.assign(cta.registerHref || cta.href || SPECIAL_LEGACY_PUBLIC_PATH);
       return;
     }
     if (ready.intent === "enrol") {
@@ -238,6 +250,8 @@ export default function SmartWhatsAppWidget() {
               {/* Offering to "secure a seat" on a cohort that has closed wastes a
                   visitor's message and our reply. Term enrolment still applies. */}
               {INTENTS.filter((opt) => opt.id !== 'summer' || specialOpen).map((opt) => (
+                // The special-programme row names the programme that is actually
+                // running, so the widget reads right whatever we are offering.
                 <button
                   key={opt.id}
                   type="button"
@@ -248,7 +262,9 @@ export default function SmartWhatsAppWidget() {
                     <h4 className="text-[11px] font-black uppercase tracking-wide text-foreground truncate">
                       {opt.title}
                     </h4>
-                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">
+                      {opt.id === 'summer' && cta.title ? `${cta.title} — quick intake` : opt.desc}
+                    </p>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 </button>

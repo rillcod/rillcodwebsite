@@ -74,7 +74,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     if (navigator.clipboard) {
       const url = registerUrl;
       navigator.clipboard.writeText(url);
-      toast.success("Summer School registration link copied to clipboard!");
+      toast.success("Registration link copied to clipboard!");
     }
   };
 
@@ -176,7 +176,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
         <div role="dialog" aria-modal="true" className="max-h-[94dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Summer School</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Special Programme</p>
               <h2 className="mt-1 text-xl font-black text-foreground">{cta.title}</h2>
             </div>
             <button type="button" onClick={handleClose} className="rounded-xl bg-muted p-2 text-muted-foreground" aria-label="Close"><X className="h-5 w-5" /></button>
@@ -205,7 +205,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
           <div className="flex items-center gap-3 mb-6">
             <div className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-              Summer School 2026
+              {cta.title}
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -567,7 +567,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                         <div>
                           <h4 className="text-xs font-black uppercase text-foreground mb-4">Payment Setup & Tuition</h4>
                           <div className="bg-primary/5 border border-primary/10 p-4 rounded-xl mb-4 text-xs text-muted-foreground leading-relaxed">
-                            Summer School Tuition is <strong className="text-primary font-black">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-primary font-black">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot.
+                            Tuition is <strong className="text-primary font-black">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-primary font-black">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot.
                           </div>
                         </div>
 

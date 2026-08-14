@@ -47,6 +47,12 @@ export async function GET() {
         deposit_percent: page.deposit_percent,
         age_min: page.content.age_min ?? 8,
         age_max: page.content.age_max ?? 99,
+        // The programme's own badge and duration. The homepage used to print the
+        // summer school's batch label and class days over whatever was featured,
+        // so a spring cohort would have advertised "Batch B" and summer's
+        // timetable. These come from the record or they do not print.
+        season_badge: page.content.season_badge ?? null,
+        duration_label: page.content.duration_label ?? null,
       },
     });
   } catch (e: any) {

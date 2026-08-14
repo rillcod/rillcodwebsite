@@ -74,11 +74,18 @@ const Hero: React.FC = () => {
                 Once it closes the line is stale by definition, so it goes. */}
             {specialOpen ? (
               <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
-                <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.batchLabel}</span>
-                {' · '}
+                {/* Each part prints only if this programme has it. The season badge
+                    and class days used to be the summer school's, printed over
+                    whatever was featured. */}
+                {cta.batchLabel ? (
+                  <>
+                    <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.batchLabel}</span>
+                    {' · '}
+                  </>
+                ) : null}
                 <span className="font-bold text-primary dark:text-foreground">In-person {cta.onsiteFeeLabel}</span>
                 {' · '}Online {cta.onlineFeeLabel}
-                {' · '}{cta.classDays}
+                {cta.classDays ? <>{' · '}{cta.classDays}</> : null}
                 {cta.deadlineLabel ? (
                   <> · Closes <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.deadlineLabel}</span></>
                 ) : null}
@@ -140,7 +147,8 @@ const Hero: React.FC = () => {
                           View programme details
                         </p>
                         <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
-                          {cta.batchLabel} · In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
+                          {cta.batchLabel ? `${cta.batchLabel} · ` : ''}
+                          In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
                           {cta.deadlineLabel ? ` · Closes ${cta.deadlineLabel}` : ''}
                         </p>
                       </div>
