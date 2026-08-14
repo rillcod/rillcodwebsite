@@ -187,6 +187,21 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   };
   const curriculum = input.curriculum;
 
+  /**
+   * Does the overview need two sheets?
+   *
+   * "Who you would be partnering with" and "Why this, and why now" used to share
+   * one page. Both are now full arguments — company, mission, vision and proof on
+   * one side; the opening and four reasons on the other — and together they run
+   * roughly 400px past what A4 holds. The print rule pins a page to 297mm and
+   * hides the overflow, so that is not a page that scrolls: it is a page that
+   * silently loses the last reason.
+   *
+   * Split only when both are actually printing. With either switched off in the
+   * studio, a second sheet would come out blank.
+   */
+  const splitOverview = on('intro') && on('pitch');
+
   // A quote shows the years it sells. Scoping to the offer keeps the proposal
   // honest when an option stops short of SS 3.
   const scopedLevels = curriculum
@@ -239,6 +254,47 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </section>`;
 
   const photos = on('photos') ? (studio.photos ?? []).filter(Boolean) : [];
+
+  /**
+   * A strip of photographs, from a slice of the chosen set.
+   *
+   * All six used to print together on the closing page. That left the reasons
+   * ending halfway down one sheet and the signature block floating halfway down
+   * another — the "plain at the bottom" that makes a proposal look unfinished.
+   * Three after the claims and three above the signature fills both, and puts
+   * evidence in front of the reader twice: once where we assert, once where they
+   * sign.
+   */
+  const galleryStrip = (from: number, heading: string, large = false): string => {
+    const slice = photos.slice(from, from + 3);
+    if (!slice.length) return '';
+    return `
+  <section>
+    <div class="rule"></div>
+    <h2>${esc(heading)}</h2>
+    <div class="gallery${large ? ' gallery-lg' : ''}">${slice
+      .map((src) => `<img src="${esc(assetUrl(src))}" alt="">`)
+      .join('')}</div>
+  </section>`;
+  };
+
+  /**
+   * The track record.
+   *
+   * Prints beside the company introduction when the overview has two sheets —
+   * "who you would be partnering with" is exactly the question this answers, and
+   * that page has the room. On the single-sheet layout it stays where it was,
+   * before the close.
+   */
+  const fieldProofSection = `  <section>
+    <div class="rule"></div>
+    <h2>What our students have already done</h2>
+    <ul class="ticks">
+      ${FIELD_PROOF.map((f) => `<li>${esc(f)}</li>`).join('')}
+    </ul>
+  </section>`;
+
+  /** Everything, for the layout that still prints one strip. */
   const gallery = photos.length
     ? `
   <section>
@@ -707,11 +763,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .ch-val { font: 700 13px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
   .ch-sub { font: 400 10.5px "Inter", sans-serif; fill: #64748b; }
 
-  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+  /* Two rows of three on the closing page, which also carries the reasons, the
+     field proof, the contact block and both signature boxes. At 23mm the strip
+     pushed that page past the sheet — and the sheet clips rather than spills, so
+     what would have been lost is the signature line. 20mm keeps all six
+     photographs and keeps the page whole. */
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5mm; }
   .gallery img {
-    width: 100%; height: 23mm; object-fit: cover; display: block;
+    width: 100%; height: 20mm; object-fit: cover; display: block;
     border: 1px solid #e2e8f0; border-radius: 1.5mm; break-inside: avoid;
   }
+  /* The strip that follows the four reasons has a page to itself and gets the
+     room: a 20mm band of thumbnails proves nothing at arm's length. The one
+     above the signature stays small, because that page is nearly full. */
+  .gallery-lg img { height: 45mm; }
 
   /* A heading is type, not a container. Filling every heading and every item
      with the same grey box turns a pitch into a form — seventeen identical
@@ -859,21 +924,38 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </div>
 </div>
 
-<!-- Overview + commercials -->
+<!-- Who we are, and why this. Two full arguments now, so they take a sheet each
+     when both are printing — and share one when the studio has switched either
+     off, because a page that exists to hold a section nobody selected prints as
+     a blank sheet in the middle of a proposal. -->
 <div class="page">
   <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
 ${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
-    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. We do not run a school. We run the technology programme inside other people\u2019s schools \u2014 our facilitators, our curriculum, our kits and our platform, on your site and your timetable.${
+    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable.${
       input.proof
-        ? ` ${approx(input.proof.partnerSchools)} schools across Edo State already run it, for ${approx(input.proof.students)} students.`
+        ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
         : ''
     }</p>
-    <p class="muted">Everything in this proposal \u2014 the fees, the twelve-year progression, what each side provides \u2014 is what we are actually contracted to elsewhere, not a description written for you.</p>
+    <div class="why">
+      <div><b>Our mission \u2014 transform STEM education</b>To replace rote memorisation with project-driven computational thinking, building creativity, analytical reasoning and genuine software engineering capability in primary and secondary learners.</div>
+      <div><b>Our vision \u2014 Africa\u2019s technology leadership</b>To equip every young learner with internationally competitive skills, positioning West Africa as a primary exporter of technology talent and innovation.</div>
+    </div>
+    <p class="muted" style="margin-top:5mm">The fees, the twelve-year progression and the responsibilities on each side are set out here exactly as they run in our partner schools today.</p>
   </section>` : ''}
+${splitOverview && on('fieldProof') ? fieldProofSection : ''}
+${
+  splitOverview
+    ? `  ${portfolioBlock()}
+</div>
 
+<div class="page">
+  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+`
+    : ''
+}
 ${on('pitch') ? `  <section>
     <div class="rule"></div>
     <h2>Why this, and why now</h2>
@@ -884,10 +966,13 @@ ${on('pitch') ? `  <section>
         .join('\n      ')}
     </div>
   </section>` : ''}
-
-
-  ${portfolioBlock()}
-
+${
+  // Four claims, then photographs of them being true. Only when the overview took
+  // two sheets: that page has the room for a strip, and on the single-sheet
+  // layout there is none.
+  splitOverview ? galleryStrip(0, 'The programme running', true) : ''
+}
+  ${splitOverview ? '' : portfolioBlock()}
 </div>
 
 <!-- What is taught, and how it lands in the school. Its own sheet: these are
@@ -1022,15 +1107,9 @@ ${on('whyNow') ? `  <section>
     </ul>
   </section>` : ''}
 
-${on('fieldProof') ? `  <section>
-    <div class="rule"></div>
-    <h2>What our students have already done</h2>
-    <ul class="ticks">
-      ${FIELD_PROOF.map((f) => `<li>${esc(f)}</li>`).join('')}
-    </ul>
-  </section>` : ''}
+${on('fieldProof') && !splitOverview ? fieldProofSection : ''}
 
-  ${gallery}
+  ${splitOverview ? galleryStrip(3, 'Inside a partner school', true) : gallery}
 
   ${closingBlock}
 </div>

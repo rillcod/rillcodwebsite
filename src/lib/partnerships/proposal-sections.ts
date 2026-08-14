@@ -20,9 +20,11 @@ export const PARTNERSHIP_PHOTO_DIR = 'public/images/EVENTS/';
 /**
  * Photographs of the programme running, shown as a proof strip on the last page.
  *
- * Deliberately empty: the gallery renders nothing until real images exist, so a
- * proposal can never go out with a broken image box where the evidence should
- * be. Add files to `public/images/partnership/` and list the filenames here.
+ * These six are the house selection, chosen for real rooms, real work on the
+ * screens and students in uniform. The gallery renders nothing when the list is
+ * empty, so a proposal can never go out with a broken image box where the
+ * evidence should be. The studio can override the choice per proposal; these are
+ * what prints when nobody does. Files live in `public/images/EVENTS/`.
  */
 export const PARTNERSHIP_PHOTOS: readonly string[] = [
   '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg',

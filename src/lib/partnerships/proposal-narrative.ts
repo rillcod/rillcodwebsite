@@ -35,29 +35,35 @@ export type ProposalNarrative = {
 
 /** The house pitch. Always valid, always the fallback, never worse than nothing. */
 export const AUTHORED_NARRATIVE: ProposalNarrative = {
-  headline: 'Coding, Robotics &amp; AI for every year group',
+  headline: 'The technology department your school does not have to build',
   opening:
-    'Parents are choosing schools on whether their children will be ready for work that does not exist yet. A coding and robotics programme is the clearest signal a school can give that it is preparing them for it — and the clearest reason for a parent to choose you over the school down the road.',
+    'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding, robotics and artificial intelligence programme is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
   benefits: [
     {
-      title: 'Taught, not outsourced',
-      body: 'Rillcod facilitators deliver every session on your site, to your timetable, with your teachers observing and taking it on over time.',
+      title: 'Specialists teach it, your teachers inherit it',
+      body: 'Our facilitators deliver every session on your site and to your timetable — nothing is added to an existing teacher’s load. Your staff observe, then co-teach, so the capability ends up inside the school rather than rented forever.',
     },
     {
-      title: 'A ladder, not a club',
-      body: 'Year on year progression, so a child who starts in Basic 1 leaves SS 3 having shipped real work.',
+      // Deliberately says nothing about how many years. A proposal can be scoped
+      // to a single year, and this copy prints unchanged either way — claiming a
+      // full ladder on a one-year quote is the kind of contradiction a proprietor
+      // notices and never forgets.
+      title: 'A ladder, not a computer club',
+      body: 'Every year builds on the one before it, so a learner is always making something harder than last term. Nobody collects a certificate of attendance; they leave having designed, built and shipped work that runs.',
     },
     {
-      title: 'Evidence for parents',
-      body: 'Every learner keeps a portfolio and a termly capstone build. Progress is reported to you and to families, not asserted.',
+      title: 'Evidence your admissions team can show',
+      body: 'Every learner keeps a portfolio and finishes each term with a capstone build. Progress is reported to you and to families in writing — so the claim on your prospectus is backed by something a parent can hold at an open day.',
     },
     {
-      title: 'No capital outlay',
-      body: 'Hardware, curriculum, the learning platform and facilitator training are ours. The school provides the room and the timetable slot.',
+      title: 'No capital outlay, and no idle laboratory',
+      body: 'Hardware, curriculum, the learning platform and facilitator training are ours, and they arrive with the facilitator. You provide the room and the slot on the timetable. Nothing sits in a store cupboard depreciating between terms.',
     },
   ],
+  // Kept to one sentence on purpose: it prints last on a page that is already
+  // full, and the page is pinned to A4 with the overflow hidden.
   closing:
-    'If the shape works, we issue a Memorandum of Understanding stating the agreed fee and the obligations above, and we can begin the term after signing.',
+    'If the shape works, we issue a Memorandum of Understanding setting out the agreed fee and the obligations above, and teaching starts the term after signing — in time to tell parents something new before the next admissions season.',
   source: 'authored',
 };
 
@@ -125,8 +131,16 @@ function buildPrompt(ctx: NarrativeContext): string {
     '',
     'Write for the school proprietor or head teacher. They care about enrolment, parent',
     'perception against nearby schools, and whether this creates work for their staff.',
-    'Be concrete and plain. No exclamation marks, no hype, no bullet-point padding.',
-    'Use British spelling. Never address the reader as "you guys" or use emoji.',
+    '',
+    'This document has to win the business, so the copy must persuade — but it persuades',
+    'the way a good consultant does, not the way a flyer does. Open on the reader\'s own',
+    'problem before naming ours as the answer. Every claim should carry a concrete reason',
+    'attached to it. Prefer a specific image a head teacher will recognise (an open day, a',
+    'parent asking what the school offers, a laboratory sitting idle) over an abstraction.',
+    'Confident and warm; never defensive, and never arguing with an objection nobody raised.',
+    'No exclamation marks, no superlatives, no "cutting-edge", no "revolutionise", no',
+    'bullet-point padding. Use British spelling. Never address the reader as "you guys",',
+    'and never use emoji.',
     '',
     'ABSOLUTE RULE: do not mention any price, fee, amount, currency, percentage,',
     'discount, or per-student/per-term rate. Commercial terms are inserted separately',
@@ -134,10 +148,10 @@ function buildPrompt(ctx: NarrativeContext): string {
     '',
     'Return ONLY JSON in exactly this shape:',
     '{',
-    '  "headline": "short, 6-9 words, no school name",',
-    '  "opening": "one paragraph, 45-75 words, why this school and why now",',
+    '  "headline": "a benefit the head teacher wants, 6-10 words, no school name",',
+    '  "opening": "one paragraph, 70-110 words: their problem first, then how this answers it",',
     '  "benefits": [',
-    '    { "title": "3-5 words", "body": "one sentence, 20-35 words" },',
+    '    { "title": "4-7 words, a claim not a label", "body": "25-45 words, the claim plus its concrete reason" },',
     '    { "title": "...", "body": "..." },',
     '    { "title": "...", "body": "..." },',
     '    { "title": "...", "body": "..." }',
