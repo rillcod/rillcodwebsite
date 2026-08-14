@@ -132,7 +132,7 @@ export function AddProspectForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold shadow-sm transition-colors"
       >
         <PlusIcon className="w-4 h-4" /> Add a school to pitch
       </button>

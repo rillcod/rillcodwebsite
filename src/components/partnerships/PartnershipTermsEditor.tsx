@@ -432,10 +432,13 @@ export function PartnershipTermsEditor({
               <span className={LABEL}>Bands</span>
               <div className="space-y-2">
                 {draft.tiers.map((tier, i) => (
-                  <div key={i} className="flex gap-2 items-start">
+                  // Four controls in one row is fine on a laptop and unusable on
+                  // a phone. Stacked below sm: name across the top, the two
+                  // numbers side by side, then remove.
+                  <div key={i} className="grid grid-cols-2 gap-2 sm:flex sm:items-start">
                     <input
                       aria-label={`Band ${i + 1} label`}
-                      className={INPUT}
+                      className={`${INPUT} col-span-2 sm:flex-1`}
                       placeholder="Primary"
                       value={tier.label}
                       onChange={(e) =>
@@ -448,7 +451,7 @@ export function PartnershipTermsEditor({
                     />
                     <input
                       aria-label={`Band ${i + 1} student count`}
-                      className={`${INPUT} sm:w-32`}
+                      className={`${INPUT} sm:w-28`}
                       inputMode="numeric"
                       placeholder="Students"
                       value={tier.count}
@@ -462,7 +465,7 @@ export function PartnershipTermsEditor({
                     />
                     <input
                       aria-label={`Band ${i + 1} rate`}
-                      className={`${INPUT} sm:w-32`}
+                      className={`${INPUT} sm:w-28`}
                       inputMode="numeric"
                       placeholder="Rate"
                       value={tier.rate}
@@ -483,7 +486,7 @@ export function PartnershipTermsEditor({
                           tiers: d.tiers.length > 1 ? d.tiers.filter((_, j) => j !== i) : d.tiers,
                         }))
                       }
-                      className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
+                      className="col-span-2 sm:col-auto flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>

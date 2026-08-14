@@ -241,6 +241,21 @@ export default function PartnershipsPage() {
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* School picker */}
         <aside className="lg:col-span-4 bg-card border border-border rounded-2xl p-4 lg:sticky lg:top-4">
+          {/* First thing in the panel, and a solid button. Pitching a school we
+              have not won is the primary job here, not a footnote under the
+              search box for the ones we already have. */}
+          {canWrite && (
+            <div className="mb-3">
+              <AddProspectForm
+                onAdded={async (school) => {
+                  await loadSchools();
+                  if (school.id) selectSchool(school.id);
+                }}
+                onSelectExisting={(id) => selectSchool(id)}
+              />
+            </div>
+          )}
+
           <div className="relative mb-3">
             <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -274,18 +289,6 @@ export default function PartnershipsPage() {
               </button>
             ))}
           </div>
-
-          {canWrite && (
-            <div className="mb-3">
-              <AddProspectForm
-                onAdded={async (school) => {
-                  await loadSchools();
-                  if (school.id) selectSchool(school.id);
-                }}
-                onSelectExisting={(id) => selectSchool(id)}
-              />
-            </div>
-          )}
 
           {loadingSchools ? (
             <div className="flex items-center justify-center py-10">
