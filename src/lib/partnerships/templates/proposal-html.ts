@@ -17,6 +17,7 @@
  * Edge and no Desktop.
  */
 import { brandAssets, brandContact } from '@/config/brand';
+import { SIGNATURE_ANCHOR } from '../signing';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
 import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
 import { PARTNERSHIP_OFFERS, offerPriceLabel, type PartnershipOffer } from '../offers';
@@ -249,7 +250,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
     <div class="sign">
       <div class="sign-box"><b>For ${esc(brandContact.contractingParty)}</b>Name, signature and date</div>
-      <div class="sign-box"><b>For ${esc(input.school.name)}</b>Name, signature and date</div>
+      <div class="sign-box"><b>For ${esc(input.school.name)}</b>Name, signature and date${SIGNATURE_ANCHOR}</div>
     </div>
   </section>`;
 
@@ -496,31 +497,59 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    */
   const offersChart = (): string => {
     if (!on('offersChart')) return '';
-    const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 300, ROW_H = 44, BAR_H = 19, R = 4, top = 8;
+    // Sized to the room the page actually has. At ROW_H 44 the chart was a
+    // thumbnail on a sheet with 190px spare beneath it — the one picture on the
+    // page a head teacher reads before the prose, drawn smaller than the
+    // footnote under it.
+    const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 320, ROW_H = 56, BAR_H = 24, R = 4, top = 10;
+    // Three terms to a session. Both ends of the range are carried, because an
+    // option priced ₦25,000–₦30,000 a term was charted as a firm ₦75,000 a year:
+    // the chart quietly dropped the top of the range while the card beside it
+    // printed both numbers, so the two disagreed on the same page — on price.
     const rows = offers.map((o) => ({
       code: o.code,
-      // Three terms to a session, at the entry price of the range.
-      year: o.priceFrom * 3,
+      from: o.priceFrom * 3,
+      to: Math.max(o.priceFrom, o.priceTo) * 3,
       label: 'Option ' + o.code,
     }));
-    const max = Math.max(...rows.map((r) => r.year)) || 1;
+    const max = Math.max(...rows.map((r) => r.to)) || 1;
+    const anyRange = rows.some((r) => r.to > r.from);
+    const barPath = (x: number, y: number, w: number) => {
+      const rr = Math.min(R, w);
+      return 'M' + x + ' ' + y + ' H' + (x + w - rr) +
+        ' A' + rr + ' ' + rr + ' 0 0 1 ' + (x + w) + ' ' + (y + rr) +
+        ' V' + (y + BAR_H - rr) + ' A' + rr + ' ' + rr + ' 0 0 1 ' + (x + w - rr) + ' ' + (y + BAR_H) +
+        ' H' + x + ' Z';
+    };
     const bars = rows.map((r, i) => {
       const y = top + i * ROW_H;
-      const w = Math.max(2, Math.round((r.year / max) * BAR_MAX));
-      const rr = Math.min(R, w);
-      const path = 'M' + BAR_X + ' ' + y + ' H' + (BAR_X + w - rr) +
-        ' A' + rr + ' ' + rr + ' 0 0 1 ' + (BAR_X + w) + ' ' + (y + rr) +
-        ' V' + (y + BAR_H - rr) + ' A' + rr + ' ' + rr + ' 0 0 1 ' + (BAR_X + w - rr) + ' ' + (y + BAR_H) +
-        ' H' + BAR_X + ' Z';
+      const wTo = Math.max(2, Math.round((r.to / max) * BAR_MAX));
+      const wFrom = Math.max(2, Math.round((r.from / max) * BAR_MAX));
+      const ranged = r.to > r.from;
+      // One hue, two steps of it: the solid length is the fee every school pays,
+      // the lighter continuation is how far it can go. Same measure, so the same
+      // colour — a second hue would read as a second thing being measured.
+      const upper = ranged
+        ? '<path d="' + barPath(BAR_X, y, wTo) + '" fill="#93c5fd"></path>'
+        : '';
+      const value = ranged ? money(r.from) + '–' + money(r.to) : money(r.from);
       return '<text class="ch-lbl" x="' + LABEL_W + '" y="' + (y + BAR_H / 2 + 4) + '" text-anchor="end">' + esc(r.label) + '</text>' +
-        '<path d="' + path + '" fill="#2563eb"></path>' +
-        '<text class="ch-val" x="' + (BAR_X + w + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(money(r.year)) + '</text>' +
-        '<text class="ch-sub" x="' + (BAR_X + w + 8) + '" y="' + (y + BAR_H / 2 + 14) + '">per student, per year</text>';
+        upper +
+        '<path d="' + barPath(BAR_X, y, wFrom) + '" fill="#2563eb"></path>' +
+        '<text class="ch-val" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
+        '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 14) + '">per student, per year</text>';
     }).join('');
     const H = top + rows.length * ROW_H;
-    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Yearly cost per student for each option">' +
+    const svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Yearly cost per student for each option, including the range where a fee is not fixed">' +
       '<line x1="' + BAR_X + '" y1="' + (top - 4) + '" x2="' + BAR_X + '" y2="' + (H - ROW_H + BAR_H + 4) + '" stroke="#cbd5e1" stroke-width="1"></line>' +
       bars + '</svg>';
+    // Two shades of one hue need saying out loud on a printed page, where nobody
+    // can hover to find out what the lighter part of a bar means.
+    return anyRange
+      ? svg +
+          '<p class="chart-note"><span class="key key-from"></span>the fee every school pays' +
+          '&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
+      : svg;
   };
 
   /**
@@ -762,6 +791,15 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #1e293b; }
   .ch-val { font: 700 13px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
   .ch-sub { font: 400 10.5px "Inter", sans-serif; fill: #64748b; }
+  /* What the two shades of the one bar mean. Printed, because there is no hover
+     on paper and the lighter segment is otherwise unexplained. */
+  .chart-note {
+    font-size: 9pt; color: #64748b; margin: 1mm 0 3mm; display: flex;
+    align-items: center; gap: 1.5mm; flex-wrap: wrap;
+  }
+  .key { display: inline-block; width: 3.2mm; height: 2.2mm; border-radius: .6mm; }
+  .key-from { background: #2563eb; }
+  .key-to { background: #93c5fd; }
 
   /* Two rows of three on the closing page, which also carries the reasons, the
      field proof, the contact block and both signature boxes. At 23mm the strip
@@ -939,9 +977,22 @@ ${on('intro') ? `  <section>
         ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
         : ''
     }</p>
+    <!--
+      Mission and vision are written as one argument, not two slogans: the
+      mission is what changes inside the classroom, the vision is how far what
+      it produces travels. Read together they run learner \u2192 standard \u2192 world.
+
+      "Africa's technology leadership" used to sit here and landed nowhere. It
+      named a continent but not the child, so the ambition had nothing under it
+      \u2014 and it capped the goal at a region when the goal is global. The reach is
+      now stated as the standard the learner is measured against, which is the
+      thing that actually makes talent portable.
+    -->
     <div class="why">
-      <div><b>Our mission \u2014 transform STEM education</b>To replace rote memorisation with project-driven computational thinking, building creativity, analytical reasoning and genuine software engineering capability in primary and secondary learners.</div>
-      <div><b>Our vision \u2014 Africa\u2019s technology leadership</b>To equip every young learner with internationally competitive skills, positioning West Africa as a primary exporter of technology talent and innovation.</div>
+      <!-- No span named: a quote can be scoped to a single year, and the page
+           beside this one prints the real count from the curriculum being sold. -->
+      <div><b>Our mission \u2014 how technology is taught</b>To replace memorisation with project-driven computational thinking, so a learner builds creativity, analytical reasoning and real engineering capability \u2014 and finishes every term with something that works.</div>
+      <div><b>Our vision \u2014 built here, hired anywhere</b>To hold every learner to the standard the global technology industry hires against, so the talent it recruits is built in classrooms like yours \u2014 talent West Africa exports rather than imports.</div>
     </div>
     <!-- Says nothing about how many years. A quote can be scoped to one, and the
          page beside this one already prints the real count from the curriculum

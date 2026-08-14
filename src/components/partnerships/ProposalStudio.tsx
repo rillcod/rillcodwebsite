@@ -29,6 +29,9 @@ import {
   normaliseStudioConfig,
   type ProposalStudioConfig,
 } from "@/lib/partnerships/studio-config";
+// The placeholder shows the copy that actually prints when this is left blank,
+// so it cannot drift from the house headline the way a typed-out string did.
+import { AUTHORED_NARRATIVE } from "@/lib/partnerships/proposal-narrative";
 
 const STORAGE_KEY = "rillcod.proposalStudio.v1";
 
@@ -239,7 +242,7 @@ export function ProposalStudio({
               <input
                 id="studio-headline"
                 className={INPUT}
-                placeholder="Coding, Robotics &amp; AI for every year group"
+                placeholder={AUTHORED_NARRATIVE.headline}
                 value={config.copy.headline ?? ""}
                 onChange={(e) => setCopy("headline", e.target.value)}
                 disabled={disabled}
