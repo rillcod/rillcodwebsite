@@ -44,7 +44,7 @@ const INTENTS: { id: WaIntent; title: string; desc: string }[] = [
 export default function SmartWhatsAppWidget() {
   const pathname = usePathname();
   const router = useRouter();
-  const { cta } = useFeaturedSpecialProgram();
+  const { cta, open: specialOpen } = useFeaturedSpecialProgram();
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -235,7 +235,9 @@ export default function SmartWhatsAppWidget() {
 
           {step === "intent" && (
             <div className="space-y-1.5">
-              {INTENTS.map((opt) => (
+              {/* Offering to "secure a seat" on a cohort that has closed wastes a
+                  visitor's message and our reply. Term enrolment still applies. */}
+              {INTENTS.filter((opt) => opt.id !== 'summer' || specialOpen).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"

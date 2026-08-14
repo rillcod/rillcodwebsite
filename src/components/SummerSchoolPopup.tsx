@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { X, Calendar, MapPin, Clock, Phone, Mail, Sparkles, ShieldCheck, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { HdQrCode } from "@/components/qr/HdQrCode";
@@ -28,7 +29,7 @@ const LS_KEY = "rillcod_summer_school_popup_draft";
 
 export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopupProps) {
   const isNativeApp = useIsNativeApp();
-  const { cta } = useFeaturedSpecialProgram();
+  const { cta, open: specialOpen } = useFeaturedSpecialProgram();
   const registerUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${cta.href}`
     : `${brandContact.siteUrl}${cta.href}`;
@@ -78,6 +79,96 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   };
 
   if (!isOpen) return null;
+
+  // A registration form for an intake that has closed would take money and details
+  // for a seat that does not exist. But the site intercepts every `/summer-school`
+  // link to open this, so returning nothing turns those into dead clicks — and the
+  // visitor still wants to enrol. Send them to the pathways that are open.
+  if (!specialOpen) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="w-full max-w-md rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl"
+        >
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">
+                Registration closed
+              </p>
+              <h2 className="mt-1 text-xl font-black text-foreground">
+                {cta.title} is not taking new seats
+              </h2>
+            </div>
+            <button
+              onClick={handleClose}
+              aria-label="Close"
+              className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+            That intake has finished. These are still open, and they run all year:
+          </p>
+
+          <div className="space-y-2.5">
+            <Link
+              href="/student-registration"
+              onClick={handleClose}
+              className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4 transition-colors hover:border-primary/50 hover:bg-primary/5"
+            >
+              <span className="min-w-0 text-left">
+                <span className="block text-xs font-black uppercase tracking-widest text-foreground">
+                  Enrol a learner
+                </span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Term classes — online, or at a partner school
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/school-registration"
+              onClick={handleClose}
+              className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4 transition-colors hover:border-primary/50 hover:bg-primary/5"
+            >
+              <span className="min-w-0 text-left">
+                <span className="block text-xs font-black uppercase tracking-widest text-foreground">
+                  Bring Rillcod to your school
+                </span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Our facilitators and curriculum, on your timetable
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/programs"
+              onClick={handleClose}
+              className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4 transition-colors hover:border-primary/50 hover:bg-primary/5"
+            >
+              <span className="min-w-0 text-left">
+                <span className="block text-xs font-black uppercase tracking-widest text-foreground">
+                  See every programme
+                </span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Coding, robotics, AI and data — primary to professional
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+
+          <p className="mt-5 text-center text-[11px] text-muted-foreground">
+            Questions? {brandContact.phoneShort} · {brandContact.email}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isNativeApp) {
     return (

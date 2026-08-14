@@ -55,17 +55,31 @@ function shortDeadline(iso: string | null | undefined): string | null {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/** Loads the featured special programme for homepage / nav CTAs. */
+/**
+ * Loads the featured special programme for homepage / nav CTAs.
+ *
+ * `open` is the one to gate promotion on. It starts false and only becomes true
+ * when the server says the programme is still running and still taking
+ * registrations — so a finished intake, an unpublished page, or an endpoint that
+ * cannot be reached all leave the site quiet rather than advertising something
+ * that has closed. `cta` always holds usable values, so a surface that has
+ * already decided to render one cannot crash on a missing field.
+ */
 export function useFeaturedSpecialProgram() {
   const [cta, setCta] = useState<FeaturedSpecialCta>(FALLBACK);
   const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch('/api/special-programs/featured', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
-        if (cancelled || !j?.data) return;
+        if (cancelled) return;
+        // No featured programme at all: nothing to promote, keep the fallback
+        // copy for any surface that still wants a link.
+        if (!j?.data) return;
+        setOpen(j.open === true);
         const href = j.data.href || FALLBACK.href;
         const onlineFee = Number(j.data.online_fee);
         const onsiteFee = Number(j.data.onsite_fee);
@@ -96,10 +110,10 @@ export function useFeaturedSpecialProgram() {
           ageMax: Number(j.data.age_max) || FALLBACK.ageMax,
         });
       })
-      .catch(() => { /* keep fallback */ })
+      .catch(() => { /* keep fallback, stay closed */ })
       .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, []);
 
-  return { cta, loaded };
+  return { cta, loaded, open };
 }

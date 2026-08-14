@@ -1,28 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getFeaturedSpecialProgram } from '@/lib/special-programs/queries';
-import { specialProgramPublicPath } from '@/lib/special-programs/types';
+import { isPromotable, specialProgramPublicPath } from '@/lib/special-programs/types';
 
-/** Lightweight public endpoint for homepage CTAs. */
+/**
+ * Lightweight public endpoint for homepage CTAs.
+ *
+ * Returns `open` alongside the data: whether this programme should still be
+ * promoted across the site. It used to hand back a hardcoded AI Summer School
+ * whenever nothing was featured, so the site advertised an intake that might not
+ * exist and could not be switched off except in code. Now an absent or finished
+ * programme says so, and the surfaces that promote it stand down.
+ */
 export async function GET() {
   try {
     const page = await getFeaturedSpecialProgram();
-    if (!page) {
-      return NextResponse.json({
-        data: {
-          href: '/special/ai-summer-school-2026',
-          button_label: '☀️ AI Summer School',
-          title: 'AI Summer School',
-          banner: null,
-          slug: 'ai-summer-school-2026',
-          online_fee: 50_000,
-          onsite_fee: 40_000,
-          deposit_percent: 50,
-          registration_deadline: null,
-          age_min: 8,
-          age_max: 99,
-        },
-      });
-    }
+    // Nothing published: the site has no special programme to sell right now,
+    // and saying so is better than inventing one.
+    if (!page) return NextResponse.json({ data: null, open: false });
+
     const start = page.starts_on;
     const end = page.ends_on;
     let banner: string | null = page.content.season_badge || null;
@@ -34,6 +29,9 @@ export async function GET() {
       banner = `${page.title} is Active (${fmt(start)} to ${fmt(end)})`;
     }
     return NextResponse.json({
+      // The page still exists and stays reachable at its own URL; `open` only
+      // governs whether the rest of the site advertises it.
+      open: isPromotable(page),
       data: {
         id: page.id,
         slug: page.slug,

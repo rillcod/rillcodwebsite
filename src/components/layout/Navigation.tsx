@@ -41,12 +41,16 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { cta } = useFeaturedSpecialProgram();
-  const mainLinks = [
-    mainLinksBase[0],
-    { href: cta.href, label: cta.button_label || '☀️ Special Programme', icon: BookOpenIcon },
-    ...mainLinksBase.slice(1),
-  ];
+  const { cta, open: specialOpen } = useFeaturedSpecialProgram();
+  // The special programme earns a place in the main nav only while it is running
+  // and still taking registrations. A closed intake leaves the standard links.
+  const mainLinks = specialOpen
+    ? [
+        mainLinksBase[0],
+        { href: cta.href, label: cta.button_label || '☀️ Special Programme', icon: BookOpenIcon },
+        ...mainLinksBase.slice(1),
+      ]
+    : mainLinksBase;
 
   useEffect(() => { setMounted(true); }, []);
 

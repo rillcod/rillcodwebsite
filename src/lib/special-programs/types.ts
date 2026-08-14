@@ -238,6 +238,31 @@ export function isRegistrationOpen(page: Pick<SpecialProgramPage, 'registration_
   return Date.now() <= end.getTime();
 }
 
+/**
+ * Whether a special programme still deserves the front of the site.
+ *
+ * `isRegistrationOpen` answers "can somebody still sign up". This answers the
+ * different question "should we still be shouting about it" — and the site only
+ * ever asked the first one, so a finished intake kept its banner in the nav, its
+ * card over the hero, its popup and its WhatsApp opener until somebody manually
+ * unpublished it. A visitor reads a closed summer school on the homepage as a
+ * dead site, not a busy one.
+ *
+ * A programme is promotable while registration is open AND its final day has not
+ * passed. The dates are plain ISO days, so both are read to the end of the day
+ * they name.
+ */
+export function isPromotable(
+  page: Pick<SpecialProgramPage, 'registration_deadline' | 'is_published' | 'ends_on'>,
+): boolean {
+  if (!isRegistrationOpen(page)) return false;
+  if (page.ends_on) {
+    const finished = new Date(`${page.ends_on}T23:59:59`);
+    if (!Number.isNaN(finished.getTime()) && Date.now() > finished.getTime()) return false;
+  }
+  return true;
+}
+
 export function getSpecialTotalTuition(
   page: Pick<SpecialProgramPage, 'online_fee' | 'onsite_fee'>,
   preferredMode: string,

@@ -132,7 +132,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const searchParams = useSearchParams();
   const router = useRouter();
   const formAnchorRef = useRef<HTMLDivElement>(null);
-  const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
+  const { cta: specialCta, loaded: specialLoaded, open: specialOpen } = useFeaturedSpecialProgram();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState('');
@@ -303,10 +303,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   useEffect(() => {
     if (!specialLoaded || !specialCta.registerHref) return;
+    // Only hand somebody over to the special programme while it is still taking
+    // registrations. Once it closes, they stay here on a form that works.
+    if (!specialOpen) return;
     const t = searchParams?.get('type');
     if (!isSpecialTypeParam(t) && !isInPersonTypeParam(t)) return;
     window.location.replace(specialCta.registerHref);
-  }, [specialLoaded, specialCta.registerHref, searchParams]);
+  }, [specialLoaded, specialOpen, specialCta.registerHref, searchParams]);
 
   useEffect(() => {
     const urlType = parseTermEnrollmentTypeParam(searchParams?.get('type'));
@@ -754,7 +757,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
              <p className="text-[10px] font-black uppercase tracking-widest text-primary">{RETENTION_PITCH.heading}</p>
              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{RETENTION_PITCH.body}</p>
              <div className="flex flex-col sm:flex-row gap-2 mt-4">
-               {specialCta.slug ? (
+               {specialOpen && specialCta.slug ? (
                  <a href={specialCta.registerHref} className="px-4 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest text-center">
                    {RETENTION_PITCH.ctaSpecial}
                  </a>
@@ -882,8 +885,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </section>
         )}
 
-        {/* Soft special suggestion */}
-        {!et && specialLoaded && specialCta.slug && (
+        {/* Soft special suggestion — only while those seats actually exist */}
+        {!et && specialOpen && specialCta.slug && (
           <aside className="mb-10 max-w-5xl mx-auto rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between animate-in fade-in duration-700 delay-200">
             <div className="flex items-start gap-3 text-left min-w-0">
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -907,7 +910,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </aside>
         )}
 
-        {et && specialLoaded && specialCta.slug && (
+        {et && specialOpen && specialCta.slug && (
           <p className="text-center text-[11px] text-muted-foreground mb-6 max-w-2xl mx-auto">
             Continuing with <span className="font-bold text-foreground">{ENROLLMENT_TYPES.find((t) => t.id === et)?.title}</span>.
             {' '}Changed your mind?{' '}

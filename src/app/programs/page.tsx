@@ -40,7 +40,7 @@ export default function Programs() {
   const [searchTerm, setSearchTerm]           = useState("");
   const [selectedLevel, setSelectedLevel]     = useState("all");
   const [expandedId, setExpandedId]           = useState<string | null>(null);
-  const { cta } = useFeaturedSpecialProgram();
+  const { cta, open: specialOpen } = useFeaturedSpecialProgram();
   const [featuredMeta, setFeaturedMeta] = useState<{
     starts_on?: string | null;
     ends_on?: string | null;
@@ -112,7 +112,10 @@ export default function Programs() {
           </div>
         </div>
 
-        {/* Summer School Banner */}
+        {/* Summer School Banner — a "Limited Time" panel whose time has passed is
+            the loudest thing on the page and the least true, so it only shows
+            while the intake is genuinely open. */}
+        {specialOpen && (
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl border-t-4 border-t-amber-500 p-8 sm:p-10 mb-16 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -translate-y-32 translate-x-32 blur-3xl pointer-events-none" />
           <div className="relative z-10">
@@ -161,6 +164,7 @@ export default function Programs() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Nigerian Impact Stats */}
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl p-8 mb-16">
