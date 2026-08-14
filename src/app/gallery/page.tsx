@@ -28,7 +28,7 @@ const galleryData = [
     title: "Young Nigerian Coders in Action",
     description: "Students from Rillcod Technologies in Benin City working on Python programming projects",
     category: "coding",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.56%20PM.jpeg",
     likes: 156,
     views: 2340,
     featured: true
@@ -38,7 +38,7 @@ const galleryData = [
     title: "STEM Robotics Workshop",
     description: "Kids building and programming robots at Rillcod Technologies, Benin City",
     category: "robotics",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.57%20PM.jpeg",
     likes: 203,
     views: 1890,
     featured: true
@@ -48,7 +48,7 @@ const galleryData = [
     title: "Computer Science Lab",
     description: "Students learning computer fundamentals at Rillcod Technologies, Benin City",
     category: "computers",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.58%20PM%20(2).jpeg",
     likes: 98,
     views: 1456,
     featured: false
@@ -58,7 +58,7 @@ const galleryData = [
     title: "Science Experiment Day",
     description: "Young scientists conducting experiments at Rillcod Technologies, Benin City",
     category: "science",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.59%20PM%20(1).jpeg",
     likes: 167,
     views: 2100,
     featured: false
@@ -68,7 +68,7 @@ const galleryData = [
     title: "Coding Club Meeting",
     description: "After-school coding club at Rillcod Technologies, Benin City",
     category: "coding",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.00%20PM%20(1).jpeg",
     likes: 134,
     views: 1789,
     featured: false
@@ -78,7 +78,7 @@ const galleryData = [
     title: "3D Printing Workshop",
     description: "Students learning 3D design and printing technology at Rillcod Technologies",
     category: "technology",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.00%20PM.jpeg",
     likes: 189,
     views: 2234,
     featured: true
@@ -88,7 +88,7 @@ const galleryData = [
     title: "Mathematics & Programming",
     description: "Integrating math concepts with computer programming at Rillcod Technologies",
     category: "coding",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.01%20PM.jpeg",
     likes: 145,
     views: 1654,
     featured: false
@@ -98,7 +98,7 @@ const galleryData = [
     title: "Digital Art & Design",
     description: "Creative technology projects using digital tools at Rillcod Technologies",
     category: "creative",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.02%20PM%20(2).jpeg",
     likes: 178,
     views: 1987,
     featured: false
@@ -108,7 +108,7 @@ const galleryData = [
     title: "STEM Career Day",
     description: "Students meeting with Nigerian tech professionals at Rillcod Technologies",
     category: "careers",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.03%20PM%20(1).jpeg",
     likes: 223,
     views: 2567,
     featured: true
@@ -118,7 +118,7 @@ const galleryData = [
     title: "Mobile App Development",
     description: "Students creating apps to solve local community problems at Rillcod Technologies",
     category: "coding",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.27%20PM.jpeg",
     likes: 198,
     views: 2341,
     featured: false
@@ -128,7 +128,7 @@ const galleryData = [
     title: "Environmental Science",
     description: "Using technology to study and protect our environment at Rillcod Technologies",
     category: "science",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.29%20PM%20(1).jpeg",
     likes: 167,
     views: 1890,
     featured: false
@@ -138,7 +138,7 @@ const galleryData = [
     title: "AI & Machine Learning",
     description: "Introduction to artificial intelligence concepts at Rillcod Technologies",
     category: "technology",
-    image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
+    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.30%20PM%20(1).jpeg",
     likes: 245,
     views: 2890,
     featured: true
