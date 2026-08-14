@@ -137,12 +137,15 @@ export function PartnershipTermsEditor({
   history,
   canWrite,
   onSaved,
+  openSignal,
 }: {
   school: SchoolRow;
   agreed: TermsRow | null;
   history: TermsRow[];
   canWrite: boolean;
   onSaved: () => void | Promise<void>;
+  /** Bumped from outside to open the form — e.g. a blocked MoU sending you here. */
+  openSignal?: number;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(agreed));
   const [open, setOpen] = useState(false);
@@ -158,6 +161,12 @@ export function PartnershipTermsEditor({
     setError("");
     setSaved("");
   }, [school.id, agreed]);
+
+  // Opened from elsewhere: the composer refuses an MoU without terms and points
+  // here, so the form must already be open when the page scrolls to it.
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));

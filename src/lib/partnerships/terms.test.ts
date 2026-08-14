@@ -3,7 +3,7 @@ import {
   MissingPartnershipTermsError,
   computeCharge,
   describeTerms,
-  effectivePerStudentFee,
+
   normaliseTerms,
   requireAgreedTerms,
   type PartnershipTerms,
@@ -168,64 +168,5 @@ describe('normalising a database row', () => {
   it('is null for an empty row', () => {
     expect(normaliseTerms(null)).toBeNull();
     expect(normaliseTerms({})).toBeNull();
-  });
-});
-
-describe('what one student costs, across the three models', () => {
-  const base = {
-    id: 't', school_id: 's', currency: 'NGN', billing_cycle: 'term',
-    amount_per_student: null, fixed_package_price: null, tiers: null,
-    deposit_amount: null, rillcod_share_percent: 70, school_share_percent: 30,
-    status: 'agreed',
-  } as const;
-
-  it('reads a per-student deal straight off', () => {
-    expect(
-      effectivePerStudentFee({ ...base, billing_model: 'per_student', amount_per_student: 25000 } as any),
-    ).toBe(25000);
-  });
-
-  it('weights a by-section deal across its sections', () => {
-    // Primary 100 at ₦20,000 and secondary 50 at ₦35,000 is ₦3,750,000 over
-    // 150 heads — ₦25,000 each, not the ₦20,000 of the first band.
-    expect(
-      effectivePerStudentFee({
-        ...base,
-        billing_model: 'tiered',
-        tiers: [
-          { label: 'Primary', count: 100, rate: 20000 },
-          { label: 'Secondary', count: 50, rate: 35000 },
-        ],
-      } as any),
-    ).toBe(25000);
-  });
-
-  it('refuses to invent a per-head price for a fixed package', () => {
-    // A package is a price for the school. Dividing it by a roll that has not
-    // been agreed would put a per-student number in a document that never had one.
-    expect(
-      effectivePerStudentFee({ ...base, billing_model: 'fixed_package', fixed_package_price: 1_500_000 } as any),
-    ).toBeNull();
-  });
-
-  it('returns null rather than zero when a model carries no usable amount', () => {
-    expect(effectivePerStudentFee({ ...base, billing_model: 'per_student' } as any)).toBeNull();
-    expect(effectivePerStudentFee({ ...base, billing_model: 'tiered', tiers: [] } as any)).toBeNull();
-  });
-
-  it('keeps one split across differently priced sections', () => {
-    const terms = {
-      ...base,
-      billing_model: 'tiered',
-      tiers: [
-        { label: 'Primary', count: 100, rate: 20000 },
-        { label: 'Secondary', count: 50, rate: 35000 },
-      ],
-    } as any;
-    const charge = computeCharge(terms);
-    expect(charge.subtotal).toBe(3_750_000);
-    // 70/30 applies to the whole, not per band.
-    expect(charge.rillcodRetain).toBe(2_625_000);
-    expect(charge.schoolSettlement).toBe(1_125_000);
   });
 });

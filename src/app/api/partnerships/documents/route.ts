@@ -15,7 +15,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
-import { issuePartnershipDocument, listSchoolDocuments } from '@/lib/partnerships/issue-document';
+import {
+  issuePartnershipDocument,
+  listSchoolDocuments,
+  previewPartnershipDocument,
+} from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
 
 export const dynamic = 'force-dynamic';
@@ -78,11 +82,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'kind must be "proposal" or "mou".' }, { status: 400 });
   }
 
+  // Preview renders and returns; it consumes no reference and writes no row, so
+  // the whole document can be read before anything about it becomes permanent.
+  const previewOnly = body.preview === true;
+
   try {
-    const issued = await issuePartnershipDocument({
+    const buildArgs = {
       db: actor.db,
       schoolId,
-      kind,
+      kind: kind as "proposal" | "mou",
       actorId: actor.user.id,
       useAI: body.use_ai === true,
       scopeToOffer: body.scope_to_offer ? String(body.scope_to_offer) : null,
@@ -98,7 +106,22 @@ export async function POST(req: NextRequest) {
         body.validity_days == null || body.validity_days === ''
           ? null
           : Number(body.validity_days),
-    });
+    };
+
+    if (previewOnly) {
+      const draft = await previewPartnershipDocument(buildArgs);
+      return NextResponse.json({
+        preview: true,
+        reference: draft.reference,
+        kind: draft.kind,
+        school: draft.schoolName,
+        narrative_source: draft.narrativeSource,
+        curriculum_edition: draft.curriculumEdition,
+        html: draft.html,
+      });
+    }
+
+    const issued = await issuePartnershipDocument(buildArgs);
 
     await logAudit(actor.db as any, {
       action: kind === 'mou' ? 'issue_partnership_mou' : 'issue_partnership_proposal',

@@ -28,7 +28,6 @@ import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
 import { findOffer, PARTNERSHIP_OFFERS } from './offers';
 import {
   MissingPartnershipTermsError,
-  effectivePerStudentFee,
   getAgreedTerms,
   normaliseTerms,
   type PartnershipTerms,
@@ -89,6 +88,85 @@ function todayLabel(): string {
 export async function issuePartnershipDocument(input: IssueInput): Promise<IssuedDocument> {
   const { db, schoolId, kind } = input;
 
+  const prepared = await prepareDocument(input);
+
+  const { data: row, error } = await db
+    .from('partnership_agreements')
+    .insert({
+      school_id: schoolId,
+      terms_id: prepared.agreedTerms?.id ?? null,
+      document_kind: kind,
+      terms_snapshot: prepared.snapshot,
+      status: 'draft',
+      created_by: input.actorId ?? null,
+    })
+    .select('id, reference')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const reference = String(row.reference);
+  const { html, narrativeSource } = await prepared.render(reference);
+
+  // The document is written back rather than inserted with the row, because it
+  // has to contain the reference the insert produced.
+  const { error: saveError } = await db
+    .from('partnership_agreements')
+    .update({ document_html: html })
+    .eq('id', row.id);
+  if (saveError) throw new Error(saveError.message);
+
+  return {
+    id: String(row.id),
+    reference,
+    kind,
+    html,
+    schoolId,
+    schoolName: String(prepared.school.name),
+    termsId: prepared.agreedTerms?.id ?? null,
+    narrativeSource,
+    curriculumEdition: prepared.curriculum?.edition ?? null,
+  };
+}
+
+/**
+ * Render the document without keeping it.
+ *
+ * Issuing consumes a reference and writes a row, and both are meant to be
+ * permanent — so somebody should be able to read the whole thing before either
+ * happens. The preview is the same render the issue path performs, from the same
+ * terms and the same curriculum; only the reference is a placeholder, because a
+ * document that was never issued does not have one.
+ */
+export async function previewPartnershipDocument(
+  input: IssueInput,
+): Promise<Omit<IssuedDocument, 'id'> & { preview: true }> {
+  const prepared = await prepareDocument(input);
+  const reference = input.kind === 'mou' ? 'MoU — not yet issued' : 'Proposal — not yet issued';
+  const { html, narrativeSource } = await prepared.render(reference);
+
+  return {
+    preview: true,
+    reference,
+    kind: input.kind,
+    html,
+    schoolId: input.schoolId,
+    schoolName: String(prepared.school.name),
+    termsId: prepared.agreedTerms?.id ?? null,
+    narrativeSource,
+    curriculumEdition: prepared.curriculum?.edition ?? null,
+  };
+}
+
+/**
+ * Everything both paths need, gathered once.
+ *
+ * Returns a `render` the caller invokes with whatever reference the document
+ * will carry, so preview and issue cannot drift into two different documents.
+ */
+async function prepareDocument(input: IssueInput) {
+  const { db, schoolId, kind } = input;
+
   const { data: school } = await db
     .from('schools')
     .select('id, name, address, city, state, student_count')
@@ -109,26 +187,29 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     ? { ...agreedTerms }
     : { billing_model: null, note: 'Issued before terms were agreed; standard options quoted.' };
 
-  const { data: row, error } = await db
-    .from('partnership_agreements')
-    .insert({
-      school_id: schoolId,
-      terms_id: agreedTerms?.id ?? null,
-      document_kind: kind,
-      terms_snapshot: snapshot,
-      status: 'draft',
-      created_by: input.actorId ?? null,
-    })
-    .select('id, reference')
-    .single();
+  const render = async (reference: string) => {
+    const dateLabel = todayLabel();
+    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel });
+  };
 
-  if (error) throw new Error(error.message);
+  return { school, agreedTerms, curriculum, snapshot, render };
+}
 
-  const reference = String(row.reference);
-  const dateLabel = todayLabel();
+async function renderDocument(ctx: {
+  input: IssueInput;
+  school: any;
+  agreedTerms: PartnershipTerms | null;
+  curriculum: CurriculumProgression | null;
+  reference: string;
+  dateLabel: string;
+}): Promise<{ html: string; narrativeSource: ProposalNarrative['source'] | null }> {
+  const { input, school, agreedTerms, curriculum, reference, dateLabel } = ctx;
+  const kind = input.kind;
 
   let html: string;
   let narrativeSource: ProposalNarrative['source'] | null = null;
+  const db = input.db;
+  const schoolId = input.schoolId;
 
   if (kind === 'mou') {
     html = buildPartnershipMouHTML({
@@ -169,12 +250,21 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       PARTNERSHIP_OFFERS.find((o) => o.scope === input.scopeToOffer) ??
       findOffer(input.scopeToOffer) ??
       PARTNERSHIP_OFFERS[0];
-    // All three models resolve through one helper, so a banded school is quoted
-    // the weighted average of its own bands rather than the standard menu price.
-    const agreedFee = agreedTerms ? effectivePerStudentFee(agreedTerms) : null;
+    /**
+     * The money page, from whichever shape the deal actually takes.
+     *
+     * Sections are passed through as agreed rather than reduced to an average.
+     * A school that agreed ₦15,000 for primary and ₦25,000 for secondary reads
+     * both of its own numbers and the total they come to — not a third figure
+     * sitting between them that it has never been quoted.
+     */
     const upside = schoolUpside({
       roll: Number(school.student_count) || 0,
-      feePerStudent: agreedFee ?? scopedOffer?.priceFrom ?? 0,
+      feePerStudent:
+        agreedTerms?.billing_model === 'per_student'
+          ? (agreedTerms.amount_per_student ?? 0)
+          : (scopedOffer?.priceFrom ?? 0),
+      sections: agreedTerms?.billing_model === 'tiered' ? agreedTerms.tiers : null,
       // A package is one price for the school; uptake does not move it.
       fixedPackage:
         agreedTerms?.billing_model === 'fixed_package'
@@ -211,25 +301,7 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     });
   }
 
-  // The document is written back rather than inserted with the row, because it
-  // has to contain the reference the insert produced.
-  const { error: saveError } = await db
-    .from('partnership_agreements')
-    .update({ document_html: html })
-    .eq('id', row.id);
-  if (saveError) throw new Error(saveError.message);
-
-  return {
-    id: String(row.id),
-    reference,
-    kind,
-    html,
-    schoolId,
-    schoolName: String(school.name),
-    termsId: agreedTerms?.id ?? null,
-    narrativeSource,
-    curriculumEdition: curriculum?.edition ?? null,
-  };
+  return { html, narrativeSource };
 }
 
 /** Documents already issued to a school, newest first. */

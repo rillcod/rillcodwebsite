@@ -19,6 +19,7 @@ import {
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
+  EyeIcon,
   SparklesIcon,
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel } from "@/lib/partnerships/offers";
@@ -34,11 +35,17 @@ export function PartnershipDocumentComposer({
   agreed,
   canWrite,
   onIssued,
+  onPreview,
+  onRecordTerms,
 }: {
   school: SchoolRow;
   agreed: TermsRow | null;
   canWrite: boolean;
   onIssued: (doc: IssuedDocument) => void | Promise<void>;
+  /** Renders without storing, so nothing is committed before it is read. */
+  onPreview: (doc: IssuedDocument) => void | Promise<void>;
+  /** Opens the terms editor, so a blocked MoU has somewhere to go. */
+  onRecordTerms: () => void;
 }) {
   const [kind, setKind] = useState<DocumentKind>("proposal");
   const [offerCode, setOfferCode] = useState<string>("");
@@ -51,6 +58,7 @@ export function PartnershipDocumentComposer({
   const [durationLabel, setDurationLabel] = useState("");
   const [students, setStudents] = useState("");
   const [issuing, setIssuing] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
   const { terms: academicTerms, current: currentTerm } = useAcademicTerms();
 
@@ -79,6 +87,42 @@ export function PartnershipDocumentComposer({
   // 409; the button refuses it here so nobody has to read a failure to find out.
   const mouBlocked = kind === "mou" && !agreed;
 
+  function payload(preview: boolean) {
+    return {
+      school_id: school.id,
+      kind,
+      preview,
+      use_ai: kind === 'proposal' && useAI,
+      scope_to_offer: kind === 'proposal' ? (selectedOffer?.scope ?? null) : null,
+      stage,
+      notes: kind === 'proposal' ? notes.trim() || null : null,
+      validity_days: kind === 'proposal' ? Number(validityDays) : null,
+      commencement: kind === 'mou' ? commencement.trim() || null : null,
+      duration_label: kind === 'mou' ? durationLabel.trim() || null : null,
+      illustrative_students: kind === 'mou' ? Number(students) || undefined : undefined,
+    };
+  }
+
+  /** Render it without keeping it, so the whole thing can be read first. */
+  async function preview() {
+    setPreviewing(true);
+    setError('');
+    try {
+      const res = await fetch('/api/partnerships/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload(true)),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not build the preview.');
+      await onPreview(json as IssuedDocument);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not build the preview.');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
   async function issue() {
     setIssuing(true);
     setError("");
@@ -86,21 +130,7 @@ export function PartnershipDocumentComposer({
       const res = await fetch("/api/partnerships/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          school_id: school.id,
-          kind,
-          // Generation is for the pitch of a proposal and nothing else.
-          use_ai: kind === "proposal" && useAI,
-          // The curriculum is trimmed by the years an offer covers, so the scope
-          // sentence is what the renderer needs — not the option's code.
-          scope_to_offer: kind === "proposal" ? (selectedOffer?.scope ?? null) : null,
-          stage,
-          notes: kind === "proposal" ? notes.trim() || null : null,
-          validity_days: kind === "proposal" ? Number(validityDays) : null,
-          commencement: kind === "mou" ? commencement.trim() || null : null,
-          duration_label: kind === "mou" ? durationLabel.trim() || null : null,
-          illustrative_students: kind === "mou" ? Number(students) || undefined : undefined,
-        }),
+        body: JSON.stringify(payload(false)),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not issue the document.");
@@ -362,12 +392,29 @@ export function PartnershipDocumentComposer({
       )}
 
       {mouBlocked && (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 flex items-start gap-3">
-          <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-foreground/80 leading-relaxed">
-            {school.name} has no agreed terms, so there is no fee for an MoU to state. Record the
-            terms above, or issue a proposal instead.
-          </p>
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                One step first: what did {school.name} agree to pay?
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                An MoU is the agreement, so it has to state a fee — and the fee it states is the one
+                the invoice will charge. Record the terms and this unlocks immediately. It takes
+                about a minute.
+              </p>
+              {/* The guard stays; the dead end does not. Sending somebody away to
+                  find another form is how a correct rule reads as an obstacle. */}
+              <button
+                type="button"
+                onClick={onRecordTerms}
+                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-colors"
+              >
+                Record the agreed terms
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -379,20 +426,40 @@ export function PartnershipDocumentComposer({
       )}
 
       {canWrite ? (
-        <button
-          onClick={issue}
-          disabled={issuing || mouBlocked}
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground transition-colors flex items-center gap-2"
-        >
-          {issuing ? (
-            <ArrowPathIcon className="w-4 h-4 animate-spin" />
-          ) : (
-            <DocumentTextIcon className="w-4 h-4" />
-          )}
-          {issuing
-            ? "Issuing…"
-            : `Issue ${kind === "mou" ? "MoU" : "proposal"} for ${school.name}`}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Read it first. Issuing consumes a reference and writes a row, and
+              both are meant to be permanent — so the preview comes first and
+              the commitment second. */}
+          <button
+            onClick={preview}
+            disabled={previewing || issuing || mouBlocked}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground transition-colors flex items-center gap-2"
+          >
+            {previewing ? (
+              <ArrowPathIcon className="w-4 h-4 animate-spin" />
+            ) : (
+              <EyeIcon className="w-4 h-4" />
+            )}
+            {previewing ? "Building…" : `Preview the ${kind === "mou" ? "MoU" : "proposal"}`}
+          </button>
+
+          <button
+            onClick={issue}
+            disabled={issuing || previewing || mouBlocked}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground/80 hover:text-foreground hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {issuing ? (
+              <ArrowPathIcon className="w-4 h-4 animate-spin" />
+            ) : (
+              <DocumentTextIcon className="w-4 h-4" />
+            )}
+            {issuing ? "Issuing…" : "Issue and keep it"}
+          </button>
+
+          <span className="text-[11px] text-muted-foreground">
+            Previewing stores nothing. Issuing assigns the reference.
+          </span>
+        </div>
       ) : (
         <p className="text-xs text-muted-foreground">
           Issuing a document is an admin action. You are viewing this in read-only.

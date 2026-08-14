@@ -30,3 +30,65 @@ describe('what the programme is worth to the school', () => {
     expect(PARTNERSHIP_PHOTOS).toHaveLength(0);
   });
 });
+
+describe('sections priced separately', () => {
+  // The deal as stated: primary ₦15,000 a head, secondary ₦25,000 a head,
+  // 70% to Rillcod so 30% to the school, on each section, then added.
+  const sections = [
+    { label: 'Primary', count: 100, rate: 15000 },
+    { label: 'Secondary', count: 60, rate: 25000 },
+  ];
+
+  it('takes the share on each section at its own rate', () => {
+    const u = schoolUpside({ roll: 160, feePerStudent: 0, sharePercent: 30, sections })!;
+
+    expect(u.mode).toBe('sections');
+    // 100 × ₦15,000 = ₦1,500,000, of which the school keeps 30% = ₦450,000.
+    expect(u.rows[0]).toMatchObject({ label: 'Primary', students: 100, rate: 15000, gross: 1_500_000, schoolShare: 450_000 });
+    // 60 × ₦25,000 = ₦1,500,000, of which the school keeps 30% = ₦450,000.
+    expect(u.rows[1]).toMatchObject({ label: 'Secondary', students: 60, rate: 25000, gross: 1_500_000, schoolShare: 450_000 });
+  });
+
+  it('adds the sections into a total', () => {
+    const u = schoolUpside({ roll: 160, feePerStudent: 0, sharePercent: 30, sections })!;
+
+    expect(u.total).toMatchObject({ students: 160, gross: 3_000_000, schoolShare: 900_000 });
+  });
+
+  it('never blends the rates into an average', () => {
+    const u = schoolUpside({ roll: 160, feePerStudent: 0, sharePercent: 30, sections })!;
+
+    // The average here would be ₦18,750 — a number the school has never been
+    // quoted and would not recognise. Only the agreed rates appear.
+    expect(u.feePerStudent).toBe(0);
+    expect(u.rows.map((r) => r.rate)).toEqual([15000, 25000]);
+  });
+
+  it('adding the sections equals taking the share on the whole', () => {
+    const u = schoolUpside({ roll: 160, feePerStudent: 0, sharePercent: 30, sections })!;
+    const summed = u.rows.reduce((n, r) => n + r.schoolShare, 0);
+    const onWhole = Math.round((u.rows.reduce((n, r) => n + r.gross, 0) * 30) / 100);
+
+    expect(summed).toBe(onWhole);
+    expect(u.total!.schoolShare).toBe(summed);
+  });
+
+  it('ignores a section with no headcount or no rate', () => {
+    const u = schoolUpside({
+      roll: 100, feePerStudent: 0, sharePercent: 30,
+      sections: [{ label: 'Primary', count: 100, rate: 15000 }, { label: 'Nursery', count: 0, rate: 9000 }],
+    })!;
+
+    expect(u.rows).toHaveLength(1);
+    expect(u.total!.students).toBe(100);
+  });
+
+  it('a fixed package is one row and no total to add', () => {
+    const u = schoolUpside({ roll: 150, feePerStudent: 0, sharePercent: 30, fixedPackage: 1_500_000 })!;
+
+    expect(u.mode).toBe('package');
+    expect(u.rows).toHaveLength(1);
+    expect(u.rows[0].schoolShare).toBe(450_000);
+    expect(u.total).toBeNull();
+  });
+});

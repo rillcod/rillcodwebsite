@@ -63,6 +63,8 @@ export default function PartnershipsPage() {
   const [documents, setDocuments] = useState<IssuedDocumentRow[]>([]);
   const [loadingSchool, setLoadingSchool] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
+  // Bumped when a blocked MoU sends the user to record terms.
+  const [openTerms, setOpenTerms] = useState(0);
 
   const canView = profile?.role === "admin" || profile?.role === "teacher";
   const canWrite = profile?.role === "admin";
@@ -373,20 +375,40 @@ export default function PartnershipsPage() {
                 </span>
               </div>
 
+              <div id="partnership-terms">
               <PartnershipTermsEditor
                 school={selected}
                 agreed={agreed}
                 history={terms}
                 canWrite={canWrite}
+                openSignal={openTerms}
                 onSaved={async () => {
                   await Promise.all([loadSchoolDetail(selected.id), loadSchools()]);
                 }}
               />
+              </div>
 
               <PartnershipDocumentComposer
                 school={selected}
                 agreed={agreed}
                 canWrite={canWrite}
+                onRecordTerms={() => {
+                  setOpenTerms((n) => n + 1);
+                  document.getElementById("partnership-terms")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                onPreview={(doc: IssuedDocument) => {
+                  // No id: nothing was stored, so the preview offers no email
+                  // or lifecycle action until it is actually issued.
+                  setPreview({
+                    id: '',
+                    html: doc.html,
+                    reference: doc.reference,
+                    kind: doc.kind,
+                    schoolName: doc.school,
+                    narrativeSource: doc.narrative_source,
+                    curriculumEdition: doc.curriculum_edition,
+                  });
+                }}
                 onIssued={async (doc: IssuedDocument) => {
                   setPreview({
                     id: doc.id,
@@ -409,7 +431,7 @@ export default function PartnershipsPage() {
                   schoolName={preview.schoolName}
                   narrativeSource={preview.narrativeSource}
                   curriculumEdition={preview.curriculumEdition}
-                  documentId={preview.id}
+                  documentId={preview.id || null}
                   canSend={canWrite}
                   onSent={() => loadSchoolDetail(selected.id)}
                   onClose={() => setPreview(null)}

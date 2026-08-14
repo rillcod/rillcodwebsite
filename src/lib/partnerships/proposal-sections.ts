@@ -88,10 +88,21 @@ export type UpsideRow = {
   students: number;
   gross: number;
   schoolShare: number;
+  /** The agreed rate for this row, where the row has one of its own. */
+  rate?: number | null;
 };
 
 export type SchoolUpside = {
   rows: UpsideRow[];
+  /** Present for a section breakdown: the rows added up. */
+  total?: UpsideRow | null;
+  /**
+   * How the rows should be read.
+   *   sections — each section at its own agreed rate, then added
+   *   package  — one agreed price for the school
+   *   uptake   — one rate, shown at three levels of take-up
+   */
+  mode: 'sections' | 'package' | 'uptake';
   feePerStudent: number;
   sharePercent: number;
   cycle: string;
@@ -119,11 +130,54 @@ export function schoolUpside(input: {
    * three rows of "what if fewer join" would be three copies of one number.
    */
   fixedPackage?: number | null;
+  /**
+   * Sections priced separately — primary at one rate, secondary at another.
+   *
+   * Shown as they are agreed and then added, never blended into an average
+   * per-head figure. A school that agreed ₦15,000 for primary and ₦25,000 for
+   * secondary should read those two numbers in its own proposal, not a third
+   * one it has never seen that happens to sit between them.
+   */
+  sections?: ReadonlyArray<{ label: string; count: number; rate: number }> | null;
 }): SchoolUpside | null {
   const roll = Math.floor(Number(input.roll) || 0);
   const fee = Number(input.feePerStudent) || 0;
   const share = Number(input.sharePercent) || 0;
   const pkg = Number(input.fixedPackage) || 0;
+  const cycle = input.cycle || 'term';
+
+  const sections = (input.sections ?? []).filter(
+    (s) => Number(s.count) > 0 && Number(s.rate) > 0,
+  );
+  if (sections.length && share > 0) {
+    // The share is taken on each section and the results added. That is the
+    // same total as taking it on the sum, and it is the version a school can
+    // check line by line.
+    const rows: UpsideRow[] = sections.map((s) => {
+      const gross = Math.round(Number(s.count) * Number(s.rate));
+      return {
+        label: s.label || `${s.count} students`,
+        students: Math.round(Number(s.count)),
+        rate: Number(s.rate),
+        gross,
+        schoolShare: Math.round((gross * share) / 100),
+      };
+    });
+    return {
+      rows,
+      total: {
+        label: 'Total',
+        students: rows.reduce((n, r) => n + r.students, 0),
+        rate: null,
+        gross: rows.reduce((n, r) => n + r.gross, 0),
+        schoolShare: rows.reduce((n, r) => n + r.schoolShare, 0),
+      },
+      mode: 'sections',
+      feePerStudent: 0,
+      sharePercent: share,
+      cycle,
+    };
+  }
 
   if (pkg > 0 && share > 0) {
     return {
@@ -131,11 +185,14 @@ export function schoolUpside(input: {
         {
           label: 'Agreed package',
           students: roll,
+          rate: null,
           gross: pkg,
           schoolShare: Math.round((pkg * share) / 100),
         },
       ],
-      feePerStudent: roll > 0 ? +(pkg / roll).toFixed(2) : 0,
+      total: null,
+      mode: 'package',
+      feePerStudent: 0,
       sharePercent: share,
       cycle: input.cycle || 'term',
     };
@@ -155,10 +212,13 @@ export function schoolUpside(input: {
     return {
       label,
       students,
+      rate: fee,
       gross,
       schoolShare: Math.round((gross * share) / 100),
     };
   });
 
-  return { rows, feePerStudent: fee, sharePercent: share, cycle: input.cycle || 'term' };
+  // No total here: these are three versions of the same term, not three things
+  // that happen and add up.
+  return { rows, total: null, mode: 'uptake', feePerStudent: fee, sharePercent: share, cycle };
 }

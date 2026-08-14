@@ -15,7 +15,7 @@
  * what lets the print dialog open at all.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -30,6 +30,11 @@ import {
   documentPdfBase64,
   downloadDocumentPdf,
 } from "@/lib/partnerships/proposal-pdf";
+
+/** A4 at 96dpi — the width every page in these templates lays out against. */
+const PAGE_W = 794;
+/** Tall enough to show a page and a half, so scrolling has somewhere to go. */
+const FRAME_H = 1500;
 
 export function IssuedDocumentPreview({
   html,
@@ -128,6 +133,25 @@ export function IssuedDocumentPreview({
   }
 
   const [zoom, setZoom] = useState<"fit" | "75" | "100">("fit");
+  const paneRef = useRef<HTMLDivElement>(null);
+  const [paneW, setPaneW] = useState(PAGE_W);
+
+  // The pane is the constraint, so it is what gets measured. ResizeObserver
+  // rather than a window listener: the sidebar and the preview both move.
+  useEffect(() => {
+    const el = paneRef.current;
+    if (!el) return;
+    const measure = () => setPaneW(el.clientWidth - 24);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Fit never enlarges past 1: a document blown up beyond its own size is
+  // blurry, not bigger.
+  const fitScale = Math.min(1, Math.max(0.25, paneW / PAGE_W));
+  const scale = zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
 
   return (
     <div className="rounded-2xl border border-primary/40 bg-card overflow-hidden shadow-2xl">
@@ -142,7 +166,7 @@ export function IssuedDocumentPreview({
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
             {schoolName ? `${schoolName} · ` : ""}
-            Stored draft — official document record
+            {documentId ? "Stored draft — official document record" : "Preview only — nothing has been saved yet"}
             {curriculumEdition ? ` · curriculum ed. ${curriculumEdition}` : ""}
           </p>
         </div>
@@ -250,23 +274,34 @@ export function IssuedDocumentPreview({
           </div>
         </div>
       ) : (
-        <div className="bg-slate-100 dark:bg-slate-950 p-4 md:p-8 overflow-auto max-h-[820px] flex justify-center border-t border-border/60">
+        <div
+          ref={paneRef}
+          className="bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto max-h-[820px] border-t border-border/60"
+        >
+          {/*
+            The document is a fixed 794px A4 page. Squeezing the iframe to a
+            phone's width does not reflow it — the page just gets cut off — so
+            the frame keeps its true width and the whole thing is scaled down to
+            whatever room there is. On a laptop the scale lands at 1 and nothing
+            has been done to it.
+          */}
           <div
-            className={`transition-all duration-200 bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden ${
-              zoom === "100"
-                ? "w-[850px] shrink-0"
-                : zoom === "75"
-                ? "w-[640px] shrink-0"
-                : "w-full max-w-[850px]"
-            }`}
+            className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
+            style={{ width: PAGE_W * scale, height: FRAME_H * scale }}
           >
             <iframe
               ref={frameRef}
               srcDoc={html}
               title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
               sandbox="allow-same-origin allow-modals"
-              className="w-full bg-white transition-all"
-              style={{ height: zoom === "75" ? "900px" : "800px", border: "none" }}
+              className="bg-white"
+              style={{
+                width: PAGE_W,
+                height: FRAME_H,
+                border: "none",
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }}
             />
           </div>
         </div>

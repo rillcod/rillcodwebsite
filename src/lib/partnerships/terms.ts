@@ -195,36 +195,6 @@ export function computeCharge(terms: PartnershipTerms, studentCount = 0): Charge
   };
 }
 
-/**
- * What one student costs under these terms.
- *
- * The three models are not three prices; they are three ways of arriving at one.
- * A per-student deal states it outright. A banded deal — primary at one rate,
- * secondary at another, one split across both — carries it as a weighted average
- * of the bands. A fixed package has no per-head price at all, and says so with
- * null rather than inventing one.
- *
- * Surfaces that quote per head read this instead of reaching for
- * `amount_per_student`, which is only populated on one of the three models. The
- * proposal did exactly that and fell back to the standard menu price for banded
- * schools — quoting a school a number other than the one it had agreed.
- */
-export function effectivePerStudentFee(terms: PartnershipTerms): number | null {
-  if (terms.billing_model === 'per_student') {
-    return terms.amount_per_student && terms.amount_per_student > 0
-      ? terms.amount_per_student
-      : null;
-  }
-  if (terms.billing_model === 'tiered') {
-    const tiers = terms.tiers ?? [];
-    const heads = tiers.reduce((sum, t) => sum + (Number(t.count) || 0), 0);
-    const total = tiers.reduce((sum, t) => sum + (Number(t.count) || 0) * (Number(t.rate) || 0), 0);
-    return heads > 0 ? +(total / heads).toFixed(2) : null;
-  }
-  // A fixed package is a price for the school, not for a child in it.
-  return null;
-}
-
 function money(amount: number, currency: string): string {
   const symbol = currency === 'NGN' ? '₦' : `${currency} `;
   return `${symbol}${amount.toLocaleString('en-NG')}`;

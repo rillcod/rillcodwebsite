@@ -130,18 +130,29 @@ function yearCard(level: ProgressionLevel): string {
     </article>`;
 }
 
-function offerRow(offer: PartnershipOffer, highlighted: boolean): string {
-  // The option this quote was scoped to is called out, so a head teacher
-  // reading three rows knows which one we actually put in front of them.
+/**
+ * One option, as a card.
+ *
+ * This was a four-column table. At readable body type the "best for" column
+ * collapsed to roughly one word per line and the whole thing became a puzzle —
+ * four columns simply do not fit across A4 once the type is large enough to
+ * read comfortably. A card gives each option the full width and puts the price
+ * where the eye lands first.
+ */
+function offerCard(offer: PartnershipOffer, highlighted: boolean): string {
   return `
-    <tr${highlighted ? ' class="picked"' : ''}>
-      <td class="opt"><strong>Option ${esc(offer.code)}</strong>${
-        highlighted ? '<span class="tag">Quoted</span>' : ''
-      }<br><span class="opt-name">${esc(offer.name)}</span></td>
-      <td>${esc(offer.scope)}<br><span class="muted">${esc(offer.cadence)}</span></td>
-      <td class="num"><strong>${esc(offerPriceLabel(offer))}</strong></td>
-      <td class="best">${esc(offer.bestFor)}</td>
-    </tr>`;
+    <article class="offer${highlighted ? ' offer-picked' : ''}">
+      <header class="offer-top">
+        <div>
+          <span class="offer-code">Option ${esc(offer.code)}</span>
+          ${highlighted ? '<span class="tag">Quoted</span>' : ''}
+          <span class="offer-name">${esc(offer.name)}</span>
+        </div>
+        <div class="offer-price">${esc(offerPriceLabel(offer))}</div>
+      </header>
+      <div class="offer-meta">${esc(offer.scope)} &nbsp;·&nbsp; ${esc(offer.cadence)}</div>
+      <p class="offer-best">${esc(offer.bestFor)}</p>
+    </article>`;
 }
 
 export function buildPartnershipProposalHTML(input: ProposalInput): string {
@@ -337,32 +348,89 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   const upsideBlock = (): string => {
     const u = input.upside;
     if (!u) return '';
+
+    // Each shape gets the sentence that describes its own arithmetic. A section
+    // breakdown says the share is taken on each section and added, because that
+    // is the sum a bursar will do by hand to check it.
+    const lead =
+      u.mode === 'sections'
+        ? `Your ${u.sharePercent}% is taken on each section at its own agreed rate, and the sections are added. Nothing here is averaged or estimated.`
+        : u.mode === 'package'
+          ? `The agreed package for the school, and your ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
+          : `Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.`;
+
+    const firstCol = u.mode === 'sections' ? 'Section' : u.mode === 'package' ? 'Agreed' : 'Scenario';
+    const showRate = u.mode === 'sections';
+
+    const bodyRow = (r: (typeof u.rows)[number], highlight: boolean) => `
+        <tr${highlight ? ' class="picked"' : ''}>
+          <td><strong>${esc(r.label)}</strong></td>
+          <td>${r.students}</td>
+          ${showRate ? `<td>${r.rate ? esc(money(r.rate)) : '—'}</td>` : ''}
+          <td>${esc(money(r.gross))}</td>
+          <td class="num"><strong>${esc(money(r.schoolShare))}</strong></td>
+        </tr>`;
+
     return `
   <section>
     <div class="rule"></div>
     <h2>What this is worth to ${esc(input.school.name)}</h2>
-    <p class="muted">Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.</p>
+    <p class="muted">${lead}</p>
 
     ${upsideChart(u)}
     <table>
       <thead>
-        <tr><th>Scenario</th><th>Students enrolled</th><th>Programme fees</th><th>Your ${u.sharePercent}% share</th></tr>
+        <tr>
+          <th>${firstCol}</th>
+          <th>Students</th>
+          ${showRate ? '<th>Rate each</th>' : ''}
+          <th>Programme fees</th>
+          <th>Your ${u.sharePercent}% share</th>
+        </tr>
       </thead>
       <tbody>
-        ${u.rows
-          .map(
-            (r, i) => `<tr${i === u.rows.length - 1 ? ' class="picked"' : ''}>
-          <td><strong>${esc(r.label)}</strong></td>
-          <td>${r.students}</td>
-          <td>${esc(money(r.gross))}</td>
-          <td class="num"><strong>${esc(money(r.schoolShare))}</strong></td>
-        </tr>`,
-          )
-          .join('')}
+        ${u.rows.map((r, i) => bodyRow(r, !u.total && i === u.rows.length - 1)).join('')}
+        ${u.total ? bodyRow(u.total, true) : ''}
       </tbody>
     </table>
     <p class="muted" style="margin-top:2.5mm">Per ${esc(u.cycle)}, before the additional streams a programme like this opens — tech fairs, sponsored showcases and holiday workshops.</p>
   </section>`;
+  };
+
+  /**
+   * The three options, compared on what a parent pays over a full year.
+   *
+   * Per-term figures are what we quote, but a school decides in sessions — and
+   * three prices in three different sentences are hard to weigh against each
+   * other. One hue, because these are three values of one measure, and every bar
+   * carries its own figure since a printed page has no hover.
+   */
+  const offersChart = (): string => {
+    const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 300, ROW_H = 44, BAR_H = 19, R = 4, top = 8;
+    const rows = offers.map((o) => ({
+      code: o.code,
+      // Three terms to a session, at the entry price of the range.
+      year: o.priceFrom * 3,
+      label: 'Option ' + o.code,
+    }));
+    const max = Math.max(...rows.map((r) => r.year)) || 1;
+    const bars = rows.map((r, i) => {
+      const y = top + i * ROW_H;
+      const w = Math.max(2, Math.round((r.year / max) * BAR_MAX));
+      const rr = Math.min(R, w);
+      const path = 'M' + BAR_X + ' ' + y + ' H' + (BAR_X + w - rr) +
+        ' A' + rr + ' ' + rr + ' 0 0 1 ' + (BAR_X + w) + ' ' + (y + rr) +
+        ' V' + (y + BAR_H - rr) + ' A' + rr + ' ' + rr + ' 0 0 1 ' + (BAR_X + w - rr) + ' ' + (y + BAR_H) +
+        ' H' + BAR_X + ' Z';
+      return '<text class="ch-lbl" x="' + LABEL_W + '" y="' + (y + BAR_H / 2 + 4) + '" text-anchor="end">' + esc(r.label) + '</text>' +
+        '<path d="' + path + '" fill="#2563eb"></path>' +
+        '<text class="ch-val" x="' + (BAR_X + w + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(money(r.year)) + '</text>' +
+        '<text class="ch-sub" x="' + (BAR_X + w + 8) + '" y="' + (y + BAR_H / 2 + 14) + '">per student, per year</text>';
+    }).join('');
+    const H = top + rows.length * ROW_H;
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Yearly cost per student for each option">' +
+      '<line x1="' + BAR_X + '" y1="' + (top - 4) + '" x2="' + BAR_X + '" y2="' + (H - ROW_H + BAR_H + 4) + '" stroke="#cbd5e1" stroke-width="1"></line>' +
+      bars + '</svg>';
   };
 
   const agreed = input.agreedTerms
@@ -388,7 +456,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   html { background: #0f172a; }
   body {
     margin: 0; padding: 24px 0; background: #0f172a; color: #1e293b;
-    font: 10pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
+    font: 11.4pt/1.55 "Inter", system-ui, -apple-system, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
     display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
@@ -427,21 +495,27 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .s3 { background: #2563eb; flex: 2; }
 
   .brand-row { display: flex; align-items: center; gap: 4mm; }
-  .brand-mark { width: 16mm; height: 16mm; object-fit: contain; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
-  .brand { font-size: 21pt; font-weight: 800; letter-spacing: -.5px; color: #fff; }
-  .brand-tag { color: #fca5a5; font-size: 9pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.5mm; font-weight: 600; }
+  /* On a white tile, so the mark reads on any background and survives a
+     printer that renders the dark band lighter than the screen does. */
+  .brand-mark {
+    width: 20mm; height: 20mm; object-fit: contain; flex: none;
+    background: #fff; border-radius: 2.5mm; padding: 2.2mm;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .brand { font-size: 26pt; font-weight: 800; letter-spacing: -.5px; color: #fff; }
+  .brand-tag { color: #fca5a5; font-size: 10.5pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.5mm; font-weight: 600; }
   .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10mm 0 8mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
     font-size: 8.5pt; letter-spacing: .15em; text-transform: uppercase; font-weight: 700;
     padding: 1.8mm 4mm; border-radius: 1.5mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
   }
-  h1 { font-size: 32pt; line-height: 1.08; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.8px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 38pt; line-height: 1.08; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.8px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
     background: #f8fafc; border-left: 4mm solid #2563eb; padding: 5mm 6mm; margin-bottom: 3mm; border-radius: 0 2mm 2mm 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .cover-for { font-size: 15pt; font-weight: 700; color: #0f172a; }
+  .cover-for { font-size: 17.5pt; font-weight: 700; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
   .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
@@ -457,7 +531,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
   .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
-  .proof-n { display: block; font-size: 23pt; font-weight: 800; color: #0f172a; letter-spacing: -.6px; line-height: 1; }
+  .proof-n { display: block; font-size: 28pt; font-weight: 800; color: #0f172a; letter-spacing: -.6px; line-height: 1; }
   .proof-l { display: block; font-size: 7.8pt; color: #64748b; margin-top: 2mm; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
   .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
   .proof-dark .proof-n { color: #fff; }
@@ -497,7 +571,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     content: ""; position: absolute; left: 0; top: 1.6mm;
     width: 2.4mm; height: 2.4mm; background: #2563eb; border-radius: .5mm;
   }
-  .disc b { display: block; color: #0f172a; margin-bottom: .8mm; font-size: 9.8pt; font-weight: 700; }
+  .disc b { display: block; color: #0f172a; margin-bottom: .8mm; font-size: 11pt; font-weight: 700; }
 
   .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
   .phase { border: 1px solid #e2e8f0; border-top: 3.5px solid #2563eb; padding: 4mm 4.5mm; border-radius: 1.5mm; background: #fff; break-inside: avoid; }
@@ -541,7 +615,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      panels on one page, none of them leading. The accent is a short rule under
      the words; the separation is air. */
   h2 {
-    font-size: 15pt; color: #0f172a; margin: 0 0 4.5mm; letter-spacing: -.45px;
+    font-size: 17.5pt; color: #0f172a; margin: 0 0 5mm; letter-spacing: -.45px;
     font-weight: 800; line-height: 1.15; position: relative; padding-bottom: 3mm;
   }
   h2::after {
@@ -549,9 +623,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     width: 18mm; height: 2.5px; background: #991b1b; border-radius: 2px;
   }
   p { margin: 0 0 3mm; }
-  .muted { color: #64748b; font-size: 9pt; }
+  .muted { color: #64748b; font-size: 10.2pt; }
 
-  section { margin-bottom: 7.5mm; break-inside: avoid-page; }
+  section { margin-bottom: 7mm; break-inside: avoid-page; }
   .rule { display: none; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
@@ -571,12 +645,35 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .why div { border-top: 1px solid #e2e8f0; padding-top: 3mm; break-inside: avoid; }
   .why b {
     display: block; margin-bottom: 1.4mm; color: #0f172a; font-weight: 700;
-    font-size: 10.4pt; letter-spacing: -.15px;
+    font-size: 11.6pt; letter-spacing: -.15px;
   }
 
-  table { width: 100%; border-collapse: collapse; font-size: 9.3pt; margin-bottom: 2mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.4pt; margin-bottom: 2mm; }
   th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
-  td { padding: 2.3mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  td { padding: 1.9mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
+  /* Options as cards. Modern, and the only way three fee options fit across A4
+     once the body type is large enough to read without leaning in. */
+  .offers { display: flex; flex-direction: column; gap: 3.5mm; }
+  .offer {
+    border: 1px solid #e2e8f0; border-left: 4px solid #cbd5e1;
+    border-radius: 2mm; padding: 4mm 5mm; break-inside: avoid; background: #fff;
+  }
+  .offer-picked { border-left-color: #991b1b; background: #fdf6f6; }
+  .offer-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 5mm; margin-bottom: 1.5mm;
+  }
+  .offer-code {
+    font-size: 8.6pt; font-weight: 800; text-transform: uppercase; letter-spacing: .09em;
+    color: #991b1b; margin-right: 2mm;
+  }
+  .offer-name { font-size: 12.5pt; font-weight: 700; color: #0f172a; letter-spacing: -.25px; }
+  .offer-price {
+    font-size: 12pt; font-weight: 800; color: #991b1b; white-space: nowrap; text-align: right;
+  }
+  .offer-meta { font-size: 9.4pt; color: #64748b; font-weight: 600; margin-bottom: 2mm; }
+  .offer-best { font-size: 10.2pt; color: #334155; margin: 0; line-height: 1.45; }
+
   .opt { white-space: nowrap; }
   tr.picked td { background: #fff5f5; }
   tr.picked .opt strong { color: #991b1b; }
@@ -585,9 +682,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     font-size: 7pt; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
     padding: .6mm 1.8mm; border-radius: 1mm; vertical-align: middle;
   }
-  .opt-name { font-size: 8.8pt; color: #64748b; font-weight: 500; }
+  .opt-name { font-size: 9.4pt; color: #64748b; font-weight: 500; }
   .num { white-space: nowrap; color: #991b1b; font-weight: 700; }
-  .best { color: #334155; font-size: 8.6pt; }
+  .best { color: #334155; font-size: 9.2pt; line-height: 1.35; }
 
   .agreed { background: #fff5f5; border: 1px solid #fecaca; padding: 4.5mm 5.5mm; border-radius: 2mm; margin-bottom: 6mm; }
   .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
@@ -622,7 +719,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <div class="page cover">
   <div class="cover-top">
     <div class="brand-row">
-      <img class="brand-mark" src="${esc(assetUrl(brandAssets.logoMono))}" alt="">
+      <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="">
       <div>
         <div class="brand">${esc(brandContact.displayName)}</div>
         <div class="brand-tag">${esc(brandContact.tagline)}</div>
@@ -681,12 +778,35 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       : ''
   }
 
+</div>
+
+<!-- What is taught, and how it lands in the school. Its own sheet: these are
+     the two questions a head teacher asks after "why", and cramming them under
+     the pitch is what pushed that page past the sheet. -->
+<div class="page">
+  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
   <section>
     <div class="rule"></div>
     <h2>What we teach</h2>
     <div class="disc">
       ${DISCIPLINES.map(
         (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,
+      ).join('')}
+    </div>
+  </section>
+
+  <section>
+    <div class="rule"></div>
+    <h2>How a rollout actually goes</h2>
+    <p class="muted">The first objection is never price, it is disruption. This is the whole of it.</p>
+    <div class="phases">
+      ${ROLLOUT_PHASES.map(
+        (p) => `<div class="phase">
+        <div class="phase-when">${esc(p.when)}</div>
+        <div class="phase-name">${esc(p.phase)}</div>
+        <div class="phase-body">${esc(p.body)}</div>
+      </div>`,
       ).join('')}
     </div>
   </section>
@@ -701,17 +821,15 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   <section>
     <div class="rule"></div>
     <h2>${input.agreedTerms ? 'Standard options for reference' : 'Choose the shape that fits your school'}</h2>
-    <table>
-      <thead>
-        <tr><th>Option</th><th>Who it covers</th><th>Fee</th><th>Best for</th></tr>
-      </thead>
-      <tbody>
-        ${offers
-          .map((o) => offerRow(o, !!input.scopeToOffer && o.scope === input.scopeToOffer))
-          .join('')}
-      </tbody>
-    </table>
-    <p class="muted" style="margin-top:3mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${
+    <p class="muted">What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.</p>
+    ${offersChart()}
+
+    <div class="offers">
+      ${offers
+        .map((o) => offerCard(o, !!input.scopeToOffer && o.scope === input.scopeToOffer))
+        .join('')}
+    </div>
+    <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${
       input.validUntilLabel
         ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
         : ''
@@ -775,21 +893,6 @@ ${
      must never depend on a section that might not render. -->
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
-
-  <section>
-    <div class="rule"></div>
-    <h2>How a rollout actually goes</h2>
-    <p class="muted">The first objection is never price, it is disruption. This is the whole of it.</p>
-    <div class="phases">
-      ${ROLLOUT_PHASES.map(
-        (p) => `<div class="phase">
-        <div class="phase-when">${esc(p.when)}</div>
-        <div class="phase-name">${esc(p.phase)}</div>
-        <div class="phase-body">${esc(p.body)}</div>
-      </div>`,
-      ).join('')}
-    </div>
-  </section>
 
   <section>
     <div class="rule"></div>
