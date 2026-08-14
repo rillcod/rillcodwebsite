@@ -90,9 +90,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           <tr><td>Gross programme revenue per term</td><td class="num">${esc(money(example.subtotal, terms.currency))}</td></tr>
           ${
             shareOn
-              ? `<tr><td>Rillcod Academy operations (${esc(terms.rillcod_share_percent)}%)</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>
+              ? `<tr><td>${esc(brandContact.legalName)} operations (${esc(terms.rillcod_share_percent)}%)</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>
                  <tr><td>${esc(school.name)} share (${esc(terms.school_share_percent)}%)</td><td class="num strong">${esc(money(example.schoolSettlement, terms.currency))}</td></tr>`
-              : `<tr><td>Payable to Rillcod Academy</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>`
+              : `<tr><td>Payable to ${esc(brandContact.legalName)}</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>`
           }
           ${
             example.deposit > 0
@@ -109,7 +109,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Memorandum of Understanding — ${esc(brandContact.displayName ?? 'Rillcod Academy')} &amp; ${esc(school.name)}</title>
+<title>Memorandum of Understanding — ${esc(brandContact.legalName)} &amp; ${esc(school.name)}</title>
 <style>
   @page { size: A4; margin: 15mm 14mm; }
   * { box-sizing: border-box; }
@@ -177,7 +177,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 <div class="page">
   <div class="head">
     <div class="head-l">
-      <div class="brand">${esc(brandContact.displayName ?? 'Rillcod Academy')}</div>
+      <div class="brand">${esc(brandContact.displayName)}</div>
       <div class="tag">${esc(brandContact.tagline)}</div>
     </div>
     <div class="head-r"><b>${esc(input.reference)}</b>${esc(input.dateLabel)}</div>
@@ -193,7 +193,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <div class="parties">
       <div class="party">
         <div class="role">Party A</div>
-        <div class="nm">${esc(brandContact.displayName ?? 'Rillcod Academy')}</div>
+        <div class="nm">${esc(brandContact.legalName)}</div>
         <div class="meta">${esc(brandContact.address)}<br>${esc(brandContact.phone)} · ${esc(brandContact.email)}</div>
       </div>
       <div class="party">
@@ -214,7 +214,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <h2>3.0 Commitments of the Parties</h2>
     <div class="duties">
       <div>
-        <h3>Rillcod Academy provides</h3>
+        <h3>${esc(brandContact.legalName)} provides</h3>
         <ol>
           <li>Trained facilitators to deliver every scheduled session on the school's premises.</li>
           <li>The full curriculum, lesson materials and termly assessments.</li>
@@ -247,7 +247,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     ${worked}
     <p>Invoices are issued each term against enrolment. ${
       shareOn
-        ? `Fees are collected by ${esc(school.name)} and settled with Rillcod Academy on the split stated above.`
+        ? `Fees are collected by ${esc(school.name)} and settled with ${esc(brandContact.legalName)} on the split stated above.`
         : 'Payment falls due within the period stated on each invoice.'
     } Any change to these terms takes effect only when both parties record a superseding agreement in writing.</p>
   </section>
@@ -257,7 +257,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   <div class="head">
     <div class="head-l">
       <div class="brand">Memorandum of Understanding</div>
-      <div class="tag">${esc(brandContact.displayName ?? 'Rillcod Academy')} &amp; ${esc(school.name)}</div>
+      <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
     </div>
     <div class="head-r"><b>${esc(input.reference)}</b>Page 2</div>
   </div>
@@ -293,7 +293,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       <li>This Memorandum takes effect from ${esc(input.commencement || 'the commencement of the next academic term')} and continues for ${esc(input.durationLabel || 'one academic session')}, after which it is reviewed by both parties.</li>
       <li>Either party may end this Memorandum by giving one full term's written notice, so that no cohort is interrupted mid-term.</li>
       <li>Fees already invoiced for a term in progress remain payable.</li>
-      <li>Equipment supplied by Rillcod Academy remains the property of Rillcod Academy and is returned on termination.</li>
+      <li>Equipment supplied by ${esc(brandContact.legalName)} remains the property of ${esc(brandContact.legalName)} and is returned on termination.</li>
       <li>Student records and work produced remain accessible to the students and to the school.</li>
     </ol>
   </section>
@@ -313,7 +313,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     <div class="sign">
       <div class="sign-box">
-        <div class="who">For Rillcod Academy (Party A)</div>
+        <div class="who">For ${esc(brandContact.legalName)} (Party A)</div>
         <div class="line">
           <div class="nm">Name &amp; signature</div>
           <div class="muted">Date</div>

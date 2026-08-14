@@ -196,7 +196,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <!-- Cover -->
 <div class="page cover">
   <div class="cover-top">
-    <div class="brand">${esc(brandContact.displayName ?? 'Rillcod Academy')}</div>
+    <div class="brand">${esc(brandContact.displayName)}</div>
     <div class="brand-tag">${esc(brandContact.tagline)}</div>
   </div>
 
@@ -255,7 +255,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <div class="rule"></div>
     <h2>What each side brings</h2>
     <table>
-      <thead><tr><th>Rillcod Academy provides</th><th>${esc(input.school.name)} provides</th></tr></thead>
+      <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>${esc(input.school.name)} provides</th></tr></thead>
       <tbody>
         <tr>
           <td>Trained facilitators for every session · full curriculum and lesson materials · robotics kits and devices · the learning platform, logins and reporting · termly progress reports for parents</td>
@@ -296,7 +296,7 @@ ${
     <h2>Next step</h2>
     <p>${esc(narrative.closing)}</p>
     <div class="sign">
-      <div class="sign-box"><b>For Rillcod Academy</b>Name, signature and date</div>
+      <div class="sign-box"><b>For ${esc(brandContact.legalName)}</b>Name, signature and date</div>
       <div class="sign-box"><b>For ${esc(input.school.name)}</b>Name, signature and date</div>
     </div>
   </section>

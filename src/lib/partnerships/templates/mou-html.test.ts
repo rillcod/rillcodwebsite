@@ -75,7 +75,7 @@ describe('the Memorandum of Understanding', () => {
     const flat = { ...terms, rillcod_share_percent: null, school_share_percent: null };
     const html = buildPartnershipMouHTML({ ...base, terms: flat, illustrativeStudents: 10 });
 
-    expect(html).toContain('Payable to Rillcod Academy');
+    expect(html).toContain('Payable to RILLCOD TECHNOLOGIES');
     expect(html).toContain('₦300,000');
     // A flat rate is not a 0% share of anything.
     expect(html).not.toContain('share (0%)');
@@ -132,6 +132,15 @@ describe('the Memorandum of Understanding', () => {
 
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img');
+  });
+
+  it('names one legal entity throughout, not a trading name as well', () => {
+    const html = buildPartnershipMouHTML(base);
+
+    // The Python generator named RILLCOD ACADEMY and RILLCOD TECHNOLOGIES in the
+    // same contract. Only the legal entity can be party to an agreement.
+    expect(html).toContain('RILLCOD TECHNOLOGIES');
+    expect(html).not.toContain('Rillcod Academy');
   });
 
   it('is a complete printable document', () => {
