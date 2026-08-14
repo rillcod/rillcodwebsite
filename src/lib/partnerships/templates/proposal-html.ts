@@ -594,7 +594,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   .years { display: grid; grid-template-columns: 1fr 1fr; gap: 3.8mm; }
   .year { border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden; break-inside: avoid; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
-  .year-head { display: flex; justify-content: space-between; align-items: center; gap: 2.5mm; background: #0f172a; color: #fff; padding: 2.5mm 3.5mm; }
+  /* Reserve two lines of title in every header, so a long theme like "Scratch
+     Expertise + Machine Learning" does not sit taller than its neighbour and
+     leave the grid looking ragged. Short titles centre in the same height. */
+  .year-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 2.5mm;
+    background: #0f172a; color: #fff; padding: 2.5mm 3.5mm; min-height: 13.4mm;
+  }
   .year-title { font-size: 9.2pt; font-weight: 700; line-height: 1.25; }
   .year-grade { font-size: 7.8pt; background: #991b1b; padding: .8mm 2.2mm; border-radius: 1mm; font-weight: 700; white-space: nowrap; }
   .terms { padding: 2.8mm 3.5mm; display: flex; flex-direction: column; gap: 2mm; }
