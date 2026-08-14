@@ -113,10 +113,34 @@ export function schoolUpside(input: {
   feePerStudent: number;
   sharePercent: number;
   cycle?: string;
+  /**
+   * A single agreed price for the whole school. When set, uptake scenarios are
+   * not shown: a fixed package does not change with how many students enrol, so
+   * three rows of "what if fewer join" would be three copies of one number.
+   */
+  fixedPackage?: number | null;
 }): SchoolUpside | null {
   const roll = Math.floor(Number(input.roll) || 0);
   const fee = Number(input.feePerStudent) || 0;
   const share = Number(input.sharePercent) || 0;
+  const pkg = Number(input.fixedPackage) || 0;
+
+  if (pkg > 0 && share > 0) {
+    return {
+      rows: [
+        {
+          label: 'Agreed package',
+          students: roll,
+          gross: pkg,
+          schoolShare: Math.round((pkg * share) / 100),
+        },
+      ],
+      feePerStudent: roll > 0 ? +(pkg / roll).toFixed(2) : 0,
+      sharePercent: share,
+      cycle: input.cycle || 'term',
+    };
+  }
+
   if (roll <= 0 || fee <= 0 || share <= 0) return null;
 
   const scenarios: Array<{ label: string; rate: number }> = [

@@ -12,6 +12,7 @@ import {
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { ScaledIframePreview } from './ScaledIframePreview';
 import { DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
+import type { ResolvedRateForBuilder } from '@/lib/billing/docs-data';
 import { academicYearOptions, periodStartYear } from '@/lib/reports/academic-period';
 import {
   defaultBuilderAcademicYear,
@@ -173,6 +174,7 @@ export function SchoolInvoiceBuilderPanel({
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoiceSummary | null>(null);
+  const [billingRate, setBillingRate] = useState<ResolvedRateForBuilder | null>(null);
   const [copyingLastTerm, setCopyingLastTerm] = useState(false);
   const [bootstrapError, setBootstrapError] = useState('');
   const [bootstrapRevision, setBootstrapRevision] = useState(0);
@@ -285,24 +287,32 @@ export function SchoolInvoiceBuilderPanel({
         const linked = (j.data?.linkedInvoice ?? null) as LinkedInvoiceSummary | null;
         setLinkedInvoice(linked);
         const pricing = (j.data?.pricing ?? null) as DerivedSchoolPricing | null;
-        const sch = schools.find((s) => s.id === form.school_id);
+        /**
+         * Rillcod's share, resolved server-side by `resolveBillingRate`.
+         *
+         * This replaces `rillcod_quota_percent ?? commission_rate ?? DEFAULT`.
+         * Every school row holds `rillcod_quota_percent = 0`, and `??` treats 0
+         * as a value rather than a gap, so that chain prefilled Rillcod's share
+         * as 0% — handing the school the entire invoice.
+         */
+        const resolved = (j.data?.billingRate ?? null) as ResolvedRateForBuilder | null;
+        setBillingRate(resolved);
 
         setForm((f) => {
           if (editingInvoiceId) {
             // Editing: only fill empty commission / bank
             let next = f;
-            if (!next.rillcod_quota_percent) {
-              const quotaVal = sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE;
-              next = { ...next, rillcod_quota_percent: String(quotaVal) };
+            if (!next.rillcod_quota_percent && resolved) {
+              next = { ...next, rillcod_quota_percent: String(resolved.rate) };
             }
             return next;
           }
           let next = f;
           if (!next.rillcod_quota_percent) {
-            const quotaVal =
-              pricing?.commission_rate ||
-              String(sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE);
-            next = { ...next, rillcod_quota_percent: String(quotaVal) };
+            // A rate already invoiced for this term wins — re-issuing must not
+            // silently change what the school was billed at.
+            const quotaVal = pricing?.commission_rate || (resolved ? String(resolved.rate) : '');
+            if (quotaVal) next = { ...next, rillcod_quota_percent: String(quotaVal) };
           }
           // Prefill pricing from this term's invoice (create mode) so Edit or re-issue is one step
           if (pricing && (!next.rate_per_child && !next.fixed_package_price && next.tiers.every((t) => !t.rate))) {
@@ -562,7 +572,11 @@ export function SchoolInvoiceBuilderPanel({
         metadata: buildSchoolTermMetadata(form.academic_year, form.term_number, {
           ...(initialAcademicTermId ? { academic_term_id: initialAcademicTermId } : {}),
           payment_method: form.payment_method,
-          commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
+          // What was typed, else what the school's terms resolve to. The 15%
+          // constant is the last resort it always was, not the second opinion
+          // it used to be.
+          commission_rate:
+            parseFloat(form.rillcod_quota_percent) || billingRate?.rate || DEFAULT_COMMISSION_RATE,
           student_count: computed.count,
           ...(form.pay_to_account_id ? { pay_to_account_id: form.pay_to_account_id } : {}),
         }),
@@ -953,18 +967,34 @@ export function SchoolInvoiceBuilderPanel({
             )}
 
             <div>
-              <Lbl>Rillcod Commission % (default: {DEFAULT_COMMISSION_RATE}%)</Lbl>
+              <Lbl>Rillcod Commission %</Lbl>
               <input
                 type="number"
                 min={0}
                 max={100}
-                placeholder={`default ${DEFAULT_COMMISSION_RATE}`}
+                placeholder={
+                  billingRate ? String(billingRate.rate) : `default ${DEFAULT_COMMISSION_RATE}`
+                }
                 value={form.rillcod_quota_percent}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, rillcod_quota_percent: e.target.value }))
                 }
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               />
+              {/* Where the number came from. A provisional rate is one nobody
+                  agreed, and the person issuing the invoice should know that
+                  before they send it. */}
+              {billingRate && (
+                <p
+                  className={`text-[10px] mt-1 leading-snug ${
+                    billingRate.provisional
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {billingRate.note}
+                </p>
+              )}
             </div>
 
             <div>

@@ -28,6 +28,7 @@ import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
 import { findOffer, PARTNERSHIP_OFFERS } from './offers';
 import {
   MissingPartnershipTermsError,
+  effectivePerStudentFee,
   getAgreedTerms,
   normaliseTerms,
   type PartnershipTerms,
@@ -168,13 +169,17 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       PARTNERSHIP_OFFERS.find((o) => o.scope === input.scopeToOffer) ??
       findOffer(input.scopeToOffer) ??
       PARTNERSHIP_OFFERS[0];
-    const feePerStudent =
-      agreedTerms?.billing_model === 'per_student' && agreedTerms.amount_per_student
-        ? agreedTerms.amount_per_student
-        : (scopedOffer?.priceFrom ?? 0);
+    // All three models resolve through one helper, so a banded school is quoted
+    // the weighted average of its own bands rather than the standard menu price.
+    const agreedFee = agreedTerms ? effectivePerStudentFee(agreedTerms) : null;
     const upside = schoolUpside({
       roll: Number(school.student_count) || 0,
-      feePerStudent,
+      feePerStudent: agreedFee ?? scopedOffer?.priceFrom ?? 0,
+      // A package is one price for the school; uptake does not move it.
+      fixedPackage:
+        agreedTerms?.billing_model === 'fixed_package'
+          ? agreedTerms.fixed_package_price
+          : null,
       // The standard deal is 70/30. Where terms exist, their split wins.
       sharePercent: agreedTerms?.school_share_percent ?? 30,
       cycle: agreedTerms?.billing_cycle ?? 'term',

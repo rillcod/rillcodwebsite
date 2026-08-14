@@ -63,9 +63,19 @@ const MODELS: Array<{ value: BillingModel; name: string; blurb: string }> = [
   },
   {
     value: "tiered",
-    name: "Banded",
-    blurb: "Different rates for different population bands, priced per band.",
+    name: "By section",
+    blurb: "Primary at one rate, secondary at another. One split across both.",
   },
+];
+
+/**
+ * What a banded deal almost always is here: primary priced one way, secondary
+ * another, with the same share on each. Starting from one blank row made the
+ * commonest shape the most typing.
+ */
+const DEFAULT_BANDS: TierDraft[] = [
+  { label: "Primary", count: "", rate: "" },
+  { label: "Secondary", count: "", rate: "" },
 ];
 
 function emptyDraft(): Draft {
@@ -165,7 +175,7 @@ export function PartnershipTermsEditor({
     }
     if (draft.billing_model === "tiered") {
       const usable = draft.tiers.filter((t) => num(t.count) > 0 && num(t.rate) > 0);
-      if (!usable.length) return "Banded pricing needs at least one band with a count and a rate.";
+      if (!usable.length) return "Each section needs a headcount and a rate — at least one of them.";
     }
     if (draft.revenueShare) {
       if (!Number.isFinite(rillcodShare) || rillcodShare <= 0) return "Enter Rillcod's share.";
@@ -331,7 +341,18 @@ export function PartnershipTermsEditor({
                 <button
                   key={m.value}
                   type="button"
-                  onClick={() => set("billing_model", m.value)}
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      billing_model: m.value,
+                      // Picking "by section" lays out the two sections rather
+                      // than one blank row to name yourself.
+                      tiers:
+                        m.value === "tiered" && d.tiers.every((t) => !t.label && !t.rate)
+                          ? DEFAULT_BANDS
+                          : d.tiers,
+                    }))
+                  }
                   className={`text-left p-3 rounded-xl border transition-colors ${
                     draft.billing_model === m.value
                       ? "border-primary bg-primary/10"

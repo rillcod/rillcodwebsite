@@ -250,5 +250,57 @@ export async function loadSchoolInvoiceContext(
     studentCount,
     linkedInvoice,
     pricing: deriveSchoolPricingFromInvoice(linkedInvoice),
+    billingRate: await loadResolvedBillingRate(schoolId),
   };
+}
+
+export type ResolvedRateForBuilder = {
+  rate: number;
+  source: 'agreed_terms' | 'legacy_school_rate' | 'legacy_default';
+  provisional: boolean;
+  /** One sentence naming where the number came from, for the builder to show. */
+  note: string;
+};
+
+/**
+ * Rillcod's share for this school, resolved the one way every billing surface
+ * resolves it.
+ *
+ * The invoice builder used to prefill from
+ * `rillcod_quota_percent ?? commission_rate ?? DEFAULT`. Every school row holds
+ * `rillcod_quota_percent = 0`, and `??` treats 0 as a value rather than a gap —
+ * so the builder prefilled Rillcod's share as 0% and handed the school the whole
+ * invoice. Reading through `resolveBillingRate` removes the guess: agreed terms
+ * win, a flat rate is correctly 100 rather than 0, and a legacy fallback is
+ * labelled as provisional instead of passing for a decision.
+ */
+async function loadResolvedBillingRate(schoolId: string): Promise<ResolvedRateForBuilder | null> {
+  try {
+    const db = billingDocsDb();
+    const { data: school } = await db
+      .from('schools')
+      .select('id, name, commission_rate')
+      .eq('id', schoolId)
+      .maybeSingle();
+    if (!school) return null;
+
+    const { resolveBillingRate } = await import('@/lib/partnerships/billing-rate');
+    const resolved = await resolveBillingRate(db as any, school as any);
+
+    const note =
+      resolved.source === 'agreed_terms'
+        ? resolved.terms?.rillcod_share_percent == null
+          ? 'From agreed terms: a flat rate, so the whole amount is Rillcod’s.'
+          : 'From the agreed partnership terms for this school.'
+        : resolved.source === 'legacy_school_rate'
+          ? 'Provisional — this school has no agreed terms, so its legacy rate is being used.'
+          : 'Provisional — no agreed terms and no school rate, so the old default is being used.';
+
+    return { rate: resolved.rate, source: resolved.source, provisional: resolved.provisional, note };
+  } catch (err) {
+    // A prefill is a convenience. If the rate cannot be resolved the builder
+    // still opens, with the field empty for a person to fill in deliberately.
+    console.warn('[billing-docs] could not resolve the billing rate:', err);
+    return null;
+  }
 }
