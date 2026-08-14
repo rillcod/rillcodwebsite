@@ -21,6 +21,7 @@
 import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyReceiptStream, classifyInvoiceStream, splitSchoolAmount, DEFAULT_COMMISSION_RATE } from './streams';
+import { resolveBillingRate } from '@/lib/partnerships/billing-rate';
 import { buildIndividualReceiptDocDef } from './templates/receipt-individual';
 import { buildSchoolReceiptDocDef } from './templates/receipt-school';
 import type { ReceiptTemplateInput } from './templates/types';
@@ -121,12 +122,23 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
       .eq('id', invoice.billing_cycle_id)
       .single();
 
-    const commissionRate = Number(school?.commission_rate ?? DEFAULT_COMMISSION_RATE);
+    // Agreed partnership terms decide the split wherever they exist. Where they
+    // do not, the legacy column is still honoured — but provisionally, and the
+    // receipt records which it was, so a figure nobody agreed to is never
+    // indistinguishable from one that was signed.
+    const resolved = await resolveBillingRate(supabase as any, {
+      id: String(txn.school_id),
+      name: school?.name,
+      commission_rate: school?.commission_rate as number | null | undefined,
+    });
+    const commissionRate = resolved.rate;
     const split = splitSchoolAmount(amount, commissionRate);
 
     extraMeta = {
       ...extraMeta,
       commissionRate,
+      commissionSource: resolved.source,
+      commissionProvisional: resolved.provisional,
       rillcodRetain: cycle?.rillcod_retain_amount != null ? Number(cycle.rillcod_retain_amount) : split.rillcodRetain,
       schoolSettlement: cycle?.school_settlement_amount != null ? Number(cycle.school_settlement_amount) : split.schoolSettlement,
       studentCount: Array.isArray(cycle?.items) ? cycle.items.length : undefined,

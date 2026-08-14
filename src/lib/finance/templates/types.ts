@@ -39,6 +39,14 @@ export interface ReceiptTemplateInput {
     courseTitle?: string;
     studentCount?: number;   // schools only
     commissionRate?: number; // schools only — %
+    /**
+     * Where that rate came from. 'agreed_terms' is a signed partnership rate;
+     * the legacy values mean the school has no terms recorded yet and is being
+     * billed provisionally during the grace period.
+     */
+    commissionSource?: 'agreed_terms' | 'legacy_school_rate' | 'legacy_default';
+    /** True while the rate above is a legacy value nobody has agreed to. */
+    commissionProvisional?: boolean;
     rillcodRetain?: number;  // schools only — money
     schoolSettlement?: number; // schools only — money
     settlementReference?: string; // schools only
