@@ -40,7 +40,11 @@ export type ProposalInput = {
   /** Reference shown on the cover, e.g. RC-PROP-0007. */
   reference: string;
   dateLabel: string;
-  preparedBy?: string | null;
+  /**
+   * Deliberately absent. The masthead and the footer both name the company, so
+   * a third "Prepared by Rillcod Technologies" only orphaned a fifth item onto
+   * its own row and broke the meta line.
+   */
   /**
    * The persuasive copy. Defaults to the authored house pitch, so a caller that
    * knows nothing about narratives still renders a complete proposal.
@@ -460,20 +464,40 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .proof-dark .proof-l { color: #cbd5e1; }
 
   /* Journey Pathway */
-  .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3.5mm; }
-  .leg { background: #f8fafc; padding: 4mm 4.5mm; border-left: 3px solid #991b1b; border-radius: 0 1.5mm 1.5mm 0; }
-  .leg-grade { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; font-weight: 700; }
-  .leg-what { font-size: 9pt; color: #334155; margin-top: 1.5mm; line-height: 1.38; font-weight: 500; }
+  /* The ladder, drawn as one. Four boxes side by side say "four things"; a line
+     with four stops on it says "this goes somewhere", which is the whole claim. */
+  .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; margin-top: 2mm; }
+  .journey::before {
+    content: ""; position: absolute; left: 6%; right: 6%; top: 2.4mm;
+    height: 1.5px; background: #e2e8f0;
+  }
+  .leg { position: relative; padding: 0 3mm; text-align: center; }
+  .leg::before {
+    content: ""; position: absolute; left: 50%; top: 0;
+    width: 5mm; height: 5mm; margin-left: -2.5mm;
+    background: #991b1b; border: 2.5px solid #fff; border-radius: 50%;
+  }
+  .leg-grade {
+    display: block; margin-top: 7mm; font-size: 8.4pt; text-transform: uppercase;
+    letter-spacing: .09em; color: #991b1b; font-weight: 800;
+  }
+  .leg-what { font-size: 8.8pt; color: #334155; margin-top: 1.5mm; line-height: 1.4; font-weight: 500; }
 
   .quote {
-    border-left: 3.5px solid #991b1b; padding: 1.5mm 0 1.5mm 5mm; margin: 6mm 0;
+    border-left: 3.5px solid #991b1b; padding: 1.2mm 0 1.2mm 5mm; margin: 4mm 0;
     font-size: 12pt; line-height: 1.4; color: #0f172a; font-weight: 600; font-family: "Plus Jakarta Sans", sans-serif;
   }
 
   /* Disciplines & Rollout */
-  .disc { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
-  .disc div { background: #f8fafc; padding: 3.5mm 4.5mm; border-left: 3px solid #2563eb; border-radius: 0 1.5mm 1.5mm 0; break-inside: avoid; }
-  .disc b { display: block; color: #0f172a; margin-bottom: 1mm; font-size: 9.6pt; font-weight: 700; }
+  /* The disciplines read as a list of what is taught, marked by a small square
+     rather than wrapped in a panel each. */
+  .disc { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm 9mm; }
+  .disc div { break-inside: avoid; padding-left: 5mm; position: relative; }
+  .disc div::before {
+    content: ""; position: absolute; left: 0; top: 1.6mm;
+    width: 2.4mm; height: 2.4mm; background: #2563eb; border-radius: .5mm;
+  }
+  .disc b { display: block; color: #0f172a; margin-bottom: .8mm; font-size: 9.8pt; font-weight: 700; }
 
   .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
   .phase { border: 1px solid #e2e8f0; border-top: 3.5px solid #2563eb; padding: 4mm 4.5mm; border-radius: 1.5mm; background: #fff; break-inside: avoid; }
@@ -483,7 +507,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   .ticks { margin: 0; padding: 0; list-style: none; }
   .ticks li {
-    position: relative; padding-left: 6.5mm; margin-bottom: 2.2mm; font-size: 9.5pt; color: #334155;
+    position: relative; padding-left: 6.5mm; margin-bottom: 1.6mm; font-size: 9.5pt; color: #334155;
   }
   .ticks li:before {
     content: ""; position: absolute; left: 0; top: 1.6mm;
@@ -492,7 +516,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   .contact {
     display: flex; gap: 6mm; align-items: flex-start;
-    background: #0f172a; color: #fff; padding: 5mm 6mm; margin: 6mm 0 0; font-size: 9.2pt; line-height: 1.5; border-radius: 2mm;
+    background: #0f172a; color: #fff; padding: 4mm 5.5mm; margin: 5mm 0 0; font-size: 9.2pt; line-height: 1.5; border-radius: 2mm;
   }
   .contact-l {
     font-size: 7.8pt; text-transform: uppercase; letter-spacing: .12em;
@@ -512,9 +536,17 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     border: 1px solid #e2e8f0; border-radius: 1.5mm; break-inside: avoid;
   }
 
+  /* A heading is type, not a container. Filling every heading and every item
+     with the same grey box turns a pitch into a form — seventeen identical
+     panels on one page, none of them leading. The accent is a short rule under
+     the words; the separation is air. */
   h2 {
-    font-size: 13pt; color: #0f172a; margin: 0 0 4mm; letter-spacing: -.2px; font-weight: 700;
-    background: #f8fafc; border-left: 4mm solid #991b1b; padding: 2.5mm 4.5mm; border-radius: 0 1.5mm 1.5mm 0;
+    font-size: 15pt; color: #0f172a; margin: 0 0 4.5mm; letter-spacing: -.45px;
+    font-weight: 800; line-height: 1.15; position: relative; padding-bottom: 3mm;
+  }
+  h2::after {
+    content: ""; position: absolute; left: 0; bottom: 0;
+    width: 18mm; height: 2.5px; background: #991b1b; border-radius: 2px;
   }
   p { margin: 0 0 3mm; }
   .muted { color: #64748b; font-size: 9pt; }
@@ -533,13 +565,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .sw { width: 3.2mm; height: 3.2mm; display: inline-block; border-radius: .8mm; }
   .sw-school { background: #2563eb; } .sw-rc { background: #dc2626; }
 
-  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
-  .why div { background: #f8fafc; border-left: 3px solid #991b1b; padding: 3.5mm 4.5mm; border-radius: 0 1.5mm 1.5mm 0; break-inside: avoid; }
-  .why b { display: block; margin-bottom: 1.2mm; color: #0f172a; font-weight: 700; }
+  /* Four reasons, set as columns of type with a hairline above each. No fill,
+     no border box — the rule and the space do the separating. */
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 9mm; }
+  .why div { border-top: 1px solid #e2e8f0; padding-top: 3mm; break-inside: avoid; }
+  .why b {
+    display: block; margin-bottom: 1.4mm; color: #0f172a; font-weight: 700;
+    font-size: 10.4pt; letter-spacing: -.15px;
+  }
 
   table { width: 100%; border-collapse: collapse; font-size: 9.3pt; margin-bottom: 2mm; }
-  th { text-align: left; background: #0f172a; color: #fff; padding: 2.8mm 3.5mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
-  td { padding: 3mm 3.5mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+  td { padding: 2.3mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .opt { white-space: nowrap; }
   tr.picked td { background: #fff5f5; }
   tr.picked .opt strong { color: #991b1b; }
@@ -550,7 +587,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .opt-name { font-size: 8.8pt; color: #64748b; font-weight: 500; }
   .num { white-space: nowrap; color: #991b1b; font-weight: 700; }
-  .best { color: #334155; font-size: 9pt; }
+  .best { color: #334155; font-size: 8.6pt; }
 
   .agreed { background: #fff5f5; border: 1px solid #fecaca; padding: 4.5mm 5.5mm; border-radius: 2mm; margin-bottom: 6mm; }
   .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
@@ -602,7 +639,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <div><b>${esc(input.reference)}</b>Reference</div>
       ${years ? `<div><b>${years} school year${years === 1 ? '' : 's'}</b>${esc(rangeLabel)}</div>` : ''}
       ${input.validUntilLabel ? `<div><b>${esc(input.validUntilLabel)}</b>Fees valid until</div>` : ''}
-      ${input.preparedBy ? `<div><b>${esc(input.preparedBy)}</b>Prepared by</div>` : ''}
     </div>
   </div>
 
@@ -676,12 +712,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     }</p>
   </section>
 
-  ${splitBlock()}
 </div>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
 <div class="page">
   <div class="pagehead"><span><b>Your return</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
+  ${splitBlock()}
 
   ${upsideBlock()}
 

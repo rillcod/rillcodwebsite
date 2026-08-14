@@ -15,7 +15,6 @@
  *   a database trigger; re-rendering would silently restate what somebody signed.
  *   Issue a fresh document instead, which is what supersede is for.
  */
-import { brandContact } from '@/config/brand';
 import {
   getPublishedProgression,
   type CurriculumProgression,
@@ -204,7 +203,6 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       photos: PARTNERSHIP_PHOTOS,
       // Read from the brand record, not typed again. "Rillcod Academy" is not a
       // company we have; the MoU already learned that lesson.
-      preparedBy: brandContact.displayName,
     });
   }
 
