@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cpu } from 'lucide-react';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { HeroSlideshow } from './HeroSlideshow';
 import {
   SCHOOL_REGISTRATION_PATH,
   STUDENT_REGISTRATION_PATH,
@@ -18,7 +19,11 @@ const stats = [
 ];
 
 const Hero: React.FC = () => {
-  const { cta } = useFeaturedSpecialProgram();
+  // `open` is false until the server confirms the programme is still running and
+  // still taking registrations. A closed intake leaves the hero showing the
+  // photographs and an evergreen route into the programmes, rather than an
+  // advertisement for something nobody can join.
+  const { cta, open: specialOpen } = useFeaturedSpecialProgram();
 
   return (
     <section
@@ -56,26 +61,36 @@ const Hero: React.FC = () => {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href={cta.href}
+                href={specialOpen ? cta.href : '/programs'}
                 prefetch={false}
                 className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border-2 border-brand-red-600/50 hover:border-brand-red-600 hover:bg-brand-red-600/10 transition-all shadow-lg"
               >
-                View special programme
+                {specialOpen ? 'View special programme' : 'Explore programmes'}
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-brand-red-600 dark:text-brand-red-500" />
               </Link>
             </div>
 
-            {/* Program details banner */}
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
-              <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.batchLabel}</span>
-              {' · '}
-              <span className="font-bold text-primary dark:text-foreground">In-person {cta.onsiteFeeLabel}</span>
-              {' · '}Online {cta.onlineFeeLabel}
-              {' · '}{cta.classDays}
-              {cta.deadlineLabel ? (
-                <> · Closes <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.deadlineLabel}</span></>
-              ) : null}
-            </p>
+            {/* Programme details — dates and fees of an intake that is still open.
+                Once it closes the line is stale by definition, so it goes. */}
+            {specialOpen ? (
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
+                <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.batchLabel}</span>
+                {' · '}
+                <span className="font-bold text-primary dark:text-foreground">In-person {cta.onsiteFeeLabel}</span>
+                {' · '}Online {cta.onlineFeeLabel}
+                {' · '}{cta.classDays}
+                {cta.deadlineLabel ? (
+                  <> · Closes <span className="font-bold text-brand-red-600 dark:text-brand-red-500">{cta.deadlineLabel}</span></>
+                ) : null}
+              </p>
+            ) : (
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-6 text-center lg:text-left max-w-xl">
+                Coding · Robotics · Artificial Intelligence
+                {' · '}
+                <span className="font-bold text-primary dark:text-foreground">Primary through secondary</span>
+                {' · '}Online and in partner schools
+              </p>
+            )}
 
             {/* Secondary intents — no competition with primary CTAs */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mb-12 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -109,36 +124,32 @@ const Hero: React.FC = () => {
 
               <div className="relative z-10 w-full h-full rounded-xl overflow-hidden border border-border shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 z-10" />
-                <Image
-                  src="/images/landing/hero.png"
-                  alt="Rillcod Excellence"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-                <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6">
-                  <Link
-                    href={cta.registerHref}
-                    prefetch={false}
-                    className="group/cta flex items-center justify-between w-full bg-background/95 backdrop-blur-sm border border-amber-500/40 hover:border-amber-500 px-5 py-4 hover:bg-amber-600 transition-all duration-300 shadow-2xl rounded-xl"
-                  >
-                    <div className="min-w-0 text-left">
-                      <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors truncate">
-                        ☀️ {cta.title}
-                      </p>
-                      <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">
-                        View programme details
-                      </p>
-                      <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
-                        {cta.batchLabel} · In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
-                        {cta.deadlineLabel ? ` · Closes ${cta.deadlineLabel}` : ''}
-                      </p>
-                    </div>
-                    <div className="w-9 h-9 bg-amber-500 group-hover/cta:bg-card flex items-center justify-center flex-shrink-0 transition-colors rounded-lg ml-3">
-                      <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-amber-600 group-hover/cta:translate-x-0.5 transition-all" />
-                    </div>
-                  </Link>
-                </div>
+                <HeroSlideshow dotsRaised={specialOpen} />
+                {specialOpen && (
+                  <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6">
+                    <Link
+                      href={cta.registerHref}
+                      prefetch={false}
+                      className="group/cta flex items-center justify-between w-full bg-background/95 backdrop-blur-sm border border-amber-500/40 hover:border-amber-500 px-5 py-4 hover:bg-amber-600 transition-all duration-300 shadow-2xl rounded-xl"
+                    >
+                      <div className="min-w-0 text-left">
+                        <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors truncate">
+                          ☀️ {cta.title}
+                        </p>
+                        <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">
+                          View programme details
+                        </p>
+                        <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
+                          {cta.batchLabel} · In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
+                          {cta.deadlineLabel ? ` · Closes ${cta.deadlineLabel}` : ''}
+                        </p>
+                      </div>
+                      <div className="w-9 h-9 bg-amber-500 group-hover/cta:bg-card flex items-center justify-center flex-shrink-0 transition-colors rounded-lg ml-3">
+                        <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-amber-600 group-hover/cta:translate-x-0.5 transition-all" />
+                      </div>
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-primary/5 blur-[80px] rounded-xl -z-10" />
