@@ -24,27 +24,31 @@ async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string
   const { toPng } = await import('html-to-image');
 
   const pngUrl = await toPng(page, {
-    pixelRatio,
+    pixelRatio: Math.max(pixelRatio, 3), // High-DPI 3x resolution for crystal clear text
     cacheBust: true,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     width: A4.w,
     height: A4.h,
+    style: {
+      transform: 'none',
+      margin: '0',
+    },
   });
 
-  // jsPDF's PNG path joins raw pixel bytes into one string and overflows the JS
-  // max string length on a document this size. The JPEG path avoids it, which is
-  // the same reason the report-card builder converts.
   return new Promise<string>((resolve) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const c = document.createElement('canvas');
       c.width = img.width;
       c.height = img.height;
       const ctx = c.getContext('2d')!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0);
-      resolve(c.toDataURL('image/jpeg', 0.92));
+      resolve(c.toDataURL('image/jpeg', 0.96)); // 0.96 high quality compression
     };
     img.src = pngUrl;
   });
@@ -59,6 +63,15 @@ async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string
 export async function buildDocumentPdf(doc: Document): Promise<import('jspdf').jsPDF> {
   const { default: jsPDF } = await import('jspdf');
 
+  // Wait for document fonts and all external assets to be fully ready
+  try {
+    if (doc.fonts && typeof doc.fonts.ready === 'object') {
+      await doc.fonts.ready;
+    }
+  } catch {
+    // Fallback if fonts.ready API is unsupported
+  }
+
   const pages = Array.from(doc.querySelectorAll<HTMLElement>('.page'));
   if (!pages.length) throw new Error('That document has no pages to render.');
 
@@ -69,12 +82,15 @@ export async function buildDocumentPdf(doc: Document): Promise<import('jspdf').j
     ),
   );
 
+  // Allow a micro-tick for layout stabilization after font load
+  await new Promise((r) => setTimeout(r, 100));
+
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [A4.w, A4.h] });
 
   for (let i = 0; i < pages.length; i++) {
-    const jpeg = await pageToJpeg(pages[i], 2);
+    const jpeg = await pageToJpeg(pages[i], 3);
     if (i > 0) pdf.addPage([A4.w, A4.h], 'portrait');
-    pdf.addImage(jpeg, 'JPEG', 0, 0, A4.w, A4.h);
+    pdf.addImage(jpeg, 'JPEG', 0, 0, A4.w, A4.h, undefined, 'FAST');
   }
 
   return pdf;

@@ -374,190 +374,203 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <head>
 <meta charset="utf-8">
 <title>Coding &amp; Robotics Partnership Proposal — ${esc(input.school.name)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4; margin: 14mm 13mm; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
+  
+  html { background: #0f172a; }
   body {
-    margin: 0; background: #fff; color: #17202e;
-    font: 10.2pt/1.45 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    margin: 0; padding: 24px 0; background: #0f172a; color: #1e293b;
+    font: 10pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
-  .page { page-break-after: always; }
-  .page:last-child { page-break-after: auto; }
+  
+  .page {
+    width: 210mm; min-height: 297mm; padding: 14mm 13mm;
+    background: #ffffff; color: #1e293b;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    border-radius: 2px; position: relative; box-sizing: border-box;
+    overflow: hidden;
+  }
 
-  /* Cover — this is the page that decides whether the rest gets read.
-     Colour comes from flat brand blocks rather than photographs or gradients
-     alone: a solid fill reproduces on any printer, and each block carries a
-     fallback colour underneath in case a gradient is dropped. */
+  @media print {
+    html, body { background: #ffffff !important; padding: 0 !important; gap: 0 !important; display: block !important; }
+    .page {
+      width: 210mm !important; height: 297mm !important; min-height: 297mm !important;
+      padding: 14mm 13mm !important; box-shadow: none !important; border-radius: 0 !important;
+      page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+  }
+
+  h1, h2, h3, .brand, .proof-n, .cover-for { font-family: "Plus Jakarta Sans", "Inter", sans-serif; }
+
+  /* Cover — Modern Executive Presentation */
   .cover { display: flex; flex-direction: column; min-height: 262mm; }
   .cover-top {
-    background: #0B132B;
-    background: linear-gradient(135deg, #0B132B 0%, #17255c 58%, #4a1114 100%);
-    color: #fff; margin: -14mm -13mm 0; padding: 12mm 13mm 9mm;
+    background: #060B1E;
+    background: linear-gradient(135deg, #060B1E 0%, #1E1B4B 55%, #4C0519 100%);
+    color: #fff; margin: -14mm -13mm 0; padding: 14mm 14mm 10mm;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
-  /* The accent rule. Three unequal segments in the brand's own colours reads as
-     designed; five equal ones read as a swatch card. */
-  .stripe { display: flex; height: 2.2mm; margin: 0 -13mm; }
-  .s1 { background: #7a0606; flex: 6; }
-  .s2 { background: #c62828; flex: 2.5; }
-  .s3 { background: #2563eb; flex: 1.5; }
+  .stripe { display: flex; height: 3mm; margin: 0 -13mm; }
+  .s1 { background: #991b1b; flex: 5; }
+  .s2 { background: #dc2626; flex: 3; }
+  .s3 { background: #2563eb; flex: 2; }
 
   .brand-row { display: flex; align-items: center; gap: 4mm; }
-  .brand-mark { width: 15mm; height: 15mm; object-fit: contain; flex: none; }
-  .brand { font-size: 20pt; font-weight: 700; letter-spacing: -.4px; color: #fff; }
-  .brand-tag { color: #f0c9c9; font-size: 9.5pt; letter-spacing: .06em; text-transform: uppercase; margin-top: 2mm; }
-  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8mm 0 6mm; }
+  .brand-mark { width: 16mm; height: 16mm; object-fit: contain; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+  .brand { font-size: 21pt; font-weight: 800; letter-spacing: -.5px; color: #fff; }
+  .brand-tag { color: #fca5a5; font-size: 9pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.5mm; font-weight: 600; }
+  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10mm 0 8mm; }
   .cover-kicker {
-    display: inline-block; align-self: flex-start; background: #7a0606; color: #fff;
-    font-size: 8.2pt; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
-    padding: 1.6mm 3.5mm; border-radius: 1mm;
+    display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
+    font-size: 8.5pt; letter-spacing: .15em; text-transform: uppercase; font-weight: 700;
+    padding: 1.8mm 4mm; border-radius: 1.5mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
   }
-  h1 { font-size: 31pt; line-height: 1.05; margin: 5mm 0 6mm; color: #0B132B; letter-spacing: -.7px; max-width: 155mm; }
+  h1 { font-size: 32pt; line-height: 1.08; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.8px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
-    background: #f4f6fb; border-left: 3.5mm solid #2563eb; padding: 4.5mm 5mm; margin-bottom: 2mm;
+    background: #f8fafc; border-left: 4mm solid #2563eb; padding: 5mm 6mm; margin-bottom: 3mm; border-radius: 0 2mm 2mm 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .cover-for { font-size: 14.5pt; font-weight: 700; color: #0B132B; }
-  .cover-loc { color: #566076; margin-top: 1mm; font-size: 9.4pt; }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 9mm; margin-top: 8mm; font-size: 9pt; color: #566076; }
-  .cover-meta b { display: block; color: #0B132B; font-size: 10pt; }
+  .cover-for { font-size: 15pt; font-weight: 700; color: #0f172a; }
+  .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
   .cover-foot {
-    border-top: 1px solid #d9dee7; padding-top: 5mm; font-size: 8.6pt; color: #566076;
+    border-top: 1px solid #e2e8f0; padding-top: 5mm; font-size: 8.8pt; color: #64748b; line-height: 1.5;
   }
 
-  /* Proof — the strongest thing on the page is how many already said yes */
-  .proof { display: flex; gap: 3mm; margin: 8mm 0 0; }
+  /* Proof Band */
+  .proof { display: flex; gap: 3.5mm; margin: 9mm 0 0; }
   .proof-tile {
-    flex: 1; background: #f6f7f9; padding: 4mm 4mm 3.5mm; text-align: center;
-    border-top: 3px solid #7a0606;
+    flex: 1; background: #f8fafc; padding: 4.5mm 4mm 4mm; text-align: center;
+    border-top: 3.5px solid #991b1b; border-radius: 1.5mm;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #c62828; }
-  .proof-n { display: block; font-size: 22pt; font-weight: 700; color: #0B132B; letter-spacing: -.6px; line-height: 1; }
-  .proof-l { display: block; font-size: 7.6pt; color: #566076; margin-top: 1.8mm; text-transform: uppercase; letter-spacing: .06em; }
-  /* On the dark band the tiles invert: white numerals on a translucent panel. */
-  .proof-dark .proof-tile { background: rgba(255,255,255,.10); }
+  .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
+  .proof-n { display: block; font-size: 23pt; font-weight: 800; color: #0f172a; letter-spacing: -.6px; line-height: 1; }
+  .proof-l { display: block; font-size: 7.8pt; color: #64748b; margin-top: 2mm; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
   .proof-dark .proof-n { color: #fff; }
-  .proof-dark .proof-l { color: #cdd6e8; }
+  .proof-dark .proof-l { color: #cbd5e1; }
 
-  /* The journey — what a child actually walks out with */
-  .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
-  .leg { background: #f6f7f9; padding: 3.5mm 4mm; border-left: 2px solid #7a0606; }
-  .leg-grade { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .07em; color: #7a0606; font-weight: 600; }
-  .leg-what { font-size: 8.9pt; color: #2c3547; margin-top: 1.5mm; line-height: 1.35; }
+  /* Journey Pathway */
+  .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3.5mm; }
+  .leg { background: #f8fafc; padding: 4mm 4.5mm; border-left: 3px solid #991b1b; border-radius: 0 1.5mm 1.5mm 0; }
+  .leg-grade { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; font-weight: 700; }
+  .leg-what { font-size: 9pt; color: #334155; margin-top: 1.5mm; line-height: 1.38; font-weight: 500; }
 
   .quote {
-    border-left: 3px solid #7a0606; padding: 1mm 0 1mm 5mm; margin: 6mm 0;
-    font-size: 12pt; line-height: 1.35; color: #0B132B; font-weight: 600;
+    border-left: 3.5px solid #991b1b; padding: 1.5mm 0 1.5mm 5mm; margin: 6mm 0;
+    font-size: 12pt; line-height: 1.4; color: #0f172a; font-weight: 600; font-family: "Plus Jakarta Sans", sans-serif;
   }
 
-  /* Disciplines — what a parent will ask "but what do they actually learn?" */
-  .disc { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
-  .disc div { background: #f6f7f9; padding: 3mm 4mm; border-left: 2px solid #2563eb; }
-  .disc b { display: block; color: #0B132B; margin-bottom: .8mm; font-size: 9.4pt; }
+  /* Disciplines & Rollout */
+  .disc { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .disc div { background: #f8fafc; padding: 3.5mm 4.5mm; border-left: 3px solid #2563eb; border-radius: 0 1.5mm 1.5mm 0; break-inside: avoid; }
+  .disc b { display: block; color: #0f172a; margin-bottom: 1mm; font-size: 9.6pt; font-weight: 700; }
 
-  /* Rollout — three phases, because "when does it disrupt us?" is the real question */
-  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
-  .phase { border: 1px solid #dde2ea; border-top: 3px solid #2563eb; padding: 3.5mm 4mm; }
-  .phase-when {
-    font-size: 7.4pt; text-transform: uppercase; letter-spacing: .07em;
-    color: #2563eb; font-weight: 700;
-  }
-  .phase-name { font-size: 10pt; font-weight: 700; color: #0B132B; margin: 1mm 0 1.5mm; }
-  .phase-body { font-size: 8.6pt; color: #3d475c; line-height: 1.4; }
+  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
+  .phase { border: 1px solid #e2e8f0; border-top: 3.5px solid #2563eb; padding: 4mm 4.5mm; border-radius: 1.5mm; background: #fff; break-inside: avoid; }
+  .phase-when { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: #2563eb; font-weight: 800; }
+  .phase-name { font-size: 10.2pt; font-weight: 700; color: #0f172a; margin: 1mm 0 1.8mm; }
+  .phase-body { font-size: 8.8pt; color: #475569; line-height: 1.45; }
 
   .ticks { margin: 0; padding: 0; list-style: none; }
   .ticks li {
-    position: relative; padding-left: 6mm; margin-bottom: 2mm; font-size: 9.4pt; color: #2c3547;
+    position: relative; padding-left: 6.5mm; margin-bottom: 2.2mm; font-size: 9.5pt; color: #334155;
   }
   .ticks li:before {
-    content: ""; position: absolute; left: 0; top: 1.5mm;
-    width: 2.6mm; height: 2.6mm; background: #2563eb; border-radius: 50%;
+    content: ""; position: absolute; left: 0; top: 1.6mm;
+    width: 2.8mm; height: 2.8mm; background: #2563eb; border-radius: 50%;
   }
 
   .contact {
-    display: flex; gap: 5mm; align-items: flex-start;
-    background: #0B132B; color: #fff; padding: 4.5mm 5mm; margin: 5mm 0 0; font-size: 9pt; line-height: 1.5;
+    display: flex; gap: 6mm; align-items: flex-start;
+    background: #0f172a; color: #fff; padding: 5mm 6mm; margin: 6mm 0 0; font-size: 9.2pt; line-height: 1.5; border-radius: 2mm;
   }
   .contact-l {
-    font-size: 7.6pt; text-transform: uppercase; letter-spacing: .1em;
-    color: #93b8ff; font-weight: 700; white-space: nowrap; padding-top: .6mm;
+    font-size: 7.8pt; text-transform: uppercase; letter-spacing: .12em;
+    color: #60a5fa; font-weight: 800; white-space: nowrap; padding-top: .6mm;
   }
-  .contact b { font-size: 10.5pt; }
+  .contact b { font-size: 10.8pt; color: #fff; }
 
-  /* Chart. Text wears ink tokens; only the bar carries the data colour. */
+  /* Chart */
   .chart { width: 100%; height: auto; display: block; margin: 4mm 0 5mm; }
-  .ch-lbl { font: 600 12px "Segoe UI", system-ui, Arial, sans-serif; fill: #17202e; }
-  .ch-val { font: 700 13px "Segoe UI", system-ui, Arial, sans-serif; fill: #0B132B; }
-  .ch-sub { font: 400 10px "Segoe UI", system-ui, Arial, sans-serif; fill: #7b8499; }
+  .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #1e293b; }
+  .ch-val { font: 700 13px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
+  .ch-sub { font: 400 10.5px "Inter", sans-serif; fill: #64748b; }
 
-  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5mm; }
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
   .gallery img {
-    width: 100%; height: 34mm; object-fit: cover; display: block;
-    border: 1px solid #dde2ea; break-inside: avoid;
+    width: 100%; height: 35mm; object-fit: cover; display: block;
+    border: 1px solid #e2e8f0; border-radius: 1.5mm; break-inside: avoid;
   }
 
-  /* Every section wears the same chip. A consistent rhythm is what makes a
-     document read as designed rather than assembled. */
   h2 {
-    font-size: 12.5pt; color: #0B132B; margin: 0 0 3.5mm; letter-spacing: -.2px;
-    background: #f4f6fb; border-left: 3.5mm solid #7a0606; padding: 2.2mm 4mm;
+    font-size: 13pt; color: #0f172a; margin: 0 0 4mm; letter-spacing: -.2px; font-weight: 700;
+    background: #f8fafc; border-left: 4mm solid #991b1b; padding: 2.5mm 4.5mm; border-radius: 0 1.5mm 1.5mm 0;
   }
   p { margin: 0 0 3mm; }
-  .muted { color: #667089; font-size: 8.8pt; }
+  .muted { color: #64748b; font-size: 9pt; }
 
-  section { margin-bottom: 7mm; }
+  section { margin-bottom: 7.5mm; break-inside: avoid-page; }
   .rule { display: none; }
 
-  /* Part-to-whole with two parts: a split bar, not a pie. Two series, so the
-     legend is not optional. */
-  .split { display: flex; gap: 2px; margin: 3mm 0 2mm; }
+  .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
   .split .seg {
-    padding: 2.6mm 3mm; color: #fff; font-size: 9pt; font-weight: 600; white-space: nowrap;
+    padding: 2.8mm 3.5mm; color: #fff; font-size: 9.2pt; font-weight: 700; white-space: nowrap;
   }
   .seg-school { background: #2563eb; }
-  .seg-rc { background: #c62828; }
-  .splitkey { display: flex; gap: 6mm; font-size: 8.6pt; color: #566076; }
-  .splitkey span { display: flex; align-items: center; gap: 1.8mm; }
-  .sw { width: 3mm; height: 3mm; display: inline-block; border-radius: .6mm; }
-  .sw-school { background: #2563eb; } .sw-rc { background: #c62828; }
+  .seg-rc { background: #dc2626; }
+  .splitkey { display: flex; gap: 7mm; font-size: 8.8pt; color: #64748b; font-weight: 500; }
+  .splitkey span { display: flex; align-items: center; gap: 2mm; }
+  .sw { width: 3.2mm; height: 3.2mm; display: inline-block; border-radius: .8mm; }
+  .sw-school { background: #2563eb; } .sw-rc { background: #dc2626; }
 
   .why { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
-  .why div { background: #f6f7f9; border-left: 2px solid #7a0606; padding: 3mm 4mm; }
-  .why b { display: block; margin-bottom: 1mm; }
+  .why div { background: #f8fafc; border-left: 3px solid #991b1b; padding: 3.5mm 4.5mm; border-radius: 0 1.5mm 1.5mm 0; break-inside: avoid; }
+  .why b { display: block; margin-bottom: 1.2mm; color: #0f172a; font-weight: 700; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 9.2pt; }
-  th { text-align: left; background: #0B132B; color: #fff; padding: 2.6mm 3mm; font-size: 8.4pt; letter-spacing: .05em; text-transform: uppercase; }
-  td { padding: 2.8mm 3mm; border-bottom: 1px solid #e3e7ee; vertical-align: top; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.3pt; margin-bottom: 2mm; }
+  th { text-align: left; background: #0f172a; color: #fff; padding: 2.8mm 3.5mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+  td { padding: 3mm 3.5mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .opt { white-space: nowrap; }
-  tr.picked td { background: #f7efef; }
-  tr.picked .opt strong { color: #7a0606; }
+  tr.picked td { background: #fff5f5; }
+  tr.picked .opt strong { color: #991b1b; }
   .tag {
-    display: inline-block; margin-left: 2mm; background: #7a0606; color: #fff;
-    font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase;
-    padding: .5mm 1.6mm; border-radius: 1mm; vertical-align: middle;
+    display: inline-block; margin-left: 2.5mm; background: #991b1b; color: #fff;
+    font-size: 7pt; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
+    padding: .6mm 1.8mm; border-radius: 1mm; vertical-align: middle;
   }
-  .opt-name { font-size: 8.8pt; color: #566076; }
-  .num { white-space: nowrap; color: #7a0606; }
-  .best { color: #3d475c; font-size: 8.9pt; }
+  .opt-name { font-size: 8.8pt; color: #64748b; font-weight: 500; }
+  .num { white-space: nowrap; color: #991b1b; font-weight: 700; }
+  .best { color: #334155; font-size: 9pt; }
 
-  .agreed { background: #f7efef; border: 1px solid #e0c4c4; padding: 4mm 5mm; }
-  .agreed-line { font-size: 11.5pt; font-weight: 600; color: #7a0606; margin-bottom: 2mm; }
+  .agreed { background: #fff5f5; border: 1px solid #fecaca; padding: 4.5mm 5.5mm; border-radius: 2mm; margin-bottom: 6mm; }
+  .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
 
-  .years { display: grid; grid-template-columns: 1fr 1fr; gap: 3.4mm; }
-  .year { border: 1px solid #dde2ea; border-radius: 2mm; overflow: hidden; break-inside: avoid; }
-  .year-head { display: flex; justify-content: space-between; align-items: center; gap: 2mm; background: #0B132B; color: #fff; padding: 2.2mm 3mm; }
-  .year-title { font-size: 8.9pt; font-weight: 600; line-height: 1.25; }
-  .year-grade { font-size: 7.6pt; background: #7a0606; padding: .6mm 2mm; border-radius: 1mm; white-space: nowrap; }
-  .terms { padding: 2.4mm 3mm; display: flex; flex-direction: column; gap: 1.8mm; }
-  .term-name { font-size: 7.4pt; text-transform: uppercase; letter-spacing: .06em; color: #7a0606; }
-  .term-focus { font-size: 8.7pt; color: #2c3547; }
-  .year-foot { border-top: 1px solid #e8ecf2; background: #fafbfc; padding: 2.2mm 3mm; font-size: 8.3pt; color: #3d475c; display: flex; flex-direction: column; gap: .8mm; }
-  .foot-lbl { color: #7a0606; font-weight: 600; text-transform: uppercase; font-size: 7.2pt; letter-spacing: .05em; margin-right: 1mm; }
+  .years { display: grid; grid-template-columns: 1fr 1fr; gap: 3.8mm; }
+  .year { border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden; break-inside: avoid; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .year-head { display: flex; justify-content: space-between; align-items: center; gap: 2.5mm; background: #0f172a; color: #fff; padding: 2.5mm 3.5mm; }
+  .year-title { font-size: 9.2pt; font-weight: 700; line-height: 1.25; }
+  .year-grade { font-size: 7.8pt; background: #991b1b; padding: .8mm 2.2mm; border-radius: 1mm; font-weight: 700; white-space: nowrap; }
+  .terms { padding: 2.8mm 3.5mm; display: flex; flex-direction: column; gap: 2mm; }
+  .term-name { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+  .term-focus { font-size: 8.8pt; color: #334155; }
+  .year-foot { border-top: 1px solid #f1f5f9; background: #f8fafc; padding: 2.4mm 3.5mm; font-size: 8.4pt; color: #475569; display: flex; flex-direction: column; gap: 1mm; }
+  .foot-lbl { color: #991b1b; font-weight: 700; text-transform: uppercase; font-size: 7.3pt; letter-spacing: .06em; margin-right: 1mm; }
 
-  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 8mm; }
-  .sign-box { border-top: 1px solid #17202e; padding-top: 2mm; font-size: 8.8pt; }
-  .sign-box b { display: block; margin-bottom: 6mm; }
-  .pagehead { display: flex; justify-content: space-between; border-bottom: 2px solid #7a0606; padding-bottom: 2.5mm; margin-bottom: 5mm; font-size: 8.6pt; color: #566076; }
-  .pagehead b { color: #0B132B; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 9mm; break-inside: avoid; }
+  .sign-box { border-top: 1.5px solid #0f172a; padding-top: 2.5mm; font-size: 9pt; color: #334155; }
+  .sign-box b { display: block; margin-bottom: 6.5mm; color: #0f172a; font-weight: 700; }
+  .pagehead { display: flex; justify-content: space-between; border-bottom: 2.5px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 6mm; font-size: 8.8pt; color: #64748b; }
+  .pagehead b { color: #0f172a; font-weight: 700; }
 </style>
 </head>
 <body>

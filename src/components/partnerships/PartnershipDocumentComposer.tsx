@@ -26,8 +26,8 @@ import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
 
 const INPUT =
-  "w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/60 transition-colors";
-const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-white/50 mb-2";
+  "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
+const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
 export function PartnershipDocumentComposer({
   school,
@@ -113,10 +113,10 @@ export function PartnershipDocumentComposer({
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
+    <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
       <div>
-        <h2 className="text-base font-semibold text-white">Issue a document</h2>
-        <p className="text-xs text-white/50 mt-1">
+        <h2 className="text-base font-semibold text-foreground">Issue a document</h2>
+        <p className="text-xs text-muted-foreground mt-1">
           Rendered and archived in one step, under a reference the database assigns.
         </p>
       </div>
@@ -139,12 +139,12 @@ export function PartnershipDocumentComposer({
               onClick={() => setStage(s.v)}
               className={`text-left px-3 py-2.5 rounded-xl border text-sm transition-colors ${
                 stage === s.v
-                  ? "border-violet-500/60 bg-violet-500/10 text-white"
-                  : "border-white/10 bg-white/5 text-white/60 hover:border-white/20"
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
               }`}
             >
               {s.name}
-              <span className="block text-[11px] text-white/40 mt-0.5">{s.hint}</span>
+              <span className="block text-[11px] text-muted-foreground mt-0.5">{s.hint}</span>
             </button>
           ))}
         </div>
@@ -156,14 +156,14 @@ export function PartnershipDocumentComposer({
           onClick={() => setKind("proposal")}
           className={`text-left p-4 rounded-xl border transition-colors ${
             kind === "proposal"
-              ? "border-violet-500/60 bg-violet-500/10"
-              : "border-white/10 bg-white/5 hover:border-white/20"
+              ? "border-primary bg-primary/10"
+              : "border-border bg-muted/40 hover:border-foreground/30"
           }`}
         >
-          <span className="flex items-center gap-2 text-sm font-semibold text-white">
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <DocumentTextIcon className="w-4 h-4" /> Proposal
           </span>
-          <span className="block text-[11px] text-white/45 mt-1.5 leading-snug">
+          <span className="block text-[11px] text-muted-foreground mt-1.5 leading-snug">
             The pitch and the standard options. Send this to get to a rate — no agreed terms
             needed.
           </span>
@@ -173,14 +173,14 @@ export function PartnershipDocumentComposer({
           onClick={() => setKind("mou")}
           className={`text-left p-4 rounded-xl border transition-colors ${
             kind === "mou"
-              ? "border-violet-500/60 bg-violet-500/10"
-              : "border-white/10 bg-white/5 hover:border-white/20"
+              ? "border-primary bg-primary/10"
+              : "border-border bg-muted/40 hover:border-foreground/30"
           }`}
         >
-          <span className="flex items-center gap-2 text-sm font-semibold text-white">
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <ClipboardDocumentCheckIcon className="w-4 h-4" /> Memorandum of Understanding
           </span>
-          <span className="block text-[11px] text-white/45 mt-1.5 leading-snug">
+          <span className="block text-[11px] text-muted-foreground mt-1.5 leading-snug">
             The agreement itself, stating the agreed fee. Requires terms on record.
           </span>
         </button>
@@ -196,12 +196,12 @@ export function PartnershipDocumentComposer({
                 onClick={() => setOfferCode("")}
                 className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                   offerCode === ""
-                    ? "border-violet-500/60 bg-violet-500/10 text-white"
-                    : "border-white/10 bg-white/5 text-white/60 hover:border-white/20"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
                 }`}
               >
                 All twelve years
-                <span className="block text-[11px] text-white/40 mt-0.5">
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
                   Present the full ladder, Basic 1 to SS 3, with every option priced.
                 </span>
               </button>
@@ -212,21 +212,21 @@ export function PartnershipDocumentComposer({
                   onClick={() => setOfferCode(offer.code)}
                   className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                     offerCode === offer.code
-                      ? "border-violet-500/60 bg-violet-500/10 text-white"
-                      : "border-white/10 bg-white/5 text-white/60 hover:border-white/20"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
                   }`}
                 >
                   <span className="flex flex-wrap items-baseline gap-x-2">
                     <span className="font-semibold">Option {offer.code}</span>
                     <span>{offer.name}</span>
                   </span>
-                  <span className="block text-[11px] text-white/40 mt-0.5">
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
                     {offer.scope} · {offerPriceLabel(offer)}
                   </span>
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-white/35 mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2">
               Scoping trims the printed years to what the option actually sells, so a quote does
               not promise a year it stops short of.
             </p>
@@ -248,7 +248,7 @@ export function PartnershipDocumentComposer({
               <option value="180">180 days</option>
               <option value="0">No expiry stated</option>
             </select>
-            <p className="text-[11px] text-white/35 mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2">
               Printed as a date on the cover. A quote with no expiry is a quote forever, and these
               are the fees the MoU and then the invoice inherit.
             </p>
@@ -268,19 +268,19 @@ export function PartnershipDocumentComposer({
             />
           </div>
 
-          <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-white/10 bg-white/5 p-4">
+          <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-muted/40 p-4">
             <input
               type="checkbox"
               checked={useAI}
               onChange={(e) => setUseAI(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-violet-600"
+              className="mt-0.5 w-4 h-4 rounded accent-primary"
             />
             <span>
-              <span className="flex items-center gap-1.5 text-sm font-medium text-white">
-                <SparklesIcon className="w-3.5 h-3.5 text-violet-400" />
+              <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <SparklesIcon className="w-3.5 h-3.5 text-primary" />
                 Tailor the pitch with AI
               </span>
-              <span className="block text-[11px] text-white/45 mt-1 leading-relaxed">
+              <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
                 Rewrites the opening and benefits for this school only. Fees, the split and the
                 curriculum always come from the record — generated text stating a price is
                 discarded, and any failure falls back to the authored copy.
@@ -317,7 +317,7 @@ export function PartnershipDocumentComposer({
                 ))}
               </select>
               {!commencementTermId && (
-                <p className="text-[11px] text-white/35 mt-2">
+                <p className="text-[11px] text-muted-foreground mt-2">
                   {currentTerm
                     ? `Currently ${termDisplay(currentTerm)}. Pick a session to name it exactly.`
                     : "Leave as is to word it generally."}
@@ -349,13 +349,13 @@ export function PartnershipDocumentComposer({
               value={students}
               onChange={(e) => setStudents(e.target.value)}
             />
-            <p className="text-[11px] text-white/35 mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2">
               Used only to work the agreed fee through to a figure both sides can check. Defaults
               to the school’s roll.
             </p>
           </div>
 
-          <p className="text-[11px] text-white/40 leading-relaxed border-l-2 border-white/10 pl-3">
+          <p className="text-[11px] text-muted-foreground leading-relaxed border-l-2 border-border pl-3">
             No part of an MoU is generated. It states the terms on record and nothing else.
           </p>
         </div>
@@ -363,8 +363,8 @@ export function PartnershipDocumentComposer({
 
       {mouBlocked && (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 flex items-start gap-3">
-          <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-white/70 leading-relaxed">
+          <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-foreground/80 leading-relaxed">
             {school.name} has no agreed terms, so there is no fee for an MoU to state. Record the
             terms above, or issue a proposal instead.
           </p>
@@ -372,7 +372,7 @@ export function PartnershipDocumentComposer({
       )}
 
       {error && (
-        <p className="text-xs text-red-400 flex items-start gap-2">
+        <p className="text-xs text-destructive flex items-start gap-2">
           <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-px" />
           {error}
         </p>
@@ -382,7 +382,7 @@ export function PartnershipDocumentComposer({
         <button
           onClick={issue}
           disabled={issuing || mouBlocked}
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex items-center gap-2"
+          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground transition-colors flex items-center gap-2"
         >
           {issuing ? (
             <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -394,7 +394,7 @@ export function PartnershipDocumentComposer({
             : `Issue ${kind === "mou" ? "MoU" : "proposal"} for ${school.name}`}
         </button>
       ) : (
-        <p className="text-xs text-white/40">
+        <p className="text-xs text-muted-foreground">
           Issuing a document is an admin action. You are viewing this in read-only.
         </p>
       )}

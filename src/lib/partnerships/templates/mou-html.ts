@@ -116,66 +116,109 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 <head>
 <meta charset="utf-8">
 <title>Memorandum of Understanding — ${esc(brandContact.registeredName)} &amp; ${esc(school.name)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4; margin: 15mm 14mm; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #fff; color: #161d29;
-    font: 9.9pt/1.5 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { page-break-after: always; }
-  .page:last-child { page-break-after: auto; }
+  
+  html { background: #0f172a; }
+  body {
+    margin: 0; padding: 24px 0; background: #0f172a; color: #1e293b;
+    font: 9.8pt/1.55 "Inter", system-ui, -apple-system, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+  }
+
+  .page {
+    width: 210mm; min-height: 297mm; padding: 15mm 14mm;
+    background: #ffffff; color: #1e293b;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    border-radius: 2px; position: relative; box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  @media print {
+    html, body { background: #ffffff !important; padding: 0 !important; gap: 0 !important; display: block !important; }
+    .page {
+      width: 210mm !important; height: 297mm !important; min-height: 297mm !important;
+      padding: 15mm 14mm !important; box-shadow: none !important; border-radius: 0 !important;
+      page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+  }
+
+  h1, h2, h3, .brand, .party .nm, .doctitle h1 { font-family: "Plus Jakarta Sans", "Inter", sans-serif; }
 
   .head { display: flex; justify-content: space-between; align-items: flex-end;
-    border-bottom: 2.5px solid #7a0606; padding-bottom: 3mm; margin-bottom: 5mm; }
-  .head-l .brand { font-size: 15pt; font-weight: 700; color: #0B132B; letter-spacing: -.3px; }
-  .head-l .tag { font-size: 8pt; text-transform: uppercase; letter-spacing: .09em; color: #7a0606; }
-  .head-r { text-align: right; font-size: 8.2pt; color: #5b647a; }
-  .head-r b { display: block; color: #161d29; font-size: 9pt; }
+    border-bottom: 3px solid #991b1b; padding-bottom: 3mm; margin-bottom: 4.5mm; }
+  .head-l .brand { font-size: 16pt; font-weight: 800; color: #0f172a; letter-spacing: -.4px; }
+  .head-l .tag { font-size: 8.2pt; text-transform: uppercase; letter-spacing: .1em; color: #991b1b; font-weight: 700; }
+  .head-r { text-align: right; font-size: 8.5pt; color: #64748b; }
+  .head-r b { display: block; color: #0f172a; font-size: 9.5pt; font-weight: 700; }
 
-  .doctitle { text-align: center; margin: 0 0 6mm; }
-  .doctitle h1 { font-size: 16pt; margin: 0 0 1.5mm; color: #0B132B; letter-spacing: -.2px; }
-  .doctitle .sub { font-size: 9pt; color: #5b647a; }
+  .doctitle { text-align: center; margin: 0 0 4.5mm; background: #f8fafc; padding: 2.8mm 0; border-radius: 2mm; border: 1px solid #e2e8f0; }
+  .doctitle h1 { font-size: 15.5pt; margin: 0 0 1.2mm; color: #0f172a; letter-spacing: -.3px; font-weight: 800; }
+  .doctitle .sub { font-size: 9.2pt; color: #64748b; font-weight: 500; }
 
-  h2 { font-size: 10.6pt; color: #fff; background: #0B132B; padding: 1.8mm 3mm;
-    margin: 0 0 3mm; letter-spacing: .01em; }
-  section { margin-bottom: 5mm; }
-  p { margin: 0 0 2.5mm; }
-  .muted { color: #6a7288; font-size: 8.5pt; }
-  ol { margin: 0 0 2mm; padding-left: 5mm; }
-  li { margin-bottom: 1.4mm; }
+  h2 { font-size: 10.8pt; color: #fff; background: #0f172a; padding: 2mm 3.5mm;
+    margin: 0 0 3.5mm; letter-spacing: .02em; font-weight: 700; border-radius: 1mm; }
+  /* A clause that splits across a sheet is a clause somebody can say they never
+     saw — and a page clips its overflow, so a section that does not fit is not
+     merely awkward, it is content that silently disappears. Nothing splits. */
+  section { margin-bottom: 4.2mm; break-inside: avoid; page-break-inside: avoid; }
+  li, tr, .sign, .sign-box, .party, .terms-line, table {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  h2 { break-after: avoid; page-break-after: avoid; }
 
-  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
-  .party { border: 1px solid #dbe0e8; border-top: 2.5px solid #7a0606; padding: 3mm 3.5mm; }
-  .party .role { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em; color: #7a0606; margin-bottom: 1mm; }
-  .party .nm { font-weight: 700; font-size: 10.4pt; color: #0B132B; }
-  .party .meta { font-size: 8.4pt; color: #5b647a; margin-top: 1mm; }
+  /* Every sheet names itself and carries somewhere to initial, which is how a
+     four-page agreement stays one document once it has been printed. */
+  .pagefoot {
+    position: absolute; left: 14mm; right: 14mm; bottom: 7mm;
+    border-top: 1px solid #e2e8f0; padding-top: 2mm;
+    font-size: 7.4pt; color: #94a3b8; letter-spacing: .02em;
+    display: flex; justify-content: space-between;
+  }
 
-  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
-  .duties > div { border: 1px solid #dbe0e8; padding: 3mm 3.5mm; }
-  .duties h3 { margin: 0 0 2mm; font-size: 8.6pt; text-transform: uppercase; letter-spacing: .06em; color: #7a0606; }
+  p { margin: 0 0 2.2mm; }
+  .muted { color: #64748b; font-size: 8.8pt; }
+  ol { margin: 0 0 2.5mm; padding-left: 5.5mm; }
+  li { margin-bottom: 1.1mm; color: #334155; }
 
-  .terms-line { background: #f7efef; border: 1px solid #e0c4c4; padding: 3mm 4mm; margin-bottom: 3mm; }
-  .terms-line .lbl { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em; color: #7a0606; }
-  .terms-line .val { font-size: 11.5pt; font-weight: 700; color: #7a0606; }
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
+  .party { border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 2.8mm 3.6mm; border-radius: 1.5mm; background: #f8fafc; }
+  .party .role { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; margin-bottom: 1.2mm; font-weight: 700; }
+  .party .nm { font-weight: 700; font-size: 10.6pt; color: #0f172a; }
+  .party .meta { font-size: 8.5pt; color: #64748b; margin-top: 1.2mm; line-height: 1.45; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 8.7pt; }
-  th { background: #0B132B; color: #fff; text-align: left; padding: 2mm 2.6mm;
-    font-size: 7.8pt; text-transform: uppercase; letter-spacing: .05em; }
-  td { padding: 1.9mm 2.6mm; border-bottom: 1px solid #e5e9ef; vertical-align: top; }
+  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
+  .duties > div { border: 1px solid #e2e8f0; padding: 2.6mm 3.4mm; border-radius: 1.5mm; background: #fff; }
+  .duties h3 { margin: 0 0 2.5mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+
+  .terms-line { background: #fff5f5; border: 1px solid #fecaca; padding: 3.5mm 4.5mm; margin-bottom: 3.5mm; border-radius: 1.5mm; }
+  .terms-line .lbl { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; }
+  .terms-line .val { font-size: 11.8pt; font-weight: 800; color: #991b1b; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { background: #0f172a; color: #fff; text-align: left; padding: 2.2mm 3mm;
+    font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  td { padding: 2.2mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .strong { font-weight: 700; color: #7a0606; }
-  .g { white-space: nowrap; font-weight: 600; color: #0B132B; }
-  .cap { color: #4a5468; }
-  .fin { margin-bottom: 2mm; }
+  .strong { font-weight: 700; color: #991b1b; }
+  .g { white-space: nowrap; font-weight: 700; color: #0f172a; }
+  .cap { color: #475569; }
+  .fin { margin-bottom: 2.5mm; }
 
-  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 10mm; }
-  .sign-box .who { font-size: 8.2pt; text-transform: uppercase; letter-spacing: .07em; color: #7a0606; margin-bottom: 14mm; }
-  .sign-box .line { border-top: 1px solid #161d29; padding-top: 1.6mm; font-size: 8.4pt; }
-  .sign-box .nm { font-weight: 600; }
-  .stamp { margin-top: 7mm; border: 1px dashed #b9c0cc; height: 22mm; display: flex;
-    align-items: center; justify-content: center; color: #97a0b0; font-size: 8pt; }
-  .foot { border-top: 1px solid #dbe0e8; margin-top: 6mm; padding-top: 2.5mm;
-    font-size: 7.8pt; color: #6a7288; display: flex; justify-content: space-between; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 10mm; break-inside: avoid; }
+  .sign-box .who { font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; margin-bottom: 14mm; font-weight: 700; }
+  .sign-box .line { border-top: 1.5px solid #0f172a; padding-top: 2mm; font-size: 8.6pt; color: #334155; }
+  .sign-box .nm { font-weight: 700; color: #0f172a; }
+  .stamp { margin-top: 7mm; border: 1.5px dashed #cbd5e1; height: 24mm; border-radius: 2mm; display: flex;
+    align-items: center; justify-content: center; color: #94a3b8; font-size: 8.2pt; font-weight: 500; background: #fafafa; }
+  .foot { border-top: 1px solid #e2e8f0; margin-top: 7mm; padding-top: 3mm;
+    font-size: 8pt; color: #64748b; display: flex; justify-content: space-between; }
 </style>
 </head>
 <body>
@@ -244,6 +287,20 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     </div>
   </section>
 
+  <div class="pagefoot"><span>Page 1 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
+</div>
+
+<!-- The money on its own sheet. It is the clause both sides reread, and it
+     carries the table nobody should have to hunt across a page break for. -->
+<div class="page">
+  <div class="head">
+    <div class="head-l">
+      <div class="brand">Memorandum of Understanding</div>
+      <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
+    </div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page 2</div>
+  </div>
+
   <section>
     <h2>4.0 Financial Framework</h2>
     <div class="terms-line">
@@ -257,6 +314,8 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         : 'Payment falls due within the period stated on each invoice.'
     } Any change to these terms takes effect only when both parties record a superseding agreement in writing.</p>
   </section>
+
+  <div class="pagefoot"><span>Page 2 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
 </div>
 
 <div class="page">
@@ -265,7 +324,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       <div class="brand">Memorandum of Understanding</div>
       <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
     </div>
-    <div class="head-r"><b>${esc(input.reference)}</b>Page 2</div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page 3</div>
   </div>
 
   ${
@@ -292,6 +351,20 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   </section>`
       : ''
   }
+
+  <div class="pagefoot"><span>Page 3 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
+</div>
+
+<!-- Closing clauses and execution. Signatures sit on a sheet of their own so a
+     signed copy can never be a page that also carried half a schedule. -->
+<div class="page">
+  <div class="head">
+    <div class="head-l">
+      <div class="brand">Memorandum of Understanding</div>
+      <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
+    </div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page 4</div>
+  </div>
 
   <section>
     <h2>6.0 Term, Review and Termination</h2>

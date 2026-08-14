@@ -127,32 +127,69 @@ export function IssuedDocumentPreview({
     }
   }
 
+  const [zoom, setZoom] = useState<"fit" | "75" | "100">("fit");
+
   return (
-    <div className="rounded-2xl border border-violet-500/30 bg-white/5 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-violet-500/10 border-b border-violet-500/20">
+    <div className="rounded-2xl border border-primary/40 bg-card overflow-hidden shadow-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-muted/50 border-b border-primary/20 backdrop-blur-md">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white flex flex-wrap items-center gap-2">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-            {kind === "mou" ? "Memorandum of Understanding" : "Proposal"} issued
-            <span className="font-mono text-xs text-violet-200">{reference}</span>
+          <p className="text-sm font-bold text-foreground flex flex-wrap items-center gap-2">
+            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            {kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal"}
+            <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary font-mono text-xs border border-primary/40">
+              {reference}
+            </span>
           </p>
-          <p className="text-[11px] text-white/45 mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
             {schoolName ? `${schoolName} · ` : ""}
-            saved as a draft — nothing has been sent
-            {curriculumEdition ? ` · curriculum edition ${curriculumEdition}` : ""}
+            Stored draft — official document record
+            {curriculumEdition ? ` · curriculum ed. ${curriculumEdition}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Zoom controls */}
+          <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs font-semibold text-foreground/80 mr-1">
+            <button
+              type="button"
+              onClick={() => setZoom("fit")}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                zoom === "fit" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
+              }`}
+            >
+              Fit
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom("75")}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                zoom === "75" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
+              }`}
+            >
+              75%
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom("100")}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                zoom === "100" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
+              }`}
+            >
+              100%
+            </button>
+          </div>
+
           {narrativeSource === "ai" && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-500/20 text-violet-200 text-[10px] font-semibold uppercase tracking-wider">
-              <SparklesIcon className="w-3 h-3" /> AI pitch — read it
+            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/40">
+              <SparklesIcon className="w-3 h-3 text-primary" /> AI Pitch
             </span>
           )}
+
           {canSend && documentId && (
             <button
               onClick={send}
               disabled={sending || saving}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50 text-primary-foreground text-xs font-semibold shadow-md shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {sending ? (
                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -162,10 +199,11 @@ export function IssuedDocumentPreview({
               {sending ? "Sending…" : "Email PDF to school"}
             </button>
           )}
+
           <button
             onClick={download}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-semibold shadow-md shadow-violet-950/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             {saving ? (
               <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -174,17 +212,19 @@ export function IssuedDocumentPreview({
             )}
             {saving ? "Building PDF…" : "Download PDF"}
           </button>
+
           <button
             onClick={() => frameRef.current?.contentWindow?.print()}
-            title="Prints through the browser, which keeps the text selectable"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/15 text-white/70 hover:text-white text-xs font-semibold transition-colors"
+            title="Prints cleanly through browser print dialog"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted text-xs font-semibold transition-all"
           >
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
+
           <button
             onClick={onClose}
             aria-label="Close preview"
-            className="p-2 rounded-xl border border-white/10 text-white/40 hover:text-white transition-colors"
+            className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -192,30 +232,46 @@ export function IssuedDocumentPreview({
       </div>
 
       {error && (
-        <p className="px-5 py-2 text-xs text-red-400 bg-red-500/5 border-b border-red-500/20">
+        <p className="px-5 py-2 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20 font-medium">
           {error}
         </p>
       )}
       {notice && (
-        <p className="px-5 py-2 text-xs text-emerald-300 bg-emerald-500/5 border-b border-emerald-500/20">
+        <p className="px-5 py-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-b border-emerald-500/20 font-medium">
           {notice}
         </p>
       )}
 
       {loading ? (
-        <div className="h-[300px] flex items-center justify-center">
-          <ArrowPathIcon className="w-6 h-6 text-violet-400 animate-spin" />
+        <div className="h-[400px] flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+          <div className="flex flex-col items-center gap-3">
+            <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-xs text-muted-foreground font-medium">Rendering document preview…</p>
+          </div>
         </div>
       ) : (
-        <iframe
-          ref={frameRef}
-          srcDoc={html}
-          title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
-          sandbox="allow-same-origin allow-modals"
-          className="w-full bg-white"
-          style={{ height: "720px", border: "none" }}
-        />
+        <div className="bg-slate-100 dark:bg-slate-950 p-4 md:p-8 overflow-auto max-h-[820px] flex justify-center border-t border-border/60">
+          <div
+            className={`transition-all duration-200 bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden ${
+              zoom === "100"
+                ? "w-[850px] shrink-0"
+                : zoom === "75"
+                ? "w-[640px] shrink-0"
+                : "w-full max-w-[850px]"
+            }`}
+          >
+            <iframe
+              ref={frameRef}
+              srcDoc={html}
+              title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
+              sandbox="allow-same-origin allow-modals"
+              className="w-full bg-white transition-all"
+              style={{ height: zoom === "75" ? "900px" : "800px", border: "none" }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
 }
+

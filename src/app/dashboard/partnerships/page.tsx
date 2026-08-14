@@ -161,17 +161,17 @@ export default function PartnershipsPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!canView) {
     return (
-      <div className="max-w-md mx-auto mt-24 bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
-        <ShieldCheckIcon className="w-8 h-8 text-white/30 mx-auto mb-3" />
-        <h1 className="text-lg font-semibold text-white">Not your desk</h1>
-        <p className="text-sm text-white/50 mt-2">
+      <div className="max-w-md mx-auto mt-24 bg-card border border-border rounded-2xl p-6 text-center">
+        <ShieldCheckIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+        <h1 className="text-lg font-semibold text-foreground">Not your desk</h1>
+        <p className="text-sm text-muted-foreground mt-2">
           Partnership terms and agreements are visible to staff only.
         </p>
       </div>
@@ -183,8 +183,8 @@ export default function PartnershipsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Partnerships</h1>
-          <p className="text-sm text-white/50 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Partnerships</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             The agreed deal per school, and the proposals and MoUs that state it.
           </p>
         </div>
@@ -196,15 +196,15 @@ export default function PartnershipsPage() {
                 : "border-emerald-500/25 bg-emerald-500/10"
             }`}
           >
-            <p className="text-sm font-semibold text-white flex items-center gap-2">
+            <p className="text-sm font-semibold text-foreground flex items-center gap-2">
               {awaiting > 0 ? (
-                <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
+                <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               ) : (
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               )}
               {awaiting} of {schools.length} awaiting terms
             </p>
-            <p className="text-[11px] text-white/45 mt-0.5 max-w-xs">
+            <p className="text-[11px] text-muted-foreground mt-0.5 max-w-xs">
               {awaiting > 0
                 ? "Each is being invoiced on a legacy rate nobody agreed."
                 : "Every school bills on agreed terms. The grace period can close."}
@@ -214,24 +214,24 @@ export default function PartnershipsPage() {
       </div>
 
       {loadError && (
-        <p className="text-xs text-red-400 flex items-center gap-2">
+        <p className="text-xs text-destructive flex items-center gap-2">
           <ExclamationTriangleIcon className="w-4 h-4" /> {loadError}
         </p>
       )}
 
       {!canWrite && (
-        <p className="text-xs text-white/40 border-l-2 border-white/10 pl-3">
+        <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
           Read-only. Recording terms and issuing documents are admin actions.
         </p>
       )}
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* School picker */}
-        <aside className="lg:col-span-4 bg-white/5 border border-white/10 rounded-2xl p-4 lg:sticky lg:top-4">
+        <aside className="lg:col-span-4 bg-card border border-border rounded-2xl p-4 lg:sticky lg:top-4">
           <div className="relative mb-3">
-            <MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/60 transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder="Find a school"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -241,10 +241,10 @@ export default function PartnershipsPage() {
 
           {loadingSchools ? (
             <div className="flex items-center justify-center py-10">
-              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <p className="text-xs text-white/40 py-6 text-center">
+            <p className="text-xs text-muted-foreground py-6 text-center">
               {schools.length ? "No school matches that." : "No schools on record."}
             </p>
           ) : (
@@ -258,12 +258,12 @@ export default function PartnershipsPage() {
                       onClick={() => selectSchool(school.id)}
                       className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
                         active
-                          ? "border-violet-500/60 bg-violet-500/10"
-                          : "border-transparent hover:bg-white/5"
+                          ? "border-primary bg-primary/10"
+                          : "border-transparent hover:bg-muted"
                       }`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="text-sm text-white truncate">{school.name}</span>
+                        <span className="text-sm text-foreground truncate">{school.name}</span>
                         <span
                           className={`shrink-0 w-1.5 h-1.5 rounded-full ${
                             has ? "bg-emerald-400" : "bg-amber-400"
@@ -271,7 +271,7 @@ export default function PartnershipsPage() {
                           title={has ? "Terms agreed" : "Awaiting terms"}
                         />
                       </span>
-                      <span className="block text-[11px] text-white/40 mt-0.5 truncate">
+                      <span className="block text-[11px] text-muted-foreground mt-0.5 truncate">
                         {[school.city, school.state].filter(Boolean).join(", ") || "—"}
                         {school.student_count ? ` · ${school.student_count} students` : ""}
                       </span>
@@ -282,7 +282,7 @@ export default function PartnershipsPage() {
             </ul>
           )}
 
-          <p className="text-[10px] text-white/30 mt-3 flex items-center gap-3 border-t border-white/5 pt-3">
+          <p className="text-[10px] text-muted-foreground mt-3 flex items-center gap-3 border-t border-border/60 pt-3">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> terms agreed
             </span>
@@ -295,22 +295,22 @@ export default function PartnershipsPage() {
         {/* Workspace */}
         <div className="lg:col-span-8 space-y-6">
           {!selected ? (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
-              <BuildingOffice2Icon className="w-10 h-10 text-white/20 mx-auto mb-4" />
-              <h2 className="text-base font-semibold text-white">Pick a school</h2>
-              <p className="text-sm text-white/45 mt-2 max-w-sm mx-auto">
+            <div className="bg-card border border-border rounded-2xl p-12 text-center">
+              <BuildingOffice2Icon className="w-10 h-10 text-foreground/20 mx-auto mb-4" />
+              <h2 className="text-base font-semibold text-foreground">Pick a school</h2>
+              <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
                 Record what was agreed, then issue the proposal or the MoU that states it.
               </p>
             </div>
           ) : loadingSchool ? (
             <div className="flex items-center justify-center py-24">
-              <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <>
               <div className="flex items-baseline gap-3 flex-wrap">
-                <h2 className="text-lg font-semibold text-white">{selected.name}</h2>
-                <span className="text-xs text-white/40">
+                <h2 className="text-lg font-semibold text-foreground">{selected.name}</h2>
+                <span className="text-xs text-muted-foreground">
                   {[selected.city, selected.state].filter(Boolean).join(", ")}
                 </span>
               </div>

@@ -26,8 +26,8 @@ import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { BillingModel, SchoolRow, TermsRow } from "./types";
 
 const INPUT =
-  "w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/60 transition-colors";
-const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-white/50 mb-2";
+  "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
+const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
 /** The standard deal. Stated once, here, and only as this form's starting point. */
 const STANDARD_RILLCOD_SHARE = 70;
@@ -259,11 +259,11 @@ export function PartnershipTermsEditor({
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
+    <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold text-white">Commercial terms</h2>
-          <p className="text-xs text-white/50 mt-1">
+          <h2 className="text-base font-semibold text-foreground">Commercial terms</h2>
+          <p className="text-xs text-muted-foreground mt-1">
             What this school is charged, and how it divides. Every invoice, proposal and MoU reads
             this one record.
           </p>
@@ -271,7 +271,7 @@ export function PartnershipTermsEditor({
         {canWrite && (
           <button
             onClick={() => setOpen((o) => !o)}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors shrink-0"
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors shrink-0"
           >
             {open ? "Cancel" : agreed ? "Supersede terms" : "Record terms"}
           </button>
@@ -282,12 +282,12 @@ export function PartnershipTermsEditor({
       {agreed ? (
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-foreground">
                 {agreed.summary || "Terms agreed"}
               </p>
-              <p className="text-[11px] text-white/50 mt-1">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 Version {agreed.version ?? 1}
                 {agreed.agreed_at
                   ? ` · agreed ${new Date(agreed.agreed_at).toLocaleDateString("en-GB")}`
@@ -296,17 +296,17 @@ export function PartnershipTermsEditor({
                   ? " · flat rate, the full amount is Rillcod’s"
                   : ""}
               </p>
-              {agreed.notes && <p className="text-[11px] text-white/40 mt-1.5">{agreed.notes}</p>}
+              {agreed.notes && <p className="text-[11px] text-muted-foreground mt-1.5">{agreed.notes}</p>}
             </div>
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
           <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-white">No agreed terms yet</p>
-              <p className="text-[11px] text-white/50 mt-1">
+              <p className="text-sm font-semibold text-foreground">No agreed terms yet</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
                 A proposal can still be issued — that is what you send to get to a rate. An MoU
                 cannot, and this school is being invoiced on a legacy figure nobody agreed.
               </p>
@@ -316,7 +316,7 @@ export function PartnershipTermsEditor({
       )}
 
       {saved && !open && (
-        <p className="text-xs text-emerald-400 flex items-center gap-2">
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
           <CheckCircleIcon className="w-4 h-4" /> {saved}
         </p>
       )}
@@ -334,12 +334,12 @@ export function PartnershipTermsEditor({
                   onClick={() => set("billing_model", m.value)}
                   className={`text-left p-3 rounded-xl border transition-colors ${
                     draft.billing_model === m.value
-                      ? "border-violet-500/60 bg-violet-500/10"
-                      : "border-white/10 bg-white/5 hover:border-white/20"
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-muted/40 hover:border-foreground/30"
                   }`}
                 >
-                  <span className="block text-sm font-semibold text-white">{m.name}</span>
-                  <span className="block text-[11px] text-white/45 mt-1 leading-snug">
+                  <span className="block text-sm font-semibold text-foreground">{m.name}</span>
+                  <span className="block text-[11px] text-muted-foreground mt-1 leading-snug">
                     {m.blurb}
                   </span>
                 </button>
@@ -483,7 +483,7 @@ export function PartnershipTermsEditor({
                           tiers: d.tiers.length > 1 ? d.tiers.filter((_, j) => j !== i) : d.tiers,
                         }))
                       }
-                      className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/30 transition-colors shrink-0"
+                      className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -495,7 +495,7 @@ export function PartnershipTermsEditor({
                 onClick={() =>
                   setDraft((d) => ({ ...d, tiers: [...d.tiers, { label: "", count: "", rate: "" }] }))
                 }
-                className="mt-2 inline-flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200 transition-colors"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary transition-colors"
               >
                 <PlusIcon className="w-3.5 h-3.5" /> Add a band
               </button>
@@ -503,19 +503,19 @@ export function PartnershipTermsEditor({
           )}
 
           {/* The split. The one number this whole record exists to stop drifting. */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={draft.revenueShare}
                 onChange={(e) => set("revenueShare", e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded accent-violet-600"
+                className="mt-0.5 w-4 h-4 rounded accent-primary"
               />
               <span>
-                <span className="block text-sm font-medium text-white">
+                <span className="block text-sm font-medium text-foreground">
                   Revenue is shared with the school
                 </span>
-                <span className="block text-[11px] text-white/45 mt-0.5">
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
                   The school collects from parents and settles Rillcod’s share. Leave this off for a
                   flat rate the school simply pays.
                 </span>
@@ -536,17 +536,17 @@ export function PartnershipTermsEditor({
                       value={draft.rillcod_share_percent}
                       onChange={(e) => set("rillcod_share_percent", e.target.value)}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-white/40">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                       %
                     </span>
                   </div>
                 </div>
-                <div className="pb-2.5 text-sm text-white/60">
+                <div className="pb-2.5 text-sm text-muted-foreground">
                   School keeps{" "}
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-foreground">
                     {Number.isFinite(schoolShare) ? schoolShare : 0}%
                   </span>
-                  <span className="block text-[11px] text-white/35 mt-0.5">
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
                     Standard deal is Rillcod {STANDARD_RILLCOD_SHARE} / school{" "}
                     {100 - STANDARD_RILLCOD_SHARE}. 50/50 is the floor.
                   </span>
@@ -645,15 +645,15 @@ export function PartnershipTermsEditor({
                   onClick={() => set("status", s)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize border transition-colors ${
                     draft.status === s
-                      ? "border-violet-500/60 bg-violet-500/15 text-white"
-                      : "border-white/10 bg-white/5 text-white/60 hover:border-white/20"
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-white/40 mt-2 leading-relaxed">
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
               {draft.status === "agreed"
                 ? agreed
                   ? `Saving supersedes version ${agreed.version ?? 1}. The old terms are kept — a signed agreement was signed against them.`
@@ -663,7 +663,7 @@ export function PartnershipTermsEditor({
           </div>
 
           {(error || problem) && (
-            <p className="text-xs text-red-400 flex items-start gap-2">
+            <p className="text-xs text-destructive flex items-start gap-2">
               <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-px" />
               {error || problem}
             </p>
@@ -673,14 +673,14 @@ export function PartnershipTermsEditor({
             <button
               onClick={save}
               disabled={saving || !!problem}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground transition-colors flex items-center gap-2"
             >
               {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
               {draft.status === "agreed" && agreed ? "Supersede terms" : "Record terms"}
             </button>
             <button
               onClick={() => setOpen(false)}
-              className="px-4 py-2.5 rounded-xl text-sm text-white/60 hover:text-white transition-colors"
+              className="px-4 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
             </button>
@@ -691,16 +691,16 @@ export function PartnershipTermsEditor({
       {/* Negotiation in progress — neither billed against nor kept on principle */}
       {unagreed.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Not agreed
           </p>
           <ul className="space-y-2">
             {unagreed.map((t) => (
               <li
                 key={t.id}
-                className="flex items-center gap-3 text-[11px] text-white/50 border border-white/10 rounded-xl px-3 py-2"
+                className="flex items-center gap-3 text-[11px] text-muted-foreground border border-border rounded-xl px-3 py-2"
               >
-                <span className="px-2 py-0.5 rounded-md bg-white/10 text-white/50 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-semibold uppercase tracking-wider shrink-0">
                   {t.status}
                 </span>
                 <span className="flex-1 min-w-0 truncate">{t.summary || "—"}</span>
@@ -708,7 +708,7 @@ export function PartnershipTermsEditor({
                   <button
                     onClick={() => discard(t.id)}
                     aria-label="Delete these unagreed terms"
-                    className="p-1.5 rounded-lg text-white/30 hover:text-red-400 transition-colors shrink-0"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive transition-colors shrink-0"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
                   </button>
@@ -722,17 +722,17 @@ export function PartnershipTermsEditor({
       {/* History — kept, because a signed agreement points at one of these */}
       {superseded.length > 0 && (
         <details className="group">
-          <summary className="text-xs text-white/40 hover:text-white/60 cursor-pointer transition-colors">
+          <summary className="text-xs text-muted-foreground hover:text-muted-foreground cursor-pointer transition-colors">
             {superseded.length} superseded {superseded.length === 1 ? "version" : "versions"}
           </summary>
           <ul className="mt-3 space-y-2">
             {superseded.map((t) => (
               <li
                 key={t.id}
-                className="text-[11px] text-white/45 border-l-2 border-white/10 pl-3 py-1"
+                className="text-[11px] text-muted-foreground border-l-2 border-border pl-3 py-1"
               >
-                <span className="text-white/70">v{t.version ?? 1}</span> · {t.summary || "—"}
-                {t.effective_to && <span className="text-white/30"> · ended {t.effective_to}</span>}
+                <span className="text-foreground/80">v{t.version ?? 1}</span> · {t.summary || "—"}
+                {t.effective_to && <span className="text-muted-foreground"> · ended {t.effective_to}</span>}
               </li>
             ))}
           </ul>
