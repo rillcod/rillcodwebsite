@@ -153,4 +153,33 @@ describe('watching the gap close', () => {
     expect(gap.awaiting).toBe(2);
     expect(gap.schools.map((s) => s.name)).toEqual(['Alpha', 'Charlie']);
   });
+
+  it('counts partners, not the prospecting pipeline', async () => {
+    // A prospect entered to be pitched at is not billed on a legacy rate — it is
+    // not billed at all. Counting it would make this number climb every time
+    // somebody adds a school to pitch, so it could never reach the zero that
+    // closes the grace period.
+    const filters: Array<[string, unknown]> = [];
+    const stub = {
+      from(table: string) {
+        const chain: any = {
+          select: () => chain,
+          neq: () => chain,
+          eq: (col: string, val: unknown) => {
+            if (table === 'schools') filters.push([col, val]);
+            return chain;
+          },
+          order: async () => ({ data: [{ id: 'a', name: 'Alpha' }] }),
+        };
+        if (table === 'partnership_terms') {
+          chain.eq = async () => ({ data: [] });
+        }
+        return chain;
+      },
+    };
+
+    await countSchoolsAwaitingTerms(stub as any);
+
+    expect(filters).toContainEqual(['status', 'approved']);
+  });
 });

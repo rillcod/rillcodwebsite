@@ -104,9 +104,14 @@ export type TermsGap = {
 export async function countSchoolsAwaitingTerms(db: {
   from: (t: string) => any;
 }): Promise<TermsGap> {
+  // Approved partners only. A prospect that was added to be pitched at is not
+  // being billed on a legacy rate — it is not being billed at all — so counting
+  // it would make this number climb with every school entered into the pipeline
+  // and never reach the zero that closes the grace period.
   const { data: schools } = await db
     .from('schools')
     .select('id, name')
+    .eq('status', 'approved')
     .neq('is_deleted', true)
     .order('name');
 

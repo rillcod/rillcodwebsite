@@ -28,6 +28,7 @@ import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentP
 import { PartnershipDocumentArchive } from "@/components/partnerships/PartnershipDocumentArchive";
 import { PartnershipDocumentComposer } from "@/components/partnerships/PartnershipDocumentComposer";
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
+import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import type {
   IssuedDocument,
   IssuedDocumentRow,
@@ -54,6 +55,7 @@ export default function PartnershipsPage() {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
+  const [lens, setLens] = useState<"all" | "partners" | "prospects">("all");
   const [selectedId, setSelectedId] = useState("");
 
   const [terms, setTerms] = useState<TermsRow[]>([]);
@@ -147,16 +149,27 @@ export default function PartnershipsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return schools;
-    return schools.filter(
+    const byLens =
+      lens === "all"
+        ? schools
+        : lens === "partners"
+          ? schools.filter((s) => s.status === "approved")
+          : schools.filter((s) => s.status !== "approved");
+    if (!q) return byLens;
+    return byLens.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         (s.city ?? "").toLowerCase().includes(q) ||
         (s.state ?? "").toLowerCase().includes(q),
     );
-  }, [schools, search]);
+  }, [schools, search, lens]);
 
-  const awaiting = schools.length - schools.filter((s) => withTerms.has(s.id)).length;
+  // Only partners can meaningfully "await terms" — a prospect has not agreed to
+  // anything yet, so counting them would make the grace-period number grow every
+  // time somebody is added to the pipeline.
+  const partners = useMemo(() => schools.filter((s) => s.status === "approved"), [schools]);
+  const prospects = schools.length - partners.length;
+  const awaiting = partners.length - partners.filter((s) => withTerms.has(s.id)).length;
 
   if (authLoading) {
     return (
@@ -202,12 +215,12 @@ export default function PartnershipsPage() {
               ) : (
                 <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               )}
-              {awaiting} of {schools.length} awaiting terms
+              {awaiting} of {partners.length} partners awaiting terms
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5 max-w-xs">
-              {awaiting > 0
-                ? "Each is being invoiced on a legacy rate nobody agreed."
-                : "Every school bills on agreed terms. The grace period can close."}
+              {prospects > 0
+                ? `${prospects} prospect${prospects === 1 ? "" : "s"} in the pipeline.`
+                : "Add a school to start pitching."}
             </p>
           </div>
         )}
@@ -239,6 +252,41 @@ export default function PartnershipsPage() {
             />
           </div>
 
+          {/* The pipeline and the book of business are different jobs. */}
+          <div className="flex items-center gap-1 mb-3 p-1 rounded-xl bg-muted/50 border border-border">
+            {(
+              [
+                { v: "all", label: "All", n: schools.length },
+                { v: "prospects", label: "Prospects", n: prospects },
+                { v: "partners", label: "Partners", n: partners.length },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.v}
+                onClick={() => setLens(t.v)}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                  lens === t.v
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label} {t.n > 0 && <span className="opacity-70">{t.n}</span>}
+              </button>
+            ))}
+          </div>
+
+          {canWrite && (
+            <div className="mb-3">
+              <AddProspectForm
+                onAdded={async (school) => {
+                  await loadSchools();
+                  if (school.id) selectSchool(school.id);
+                }}
+                onSelectExisting={(id) => selectSchool(id)}
+              />
+            </div>
+          )}
+
           {loadingSchools ? (
             <div className="flex items-center justify-center py-10">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -266,14 +314,21 @@ export default function PartnershipsPage() {
                         <span className="text-sm text-foreground truncate">{school.name}</span>
                         <span
                           className={`shrink-0 w-1.5 h-1.5 rounded-full ${
-                            has ? "bg-emerald-400" : "bg-amber-400"
+                            has ? "bg-emerald-500" : "bg-amber-500"
                           }`}
                           title={has ? "Terms agreed" : "Awaiting terms"}
                         />
                       </span>
-                      <span className="block text-[11px] text-muted-foreground mt-0.5 truncate">
-                        {[school.city, school.state].filter(Boolean).join(", ") || "—"}
-                        {school.student_count ? ` · ${school.student_count} students` : ""}
+                      <span className="flex items-center gap-1.5 mt-0.5">
+                        {school.status !== "approved" && (
+                          <span className="shrink-0 px-1.5 py-px rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase tracking-wider">
+                            Prospect
+                          </span>
+                        )}
+                        <span className="block text-[11px] text-muted-foreground truncate">
+                          {[school.city, school.state].filter(Boolean).join(", ") || "—"}
+                          {school.student_count ? ` · ${school.student_count} students` : ""}
+                        </span>
                       </span>
                     </button>
                   </li>

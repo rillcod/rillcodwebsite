@@ -87,18 +87,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = adminClient();
   try {
-    const ip = getClientIp(request as any);
-    try {
-      await checkCustomRateLimit({ key: `school-reg:${ip}`, max: 5, window: 3600 });
-    } catch (err) {
-      if (err instanceof RateLimitError) {
-        return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 });
-      }
-      throw err;
-    }
-
-    const body = await request.json();
-
     // Determine if this is an authenticated admin request or a public application
     let callerRole: string | null = null;
     try {
@@ -111,6 +99,24 @@ export async function POST(request: Request) {
     } catch { /* public request — no session */ }
 
     const isAdminRequest = callerRole === 'admin';
+
+    // The limit exists to stop the public application form being used to spam
+    // the schools table. Staff adding prospects from the partnership desk are
+    // not that, and five an hour is well inside a normal morning's prospecting —
+    // so it was throttling the exact workflow the desk exists for.
+    if (!isAdminRequest) {
+      const ip = getClientIp(request as any);
+      try {
+        await checkCustomRateLimit({ key: `school-reg:${ip}`, max: 5, window: 3600 });
+      } catch (err) {
+        if (err instanceof RateLimitError) {
+          return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 });
+        }
+        throw err;
+      }
+    }
+
+    const body = await request.json();
 
     // Public applications are always 'pending'; admin can set any status
     const status = isAdminRequest ? (body.status || 'pending') : 'pending';
@@ -156,6 +162,24 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
+      // A school already on file is not a server fault, and the caller almost
+      // always wants the existing record rather than a second one. Hand it back
+      // so the partnership desk can select it instead of erroring at somebody.
+      if (/schools_normalized_name_unique|duplicate key/i.test(error.message || '')) {
+        const { data: existing } = await supabase
+          .from('schools')
+          .select('id, name, status')
+          .ilike('name', String(payload.name).trim())
+          .limit(1)
+          .maybeSingle();
+        return NextResponse.json(
+          {
+            error: `${payload.name} is already on file.`,
+            existing: existing ?? null,
+          },
+          { status: 409 },
+        );
+      }
       console.error('Error creating school:', error);
       return NextResponse.json({ error: error.message || 'Failed to create school registration' }, { status: 500 });
     }
