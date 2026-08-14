@@ -16,6 +16,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { notificationsService } from '@/services/notifications.service';
 import { buildPartnershipProposalEmail } from '@/lib/email/rillcod-transactional-email';
+import { brandContact } from '@/config/brand';
 import { computeCharge, normaliseTerms } from '@/lib/partnerships/terms';
 import { schoolUpside } from '@/lib/partnerships/proposal-sections';
 import { approx, loadProofPoints } from '@/lib/partnerships/proof-points';
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doc } = await db
     .from('partnership_agreements')
-    .select('id, reference, document_kind, status, school_id, document_html, terms_snapshot')
+    .select('id, reference, document_kind, status, school_id, document_html, terms_snapshot, share_token')
     .eq('id', id)
     .maybeSingle();
   if (!doc) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
@@ -102,6 +103,12 @@ export async function POST(req: NextRequest) {
 
   const proof = await loadProofPoints(db, school.id as string);
 
+  // The link the school actually uses: it opens on a phone, survives being
+  // forwarded, and for an MoU it is the only way to sign. Built from the token,
+  // never the reference, which is sequential and printed on the document.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
+  const shareUrl = doc.share_token ? `${appUrl}/p/${doc.share_token}` : null;
+
   const html = buildPartnershipProposalEmail({
     schoolName: String(school.name),
     contactName: (school.contact_person as string) || null,
@@ -109,6 +116,8 @@ export async function POST(req: NextRequest) {
     schoolShareLabel: shareLabel,
     sharePercent,
     partnerSchools: proof ? approx(proof.partnerSchools) : null,
+    kind: doc.document_kind === 'mou' ? 'mou' : 'proposal',
+    shareUrl,
   });
 
   const safeRef = String(doc.reference).replace(/[^A-Za-z0-9._-]/g, '-');

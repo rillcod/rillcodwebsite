@@ -55,6 +55,8 @@ export type IssuedDocumentRow = {
   signed_at: string | null;
   signed_by_name: string | null;
   created_at: string | null;
+  /** Secret behind the public /p/<token> link. */
+  share_token: string | null;
   /**
    * The terms the document was rendered against, frozen at issue and normalised
    * from the snapshot. Null for a proposal issued before any rate was agreed.
@@ -71,6 +73,8 @@ export type IssuedDocument = {
   narrative_source: 'authored' | 'ai' | null;
   curriculum_edition: number | null;
   html: string;
+  /** Secret behind the public /p/<token> link. Null on a preview: no row, no link. */
+  share_token: string | null;
 };
 
 export function formatMoney(amount: number, currency = 'NGN'): string {

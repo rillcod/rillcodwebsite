@@ -47,6 +47,8 @@ type Preview = {
   schoolName: string | null;
   narrativeSource: "authored" | "ai" | null;
   curriculumEdition: number | null;
+  /** Secret behind the public link. Null for a preview: nothing is stored yet. */
+  shareToken: string | null;
 };
 
 export default function PartnershipsPage() {
@@ -418,6 +420,7 @@ export default function PartnershipsPage() {
                     schoolName: doc.school,
                     narrativeSource: doc.narrative_source,
                     curriculumEdition: doc.curriculum_edition,
+                    shareToken: null,
                   });
                 }}
                 onIssued={async (doc: IssuedDocument) => {
@@ -429,6 +432,7 @@ export default function PartnershipsPage() {
                     schoolName: doc.school,
                     narrativeSource: doc.narrative_source,
                     curriculumEdition: doc.curriculum_edition,
+                    shareToken: doc.share_token,
                   });
                   await loadSchoolDetail(selected.id);
                 }}
@@ -443,6 +447,7 @@ export default function PartnershipsPage() {
                   narrativeSource={preview.narrativeSource}
                   curriculumEdition={preview.curriculumEdition}
                   documentId={preview.id || null}
+                  shareToken={preview.shareToken}
                   canSend={canWrite}
                   onSent={() => loadSchoolDetail(selected.id)}
                   onClose={() => setPreview(null)}
@@ -462,6 +467,7 @@ export default function PartnershipsPage() {
                     schoolName: selected.name,
                     narrativeSource: null,
                     curriculumEdition: null,
+                    shareToken: doc.share_token,
                   })
                 }
               />

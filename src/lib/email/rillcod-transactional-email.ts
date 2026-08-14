@@ -1207,13 +1207,31 @@ export function buildPartnershipProposalEmail(opts: {
   partnerSchools?: string | null;
   validUntil?: string | null;
   appUrl?: string;
+  /**
+   * Which document is attached.
+   *
+   * The copy was written for a proposal and sent for both, so a school that had
+   * already agreed terms received its contract under the headline "Coding,
+   * Robotics & AI in your school" and an invitation to book the
+   * demonstration it had already had. Defaults to 'proposal', which is what
+   * every caller before this meant.
+   */
+  kind?: 'proposal' | 'mou';
+  /**
+   * The public link to read — and for an MoU, to sign — the document online.
+   *
+   * Attachments get lost, forwarded and opened on phones that will not render
+   * them. The link is the reliable copy, and it is the only way to sign.
+   */
+  shareUrl?: string | null;
 }): string {
+  const isMou = opts.kind === 'mou';
   const greeting = opts.contactName
     ? `Dear ${escapeHtml(opts.contactName)},`
     : `Dear ${escapeHtml(opts.schoolName)},`;
 
   const rows: TransactionalSummaryRow[] = [
-    { label: 'Proposal reference', value: opts.reference },
+    { label: isMou ? 'Agreement reference' : 'Proposal reference', value: opts.reference },
     ...(opts.coverage ? [{ label: 'Covers', value: opts.coverage }] : []),
     ...(opts.schoolShareLabel
       ? [
@@ -1227,7 +1245,23 @@ export function buildPartnershipProposalEmail(opts: {
     ...(opts.validUntil ? [{ label: 'Fees held until', value: opts.validUntil }] : []),
   ];
 
-  const bodyHtml = `
+  const bodyHtml = isMou
+    ? `
+    <p style="margin:0 0 14px;">${greeting}</p>
+    <p style="margin:0 0 14px;">
+      Attached is the Memorandum of Understanding between
+      ${escapeHtml(brandContact.registeredName)} and ${escapeHtml(opts.schoolName)}, setting out the
+      agreed fee, what each side provides, and the years it covers. Nothing in it differs from what
+      we discussed.
+    </p>
+    <p style="margin:0 0 6px;">
+      ${
+        opts.shareUrl
+          ? 'You can read it and sign it online — no account, no printing. Signing records your name and the date against this reference.'
+          : 'Please review it and return a signed copy at your convenience.'
+      }
+    </p>`
+    : `
     <p style="margin:0 0 14px;">${greeting}</p>
     <p style="margin:0 0 14px;">
       Parents are choosing schools on whether their children will be ready for work that does not
@@ -1252,17 +1286,38 @@ export function buildPartnershipProposalEmail(opts: {
   return buildRillcodTransactionalEmailHtml({
     appUrl: opts.appUrl,
     eyebrow: opts.schoolName,
-    title: 'Coding, Robotics & AI for every year group',
+    title: isMou
+      ? 'Memorandum of Understanding'
+      // Names the years actually quoted when we know them. A fixed "Basic 1 to
+      // SS 3" is wrong the moment a proposal is scoped to one section.
+      : opts.coverage
+        ? `Coding, Robotics & AI — ${escapeHtml(opts.coverage)}`
+        : 'Coding, Robotics & AI in your school',
     bodyHtml,
     summaryRows: rows,
-    cta: { href: `mailto:${brandContact.email}?subject=${encodeURIComponent(`Demonstration request — ${opts.schoolName}`)}`, label: 'Book a demonstration' },
+    // The link is the primary action whenever there is one: it opens on a phone,
+    // survives forwarding, and for an MoU it is the only way to sign.
+    cta: opts.shareUrl
+      ? {
+          href: opts.shareUrl,
+          label: isMou ? 'Read and sign online' : 'Open the proposal',
+        }
+      : {
+          href: `mailto:${brandContact.email}?subject=${encodeURIComponent(`Demonstration request — ${opts.schoolName}`)}`,
+          label: 'Book a demonstration',
+        },
     extraBlock: `
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-collapse:collapse;">
         <tr><td style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};padding:14px 16px;">
-          <p style="margin:0 0 4px;font-size:11px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">The attachment</p>
+          <p style="margin:0 0 4px;font-size:11px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">${
+            opts.shareUrl ? 'Your copy' : 'The attachment'
+          }</p>
           <p style="margin:0;font-size:13px;color:${BRAND.white};line-height:1.6;">
-            Open <b>${escapeHtml(opts.reference)}</b> in any browser. To keep a PDF copy, use your
-            browser's Print option and choose “Save as PDF”.
+            ${
+              opts.shareUrl
+                ? `Reference <b>${escapeHtml(opts.reference)}</b>. The link above always shows the current version and offers a PDF download. The attached copy is yours to keep.`
+                : `Open <b>${escapeHtml(opts.reference)}</b> in any browser. To keep a PDF copy, use your browser's Print option and choose “Save as PDF”.`
+            }
           </p>
         </td></tr>
       </table>`,

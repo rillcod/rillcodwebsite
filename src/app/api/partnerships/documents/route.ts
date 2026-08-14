@@ -78,7 +78,21 @@ export async function POST(req: NextRequest) {
   const schoolId = String(body.school_id ?? '').trim();
   const kind = String(body.kind ?? '').trim();
 
-  if (!schoolId) return NextResponse.json({ error: 'A school_id is required.' }, { status: 400 });
+  const prospectSchool = body.prospect_school && typeof body.prospect_school === 'object'
+    ? {
+        name: String((body.prospect_school as any).name || ''),
+        address: (body.prospect_school as any).address ? String((body.prospect_school as any).address) : null,
+        city: (body.prospect_school as any).city ? String((body.prospect_school as any).city) : null,
+        state: (body.prospect_school as any).state ? String((body.prospect_school as any).state) : null,
+        email: (body.prospect_school as any).email ? String((body.prospect_school as any).email) : null,
+        contactPerson: (body.prospect_school as any).contact_person ? String((body.prospect_school as any).contact_person) : null,
+        studentCount: Number((body.prospect_school as any).student_count) || undefined,
+      }
+    : null;
+
+  if (!schoolId && !prospectSchool?.name) {
+    return NextResponse.json({ error: 'A school_id or prospect_school is required.' }, { status: 400 });
+  }
   if (kind !== 'proposal' && kind !== 'mou') {
     return NextResponse.json({ error: 'kind must be "proposal" or "mou".' }, { status: 400 });
   }
@@ -90,7 +104,8 @@ export async function POST(req: NextRequest) {
   try {
     const buildArgs = {
       db: actor.db,
-      schoolId,
+      schoolId: schoolId || 'new',
+      prospectSchool,
       kind: kind as "proposal" | "mou",
       actorId: actor.user.id,
       useAI: body.use_ai === true,
@@ -152,6 +167,9 @@ export async function POST(req: NextRequest) {
       narrative_source: issued.narrativeSource,
       curriculum_edition: issued.curriculumEdition,
       html: issued.html,
+      // What the public link is built from. Never the reference: that is
+      // sequential and printed on the document, so it is not a secret.
+      share_token: issued.shareToken,
     });
   } catch (error) {
     // The one refusal worth spelling out: an MoU cannot be written without a rate.
@@ -233,7 +251,7 @@ export async function PATCH(req: NextRequest) {
     .from('partnership_agreements')
     .update(patch)
     .eq('id', id)
-    .select('id, reference, document_kind, status, sent_at, signed_at, signed_by_name')
+    .select('id, reference, document_kind, status, sent_at, signed_at, signed_by_name, share_token')
     .single();
 
   if (error) {

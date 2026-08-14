@@ -21,6 +21,7 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   EnvelopeIcon,
+  LinkIcon,
   PrinterIcon,
   SparklesIcon,
   XMarkIcon,
@@ -30,6 +31,7 @@ import {
   documentPdfBase64,
   downloadDocumentPdf,
 } from "@/lib/partnerships/proposal-pdf";
+import { brandContact } from "@/config/brand";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
 const PAGE_W = 794;
@@ -45,6 +47,7 @@ export function IssuedDocumentPreview({
   curriculumEdition,
   loading,
   documentId,
+  shareToken,
   canSend,
   onSent,
   onClose,
@@ -58,11 +61,17 @@ export function IssuedDocumentPreview({
   loading?: boolean;
   /** Set when the preview is showing a stored document that can be emailed. */
   documentId?: string | null;
+  /** Secret behind the public link. Absent on a preview, which has no row yet. */
+  shareToken?: string | null;
   canSend?: boolean;
   onSent?: () => void | Promise<void>;
   onClose: () => void;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const label = kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal";
+  /** The public link. Built from the token, never the printed reference. */
+  const shareUrl = (t: string) =>
+    typeof window === "undefined" ? `/p/${t}` : `${window.location.origin}/p/${t}`;
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -207,6 +216,52 @@ export function IssuedDocumentPreview({
             <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/40">
               <SparklesIcon className="w-3 h-3 text-primary" /> AI Pitch
             </span>
+          )}
+
+          {/* A stored document has a token; a preview does not, which is the real
+              condition — the old test sniffed the placeholder reference for the
+              words "not yet". The link carries the token and never the reference:
+              references are sequential and printed on the document itself. */}
+          {shareToken && (
+            <>
+              <button
+                onClick={async () => {
+                  const url = shareUrl(shareToken);
+                  // A phone offers the share sheet, which is how this link
+                  // actually reaches a proprietor; the desktop falls back to the
+                  // clipboard. Copying is not a failure, so it is not an error.
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({ title: `${label} ${reference}`, url });
+                      return;
+                    }
+                  } catch {
+                    // Dismissed the share sheet — fall through to the clipboard.
+                  }
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setNotice(`Link copied — ${url}`);
+                  } catch {
+                    setNotice(`Share link: ${url}`);
+                  }
+                }}
+                title="Send this document to the school"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold transition-all"
+              >
+                <LinkIcon className="w-3.5 h-3.5" /> Share link
+              </button>
+              <a
+                href={`${brandContact.whatsapp}?text=${encodeURIComponent(
+                  `${schoolName ? `${schoolName} — ` : ""}your ${label.toLowerCase()} ${reference} from ${brandContact.displayName}: ${shareUrl(shareToken)}`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open WhatsApp with the link ready to send"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-semibold transition-all"
+              >
+                WhatsApp
+              </a>
+            </>
           )}
 
           {canSend && documentId && (
