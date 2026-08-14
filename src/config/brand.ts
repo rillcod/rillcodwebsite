@@ -51,8 +51,26 @@ export const brandAssets = {
  * footers, and customer-facing copy. SendPulse SMTP is verified for `email` only.
  */
 export const brandContact = {
+  /**
+   * The trading name, used on letterheads, print documents and marketing. This
+   * is what schools and parents recognise.
+   */
   legalName: 'RILLCOD TECHNOLOGIES',
   displayName: 'Rillcod Technologies',
+  /**
+   * The entity actually registered at CAC, and the one that holds the bank
+   * account fees are paid into.
+   *
+   * A contract must name the party that can be held to it. Naming the trading
+   * name alone leaves a school's accountant paying "Rillcod Ltd" against an
+   * agreement signed with "Rillcod Technologies" — the kind of mismatch that is
+   * invisible until it is being argued about. Use `contractingParty` on
+   * anything legally binding; use `displayName` everywhere else.
+   */
+  registeredName: 'RILLCOD LTD',
+  rcNumber: 'RC 1781500',
+  /** How the company is named as a party to an agreement. */
+  contractingParty: 'RILLCOD LTD (trading as Rillcod Technologies)',
   tagline: 'STEM, Robotics & AI Education Partner',
   taglineLong: 'Inspiring Young Minds Through Technology',
   email: 'support@rillcod.com',

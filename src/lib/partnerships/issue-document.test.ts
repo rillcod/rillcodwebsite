@@ -154,6 +154,18 @@ describe('issuing a proposal', () => {
     expect(issued.html).toContain('₦30,000 per student per term, shared Rillcod 70% / school 30%');
   });
 
+  it('names the company we actually are', async () => {
+    const { db } = makeDb({ terms: null });
+
+    const issued = await issuePartnershipDocument({ db: db as any, schoolId: 'school-1', kind: 'proposal' });
+
+    // The MoU already asserts this. The proposal was passing a hardcoded
+    // "Rillcod Academy" as preparedBy, so it printed a company on its cover
+    // that does not exist — on the one page a prospect reads first.
+    expect(issued.html).not.toContain('Rillcod Academy');
+    expect(issued.html).toContain('Rillcod Technologies');
+  });
+
   it('records that a proposal was issued before terms were agreed', async () => {
     const { db, inserted } = makeDb({ terms: null });
 

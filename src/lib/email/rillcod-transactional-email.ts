@@ -1181,3 +1181,91 @@ export function buildLeadEnrolledParentEmail(opts: {
     footerNote: `${BRAND.name} · ${brandContact.address} · ${brandContact.phone}`,
   });
 }
+
+/**
+ * A partnership proposal, sent to a prospective school.
+ *
+ * This is the only builder here that is marketing rather than transactional, and
+ * it is written accordingly: the email has to earn the attachment being opened.
+ * So it leads with what the school gets rather than what we are sending, carries
+ * the one number worked from their own roll, and asks for a demonstration rather
+ * than a signature — nobody signs from an inbox.
+ *
+ * Everything quoted comes from the issued document. The email never recomputes a
+ * fee, because two numbers for one deal is the failure the whole partnership
+ * record exists to prevent.
+ */
+export function buildPartnershipProposalEmail(opts: {
+  schoolName: string;
+  contactName?: string | null;
+  reference: string;
+  /** Headline figure for the school, already formatted, e.g. "₦1,050,000". */
+  schoolShareLabel?: string | null;
+  sharePercent?: number | null;
+  /** How many years the quote covers, e.g. "Basic 1 to SS 3". */
+  coverage?: string | null;
+  partnerSchools?: string | null;
+  validUntil?: string | null;
+  appUrl?: string;
+}): string {
+  const greeting = opts.contactName
+    ? `Dear ${escapeHtml(opts.contactName)},`
+    : `Dear ${escapeHtml(opts.schoolName)},`;
+
+  const rows: TransactionalSummaryRow[] = [
+    { label: 'Proposal reference', value: opts.reference },
+    ...(opts.coverage ? [{ label: 'Covers', value: opts.coverage }] : []),
+    ...(opts.schoolShareLabel
+      ? [
+          {
+            label: `Your ${opts.sharePercent ?? 30}% share, per term`,
+            value: opts.schoolShareLabel,
+            highlight: true,
+          },
+        ]
+      : []),
+    ...(opts.validUntil ? [{ label: 'Fees held until', value: opts.validUntil }] : []),
+  ];
+
+  const bodyHtml = `
+    <p style="margin:0 0 14px;">${greeting}</p>
+    <p style="margin:0 0 14px;">
+      Parents are choosing schools on whether their children will be ready for work that does not
+      exist yet. We run the coding, robotics and AI programme that answers that — taught on your
+      site, on your timetable, by our facilitators, with your teachers taking it on over time.
+    </p>
+    <p style="margin:0 0 14px;">
+      The attached proposal is written for ${escapeHtml(opts.schoolName)} specifically. It sets out the
+      full year-by-year curriculum, what each side provides, how a rollout runs in its first two
+      weeks, and what the programme is worth to you at your own enrolment${
+        opts.partnerSchools
+          ? ` — the same programme already running in ${escapeHtml(opts.partnerSchools)} schools`
+          : ''
+      }.
+    </p>
+    <p style="margin:0 0 6px;">
+      We are not asking you to commit to anything from an email. The next step is a live
+      demonstration for your students and a short session with your leadership and PTA — after
+      which you will know whether this belongs in your school.
+    </p>`;
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl: opts.appUrl,
+    eyebrow: opts.schoolName,
+    title: 'Coding, Robotics & AI for every year group',
+    bodyHtml,
+    summaryRows: rows,
+    cta: { href: `mailto:${brandContact.email}?subject=${encodeURIComponent(`Demonstration request — ${opts.schoolName}`)}`, label: 'Book a demonstration' },
+    extraBlock: `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-collapse:collapse;">
+        <tr><td style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};padding:14px 16px;">
+          <p style="margin:0 0 4px;font-size:11px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">The attachment</p>
+          <p style="margin:0;font-size:13px;color:${BRAND.white};line-height:1.6;">
+            Open <b>${escapeHtml(opts.reference)}</b> in any browser. To keep a PDF copy, use your
+            browser's Print option and choose “Save as PDF”.
+          </p>
+        </td></tr>
+      </table>`,
+    footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
+  });
+}

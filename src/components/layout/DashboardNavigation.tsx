@@ -46,6 +46,7 @@ import {
   QuestionMarkCircleIcon,
   ChevronDownIcon,
   ExclamationTriangleIcon,
+  DocumentDuplicateIcon,
 } from "@/lib/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -570,6 +571,11 @@ export default function DashboardNavigation() {
             name: "Finance Center",
             href: "/dashboard/finance",
             icon: BanknotesIcon,
+          },
+          {
+            name: "Partnerships",
+            href: "/dashboard/partnerships",
+            icon: DocumentDuplicateIcon,
           },
 
           { divider: true, label: "Danger zone" },

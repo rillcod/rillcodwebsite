@@ -115,6 +115,63 @@ describe('the partnership proposal', () => {
     expect(html).not.toContain('Primary Pathway');
   });
 
+  it('always gives both sides somewhere to sign', () => {
+    // The close and the signature block used to live inside the secondary-years
+    // page, so a proposal whose curriculum did not load printed no closing and
+    // nowhere to sign — on the document whose entire purpose is being agreed to.
+    for (const input of [base, { ...base, curriculum: null }]) {
+      const html = buildPartnershipProposalHTML(input);
+      expect(html).toContain('Next step');
+      expect(html).toContain('For RILLCOD LTD (trading as Rillcod Technologies)');
+      expect(html).toContain('For Bay-Flowers International School');
+    }
+  });
+
+  it('states the year range it is actually selling', () => {
+    const full = buildPartnershipProposalHTML(base);
+    expect(full).toContain('Basic 1 to SS 3');
+
+    // Option A stops at SS 2, so the cover must not still claim SS 3.
+    const scoped = buildPartnershipProposalHTML({ ...base, scopeToOffer: 'Basic 1 through SS 2' });
+    expect(scoped).toContain('1 school year<');
+    expect(scoped).not.toContain('Basic 1 to SS 3');
+  });
+
+  it('quotes one stage when that is all the school runs', () => {
+    // A primary school reading about SS 3 learns we did not look at them.
+    const primaryOnly = buildPartnershipProposalHTML({ ...base, stage: 'primary' });
+    expect(primaryOnly).toContain('Primary Pathway');
+    expect(primaryOnly).not.toContain('Secondary Pathway');
+    expect(primaryOnly).toContain('Basic 1 to Basic 1');
+
+    const secondaryOnly = buildPartnershipProposalHTML({ ...base, stage: 'secondary' });
+    expect(secondaryOnly).toContain('Secondary Pathway');
+    expect(secondaryOnly).not.toContain('Primary Pathway');
+
+    // Either way there is still a place to sign.
+    expect(primaryOnly).toContain('For RILLCOD LTD');
+    expect(secondaryOnly).toContain('For RILLCOD LTD');
+  });
+
+  it('quotes all twelve years by default', () => {
+    const both = buildPartnershipProposalHTML({ ...base, stage: 'both' });
+    expect(both).toContain('Primary Pathway');
+    expect(both).toContain('Secondary Pathway');
+  });
+
+  it('dates how long the quoted fees stand', () => {
+    const html = buildPartnershipProposalHTML({ ...base, validUntilLabel: '12 November 2026' });
+
+    expect(html).toContain('Fees valid until');
+    expect(html).toContain('These fees stand until 12 November 2026');
+  });
+
+  it('says nothing about validity when none was set', () => {
+    const html = buildPartnershipProposalHTML(base);
+    expect(html).not.toContain('Fees valid until');
+    expect(html).not.toContain('These fees stand until');
+  });
+
   it('escapes a school name that contains markup', () => {
     const html = buildPartnershipProposalHTML({
       ...base,

@@ -15,10 +15,18 @@
  *   a database trigger; re-rendering would silently restate what somebody signed.
  *   Issue a fresh document instead, which is what supersede is for.
  */
-import { getPublishedProgression, type CurriculumProgression } from './curriculum';
+import { brandContact } from '@/config/brand';
+import {
+  getPublishedProgression,
+  type CurriculumProgression,
+  type CurriculumStage,
+} from './curriculum';
 import { buildPartnershipMouHTML } from './templates/mou-html';
 import { buildPartnershipProposalHTML } from './templates/proposal-html';
 import { buildProposalNarrative, type ProposalNarrative } from './proposal-narrative';
+import { loadProofPoints } from './proof-points';
+import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
+import { findOffer, PARTNERSHIP_OFFERS } from './offers';
 import {
   MissingPartnershipTermsError,
   getAgreedTerms,
@@ -49,15 +57,26 @@ export type IssueInput = {
   useAI?: boolean;
   /** Restrict the printed years to one offer's scope, e.g. "Basic 1 through SS 2". */
   scopeToOffer?: string | null;
+  /** Quote the primary half, the secondary half, or all twelve years. */
+  stage?: CurriculumStage | null;
   /** Headcount used for the MoU's worked example. */
   illustrativeStudents?: number;
   commencement?: string | null;
   durationLabel?: string | null;
   notes?: string | null;
+  /** How long a proposal's quoted fees stand. Ignored for an MoU. */
+  validityDays?: number | null;
 };
 
+/** A quote with no expiry is a quote forever. Long enough for a school term to turn over. */
+export const DEFAULT_PROPOSAL_VALIDITY_DAYS = 90;
+
+function longDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function todayLabel(): string {
-  return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return longDate(new Date());
 }
 
 /**
@@ -121,8 +140,47 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       commencement: input.commencement ?? null,
       durationLabel: input.durationLabel ?? null,
       illustrativeStudents: input.illustrativeStudents ?? school.student_count ?? 0,
+      stage: input.stage ?? null,
     });
   } else {
+    // Zero or a negative number means "no expiry stated" rather than an
+    // already-expired quote, which would be worse than saying nothing.
+    const validityDays = input.validityDays ?? DEFAULT_PROPOSAL_VALIDITY_DAYS;
+    let validUntil: string | null = null;
+    if (Number.isFinite(validityDays) && (validityDays as number) > 0) {
+      const expires = new Date();
+      expires.setDate(expires.getDate() + Number(validityDays));
+      validUntil = longDate(expires);
+    }
+
+    /**
+     * What the programme is worth to this school.
+     *
+     * Prefers the agreed rate, because once a deal exists the proposal must not
+     * quote a different number from the one the invoice will bill. Falls back to
+     * the quoted offer's entry price — the conservative end of the range, so the
+     * projection is a floor rather than a best case.
+     */
+    // Falls back to the first standard offer when the quote is not scoped to
+    // one, at its entry price. Without this the projection silently vanishes
+    // from every proposal that does not pre-pick an option — which is most of
+    // them, and it is the section that does the persuading.
+    const scopedOffer =
+      PARTNERSHIP_OFFERS.find((o) => o.scope === input.scopeToOffer) ??
+      findOffer(input.scopeToOffer) ??
+      PARTNERSHIP_OFFERS[0];
+    const feePerStudent =
+      agreedTerms?.billing_model === 'per_student' && agreedTerms.amount_per_student
+        ? agreedTerms.amount_per_student
+        : (scopedOffer?.priceFrom ?? 0);
+    const upside = schoolUpside({
+      roll: Number(school.student_count) || 0,
+      feePerStudent,
+      // The standard deal is 70/30. Where terms exist, their split wins.
+      sharePercent: agreedTerms?.school_share_percent ?? 30,
+      cycle: agreedTerms?.billing_cycle ?? 'term',
+    });
+
     const narrative = await buildProposalNarrative(
       { school, curriculum, notes: input.notes ?? null },
       { useAI: input.useAI === true },
@@ -136,7 +194,17 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       dateLabel,
       narrative,
       scopeToOffer: input.scopeToOffer ?? null,
-      preparedBy: 'Rillcod Academy',
+      stage: input.stage ?? null,
+      validUntilLabel: validUntil,
+      // Counted now, so the cover cannot claim a footprint we have grown out of
+      // or shrunk below. The recipient is excluded from its own proof, and null
+      // simply drops the band.
+      proof: await loadProofPoints(db, schoolId),
+      upside,
+      photos: PARTNERSHIP_PHOTOS,
+      // Read from the brand record, not typed again. "Rillcod Academy" is not a
+      // company we have; the MoU already learned that lesson.
+      preparedBy: brandContact.displayName,
     });
   }
 

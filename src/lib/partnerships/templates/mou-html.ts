@@ -14,8 +14,8 @@
  * rather than the proposal's year cards, and no part of it is AI-written.
  */
 import { brandContact } from '@/config/brand';
-import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
-import { splitByStage } from '../curriculum';
+import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
+import { levelsForStage, splitByStage } from '../curriculum';
 import { computeCharge, describeTerms, type PartnershipTerms } from '../terms';
 
 export type MouParty = {
@@ -40,6 +40,12 @@ export type MouInput = {
   durationLabel?: string | null;
   /** Headcount used to illustrate clause 8. Zero hides the worked example. */
   illustrativeStudents?: number;
+  /**
+   * Which half of the ladder this agreement covers. The schedule must describe
+   * the years actually being taught — an agreement that annexes SS years to a
+   * primary school commits us to delivering them.
+   */
+  stage?: CurriculumStage | null;
 };
 
 const esc = (s: unknown): string =>
@@ -69,7 +75,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   const { school, terms, curriculum } = input;
   const location = [school.city, school.state].filter(Boolean).join(', ');
   const { primary, secondary } = curriculum
-    ? splitByStage(curriculum.levels)
+    ? splitByStage(levelsForStage(curriculum.levels, input.stage))
     : { primary: [], secondary: [] };
 
   const shareOn = terms.rillcod_share_percent != null;
@@ -90,9 +96,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           <tr><td>Gross programme revenue per term</td><td class="num">${esc(money(example.subtotal, terms.currency))}</td></tr>
           ${
             shareOn
-              ? `<tr><td>${esc(brandContact.legalName)} operations (${esc(terms.rillcod_share_percent)}%)</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>
+              ? `<tr><td>${esc(brandContact.registeredName)} operations (${esc(terms.rillcod_share_percent)}%)</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>
                  <tr><td>${esc(school.name)} share (${esc(terms.school_share_percent)}%)</td><td class="num strong">${esc(money(example.schoolSettlement, terms.currency))}</td></tr>`
-              : `<tr><td>Payable to ${esc(brandContact.legalName)}</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>`
+              : `<tr><td>Payable to ${esc(brandContact.registeredName)}</td><td class="num strong">${esc(money(example.rillcodRetain, terms.currency))}</td></tr>`
           }
           ${
             example.deposit > 0
@@ -109,7 +115,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Memorandum of Understanding — ${esc(brandContact.legalName)} &amp; ${esc(school.name)}</title>
+<title>Memorandum of Understanding — ${esc(brandContact.registeredName)} &amp; ${esc(school.name)}</title>
 <style>
   @page { size: A4; margin: 15mm 14mm; }
   * { box-sizing: border-box; }
@@ -193,8 +199,8 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <div class="parties">
       <div class="party">
         <div class="role">Party A</div>
-        <div class="nm">${esc(brandContact.legalName)}</div>
-        <div class="meta">${esc(brandContact.address)}<br>${esc(brandContact.phone)} · ${esc(brandContact.email)}</div>
+        <div class="nm">${esc(brandContact.registeredName)}</div>
+        <div class="meta">Trading as ${esc(brandContact.displayName)} · ${esc(brandContact.rcNumber)}<br>${esc(brandContact.address)}<br>${esc(brandContact.phone)} · ${esc(brandContact.email)}</div>
       </div>
       <div class="party">
         <div class="role">Party B</div>
@@ -214,7 +220,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <h2>3.0 Commitments of the Parties</h2>
     <div class="duties">
       <div>
-        <h3>${esc(brandContact.legalName)} provides</h3>
+        <h3>${esc(brandContact.registeredName)} provides</h3>
         <ol>
           <li>Trained facilitators to deliver every scheduled session on the school's premises.</li>
           <li>The full curriculum, lesson materials and termly assessments.</li>
@@ -247,7 +253,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     ${worked}
     <p>Invoices are issued each term against enrolment. ${
       shareOn
-        ? `Fees are collected by ${esc(school.name)} and settled with ${esc(brandContact.legalName)} on the split stated above.`
+        ? `Fees are collected by ${esc(school.name)} and settled with ${esc(brandContact.registeredName)} on the split stated above.`
         : 'Payment falls due within the period stated on each invoice.'
     } Any change to these terms takes effect only when both parties record a superseding agreement in writing.</p>
   </section>
@@ -293,7 +299,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       <li>This Memorandum takes effect from ${esc(input.commencement || 'the commencement of the next academic term')} and continues for ${esc(input.durationLabel || 'one academic session')}, after which it is reviewed by both parties.</li>
       <li>Either party may end this Memorandum by giving one full term's written notice, so that no cohort is interrupted mid-term.</li>
       <li>Fees already invoiced for a term in progress remain payable.</li>
-      <li>Equipment supplied by ${esc(brandContact.legalName)} remains the property of ${esc(brandContact.legalName)} and is returned on termination.</li>
+      <li>Equipment supplied by ${esc(brandContact.registeredName)} remains the property of ${esc(brandContact.registeredName)} and is returned on termination.</li>
       <li>Student records and work produced remain accessible to the students and to the school.</li>
     </ol>
   </section>
@@ -313,7 +319,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     <div class="sign">
       <div class="sign-box">
-        <div class="who">For ${esc(brandContact.legalName)} (Party A)</div>
+        <div class="who">For ${esc(brandContact.registeredName)} (Party A)</div>
         <div class="line">
           <div class="nm">Name &amp; signature</div>
           <div class="muted">Date</div>

@@ -1,6 +1,8 @@
 /**
- * GET  /api/partnerships/documents?school_id=…  — documents issued to a school
- * POST /api/partnerships/documents               — issue a proposal or an MoU
+ * GET    /api/partnerships/documents?school_id=…  — documents issued to a school
+ * POST   /api/partnerships/documents               — issue a proposal or an MoU
+ * PATCH  /api/partnerships/documents               — move one along its lifecycle
+ * DELETE /api/partnerships/documents?id=…          — discard a draft
  *
  * Issuing renders the document and keeps it, with a reference assigned by the
  * database. That is the whole point: a generated file nobody stored is how one
@@ -84,10 +86,18 @@ export async function POST(req: NextRequest) {
       actorId: actor.user.id,
       useAI: body.use_ai === true,
       scopeToOffer: body.scope_to_offer ? String(body.scope_to_offer) : null,
+      stage:
+        body.stage === 'primary' || body.stage === 'secondary' || body.stage === 'both'
+          ? body.stage
+          : null,
       illustrativeStudents: Number(body.illustrative_students) || undefined,
       commencement: body.commencement ? String(body.commencement) : null,
       durationLabel: body.duration_label ? String(body.duration_label) : null,
       notes: body.notes ? String(body.notes) : null,
+      validityDays:
+        body.validity_days == null || body.validity_days === ''
+          ? null
+          : Number(body.validity_days),
     });
 
     await logAudit(actor.db as any, {
@@ -126,4 +136,141 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+const LIFECYCLE = ['draft', 'sent', 'signed', 'declined', 'void'] as const;
+
+/**
+ * Move a document along its lifecycle.
+ *
+ * Only the status and the signature details are writable. The document body and
+ * the terms behind it are never touched here — a database trigger seals both
+ * once a row is signed, and this route has no reason to fight it. Restating a
+ * signed contract means superseding the terms and issuing a new one.
+ */
+export async function PATCH(req: NextRequest) {
+  const actor = await requireActor(true);
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const id = String(body.id ?? '').trim();
+  const status = String(body.status ?? '').trim();
+
+  if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
+  if (!LIFECYCLE.includes(status as (typeof LIFECYCLE)[number])) {
+    return NextResponse.json(
+      { error: `status must be one of ${LIFECYCLE.join(', ')}.` },
+      { status: 400 },
+    );
+  }
+
+  const { data: current } = await actor.db
+    .from('partnership_agreements')
+    .select('id, reference, status, school_id, sent_at, signed_at, signed_by_name, signed_by_role')
+    .eq('id', id)
+    .maybeSingle();
+  if (!current) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
+
+  const patch: {
+    status: string;
+    signed_by_name?: string | null;
+    signed_by_role?: string | null;
+    signed_at?: string | null;
+    sent_at?: string | null;
+  } = { status };
+
+  if (status === 'signed') {
+    // The CHECK requires a name and a time against a signature. Asking for them
+    // here means the refusal names the missing field instead of the constraint.
+    const signedByName = String(body.signed_by_name ?? current.signed_by_name ?? '').trim();
+    if (!signedByName) {
+      return NextResponse.json(
+        { error: 'Recording a signature needs the name of the person who signed it.' },
+        { status: 400 },
+      );
+    }
+    patch.signed_by_name = signedByName;
+    // Keep what is already recorded when the caller does not restate it, so a
+    // second PATCH cannot quietly blank the signer's role.
+    patch.signed_by_role = body.signed_by_role
+      ? String(body.signed_by_role)
+      : (current.signed_by_role ?? null);
+    patch.signed_at = current.signed_at ?? new Date().toISOString();
+    // A document cannot be signed without having gone out.
+    patch.sent_at = current.sent_at ?? new Date().toISOString();
+  } else if (status === 'sent' && !current.sent_at) {
+    patch.sent_at = new Date().toISOString();
+  }
+
+  const { data: updated, error } = await actor.db
+    .from('partnership_agreements')
+    .update(patch)
+    .eq('id', id)
+    .select('id, reference, document_kind, status, sent_at, signed_at, signed_by_name')
+    .single();
+
+  if (error) {
+    // The trigger's own message is the useful one — it says what to do instead.
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  await logAudit(actor.db as any, {
+    action: 'update_partnership_agreement_status',
+    actorId: actor.user.id,
+    resourceType: 'partnership_agreements',
+    resourceId: id,
+    tableName: 'partnership_agreements',
+    oldValue: String(current.status),
+    newValue: `${updated.reference}: ${current.status} → ${status}`,
+    newValues: { school_id: current.school_id, status, reference: updated.reference },
+  });
+
+  return NextResponse.json({ document: updated });
+}
+
+/**
+ * Discard a draft.
+ *
+ * Drafts only. A document that has been sent or signed is the record of what a
+ * school was given, and deleting it would recreate exactly the gap this table
+ * was built to close — void it instead, which keeps the row and says so.
+ */
+export async function DELETE(req: NextRequest) {
+  const actor = await requireActor(true);
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const id = req.nextUrl.searchParams.get('id')?.trim() || '';
+  if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
+
+  const { data: current } = await actor.db
+    .from('partnership_agreements')
+    .select('id, reference, status, school_id, document_kind')
+    .eq('id', id)
+    .maybeSingle();
+  if (!current) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
+
+  if (current.status !== 'draft') {
+    return NextResponse.json(
+      {
+        error:
+          `${current.reference} has already been ${current.status}. A document that left the building stays on record — void it instead of deleting it.`,
+      },
+      { status: 409 },
+    );
+  }
+
+  const { error } = await actor.db.from('partnership_agreements').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit(actor.db as any, {
+    action: 'delete_partnership_draft',
+    actorId: actor.user.id,
+    resourceType: 'partnership_agreements',
+    resourceId: id,
+    tableName: 'partnership_agreements',
+    oldValue: `${current.reference} (${current.document_kind}, draft)`,
+    newValues: { school_id: current.school_id, reference: current.reference },
+  });
+
+  return NextResponse.json({ deleted: true, reference: current.reference });
 }

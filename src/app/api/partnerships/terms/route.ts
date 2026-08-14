@@ -1,6 +1,7 @@
 /**
- * GET  /api/partnerships/terms?school_id=…  — terms history for one school
- * POST /api/partnerships/terms               — record a new set of terms
+ * GET    /api/partnerships/terms?school_id=…  — terms history for one school
+ * POST   /api/partnerships/terms               — record a new set of terms
+ * DELETE /api/partnerships/terms?id=…          — discard an unagreed draft
  *
  * Terms are the agreed commercial deal: what a school is charged and how it
  * divides. The proposal, the MoU and the invoice all read this rather than each
@@ -183,4 +184,55 @@ export async function POST(req: NextRequest) {
     terms: inserted,
     summary: terms ? describeTerms(terms) : null,
   });
+}
+
+/**
+ * Discard a set of terms that was never agreed.
+ *
+ * Drafts and proposals only. An agreed or superseded row is what some invoice
+ * was billed on and what some agreement was signed against, so it stays —
+ * superseding is how terms end, not deletion. The foreign key from
+ * `partnership_agreements.terms_id` enforces the same thing one layer down; this
+ * check exists so the answer is a sentence rather than a constraint name.
+ */
+export async function DELETE(req: NextRequest) {
+  const actor = await requireActor(true);
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const id = req.nextUrl.searchParams.get('id')?.trim() || '';
+  if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
+
+  const { data: current } = await actor.db
+    .from('partnership_terms')
+    .select('id, school_id, status, version')
+    .eq('id', id)
+    .maybeSingle();
+  if (!current) return NextResponse.json({ error: 'Those terms do not exist.' }, { status: 404 });
+
+  if (current.status === 'agreed' || current.status === 'superseded') {
+    return NextResponse.json(
+      {
+        error:
+          current.status === 'agreed'
+            ? 'These terms are in force. Record new agreed terms to supersede them — that keeps this row, which is what previously signed agreements point at.'
+            : 'Superseded terms are kept on purpose: an agreement signed earlier was signed against them.',
+      },
+      { status: 409 },
+    );
+  }
+
+  const { error } = await actor.db.from('partnership_terms').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit(actor.db as any, {
+    action: 'delete_partnership_terms_draft',
+    actorId: actor.user.id,
+    resourceType: 'partnership_terms',
+    resourceId: id,
+    tableName: 'partnership_terms',
+    oldValue: `v${current.version} (${current.status})`,
+    newValues: { school_id: current.school_id, status: current.status },
+  });
+
+  return NextResponse.json({ deleted: true });
 }

@@ -104,6 +104,25 @@ export function splitByStage(levels: ProgressionLevel[]): {
   };
 }
 
+/** Which half of the ladder a quote covers. */
+export type CurriculumStage = 'primary' | 'secondary' | 'both';
+
+/**
+ * Trim the ladder to one stage.
+ *
+ * A primary school has no use for the SS years and a secondary school does not
+ * want to read about Basic 1 — quoting the whole twelve to either is how a
+ * proposal reads as a template rather than an answer.
+ */
+export function levelsForStage(
+  levels: ProgressionLevel[],
+  stage: CurriculumStage | null | undefined,
+): ProgressionLevel[] {
+  if (!stage || stage === 'both') return levels;
+  const { primary, secondary } = splitByStage(levels);
+  return stage === 'primary' ? primary : secondary;
+}
+
 /** The years a given offer actually covers, so a quote does not promise more than it sells. */
 export function levelsForScope(levels: ProgressionLevel[], scope: string): ProgressionLevel[] {
   // "Basic 1 through SS 2" — an offer that stops short of the final year.

@@ -17,6 +17,7 @@
  * a malformed answer all end at the authored narrative, because a school waiting
  * on a proposal should never be blocked by an AI provider.
  */
+import { brandContact } from '@/config/brand';
 import { generateAIContent } from '@/lib/ai/generate-core';
 import type { CurriculumProgression } from './curriculum';
 import type { PartnershipOffer } from './offers';
@@ -112,7 +113,9 @@ function buildPrompt(ctx: NarrativeContext): string {
     : 'a multi-year coding, robotics and AI progression';
 
   return [
-    'You are writing the persuasive copy of a partnership proposal from Rillcod Academy,',
+    // The company is named from one place. A prompt that says "Rillcod Academy"
+    // teaches the model a company that does not exist, and it comes back in copy.
+    `You are writing the persuasive copy of a partnership proposal from ${brandContact.displayName},`,
     'a STEM, robotics and AI education partner, to a Nigerian private school.',
     '',
     `School: ${ctx.school.name}${where ? ` in ${where}` : ''}.`,
