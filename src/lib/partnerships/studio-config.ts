@@ -11,6 +11,8 @@
  * what a particular school does not need, which is the actual job.
  */
 
+import { PARTNERSHIP_PHOTOS } from './proposal-sections';
+
 export type ProposalSectionKey =
   | 'proofBand'
   | 'intro'
@@ -70,7 +72,19 @@ export const SECTION_LABELS: Array<{
 
 export const ALL_SECTIONS: ProposalSectionKey[] = SECTION_LABELS.map((s) => s.key);
 
-export function defaultStudioConfig(photos: readonly string[] = []): ProposalStudioConfig {
+/**
+ * The complete document, with the house photographs already chosen.
+ *
+ * This defaulted to no photographs, and `normaliseStudioConfig` honours an
+ * explicit empty array — so the desk, which builds its config from here, sent
+ * `photos: []` on every issue and silently overrode the six the document is
+ * supposed to print. Every proposal went out with no evidence in it. Starting
+ * from the house selection means clearing them is a deliberate act, which is
+ * what the studio is for.
+ */
+export function defaultStudioConfig(
+  photos: readonly string[] = PARTNERSHIP_PHOTOS,
+): ProposalStudioConfig {
   return {
     sections: Object.fromEntries(ALL_SECTIONS.map((k) => [k, true])) as Record<
       ProposalSectionKey,

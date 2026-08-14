@@ -34,6 +34,21 @@ export async function GET() {
     return NextResponse.json({ error: 'Not permitted' }, { status: 403 });
   }
 
+  /**
+   * The house six, as a listing.
+   *
+   * `public/` is served by the CDN and is not part of a deployed function's
+   * filesystem, so the readdir below finds the whole folder in dev and nothing
+   * at all in production — which is how the studio came to show an empty picker
+   * on the live site. `outputFileTracingIncludes` asks the build to carry the
+   * folder along, but the photographs the document actually prints are known
+   * here regardless, and a studio that lists those beats one that lists none.
+   */
+  const known = PARTNERSHIP_PHOTOS.map((src) => ({
+    src,
+    name: decodeURIComponent(src.split('/').pop() ?? src),
+  }));
+
   try {
     const dir = path.join(process.cwd(), PARTNERSHIP_PHOTO_DIR);
     const webDir = '/' + PARTNERSHIP_PHOTO_DIR.replace(/^public\//, '').replace(/\/$/, '');
@@ -42,14 +57,14 @@ export async function GET() {
       : [];
 
     return NextResponse.json({
-      photos: files.map((name) => ({ src: `${webDir}/${name}`, name })),
+      photos: files.length ? files.map((name) => ({ src: `${webDir}/${name}`, name })) : known,
       // What the document prints today, so the studio can open on it.
       selected: PARTNERSHIP_PHOTOS,
     });
   } catch (error) {
-    // A studio that cannot list photographs should still open; it simply offers
-    // none rather than failing the whole screen.
+    // A studio that cannot list the folder still offers what the document prints,
+    // rather than failing the whole screen.
     console.warn('[partnerships] could not list photographs:', error);
-    return NextResponse.json({ photos: [], selected: PARTNERSHIP_PHOTOS });
+    return NextResponse.json({ photos: known, selected: PARTNERSHIP_PHOTOS });
   }
 }

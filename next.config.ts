@@ -63,6 +63,13 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfmake/fonts/**/*",
       "./node_modules/pdfmake/build/fonts/**/*",
     ],
+    // The proposal studio and the public gallery list this folder off the
+    // filesystem at request time. `public/` is served by the CDN and is not
+    // otherwise part of a deployed function's filesystem, so without this the
+    // readdir finds nothing and both come back empty in production while
+    // working perfectly in dev.
+    "/api/partnerships/photos/**/*": ["./public/images/EVENTS/**/*"],
+    "/api/gallery/events/**/*": ["./public/images/EVENTS/**/*"],
   },
 
   // ── Turbopack Compatibility ──────────────────────────────────────────────
@@ -192,6 +199,17 @@ const nextConfig: NextConfig = {
           // Allow camera & mic for LiveKit video meetings
           { key: 'Permissions-Policy', value: 'camera=*, microphone=*, display-capture=*' },
         ],
+      },
+      {
+        // Programme photographs are referenced by absolute URL inside issued
+        // partnership documents, because those documents are previewed in a
+        // srcdoc iframe and emailed, where a relative path resolves against
+        // nothing. Building the PDF then reads each image back through
+        // html-to-image, which needs the pixels — and a cross-origin image with
+        // no CORS header rasterises as an empty box. These are public marketing
+        // photographs already served to anyone; letting them be read is safe.
+        source: '/images/:path*',
+        headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
       },
       {
         // Development chunks are not content-addressed and change during HMR;

@@ -943,7 +943,10 @@ ${on('intro') ? `  <section>
       <div><b>Our mission \u2014 transform STEM education</b>To replace rote memorisation with project-driven computational thinking, building creativity, analytical reasoning and genuine software engineering capability in primary and secondary learners.</div>
       <div><b>Our vision \u2014 Africa\u2019s technology leadership</b>To equip every young learner with internationally competitive skills, positioning West Africa as a primary exporter of technology talent and innovation.</div>
     </div>
-    <p class="muted" style="margin-top:5mm">The fees, the twelve-year progression and the responsibilities on each side are set out here exactly as they run in our partner schools today.</p>
+    <!-- Says nothing about how many years. A quote can be scoped to one, and the
+         page beside this one already prints the real count from the curriculum
+         being sold; a hardcoded "twelve-year" here would contradict it. -->
+    <p class="muted" style="margin-top:5mm">The fees, the progression and the responsibilities on each side are set out here exactly as they run in our partner schools today.</p>
   </section>` : ''}
 ${splitOverview && on('fieldProof') ? fieldProofSection : ''}
 ${

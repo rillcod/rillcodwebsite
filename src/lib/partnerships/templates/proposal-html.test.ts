@@ -3,6 +3,8 @@ import { buildPartnershipProposalHTML } from './proposal-html';
 import { PARTNERSHIP_OFFERS } from '../offers';
 import type { CurriculumProgression } from '../curriculum';
 import type { PartnershipTerms } from '../terms';
+import { defaultStudioConfig } from '../studio-config';
+import { PARTNERSHIP_PHOTOS } from '../proposal-sections';
 
 const curriculum: CurriculumProgression = {
   id: 'prog-1',
@@ -187,5 +189,40 @@ describe('the partnership proposal', () => {
     expect(html.startsWith('<!DOCTYPE html>')).toBe(true);
     expect(html).toContain('@page { size: A4');
     expect(html.trimEnd().endsWith('</html>')).toBe(true);
+  });
+});
+
+/**
+ * The photographs are the only evidence in the document. They went missing for
+ * a reason nothing else could catch: the desk builds its studio config from
+ * `defaultStudioConfig()`, that defaulted to no photographs, and
+ * `normaliseStudioConfig` honours an explicit empty array — so every proposal
+ * issued from the desk quietly printed none, while a direct call to the
+ * template (every test, and every render I measured) printed all six.
+ */
+describe('the photographs a proposal actually prints', () => {
+  it('prints the house selection under the desk default', () => {
+    const html = buildPartnershipProposalHTML({ ...base, studio: defaultStudioConfig() });
+
+    for (const src of PARTNERSHIP_PHOTOS) {
+      const encoded = src.replace(/^\//, '').split('/').map(encodeURIComponent).join('/');
+      expect(html).toContain(encoded);
+    }
+  });
+
+  it('prints all six across the two strips, none twice', () => {
+    const html = buildPartnershipProposalHTML({ ...base, studio: defaultStudioConfig() });
+    const srcs = [...html.matchAll(/<img src="([^"]*EVENTS[^"]*)"/g)].map((m) => m[1]);
+
+    expect(srcs).toHaveLength(6);
+    expect(new Set(srcs).size).toBe(6);
+  });
+
+  it('still lets the studio clear them deliberately', () => {
+    const studio = { ...defaultStudioConfig(), photos: [] };
+    const html = buildPartnershipProposalHTML({ ...base, studio });
+
+    expect(html).not.toContain('EVENTS');
+    expect(html).not.toContain('The programme running');
   });
 });
