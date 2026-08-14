@@ -15,7 +15,7 @@
  */
 
 /** Where to drop classroom photography, and what the gallery will render. */
-export const PARTNERSHIP_PHOTO_DIR = 'public/images/partnership/';
+export const PARTNERSHIP_PHOTO_DIR = 'public/images/EVENTS/';
 
 /**
  * Photographs of the programme running, shown as a proof strip on the last page.
@@ -24,7 +24,14 @@ export const PARTNERSHIP_PHOTO_DIR = 'public/images/partnership/';
  * proposal can never go out with a broken image box where the evidence should
  * be. Add files to `public/images/partnership/` and list the filenames here.
  */
-export const PARTNERSHIP_PHOTOS: readonly string[] = [];
+export const PARTNERSHIP_PHOTOS: readonly string[] = [
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg',
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM (1).jpeg',
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM (1).jpeg',
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM (1).jpeg',
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.59 PM (1).jpeg',
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg',
+];
 
 export type Discipline = { name: string; body: string };
 

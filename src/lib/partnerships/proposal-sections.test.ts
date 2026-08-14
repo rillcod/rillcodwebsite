@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
 
@@ -24,10 +26,20 @@ describe('what the programme is worth to the school', () => {
     expect(upside?.rows.every((r) => r.students >= 1)).toBe(true);
   });
 
-  it('ships with no photographs rather than broken image boxes', () => {
-    // The gallery is opt-in: a proposal must never go out with an empty frame
-    // where the evidence is supposed to be.
-    expect(PARTNERSHIP_PHOTOS).toHaveLength(0);
+  it('lists only photographs that are actually on disk', () => {
+    // The gallery is the evidence page. A listed file that is not there is a
+    // broken frame where the proof should be, on the page just above the
+    // signature line — so the list is checked against the filesystem.
+    for (const src of PARTNERSHIP_PHOTOS) {
+      const onDisk = path.join(process.cwd(), 'public', src.replace(/^\//, ''));
+      expect(fs.existsSync(onDisk), `missing: ${src}`).toBe(true);
+    }
+  });
+
+  it('shows each photograph once, and no more than the gallery renders', () => {
+    expect(new Set(PARTNERSHIP_PHOTOS).size).toBe(PARTNERSHIP_PHOTOS.length);
+    // The template slices to six; listing more would quietly drop the rest.
+    expect(PARTNERSHIP_PHOTOS.length).toBeLessThanOrEqual(6);
   });
 });
 

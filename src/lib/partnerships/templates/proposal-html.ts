@@ -98,7 +98,15 @@ const TERM_NAMES = ['', '1st Term', '2nd Term', '3rd Term'];
  */
 function assetUrl(src: string): string {
   if (/^(https?:|data:)/i.test(src)) return src;
-  return `${brandContact.siteUrl.replace(/\/$/, '')}/${String(src).replace(/^\//, '')}`;
+  // Photographs come off a phone with names like "WhatsApp Image … (1).jpeg".
+  // Spaces and brackets are not valid in a URL, and an unencoded one is a broken
+  // frame on the page that is supposed to be the evidence.
+  const encoded = String(src)
+    .replace(/^\//, '')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${brandContact.siteUrl.replace(/\/$/, '')}/${encoded}`;
 }
 
 function yearCard(level: ProgressionLevel): string {
@@ -523,7 +531,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .cover { display: flex; flex-direction: column; min-height: 262mm; }
   .cover-top {
     background: #060B1E;
-    background: linear-gradient(135deg, #060B1E 0%, #1E1B4B 55%, #4C0519 100%);
+    /* Navy into the logo's blue into the logo's red. The previous midpoint sat
+       at #1E1B4B, which is indigo — blending brand blue to brand red through
+       the shortest path produces a purple this company does not own. Routing it
+       through the blue keeps every stop a colour that is actually ours. */
+    background: linear-gradient(118deg, #070C1F 0%, #123069 46%, #6E1018 100%);
     color: #fff; margin: -14mm -13mm 0; padding: 14mm 14mm 10mm;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
@@ -558,8 +570,15 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
   .cover-foot {
-    border-top: 1px solid #e2e8f0; padding-top: 5mm; font-size: 8.8pt; color: #64748b; line-height: 1.5;
+    border-top: 1px solid #d9dee7; padding-top: 5mm; font-size: 9.4pt; color: #475569;
+    display: flex; gap: 6mm; align-items: flex-start; line-height: 1.5;
   }
+  .cover-foot-l {
+    font-size: 8pt; text-transform: uppercase; letter-spacing: .1em;
+    color: #991b1b; font-weight: 800; white-space: nowrap; padding-top: .8mm;
+  }
+  .cover-foot b { color: #0f172a; font-size: 10.4pt; }
+  .cover-foot-reg { font-size: 8.4pt; color: #94a3b8; }
 
   /* Proof Band */
   .proof { display: flex; gap: 3.5mm; margin: 9mm 0 0; }
@@ -657,7 +676,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
   .gallery img {
-    width: 100%; height: 35mm; object-fit: cover; display: block;
+    width: 100%; height: 23mm; object-fit: cover; display: block;
     border: 1px solid #e2e8f0; border-radius: 1.5mm; break-inside: avoid;
   }
 
@@ -797,15 +816,30 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </div>
 
   <div class="cover-foot">
-    ${esc(brandContact.registeredName)} · ${esc(brandContact.rcNumber)} · trading as ${esc(brandContact.displayName)}<br>
-    ${esc(brandContact.address)}<br>
-    ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}
+    <div class="cover-foot-l">Speak to us</div>
+    <div>
+      <b>${esc(brandContact.displayName)}</b> — STEM, robotics and AI for schools<br>
+      ${esc(brandContact.address)}<br>
+      ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}<br>
+      <span class="cover-foot-reg">${esc(brandContact.registeredName)} · ${esc(brandContact.rcNumber)} · trading as ${esc(brandContact.displayName)}</span>
+    </div>
   </div>
 </div>
 
 <!-- Overview + commercials -->
 <div class="page">
   <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
+  <section>
+    <div class="rule"></div>
+    <h2>Who you would be partnering with</h2>
+    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. We do not run a school. We run the technology programme inside other people\u2019s schools \u2014 our facilitators, our curriculum, our kits and our platform, on your site and your timetable.${
+      input.proof
+        ? ` ${approx(input.proof.partnerSchools)} schools across Edo State already run it, for ${approx(input.proof.students)} students.`
+        : ''
+    }</p>
+    <p class="muted">Everything in this proposal \u2014 the fees, the twelve-year progression, what each side provides \u2014 is what we are actually contracted to elsewhere, not a description written for you.</p>
+  </section>
 
   <section>
     <div class="rule"></div>
