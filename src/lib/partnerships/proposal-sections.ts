@@ -109,7 +109,7 @@ export type SchoolUpside = {
    *   package  — one agreed price for the school
    *   uptake   — one rate, shown at three levels of take-up
    */
-  mode: 'sections' | 'package' | 'uptake';
+  mode: 'sections' | 'package' | 'uptake' | 'illustrative';
   feePerStudent: number;
   sharePercent: number;
   cycle: string;
@@ -202,6 +202,35 @@ export function schoolUpside(input: {
       feePerStudent: 0,
       sharePercent: share,
       cycle: input.cycle || 'term',
+    };
+  }
+
+  /**
+   * No roll on file — which is most of them.
+   *
+   * Nineteen of twenty-nine schools have no `student_count`, and returning null
+   * here emptied the money page down to a single obligations table: the one page
+   * a head teacher rereads, blank, on the proposal meant to persuade them. Three
+   * common school sizes are shown instead, labelled as illustrative, with the
+   * arithmetic visible so they can find their own number in it.
+   */
+  if (roll <= 0 && fee > 0 && share > 0) {
+    return {
+      rows: [100, 200, 300].map((students) => {
+        const gross = students * fee;
+        return {
+          label: `A school of ${students}`,
+          students,
+          rate: fee,
+          gross,
+          schoolShare: Math.round((gross * share) / 100),
+        };
+      }),
+      total: null,
+      mode: 'illustrative',
+      feePerStudent: fee,
+      sharePercent: share,
+      cycle,
     };
   }
 

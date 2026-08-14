@@ -14,11 +14,25 @@ describe('what the programme is worth to the school', () => {
     expect(upside?.rows[2].schoolShare).toBe(1_050_000);
   });
 
-  it('refuses to project when there is nothing honest to project from', () => {
-    // A forecast built on a guessed headcount is one we would have to defend.
-    expect(schoolUpside({ roll: 0, feePerStudent: 25000, sharePercent: 30 })).toBeNull();
+  it('refuses to project when there is no rate or no share', () => {
+    // Without a fee or a split there is no arithmetic to show at any headcount.
     expect(schoolUpside({ roll: 140, feePerStudent: 0, sharePercent: 30 })).toBeNull();
     expect(schoolUpside({ roll: 140, feePerStudent: 25000, sharePercent: 0 })).toBeNull();
+    expect(schoolUpside({ roll: 0, feePerStudent: 0, sharePercent: 30 })).toBeNull();
+  });
+
+  it('shows common school sizes when the roll is not on file', () => {
+    // Nineteen of twenty-nine schools have no student_count. Returning null for
+    // them emptied the money page to a single obligations table — on the one
+    // page a head teacher rereads.
+    const u = schoolUpside({ roll: 0, feePerStudent: 25000, sharePercent: 30 })!;
+
+    expect(u.mode).toBe('illustrative');
+    expect(u.rows.map((r) => r.students)).toEqual([100, 200, 300]);
+    // 100 × ₦25,000 = ₦2,500,000, of which the school keeps 30%.
+    expect(u.rows[0].schoolShare).toBe(750_000);
+    // Illustrative sizes are not a total to be added.
+    expect(u.total).toBeNull();
   });
 
   it('never shows a scenario of zero students', () => {

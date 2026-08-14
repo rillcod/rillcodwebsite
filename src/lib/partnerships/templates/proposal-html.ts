@@ -30,6 +30,7 @@ import {
   type SchoolUpside,
 } from '../proposal-sections';
 import { describeTerms, type PartnershipTerms } from '../terms';
+import { defaultStudioConfig, type ProposalStudioConfig } from '../studio-config';
 
 export type ProposalInput = {
   school: { name: string; address?: string | null; city?: string | null; state?: string | null };
@@ -77,6 +78,12 @@ export type ProposalInput = {
   upside?: SchoolUpside | null;
   /** Classroom photography. Empty renders no gallery rather than empty frames. */
   photos?: readonly string[];
+  /**
+   * What the studio decided this school should see, and in whose words.
+   * Absent means the complete document, which is what every caller that
+   * predates the studio expects.
+   */
+  studio?: ProposalStudioConfig | null;
 };
 
 const esc = (s: unknown): string =>
@@ -164,8 +171,20 @@ function offerCard(offer: PartnershipOffer, highlighted: boolean): string {
 }
 
 export function buildPartnershipProposalHTML(input: ProposalInput): string {
+  // Every section asks this before drawing itself. Defaulting to the complete
+  // document means a caller that knows nothing about the studio still gets a
+  // whole proposal.
+  const studio = input.studio ?? defaultStudioConfig(input.photos ?? []);
+  const on = (key: keyof typeof studio.sections) => studio.sections[key] !== false;
+
   const offers = input.offers ?? PARTNERSHIP_OFFERS;
-  const narrative = input.narrative ?? AUTHORED_NARRATIVE;
+  const base = input.narrative ?? AUTHORED_NARRATIVE;
+  const narrative = {
+    ...base,
+    headline: studio.copy.headline || base.headline,
+    opening: studio.copy.opening || base.opening,
+    closing: studio.copy.closing || base.closing,
+  };
   const curriculum = input.curriculum;
 
   // A quote shows the years it sells. Scoping to the offer keeps the proposal
@@ -219,7 +238,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
   </section>`;
 
-  const photos = (input.photos ?? []).filter(Boolean);
+  const photos = on('photos') ? (studio.photos ?? []).filter(Boolean) : [];
   const gallery = photos.length
     ? `
   <section>
@@ -240,7 +259,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    */
   const proofBand = (dark: boolean): string => {
     const p = input.proof;
-    if (!p) return '';
+    if (!p || !on('proofBand')) return '';
     const tiles = [
       { n: approx(p.partnerSchools), l: 'Schools partnered', c: 'c1' },
       { n: approx(p.students), l: 'Learners building', c: 'c2' },
@@ -262,7 +281,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * still there for whoever wants them.
    */
   const journey = (): string => {
-    if (scopedLevels.length < 2) return '';
+    if (scopedLevels.length < 2 || !on('journey')) return '';
     const picks = [0, Math.floor(years / 3), Math.floor((years * 2) / 3), years - 1]
       .filter((v, i, arr) => arr.indexOf(v) === i)
       .map((i) => scopedLevels[i])
@@ -336,7 +355,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   /** How a fee divides. Sits with the fees, because that is the question it answers. */
   const splitBlock = (): string => {
     const u = input.upside;
-    if (!u) return '';
+    if (!u || !on('split')) return '';
     return `
   <section>
     <div class="rule"></div>
@@ -355,19 +374,25 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   const upsideBlock = (): string => {
     const u = input.upside;
-    if (!u) return '';
+    if (!u || !on('upside')) return '';
 
     // Each shape gets the sentence that describes its own arithmetic. A section
     // breakdown says the share is taken on each section and added, because that
     // is the sum a bursar will do by hand to check it.
     const lead =
-      u.mode === 'sections'
+      u.mode === 'illustrative'
+        ? `We do not have your enrolment on file yet, so this is the same arithmetic at three common school sizes. Tell us your roll and we will restate it exactly — the rate and the ${u.sharePercent}% share do not change.`
+        : u.mode === 'sections'
         ? `Your ${u.sharePercent}% is taken on each section at its own agreed rate, and the sections are added. Nothing here is averaged or estimated.`
         : u.mode === 'package'
           ? `The agreed package for the school, and your ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
           : `Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.`;
 
-    const firstCol = u.mode === 'sections' ? 'Section' : u.mode === 'package' ? 'Agreed' : 'Scenario';
+    const firstCol =
+      u.mode === 'sections' ? 'Section'
+      : u.mode === 'package' ? 'Agreed'
+      : u.mode === 'illustrative' ? 'School size'
+      : 'Scenario';
     const showRate = u.mode === 'sections';
 
     const bodyRow = (r: (typeof u.rows)[number], highlight: boolean) => `
@@ -414,6 +439,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * carries its own figure since a printed page has no hover.
    */
   const offersChart = (): string => {
+    if (!on('offersChart')) return '';
     const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 300, ROW_H = 44, BAR_H = 19, R = 4, top = 8;
     const rows = offers.map((o) => ({
       code: o.code,
@@ -830,7 +856,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <div class="page">
   <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
-  <section>
+${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
     <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. We do not run a school. We run the technology programme inside other people\u2019s schools \u2014 our facilitators, our curriculum, our kits and our platform, on your site and your timetable.${
@@ -839,9 +865,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         : ''
     }</p>
     <p class="muted">Everything in this proposal \u2014 the fees, the twelve-year progression, what each side provides \u2014 is what we are actually contracted to elsewhere, not a description written for you.</p>
-  </section>
+  </section>` : ''}
 
-  <section>
+${on('pitch') ? `  <section>
     <div class="rule"></div>
     <h2>Why this, and why now</h2>
     <p>${esc(narrative.opening)}</p>
@@ -850,7 +876,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         .map((b) => `<div><b>${esc(b.title)}</b>${esc(b.body)}</div>`)
         .join('\n      ')}
     </div>
-  </section>
+  </section>` : ''}
 
 
   ${portfolioBlock()}
@@ -873,7 +899,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </section>`
       : ''
   }
-  <section>
+${on('disciplines') ? `  <section>
     <div class="rule"></div>
     <h2>What we teach</h2>
     <div class="disc">
@@ -881,9 +907,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,
       ).join('')}
     </div>
-  </section>
+  </section>` : ''}
 
-  <section>
+${on('rollout') ? `  <section>
     <div class="rule"></div>
     <h2>How a rollout actually goes</h2>
     <p class="muted">The first objection is never price, it is disruption. This is the whole of it.</p>
@@ -896,7 +922,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       </div>`,
       ).join('')}
     </div>
-  </section>
+  </section>` : ''}
 </div>
 
 <!-- Commercials -->
@@ -933,7 +959,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   ${upsideBlock()}
 
-  <section>
+${on('sideBySide') ? `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
     <table>
@@ -945,7 +971,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         </tr>
       </tbody>
     </table>
-  </section>
+  </section>` : ''}
 </div>
 
 ${
@@ -981,21 +1007,21 @@ ${
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
-  <section>
+${on('whyNow') ? `  <section>
     <div class="rule"></div>
     <h2>Why now</h2>
     <ul class="ticks">
       ${WHY_NOW.map((w) => `<li>${esc(w)}</li>`).join('')}
     </ul>
-  </section>
+  </section>` : ''}
 
-  <section>
+${on('fieldProof') ? `  <section>
     <div class="rule"></div>
     <h2>What our students have already done</h2>
     <ul class="ticks">
       ${FIELD_PROOF.map((f) => `<li>${esc(f)}</li>`).join('')}
     </ul>
-  </section>
+  </section>` : ''}
 
   ${gallery}
 
