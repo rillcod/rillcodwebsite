@@ -433,6 +433,44 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       bars + '</svg>';
   };
 
+  /**
+   * What the child hands back, counted from the ladder being sold.
+   *
+   * Every level carries a portfolio target — "3 Scratch Games + 1 AI Story" —
+   * so the evidence a parent ends up holding is already in the curriculum and
+   * does not need asserting separately. Scoping the quote changes this block
+   * with it, because it is the same list of years.
+   */
+  const portfolioBlock = (): string => {
+    const withPortfolio = scopedLevels.filter((l) => (l.portfolio ?? "").trim());
+    if (withPortfolio.length < 2) return '';
+    const first = withPortfolio[0];
+    const last = withPortfolio[withPortfolio.length - 1];
+    return `
+  <section>
+    <div class="rule"></div>
+    <h2>What a parent gets to hold</h2>
+    <p class="muted">Not a report saying it went well — the work itself, kept and added to every year. Taken from the progression below, so this is the actual list for the years being quoted.</p>
+    <div class="parent">
+      <div>
+        <div class="parent-when">${esc(first.grade)} — the first year</div>
+        <div class="parent-what">${esc(first.portfolio)}</div>
+        <div class="parent-body">Finished work in the first twelve months, so a parent sees the point of it before they are asked to keep paying for it.</div>
+      </div>
+      <div>
+        <div class="parent-when">Every term after</div>
+        <div class="parent-what">${withPortfolio.length} years of capstone builds</div>
+        <div class="parent-body">Each year closes on something that works — a robot, a game, an app — and a written progress report in the format your school already reports in.</div>
+      </div>
+      <div>
+        <div class="parent-when">${esc(last.grade)} — leaving</div>
+        <div class="parent-what">${esc(last.portfolio)}</div>
+        <div class="parent-body">A portfolio of shipped work, which is what a university admissions officer or a first employer actually asks to see.</div>
+      </div>
+    </div>
+  </section>`;
+  };
+
   const agreed = input.agreedTerms
     ? `<section class="agreed">
          <h2>Agreed terms</h2>
@@ -572,6 +610,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     width: 2.4mm; height: 2.4mm; background: #2563eb; border-radius: .5mm;
   }
   .disc b { display: block; color: #0f172a; margin-bottom: .8mm; font-size: 11pt; font-weight: 700; }
+
+  /* What the family keeps, drawn from the portfolio targets in the ladder. */
+  .parent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
+  .parent > div { border-top: 2.5px solid #2563eb; padding-top: 3mm; break-inside: avoid; }
+  .parent-when {
+    font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em;
+    color: #2563eb; font-weight: 800;
+  }
+  .parent-what {
+    font-size: 11.4pt; font-weight: 700; color: #0f172a;
+    margin: 1.2mm 0 1.8mm; letter-spacing: -.2px; line-height: 1.25;
+  }
+  .parent-body { font-size: 9.6pt; color: #334155; line-height: 1.45; }
 
   .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
   .phase { border: 1px solid #e2e8f0; border-top: 3.5px solid #2563eb; padding: 4mm 4.5mm; border-radius: 1.5mm; background: #fff; break-inside: avoid; }
@@ -767,6 +818,17 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
   </section>
 
+
+  ${portfolioBlock()}
+
+</div>
+
+<!-- What is taught, and how it lands in the school. Its own sheet: these are
+     the two questions a head teacher asks after "why", and cramming them under
+     the pitch is what pushed that page past the sheet. -->
+<div class="page">
+  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
   ${
     journey()
       ? `<section>
@@ -777,15 +839,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </section>`
       : ''
   }
-
-</div>
-
-<!-- What is taught, and how it lands in the school. Its own sheet: these are
-     the two questions a head teacher asks after "why", and cramming them under
-     the pitch is what pushed that page past the sheet. -->
-<div class="page">
-  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
-
   <section>
     <div class="rule"></div>
     <h2>What we teach</h2>
