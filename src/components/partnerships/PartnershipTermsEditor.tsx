@@ -535,60 +535,121 @@ export function PartnershipTermsEditor({
             </div>
           )}
 
-          {/* The split. The one number this whole record exists to stop drifting. */}
-          <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
+          {/* The split: 100% flexible commercial negotiation toolkit */}
+          <div className="rounded-2xl border border-border bg-muted/40 p-4 space-y-4 shadow-sm">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={draft.revenueShare}
                 onChange={(e) => set("revenueShare", e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded accent-primary"
+                className="mt-0.5 w-4 h-4 rounded accent-emerald-500"
               />
               <span>
-                <span className="block text-sm font-medium text-foreground">
-                  Revenue is shared with the school
+                <span className="block text-sm font-bold text-foreground">
+                  Revenue is shared with the school (Negotiable Split)
                 </span>
                 <span className="block text-[11px] text-muted-foreground mt-0.5">
-                  The school collects from parents and settles Rillcod’s share. Leave this off for a
-                  flat rate the school simply pays.
+                  The school bills parents and settles Rillcod’s share. Turn off for a flat tuition fee the school pays directly.
                 </span>
               </span>
             </label>
 
             {draft.revenueShare ? (
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="w-40">
-                  <label className={LABEL} htmlFor="rillcod-share">
-                    Rillcod’s share
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="rillcod-share"
-                      className={INPUT}
-                      inputMode="numeric"
-                      value={draft.rillcod_share_percent}
-                      onChange={(e) => set("rillcod_share_percent", e.target.value)}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      %
-                    </span>
+              <div className="space-y-3.5 pt-1">
+                {/* 1-Tap Negotiated Presets */}
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Negotiation Quick Presets
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {[
+                      { rillcod: 70, school: 30, label: "70 / 30 Standard", tag: "Recommended" },
+                      { rillcod: 60, school: 40, label: "60 / 40 Partner Upside", tag: "High Volume" },
+                      { rillcod: 65, school: 35, label: "65 / 35 Balanced", tag: "Strategic" },
+                      { rillcod: 50, school: 50, label: "50 / 50 Joint Venture", tag: "Lab Partner" },
+                      { rillcod: 75, school: 25, label: "75 / 25 Hardware Plus", tag: "Heavy Kit" },
+                      { rillcod: 80, school: 20, label: "80 / 20 Fully Managed", tag: "Turnkey" },
+                    ].map((preset) => {
+                      const isSelected = num(draft.rillcod_share_percent) === preset.rillcod;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => set("rillcod_share_percent", String(preset.rillcod))}
+                          className={`p-2 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-sm"
+                              : "bg-muted/30 border-border/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span>{preset.label}</span>
+                          </div>
+                          <span className="text-[9.5px] opacity-75 block">{preset.tag}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="pb-2.5 text-sm text-muted-foreground">
-                  School keeps{" "}
-                  <span className="font-semibold text-foreground">
-                    {Number.isFinite(schoolShare) ? schoolShare : 0}%
-                  </span>
-                  <span className="block text-[11px] text-muted-foreground mt-0.5">
-                    Standard deal is Rillcod {STANDARD_RILLCOD_SHARE} / school{" "}
-                    {100 - STANDARD_RILLCOD_SHARE}. 50/50 is the floor.
-                  </span>
+
+                {/* Visual Ratio Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-emerald-400">
+                      Rillcod: {Number.isFinite(rillcodShare) ? rillcodShare : 0}%
+                    </span>
+                    <span className="text-cyan-400">
+                      School: {Number.isFinite(schoolShare) ? schoolShare : 0}%
+                    </span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-800 border border-slate-700 overflow-hidden flex">
+                    <div
+                      className="bg-gradient-to-r from-emerald-600 to-teal-500 transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.max(0, rillcodShare || 70))}%` }}
+                    />
+                    <div
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-300 flex-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Fine-Tuning Numeric Input & Slider */}
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  <div className="w-36">
+                    <label className={LABEL} htmlFor="rillcod-share">
+                      Rillcod %
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="rillcod-share"
+                        className={INPUT}
+                        inputMode="numeric"
+                        value={draft.rillcod_share_percent}
+                        onChange={(e) => set("rillcod_share_percent", e.target.value)}
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        %
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-[180px]">
+                    <label className={LABEL}>Adjust Negotiated Ratio</label>
+                    <input
+                      type="range"
+                      min={50}
+                      max={100}
+                      step={1}
+                      value={Number.isFinite(rillcodShare) ? rillcodShare : 70}
+                      onChange={(e) => set("rillcod_share_percent", e.target.value)}
+                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-amber-300/90 leading-relaxed">
-                Flat rate: the full amount is Rillcod’s — 100%, not 0%. Nothing is settled back to
-                the school.
+              <p className="text-[11.5px] text-amber-300/90 leading-relaxed bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+                Flat Rate Deal: 100% of the quoted tuition/package fee is retained by Rillcod Technologies. No revenue settlement is paid back to the school.
               </p>
             )}
           </div>

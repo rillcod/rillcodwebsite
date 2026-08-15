@@ -374,8 +374,8 @@ export default function PublicDocumentPage({
             </div>
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <BuildingOffice2Icon className="w-6 h-6 text-emerald-400" />
-              <p className="text-xs font-black text-white">30% Revenue Share</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Direct profit-sharing settled to your school account at the end of each academic term.</p>
+              <p className="text-xs font-black text-white">Negotiable Revenue Share</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">Direct profit-sharing settled to your school account at the end of each academic term as agreed.</p>
             </div>
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <SparklesIcon className="w-6 h-6 text-cyan-400" />

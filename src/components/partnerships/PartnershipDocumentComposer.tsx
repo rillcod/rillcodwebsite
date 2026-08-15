@@ -21,8 +21,10 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   SparklesIcon,
+  CheckCircleIcon,
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel } from "@/lib/partnerships/offers";
+import { describeTerms } from "@/lib/partnerships/terms";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
 import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
@@ -57,6 +59,7 @@ export function PartnershipDocumentComposer({
   const [useAI, setUseAI] = useState(false);
   const [validityDays, setValidityDays] = useState("90");
   const [notes, setNotes] = useState("");
+  const [proposedSchoolShare, setProposedSchoolShare] = useState("30");
   const [commencementTermId, setCommencementTermId] = useState("");
   const [commencement, setCommencement] = useState("");
   const [durationLabel, setDurationLabel] = useState("");
@@ -74,13 +77,14 @@ export function PartnershipDocumentComposer({
     setStage("both");
     setUseAI(false);
     setValidityDays("90");
+    setProposedSchoolShare(agreed?.school_share_percent ? String(agreed.school_share_percent) : "30");
     setNotes("");
     setCommencementTermId("");
     setCommencement("");
     setDurationLabel("");
     setStudents(school.student_count ? String(school.student_count) : "");
     setError("");
-  }, [school.id, school.student_count]);
+  }, [school.id, school.student_count, agreed]);
 
   const selectedOffer = useMemo(
     () => PARTNERSHIP_OFFERS.find((o) => o.code === offerCode) ?? null,
@@ -101,6 +105,7 @@ export function PartnershipDocumentComposer({
       stage,
       notes: kind === 'proposal' ? notes.trim() || null : null,
       validity_days: kind === 'proposal' ? Number(validityDays) : null,
+      proposed_school_share_percent: kind === 'proposal' ? Number(proposedSchoolShare) : null,
       commencement: kind === 'mou' ? commencement.trim() || null : null,
       duration_label: kind === 'mou' ? durationLabel.trim() || null : null,
       illustrative_students: kind === 'mou' ? Number(students) || undefined : undefined,
@@ -268,6 +273,47 @@ export function PartnershipDocumentComposer({
             </p>
           </div>
 
+          {/* Proposed Commercial Split Selector for Proposal */}
+          <div className="rounded-2xl border border-border bg-muted/40 p-4 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">
+                Proposed Revenue Share to School
+              </span>
+              <span className="text-xs font-mono font-black text-cyan-400">
+                School: {proposedSchoolShare}% · Rillcod: {100 - (Number(proposedSchoolShare) || 0)}%
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Quoted in the financial projections table. Nigerian schools can be offered standard 30%, or negotiated up to 40%/50% or down to 20%/25%.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+              {[
+                { school: 30, rillcod: 70, label: "30% (70/30 Standard)" },
+                { school: 40, rillcod: 60, label: "40% (60/40 High Retain)" },
+                { school: 35, rillcod: 65, label: "35% (65/35 Balanced)" },
+                { school: 50, rillcod: 50, label: "50% (50/50 Joint Venture)" },
+                { school: 25, rillcod: 75, label: "25% (75/25 Tech Plus)" },
+                { school: 20, rillcod: 80, label: "20% (80/20 Managed)" },
+              ].map((p) => {
+                const isSelected = proposedSchoolShare === String(p.school);
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setProposedSchoolShare(String(p.school))}
+                    className={`p-2 rounded-xl border text-xs font-bold text-left transition-all ${
+                      isSelected
+                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
+                        : "bg-muted/30 border-border/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="sm:w-1/2">
             <label className={LABEL} htmlFor="validity-days">
               Fees stand for
@@ -326,6 +372,42 @@ export function PartnershipDocumentComposer({
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Active Agreed Terms Banner for MoU */}
+          {agreed && (
+            <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-4 space-y-2 shadow-md">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                  <CheckCircleIcon className="w-4 h-4 text-cyan-400" />
+                  Agreed Commercial Deal on Record
+                </span>
+                <button
+                  type="button"
+                  onClick={onRecordTerms}
+                  className="px-2.5 py-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[11px] font-bold transition-all"
+                  title="Negotiate different split or rates for this MoU"
+                >
+                  ⚙️ Renegotiate / Adjust Split
+                </button>
+              </div>
+              <p className="text-xs text-slate-200 font-semibold">
+                {describeTerms(agreed)}
+              </p>
+              <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1 border-t border-white/5">
+                <span>
+                  Split:{" "}
+                  <strong className="text-emerald-400">
+                    {agreed.rillcod_share_percent ? `${agreed.rillcod_share_percent}% Rillcod` : "100% Flat"}
+                  </strong>
+                  {" / "}
+                  <strong className="text-cyan-400">
+                    {agreed.school_share_percent ? `${agreed.school_share_percent}% School` : "0%"}
+                  </strong>
+                </span>
+                <span>Billing: {agreed.billing_cycle || "Termly"}</span>
+              </div>
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className={LABEL} htmlFor="commencement-term">

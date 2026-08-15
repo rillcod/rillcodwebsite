@@ -68,6 +68,8 @@ export type IssueInput = {
   notes?: string | null;
   /** How long a proposal's quoted fees stand. Ignored for an MoU. */
   validityDays?: number | null;
+  /** Custom proposed school revenue share percentage (e.g., 30, 40, 50, 20). */
+  proposedSchoolSharePercent?: number | null;
   /**
    * What the studio decided this school should see. Absent renders the whole
    * document, which is what every caller before the studio expects.
@@ -386,8 +388,8 @@ async function renderDocument(ctx: {
         agreedTerms?.billing_model === 'fixed_package'
           ? agreedTerms.fixed_package_price
           : null,
-      // The standard deal is 70/30. Where terms exist, their split wins.
-      sharePercent: agreedTerms?.school_share_percent ?? 30,
+      // The standard deal is 70/30, or the custom proposed / agreed split.
+      sharePercent: agreedTerms?.school_share_percent ?? input.proposedSchoolSharePercent ?? 30,
       cycle: agreedTerms?.billing_cycle ?? 'term',
     });
 

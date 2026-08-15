@@ -10,7 +10,7 @@ import {
   SparklesIcon,
   ChatBubbleLeftRightIcon,
   ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+} from "@/lib/icons";
 import type { SchoolRow, IssuedDocumentRow } from "./types";
 
 interface Props {
