@@ -200,20 +200,40 @@ export function PartnershipDocumentArchive({
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-foreground flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs text-primary">{doc.reference || "—"}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {doc.document_kind === "mou" ? "MoU" : "Proposal"}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-primary">{doc.reference || "—"}</span>
+                  <span className="text-foreground/80 font-bold text-xs">
+                    {doc.document_kind === "mou" ? "MoU Agreement" : "Partnership Proposal"}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                       STATUS_STYLES[doc.status] || STATUS_STYLES.draft
                     }`}
                   >
                     {doc.status}
                   </span>
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+
+                  {/* 6-Digit Access Code Pill */}
+                  {doc.access_code && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(doc.access_code!);
+                          setNotice(`Copied 6-digit code ${doc.access_code} to clipboard!`);
+                        } catch {
+                          setNotice(`Code: ${doc.access_code}`);
+                        }
+                      }}
+                      title="Click to copy 6-digit quick verification code"
+                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono font-black text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      <span>🔑 {doc.access_code}</span>
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {doc.created_at
                     ? new Date(doc.created_at).toLocaleDateString("en-GB", {
                         day: "numeric",
@@ -222,21 +242,32 @@ export function PartnershipDocumentArchive({
                       })
                     : "—"}
                   {doc.terms ? ` · ${describeTerms(doc.terms)}` : ""}
-                  {doc.signed_by_name ? ` · signed by ${doc.signed_by_name}` : ""}
+                  {doc.signed_by_name ? ` · ✍️ Signed by ${doc.signed_by_name}` : ""}
                 </p>
               </div>
+
               <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                 <button onClick={() => open(doc)} disabled={busy === doc.id} className={ACTION}>
                   <span className="flex items-center gap-1.5">
                     <EyeIcon className="w-3.5 h-3.5" /> View
                   </span>
                 </button>
+
+                {doc.share_token && (
+                  <a
+                    href={`/p/${doc.share_token}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`${ACTION} text-emerald-400 border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10`}
+                    title="Open public signature portal"
+                  >
+                    Portal ↗
+                  </a>
+                )}
+
                 {canWrite && (doc.status === "draft" || doc.status === "sent") && (
                   <button
                     onClick={() => {
-                      // Emailing needs the rendered document to build the PDF
-                      // from, so it happens in the preview. Opening it is the
-                      // first half of sending, not a detour.
                       setNotice(`Opening ${doc.reference} — use “Email PDF to school” above it.`);
                       void open(doc);
                     }}

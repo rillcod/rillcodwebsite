@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { TeacherSessionMediaNudge } from '@/components/teaching/TeacherSessionMediaNudge';
 import {
   ClipboardDocumentCheckIcon, UserGroupIcon, CheckCircleIcon, XCircleIcon,
   ClockIcon, ExclamationCircleIcon, PlusIcon, ChevronDownIcon, CheckIcon,
@@ -99,7 +100,8 @@ function AttendanceContent() {
   const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
-  const selectedClassTermId = classes.find((cls) => cls.id === selectedClass)?.term_id ?? null;
+  const selectedClassRow = classes.find((cls) => cls.id === selectedClass) ?? null;
+  const selectedClassTermId = selectedClassRow?.term_id ?? null;
 
   useEffect(() => {
     if (authLoading || profileLoading || !profile) return;
@@ -120,6 +122,10 @@ function AttendanceContent() {
             id: c.id,
             name: c.name,
             term_id: c.term_id ?? c.academic_terms?.id ?? null,
+            // Carried so the media prompt knows which school's gallery a
+            // classroom photograph belongs in. The API already returns both.
+            school_id: c.school_id ?? c.schools?.id ?? null,
+            school_name: c.schools?.name ?? null,
             programs: c.programs ? { name: c.programs.name } : null,
             academic_terms: c.academic_terms
               ? { term_label: c.academic_terms.term_label, academic_year: c.academic_terms.academic_year }
@@ -848,6 +854,23 @@ function AttendanceContent() {
           >
             {pageMessage.text}
           </div>
+        )}
+
+        {/*
+          The moment a register is saved is the only moment a facilitator is
+          still standing in the room with a phone. Everything the proposal and
+          the report use as evidence — a class at work, a capstone running —
+          exists only if somebody captures it here, so the prompt appears once
+          the attendance is in and never before.
+        */}
+        {saved && selectedClassRow?.school_id && (
+          <TeacherSessionMediaNudge
+            schoolId={selectedClassRow.school_id}
+            schoolName={selectedClassRow.school_name ?? undefined}
+            termId={selectedClassTermId ?? undefined}
+            onDismiss={() => setSaved(false)}
+            onUploaded={() => setSaved(false)}
+          />
         )}
 
         {!isCanMark && (

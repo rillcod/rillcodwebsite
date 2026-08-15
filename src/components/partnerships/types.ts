@@ -57,6 +57,8 @@ export type IssuedDocumentRow = {
   created_at: string | null;
   /** Secret behind the public /p/<token> link. */
   share_token: string | null;
+  /** 6-digit access code for phone/quick lookup at /p */
+  access_code?: string | null;
   /**
    * The terms the document was rendered against, frozen at issue and normalised
    * from the snapshot. Null for a proposal issued before any rate was agreed.
@@ -75,6 +77,8 @@ export type IssuedDocument = {
   html: string;
   /** Secret behind the public /p/<token> link. Null on a preview: no row, no link. */
   share_token: string | null;
+  /** 6-digit access code for quick phone verification */
+  access_code?: string | null;
 };
 
 export function formatMoney(amount: number, currency = 'NGN'): string {

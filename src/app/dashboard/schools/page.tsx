@@ -17,6 +17,7 @@ import {
   UserPlusIcon,
 } from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
+import { SchoolGalleryViewer } from '@/components/schools/SchoolGalleryViewer';
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -65,7 +66,7 @@ export default function SchoolsPage() {
   const isAdmin = profile?.role === 'admin';
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
   const [assignedTeachers, setAssignedTeachers] = useState<any[]>([]);
-  const [assignTab, setAssignTab] = useState<'info' | 'teachers' | 'account'>('info');
+  const [assignTab, setAssignTab] = useState<'info' | 'teachers' | 'gallery' | 'account'>('info');
   const [assigning, setAssigning] = useState<string | null>(null);
 
   const [accEmail, setAccEmail] = useState('');
@@ -809,11 +810,17 @@ export default function SchoolsPage() {
 
               {/* Modal tabs */}
               <div className="flex gap-1 p-3 border-b border-border bg-white/[0.02] flex-shrink-0">
-                {(['info', 'teachers', 'account'] as const).map(t => (
+                {(['info', 'teachers', 'gallery', 'account'] as const).map(t => (
                   <button key={t} onClick={() => setAssignTab(t)}
                     className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
                       }`}>
-                    {t === 'teachers' ? `Teachers (${assignedTeachers.length})` : t === 'account' ? 'Portal Account' : 'School Info'}
+                    {t === 'teachers'
+                      ? `Teachers (${assignedTeachers.length})`
+                      : t === 'account'
+                        ? 'Portal Account'
+                        : t === 'gallery'
+                          ? 'Gallery'
+                          : 'School Info'}
                   </button>
                 ))}
               </div>
@@ -907,6 +914,15 @@ export default function SchoolsPage() {
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* The evidence a school accumulates: photographs and clips from its own
+                    sessions. This is where they come from — a proposal's strip of real
+                    classrooms, and the capstone a report points a QR code at. */}
+                {assignTab === 'gallery' && (
+                  <div className="p-4 sm:p-6">
+                    <SchoolGalleryViewer schoolId={detail.id} schoolName={detail.name} />
                   </div>
                 )}
 

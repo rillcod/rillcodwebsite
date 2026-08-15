@@ -19,25 +19,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { r2Upload } from '@/lib/r2/client';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { type MediaCategory } from '@/lib/partnerships/media-library';
+import { GALLERY_CATEGORIES, type SchoolGalleryItem } from '@/lib/schools/gallery-types';
 
 export const dynamic = 'force-dynamic';
 
-export type SchoolGalleryItem = {
-  id: string;
-  school_id: string;
-  academic_term_id?: string | null;
-  url: string;
-  thumbnail_url?: string | null;
-  title: string;
-  category: Exclude<MediaCategory, 'all'>;
-  media_type: 'image' | 'video';
-  is_capstone_demo: boolean;
-  uploaded_by?: string | null;
-  created_at: string;
-};
-
-/** Mirrors the CHECK on the column, so a bad value is refused before the insert. */
-const CATEGORIES = ['classroom', 'robotics', 'capstone', 'event', 'award'] as const;
 
 /**
  * What may be uploaded, decided here rather than from the browser's say-so.
@@ -138,7 +123,7 @@ export async function POST(
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const rawCategory = String(formData.get('category') || 'classroom');
-    const category = (CATEGORIES as readonly string[]).includes(rawCategory)
+    const category = (GALLERY_CATEGORIES as readonly string[]).includes(rawCategory)
       ? (rawCategory as Exclude<MediaCategory, 'all'>)
       : 'classroom';
     const title = String(formData.get('title') || '').trim().slice(0, 160) || 'Classroom snapshot';

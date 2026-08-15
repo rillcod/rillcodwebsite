@@ -432,43 +432,45 @@ export function PartnershipDocumentComposer({
       )}
 
       {canWrite ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Read it first. Issuing consumes a reference and writes a row, and
-              both are meant to be permanent — so the preview comes first and
-              the commitment second. */}
-          <button
-            onClick={preview}
-            disabled={previewing || issuing || mouBlocked}
-            className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground transition-colors flex items-center gap-2"
-          >
-            {previewing ? (
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-            ) : (
-              <EyeIcon className="w-4 h-4" />
-            )}
-            {previewing ? "Building…" : `Preview the ${kind === "mou" ? "MoU" : "proposal"}`}
-          </button>
+        <div className="space-y-2.5 pt-2 border-t border-border/60">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Read it first. Issuing consumes a reference and writes a row, and
+                both are meant to be permanent — so the preview comes first and
+                the commitment second. */}
+            <button
+              onClick={preview}
+              disabled={previewing || issuing || mouBlocked}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl text-xs sm:text-sm font-black bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground shadow-lg shadow-violet-950/30 transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
+            >
+              {previewing ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <EyeIcon className="w-4 h-4" />
+              )}
+              <span>{previewing ? "Building Preview…" : `Preview ${kind === "mou" ? "MoU" : "Proposal"}`}</span>
+            </button>
 
-          <button
-            onClick={issue}
-            disabled={issuing || previewing || mouBlocked}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground/80 hover:text-foreground hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {issuing ? (
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-            ) : (
-              <DocumentTextIcon className="w-4 h-4" />
-            )}
-            {issuing ? "Issuing…" : "Issue and keep it"}
-          </button>
+            <button
+              onClick={issue}
+              disabled={issuing || previewing || mouBlocked}
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black border border-border bg-card text-foreground/90 hover:text-foreground hover:bg-muted/70 hover:border-emerald-500/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
+            >
+              {issuing ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <DocumentTextIcon className="w-4 h-4 text-emerald-400" />
+              )}
+              <span>{issuing ? "Issuing Official Record…" : "Issue & Save Official Copy"}</span>
+            </button>
+          </div>
 
-          <span className="text-[11px] text-muted-foreground">
-            Previewing stores nothing. Issuing assigns the reference.
-          </span>
+          <p className="text-[11px] text-muted-foreground">
+            💡 Previewing generates a live document without saving. Issuing stores it permanently under a sequential reference.
+          </p>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          Issuing a document is an admin action. You are viewing this in read-only.
+        <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-xl">
+          Issuing a document is an admin action. You are viewing this in read-only mode.
         </p>
       )}
     </div>

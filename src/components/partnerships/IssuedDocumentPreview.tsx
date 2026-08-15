@@ -163,65 +163,76 @@ export function IssuedDocumentPreview({
   const scale = zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
 
   return (
-    <div className="rounded-2xl border border-primary/40 bg-card overflow-hidden shadow-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-muted/50 border-b border-primary/20 backdrop-blur-md">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground flex flex-wrap items-center gap-2">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            {kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal"}
-            <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary font-mono text-xs border border-primary/40">
-              {reference}
-            </span>
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
-            {schoolName ? `${schoolName} · ` : ""}
-            {documentId ? "Stored draft — official document record" : "Preview only — nothing has been saved yet"}
-            {curriculumEdition ? ` · curriculum ed. ${curriculumEdition}` : ""}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* Zoom controls */}
-          <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs font-semibold text-foreground/80 mr-1">
-            <button
-              type="button"
-              onClick={() => setZoom("fit")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "fit" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
-              }`}
-            >
-              Fit
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom("75")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "75" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
-              }`}
-            >
-              75%
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom("100")}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "100" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-primary-foreground"
-              }`}
-            >
-              100%
-            </button>
+    <div className="rounded-3xl border border-primary/40 bg-card overflow-hidden shadow-2xl">
+      {/* Top Header */}
+      <div className="p-4 sm:px-6 sm:py-4 bg-muted/60 border-b border-border/80 backdrop-blur-md space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CheckCircleIcon className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span className="font-bold text-foreground text-sm sm:text-base">
+                {kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal"}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-lg bg-primary/15 text-primary font-mono text-xs font-black border border-primary/30">
+                {reference}
+              </span>
+              {narrativeSource === "ai" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 text-[10px] font-black uppercase tracking-wider border border-violet-500/30">
+                  <SparklesIcon className="w-3 h-3 text-violet-400" /> AI Pitch
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {schoolName ? `${schoolName} · ` : ""}
+              {documentId ? "Official Stored Record" : "Preview Draft (Unsaved)"}
+              {curriculumEdition ? ` · Curriculum Edition ${curriculumEdition}` : ""}
+            </p>
           </div>
 
-          {narrativeSource === "ai" && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/40">
-              <SparklesIcon className="w-3 h-3 text-primary" /> AI Pitch
-            </span>
-          )}
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+            {/* Zoom Controls */}
+            <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border text-xs font-bold text-foreground/80">
+              <button
+                type="button"
+                onClick={() => setZoom("fit")}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  zoom === "fit" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
+                }`}
+              >
+                Fit
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom("75")}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  zoom === "75" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
+                }`}
+              >
+                75%
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom("100")}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  zoom === "100" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
+                }`}
+              >
+                100%
+              </button>
+            </div>
 
-          {/* A stored document has a token; a preview does not, which is the real
-              condition — the old test sniffed the placeholder reference for the
-              words "not yet". The link carries the token and never the reference:
-              references are sequential and printed on the document itself. */}
+            <button
+              onClick={onClose}
+              aria-label="Close preview"
+              className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Action CTAs (Mobile First Responsive Wrap) */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
           {shareToken && (
             <>
               <button
@@ -237,10 +248,12 @@ export function IssuedDocumentPreview({
                   }
                 }}
                 title="Copy formatted WhatsApp pitch with link"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold transition-all"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-bold transition-all min-h-[38px]"
               >
-                <LinkIcon className="w-3.5 h-3.5" /> Copy WhatsApp Pitch
+                <LinkIcon className="w-3.5 h-3.5" />
+                <span>Copy WhatsApp Pitch</span>
               </button>
+
               <a
                 href={`${brandContact.whatsapp}?text=${encodeURIComponent(
                   `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nReview our proposal *${reference}*: ${shareUrl(shareToken)}`,
@@ -248,9 +261,18 @@ export function IssuedDocumentPreview({
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open WhatsApp with the link ready to send"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-semibold transition-all"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold transition-all min-h-[38px]"
               >
                 Open WhatsApp
+              </a>
+
+              <a
+                href={`/p/${shareToken}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"
+              >
+                Public Portal ↗
               </a>
             </>
           )}
@@ -259,44 +281,36 @@ export function IssuedDocumentPreview({
             <button
               onClick={send}
               disabled={sending || saving}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 disabled:opacity-50 text-primary-foreground text-xs font-semibold shadow-md shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-emerald-950/30 transition-all min-h-[38px]"
             >
               {sending ? (
                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <EnvelopeIcon className="w-3.5 h-3.5" />
               )}
-              {sending ? "Sending…" : "Email PDF to school"}
+              <span>{sending ? "Sending…" : "Email PDF to School"}</span>
             </button>
           )}
 
           <button
             onClick={download}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-semibold shadow-md shadow-violet-950/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-black shadow-md shadow-violet-950/40 transition-all min-h-[38px]"
           >
             {saving ? (
               <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <ArrowDownTrayIcon className="w-3.5 h-3.5" />
             )}
-            {saving ? "Building PDF…" : "Download PDF"}
+            <span>{saving ? "Building PDF…" : "Download PDF"}</span>
           </button>
 
           <button
             onClick={() => frameRef.current?.contentWindow?.print()}
             title="Prints cleanly through browser print dialog"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted text-xs font-semibold transition-all"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted text-xs font-bold transition-all min-h-[38px]"
           >
             <PrinterIcon className="w-3.5 h-3.5" /> Print
-          </button>
-
-          <button
-            onClick={onClose}
-            aria-label="Close preview"
-            className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
       </div>

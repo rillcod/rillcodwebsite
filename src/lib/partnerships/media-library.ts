@@ -8,11 +8,11 @@
 
 export type MediaCategory =
   | 'all'
-  | 'robotics'
-  | 'coding'
   | 'classroom'
-  | 'videos'
-  | 'competitions';
+  | 'robotics'
+  | 'capstone'
+  | 'event'
+  | 'award';
 
 export type MediaAsset = {
   src: string;
@@ -27,11 +27,11 @@ export type MediaAsset = {
 
 export const MEDIA_CATEGORIES: Array<{ key: MediaCategory; label: string; icon: string }> = [
   { key: 'all', label: 'All Media', icon: '📁' },
-  { key: 'videos', label: 'Video Demos', icon: '🎥' },
+  { key: 'capstone', label: 'Capstone Builds', icon: '🎥' },
   { key: 'robotics', label: 'Robotics & Hardware', icon: '🤖' },
-  { key: 'coding', label: 'Coding & AI', icon: '💻' },
   { key: 'classroom', label: 'Classroom Action', icon: '🎓' },
-  { key: 'competitions', label: 'Competitions & Expos', icon: '🏆' },
+  { key: 'event', label: 'School Events', icon: '🎪' },
+  { key: 'award', label: 'Awards & Honors', icon: '🏆' },
 ];
 
 /**
@@ -46,7 +46,7 @@ export function categorizeMediaAsset(src: string): MediaAsset {
   const tags: string[] = [];
 
   if (isVideo) {
-    category = 'videos';
+    category = 'capstone';
     tags.push('Video Demo', 'Student Showcase');
     if (filename.includes('7.45.04')) {
       title = 'Voice-Controlled Obstacle Robot Demonstration';
@@ -73,7 +73,7 @@ export function categorizeMediaAsset(src: string): MediaAsset {
       title = 'Hands-On Microcontroller Wiring & Circuitry';
       tags.push('Robotics', 'Physical Computing');
     } else if (filename.includes('7.29.58') || filename.includes('7.29.59')) {
-      category = 'coding';
+      category = 'classroom';
       title = 'Scratch & Algorithm Logic Development';
       tags.push('Coding', 'Primary');
     } else if (filename.includes('7.30.00') || filename.includes('7.30.01')) {
@@ -81,7 +81,7 @@ export function categorizeMediaAsset(src: string): MediaAsset {
       title = 'Collaborative Pair Programming in Computer Lab';
       tags.push('Classroom', 'Teamwork');
     } else if (filename.includes('7.46.30') || filename.includes('7.46.31') || filename.includes('7.46.32')) {
-      category = 'competitions';
+      category = 'award';
       title = 'Inter-School STEM Exhibition & Award Ceremony';
       tags.push('Exhibition', 'Awards');
     } else {

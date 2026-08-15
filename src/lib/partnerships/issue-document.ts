@@ -431,7 +431,7 @@ export async function listSchoolDocuments(
 ): Promise<Array<Record<string, unknown>>> {
   const { data } = await db
     .from('partnership_agreements')
-    .select('id, reference, document_kind, status, terms_snapshot, sent_at, signed_at, signed_by_name, created_at')
+    .select('id, reference, document_kind, status, terms_snapshot, share_token, access_code, sent_at, signed_at, signed_by_name, created_at')
     .eq('school_id', schoolId)
     .order('created_at', { ascending: false });
 
