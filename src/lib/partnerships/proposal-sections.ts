@@ -90,7 +90,7 @@ export const ZERO_CAPEX_PROMISE = [
   },
   {
     title: 'Dedicated Certified Instructors',
-    body: 'We deploy thoroughly vetted, DBS-checked, certified STEM & AI facilitators directly to your classrooms to lead every practical session.',
+    body: 'We deploy vetted, reference-checked facilitators to your classrooms, trained on our curriculum and led by a named programme coordinator.',
   },
   {
     title: 'Turnkey Timetable Integration',
@@ -123,7 +123,7 @@ export const TRADITIONAL_VS_RILLCOD = [
   },
   {
     area: 'School Revenue',
-    traditional: 'Pure operational cost center.',
+    traditional: 'Pure operational cost centre.',
     rillcod: 'High-margin revenue generator with 30% direct profit share settled every term.',
   },
 ] as const;
@@ -138,7 +138,6 @@ export const FIELD_PROOF: readonly string[] = [
   'First place, 2024 National Youth Coding Challenge.',
   'A solar-powered irrigation control system that won the regional hardware innovation prize.',
   'Environmental monitoring research presented at the inter-school science exhibition.',
-  'Over 2,400+ active learners across partner schools building real-world projects.',
 ] as const;
 
 export type StudentCaseStudy = { title: string; ageGroup: string; outcome: string };

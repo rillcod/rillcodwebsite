@@ -81,6 +81,13 @@ export type ProposalInput = {
   proof?: ProofPoints | null;
   /** What the programme is worth to this school, from its own roll. */
   upside?: SchoolUpside | null;
+  /**
+   * Six digits a reader can type at /p when the link is lost.
+   *
+   * Printed on the document because that is where somebody looks when the
+   * email has gone. Never the reference: that is sequential and public.
+   */
+  accessCode?: string | null;
   /** Classroom photography. Empty renders no gallery rather than empty frames. */
   photos?: readonly string[];
   /**
@@ -548,11 +555,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       : svg;
   };
 
-  const zeroCapexBlock = (): string => `
+  const zeroCapexBlock = (): string => !on('zeroCapex') ? '' : `
   <section>
     <div class="rule"></div>
     <h2>Zero-CapEx &amp; Delivery Guarantee</h2>
-    <p class="muted">We remove all operational friction and hardware investment so your school leadership incurs zero capital costs.</p>
     <div class="guarantee-grid">
       ${ZERO_CAPEX_PROMISE.map((g) => `
         <div class="guarantee-card">
@@ -566,11 +572,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
   </section>`;
 
-  const transformationTableBlock = (): string => `
+  const transformationTableBlock = (): string => !on('comparison') ? '' : `
   <section>
     <div class="rule"></div>
     <h2>The Transformation: Traditional ICT vs. Rillcod AI &amp; Robotics</h2>
-    <p class="muted">Why parents and school boards immediately recognize the premium difference.</p>
     <table class="comp-table">
       <thead>
         <tr>
@@ -591,11 +596,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </table>
   </section>`;
 
-  const studentCaseStudiesBlock = (): string => `
+  const studentCaseStudiesBlock = (): string => !on('caseStudies') ? '' : `
   <section>
     <div class="rule"></div>
     <h2>Tangible Student Outcomes &amp; Innovation</h2>
-    <p class="muted">Real milestones produced during termly practical project builds.</p>
     <div class="case-grid">
       ${STUDENT_CASE_STUDIES.map((c) => `
         <div class="case-card">
@@ -733,6 +737,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-for { font-size: 17.5pt; font-weight: 700; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
+  .cover-online {
+    margin-top: 7mm; font-size: 9pt; color: #cbd5e1; letter-spacing: .01em;
+  }
+  .cover-online b { color: #fff; letter-spacing: .05em; }
   .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
   /* The cover closes on the same dark panel the last page uses, so the
@@ -910,7 +918,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
 
   /* Guarantee Grid */
-  .guarantee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; margin: 3mm 0; }
+  .guarantee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 6mm; margin: 2mm 0; }
   .guarantee-card {
     display: flex; gap: 3.5mm; align-items: flex-start;
     padding: 3.5mm 4mm; border: 1px solid #e2e8f0; border-radius: 2mm; background: #fff; break-inside: avoid;
@@ -923,14 +931,16 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .guarantee-card p { font-size: 8.8pt; color: #475569; margin: 0; line-height: 1.4; }
 
   /* Comparison Table */
-  .comp-table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.2pt; }
+  /* This page carries three sections and lands within a few millimetres of the
+     sheet, so the table gives back the margin rather than the content. */
+  .comp-table { width: 100%; border-collapse: collapse; margin: 2mm 0 2.5mm; font-size: 9.2pt; }
   .comp-table th { padding: 2.5mm 3mm; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
-  .comp-table td { padding: 2.5mm 3mm; border: 1px solid #e2e8f0; vertical-align: middle; line-height: 1.4; }
+  .comp-table td { padding: 2mm 3mm; border: 1px solid #e2e8f0; vertical-align: middle; line-height: 1.4; }
 
   /* Case Studies */
-  .case-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0; }
+  .case-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 0; }
   .case-card {
-    border: 1px solid #e2e8f0; border-top: 3.5px solid #991b1b; padding: 3.5mm;
+    border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 3mm;
     border-radius: 1.5mm; background: #fff; break-inside: avoid;
   }
   .case-age { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; font-weight: 800; display: block; margin-bottom: 1mm; }
@@ -1036,6 +1046,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       ${years ? `<div><b>${years} school year${years === 1 ? '' : 's'}</b>${esc(rangeLabel)}</div>` : ''}
       ${input.validUntilLabel ? `<div><b>${esc(input.validUntilLabel)}</b>Fees valid until</div>` : ''}
     </div>
+    ${
+      // How to reopen this after the email is gone. On the cover, where somebody
+      // holding a printed copy will actually look.
+      input.accessCode
+        ? `<div class="cover-online">Read it online at <b>${esc(brandContact.web)}/p</b> &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></div>`
+        : ''
+    }
   </div>
 
   <div class="cover-foot">
@@ -1133,7 +1150,6 @@ ${
       : ''
   }
 
-  ${transformationTableBlock()}
 
 ${on('disciplines') ? `  <section>
     <div class="rule"></div>
@@ -1195,7 +1211,6 @@ ${on('rollout') ? `  <section>
 
   ${upsideBlock()}
 
-  ${zeroCapexBlock()}
 
 ${on('sideBySide') ? `  <section>
     <div class="rule"></div>
@@ -1240,12 +1255,36 @@ ${
     : ''
 }
 
+<!--
+  The case for changing, on its own sheet.
+
+  These three arrived appended to pages that were already full — the comparison
+  onto the programme page, the guarantee onto the return page, the case studies
+  onto the close — and pushed all three past A4 by 381px, 336px and 246px. A
+  page clips rather than spills, so every one of them was losing its own tail
+  and taking the bottom of the page it landed on with it.
+
+  Together they fill a sheet almost exactly. The page prints only if at least one
+  is switched on, so turning all three off in the studio removes the sheet rather
+  than leaving a blank one.
+-->
+${
+  on('comparison') || on('zeroCapex') || on('caseStudies')
+    ? `<div class="page">
+  <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
+  ${transformationTableBlock()}
+  ${zeroCapexBlock()}
+  ${studentCaseStudiesBlock()}
+</div>`
+    : ''
+}
+
 <!-- How it starts, and the place to say yes. Always the last page: the close
      must never depend on a section that might not render. -->
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
-  ${studentCaseStudiesBlock()}
 
 ${on('whyNow') ? `  <section>
     <div class="rule"></div>

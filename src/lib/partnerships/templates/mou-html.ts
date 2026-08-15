@@ -40,6 +40,13 @@ export type MouInput = {
   commencement?: string | null;
   /** How long the agreement runs before review. */
   durationLabel?: string | null;
+  /**
+   * Six digits a reader can type at /p when the link is lost.
+   *
+   * Printed on the document because that is where somebody looks when the
+   * email has gone. Never the reference: that is sequential and public.
+   */
+  accessCode?: string | null;
   /** Headcount used to illustrate clause 4. Zero hides the worked example. */
   illustrativeStudents?: number;
   /**
@@ -185,6 +192,11 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .doctitle { text-align: center; margin: 1mm 0 5mm; }
   .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
   .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
+  .online {
+    text-align: center; font-size: 8.6pt; color: #64748b; margin: -2mm 0 4.5mm;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 2mm;
+  }
+  .online b { color: #0f172a; letter-spacing: .04em; }
   .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
 
   /* A clause heading is type, not a container.
@@ -296,6 +308,13 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <div class="sub">Coding, Robotics &amp; Artificial Intelligence Education Partnership</div>
     <div class="band"></div>
   </div>
+  ${
+    // Where to read and sign it, and how to get back in without the email. On
+    // page one because that is where somebody looks when the link has gone.
+    input.accessCode
+      ? `<p class="online">Read and sign this agreement online at <b>${esc(brandContact.web)}/p</b> &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></p>`
+      : ''
+  }
 
   <section>
     <h2><span class="cl">1.0</span> Parties to the Agreement</h2>

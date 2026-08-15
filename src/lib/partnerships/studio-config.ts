@@ -21,6 +21,9 @@ export type ProposalSectionKey =
   | 'journey'
   | 'disciplines'
   | 'rollout'
+  | 'comparison'
+  | 'zeroCapex'
+  | 'caseStudies'
   | 'offers'
   | 'offersChart'
   | 'split'
@@ -64,6 +67,9 @@ export const SECTION_LABELS: Array<{
   { key: 'upside', label: 'What this is worth to them', hint: 'Worked from their own roll', page: 'Your return' },
   { key: 'sideBySide', label: 'What each side brings', hint: 'Obligations, side by side', page: 'Your return' },
   { key: 'curriculum', label: 'The year-by-year curriculum', hint: 'Every year, its three terms and its capstone', page: 'Curriculum' },
+  { key: 'comparison', label: 'Traditional ICT vs Rillcod', hint: 'Why a board sees the difference', page: 'The case' },
+  { key: 'zeroCapex', label: 'Zero-CapEx guarantee', hint: 'What the school never has to buy', page: 'The case' },
+  { key: 'caseStudies', label: 'Student outcomes', hint: 'Three builds, by age group', page: 'The case' },
   { key: 'whyNow', label: 'Why now', hint: 'The urgency argument', page: 'Closing' },
   { key: 'fieldProof', label: 'What our students have done', hint: 'Competition wins and builds', page: 'Closing' },
   { key: 'photos', label: 'Photographs of the programme', hint: 'The gallery above the signature', page: 'Closing' },

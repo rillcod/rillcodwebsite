@@ -122,13 +122,14 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
       status: 'draft',
       created_by: input.actorId ?? null,
     })
-    .select('id, reference, share_token')
+    .select('id, reference, share_token, access_code')
     .single();
 
   if (error) throw new Error(error.message);
 
   const reference = String(row.reference);
-  const { html, narrativeSource } = await prepared.render(reference);
+  // The code prints on the document, so it has to reach the render.
+  const { html, narrativeSource } = await prepared.render(reference, row.access_code ?? null);
 
   // The document is written back rather than inserted with the row, because it
   // has to contain the reference the insert produced.
@@ -293,9 +294,9 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
     ? { ...agreedTerms }
     : { billing_model: null, note: 'Issued before terms were agreed; standard options quoted.' };
 
-  const render = async (reference: string) => {
+  const render = async (reference: string, accessCode: string | null = null) => {
     const dateLabel = todayLabel();
-    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel });
+    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel, accessCode });
   };
 
   return { school, agreedTerms, curriculum, snapshot, render };
@@ -308,8 +309,13 @@ async function renderDocument(ctx: {
   curriculum: CurriculumProgression | null;
   reference: string;
   dateLabel: string;
+  /**
+   * The six digits printed on the document so a school can get back to it after
+   * the email is gone. Null on a preview, which has no row and therefore no code.
+   */
+  accessCode?: string | null;
 }): Promise<{ html: string; narrativeSource: ProposalNarrative['source'] | null }> {
-  const { input, school, agreedTerms, curriculum, reference, dateLabel } = ctx;
+  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode } = ctx;
   const kind = input.kind;
 
   let html: string;
@@ -331,6 +337,7 @@ async function renderDocument(ctx: {
       durationLabel: input.durationLabel ?? null,
       illustrativeStudents: input.illustrativeStudents ?? school.student_count ?? 0,
       stage: input.stage ?? null,
+      accessCode,
     });
   } else {
     // Zero or a negative number means "no expiry stated" rather than an
@@ -398,6 +405,7 @@ async function renderDocument(ctx: {
       narrative,
       scopeToOffer: input.scopeToOffer ?? null,
       stage: input.stage ?? null,
+      accessCode,
       validUntilLabel: validUntil,
       // Counted now, so the cover cannot claim a footprint we have grown out of
       // or shrunk below. The recipient is excluded from its own proof, and null

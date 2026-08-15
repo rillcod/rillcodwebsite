@@ -13165,6 +13165,7 @@ export type Database = {
       }
       partnership_agreements: {
         Row: {
+          access_code: string | null
           created_at: string
           created_by: string | null
           document_html: string | null
@@ -13187,6 +13188,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          access_code?: string | null
           created_at?: string
           created_by?: string | null
           document_html?: string | null
