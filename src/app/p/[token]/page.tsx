@@ -15,6 +15,8 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   DevicePhoneMobileIcon,
+  MagnifyingGlassPlusIcon,
+  MagnifyingGlassMinusIcon,
 } from "@/lib/icons";
 import { downloadDocumentPdf, documentFilename } from "@/lib/partnerships/proposal-pdf";
 import { SignatureModal } from "@/components/partnerships/SignatureModal";
@@ -47,8 +49,8 @@ const PROPRIETOR_FAQS = [
     a: "None at all. Rillcod facilitators handle 100% of syllabus delivery, CBT practical grading, and term assessments. Your teachers can observe and co-learn without adding a single hour to their workload.",
   },
   {
-    q: "How does the 30% revenue share settlement work?",
-    a: "For every student enrolled in the STEM & Coding programme, 30% of the gross termly tuition is retained by / settled directly to your school account at the end of each term.",
+    q: "How does the revenue share settlement work?",
+    a: "For every student enrolled in the STEM & Coding programme, the agreed revenue share (e.g. 30% or custom percentage) is retained by / settled directly to your school account at the end of each academic term.",
   },
   {
     q: "What tangible proof do parents receive at the end of each term?",
@@ -67,14 +69,16 @@ export default function PublicDocumentPage({
 }) {
   const { token } = use(params);
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [doc, setDoc] = useState<DocData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [zoom, setZoom] = useState<"fit" | "75" | "100">("fit");
+  const [zoom, setZoom] = useState<"fit" | "75" | "100" | "125">("fit");
   const [savingPdf, setSavingPdf] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(850);
 
   const loadDoc = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -98,28 +102,60 @@ export default function PublicDocumentPage({
     loadDoc();
   }, [loadDoc]);
 
+  // Track outer container width for responsive scaling on mobile screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Robust iframe auto-height and image loading listener
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame || !doc?.html) return;
 
-    const fit = () => {
-      const inner = frame.contentDocument;
-      if (!inner?.body) return;
-      const height = Math.max(
-        inner.body.scrollHeight,
-        inner.documentElement?.scrollHeight ?? 0,
-      );
-      if (height > 0) frame.style.height = `${height}px`;
+    const updateHeight = () => {
+      try {
+        const inner = frame.contentDocument || frame.contentWindow?.document;
+        if (!inner?.body) return;
+        const h = Math.max(
+          inner.body.scrollHeight,
+          inner.body.offsetHeight,
+          inner.documentElement?.scrollHeight ?? 0,
+          inner.documentElement?.offsetHeight ?? 0,
+        );
+        if (h > 100) {
+          frame.style.height = `${h + 30}px`;
+        }
+      } catch {
+        // Suppress cross-origin if any
+      }
     };
 
-    frame.addEventListener("load", fit);
-    fit();
-    const timers = [150, 600, 1500].map((ms) => window.setTimeout(fit, ms));
-    window.addEventListener("resize", fit);
+    frame.addEventListener("load", () => {
+      updateHeight();
+      const images = frame.contentDocument?.images;
+      if (images) {
+        for (let i = 0; i < images.length; i++) {
+          images[i].addEventListener("load", updateHeight);
+          images[i].addEventListener("error", updateHeight);
+        }
+      }
+    });
+
+    updateHeight();
+    const timers = [150, 400, 900, 1800, 3000].map((ms) =>
+      window.setTimeout(updateHeight, ms),
+    );
+    window.addEventListener("resize", updateHeight);
 
     return () => {
-      frame.removeEventListener("load", fit);
-      window.removeEventListener("resize", fit);
+      window.removeEventListener("resize", updateHeight);
       timers.forEach(window.clearTimeout);
     };
   }, [doc?.html, zoom]);
@@ -131,17 +167,24 @@ export default function PublicDocumentPage({
     try {
       await downloadDocumentPdf(iframeDoc, documentFilename(doc.kind, doc.reference));
     } catch {
-      alert("Could not build PDF. Try using the Print button instead.");
+      alert("Could not build PDF automatically. Try using the Print button instead.");
     } finally {
       setSavingPdf(false);
     }
   }
 
+  // Calculate scale factor for mobile screens (A4 base width is approx 794px ~ 850px)
+  const baseDocWidth = 850;
+  const isSmallScreen = containerWidth < baseDocWidth && containerWidth > 0;
+  const responsiveScale =
+    zoom === "fit" && isSmallScreen ? Math.max(0.4, (containerWidth - 24) / baseDocWidth) : 1;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <ArrowPathIcon className="w-8 h-8 text-cyan-400 animate-spin mb-3" />
-        <p className="text-sm font-medium text-slate-400">Loading partnership dossier…</p>
+        <ArrowPathIcon className="w-9 h-9 text-cyan-400 animate-spin mb-3.5" />
+        <p className="text-sm font-semibold text-slate-300">Loading partnership dossier…</p>
+        <p className="text-xs text-slate-500 mt-1">Preparing verified institutional documents</p>
       </div>
     );
   }
@@ -149,14 +192,16 @@ export default function PublicDocumentPage({
   if (error || !doc) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 font-bold text-2xl">
+        <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 font-black text-2xl shadow-xl">
           !
         </div>
         <h1 className="text-xl font-bold text-white mb-2">Document Not Found</h1>
-        <p className="text-sm text-slate-400 max-w-md mb-6">{error || "The requested reference does not exist or has expired."}</p>
+        <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+          {error || "The requested reference does not exist or has expired."}
+        </p>
         <Link
           href="/"
-          className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-colors"
+          className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs transition-colors shadow-lg"
         >
           Return to {brandContact.displayName}
         </Link>
@@ -165,9 +210,9 @@ export default function PublicDocumentPage({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-cyan-500/30">
       {/* ── Top Executive Sticky Header ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/95 border-b border-white/10 backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+      <header className="sticky top-0 z-40 bg-slate-900/95 border-b border-white/10 backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-primary flex items-center justify-center text-white font-black text-base shadow-md shadow-primary/20">
             R
@@ -181,13 +226,13 @@ export default function PublicDocumentPage({
             </h1>
             <p className="text-[11px] text-slate-400">
               {doc.school?.name ? `${doc.school.name} · ` : ""}
-              Official Verified View
+              Official Verified Dossier
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Zoom controls */}
+          {/* Zoom Controls */}
           <div className="hidden sm:flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold text-white/70">
             <button
               onClick={() => setZoom("fit")}
@@ -213,14 +258,26 @@ export default function PublicDocumentPage({
             >
               100%
             </button>
+            <button
+              onClick={() => setZoom("125")}
+              className={`px-2.5 py-1 rounded-lg transition-all ${
+                zoom === "125" ? "bg-primary text-white shadow-sm" : "hover:text-white"
+              }`}
+            >
+              125%
+            </button>
           </div>
 
           <button
             onClick={handleDownloadPdf}
             disabled={savingPdf}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md transition-all hover:scale-[1.02]"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md transition-all hover:scale-[1.02] disabled:opacity-50"
           >
-            {savingPdf ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+            {savingPdf ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+            )}
             <span>{savingPdf ? "Building PDF…" : "Download PDF"}</span>
           </button>
 
@@ -248,7 +305,7 @@ export default function PublicDocumentPage({
         </div>
       </header>
 
-      {/* ── Status Banner / Next Steps ── */}
+      {/* ── Status Banner / Fast-Track Actions ── */}
       <div className="border-b border-white/10 bg-slate-900/60 px-4 md:px-8 py-3.5">
         <div className="mx-auto max-w-[880px]">
           {doc.status === "signed" ? (
@@ -256,7 +313,7 @@ export default function PublicDocumentPage({
               <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-emerald-200">
-                  Signed and officially sealed{doc.signedByName ? ` by ${doc.signedByName}` : ""}
+                  Signed and officially executed{doc.signedByName ? ` by ${doc.signedByName}` : ""}
                 </p>
                 <p className="mt-0.5 text-xs text-emerald-200/70">
                   {doc.signedByRole ? `${doc.signedByRole} · ` : ""}
@@ -267,7 +324,7 @@ export default function PublicDocumentPage({
                         year: "numeric",
                       })
                     : ""}
-                  {" · "}Official digital agreement record.
+                  {" · "}Permanent digital legal record.
                 </p>
               </div>
               <button
@@ -276,7 +333,7 @@ export default function PublicDocumentPage({
                 className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60 shadow-md"
               >
                 <ArrowDownTrayIcon className="h-3.5 h-3.5" />
-                <span>Download signed copy</span>
+                <span>Download Executed Copy</span>
               </button>
             </div>
           ) : doc.kind === "mou" ? (
@@ -287,7 +344,7 @@ export default function PublicDocumentPage({
                   Memorandum of Understanding · Ready for Execution
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Signing records your name, title, timestamp, and digital signature. Zero CapEx — all hardware supplied.
+                  Signing records your name, title, timestamp, and digital signature. Turnkey delivery with all robotics hardware supplied.
                 </p>
               </div>
               <button
@@ -305,7 +362,7 @@ export default function PublicDocumentPage({
                   Official Partnership Proposal for {doc.school?.name || "Your School"}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Review our turnkey STEM &amp; AI ecosystem. When ready to proceed, we issue the formal MoU for digital execution.
+                  Review the turnkey STEM curriculum, fee models, and profit share. When ready to proceed, we issue the formal MoU.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -333,26 +390,38 @@ export default function PublicDocumentPage({
         </div>
       </div>
 
-      {/* ── Main Document Canvas ── */}
-      <main className="flex-1 bg-slate-950 p-4 md:p-8 flex flex-col items-center overflow-auto pb-24 md:pb-12 space-y-8">
+      {/* ── Main Document Canvas & Executive Viewer ── */}
+      <main
+        ref={containerRef}
+        className="flex-1 bg-slate-950 p-3 sm:p-6 md:p-8 flex flex-col items-center overflow-auto pb-28 md:pb-16 space-y-8"
+      >
+        {/* Document Wrapper with Responsive Scaling for Mobile */}
         <div
-          className={`transition-all duration-200 bg-white shadow-2xl shadow-black/90 rounded-sm overflow-hidden ${
-            zoom === "100"
-              ? "w-[850px] shrink-0"
-              : zoom === "75"
-              ? "w-[640px] shrink-0"
-              : "w-full max-w-[850px]"
-          }`}
+          className="flex justify-center transition-all duration-200"
+          style={{
+            width: isSmallScreen && zoom === "fit" ? `${baseDocWidth * responsiveScale}px` : "100%",
+            maxWidth: zoom === "125" ? "1060px" : zoom === "100" ? "850px" : zoom === "75" ? "640px" : "850px",
+          }}
         >
-          <iframe
-            ref={frameRef}
-            srcDoc={doc.html}
-            title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
-            sandbox="allow-same-origin allow-modals"
-            className="w-full bg-white block"
-            scrolling="no"
-            style={{ border: "none", height: "900px" }}
-          />
+          <div
+            className="bg-white shadow-2xl shadow-black/90 rounded-sm overflow-hidden"
+            style={{
+              width: `${baseDocWidth}px`,
+              transform: isSmallScreen && zoom === "fit" ? `scale(${responsiveScale})` : "none",
+              transformOrigin: "top center",
+              marginBottom: isSmallScreen && zoom === "fit" ? `-${(1 - responsiveScale) * 100}%` : "0",
+            }}
+          >
+            <iframe
+              ref={frameRef}
+              srcDoc={doc.html}
+              title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
+              sandbox="allow-same-origin allow-modals"
+              className="w-full bg-white block"
+              scrolling="no"
+              style={{ border: "none", minHeight: "1400px", height: "auto" }}
+            />
+          </div>
         </div>
 
         {/* ── Interactive Value Pillars & Proprietor Advantage Box ── */}
@@ -363,29 +432,39 @@ export default function PublicDocumentPage({
               Institutional Guarantee
             </span>
             <h3 className="text-lg sm:text-xl font-black text-white">Why Forward-Thinking Schools Partner with Rillcod</h3>
-            <p className="text-xs text-slate-400">Everything needed to run an elite computing, robotics and AI department without capital outlay.</p>
+            <p className="text-xs text-slate-400">
+              Everything needed to run an elite computing, robotics and AI department without upfront capital outlay.
+            </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <BanknotesIcon className="w-6 h-6 text-amber-400" />
               <p className="text-xs font-black text-white">₦0 Upfront CapEx</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Robotics kits, circuits, and learning hardware arrive with our certified facilitators.</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Robotics kits, circuits, and learning hardware arrive with our certified facilitators.
+              </p>
             </div>
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <BuildingOffice2Icon className="w-6 h-6 text-emerald-400" />
               <p className="text-xs font-black text-white">Negotiable Revenue Share</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Direct profit-sharing settled to your school account at the end of each academic term as agreed.</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Direct profit-sharing settled to your school account at the end of each academic term as agreed.
+              </p>
             </div>
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <SparklesIcon className="w-6 h-6 text-cyan-400" />
               <p className="text-xs font-black text-white">12-Year STEM Matrix</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Accredited ladder from Basic 1 block coding to SS3 full-stack AI, Python & IoT builds.</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Accredited ladder from Basic 1 block coding to SS3 full-stack AI, Python &amp; IoT builds.
+              </p>
             </div>
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
               <DevicePhoneMobileIcon className="w-6 h-6 text-violet-400" />
               <p className="text-xs font-black text-white">Parent Progress Cards</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Scan-to-Watch QR codes so parents can see their child demonstrating working code.</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Scan-to-Watch QR codes so parents can see their child demonstrating working code.
+              </p>
             </div>
           </div>
 
@@ -424,7 +503,9 @@ export default function PublicDocumentPage({
           <div className="rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-800 to-cyan-950/40 border border-cyan-500/30 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             <div>
               <p className="text-xs font-black text-white">Ready to inspect hardware or schedule a live demo?</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Our academic team is available to visit your school or host an online briefing.</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Our academic team is available to visit your school or host an online briefing.
+              </p>
             </div>
             <a
               href={`${brandContact.whatsapp}?text=${encodeURIComponent(
@@ -477,7 +558,7 @@ export default function PublicDocumentPage({
         )}
       </div>
 
-      {/* ── Signature Modal ── */}
+      {/* ── Digital Signature Modal ── */}
       {showSignModal && (
         <SignatureModal
           reference={doc.reference}

@@ -282,7 +282,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <div class="rule"></div>
     <h2>${esc(heading)}</h2>
     <div class="gallery${large ? ' gallery-lg' : ''}">${slice
-      .map((src) => `<img src="${esc(assetUrl(src))}" alt="">`)
+      .map((src) => `<img src="${esc(assetUrl(src))}" alt="Rillcod STEM Session" loading="lazy" onerror="this.style.opacity='0.4';this.style.background='#f1f5f9';" />`)
       .join('')}</div>
   </section>`;
   };
@@ -311,7 +311,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <h2>The programme running</h2>
     <div class="gallery">${photos
       .slice(0, 6)
-      .map((src) => `<img src="${esc(assetUrl(src))}" alt="">`)
+      .map((src) => `<img src="${esc(assetUrl(src))}" alt="Rillcod STEM Session" loading="lazy" onerror="this.style.opacity='0.4';this.style.background='#f1f5f9';" />`)
       .join('')}</div>
   </section>`
     : '';
@@ -1026,7 +1026,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <div class="page cover">
   <div class="cover-top">
     <div class="brand-row">
-      <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="">
+      <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="${esc(brandContact.displayName)}" onerror="this.onerror=null;this.src='${brandAssets.logoCloudinary}';" />
       <div>
         <div class="brand">${esc(brandContact.displayName)}</div>
         <div class="brand-tag">${esc(brandContact.tagline)}</div>

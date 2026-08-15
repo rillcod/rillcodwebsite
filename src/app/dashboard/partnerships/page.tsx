@@ -83,6 +83,7 @@ export default function PartnershipsPage() {
   const [search, setSearch] = useState("");
   const [lens, setLens] = useState<"all" | "partners" | "prospects">("all");
   const [selectedId, setSelectedId] = useState("");
+  const [mobileShowSidebar, setMobileShowSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("compose");
 
   const [terms, setTerms] = useState<TermsRow[]>([]);
@@ -161,6 +162,7 @@ export default function PartnershipsPage() {
 
   function selectSchool(id: string) {
     setSelectedId(id);
+    setMobileShowSidebar(false);
     setPreview(null);
     setTerms([]);
     setAgreed(null);
@@ -295,9 +297,30 @@ export default function PartnershipsPage() {
         </div>
       )}
 
+      {/* Mobile School Switcher Bar (Visible on phones & small screens) */}
+      {selected && (
+        <div className="lg:hidden bg-card border border-border rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md">
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Active Workspace</span>
+            <span className="text-xs font-black text-foreground truncate block">{selected.name}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileShowSidebar(!mobileShowSidebar)}
+            className="px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-xs font-bold border border-border text-foreground transition-all shadow-sm shrink-0"
+          >
+            {mobileShowSidebar ? "✕ Hide School List" : "🔍 Switch School"}
+          </button>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-12 gap-6 items-start">
         {/* Left School Selection Sidebar */}
-        <aside className="lg:col-span-4 bg-card/90 border border-border rounded-3xl p-4 lg:sticky lg:top-4 shadow-lg space-y-3">
+        <aside
+          className={`lg:col-span-4 bg-card/90 border border-border rounded-3xl p-4 lg:sticky lg:top-4 shadow-lg space-y-3 ${
+            selected && !mobileShowSidebar ? "hidden lg:block" : "block"
+          }`}
+        >
           {canWrite && (
             <AddProspectForm
               onAdded={async (school) => {
@@ -576,10 +599,11 @@ export default function PartnershipsPage() {
                           type="button"
                           onClick={() => {
                             const mouDoc = documents.find((d) => d.document_kind === "mou");
-                            const shareUrl = mouDoc?.share_token ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${mouDoc.share_token}` : "";
+                            const slug = mouDoc?.reference || mouDoc?.share_token;
+                            const shareUrl = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${slug}` : "";
                             const phone = (selected.phone || "").replace(/[^0-9]/g, "");
                             const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
-                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod STEM Partnership Memorandum of Understanding is ready for execution:\n👉 ${shareUrl || "https://www.rillcod.com/p"}\n\nYou can review and digitally sign directly on your smartphone in 60 seconds so we can secure instructor & hardware allocations for your resumption date.\n\nWarm regards,\n*Rillcod Technologies*`;
+                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod AI & Robotics Partnership Memorandum of Understanding is ready for digital execution:\n👉 ${shareUrl || "https://www.rillcod.com/p"}\n\nYou can review and digitally sign on your phone in 60 seconds. This immediately secures your certified AI instructor and dedicated robotics kit allocations for resumption.\n\n*Rillcod Technologies*`;
                             const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
                             window.open(waUrl, "_blank");
                           }}
@@ -593,17 +617,18 @@ export default function PartnershipsPage() {
                           type="button"
                           onClick={() => {
                             const propDoc = documents.find((d) => d.document_kind === "proposal");
-                            const shareUrl = propDoc?.share_token ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${propDoc.share_token}` : "";
+                            const slug = propDoc?.reference || propDoc?.share_token;
+                            const shareUrl = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${slug}` : "";
                             const phone = (selected.phone || "").replace(/[^0-9]/g, "");
                             const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
-                            const msg = `Hello ${selected.contact_person || selected.name},\n\nJust following up on the STEM & Robotics Partnership Proposal (${propDoc?.reference || "PROP"}) we shared.\n\n👉 Review proposal online: ${shareUrl}\n\nWe'd love to schedule a brief 20-minute discussion or bring a live robotics kit to your school for a free student demo slot this week. Does that work for you?\n\n*Rillcod Technologies*`;
+                            const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the 12-Year AI, Coding & Robotics Partnership Proposal (${propDoc?.reference || "PROP"}) prepared for your school.\n\n👉 Review Proposal Online: ${shareUrl}\n\nKey Highlights: ₦0 Equipment CapEx, certified AI facilitators, termly Scan-to-Watch QR progress cards, and 30% profit share.\n\nWe'd love to schedule a brief 20-minute chat or bring live robotics kits to your school for a free student demonstration trial. Does that work for you?\n\n*Rillcod Technologies*`;
                             const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
                             window.open(waUrl, "_blank");
                           }}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
                         >
                           <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
-                          <span>Send 48h Check-In (WhatsApp)</span>
+                          <span>Send 48h AI Check-In (WhatsApp)</span>
                         </button>
                       ) : (
                         <button

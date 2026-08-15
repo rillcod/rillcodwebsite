@@ -253,9 +253,9 @@ export function PartnershipDocumentArchive({
                   </span>
                 </button>
 
-                {doc.share_token && (
+                {(doc.reference || doc.share_token) && (
                   <a
-                    href={`/p/${doc.share_token}`}
+                    href={`/p/${doc.reference || doc.share_token}`}
                     target="_blank"
                     rel="noreferrer"
                     className={`${ACTION} text-emerald-400 border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10`}

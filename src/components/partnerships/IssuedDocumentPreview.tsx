@@ -69,9 +69,11 @@ export function IssuedDocumentPreview({
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const label = kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal";
-  /** The public link. Built from the token, never the printed reference. */
-  const shareUrl = (t: string) =>
-    typeof window === "undefined" ? `/p/${t}` : `${window.location.origin}/p/${t}`;
+  /** The public link. Built from the clean reference slug (or token fallback). */
+  const shareUrl = (t?: string | null) => {
+    const slug = reference || t || "";
+    return typeof window === "undefined" ? `/p/${slug}` : `${window.location.origin}/p/${slug}`;
+  };
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");

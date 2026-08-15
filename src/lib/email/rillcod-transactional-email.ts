@@ -1385,8 +1385,8 @@ export function buildPartnershipSignedEmail(opts: {
 }
 
 /**
- * Refined follow-up and marketing email templates for schools.
- * Provides 4 targeted angles: Cold Admissions Pitch, 48h Proposal Check-In, Free 30-min Robotics Demo Invite, Term Resumption Reservation.
+ * Refined, high-converting follow-up and marketing email templates for schools.
+ * Provides 4 targeted angles with deep focus on Artificial Intelligence, Robotics, and zero-risk commercial delivery.
  */
 export function buildPartnershipFollowUpEmail(opts: {
   schoolName: string;
@@ -1400,71 +1400,96 @@ export function buildPartnershipFollowUpEmail(opts: {
     ? `Dear ${escapeHtml(opts.contactName)},`
     : `Dear ${escapeHtml(opts.schoolName)} Leadership,`;
 
-  let subject = `STEM & Robotics Partnership for ${opts.schoolName}`;
-  let title = `Empowering ${opts.schoolName} Students`;
+  let subject = `Empowering ${opts.schoolName} with Artificial Intelligence & Robotics`;
+  let title = `An Elite AI & Robotics Department for ${opts.schoolName}`;
   let bodyHtml = '';
 
   if (opts.angle === 'cold_pitch') {
-    subject = `Equipping ${opts.schoolName} with Modern AI & Robotics (Zero CapEx)`;
-    title = `A Modern Tech Department for ${opts.schoolName}`;
+    subject = `Equipping ${opts.schoolName} with an Elite Artificial Intelligence & Robotics Department (Zero CapEx)`;
+    title = `Next-Gen AI & Robotics for ${opts.schoolName}`;
     bodyHtml = `
-      <p style="margin:0 0 14px;">${greeting}</p>
-      <p style="margin:0 0 14px;">
-        Today's parents actively choose schools that prepare their children with future-ready skills: Coding, Artificial Intelligence, and Robotics.
+      <p style="margin:0 0 14px; font-size:15px; color:#e2e8f0;">${greeting}</p>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        In today's fast-evolving world, traditional computer studies (typing in Microsoft Word and memorizing PC hardware parts) is no longer enough to prepare learners for global leadership — nor does it give parents a compelling reason to choose your school.
       </p>
-      <p style="margin:0 0 14px;">
-        At <b>Rillcod Technologies</b>, we partner with visionary schools to run an accredited 12-Year STEM &amp; Coding Department directly on your timetable.
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        At <b>Rillcod Technologies</b>, we partner with forward-thinking Nigerian schools to run a comprehensive, accredited <b>12-Year Artificial Intelligence, Robotics &amp; Software Engineering Department</b> directly on your school timetable.
       </p>
-      <div style="background:#1e293b; border-left:3px solid #2563eb; border-radius:4px; padding:12px 16px; margin:14px 0 16px;">
-        <p style="margin:0 0 6px; font-size:11px; font-weight:800; color:#93c5fd; text-transform:uppercase; letter-spacing:0.8px;">Why Schools Partner with Rillcod</p>
-        <ul style="margin:0; padding-left:18px; font-size:12.5px; color:#e2e8f0; line-height:1.5;">
-          <li style="margin-bottom:4px;"><b>₦0 Equipment CapEx:</b> All laptops, robotics kits, Arduino/micro:bit hardware are provided by Rillcod.</li>
-          <li style="margin-bottom:4px;"><b>Dedicated Facilitators:</b> Our certified instructors deliver every session — zero burden on your existing teachers.</li>
-          <li><b>Direct Revenue Share:</b> 30% profit-sharing settled to your school account each term.</li>
+
+      <div style="background:#0f172a; border:1px solid #1e293b; border-left:4px solid #2563eb; border-radius:8px; padding:16px 18px; margin:18px 0 20px;">
+        <p style="margin:0 0 10px; font-size:11px; font-weight:800; color:#60a5fa; text-transform:uppercase; letter-spacing:1px;">The Rillcod AI &amp; Robotics Advantage</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#f1f5f9; line-height:1.65;">
+          <li style="margin-bottom:8px;">
+            <b>🧠 Practical AI &amp; Machine Learning:</b> From Basic 1 computer vision &amp; interactive AI models to SS3 neural networks, Python AI algorithms, and intelligent prompt engineering.
+          </li>
+          <li style="margin-bottom:8px;">
+            <b>🤖 Physical Robotics &amp; IoT Hardware:</b> Learners assemble real micro:bit and Arduino robotic kits, sensors, circuits, and autonomous systems every single term.
+          </li>
+          <li style="margin-bottom:8px;">
+            <b>₦0 Equipment CapEx:</b> Rillcod supplies 100% of practical robotics kits, micro-controllers, software licenses, and classroom devices. Zero lab buildout cost for your school.
+          </li>
+          <li style="margin-bottom:8px;">
+            <b>👨‍🏫 Certified Expert Facilitators:</b> Our trained instructors deliver every session on your weekly timetable with zero burden on your existing staff.
+          </li>
+          <li style="margin-bottom:8px;">
+            <b>📱 Scan-to-Watch Parent Progress Cards:</b> Parents scan a QR code on their termly report card to watch a video of their child presenting their working AI app or robot.
+          </li>
+          <li>
+            <b>💰 Guaranteed Revenue Share:</b> 30% profit-sharing settled directly to your school account at the end of every academic term.
+          </li>
         </ul>
       </div>
-      <p style="margin:0 0 14px;">
-        We would love to bring a live robotics kit to ${escapeHtml(opts.schoolName)} for a brief 20-minute discussion or a complimentary hands-on demonstration with your students.
+
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        We would love to bring a live robotics kit and interactive AI demonstration to ${escapeHtml(opts.schoolName)} for a brief 20-minute discussion or a complimentary hands-on trial with your learners.
       </p>`;
   } else if (opts.angle === 'free_demo') {
-    subject = `Complimentary 30-Min Robotics Demonstration for ${opts.schoolName}`;
-    title = `Free Classroom Robotics Demo`;
+    subject = `Complimentary Live AI & Robotics Classroom Trial for ${opts.schoolName}`;
+    title = `Experience Real AI & Robotics in Your Classroom`;
     bodyHtml = `
-      <p style="margin:0 0 14px;">${greeting}</p>
-      <p style="margin:0 0 14px;">
-        We would love to visit ${escapeHtml(opts.schoolName)} this week to run a complimentary <b>30-minute interactive Robotics &amp; Coding demonstration</b> for your learners.
+      <p style="margin:0 0 14px; font-size:15px; color:#e2e8f0;">${greeting}</p>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        We would love to visit ${escapeHtml(opts.schoolName)} this week to deliver a complimentary <b>30-minute interactive Artificial Intelligence &amp; Robotics trial</b> for your students.
       </p>
-      <p style="margin:0 0 14px;">
-        Our facilitator will bring physical circuits and micro-controllers so your students can build and test their first working project in real time.
-      </p>
-      <p style="margin:0 0 14px;">
-        There is zero cost or obligation. It gives your leadership and students a firsthand look at how engaging computer science can be.
+      <div style="background:#0f172a; border:1px solid #1e293b; border-left:4px solid #8b5cf6; border-radius:8px; padding:14px 18px; margin:16px 0 18px;">
+        <p style="margin:0 0 6px; font-size:11px; font-weight:800; color:#a78bfa; text-transform:uppercase; letter-spacing:0.8px;">What Learners Experience During the Live Demo</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#f1f5f9; line-height:1.6;">
+          <li style="margin-bottom:6px;"><b>Interactive AI Computer Vision:</b> Training an on-screen model to recognize hand gestures and facial expressions.</li>
+          <li style="margin-bottom:6px;"><b>Hands-on Circuit Assembly:</b> Building and activating a physical micro-controller circuit with LED sensors and motors.</li>
+          <li><b>Live Code Execution:</b> Writing and running logic blocks that control hardware in real time.</li>
+        </ul>
+      </div>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        There is zero financial cost or contractual obligation. It gives your school leadership and learners a firsthand look at how transformative modern STEM education can be.
       </p>`;
   } else if (opts.angle === 'resumption_slot') {
-    subject = `Securing STEM Facilitator & Kit Allocations for ${opts.schoolName}`;
-    title = `Reserving Next Term Timetable Slots`;
+    subject = `Securing Dedicated AI Facilitator & Robotics Kit Allocation for ${opts.schoolName}`;
+    title = `Locking in Next Term Timetable & AI Hardware`;
     bodyHtml = `
-      <p style="margin:0 0 14px;">${greeting}</p>
-      <p style="margin:0 0 14px;">
-        As we finalize our facilitator schedules and robotics hardware shipments for the upcoming academic term, we want to ensure ${escapeHtml(opts.schoolName)} has reserved its preferred weekly timetable slot.
+      <p style="margin:0 0 14px; font-size:15px; color:#e2e8f0;">${greeting}</p>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        As we finalize our certified AI instructor rosters and robotics hardware allocations for the upcoming academic term, we want to ensure ${escapeHtml(opts.schoolName)} reserves its preferred weekly timetable slot.
       </p>
-      <p style="margin:0 0 14px;">
-        Once your agreement is digitally confirmed, we immediately allocate your dedicated instructor and hardware inventory so teaching begins smoothly upon resumption.
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        Executing your Memorandum of Understanding reserves your dedicated facilitator and secures physical robotics inventory so teaching commences smoothly upon school resumption.
+      </p>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        Remember: <b>₦0 Upfront CapEx</b> is required. All robotics kits and devices arrive with our facilitator, and billing is settled only against enrolled learners.
       </p>`;
   } else {
     // check_in
-    subject = `Following up: STEM & Robotics Proposal for ${opts.schoolName}${opts.reference ? ` (${opts.reference})` : ''}`;
-    title = `Checking In on Your Proposal`;
+    subject = `Following up: AI, Coding & Robotics Partnership Proposal for ${opts.schoolName}${opts.reference ? ` (${opts.reference})` : ''}`;
+    title = `Reviewing Your AI & Robotics Proposal`;
     bodyHtml = `
-      <p style="margin:0 0 14px;">${greeting}</p>
-      <p style="margin:0 0 14px;">
-        I am following up on the STEM, Robotics &amp; Coding Education Proposal we recently prepared for ${escapeHtml(opts.schoolName)}.
+      <p style="margin:0 0 14px; font-size:15px; color:#e2e8f0;">${greeting}</p>
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        I am following up on the <b>Artificial Intelligence, Coding &amp; Robotics Education Proposal</b> we prepared for ${escapeHtml(opts.schoolName)}.
       </p>
-      <p style="margin:0 0 14px;">
-        I wanted to see if you had any questions regarding the year-by-year syllabus, the ₦0 equipment guarantee, or our 30% termly revenue-share model.
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        I wanted to see if your leadership team had any questions regarding the 12-Year AI syllabus, our ₦0 equipment guarantee, or our termly revenue-share settlement.
       </p>
-      <p style="margin:0 0 14px;">
-        Would you be available for a brief 10-minute call or an in-person visit to inspect the physical hardware kits?
+      <p style="margin:0 0 14px; font-size:14.5px; color:#cbd5e1; line-height:1.65;">
+        Would you be available for a brief 10-minute phone call or an in-person visit so we can demonstrate the physical robotics and AI kits in person?
       </p>`;
   }
 
@@ -1474,8 +1499,8 @@ export function buildPartnershipFollowUpEmail(opts: {
     title,
     bodyHtml,
     cta: opts.shareUrl
-      ? { href: opts.shareUrl, label: 'Review Proposal & Curriculum Online' }
-      : { href: brandContact.whatsapp, label: 'Chat with Us on WhatsApp' },
+      ? { href: opts.shareUrl, label: 'Review Full AI Proposal & Curriculum Online' }
+      : { href: brandContact.whatsapp, label: 'Connect with Us on WhatsApp' },
     footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
   });
 

@@ -20,8 +20,9 @@ import {
   MAX_SIGNATORY_ROLE,
   MAX_SIGNATURE_BYTES,
   SIGNATURE_DATA_URL_PATTERN,
+  SHARE_TOKEN_PATTERN,
   buildSignatureStamp,
-  isValidShareToken,
+  isValidDocumentIdentifier,
   stampSignature,
 } from '@/lib/partnerships/signing';
 import { notificationsService } from '@/services/notifications.service';
@@ -29,6 +30,28 @@ import { buildPartnershipSignedEmail } from '@/lib/email/rillcod-transactional-e
 import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
+
+/** Columns every public read of a document needs. */
+const DOC_COLS =
+  'id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role, share_token';
+
+/**
+ * Find a document from what the URL carried.
+ *
+ * Two ways in, and both are secrets: the share token from the link we sent, or
+ * the six digits printed on the page. Never the reference — it is sequential and
+ * printed on every document, so accepting it would let one proposal unlock all
+ * the others.
+ */
+async function resolveDocument(db: ReturnType<typeof createAdminClient>, value: string) {
+  const column = SHARE_TOKEN_PATTERN.test(value) ? 'share_token' : 'access_code';
+  const { data } = await db
+    .from('partnership_agreements')
+    .select(DOC_COLS)
+    .eq(column, value)
+    .maybeSingle();
+  return data;
+}
 
 export async function GET(
   _req: NextRequest,
@@ -38,20 +61,14 @@ export async function GET(
   const value = String(token || '').trim();
   // A malformed token is indistinguishable from a wrong one, on purpose: this
   // endpoint never confirms that a document exists to somebody without the link.
-  if (!isValidShareToken(value)) {
+  if (!isValidDocumentIdentifier(value)) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
   const db = createAdminClient();
-  const { data: doc, error } = await db
-    .from('partnership_agreements')
-    // No terms_snapshot: it is the commercial record, the page never shows it,
-    // and the rendered document already says everything the reader should see.
-    .select('id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role')
-    .eq('share_token', value)
-    .maybeSingle();
+  const doc = await resolveDocument(db, value);
 
-  if (error || !doc) {
+  if (!doc) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
@@ -61,12 +78,25 @@ export async function GET(
     .eq('id', doc.school_id)
     .maybeSingle();
 
+  // Normalize image URLs and asset paths on stored HTML to guarantee images load
+  // across custom domains, local testing, and staging containers without CORS or encoding issues.
+  let cleanHtml = String(doc.document_html || '');
+  cleanHtml = cleanHtml.replace(/src=["'](?:https?:\/\/[^"']*\/)?(images\/[^"']+)["']/gi, (match, path) => {
+    try {
+      const decoded = decodeURIComponent(path);
+      const encoded = decoded.split('/').map((s) => encodeURIComponent(s)).join('/');
+      return `src="/${encoded}"`;
+    } catch {
+      return match;
+    }
+  });
+
   return NextResponse.json({
     id: doc.id,
     reference: doc.reference,
     kind: doc.document_kind,
     status: doc.status,
-    html: doc.document_html,
+    html: cleanHtml,
     signedAt: doc.signed_at,
     signedByName: doc.signed_by_name,
     signedByRole: doc.signed_by_role,
@@ -80,7 +110,7 @@ export async function POST(
 ) {
   const { token } = await params;
   const value = String(token || '').trim();
-  if (!isValidShareToken(value)) {
+  if (!isValidDocumentIdentifier(value)) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
@@ -116,14 +146,14 @@ export async function POST(
     }
   }
 
+  // Same rule as the read: a token or an access code, never a reference. This is
+  // the path that signs, so it is the one that matters most — a reference is
+  // sequential and printed, and signing an agreement in a school's name should
+  // take more than counting.
   const db = createAdminClient();
-  const { data: doc, error } = await db
-    .from('partnership_agreements')
-    .select('id, reference, status, document_kind, document_html, school_id')
-    .eq('share_token', value)
-    .maybeSingle();
+  const doc = await resolveDocument(db, value);
 
-  if (error || !doc) {
+  if (!doc) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 

@@ -107,6 +107,10 @@ export async function POST(req: NextRequest) {
   // forwarded, and for an MoU it is the only way to sign. Built from the token,
   // never the reference, which is sequential and printed on the document.
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
+  // The token, and only the token. This preferred `reference` for a while, which
+  // worked solely because the public route was accepting references — the same
+  // thing that let anybody count from RC-PROP-2026-00001 through every school's
+  // fees. The route no longer does, so a reference here would email a dead link.
   const shareUrl = doc.share_token ? `${appUrl}/p/${doc.share_token}` : null;
 
   const html = buildPartnershipProposalEmail({

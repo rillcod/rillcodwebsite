@@ -60,27 +60,28 @@ export function PartnershipOutreachModal({ school, latestDoc, isOpen, onClose }:
 
   if (!isOpen) return null;
 
-  const shareUrl = latestDoc?.share_token
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${latestDoc.share_token}`
+  const cleanSlug = latestDoc?.reference || latestDoc?.share_token;
+  const shareUrl = cleanSlug
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${cleanSlug}`
     : "";
 
   const greeting = contactPerson ? `Dear ${contactPerson},` : `Dear ${school.name} Leadership,`;
 
-  let subject = `STEM & Robotics Partnership for ${school.name}`;
+  let subject = `Artificial Intelligence & Robotics Partnership for ${school.name}`;
   let bodySummary = "";
 
   if (angle === "cold_pitch") {
-    subject = `Equipping ${school.name} with Modern AI & Robotics (Zero CapEx)`;
-    bodySummary = `${greeting}\n\nToday's parents actively choose schools that prepare their children with future-ready skills: Coding, Artificial Intelligence, and Robotics.\n\nAt Rillcod Technologies, we partner with visionary schools to run an accredited 12-Year STEM & Coding Department directly on your timetable.\n\nKey Institutional Highlights:\n• ₦0 Equipment CapEx: All robotics kits, circuits & hardware provided by Rillcod.\n• Dedicated Facilitators: Certified instructors deliver every session.\n• Direct Revenue Share: 30% profit-sharing settled to your school each term.\n\nWe would love to bring a live robotics kit to ${school.name} for a brief 20-minute discussion or a complimentary hands-on demonstration with your students.\n\nWarm regards,\nThe Rillcod Technologies Team`;
+    subject = `Equipping ${school.name} with an Elite Artificial Intelligence & Robotics Department (Zero CapEx)`;
+    bodySummary = `${greeting}\n\nIn today's fast-evolving world, traditional computer studies (typing in Word and memorizing PC parts) no longer prepares learners for global leadership — nor does it give parents a reason to choose your school.\n\nAt Rillcod Technologies, we partner with visionary schools to run an accredited 12-Year Artificial Intelligence, Robotics & Software Engineering Department directly on your timetable.\n\nKey Institutional Highlights:\n• 🧠 Practical AI & ML: From Basic 1 interactive AI models to SS3 neural networks, Python AI algorithms, and prompt engineering.\n• 🤖 Physical Robotics & IoT: Hands-on micro:bit and Arduino circuits, sensors, and autonomous rovers every term.\n• ₦0 Equipment CapEx: All robotics kits, electronic boards, laptops, and devices provided by Rillcod.\n• 👨‍🏫 Certified Facilitators: 100% delivered by our certified instructors — zero burden on your existing staff.\n• 📱 Parent Progress Cards: Scan-to-Watch QR codes on termly report cards showing each child demonstrating working code.\n• 💰 Guaranteed Revenue Share: 30% profit-sharing settled directly to your school account each term.\n\nWe would love to bring a live robotics kit and interactive AI demo to ${school.name} for a brief 20-minute discussion or a complimentary hands-on trial.\n\nWarm regards,\nThe Rillcod Technologies Team`;
   } else if (angle === "free_demo") {
-    subject = `Complimentary 30-Min Robotics Demonstration for ${school.name}`;
-    bodySummary = `${greeting}\n\nWe would love to visit ${school.name} this week to run a complimentary 30-minute interactive Robotics & Coding demonstration for your learners.\n\nOur facilitator will bring physical circuits and micro-controllers so your students can build and test their first working project in real time.\n\nThere is zero cost or obligation. It gives your leadership and students a firsthand look at how engaging computer science can be.\n\nWarm regards,\nThe Rillcod Technologies Team`;
+    subject = `Complimentary Live AI & Robotics Classroom Trial for ${school.name}`;
+    bodySummary = `${greeting}\n\nWe would love to visit ${school.name} this week to deliver a complimentary 30-minute interactive Artificial Intelligence & Robotics trial for your learners.\n\nWhat students will experience:\n• Train on-screen AI computer vision models using camera gestures.\n• Assemble and code physical micro-controller circuits with LED sensors & motors.\n• Write and execute real logic commands that control hardware in real time.\n\nThere is zero cost or obligation. It gives your leadership and learners a firsthand view of modern applied technology education.\n\nWarm regards,\nThe Rillcod Technologies Team`;
   } else if (angle === "resumption_slot") {
-    subject = `Securing STEM Facilitator & Kit Allocations for ${school.name}`;
-    bodySummary = `${greeting}\n\nAs we finalize our facilitator schedules and robotics hardware shipments for the upcoming academic term, we want to ensure ${school.name} has reserved its preferred weekly timetable slot.\n\nOnce your agreement is digitally confirmed, we immediately allocate your dedicated instructor and hardware inventory so teaching begins smoothly upon resumption.\n\n${shareUrl ? `Review & digitally sign agreement: ${shareUrl}\n\n` : ""}Warm regards,\nThe Rillcod Technologies Team`;
+    subject = `Securing Dedicated AI Facilitator & Robotics Kit Allocation for ${school.name}`;
+    bodySummary = `${greeting}\n\nAs we finalize our certified AI instructor rosters and robotics hardware allocations for the upcoming academic term, we want to ensure ${school.name} has reserved its preferred weekly timetable slot.\n\nExecuting your Memorandum of Understanding reserves your dedicated facilitator and secures physical robotics inventory so teaching commences smoothly upon school resumption.\n\n${shareUrl ? `Review & digitally sign agreement online: ${shareUrl}\n\n` : ""}Warm regards,\nThe Rillcod Technologies Team`;
   } else {
-    subject = `Following up: STEM & Robotics Proposal for ${school.name}${latestDoc?.reference ? ` (${latestDoc.reference})` : ""}`;
-    bodySummary = `${greeting}\n\nI am following up on the STEM, Robotics & Coding Education Proposal we recently prepared for ${school.name}.\n\n${shareUrl ? `Review proposal online: ${shareUrl}\n\n` : ""}I wanted to see if you had any questions regarding the year-by-year syllabus, the ₦0 equipment guarantee, or our 30% termly revenue-share model.\n\nWould you be available for a brief 10-minute call or an in-person visit to inspect the physical hardware kits?\n\nWarm regards,\nThe Rillcod Technologies Team`;
+    subject = `Following up: AI, Coding & Robotics Partnership Proposal for ${school.name}${latestDoc?.reference ? ` (${latestDoc.reference})` : ""}`;
+    bodySummary = `${greeting}\n\nI am following up on the Artificial Intelligence, Coding & Robotics Education Proposal we recently prepared for ${school.name}.\n\n${shareUrl ? `Review proposal online: ${shareUrl}\n\n` : ""}I wanted to see if your leadership team had any questions regarding the 12-Year AI syllabus, the ₦0 equipment guarantee, or our 30% termly revenue-share model.\n\nWould you be available for a brief 10-minute call or an in-person visit so we can demonstrate the physical robotics and AI kits?\n\nWarm regards,\nThe Rillcod Technologies Team`;
   }
 
   async function handleSendEmail() {

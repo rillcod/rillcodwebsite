@@ -5,6 +5,7 @@ import {
   SIGNATURE_DATA_URL_PATTERN,
   buildSignatureStamp,
   escapeHtml,
+  isValidDocumentIdentifier,
   isValidShareToken,
   stampSignature,
 } from './signing';
@@ -171,5 +172,52 @@ describe('where the stamp lands', () => {
     // Returning null is what lets the route answer 409 instead of recording a
     // signature that appears nowhere on the page.
     expect(stampSignature('<div>no slot here</div>', '<b>SIGNED</b>')).toBeNull();
+  });
+});
+
+/**
+ * The rule that keeps one school's proposal from unlocking every other.
+ *
+ * References are sequential — the counter guarantees it — and printed on the
+ * face of every document. This has now been reverted twice, so it is a test
+ * rather than a comment: hold RC-PROP-2026-00001 and you must not be able to
+ * count to 00002 and read another school's agreed fees, or sign in their name.
+ */
+describe('what may address a document publicly', () => {
+  it('accepts a share token', () => {
+    expect(isValidDocumentIdentifier('7f3a1c2e-4b5d-4e6f-8a9b-0c1d2e3f4a5b')).toBe(true);
+  });
+
+  it('accepts a six-digit access code', () => {
+    expect(isValidDocumentIdentifier('782587')).toBe(true);
+    expect(isValidDocumentIdentifier('000001')).toBe(true);
+  });
+
+  it('refuses a document reference, in every shape it is written', () => {
+    for (const reference of [
+      'RC-PROP-2026-00001',
+      'RC-MOU-2026-00042',
+      'PROP-2026-0001',
+      'MOU-2026-0002',
+      'rc-prop-2026-00001',
+    ]) {
+      expect(isValidDocumentIdentifier(reference)).toBe(false);
+    }
+  });
+
+  it('refuses anything that is neither', () => {
+    for (const bad of ['', '   ', '12345', '1234567', 'null', 'undefined', '../../etc/passwd', 'abc']) {
+      expect(isValidDocumentIdentifier(bad)).toBe(false);
+    }
+    expect(isValidDocumentIdentifier(null)).toBe(false);
+    expect(isValidDocumentIdentifier(782587)).toBe(false);
+  });
+
+  it('refuses the characters that would break a PostgREST filter', () => {
+    // These identifiers are interpolated into `.eq()`, and were once into
+    // `.or()`. Nothing that could close a filter clause is a valid identifier.
+    for (const bad of ["a'b", 'a,b', 'a%b', 'a/b', 'a.b', 'a)b']) {
+      expect(isValidDocumentIdentifier(bad)).toBe(false);
+    }
   });
 });

@@ -22,8 +22,10 @@ import {
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
 import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
-// The split rule lives in one module; this route does not restate it.
 import { ImpermissibleSplitError, normaliseSchoolSharePercent } from '@/lib/partnerships/split';
+import { notificationsService } from '@/services/notifications.service';
+import { buildPartnershipFollowUpEmail } from '@/lib/email/rillcod-transactional-email';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +164,56 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Optionally dispatch email directly to recipient via Resend with SendPulse backup
+    let emailSent = false;
+    let emailRecipient: string | null = null;
+    if (body.send_email === true) {
+      let toEmail = String(body.recipient_email || prospectSchool?.email || '').trim();
+      let contactPerson = prospectSchool?.contactPerson || null;
+      if (!toEmail && schoolId && schoolId !== 'new') {
+        const { data: dbSchool } = await actor.db
+          .from('schools')
+          .select('email, contact_person')
+          .eq('id', schoolId)
+          .maybeSingle();
+        if (dbSchool?.email) {
+          toEmail = String(dbSchool.email).trim();
+          contactPerson = contactPerson || dbSchool.contact_person;
+        }
+      }
+
+      if (toEmail && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(toEmail)) {
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
+        const shareUrl = `${appUrl}/p/${issued.reference || issued.shareToken}`;
+        const { subject, html } = buildPartnershipFollowUpEmail({
+          schoolName: issued.schoolName,
+          contactName: contactPerson,
+          reference: issued.reference,
+          angle: kind === 'mou' ? 'resumption_slot' : 'cold_pitch',
+          shareUrl,
+          appUrl,
+        });
+
+        const dispatched = await notificationsService.sendEmail('system', {
+          to: toEmail,
+          subject,
+          html,
+          templateKey: kind === 'mou' ? 'partnership_mou' : 'partnership_proposal',
+          referenceId: issued.reference,
+        });
+
+        if (dispatched) {
+          emailSent = true;
+          emailRecipient = toEmail;
+          // Mark document status as sent
+          await actor.db
+            .from('partnership_agreements')
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .eq('id', issued.id);
+        }
+      }
+    }
+
     return NextResponse.json({
       id: issued.id,
       reference: issued.reference,
@@ -173,6 +225,8 @@ export async function POST(req: NextRequest) {
       // What the public link is built from. Never the reference: that is
       // sequential and printed on the document, so it is not a secret.
       share_token: issued.shareToken,
+      email_sent: emailSent,
+      email_to: emailRecipient,
     });
   } catch (error) {
     // The one refusal worth spelling out: an MoU cannot be written without a rate.

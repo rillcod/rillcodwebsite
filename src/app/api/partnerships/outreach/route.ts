@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
-  const shareUrl = latestDoc?.share_token ? `${appUrl}/p/${latestDoc.share_token}` : null;
+  const cleanSlug = latestDoc?.reference || latestDoc?.share_token;
+  const shareUrl = cleanSlug ? `${appUrl}/p/${cleanSlug}` : null;
 
   const { subject, html } = buildPartnershipFollowUpEmail({
     schoolName: school.name,

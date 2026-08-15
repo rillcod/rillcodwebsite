@@ -65,6 +65,9 @@ export function PartnershipDocumentComposer({
   const [commencement, setCommencement] = useState("");
   const [durationLabel, setDurationLabel] = useState("");
   const [students, setStudents] = useState("");
+  const [sendEmail, setSendEmail] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState(school.email || "");
+  const [emailStatus, setEmailStatus] = useState("");
   const [issuing, setIssuing] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
@@ -88,8 +91,11 @@ export function PartnershipDocumentComposer({
     setCommencement("");
     setDurationLabel("");
     setStudents(school.student_count ? String(school.student_count) : "");
+    setRecipientEmail(school.email || "");
+    setSendEmail(false);
+    setEmailStatus("");
     setError("");
-  }, [school.id, school.student_count, agreed]);
+  }, [school.id, school.student_count, school.email, agreed]);
 
   const selectedOffer = useMemo(
     () => PARTNERSHIP_OFFERS.find((o) => o.code === offerCode) ?? null,
@@ -114,6 +120,8 @@ export function PartnershipDocumentComposer({
       commencement: kind === 'mou' ? commencement.trim() || null : null,
       duration_label: kind === 'mou' ? durationLabel.trim() || null : null,
       illustrative_students: kind === 'mou' ? Number(students) || undefined : undefined,
+      send_email: !preview && sendEmail,
+      recipient_email: !preview && sendEmail ? recipientEmail.trim() : null,
       // The same settings on both paths, so what was previewed is what issues.
       studio: kind === 'proposal' ? studio : null,
     };
@@ -506,6 +514,45 @@ export function PartnershipDocumentComposer({
         </div>
       )}
 
+      {/* Direct Email Delivery Option */}
+      <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/20 via-slate-900/40 to-slate-900/80 p-4 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={sendEmail}
+            onChange={(e) => setSendEmail(e.target.checked)}
+            className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
+          />
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <span>📧 Email document directly to school contact upon issue</span>
+              <span className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 text-[10px] font-mono font-semibold">
+                Resend + SendPulse
+              </span>
+            </span>
+            <p className="text-[11px] text-muted-foreground">
+              Dispatches the executive email containing the verified review link immediately upon issuing.
+            </p>
+          </div>
+        </label>
+
+        {sendEmail && (
+          <div className="pt-2 border-t border-border/50">
+            <label className={LABEL} htmlFor="composer-recipient-email">
+              Recipient Email Address
+            </label>
+            <input
+              id="composer-recipient-email"
+              type="email"
+              className={INPUT}
+              placeholder="e.g. principal@school.edu.ng, proprietor@gmail.com"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
       {error && (
         <p className="text-xs text-destructive flex items-start gap-2">
           <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-px" />
@@ -542,7 +589,13 @@ export function PartnershipDocumentComposer({
               ) : (
                 <DocumentTextIcon className="w-4 h-4 text-emerald-400" />
               )}
-              <span>{issuing ? "Issuing Official Record…" : "Issue & Save Official Copy"}</span>
+              <span>
+                {issuing
+                  ? "Issuing Official Record…"
+                  : sendEmail
+                  ? `Issue & Email to ${recipientEmail || "School"}`
+                  : "Issue & Save Official Copy"}
+              </span>
             </button>
           </div>
 

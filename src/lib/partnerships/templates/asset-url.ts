@@ -1,23 +1,40 @@
 import { brandContact } from '@/config/brand';
 
 /**
- * Absolute URL for an image inside a stored document.
+ * Clean URL for an image inside a stored or previewed document.
  *
- * Both templates need this and for the same reason: a document is stored and
- * reopened long after it was issued, previewed inside a srcdoc iframe that has
- * no base to resolve against, emailed, and read back through html-to-image to
- * build the PDF. A relative `/images/...` is a broken frame in three of those
- * four places.
- *
- * Filenames are encoded per segment because photographs arrive from a phone as
- * "WhatsApp Image … (1).jpeg", and a raw space is not a URL.
+ * Handles raw paths, pre-encoded paths, and avoids double-encoding spaces.
+ * Returns root-relative URLs so they resolve seamlessly in srcdoc iframes,
+ * browser preview, PDF export, and across local / staging / production hosts.
  */
 export function assetUrl(src: string): string {
-  if (/^(https?:|data:)/i.test(src)) return src;
-  const encoded = String(src)
-    .replace(/^\//, '')
+  if (!src) return '';
+  if (/^data:/i.test(src)) return src;
+
+  // Preserve external CDN URLs (e.g. Cloudinary)
+  if (/^https?:\/\//i.test(src)) {
+    if (!src.includes('rillcod.com')) return src;
+    try {
+      const url = new URL(src);
+      src = url.pathname;
+    } catch {
+      return src;
+    }
+  }
+
+  // Remove leading slashes and optional 'public/' prefix
+  const cleanPath = String(src).replace(/^\/?(public\/)?/, '');
+  const encoded = cleanPath
     .split('/')
-    .map((segment) => encodeURIComponent(segment))
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return encodeURIComponent(segment);
+      }
+    })
     .join('/');
-  return `${brandContact.siteUrl.replace(/\/$/, '')}/${encoded}`;
+
+  return `/${encoded}`;
 }
+

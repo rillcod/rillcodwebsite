@@ -43,16 +43,29 @@ export async function GET(req: NextRequest) {
     throw err;
   }
 
-  const cleaned = raw.replace(/[\s-]/g, '');
   const db = createAdminClient();
 
-  // Two ways in, both secrets: the six digits printed on the document, or the
-  // token itself if somebody pasted the whole link.
+  /**
+   * Two ways in, both secrets.
+   *
+   * Spaces come out because people type "782 587"; hyphens come out of the code
+   * only, because a share token *is* hyphens — stripping them first meant the
+   * token branch tested a 32-character string against a pattern that requires
+   * the dashed form, so it could never match and pasting a link never worked.
+   *
+   * The reference is not accepted. It is sequential and printed on every
+   * document, so trading one for a token would hand anybody holding a single
+   * proposal the key to all the others.
+   */
+  const typed = raw.replace(/\s+/g, '');
+  const asCode = typed.replace(/-/g, '');
+
+  const COLS = 'reference, share_token, document_kind, status, school_id';
   let query;
-  if (ACCESS_CODE.test(cleaned)) {
-    query = db.from('partnership_agreements').select('reference, share_token, document_kind, status, school_id').eq('access_code', cleaned);
-  } else if (isValidShareToken(cleaned)) {
-    query = db.from('partnership_agreements').select('reference, share_token, document_kind, status, school_id').eq('share_token', cleaned.toLowerCase());
+  if (ACCESS_CODE.test(asCode)) {
+    query = db.from('partnership_agreements').select(COLS).eq('access_code', asCode);
+  } else if (isValidShareToken(typed)) {
+    query = db.from('partnership_agreements').select(COLS).eq('share_token', typed.toLowerCase());
   } else {
     // Deliberately the same message a wrong code gets: this endpoint never
     // explains what a valid code looks like to somebody probing it.

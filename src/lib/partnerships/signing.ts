@@ -59,8 +59,34 @@ export function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Strict UUID share token validator */
 export function isValidShareToken(value: unknown): boolean {
   return typeof value === 'string' && SHARE_TOKEN_PATTERN.test(value.trim());
+}
+
+/** Exactly six digits: the short code printed on a document, and a secret. */
+export const ACCESS_CODE_PATTERN = /^[0-9]{6}$/;
+
+/**
+ * What may address a document publicly.
+ *
+ * Two things, and both are secrets: the share token in the link we send, and the
+ * six-digit access code printed on the page for somebody typing it in.
+ *
+ * The reference is deliberately not one of them. `RC-PROP-2026-00001` is
+ * sequential — the counter migration guarantees it — and printed on the face of
+ * every document, so accepting it here means one proposal in one school's hands
+ * unlocks every other: count downwards and read their agreed fees, or sign an
+ * MoU in a school's name. It is an identifier for people to quote at each other,
+ * never a credential.
+ *
+ * Six digits is a small space, so the routes that accept it rate-limit. The
+ * token carries the real entropy.
+ */
+export function isValidDocumentIdentifier(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const t = value.trim();
+  return SHARE_TOKEN_PATTERN.test(t) || ACCESS_CODE_PATTERN.test(t);
 }
 
 export type SignatureStampInput = {
