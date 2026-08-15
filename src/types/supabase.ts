@@ -15990,8 +15990,51 @@ export type Database = {
           },
         ]
       }
+      school_gallery_media: {
+        Row: {
+          academic_term_id: string | null
+          category: string
+          created_at: string
+          id: string
+          is_capstone_demo: boolean
+          media_type: string
+          school_id: string
+          thumbnail_url: string | null
+          title: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          academic_term_id?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_capstone_demo?: boolean
+          media_type?: string
+          school_id: string
+          thumbnail_url?: string | null
+          title?: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          academic_term_id?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_capstone_demo?: boolean
+          media_type?: string
+          school_id?: string
+          thumbnail_url?: string | null
+          title?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       schools: {
         Row: {
+          logo_url: string | null
           address: string | null
           city: string | null
           commission_rate: number
@@ -16016,6 +16059,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          logo_url?: string | null
           address?: string | null
           city?: string | null
           commission_rate?: number
@@ -16040,6 +16084,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          logo_url?: string | null
           address?: string | null
           city?: string | null
           commission_rate?: number
