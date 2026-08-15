@@ -15,6 +15,7 @@
  *   a database trigger; re-rendering would silently restate what somebody signed.
  *   Issue a fresh document instead, which is what supersede is for.
  */
+import { brandContact } from '@/config/brand';
 import {
   getPublishedProgression,
   type CurriculumProgression,
@@ -131,7 +132,11 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
 
   const reference = String(row.reference);
   // The code prints on the document, so it has to reach the render.
-  const { html, narrativeSource } = await prepared.render(reference, row.access_code ?? null);
+  const { html, narrativeSource } = await prepared.render(
+    reference,
+    row.access_code ?? null,
+    row.share_token ? String(row.share_token) : null,
+  );
 
   // The document is written back rather than inserted with the row, because it
   // has to contain the reference the insert produced.
@@ -296,9 +301,13 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
     ? { ...agreedTerms }
     : { billing_model: null, note: 'Issued before terms were agreed; standard options quoted.' };
 
-  const render = async (reference: string, accessCode: string | null = null) => {
+  const render = async (
+    reference: string,
+    accessCode: string | null = null,
+    shareToken: string | null = null,
+  ) => {
     const dateLabel = todayLabel();
-    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel, accessCode });
+    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken });
   };
 
   return { school, agreedTerms, curriculum, snapshot, render };
@@ -316,8 +325,10 @@ async function renderDocument(ctx: {
    * the email is gone. Null on a preview, which has no row and therefore no code.
    */
   accessCode?: string | null;
+  /** Secret behind the QR a reader scans off the printed page. */
+  shareToken?: string | null;
 }): Promise<{ html: string; narrativeSource: ProposalNarrative['source'] | null }> {
-  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode } = ctx;
+  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken } = ctx;
   const kind = input.kind;
 
   let html: string;
@@ -327,6 +338,21 @@ async function renderDocument(ctx: {
   // 'new' or as nothing, and neither is a uuid the proof-band exclusion can be
   // filtered on. An unstored prospect has nothing to exclude itself from.
   const schoolId = school.id || undefined;
+
+  // A QR turns a printed page into a tap. Built here because the templates are
+  // synchronous string builders and encoding an image is not.
+  let accessQrDataUrl: string | null = null;
+  if (shareToken) {
+    try {
+      const { qrDataUrl } = await import('@/lib/cards/qr');
+      const { HD_QR_PRINT_PX } = await import('@/lib/qr/hd-qr');
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
+      accessQrDataUrl = await qrDataUrl(`${appUrl}/p/${shareToken}`, HD_QR_PRINT_PX);
+    } catch {
+      // A document without its QR still prints the code and the address.
+      accessQrDataUrl = null;
+    }
+  }
 
   if (kind === 'mou') {
     html = buildPartnershipMouHTML({
@@ -340,6 +366,7 @@ async function renderDocument(ctx: {
       illustrativeStudents: input.illustrativeStudents ?? school.student_count ?? 0,
       stage: input.stage ?? null,
       accessCode,
+      accessQrDataUrl,
     });
   } else {
     // Zero or a negative number means "no expiry stated" rather than an
@@ -408,6 +435,7 @@ async function renderDocument(ctx: {
       scopeToOffer: input.scopeToOffer ?? null,
       stage: input.stage ?? null,
       accessCode,
+      accessQrDataUrl,
       validUntilLabel: validUntil,
       // Counted now, so the cover cannot claim a footprint we have grown out of
       // or shrunk below. The recipient is excluded from its own proof, and null

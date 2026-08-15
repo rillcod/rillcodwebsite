@@ -47,6 +47,11 @@ export type MouInput = {
    * email has gone. Never the reference: that is sequential and public.
    */
   accessCode?: string | null;
+  /**
+   * A QR of the private link, so a printed page is a tap rather than typing.
+   * Null when the document has not been issued yet and has no link.
+   */
+  accessQrDataUrl?: string | null;
   /** Headcount used to illustrate clause 3. Zero hides the worked example. */
   illustrativeStudents?: number;
   /**
@@ -185,10 +190,15 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .doctitle { text-align: center; margin: 0 0 4mm; }
   .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
   .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
+  /* Scan, or type the code, or type the address — in that order of effort. */
   .online {
-text-align: center; font-size: 8.4pt; color: #64748b; margin: -2mm 0 3.5mm;
-    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 1.6mm;
+    display: flex; align-items: center; justify-content: center; gap: 3mm;
+    font-size: 8.4pt; color: #64748b; margin: -2mm 0 3.5mm;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 2mm;
   }
+  .online-qr { width: 13mm; height: 13mm; display: block; }
+  .online-txt { text-align: left; line-height: 1.35; }
+  .online-txt b { display: block; color: #0f172a; font-size: 9pt; letter-spacing: .01em; }
   .online b { color: #0f172a; letter-spacing: .04em; }
   .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
 
@@ -308,7 +318,19 @@ text-align: center; font-size: 8.4pt; color: #64748b; margin: -2mm 0 3.5mm;
     // Where to read and sign it, and how to get back in without the email. On
     // page one because that is where somebody looks when the link has gone.
     input.accessCode
-      ? `<p class="online">Read and sign this agreement online at <b>${esc(brandContact.web)}/p</b> &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></p>`
+      ? `<div class="online">
+      ${
+        // Scan and it opens. The code beneath is for anybody without a camera to
+        // hand, and the address for anybody who would rather type.
+        input.accessQrDataUrl
+          ? `<img class="online-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read and sign this agreement">`
+          : ''
+      }
+      <div class="online-txt">
+        <b>Read and sign this agreement online</b>
+        <span>${esc(brandContact.web)}/p &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></span>
+      </div>
+    </div>`
       : ''
   }
 

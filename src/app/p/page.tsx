@@ -79,7 +79,7 @@ export default function DocumentAccessPortalPage() {
                 Access Partnership Document
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
-                Enter the access code or reference printed on your Proposal or Memorandum of Understanding.
+                Enter the six-digit access code printed on your proposal or agreement.
               </p>
             </div>
 
@@ -106,7 +106,7 @@ export default function DocumentAccessPortalPage() {
                       setCode(e.target.value.toUpperCase());
                       if (error) setError("");
                     }}
-                    placeholder="e.g. 849201 or RC-MOU-2026-00001"
+                    placeholder="e.g. 849201"
                     autoFocus
                     autoCapitalize="characters"
                     autoComplete="off"

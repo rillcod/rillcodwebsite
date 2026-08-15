@@ -88,6 +88,11 @@ export type ProposalInput = {
    * email has gone. Never the reference: that is sequential and public.
    */
   accessCode?: string | null;
+  /**
+   * A QR of the private link, so a printed page is a tap rather than typing.
+   * Null when the document has not been issued yet and has no link.
+   */
+  accessQrDataUrl?: string | null;
   /** Classroom photography. Empty renders no gallery rather than empty frames. */
   photos?: readonly string[];
   /**
@@ -742,10 +747,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-for { font-size: 17.5pt; font-weight: 700; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
+  /* On the cover, because that is the page somebody is holding. Scan it, or type
+     six digits, or type the address — in that order of effort. */
   .cover-online {
     margin-top: 7mm; font-size: 9pt; color: #cbd5e1; letter-spacing: .01em;
+    display: flex; align-items: center; gap: 3.5mm;
   }
   .cover-online b { color: #fff; letter-spacing: .05em; }
+  .cover-online > div > b { display: block; font-size: 10pt; margin-bottom: .6mm; }
+  /* White plate: a QR on a dark cover will not scan without one. */
+  .cover-qr {
+    width: 15mm; height: 15mm; display: block; background: #fff;
+    padding: 1mm; border-radius: 1mm;
+  }
   .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
   /* The cover closes on the same dark panel the last page uses, so the
@@ -1058,7 +1072,17 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       // How to reopen this after the email is gone. On the cover, where somebody
       // holding a printed copy will actually look.
       input.accessCode
-        ? `<div class="cover-online">Read it online at <b>${esc(brandContact.web)}/p</b> &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></div>`
+        ? `<div class="cover-online">
+      ${
+        input.accessQrDataUrl
+          ? `<img class="cover-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
+          : ''
+      }
+      <div>
+        <b>Read it online</b>
+        <span>${esc(brandContact.web)}/p &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></span>
+      </div>
+    </div>`
         : ''
     }
   </div>
