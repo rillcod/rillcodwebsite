@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Cpu, Play, Sparkles, X, CheckCircle, ShieldCheck, Award } from "lucide-react";
+import { ArrowRight, Play, X } from "lucide-react";
 import { useFeaturedSpecialProgram } from "@/hooks/useFeaturedSpecialProgram";
 import { HeroSlideshow } from "./HeroSlideshow";
 import {
@@ -127,25 +127,21 @@ export const Hero: React.FC = () => {
           {/* Right Column: Hero Real Media Carousel (5 Cols) */}
           <div className="lg:col-span-5 relative order-first lg:order-last">
             <div className="relative w-full aspect-[4/3] sm:aspect-square max-w-[540px] mx-auto group">
-              {/* Floating Top Inset Badge */}
-              <div className="absolute -top-3.5 -right-3.5 sm:-top-4 sm:-right-4 z-20 bg-slate-950/90 border border-white/20 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-xl">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-brand-red-600 flex items-center justify-center text-white shadow-lg shadow-brand-red-950/50">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-white font-black text-[10px] sm:text-xs uppercase tracking-wider">
-                      Real Build Labs
-                    </p>
-                    <p className="text-slate-400 text-[9px] font-semibold">
-                      Authentic Classroom Media
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/*
+                A "Real Build Labs · Authentic Classroom Media" badge used to float
+                here. Two reasons it is gone.
+
+                It collided: pinned to -top-3.5 -right-3.5 it landed directly on
+                the slideshow's own video button at top-4 right-4, so on a phone
+                two panels overlapped in the same corner.
+
+                And a photograph that has to announce it is authentic invites the
+                doubt it is trying to answer. These are real classrooms; showing
+                them is the claim.
+              */}
 
               {/* Main Slideshow Frame */}
-              <div className="relative z-10 w-full h-full rounded-3xl overflow-hidden border border-border/80 shadow-2xl bg-slate-950 group-hover:-translate-y-1 transition-transform duration-500">
+              <div className="relative z-10 w-full h-full rounded-3xl overflow-hidden border border-border/80 shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
                 <HeroSlideshow
                   dotsRaised={specialOpen}
                   onOpenVideo={() => setVideoOpen(true)}

@@ -118,10 +118,12 @@ export function HeroSlideshow({
         </div>
       ))}
 
-      {/* Top Floating Discipline Badge */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+      {/* The discipline tag, on screens with room for it. A phone shows the
+          photograph, one way to play the video, and the dots — everything else
+          was chrome competing with the picture it sat on. */}
+      <div className="absolute top-4 left-4 z-20 hidden sm:flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-xl bg-slate-950/80 border border-white/20 px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider text-white backdrop-blur-md shadow-lg">
-          <Sparkles className="w-3.5 h-3.5 text-brand-red-500 animate-pulse" />
+          <Sparkles className="w-3.5 h-3.5 text-brand-red-500" />
           <span>{HERO_FRAMES[frame].tag}</span>
         </div>
       </div>
@@ -145,7 +147,10 @@ export function HeroSlideshow({
           dotsRaised ? "bottom-24 sm:bottom-28" : "bottom-4 sm:bottom-6"
         }`}
       >
-        <div className="max-w-xs sm:max-w-sm">
+        {/* Hidden on a phone for the same reason as the tag: the headline beside
+            this already says what the programme is, and a caption over a 4:3
+            image on a small screen is a second voice saying it again. */}
+        <div className="hidden sm:block max-w-xs sm:max-w-sm">
           <p className="text-[11px] sm:text-xs font-bold text-white leading-snug drop-shadow-md">
             {HERO_FRAMES[frame].caption}
           </p>
