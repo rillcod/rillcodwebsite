@@ -245,8 +245,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       </div>
     </div>
     <div class="sign">
-      <div class="sign-box"><b>For ${esc(brandContact.contractingParty)}</b>Name, signature and date</div>
-      <div class="sign-box"><b>For ${esc(input.school.name)}</b>Name, signature and date${SIGNATURE_ANCHOR}</div>
+      <div class="sign-box">
+        <b>For ${esc(brandContact.contractingParty)}</b>
+        <div style="margin-top:1.5mm; display:flex; align-items:center; gap:2.5mm;">
+          <img src="${esc(assetUrl(brandContact.signatureImage))}" alt="Signature" style="max-height:14mm; width:auto; display:block; opacity:0.95;" />
+          <div style="font-size:7.5pt; color:#475569; line-height:1.35;">
+            <strong style="color:#0f172a; display:block;">${esc(brandContact.signatory)}</strong>
+            <span>${esc(brandContact.signatoryRole)} &middot; ${esc(input.dateLabel)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="sign-box">
+        <b>For ${esc(input.school.name)}</b>
+        Name, signature and date${SIGNATURE_ANCHOR}
+      </div>
     </div>
   </section>`;
 

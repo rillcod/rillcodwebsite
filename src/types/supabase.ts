@@ -15992,6 +15992,8 @@ export type Database = {
       }
       school_gallery_media: {
         Row: {
+          r2_key: string | null
+          share_token: string
           academic_term_id: string | null
           category: string
           created_at: string
@@ -16005,6 +16007,8 @@ export type Database = {
           url: string
         }
         Insert: {
+          r2_key?: string | null
+          share_token?: string
           academic_term_id?: string | null
           category?: string
           created_at?: string
@@ -16018,6 +16022,8 @@ export type Database = {
           url: string
         }
         Update: {
+          r2_key?: string | null
+          share_token?: string
           academic_term_id?: string | null
           category?: string
           created_at?: string

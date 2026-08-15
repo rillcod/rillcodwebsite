@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -31,7 +32,14 @@ import {
   LinkIcon,
   QrCodeIcon,
   CheckBadgeIcon,
+  BookOpenIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  UserIcon,
+  ChatBubbleLeftRightIcon,
+  PaperAirplaneIcon,
 } from "@/lib/icons";
+import { brandContact } from "@/config/brand";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
 import { PartnershipDocumentArchive } from "@/components/partnerships/PartnershipDocumentArchive";
 import { PartnershipDocumentComposer } from "@/components/partnerships/PartnershipDocumentComposer";
@@ -39,6 +47,7 @@ import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTer
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
 import { SchoolGalleryViewer } from "@/components/schools/SchoolGalleryViewer";
+import { PartnershipOutreachModal } from "@/components/partnerships/PartnershipOutreachModal";
 import { defaultStudioConfig, type ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type {
   IssuedDocument,
@@ -80,6 +89,7 @@ export default function PartnershipsPage() {
   const [agreed, setAgreed] = useState<TermsRow | null>(null);
   const [documents, setDocuments] = useState<IssuedDocumentRow[]>([]);
   const [loadingSchool, setLoadingSchool] = useState(false);
+  const [showOutreachModal, setShowOutreachModal] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   // Bumped when a blocked MoU sends the user to record terms.
   const [openTerms, setOpenTerms] = useState(0);
@@ -97,7 +107,7 @@ export default function PartnershipsPage() {
       const [schoolRes, termsRes] = await Promise.all([
         db
           .from("schools")
-          .select("id, name, city, state, student_count, status")
+          .select("id, name, city, state, student_count, status, contact_person, email, phone, address")
           .neq("is_deleted", true)
           .order("name"),
         db.from("partnership_terms").select("school_id").eq("status", "agreed"),
@@ -260,6 +270,20 @@ export default function PartnershipsPage() {
                 <p className="text-xs font-black">{partners.length - awaiting} of {partners.length}</p>
               </div>
             </div>
+
+            <Link
+              href="/dashboard/academic/build"
+              className="flex items-center gap-2 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-900/50 px-3.5 py-2 transition-all group"
+              title="Open Curriculum Builder"
+            >
+              <BookOpenIcon className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <div>
+                <p className="text-[10px] uppercase font-bold text-cyan-400">Master Syllabus</p>
+                <p className="text-xs font-black text-white flex items-center gap-1">
+                  Curriculum Builder <span className="text-cyan-400">→</span>
+                </p>
+              </div>
+            </Link>
           </div>
         </div>
       </div>
@@ -456,6 +480,155 @@ export default function PartnershipsPage() {
                     <span>{signedAgreements.length > 0 ? "✓ Executed" : "Awaiting"}</span>
                   </div>
                 </div>
+
+                {/* ⚡ Smart Automated Follow-Up & Conversion Engine */}
+                <div className="rounded-2xl bg-gradient-to-br from-card via-card to-emerald-950/20 border border-emerald-500/30 p-4 shadow-md space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-border/70 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                        <SparklesIcon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
+                          <span>Automated Follow-Up &amp; Conversion Assistant</span>
+                        </h3>
+                        <p className="text-[10px] text-muted-foreground">
+                          Multi-channel client acquisition toolkit for teachers &amp; desk admins.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Direct Contact Bar */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {selected.phone && (
+                        <a
+                          href={`tel:${selected.phone}`}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-bold transition-colors"
+                          title="Call school directly"
+                        >
+                          <PhoneIcon className="h-3 w-3 text-cyan-400" />
+                          <span>{selected.phone}</span>
+                        </a>
+                      )}
+                      {selected.email && (
+                        <a
+                          href={`mailto:${selected.email}?subject=${encodeURIComponent(`STEM & Robotics Partnership for ${selected.name}`)}`}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-bold transition-colors"
+                          title="Email school directly"
+                        >
+                          <EnvelopeIcon className="h-3 w-3 text-violet-400" />
+                          <span>{selected.email}</span>
+                        </a>
+                      )}
+                      {selected.contact_person && (
+                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-muted-foreground text-[11px] font-bold">
+                          <UserIcon className="h-3 w-3 text-emerald-400" />
+                          <span>{selected.contact_person}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Action Trigger based on Stage */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-0.5">
+                    <div className="space-y-0.5 max-w-xl">
+                      <p className="text-xs font-bold text-foreground">
+                        {signedAgreements.length > 0
+                          ? "🎉 Step 5: MoU Executed — Onboard Classes & Issue Invoice"
+                          : agreed
+                          ? "✍️ Step 4: Agreed Commercial Terms — Push MoU Digital Signature"
+                          : documents.some((d) => d.document_kind === "proposal")
+                          ? "💬 Step 3: Proposal Sent — 48h Follow-up & Live Demo Check"
+                          : "🚀 Step 2: New Prospect — Issue Customized STEM Proposal"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {signedAgreements.length > 0
+                          ? "School is officially activated! Assign your STEM facilitator, add student classes, and dispatch the first-term invoice."
+                          : agreed
+                          ? `Terms agreed at ₦${agreed.amount_per_student?.toLocaleString() || "15,000"}/student. Nudge the proprietor to digitally sign the MoU online.`
+                          : documents.some((d) => d.document_kind === "proposal")
+                          ? `Proposal (${documents.find((d) => d.document_kind === "proposal")?.reference || "PROP"}) delivered. Send a polite check-in offering a 30-min live robotics demo.`
+                          : "Create an executive STEM proposal with 12-Year Curriculum Ladder and zero upfront hardware cost guarantee."}
+                      </p>
+                    </div>
+
+                    {/* Stage-Specific 1-Click Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {signedAgreements.length > 0 ? (
+                        <>
+                          <Link
+                            href="/dashboard/classes"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                          >
+                            <BookOpenIcon className="h-3.5 w-3.5" />
+                            <span>Setup Classes</span>
+                          </Link>
+                          <Link
+                            href="/dashboard/school-billing"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all"
+                          >
+                            <BanknotesIcon className="h-3.5 w-3.5 text-amber-400" />
+                            <span>Issue Invoice</span>
+                          </Link>
+                        </>
+                      ) : agreed ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mouDoc = documents.find((d) => d.document_kind === "mou");
+                            const shareUrl = mouDoc?.share_token ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${mouDoc.share_token}` : "";
+                            const phone = (selected.phone || "").replace(/[^0-9]/g, "");
+                            const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
+                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod STEM Partnership Memorandum of Understanding is ready for execution:\n👉 ${shareUrl || "https://www.rillcod.com/p"}\n\nYou can review and digitally sign directly on your smartphone in 60 seconds so we can secure instructor & hardware allocations for your resumption date.\n\nWarm regards,\n*Rillcod Technologies*`;
+                            const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                            window.open(waUrl, "_blank");
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                        >
+                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                          <span>Nudge MoU Signature (WhatsApp)</span>
+                        </button>
+                      ) : documents.some((d) => d.document_kind === "proposal") ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const propDoc = documents.find((d) => d.document_kind === "proposal");
+                            const shareUrl = propDoc?.share_token ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${propDoc.share_token}` : "";
+                            const phone = (selected.phone || "").replace(/[^0-9]/g, "");
+                            const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
+                            const msg = `Hello ${selected.contact_person || selected.name},\n\nJust following up on the STEM & Robotics Partnership Proposal (${propDoc?.reference || "PROP"}) we shared.\n\n👉 Review proposal online: ${shareUrl}\n\nWe'd love to schedule a brief 20-minute discussion or bring a live robotics kit to your school for a free student demo slot this week. Does that work for you?\n\n*Rillcod Technologies*`;
+                            const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                            window.open(waUrl, "_blank");
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
+                        >
+                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                          <span>Send 48h Check-In (WhatsApp)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("compose")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                        >
+                          <SparklesIcon className="h-3.5 w-3.5" />
+                          <span>Draft Proposal Now</span>
+                        </button>
+                      )}
+
+                      {/* Additional Outreach & Cold Pitch Email Trigger */}
+                      <button
+                        type="button"
+                        onClick={() => setShowOutreachModal(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all shadow-sm"
+                        title="Send customized cold pitch, demo invite, or follow-up email"
+                      >
+                        <EnvelopeIcon className="h-3.5 w-3.5 text-violet-400" />
+                        <span>Outreach &amp; Cold Email</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Workspace Tabs Navigation */}
@@ -618,6 +791,16 @@ export default function PartnershipsPage() {
           )}
         </div>
       </div>
+
+      {/* Outreach & Cold Pitch Email Campaign Modal */}
+      {selected && (
+        <PartnershipOutreachModal
+          school={selected}
+          latestDoc={latestDoc}
+          isOpen={showOutreachModal}
+          onClose={() => setShowOutreachModal(false)}
+        />
+      )}
     </div>
   );
 }

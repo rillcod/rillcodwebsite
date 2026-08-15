@@ -19,6 +19,10 @@ export type SchoolRow = {
   state: string | null;
   student_count: number | null;
   status: string | null;
+  contact_person?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
 };
 
 export type TermsTier = { label: string; count: number; rate: number };

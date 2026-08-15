@@ -1383,3 +1383,102 @@ export function buildPartnershipSignedEmail(opts: {
     footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
   });
 }
+
+/**
+ * Refined follow-up and marketing email templates for schools.
+ * Provides 4 targeted angles: Cold Admissions Pitch, 48h Proposal Check-In, Free 30-min Robotics Demo Invite, Term Resumption Reservation.
+ */
+export function buildPartnershipFollowUpEmail(opts: {
+  schoolName: string;
+  contactName?: string | null;
+  reference?: string | null;
+  angle: 'cold_pitch' | 'check_in' | 'free_demo' | 'resumption_slot';
+  shareUrl?: string | null;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const greeting = opts.contactName
+    ? `Dear ${escapeHtml(opts.contactName)},`
+    : `Dear ${escapeHtml(opts.schoolName)} Leadership,`;
+
+  let subject = `STEM & Robotics Partnership for ${opts.schoolName}`;
+  let title = `Empowering ${opts.schoolName} Students`;
+  let bodyHtml = '';
+
+  if (opts.angle === 'cold_pitch') {
+    subject = `Equipping ${opts.schoolName} with Modern AI & Robotics (Zero CapEx)`;
+    title = `A Modern Tech Department for ${opts.schoolName}`;
+    bodyHtml = `
+      <p style="margin:0 0 14px;">${greeting}</p>
+      <p style="margin:0 0 14px;">
+        Today's parents actively choose schools that prepare their children with future-ready skills: Coding, Artificial Intelligence, and Robotics.
+      </p>
+      <p style="margin:0 0 14px;">
+        At <b>Rillcod Technologies</b>, we partner with visionary schools to run an accredited 12-Year STEM &amp; Coding Department directly on your timetable.
+      </p>
+      <div style="background:#1e293b; border-left:3px solid #2563eb; border-radius:4px; padding:12px 16px; margin:14px 0 16px;">
+        <p style="margin:0 0 6px; font-size:11px; font-weight:800; color:#93c5fd; text-transform:uppercase; letter-spacing:0.8px;">Why Schools Partner with Rillcod</p>
+        <ul style="margin:0; padding-left:18px; font-size:12.5px; color:#e2e8f0; line-height:1.5;">
+          <li style="margin-bottom:4px;"><b>₦0 Equipment CapEx:</b> All laptops, robotics kits, Arduino/micro:bit hardware are provided by Rillcod.</li>
+          <li style="margin-bottom:4px;"><b>Dedicated Facilitators:</b> Our certified instructors deliver every session — zero burden on your existing teachers.</li>
+          <li><b>Direct Revenue Share:</b> 30% profit-sharing settled to your school account each term.</li>
+        </ul>
+      </div>
+      <p style="margin:0 0 14px;">
+        We would love to bring a live robotics kit to ${escapeHtml(opts.schoolName)} for a brief 20-minute discussion or a complimentary hands-on demonstration with your students.
+      </p>`;
+  } else if (opts.angle === 'free_demo') {
+    subject = `Complimentary 30-Min Robotics Demonstration for ${opts.schoolName}`;
+    title = `Free Classroom Robotics Demo`;
+    bodyHtml = `
+      <p style="margin:0 0 14px;">${greeting}</p>
+      <p style="margin:0 0 14px;">
+        We would love to visit ${escapeHtml(opts.schoolName)} this week to run a complimentary <b>30-minute interactive Robotics &amp; Coding demonstration</b> for your learners.
+      </p>
+      <p style="margin:0 0 14px;">
+        Our facilitator will bring physical circuits and micro-controllers so your students can build and test their first working project in real time.
+      </p>
+      <p style="margin:0 0 14px;">
+        There is zero cost or obligation. It gives your leadership and students a firsthand look at how engaging computer science can be.
+      </p>`;
+  } else if (opts.angle === 'resumption_slot') {
+    subject = `Securing STEM Facilitator & Kit Allocations for ${opts.schoolName}`;
+    title = `Reserving Next Term Timetable Slots`;
+    bodyHtml = `
+      <p style="margin:0 0 14px;">${greeting}</p>
+      <p style="margin:0 0 14px;">
+        As we finalize our facilitator schedules and robotics hardware shipments for the upcoming academic term, we want to ensure ${escapeHtml(opts.schoolName)} has reserved its preferred weekly timetable slot.
+      </p>
+      <p style="margin:0 0 14px;">
+        Once your agreement is digitally confirmed, we immediately allocate your dedicated instructor and hardware inventory so teaching begins smoothly upon resumption.
+      </p>`;
+  } else {
+    // check_in
+    subject = `Following up: STEM & Robotics Proposal for ${opts.schoolName}${opts.reference ? ` (${opts.reference})` : ''}`;
+    title = `Checking In on Your Proposal`;
+    bodyHtml = `
+      <p style="margin:0 0 14px;">${greeting}</p>
+      <p style="margin:0 0 14px;">
+        I am following up on the STEM, Robotics &amp; Coding Education Proposal we recently prepared for ${escapeHtml(opts.schoolName)}.
+      </p>
+      <p style="margin:0 0 14px;">
+        I wanted to see if you had any questions regarding the year-by-year syllabus, the ₦0 equipment guarantee, or our 30% termly revenue-share model.
+      </p>
+      <p style="margin:0 0 14px;">
+        Would you be available for a brief 10-minute call or an in-person visit to inspect the physical hardware kits?
+      </p>`;
+  }
+
+  const html = buildRillcodTransactionalEmailHtml({
+    appUrl: opts.appUrl,
+    eyebrow: opts.schoolName,
+    title,
+    bodyHtml,
+    cta: opts.shareUrl
+      ? { href: opts.shareUrl, label: 'Review Proposal & Curriculum Online' }
+      : { href: brandContact.whatsapp, label: 'Chat with Us on WhatsApp' },
+    footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
+  });
+
+  return { subject, html };
+}
+

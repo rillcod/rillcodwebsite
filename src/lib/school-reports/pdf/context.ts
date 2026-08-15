@@ -48,6 +48,11 @@ export type SchoolReportPdfContext = {
   verificationUrl: string;
   /** Pre-rendered QR image. Null when the caller did not supply one. */
   verificationQrDataUrl: string | null;
+  /**
+   * Scan-to-watch codes for this term's capstone clips, newest first. Empty when
+   * the school recorded none — a spotlight without one simply prints no code.
+   */
+  capstoneCodes: { token: string; title: string; qrDataUrl: string }[];
   design: ReturnType<typeof normalizeSchoolReportDesign>;
   /** The SCHOOL's accent colour — deliberately shadows the default BRAND token. */
   brand: string;
@@ -106,7 +111,12 @@ export type SchoolReportPdfContext = {
 
 export function buildSchoolReportPdfContext(
   report: SchoolPerformanceReportRow,
-  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string; sectionLeads?: SectionLeads },
+  opts?: {
+    narrative?: SchoolPerformanceReportRow['narrative'];
+    verificationQrDataUrl?: string;
+    sectionLeads?: SectionLeads;
+    capstoneCodes?: { token: string; title: string; qrDataUrl: string }[];
+  },
 ): SchoolReportPdfContext {
   const rawSnapshot = report.snapshot;
 
@@ -253,6 +263,7 @@ export function buildSchoolReportPdfContext(
     ),
     verificationUrl: schoolReportVerificationUrl(report.id),
     verificationQrDataUrl: opts?.verificationQrDataUrl ?? null,
+    capstoneCodes: opts?.capstoneCodes ?? [],
     design,
     brand: design.accentColor,
     showSec,

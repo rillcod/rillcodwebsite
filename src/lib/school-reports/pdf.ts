@@ -108,6 +108,7 @@ import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { qrDataUrl } from '@/lib/cards/qr';
 import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
+import { loadCapstoneQrCodes, type CapstoneCode } from './capstone-qr';
 import {
   buildGradebookSummarySheet,
 } from './gradebook-detail';
@@ -129,7 +130,13 @@ import { countNoun } from './wording';
 /** Compact pie + legend in one column. */
 export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
-  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string; sectionLeads?: SectionLeads },
+  opts?: {
+    narrative?: SchoolPerformanceReportRow['narrative'];
+    verificationQrDataUrl?: string;
+    sectionLeads?: SectionLeads;
+    /** Scan-to-watch codes for this term's capstone clips, newest first. */
+    capstoneCodes?: CapstoneCode[];
+  },
 ) {
   // All shared state is derived once, up front, as an explicit typed value.
   // Sections can then be peeled out of this function one at a time as plain
@@ -488,9 +495,15 @@ export async function renderSchoolReportPdf(
   }
   // Leads are resolved here, before the synchronous build. Failures return {}
   // so the book renders unchanged rather than waiting on a sentence.
-  const [verificationQrDataUrl, sectionLeads] = await Promise.all([
+  const [verificationQrDataUrl, sectionLeads, capstoneCodes] = await Promise.all([
     qrDataUrl(schoolReportVerificationUrl(report.id), HD_QR_PRINT_PX),
     generateSectionLeads(enriched),
+    // Scan-to-watch codes for this term's capstone clips. Paper cannot play a
+    // video, and a board member pointing a phone at the page and watching a
+    // child's robot move is the most persuasive thing in the document.
+    loadCapstoneQrCodes(createAdminClient() as any, report.school_id, report.academic_term_id),
   ]);
-  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl, sectionLeads }));
+  return renderPdfToBuffer(
+    buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl, sectionLeads, capstoneCodes }),
+  );
 }

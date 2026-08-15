@@ -235,45 +235,71 @@ export function IssuedDocumentPreview({
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
           {shareToken && (
             <>
-              <button
-                onClick={async () => {
-                  const url = shareUrl(shareToken);
-                  const pitchText = `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nDear School Leadership / Proprietor,\n\nWe are pleased to present our official STEM, Coding & AI Education Partnership ${kind === 'mou' ? 'Memorandum of Understanding' : 'Proposal'} (*${reference}*).\n\n🔑 *Key Highlights:*\n• *Turnkey Delivery:* Dedicated certified STEM facilitators and robotics kits deployed to your school.\n• *Zero CapEx:* ₦0 upfront equipment expenditure required from the school.\n• *Revenue Share:* 30% direct profit share settled each term.\n• *Tangible Outcomes:* Real robotics builds, coding portfolios & parent progress reports.\n\n📄 *Review & Execute Agreement Online:*\n👉 ${url}\n\nWarm regards,\n*${brandContact.displayName} Partnership Desk*\n📞 ${brandContact.phone}`;
-                  
-                  try {
-                    await navigator.clipboard.writeText(pitchText);
-                    setNotice(`Formatted WhatsApp pitch copied to clipboard! Ready to paste and send.`);
-                  } catch {
-                    setNotice(`Share link: ${url}`);
-                  }
-                }}
-                title="Copy formatted WhatsApp pitch with link"
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-bold transition-all min-h-[38px]"
-              >
-                <LinkIcon className="w-3.5 h-3.5" />
-                <span>Copy WhatsApp Pitch</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const url = shareUrl(shareToken);
+                    const pitchText = `🌟 *Executive STEM & Robotics Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nDear School Leadership / Proprietor,\n\nWe are pleased to present our official STEM, Coding & AI Education Partnership ${kind === 'mou' ? 'Memorandum of Understanding' : 'Proposal'} (*${reference}*).\n\n🔑 *Key Highlights:*\n• *Turnkey Delivery:* Certified STEM facilitators & physical robotics kits deployed directly to your timetable.\n• *Zero CapEx:* ₦0 upfront equipment cost from your school.\n• *Admissions Edge:* Concrete coding portfolios & parent progress cards that set your school apart.\n\n📄 *Review & Execute Online:*\n👉 ${url}\n\nWarm regards,\n*${brandContact.displayName} Partnership Desk*\n📞 ${brandContact.phone}`;
+                    await navigator.clipboard.writeText(pitchText).catch(() => null);
+                    setNotice(`✅ Executive pitch copied to clipboard! Ready to paste on WhatsApp.`);
+                  }}
+                  title="Copy Executive Pitch"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-bold transition-all min-h-[38px]"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Executive Pitch</span>
+                </button>
 
-              <a
-                href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                  `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nReview our proposal *${reference}*: ${shareUrl(shareToken)}`,
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open WhatsApp with the link ready to send"
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold transition-all min-h-[38px]"
-              >
-                Open WhatsApp
-              </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const url = shareUrl(shareToken);
+                    const pitchText = `💰 *Zero-CapEx STEM Infrastructure + Revenue Share for ${schoolName || 'Your School'}*\n\nDear Proprietor,\n\nEquip your school with a modern Coding, AI & Robotics department without buying expensive hardware or hiring specialists.\n\n📊 *Commercial Model:*\n• ₦0 Capital Outlay (all hardware & robotics kits supplied by Rillcod).\n• 30% direct profit share settled to your school account each term.\n• Fully managed by Rillcod certified facilitators.\n\n📄 *Review Detailed Commercial Proposal (*${reference}*):*\n👉 ${url}\n\n*${brandContact.displayName} Partnership Desk*`;
+                    await navigator.clipboard.writeText(pitchText).catch(() => null);
+                    setNotice(`✅ Financial / Revenue-Share pitch copied to clipboard!`);
+                  }}
+                  title="Copy Revenue & Financial Pitch"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600/20 text-amber-300 hover:bg-amber-600/30 border border-amber-500/30 text-xs font-bold transition-all min-h-[38px]"
+                >
+                  <span>💰 Financial Pitch</span>
+                </button>
 
-              <a
-                href={`/p/${shareToken}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"
-              >
-                Public Portal ↗
-              </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const url = shareUrl(shareToken);
+                    const pitchText = `🤖 *Complimentary 30-Min Robotics & Coding Demo for ${schoolName || 'Your School'}*\n\nDear Head of School,\n\nWe would love to bring a live robotics kit to your school for a free 30-minute interactive demonstration with your students.\n\nSee how easily your learners build their first working circuit and code projects.\n\n📄 *View Full Curriculum & Proposal (*${reference}*):*\n👉 ${url}\n\nShall we schedule a brief demo slot this week?\n*${brandContact.displayName}* · 📞 ${brandContact.phone}`;
+                    await navigator.clipboard.writeText(pitchText).catch(() => null);
+                    setNotice(`✅ Demo Session Invitation pitch copied to clipboard!`);
+                  }}
+                  title="Copy Demo Session Invitation Pitch"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600/20 text-cyan-300 hover:bg-cyan-600/30 border border-cyan-500/30 text-xs font-bold transition-all min-h-[38px]"
+                >
+                  <span>🤖 Free Demo Invite</span>
+                </button>
+
+                <a
+                  href={`${brandContact.whatsapp}?text=${encodeURIComponent(
+                    `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nReview our official proposal *${reference}*: ${shareUrl(shareToken)}`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open WhatsApp with the link ready to send"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold transition-all min-h-[38px]"
+                >
+                  Open WhatsApp
+                </a>
+
+                <a
+                  href={`/p/${shareToken}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"
+                >
+                  Public Portal ↗
+                </a>
+              </div>
             </>
           )}
 

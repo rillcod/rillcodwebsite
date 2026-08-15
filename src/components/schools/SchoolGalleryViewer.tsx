@@ -11,6 +11,7 @@ import {
   PlusIcon,
   XMarkIcon,
   ArrowUpTrayIcon,
+  TrashIcon,
 } from "@/lib/icons";
 import {
   MEDIA_CATEGORIES,
@@ -38,6 +39,7 @@ export function SchoolGalleryViewer({
   const [activeMedia, setActiveMedia] = useState<SchoolGalleryItem | null>(null);
   const [activeQrUrl, setActiveQrUrl] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Upload Form State
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -135,11 +137,34 @@ export function SchoolGalleryViewer({
         setUploadPreview(null);
         setUploadTitle("");
         setShowUploadModal(false);
-      }, 1800);
+      }, 1500);
     } catch (err: any) {
       alert(err.message || "Could not upload media. Please try again.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteMedia = async (itemId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this media item from the school gallery?")) return;
+
+    setDeletingId(itemId);
+    try {
+      const res = await fetch(`/api/schools/${schoolId}/gallery?itemId=${encodeURIComponent(itemId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
+
+      setItems((prev) => prev.filter((i) => i.id !== itemId));
+      if (activeMedia?.id === itemId) {
+        setActiveMedia(null);
+      }
+    } catch (err: any) {
+      alert(err.message || "Could not delete item. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -157,7 +182,7 @@ export function SchoolGalleryViewer({
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pooled classroom photos &amp; student video builds for term performance reports.
+            Pooled classroom photos &amp; student video builds for proposals &amp; term reports.
           </p>
         </div>
 
@@ -165,7 +190,7 @@ export function SchoolGalleryViewer({
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-black text-white shadow-md transition-all active:scale-95"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-black text-white shadow-md transition-all active:scale-95 min-h-[38px]"
           >
             <PlusIcon className="h-4 w-4" />
             <span>Add Photo / Video</span>
@@ -175,7 +200,7 @@ export function SchoolGalleryViewer({
             type="button"
             onClick={fetchGallery}
             disabled={loading}
-            className="flex items-center gap-1 rounded-xl bg-muted hover:bg-muted/80 p-2 text-foreground/80 hover:text-foreground transition-colors"
+            className="flex items-center gap-1 rounded-xl bg-muted hover:bg-muted/80 p-2 text-foreground/80 hover:text-foreground transition-colors min-h-[38px] min-w-[38px] justify-center"
             title="Refresh Gallery"
           >
             <ArrowPathIcon className={`h-4 w-4 ${loading ? "animate-spin text-emerald-400" : ""}`} />
@@ -216,21 +241,22 @@ export function SchoolGalleryViewer({
           <PhotoIcon className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
           <p className="font-bold text-foreground text-sm">No media recorded yet for this category</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Facilitators upload snapshots during regular sessions to populate this school&apos;s term report.
+            Upload classroom snapshots or capstone video clips from your phone to populate this school&apos;s dossier.
           </p>
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-muted hover:bg-muted/80 px-4 py-2 text-xs font-bold text-foreground transition-all"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 px-4 py-2 text-xs font-bold transition-all"
           >
-            <PlusIcon className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Upload First Media Item</span>
+            <PlusIcon className="h-3.5 w-3.5" />
+            <span>Upload First Photo / Video</span>
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
           {filteredItems.map((item) => {
             const isVideo = item.media_type === "video";
+            const isDeleting = deletingId === item.id;
 
             return (
               <div
@@ -256,6 +282,7 @@ export function SchoolGalleryViewer({
                     src={item.url}
                     alt={item.title}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
                   />
                 )}
 
@@ -267,10 +294,25 @@ export function SchoolGalleryViewer({
                   {item.is_capstone_demo && (
                     <span className="rounded-lg bg-amber-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-primary-foreground flex items-center gap-0.5 shadow-sm">
                       <QrCodeIcon className="h-2.5 w-2.5" />
-                      QR Capstone
+                      Capstone
                     </span>
                   )}
                 </div>
+
+                {/* Top Right Quick Delete Button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteMedia(item.id, e)}
+                  disabled={isDeleting}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm shadow-md"
+                  title="Delete media"
+                >
+                  {isDeleting ? (
+                    <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  )}
+                </button>
 
                 {/* Bottom Title Bar */}
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2.5 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -323,7 +365,7 @@ export function SchoolGalleryViewer({
             </div>
 
             {/* QR Code Bar (For Scan-to-Watch verification) */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/40 border border-border p-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-muted/40 border border-border p-3.5">
               <div className="flex items-center gap-3">
                 {activeQrUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -336,32 +378,49 @@ export function SchoolGalleryViewer({
                 <div>
                   <p className="text-xs font-bold text-foreground">Scan-to-Watch Capstone QR</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Scan with phone camera to test live mobile video playback.
+                    Scan with phone camera to test live mobile playback.
                   </p>
                 </div>
               </div>
 
-              <a
-                href={activeMedia.url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl bg-emerald-600/30 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors shrink-0 text-center"
-              >
-                Open Full Asset ↗
-              </a>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={activeMedia.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 sm:flex-initial rounded-xl bg-emerald-600/25 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors text-center"
+                >
+                  Full Asset ↗
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMedia(activeMedia.id)}
+                  disabled={deletingId === activeMedia.id}
+                  className="flex items-center justify-center gap-1 rounded-xl bg-red-500/15 border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white transition-colors"
+                  title="Delete media from gallery"
+                >
+                  {deletingId === activeMedia.id ? (
+                    <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  )}
+                  <span>Delete</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Upload Modal */}
+      {/* Upload Modal (Phone & Desktop Optimized) */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl bg-card border border-border p-5 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg rounded-3xl bg-card border border-border p-5 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h4 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
                 <ArrowUpTrayIcon className="h-5 w-5 text-emerald-400" />
-                <span>Upload to {schoolName} Gallery</span>
+                <span>Upload to {schoolName} Vault</span>
               </h4>
               <button
                 type="button"
@@ -377,13 +436,13 @@ export function SchoolGalleryViewer({
             </div>
 
             {uploadSuccess ? (
-              <div className="rounded-2xl bg-emerald-950/40 border border-emerald-500/40 p-4 text-center space-y-2">
-                <CheckCircleIcon className="h-8 w-8 text-emerald-400 mx-auto" />
+              <div className="rounded-2xl bg-emerald-950/40 border border-emerald-500/40 p-6 text-center space-y-2">
+                <CheckCircleIcon className="h-10 w-10 text-emerald-400 mx-auto" />
                 <p className="text-sm font-bold text-emerald-200">{uploadSuccess}</p>
               </div>
             ) : (
               <form onSubmit={handleUploadSubmit} className="space-y-3.5">
-                {/* File Dropzone / Camera Trigger */}
+                {/* File Dropzone & Phone Camera Trigger */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="rounded-2xl border-2 border-dashed border-border hover:border-emerald-500/80 p-5 text-center cursor-pointer transition-colors bg-muted/30"
@@ -408,15 +467,20 @@ export function SchoolGalleryViewer({
                         <img src={uploadPreview} alt="Preview" className="h-24 max-w-full rounded-xl object-contain" />
                       )}
                       <span className="text-xs font-bold text-emerald-400">✓ {uploadFile?.name}</span>
-                      <span className="text-[10px] text-muted-foreground">Click to change file</span>
+                      <span className="text-[10px] text-muted-foreground">Tap to choose a different file</span>
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto">
-                        <PhotoIcon className="h-5 w-5" />
+                    <div className="space-y-2">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto">
+                        <PhotoIcon className="h-6 w-6" />
                       </div>
-                      <p className="text-xs font-bold text-foreground">Snap a Photo or Select Clip</p>
-                      <p className="text-[10px] text-muted-foreground">JPEG, PNG, WebP, MP4, WebM, MOV (Max 60MB)</p>
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-foreground">Snap from Phone Camera or Pick File</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">JPEG, PNG, WebP, MP4, WebM, MOV (Max 60MB)</p>
+                      </div>
+                      <span className="inline-block px-3 py-1 bg-muted rounded-lg text-[10px] font-bold text-foreground/80">
+                        📷 Tap to open camera or browse files
+                      </span>
                     </div>
                   )}
                 </div>
@@ -424,7 +488,7 @@ export function SchoolGalleryViewer({
                 {/* Title & Caption */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                    Title / Caption
+                    Title / Activity Caption
                   </label>
                   <input
                     type="text"
@@ -432,14 +496,14 @@ export function SchoolGalleryViewer({
                     value={uploadTitle}
                     onChange={(e) => setUploadTitle(e.target.value)}
                     placeholder="e.g. Basic 5 Arduino Obstacle Bot Demo"
-                    className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl bg-muted border border-border px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
                 {/* Category Selection */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Category
+                    Category Tag
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {[
@@ -488,14 +552,14 @@ export function SchoolGalleryViewer({
                     type="button"
                     onClick={() => setShowUploadModal(false)}
                     disabled={isUploading}
-                    className="rounded-xl px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+                    className="rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground min-h-[38px]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!uploadFile || isUploading}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-black text-white shadow-md transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-black text-white shadow-md transition-all disabled:opacity-50 min-h-[38px]"
                   >
                     {isUploading ? (
                       <>
@@ -505,7 +569,7 @@ export function SchoolGalleryViewer({
                     ) : (
                       <>
                         <SparklesIcon className="h-4 w-4" />
-                        <span>Upload to School Vault</span>
+                        <span>Save to School Gallery</span>
                       </>
                     )}
                   </button>
@@ -518,4 +582,3 @@ export function SchoolGalleryViewer({
     </div>
   );
 }
-

@@ -43,9 +43,23 @@ export function buildCurriculumDeliverySection(ctx: SchoolReportPdfContext): obj
     programmeReflections,
     programmeReflectionByKey,
     reportPolicy,
+    capstoneCodes,
   } = ctx;
 
   const colors = { ink: INK, brand, muted: MUTED };
+
+  /**
+   * Attach a scan-to-watch code to each spotlight that has a clip to show.
+   *
+   * Paired by recency, not by cleverness: a clip records what a class built and
+   * carries no link back to a course, so guessing which spotlight it illustrates
+   * would put a code beside the wrong project. Newest first, one each, and a
+   * spotlight past the end of the list prints without one.
+   */
+  const withCapstoneCodes = (spotlights: typeof insights.programmeSpotlights) =>
+    spotlights.map((spotlight, i) =>
+      capstoneCodes[i] ? { ...spotlight, qrDataUrl: capstoneCodes[i].qrDataUrl } : spotlight,
+    );
 
   // 1. Full delivery narrative — the richest view, driven by the ledger.
   if (showDelivery) {
@@ -72,7 +86,7 @@ export function buildCurriculumDeliverySection(ctx: SchoolReportPdfContext): obj
       ...(insights?.programmeSpotlights?.length && !deliveryLedger.topicRows.length
         ? [borderedSegment(
             'Programmes & courses this term',
-            buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, colors),
+            buildProgrammeSpotlightPdfStack(withCapstoneCodes(insights.programmeSpotlights), colors),
             brand,
           )]
         : []),
@@ -107,7 +121,7 @@ export function buildCurriculumDeliverySection(ctx: SchoolReportPdfContext): obj
     return [
       borderedSegment(
         'Curriculum delivery',
-        buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, colors),
+        buildProgrammeSpotlightPdfStack(withCapstoneCodes(insights.programmeSpotlights), colors),
         brand,
       ),
     ];
