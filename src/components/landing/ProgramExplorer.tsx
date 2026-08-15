@@ -1,244 +1,348 @@
 "use client";
 
-import React, { useState } from 'react';
-import { 
-  Monitor, 
-  Cpu, 
-  Code2, 
-  Puzzle, 
-  BrainCircuit, 
-  ArrowRight, 
+import React, { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Monitor,
+  Cpu,
+  Code2,
+  Puzzle,
+  BrainCircuit,
+  ArrowRight,
   CheckCircle2,
   Sparkles,
-  Layers,
-  Zap
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { slugify } from '@/lib/utils';
+  Zap,
+  BookOpen,
+  Award,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { slugify } from "@/lib/utils";
+import { STUDENT_REGISTRATION_PATH } from "@/lib/registration/enrollment-types";
 
 const programs = [
   {
-    id: 'ict',
-    title: 'ICT Fundamentals',
-    age: 'Ages 5-10',
-    description: 'Building a solid foundation in digital literacy and computer science essentials.',
+    id: "ict",
+    title: "ICT Fundamentals",
+    age: "Ages 5 – 10 (Basic 1 – 5)",
+    description: "Building foundational digital literacy, typing mastery, UI/UX conceptual basics, and computer science essentials.",
     icon: Monitor,
-    color: 'emerald',
-    features: ['Typing Mastery', 'Digital Safety', 'UI/UX Basics', 'Office Tools'],
-    gradient: 'from-emerald-400 to-emerald-600',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/20'
+    color: "emerald",
+    tag: "Digital Foundations",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.58 PM (2).jpeg",
+    features: [
+      "Typing & Keyboard Fluency",
+      "Internet Safety & Digital Ethics",
+      "Introductory UI/UX Design Concepts",
+      "Productivity & Cloud Office Tools",
+    ],
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
+    text: "text-emerald-500",
   },
   {
-    id: 'scratch',
-    title: 'Creative Coding',
-    age: 'Ages 7-12',
-    description: 'Bringing stories and games to life through block-based visual programming.',
+    id: "scratch",
+    title: "Creative Coding & Logic",
+    age: "Ages 7 – 12 (Basic 3 – JSS 1)",
+    description: "Bringing interactive animations, math logic, and games to life through block-based visual computational thinking.",
     icon: Puzzle,
-    color: 'orange',
-    features: ['Game Design', 'Animation', 'Logic Thinking', 'Storytelling'],
-    gradient: 'from-primary to-primary',
-    bg: 'bg-primary/10',
-    border: 'border-primary/20'
+    color: "amber",
+    tag: "Visual Coding",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg",
+    features: [
+      "Block-Based Game Architecture",
+      "Interactive Storytelling & Animations",
+      "Algorithmic Logic & Loops",
+      "Mathematical Coordinate Geometry",
+    ],
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/30",
+    text: "text-amber-500",
   },
   {
-    id: 'web',
-    title: 'Web Engineering',
-    age: 'Ages 11-18',
-    description: 'Mastering the technologies that power modern internet experiences.',
+    id: "web",
+    title: "Web & Software Engineering",
+    age: "Ages 11 – 18 (JSS 1 – SS 3)",
+    description: "Mastering frontend web engineering, responsive user interfaces, JavaScript algorithms, and interactive modern applications.",
     icon: Code2,
-    color: 'blue',
-    features: ['HTML5 & CSS3', 'JavaScript ES6', 'Responsive Design', 'React Basics'],
-    gradient: 'from-primary to-primary',
-    bg: 'bg-primary/10',
-    border: 'border-primary/20'
+    color: "blue",
+    tag: "Full-Stack Web",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM (1).jpeg",
+    features: [
+      "Modern Semantic HTML5 & Modern CSS3",
+      "JavaScript ES6+ Data Structures",
+      "Responsive Mobile-First Interfaces",
+      "Web Deployment & Git Version Control",
+    ],
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/30",
+    text: "text-primary",
   },
   {
-    id: 'python',
-    title: 'Python & AI',
-    age: 'Ages 12-18',
-    description: 'Diving deep into data science, artificial intelligence, and automation.',
+    id: "python",
+    title: "Python, Data & Applied AI",
+    age: "Ages 12 – 18 (JSS 2 – SS 3)",
+    description: "Diving into Python syntax, data science visualizations, machine learning principles, and intelligent automation systems.",
     icon: BrainCircuit,
-    color: 'violet',
-    features: ['Python Syntax', 'Data Analysis', 'Intro to AI', 'Backend Dev'],
-    gradient: 'from-primary to-primary',
-    bg: 'bg-primary/10',
-    border: 'border-primary/20'
+    color: "violet",
+    tag: "AI & Data Science",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
+    features: [
+      "Python Algorithmic Problem Solving",
+      "Data Analysis & Chart Visualizations",
+      "Machine Learning & Vision Concepts",
+      "Backend APIs & Automation Scripts",
+    ],
+    bg: "bg-purple-500/10",
+    border: "border-purple-500/30",
+    text: "text-purple-500",
   },
   {
-    id: 'robotics',
-    title: 'Robotics & Smart Devices',
-    age: 'Ages 9-18',
-    description: 'Bridging the gap between software and the physical world through hardware.',
+    id: "robotics",
+    title: "Robotics & Physical Hardware",
+    age: "Ages 9 – 18 (Basic 5 – SS 3)",
+    description: "Bridging software with the physical world through sensor integration, microcontrollers, breadboard circuitry, and rover chassis.",
     icon: Cpu,
-    color: 'pink',
-    features: ['Arduino/ESP32', 'Sensor Logic', 'Circuit Design', 'Smart Systems'],
-    gradient: 'from-pink-400 to-pink-600',
-    bg: 'bg-pink-500/10',
-    border: 'border-pink-500/20'
-  }
+    color: "red",
+    tag: "Hardware & IoT",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
+    features: [
+      "Microcontroller Firmware & ESP32",
+      "Ultrasonic & Infrared Sensor Integration",
+      "Autonomous Obstacle-Avoiding Rovers",
+      "Breadboard Circuit Logic & Schematics",
+    ],
+    bg: "bg-brand-red-600/10",
+    border: "border-brand-red-500/30",
+    text: "text-brand-red-500",
+  },
 ];
 
-const ProgramExplorer: React.FC = () => {
+export default function ProgramExplorer() {
   const [activeTab, setActiveTab] = useState(programs[0].id);
-  const activeProgram = programs.find(p => p.id === activeTab)!;
+  const activeProgram = programs.find((p) => p.id === activeTab) || programs[0];
 
   return (
-    <section id="programs" className="py-24 bg-background relative overflow-hidden">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-[0.02] pointer-events-none z-0">
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary blur-[120px] rounded-full" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-primary blur-[100px] rounded-full" />
-      </div>
+    <section id="programs" className="py-16 sm:py-24 bg-background relative overflow-hidden font-sans">
+      {/* Background Decorative Glows */}
+      <div className="absolute top-1/4 -right-48 w-96 h-96 bg-primary/6 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-10 -left-48 w-96 h-96 bg-brand-red-600/6 rounded-full blur-[140px] pointer-events-none" />
 
-      <div className="max-w-screen-2xl mx-auto px-3.5 sm:px-8 lg:px-20 relative z-10">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-20 relative z-10 space-y-12">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
-          <div className="max-w-xl">
-             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-full shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-brand-red-accent animate-ping" />
-                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.3em]">Learning Tracks</span>
-             </div>
-             <h2 className="text-4xl md:text-6xl font-black text-foreground leading-tight uppercase tracking-tight">
-               Discover Your <br />
-               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary">Tech Journey.</span>
-             </h2>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="max-w-xl space-y-3">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card/90 backdrop-blur-md border border-border/80 rounded-full shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-brand-red-500 animate-ping" />
+              <span className="text-[10px] font-black text-foreground uppercase tracking-widest">
+                12-Year Progressive Curriculum
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground uppercase tracking-tight leading-tight">
+              Discover Your <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red-600 via-primary to-brand-red-500">
+                Tech Journey.
+              </span>
+            </h2>
           </div>
-          <p className="text-muted-foreground text-lg italic border-l-2 border-brand-red-600 pl-6 max-w-sm">
-            Tailored curriculum designed to evolve with your child from primary school through secondary graduation.
+          <p className="text-xs sm:text-base text-muted-foreground font-medium max-w-sm border-l-2 border-brand-red-600 pl-4 sm:pl-6 leading-relaxed">
+            Tailored, hands-on tracks designed to progress seamlessly with your child from Basic 1 through secondary school graduation.
           </p>
         </div>
 
-        {/* Desktop Browser-style Container */}
-        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col lg:flex-row">
+        {/* Browser-style Unified Container */}
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
           
-          {/* LEFT: Sidebar Tabs */}
-          <div className="w-full lg:w-[320px] bg-muted/30 border-r border-border p-6 lg:p-8 shrink-0">
-            <h3 className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.4em] mb-8">Select Track</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-              {programs.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setActiveTab(p.id)}
-                  className={`group flex items-center gap-4 p-4 transition-all relative overflow-hidden ${
-                    activeTab === p.id 
-                    ? 'bg-primary text-white shadow-xl translate-x-1 lg:translate-x-2 ring-2 ring-brand-red-600/40' 
-                    : 'bg-card text-foreground hover:bg-muted border border-border'
-                  }`}
-                >
-                  <p.icon className={`w-5 h-5 ${activeTab === p.id ? 'text-white' : 'text-primary'} shrink-0`} />
-                  <div className="text-left">
-                    <p className={`text-xs font-black uppercase tracking-widest ${activeTab === p.id ? 'text-white' : 'text-foreground'}`}>
-                      {p.title}
-                    </p>
-                    <p className={`text-[9px] font-bold ${activeTab === p.id ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                      {p.age}
-                    </p>
-                  </div>
-                  {activeTab === p.id && (
-                    <motion.div 
-                      layoutId="active-indicator"
-                      className="absolute right-0 top-0 bottom-0 w-1 bg-card" 
-                    />
-                  )}
-                </button>
-              ))}
+          {/* LEFT: Sidebar / Mobile Horizontal Tabs */}
+          <div className="w-full lg:w-[320px] bg-muted/20 border-b lg:border-b-0 lg:border-r border-border/80 p-4 sm:p-6 lg:p-8 shrink-0 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  Select Track
+                </span>
+                <span className="text-[10px] font-bold text-primary lg:hidden">
+                  Swipe horizontal →
+                </span>
+              </div>
+
+              {/* Mobile: Horizontal kinetic scroll; Desktop: Vertical list */}
+              <div className="flex lg:flex-col gap-2.5 overflow-x-auto pb-2 lg:pb-0 no-scrollbar touch-pan-x">
+                {programs.map((p) => {
+                  const Icon = p.icon;
+                  const isActive = activeTab === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setActiveTab(p.id)}
+                      className={`group shrink-0 w-auto lg:w-full flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl transition-all relative text-left min-h-[48px] cursor-pointer ${
+                        isActive
+                          ? "bg-brand-red-600 text-white shadow-lg shadow-brand-red-950/30"
+                          : "bg-card text-foreground hover:bg-muted/60 border border-border/70"
+                      }`}
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-muted text-foreground group-hover:text-primary"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </div>
+
+                      <div className="min-w-0 pr-2">
+                        <p
+                          className={`text-xs font-black uppercase tracking-tight truncate ${
+                            isActive ? "text-white" : "text-foreground"
+                          }`}
+                        >
+                          {p.title}
+                        </p>
+                        <p
+                          className={`text-[10px] font-semibold truncate ${
+                            isActive ? "text-white/80" : "text-muted-foreground"
+                          }`}
+                        >
+                          {p.age}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            
-            <div className="mt-12 p-6 bg-brand-red-600/5 border border-brand-red-600/10 hidden lg:block">
-               <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">Enrollment open</span>
-               </div>
-               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Register today and secure a spot for the next session at one of our partner schools.
-               </p>
+
+            {/* Desktop Quick Note */}
+            <div className="mt-8 p-4 rounded-2xl bg-brand-red-600/5 border border-brand-red-600/15 hidden lg:block space-y-2">
+              <div className="flex items-center gap-1.5 text-brand-red-600">
+                <Zap className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-wider">Turnkey Setup</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                All software, hardware kits, and certified facilitators are supplied directly to partner schools at ₦0 CapEx.
+              </p>
             </div>
           </div>
 
-          {/* RIGHT: Content Area */}
-          <div className="flex-1 p-8 md:p-12 lg:p-20 relative overflow-hidden">
-             {/* Background Decoration */}
-             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary opacity-[0.03] blur-[100px] -z-10" />
-             
-             <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="h-full flex flex-col"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center gap-6 mb-10">
-                    <div className={`w-20 h-20 ${activeProgram.bg} border ${activeProgram.border} flex items-center justify-center p-4 shadow-inner`}>
-                      <activeProgram.icon className={`w-10 h-10 ${activeProgram.id === 'scratch' ? 'text-primary' : 
-                        activeProgram.id === 'ict' ? 'text-emerald-600 dark:text-emerald-400' :
-                        activeProgram.id === 'web' ? 'text-primary' :
-                        activeProgram.id === 'python' ? 'text-primary' : 'text-pink-600 dark:text-pink-400'}`} />
-                    </div>
-                    <div>
-                      <span className={`text-[10px] font-black uppercase tracking-[0.4em] px-3 py-1 bg-muted border border-border mb-2 inline-block`}>
+          {/* RIGHT: Content Stage with Media Card */}
+          <div className="flex-1 p-6 sm:p-8 lg:p-12 relative overflow-hidden flex flex-col justify-between">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-8"
+              >
+                {/* Track Header & Visual Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Left Column: Track Info */}
+                  <div className="lg:col-span-7 space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border ${activeProgram.bg} ${activeProgram.border} ${activeProgram.text}`}>
+                        {activeProgram.tag}
+                      </span>
+                      <span className="text-[10px] font-bold text-muted-foreground px-3 py-1 rounded-full bg-muted/60 border border-border/80">
                         {activeProgram.age}
                       </span>
-                      <h3 className="text-3xl md:text-5xl font-black text-foreground uppercase tracking-tight leading-none">
-                        {activeProgram.title}
-                      </h3>
+                    </div>
+
+                    <h3 className="text-2xl sm:text-4xl font-black text-foreground uppercase tracking-tight leading-tight">
+                      {activeProgram.title}
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-muted-foreground font-medium leading-relaxed border-l-2 border-brand-red-600 pl-4">
+                      {activeProgram.description}
+                    </p>
+
+                    {/* Features List */}
+                    <div className="space-y-2.5 pt-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Core Competencies &amp; Projects:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {activeProgram.features.map((feature, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2.5 p-3 rounded-2xl bg-card border border-border/80 shadow-sm"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-brand-red-500 shrink-0" />
+                            <span className="text-xs font-bold text-foreground leading-tight">
+                              {feature}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  <p className="text-lg md:text-xl text-muted-foreground font-medium leading-relaxed mb-12 max-w-2xl border-l-2 border-brand-red-600 pl-8">
-                    {activeProgram.description}
-                  </p>
-
-                  <div className="grid sm:grid-cols-2 gap-4 md:gap-8 mb-12">
-                    {activeProgram.features.map((f, i) => (
-                      <div key={i} className="flex items-start gap-4 p-5 bg-muted/40 border border-border/50 group hover:border-primary/30 transition-colors">
-                        <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-sm font-bold text-foreground leading-tight">{f}</span>
+                  {/* Right Column: Real Event Photo Preview */}
+                  <div className="lg:col-span-5">
+                    <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border/80 bg-slate-950 shadow-xl group">
+                      <Image
+                        src={activeProgram.image}
+                        alt={activeProgram.title}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 400px"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 text-white space-y-0.5">
+                        <div className="flex items-center gap-1.5 text-brand-red-400 text-[10px] font-black uppercase tracking-wider">
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Classroom Evidence</span>
+                        </div>
+                        <p className="text-xs font-black uppercase truncate">{activeProgram.title} Lab</p>
                       </div>
-                    ))}
+                    </div>
                   </div>
 
-                  <div className="mt-auto flex flex-col sm:flex-row items-center gap-6">
-                    <a
-                      href={`/student-registration?program=${encodeURIComponent(activeProgram.title)}&type=online`}
-                      className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-primary transition-all shadow-xl shadow-primary/20"
-                    >
-                      Enroll Child
-                      <ArrowRight className="w-5 h-5" />
-                    </a>
-                    <a
-                      href={`/programs/${slugify(activeProgram.title)}`}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] hover:text-primary transition-colors"
-                    >
-                      Full Curriculum Docs
-                      <Sparkles className="w-4 h-4 text-primary" />
-                    </a>
-                  </div>
-                </motion.div>
-             </AnimatePresence>
+                </div>
+
+                {/* Bottom Action Strip */}
+                <div className="pt-6 border-t border-border/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  <Link
+                    href={`${STUDENT_REGISTRATION_PATH}?program=${encodeURIComponent(activeProgram.title)}&type=online`}
+                    className="flex items-center justify-center gap-2 px-8 py-3.5 bg-brand-red-600 hover:bg-brand-red-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-brand-red-950/40 min-h-[48px]"
+                  >
+                    <span>Enroll Student in Track</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+
+                  <Link
+                    href={`/programs/${slugify(activeProgram.title)}`}
+                    className="flex items-center justify-center gap-2 px-6 py-3.5 bg-card border border-border text-foreground hover:bg-muted font-bold text-xs uppercase tracking-wider rounded-2xl transition-all min-h-[48px]"
+                  >
+                    <BookOpen className="w-4 h-4 text-brand-red-500" />
+                    <span>View Track Syllabus</span>
+                  </Link>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+        </div>
+
+        {/* Accreditation & Quality Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 pt-4 opacity-60 text-xs">
+          <div className="flex items-center gap-2 font-black uppercase tracking-widest text-foreground">
+            <Sparkles className="w-4 h-4 text-brand-red-500" />
+            <span>UK &amp; West Africa Standards</span>
+          </div>
+          <div className="flex items-center gap-2 font-black uppercase tracking-widest text-foreground">
+            <Zap className="w-4 h-4 text-primary" />
+            <span>₦0 School Hardware CapEx</span>
+          </div>
+          <div className="flex items-center gap-2 font-black uppercase tracking-widest text-foreground">
+            <Award className="w-4 h-4 text-emerald-500" />
+            <span>Termly Summits &amp; Awards</span>
           </div>
         </div>
 
-        {/* Trust Badge Bar */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 opacity-30 grayscale hover:grayscale-0 transition-all duration-500">
-           <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-widest text-foreground">Future Proof</span>
-           </div>
-           <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              <span className="text-xs font-black uppercase tracking-widest text-foreground">Industry Linked</span>
-           </div>
-           <div className="flex items-center gap-2">
-              <BrainCircuit className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-widest text-foreground">AI Powered</span>
-           </div>
-        </div>
       </div>
     </section>
   );
-};
-
-export default ProgramExplorer;
+}

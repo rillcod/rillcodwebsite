@@ -97,7 +97,7 @@ export function TeacherSessionMediaNudge({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-slate-900 to-teal-950/30 p-4 sm:p-5 shadow-xl backdrop-blur-xl transition-all ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-card to-teal-950/30 p-4 sm:p-5 shadow-xl backdrop-blur-xl transition-all ${className}`}
     >
       {/* Top Header */}
       <div className="flex items-start justify-between gap-3">
@@ -114,8 +114,8 @@ export function TeacherSessionMediaNudge({
                 Recommended · Optional
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-0.5 leading-snug">
-              Snap today&apos;s build for <strong className="text-white">{schoolName}</strong>
+            <p className="text-xs text-foreground/80 mt-0.5 leading-snug">
+              Snap today&apos;s build for <strong className="text-foreground">{schoolName}</strong>
             </p>
           </div>
         </div>
@@ -126,7 +126,7 @@ export function TeacherSessionMediaNudge({
             setIsOpen(false);
             if (onDismiss) onDismiss();
           }}
-          className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors shrink-0"
+          className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
           title="Dismiss"
         >
           <XMarkIcon className="h-4 w-4" />
@@ -161,17 +161,17 @@ export function TeacherSessionMediaNudge({
                 <span>Snap / Pick 1 Photo or Clip</span>
               </button>
 
-              <span className="text-[11px] text-slate-400 text-center sm:text-left leading-tight">
+              <span className="text-[11px] text-muted-foreground text-center sm:text-left leading-tight">
                 Takes 5 seconds · Pools into school report vault
               </span>
             </div>
           ) : (
-            <div className="space-y-3 rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5">
+            <div className="space-y-3 rounded-2xl bg-muted/40 border border-border p-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 {previewUrl && (
-                  <div className="relative h-20 w-20 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-black mx-auto sm:mx-0">
+                  <div className="relative h-20 w-20 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-black mx-auto sm:mx-0">
                     {selectedFile.type.startsWith("video/") ? (
-                      <div className="flex h-full w-full flex-col items-center justify-center text-[10px] text-slate-300">
+                      <div className="flex h-full w-full flex-col items-center justify-center text-[10px] text-foreground/80">
                         <VideoCameraIcon className="h-6 w-6 text-violet-400" />
                         <span className="font-bold">Video</span>
                       </div>
@@ -188,9 +188,9 @@ export function TeacherSessionMediaNudge({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Short title (e.g. Basic 5 Arduino obstacle bot)"
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl bg-card border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
                   />
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
                     <span>{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
                     <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 font-bold">
                       <input
@@ -200,7 +200,7 @@ export function TeacherSessionMediaNudge({
                           setIsCapstone(e.target.checked);
                           if (e.target.checked) setCategory("capstone");
                         }}
-                        className="rounded border-slate-700 text-emerald-500 focus:ring-0 h-3.5 w-3.5"
+                        className="rounded border-border text-emerald-500 focus:ring-0 h-3.5 w-3.5"
                       />
                       <span>Capstone Demo (for QR)</span>
                     </label>
@@ -209,8 +209,8 @@ export function TeacherSessionMediaNudge({
               </div>
 
               {/* Quick Category Chips (Touch Kinetic Scroll) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-t border-slate-800 pt-2.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-t border-border pt-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
                   Discipline:
                 </span>
                 {[
@@ -226,8 +226,8 @@ export function TeacherSessionMediaNudge({
                     onClick={() => setCategory(cat.key as any)}
                     className={`shrink-0 rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-all ${
                       category === cat.key
-                        ? "bg-emerald-500 text-slate-950 font-black shadow-sm"
-                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        ? "bg-emerald-500 text-primary-foreground font-black shadow-sm"
+                        : "bg-muted text-foreground/80 hover:bg-muted/80"
                     }`}
                   >
                     {cat.label}
@@ -236,7 +236,7 @@ export function TeacherSessionMediaNudge({
               </div>
 
               {/* Action Buttons (Mobile-first wrapped) */}
-              <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => {
@@ -244,7 +244,7 @@ export function TeacherSessionMediaNudge({
                     setPreviewUrl(null);
                   }}
                   disabled={uploading}
-                  className="w-full sm:w-auto rounded-xl px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors text-center"
+                  className="w-full sm:w-auto rounded-xl px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors text-center"
                 >
                   Cancel
                 </button>

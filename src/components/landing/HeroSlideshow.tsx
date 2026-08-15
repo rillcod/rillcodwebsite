@@ -1,119 +1,192 @@
 "use client";
 
-/**
- * The hero, as photographs of our own classrooms.
- *
- * It was one AI-generated illustration, on the page that sells real teaching by
- * real facilitators — the least believable image we could have put there while
- * thirty pictures of actual Rillcod classrooms sat in the repository.
- *
- * Stills only, and deliberately. The audience is Nigerian schools on mobile
- * data: an autoplaying hero video spends a visitor's bundle before they have
- * read a word. The clips belong on the gallery, behind a click somebody chose.
- *
- * The first frame is eager and `priority`, so the largest contentful paint is a
- * real photograph rather than a placeholder that swaps late.
- */
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight, Play, Sparkles } from "lucide-react";
 
 /**
- * Chosen the way the proposal's six were: real rooms, real work on the screens,
- * students in uniform. Ordered to open on the widest shot.
+ * Curated authentic photographs from real Rillcod classrooms, robotics build labs,
+ * computer rooms, and exhibition summits across partner schools.
  */
-const FRAMES = [
+export const HERO_FRAMES = [
   {
     src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
-    alt: "A class of Rillcod students working through a robotics kit together",
+    alt: "Rillcod students collaborating on autonomous robotics hardware builds",
+    tag: "Robotics & Hardware Lab",
+    caption: "Hands-on robotics kits deployed directly to partner schools",
   },
   {
     src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM (1).jpeg",
-    alt: "A Rillcod facilitator teaching electronics at the bench with students gathered round",
+    alt: "Certified STEM facilitator coaching students on circuit electronics at the lab bench",
+    tag: "Certified Facilitation",
+    caption: "Dedicated certified instructors guiding every session",
   },
   {
     src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
-    alt: "Rillcod students in uniform writing code on laptops",
+    alt: "Students in school uniform writing software and algorithms on laptops",
+    tag: "Software & AI Engineering",
+    caption: "12-Year progressive coding curriculum from Scratch to Python & AI",
   },
   {
-    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg",
-    alt: "A young Rillcod student building a game in Scratch from a printed worksheet",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.27 PM.jpeg",
+    alt: "Annual STEM Exhibition and Award Ceremony with school leadership",
+    tag: "Annual STEM Summit",
+    caption: "Trophies, exhibitions, and capstone demonstrations every term",
+  },
+  {
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.29 PM (1).jpeg",
+    alt: "Student presenting capstone technology project to school proprietors and parents",
+    tag: "Capstone Portfolios",
+    caption: "Tangible student inventions verified with live QR demo links",
   },
   {
     src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM (1).jpeg",
-    alt: "Rillcod students at work in a school computer room",
+    alt: "Vibrant computer laboratory filled with students actively coding",
+    tag: "Turnkey Lab Delivery",
+    caption: "Zero equipment CapEx required from the school",
   },
 ] as const;
 
-const DWELL_MS = 5200;
+const DWELL_MS = 5500;
 
 export function HeroSlideshow({
-  /**
-   * Lift the dots clear of the programme card when one is showing. With no card
-   * — a closed intake — they sit at the foot of the photograph where they belong.
-   */
   dotsRaised = true,
+  onOpenVideo,
 }: {
   dotsRaised?: boolean;
+  onOpenVideo?: () => void;
 } = {}) {
   const [frame, setFrame] = useState(0);
-  // Never on the server, and never before mount: a slideshow that starts during
-  // render is a hydration mismatch waiting to happen.
   const [running, setRunning] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => setRunning(true), []);
 
   useEffect(() => {
     if (!running) return;
-    // Somebody who has asked for less motion gets the first frame and nothing
-    // else moving on the page.
     const reduced =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return;
 
-    const id = window.setInterval(() => setFrame((f) => (f + 1) % FRAMES.length), DWELL_MS);
+    const id = window.setInterval(() => setFrame((f) => (f + 1) % HERO_FRAMES.length), DWELL_MS);
     return () => window.clearInterval(id);
-  }, [running]);
+  }, [running, frame]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        setFrame((f) => (f + 1) % HERO_FRAMES.length);
+      } else {
+        setFrame((f) => (f - 1 + HERO_FRAMES.length) % HERO_FRAMES.length);
+      }
+    }
+    touchStartX.current = null;
+  };
 
   return (
-    <>
-      {FRAMES.map((f, i) => (
-        <Image
+    <div
+      className="relative w-full h-full select-none overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {HERO_FRAMES.map((f, i) => (
+        <div
           key={f.src}
-          src={f.src}
-          alt={f.alt}
-          fill
-          sizes="(max-width: 1024px) 100vw, 500px"
-          // Only the first frame is eager. The rest load as the browser gets to
-          // them, so a phone is not fetching five photographs to show one.
-          priority={i === 0}
-          loading={i === 0 ? undefined : "lazy"}
-          className={`object-cover transition-opacity duration-1000 ease-in-out ${
-            i === frame ? "opacity-100" : "opacity-0"
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            i === frame ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
           }`}
-        />
+        >
+          <Image
+            src={f.src}
+            alt={f.alt}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+            priority={i === 0}
+            loading={i === 0 ? undefined : "lazy"}
+            className="object-cover object-center"
+          />
+          {/* Subtle gradient vignette for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-slate-950/30" />
+        </div>
       ))}
 
-      {/* Which frame, for anybody who wants to know there are more. */}
+      {/* Top Floating Discipline Badge */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-xl bg-slate-950/80 border border-white/20 px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider text-white backdrop-blur-md shadow-lg">
+          <Sparkles className="w-3.5 h-3.5 text-brand-red-500 animate-pulse" />
+          <span>{HERO_FRAMES[frame].tag}</span>
+        </div>
+      </div>
+
+      {/* Video Demo Button if provided */}
+      {onOpenVideo && (
+        <button
+          type="button"
+          onClick={onOpenVideo}
+          className="absolute top-4 right-4 z-20 flex items-center gap-2 rounded-2xl bg-brand-red-600/90 hover:bg-brand-red-600 text-white px-3.5 py-1.5 text-xs font-bold shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
+        >
+          <Play className="w-3.5 h-3.5 fill-current" />
+          <span className="hidden sm:inline">Watch 45s Video</span>
+          <span className="sm:hidden">Video</span>
+        </button>
+      )}
+
+      {/* Bottom Live Caption & Slide Navigation */}
       <div
-        className={`absolute left-4 sm:left-6 z-20 flex items-center gap-1.5 ${
-          dotsRaised ? "bottom-24 sm:bottom-28" : "bottom-5 sm:bottom-6"
+        className={`absolute inset-x-4 sm:inset-x-6 z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-3 ${
+          dotsRaised ? "bottom-24 sm:bottom-28" : "bottom-4 sm:bottom-6"
         }`}
       >
-        {FRAMES.map((f, i) => (
+        <div className="max-w-xs sm:max-w-sm">
+          <p className="text-[11px] sm:text-xs font-bold text-white leading-snug drop-shadow-md">
+            {HERO_FRAMES[frame].caption}
+          </p>
+        </div>
+
+        {/* Dots & Nav Buttons */}
+        <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-950/60 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">
           <button
-            key={f.src}
             type="button"
-            aria-label={`Show photograph ${i + 1} of ${FRAMES.length}`}
-            aria-current={i === frame}
-            onClick={() => setFrame(i)}
-            className={`h-1.5 rounded-full transition-all duration-500 ${
-              i === frame ? "w-6 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
-            }`}
-          />
-        ))}
+            onClick={() => setFrame((f) => (f - 1 + HERO_FRAMES.length) % HERO_FRAMES.length)}
+            aria-label="Previous photo"
+            className="text-white/70 hover:text-white p-0.5"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center gap-1">
+            {HERO_FRAMES.map((f, i) => (
+              <button
+                key={f.src}
+                type="button"
+                aria-label={`Show photo ${i + 1} of ${HERO_FRAMES.length}`}
+                aria-current={i === frame}
+                onClick={() => setFrame(i)}
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  i === frame ? "w-6 bg-brand-red-500" : "w-1.5 bg-white/40 hover:bg-white/70"
+                }`}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setFrame((f) => (f + 1) % HERO_FRAMES.length)}
+            aria-label="Next photo"
+            className="text-white/70 hover:text-white p-0.5"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,45 +1,109 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { slugify } from "@/lib/utils";
 import {
-  ArrowRight, Clock, Users, Search, Filter, BookOpen,
-  GraduationCap, MapPin, Sun, Calendar, ChevronDown, TrendingUp,
+  ArrowRight,
+  Clock,
+  Users,
+  Search,
+  Filter,
+  BookOpen,
+  GraduationCap,
+  MapPin,
+  Sun,
+  Calendar,
+  ChevronDown,
+  TrendingUp,
+  Sparkles,
+  Award,
+  CheckCircle2,
 } from "lucide-react";
 import { useFeaturedSpecialProgram } from "@/hooks/useFeaturedSpecialProgram";
 import { formatSpecialDate } from "@/lib/special-programs/types";
+import { STUDENT_REGISTRATION_PATH } from "@/lib/registration/enrollment-types";
+
 const LEVEL_MAP: Record<string, { label: string; color: string; bar: string }> = {
-  beginner:     { label: "Beginner",     color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "from-emerald-400 to-emerald-600" },
-  intermediate: { label: "Intermediate", color: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "from-amber-400 to-amber-600" },
-  advanced:     { label: "Advanced",     color: "bg-rose-500/20 text-rose-400 border-rose-500/30",       bar: "from-rose-400 to-rose-600" },
+  beginner: {
+    label: "Beginner",
+    color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    bar: "from-emerald-400 to-emerald-600",
+  },
+  intermediate: {
+    label: "Intermediate",
+    color: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+    bar: "from-amber-400 to-amber-600",
+  },
+  advanced: {
+    label: "Advanced",
+    color: "bg-brand-red-500/10 text-brand-red-500 border-brand-red-500/20",
+    bar: "from-brand-red-500 to-rose-600",
+  },
 };
 
 const nigerianStats = [
-  { number: "500+", label: "Students Trained",  icon: <GraduationCap className="w-6 h-6" /> },
-  { number: "50+",  label: "Schools Partnered", icon: <MapPin className="w-6 h-6" /> },
-  { number: "15+",  label: "States Covered",    icon: <MapPin className="w-6 h-6" /> },
-  { number: "95%",  label: "Success Rate",      icon: <TrendingUp className="w-6 h-6" /> },
+  { number: "500+", label: "STEM Scholars Trained", icon: <GraduationCap className="w-5 h-5" /> },
+  { number: "25+", label: "Accredited Schools", icon: <MapPin className="w-5 h-5" /> },
+  { number: "36+", label: "Hardware Capstones", icon: <Award className="w-5 h-5" /> },
+  { number: "100%", label: "Practical Lab Projects", icon: <TrendingUp className="w-5 h-5" /> },
 ];
 
-const successStories = [
-  { name: "Amina Hassan",     location: "Lagos",  story: "From computer basics to building websites for local businesses", achievement: "Now runs her own web design business", image: "👩‍💻" },
-  { name: "Chinedu Okonkwo",  location: "Enugu",  story: "Created educational games about Nigerian culture",               achievement: "Won national coding competition",         image: "👨‍💻" },
-  { name: "Fatima Yusuf",     location: "Kano",   story: "Developed apps to help market vendors go digital",               achievement: "Featured in local tech magazines",        image: "👩‍🎨" },
+/**
+ * What learners build, by stage — not who built it.
+ *
+ * This was three named students with quoted testimonials and named awards, each
+ * laid over a photograph of a real, identifiable child from the events folder.
+ * None of the three names exists in the database. Publishing invented praise and
+ * invented prizes across the faces of actual children is not something a parent
+ * should find on the site, and it is not a claim we could stand behind if one of
+ * those parents asked.
+ *
+ * The projects below are the ones the curriculum actually produces, described by
+ * stage. The photographs stay — they are real classrooms — but they illustrate
+ * the work rather than impersonate a pupil.
+ */
+const studentOutcomes = [
+  {
+    project: "Voice-Controlled Obstacle Rover",
+    stage: "Basic 4 – Basic 6",
+    detail:
+      "Learners assemble the chassis, wire ultrasonic distance sensors, and write the block code that steers it around what it detects.",
+    discipline: "Robotics & Physical Computing",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
+  },
+  {
+    project: "Smart Solar Irrigation Monitor",
+    stage: "JSS 1 – JSS 3",
+    detail:
+      "Students programme a microcontroller to read soil moisture and open a valve on its own, then log what it did.",
+    discipline: "IoT & Data",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
+  },
+  {
+    project: "School Attendance Mobile App",
+    stage: "SS 1 – SS 3",
+    detail:
+      "Senior students build, style and deploy a working cross-platform app in JavaScript that a school could actually run.",
+    discipline: "Software Engineering",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.29 PM (1).jpeg",
+  },
 ];
 
 const levels = [
-  { name: "All Levels",   value: "all" },
-  { name: "Beginner",     value: "beginner" },
+  { name: "All Levels", value: "all" },
+  { name: "Beginner", value: "beginner" },
   { name: "Intermediate", value: "intermediate" },
-  { name: "Advanced",     value: "advanced" },
+  { name: "Advanced", value: "advanced" },
 ];
 
-export default function Programs() {
-  const [programs, setPrograms]               = useState<any[]>([]);
-  const [loading, setLoading]                 = useState(true);
-  const [searchTerm, setSearchTerm]           = useState("");
-  const [selectedLevel, setSelectedLevel]     = useState("all");
-  const [expandedId, setExpandedId]           = useState<string | null>(null);
+export default function ProgramsPage() {
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { cta, open: specialOpen } = useFeaturedSpecialProgram();
   const [featuredMeta, setFeaturedMeta] = useState<{
     starts_on?: string | null;
@@ -50,13 +114,14 @@ export default function Programs() {
 
   useEffect(() => {
     fetch("/api/programs?is_active=true", { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => setPrograms(json.data ?? []))
+      .then((r) => r.json())
+      .then((json) => setPrograms(json.data ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
+
     fetch("/api/special-programs/featured", { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => {
+      .then((r) => r.json())
+      .then((j) => {
         if (j?.data) {
           setFeaturedMeta({
             starts_on: j.data.starts_on,
@@ -69,7 +134,7 @@ export default function Programs() {
       .catch(() => {});
   }, []);
 
-  const filtered = programs.filter(p => {
+  const filtered = programs.filter((p) => {
     const matchSearch =
       (p.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.description ?? "").toLowerCase().includes(searchTerm.toLowerCase());
@@ -80,162 +145,153 @@ export default function Programs() {
   const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
 
   return (
-    <div className="min-h-screen bg-background font-sans public-page-root overflow-x-clip">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
+    <div className="min-h-screen bg-background text-foreground font-sans public-page-root overflow-x-clip">
+      {/* Glow Effects */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 -left-64 w-[400px] h-[400px] bg-brand-red-600/8 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 space-y-12">
         {/* Hero */}
-        <div className="text-center py-16 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl mb-16 px-6 relative overflow-hidden">
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="relative z-10">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
-                <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-            </div>
-            <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
-              STEM Curriculum &amp; Pathways
+        <div className="text-center py-12 sm:py-16 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl px-6 relative overflow-hidden">
+          <div className="relative z-10 space-y-4">
+            <span className="inline-block px-4 py-1.5 bg-brand-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm">
+              Accredited STEM &amp; AI Pathways
             </span>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-6 uppercase tracking-tight leading-none">
-              Our Learning Programs
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground uppercase tracking-tight leading-tight">
+              Our Learning <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red-600 to-primary">Programs</span>
             </h1>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto font-medium italic">
-              Discover our comprehensive range of technology education programs for students from{" "}
-              <strong className="text-foreground">kids to professionals</strong> — covering coding, robotics, AI, data science,
-              UI/UX, and more.
+            <p className="text-xs sm:text-base text-muted-foreground max-w-2xl mx-auto font-medium leading-relaxed">
+              Explore our 12-year progressive STEM curriculum bridging Primary School, Secondary School, and Professional Certifications — covering Robotics, Applied AI, Python Coding, and Physical Hardware Engineering.
             </p>
           </div>
         </div>
 
-        {/* Summer School Banner — a "Limited Time" panel whose time has passed is
-            the loudest thing on the page and the least true, so it only shows
-            while the intake is genuinely open. */}
+        {/* Summer / Special Program Banner */}
         {specialOpen && (
-        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl border-t-4 border-t-amber-500 p-8 sm:p-10 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -translate-y-32 translate-x-32 blur-3xl pointer-events-none" />
-          <div className="relative z-10">
-            <div className="flex flex-col lg:flex-row items-center justify-between">
-              <div className="flex-1 text-foreground mb-6 lg:mb-0">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500" />
-                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">{featuredMeta.title || cta.title}</span>
-                  <div className="bg-amber-500/20 border border-amber-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                    Limited Time
-                  </div>
+          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-2xl border-t-4 border-t-amber-500 p-6 sm:p-10 relative overflow-hidden">
+            <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sun className="w-5 h-5 text-amber-500" />
+                  <span className="text-lg sm:text-xl font-black uppercase text-foreground">{featuredMeta.title || cta.title}</span>
+                  <span className="bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-amber-500">
+                    Open Intake
+                  </span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight">
-                  Accelerate Your Tech Journey This Summer!
+                <h2 className="text-xl sm:text-3xl font-black uppercase text-foreground">
+                  Accelerate Your Tech Journey This Term!
                 </h2>
-                <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
-                  Intensive programmes starting <strong>{formatSpecialDate(featuredMeta.starts_on || null)}</strong>
-                  {featuredMeta.registration_deadline ? <> (register by <strong>{formatSpecialDate(featuredMeta.registration_deadline)}</strong>)</> : null}
-                  {featuredMeta.ends_on ? <> and running through <strong>{formatSpecialDate(featuredMeta.ends_on)}</strong></> : null}.
-                  Both online and onsite options available.
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                  Hands-on cohort starting <strong>{formatSpecialDate(featuredMeta.starts_on || null)}</strong>. Both in-person school lab sessions and interactive online cohorts available.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   {[
-                    { icon: <Calendar className="w-4 h-4 text-amber-500" />, text: `Start Date: ${formatSpecialDate(featuredMeta.starts_on || null)}` },
-                    { icon: <Calendar className="w-4 h-4 text-amber-500" />, text: `Ending Date: ${formatSpecialDate(featuredMeta.ends_on || null)}` },
-                    { icon: <MapPin className="w-4 h-4 text-amber-500" />,   text: "Online & Onsite available" },
-                    { icon: <Users className="w-4 h-4 text-amber-500" />,    text: "Small class sizes (8–15 students)" },
+                    { icon: <Calendar className="w-4 h-4 text-amber-500" />, text: `Cohort: ${formatSpecialDate(featuredMeta.starts_on || null)}` },
+                    { icon: <MapPin className="w-4 h-4 text-amber-500" />, text: "School Lab & Live Interactive Online" },
                   ].map((item, i) => (
-                    <div key={i} className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                    <div key={i} className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
                       {item.icon}<span>{item.text}</span>
                     </div>
                   ))}
                 </div>
-                <Link
-                  href={cta.href}
-                  className="inline-flex items-center justify-center w-full sm:w-auto bg-amber-500 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-amber-600 transition-all shadow-xl shadow-amber-500/20 text-center"
-                >
-                  Register Now
-                </Link>
-              </div>
-              <div className="flex-shrink-0 hidden lg:block ml-8">
-                <div className="w-32 h-32 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center shadow-xl">
-                  <GraduationCap className="w-16 h-16 text-amber-500" />
+                <div className="pt-2">
+                  <Link
+                    href={cta.href}
+                    className="inline-flex items-center justify-center px-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 min-h-[44px]"
+                  >
+                    Register for Cohort
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         )}
 
-        {/* Nigerian Impact Stats */}
-        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl p-8 mb-16">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">
-            Our Impact Across Nigeria
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {nigerianStats.map((stat, i) => (
-              <div key={i} className="text-center group">
-                <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-all group-hover:scale-110 shadow-sm">
-                  <div className="text-primary transition-colors">{stat.icon}</div>
-                </div>
-                <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter tabular-nums italic">{stat.number}</div>
-                <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
+        {/* Institutional Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          {nigerianStats.map((stat, i) => (
+            <div key={i} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-5 sm:p-6 text-center shadow-lg hover:border-brand-red-500/40 transition-all">
+              <div className="w-10 h-10 rounded-2xl bg-brand-red-600/10 text-brand-red-500 flex items-center justify-center mx-auto mb-3">
+                {stat.icon}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Success Stories */}
-        <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">
-            Success Stories
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {successStories.map((story, i) => (
-              <div key={i} className="bg-background rounded-none p-8 border border-border hover:border-primary transition-all group shadow-sm">
-                <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{story.image}</div>
-                <h3 className="text-lg font-black text-foreground mb-1 uppercase tracking-tight">{story.name}</h3>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{story.location}</p>
-                <p className="text-sm text-muted-foreground mb-6 font-medium italic leading-relaxed">"{story.story}"</p>
-                <div className="bg-card border border-border px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground inline-block shadow-sm">
-                  {story.achievement}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Search & Filter */}
-        <div className="bg-card border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
-          <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
-            {/* Search */}
-            <div className="flex-1 max-w-md w-full">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Search Programs:</p>
-              <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors w-4 h-4 z-10" />
-                <input
-                  type="text"
-                  placeholder="SEARCH PROGRAMS..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary transition-all shadow-inner"
-                />
-              </div>
+              <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tight">{stat.number}</div>
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{stat.label}</div>
             </div>
+          ))}
+        </div>
+
+        {/* Success Stories with Real Event Photography */}
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-500">What Students Build</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Capstone Projects by Stage</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {studentOutcomes.map((story, i) => (
+              <div key={i} className="bg-card/90 backdrop-blur-2xl rounded-3xl border border-border/80 overflow-hidden shadow-xl hover:border-brand-red-500/40 transition-all flex flex-col justify-between">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-950">
+                  <Image
+                    src={story.image}
+                    alt={`Rillcod students at work — ${story.discipline}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3 text-white">
+                    <p className="text-xs font-black uppercase">{story.project}</p>
+                    <p className="text-[10px] text-slate-300 font-medium">{story.stage}</p>
+                  </div>
+                </div>
+
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  {/* Not italicised and not in quotation marks: this describes the
+                      build, and nothing here is being put in a child's mouth. */}
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                    {story.detail}
+                  </p>
+                  <div className="pt-3 border-t border-border/60">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-brand-red-600/10 text-brand-red-500 text-[10px] font-black uppercase tracking-wider">
+                      <CheckCircle2 className="w-3 h-3" />
+                      {story.discipline}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Search & Filter Strip */}
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            {/* Search Input */}
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search programs by title or topic..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-2xl text-xs sm:text-sm font-bold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand-red-500 transition-all shadow-sm"
+              />
+            </div>
+
             {/* Level Filter */}
-            <div className="flex items-center gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="relative w-full lg:w-48 group">
+              <div className="relative w-full sm:w-48">
                 <select
                   value={selectedLevel}
-                  onChange={e => setSelectedLevel(e.target.value)}
-                  className="w-full pl-6 pr-10 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer appearance-none shadow-sm"
+                  onChange={(e) => setSelectedLevel(e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 bg-background border border-border rounded-2xl text-xs font-bold uppercase tracking-wider text-foreground focus:outline-none focus:border-brand-red-500 transition-all cursor-pointer appearance-none shadow-sm"
                 >
-                  {levels.map(l => (
-                    <option key={l.value} value={l.value}>{l.name.toUpperCase()}</option>
+                  {levels.map((l) => (
+                    <option key={l.value} value={l.value}>{l.name}</option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               </div>
             </div>
           </div>
@@ -243,136 +299,111 @@ export default function Programs() {
 
         {/* Programs Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="bg-card border border-border rounded-none h-80 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-card border border-border rounded-3xl h-80 animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24 bg-card border border-border mb-16">
-            <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/20 mb-4" />
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-              No programs match your search
-            </p>
+          <div className="bg-card/90 border border-border rounded-3xl p-12 text-center shadow-xl">
+            <Search className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+            <h3 className="text-lg font-black uppercase text-foreground mb-2">No programs found</h3>
+            <p className="text-xs text-muted-foreground">Try adjusting your search criteria or difficulty filter.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
-            {filtered.map(program => {
-              const lvl = LEVEL_MAP[program.difficulty_level] ?? LEVEL_MAP.beginner;
-              const courseCount = program.courses?.length ?? 0;
-              const activeCourses = (program.courses ?? []).filter((c: any) => c.is_active !== false);
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((program) => {
+              const lvl = LEVEL_MAP[program.difficulty_level?.toLowerCase()] ?? {
+                label: program.difficulty_level || "All Levels",
+                color: "bg-muted text-muted-foreground border-border",
+                bar: "from-primary to-brand-red-600",
+              };
               const isExpanded = expandedId === program.id;
+              const activeCourses = (program.courses ?? []).filter((c: any) => c.is_active !== false);
+              const courseCount = activeCourses.length;
 
               return (
-                <div key={program.id} className="bg-card rounded-none shadow-lg border border-border overflow-hidden hover:shadow-xl transition-all group flex flex-col">
-                  {/* Color bar */}
-                  <div className={`h-1.5 bg-gradient-to-r ${lvl.bar}`} />
-
-                  {/* Header */}
-                  <div className="p-8 bg-background border-b border-border relative overflow-hidden flex-shrink-0">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-none -translate-y-16 translate-x-16 rotate-45" />
-                    <div className="relative z-10">
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center shadow-sm group-hover:border-primary transition-all">
-                          <BookOpen className="w-6 h-6 text-primary" />
-                        </div>
-                        <div className="text-right">
-                          {program.price > 0 ? (
-                            <>
-                              <div className="text-xl font-black text-foreground tracking-tighter italic">
-                                ₦{Number(program.price).toLocaleString()}
-                              </div>
-                              <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Base Rate</div>
-                            </>
-                          ) : (
-                            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2 py-1 bg-emerald-500/10 border border-emerald-500/20">
-                              Enquire
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <h3 className="text-xl font-black text-foreground uppercase tracking-tight mb-1">
-                        {program.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground font-medium italic mb-4 line-clamp-2">
-                        {program.description}
-                      </p>
-
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border rounded-none ${lvl.color}`}>
-                          {lvl.label}
+                <div
+                  key={program.id}
+                  className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl overflow-hidden shadow-xl hover:border-brand-red-500/40 transition-all flex flex-col justify-between"
+                >
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 border rounded-full ${lvl.color}`}>
+                        {lvl.label}
+                      </span>
+                      {courseCount > 0 && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                          {courseCount} Module{courseCount !== 1 ? "s" : ""}
                         </span>
-                        {courseCount > 0 && (
-                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-blue-500/20 bg-blue-500/10 text-blue-400 rounded-none">
-                            {courseCount} Course{courseCount !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Body */}
-                  <div className="p-8 flex-1 flex flex-col">
-                    <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-6">
+                    <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tight leading-snug">
+                      {program.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-medium leading-relaxed line-clamp-3">
+                      {program.description || "Comprehensive hands-on curriculum with practical hardware and software projects."}
+                    </p>
+
+                    <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground pt-2">
                       {program.duration_weeks && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-primary" />
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-brand-red-500" />
                           <span>{program.duration_weeks} weeks</span>
                         </div>
                       )}
                       {program.max_students && (
-                        <div className="flex items-center gap-2">
-                          <Users className="w-3.5 h-3.5 text-blue-500" />
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-primary" />
                           <span>Max {program.max_students}</span>
                         </div>
                       )}
                     </div>
+                  </div>
 
-                    {/* Actions */}
-                    <div className="mt-auto space-y-3">
-                      <button
-                        onClick={() => toggle(program.id)}
-                        className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm"
-                      >
-                        {isExpanded ? "CLOSE COURSE LIST" : "VIEW COURSES"}
-                      </button>
-                      <Link
-                        href={`/student-registration?program=${encodeURIComponent(program.name)}&program_id=${encodeURIComponent(program.id)}&type=online`}
-                        className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-primary hover:border-primary transition-all shadow-sm"
-                      >
-                        JOIN PROGRAM
-                      </Link>
-                    </div>
+                  <div className="p-6 pt-0 space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => toggle(program.id)}
+                      className="w-full py-3 bg-muted/40 hover:bg-muted text-foreground rounded-2xl text-xs font-bold uppercase tracking-wider transition-all min-h-[42px] cursor-pointer"
+                    >
+                      {isExpanded ? "Close Course Modules" : "View Course Modules"}
+                    </button>
 
-                    {/* Expanded Courses */}
+                    <Link
+                      href={`${STUDENT_REGISTRATION_PATH}?program=${encodeURIComponent(program.name)}&program_id=${encodeURIComponent(program.id)}&type=online`}
+                      className="flex items-center justify-center gap-2 w-full py-3.5 bg-brand-red-600 hover:bg-brand-red-500 text-white rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all shadow-md shadow-brand-red-950/40 min-h-[46px]"
+                    >
+                      <span>Enroll in Track</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+
                     {isExpanded && (
-                      <div className="mt-8 space-y-3 pt-8 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
-                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <BookOpen className="w-3.5 h-3.5 text-primary" />
-                          Courses in This Program
+                      <div className="mt-4 space-y-2 pt-4 border-t border-border/80 animate-in fade-in duration-300">
+                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-brand-red-500" />
+                          Modules in Track
                         </h4>
                         {activeCourses.length === 0 ? (
-                          <p className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest italic">
-                            Courses coming soon
-                          </p>
+                          <p className="text-xs text-muted-foreground/60 italic">Course modules updated termly.</p>
                         ) : (
-                          <div className="space-y-2">
-                            {activeCourses.map((course: any, idx: number) => (
-                              <div key={course.id} className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                                <span className="w-5 h-5 flex-shrink-0 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black flex items-center justify-center rounded-none">
+                          <div className="space-y-1.5">
+                            {activeCourses.map((c: any, idx: number) => (
+                              <div key={c.id || idx} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                <span className="w-5 h-5 rounded-full bg-brand-red-600/10 text-brand-red-500 text-[10px] font-black flex items-center justify-center shrink-0">
                                   {idx + 1}
                                 </span>
-                                <span className="capitalize italic">{course.title}</span>
+                                <span className="truncate">{c.title}</span>
                               </div>
                             ))}
                           </div>
                         )}
                         <Link
                           href={`/programs/${slugify(program.name)}`}
-                          className="flex items-center gap-1.5 text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest mt-4 transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] font-black text-brand-red-500 hover:underline pt-2 uppercase tracking-wider"
                         >
-                          Full Program Details <ArrowRight className="w-3 h-3" />
+                          Full Syllabus Overview ↗
                         </Link>
                       </div>
                     )}
@@ -383,28 +414,28 @@ export default function Programs() {
           </div>
         )}
 
-        {/* CTA */}
-        <div className="bg-card border border-border border-t-4 border-t-primary rounded-none p-12 text-center shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">
-            Ready to Start Your <span className="text-primary italic">Tech Journey?</span>
-          </h2>
-          <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground">
-            Join thousands of Nigerian students already building their future with technology.
-            Secure your spot in our upcoming cohort today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+        {/* Bottom CTA Banner */}
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 border-t-4 border-t-brand-red-600 rounded-3xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden space-y-6">
+          <div className="max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl sm:text-4xl font-black uppercase text-foreground tracking-tight">
+              Ready to Equip Your <span className="text-brand-red-500">Learners?</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+              Join dozens of accredited schools across Nigeria delivering internationally benchmarked STEM education.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/contact"
-              className="px-12 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20"
+              href="/school-registration"
+              className="px-8 py-4 bg-brand-red-600 hover:bg-brand-red-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-brand-red-950/40 min-h-[48px] flex items-center justify-center"
             >
-              Contact Us
+              Partner Your School (70/30)
             </Link>
             <Link
               href="/curriculum"
-              className="px-12 py-5 bg-transparent border border-border text-foreground font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-foreground hover:text-background transition-all shadow-sm"
+              className="px-8 py-4 bg-card border border-border text-foreground hover:bg-muted font-black text-xs uppercase tracking-wider rounded-2xl transition-all min-h-[48px] flex items-center justify-center"
             >
-              View Curriculum
+              Explore 12-Year Curriculum
             </Link>
           </div>
         </div>

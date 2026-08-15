@@ -1,533 +1,430 @@
-// @refresh reset
 "use client";
-import { useState, useRef } from "react";
+
+import React, { useState } from "react";
 import Image from "next/image";
-import { Camera, Image as ImageIcon, Users, Award, Code, Filter, Search, Calendar, MapPin, Star, Heart, Share2, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import {
-  ComputerDesktopIcon,
-  CodeBracketIcon,
-  BeakerIcon,
-  CpuChipIcon,
-  RocketLaunchIcon,
-  AcademicCapIcon,
-  UserGroupIcon,
-  CameraIcon,
-  PlayIcon,
-  HeartIcon,
-  ShareIcon,
-  BookOpenIcon,
-  LightBulbIcon,
-  GlobeAltIcon,
-  CogIcon
-} from '@/lib/icons'
+  Camera,
+  Search,
+  Eye,
+  Play,
+  X,
+  Share2,
+  Sparkles,
+  ArrowRight,
+  Building2,
+  Trophy,
+} from "lucide-react";
+import { brandContact } from "@/config/brand";
+import { SCHOOL_REGISTRATION_PATH } from "@/lib/registration/enrollment-types";
 
-const galleryData = [
+interface GalleryItem {
+  id: number;
+  title: string;
+  description: string;
+  category: "coding" | "robotics" | "capstone" | "exhibition" | "video";
+  mediaType: "image" | "video";
+  src: string;
+  views: number;
+  likes: number;
+  featured: boolean;
+  tag: string;
+}
+
+const galleryData: GalleryItem[] = [
   {
     id: 1,
-    title: "Young Nigerian Coders in Action",
-    description: "Students from Rillcod Technologies in Benin City working on Python programming projects",
-    category: "coding",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.56%20PM.jpeg",
-    likes: 156,
-    views: 2340,
-    featured: true
+    title: "Classroom Robotics Engineering Lab",
+    description: "Students collaborating on sensor assembly, motor gearing, and chassis programming.",
+    category: "robotics",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
+    views: 3120,
+    likes: 245,
+    featured: true,
+    tag: "Robotics",
   },
   {
     id: 2,
-    title: "STEM Robotics Workshop",
-    description: "Kids building and programming robots at Rillcod Technologies, Benin City",
-    category: "robotics",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.57%20PM.jpeg",
-    likes: 203,
-    views: 1890,
-    featured: true
+    title: "Facilitator Coaching Electronics Bench",
+    description: "Certified STEM facilitator guiding young scholars on breadboard circuits and logic gates.",
+    category: "capstone",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM (1).jpeg",
+    views: 2840,
+    likes: 198,
+    featured: true,
+    tag: "Hardware Lab",
   },
   {
     id: 3,
-    title: "Computer Science Lab",
-    description: "Students learning computer fundamentals at Rillcod Technologies, Benin City",
-    category: "computers",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.58%20PM%20(2).jpeg",
-    likes: 98,
-    views: 1456,
-    featured: false
+    title: "Young Programmers in Python Lab",
+    description: "Learners in school uniform writing software algorithms and debugging syntax on laptops.",
+    category: "coding",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
+    views: 3490,
+    likes: 310,
+    featured: true,
+    tag: "Coding & AI",
   },
   {
     id: 4,
-    title: "Science Experiment Day",
-    description: "Young scientists conducting experiments at Rillcod Technologies, Benin City",
-    category: "science",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.29.59%20PM%20(1).jpeg",
-    likes: 167,
-    views: 2100,
-    featured: false
+    title: "Annual STEM Summit & Trophy Presentation",
+    description: "Grand exhibition celebrating student milestone inventions with school proprietors and principals.",
+    category: "exhibition",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.27 PM.jpeg",
+    views: 4200,
+    likes: 412,
+    featured: true,
+    tag: "Summit & Awards",
   },
   {
     id: 5,
-    title: "Coding Club Meeting",
-    description: "After-school coding club at Rillcod Technologies, Benin City",
-    category: "coding",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.00%20PM%20(1).jpeg",
-    likes: 134,
-    views: 1789,
-    featured: false
+    title: "Live Capstone Project Presentation",
+    description: "Scholars presenting automated obstacle-avoiding vehicle demos to visiting parents.",
+    category: "capstone",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.29 PM (1).jpeg",
+    views: 2190,
+    likes: 165,
+    featured: false,
+    tag: "Capstone",
   },
   {
     id: 6,
-    title: "3D Printing Workshop",
-    description: "Students learning 3D design and printing technology at Rillcod Technologies",
-    category: "technology",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.00%20PM.jpeg",
-    likes: 189,
-    views: 2234,
-    featured: true
+    title: "Computer Laboratory Build Session",
+    description: "Dozens of learners actively coding interactive web projects in a partner school ICT suite.",
+    category: "coding",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM (1).jpeg",
+    views: 2650,
+    likes: 180,
+    featured: false,
+    tag: "Lab Session",
   },
   {
     id: 7,
-    title: "Mathematics & Programming",
-    description: "Integrating math concepts with computer programming at Rillcod Technologies",
-    category: "coding",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.01%20PM.jpeg",
-    likes: 145,
-    views: 1654,
-    featured: false
+    title: "Physical Computing & Arduino Prototyping",
+    description: "Hands-on microcontroller testing with real LED and ultrasonic sensor integration.",
+    category: "robotics",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM.jpeg",
+    views: 1980,
+    likes: 142,
+    featured: false,
+    tag: "Electronics",
   },
   {
     id: 8,
-    title: "Digital Art & Design",
-    description: "Creative technology projects using digital tools at Rillcod Technologies",
-    category: "creative",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.02%20PM%20(2).jpeg",
-    likes: 178,
-    views: 1987,
-    featured: false
+    title: "Junior Block Coding & Game Logic",
+    description: "Primary school scholar building game mechanics in Scratch using structured logic worksheets.",
+    category: "coding",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg",
+    views: 2310,
+    likes: 175,
+    featured: false,
+    tag: "Primary Code",
   },
   {
     id: 9,
-    title: "STEM Career Day",
-    description: "Students meeting with Nigerian tech professionals at Rillcod Technologies",
-    category: "careers",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.30.03%20PM%20(1).jpeg",
-    likes: 223,
-    views: 2567,
-    featured: true
+    title: "Live Student Robotics Demonstration",
+    description: "Watch an autonomous rover built by Rillcod secondary scholars in action.",
+    category: "video",
+    mediaType: "video",
+    src: "/images/EVENTS/WhatsApp Video 2026-08-14 at 7.46.27 PM (1).mp4",
+    views: 5120,
+    likes: 540,
+    featured: true,
+    tag: "Live Video Clip",
   },
   {
     id: 10,
-    title: "Mobile App Development",
-    description: "Students creating apps to solve local community problems at Rillcod Technologies",
-    category: "coding",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.27%20PM.jpeg",
-    likes: 198,
-    views: 2341,
-    featured: false
+    title: "Inter-School Science Fair Demonstration",
+    description: "Demonstrating automated electronics at the regional inter-school science summit.",
+    category: "video",
+    mediaType: "video",
+    src: "/images/EVENTS/WhatsApp Video 2026-08-14 at 7.45.04 PM.mp4",
+    views: 3890,
+    likes: 310,
+    featured: false,
+    tag: "Live Video Clip",
   },
   {
     id: 11,
-    title: "Environmental Science",
-    description: "Using technology to study and protect our environment at Rillcod Technologies",
-    category: "science",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.29%20PM%20(1).jpeg",
-    likes: 167,
-    views: 1890,
-    featured: false
+    title: "STEM Excellence Award Ceremony",
+    description: "Distinguished awards presented to partner school leadership and winning scholars.",
+    category: "exhibition",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.30 PM (1).jpeg",
+    views: 2780,
+    likes: 210,
+    featured: false,
+    tag: "Awards",
   },
   {
     id: 12,
-    title: "AI & Machine Learning",
-    description: "Introduction to artificial intelligence concepts at Rillcod Technologies",
-    category: "technology",
-    image: "/images/EVENTS/WhatsApp%20Image%202026-08-14%20at%207.46.30%20PM%20(1).jpeg",
-    likes: 245,
-    views: 2890,
-    featured: true
-  }
-];
-
-const stats = [
-  { number: "1000+", label: "Photos", icon: <ImageIcon className="w-8 h-8" />, color: "text-blue-600" },
-  { number: "50+", label: "Events Captured", icon: <Camera className="w-8 h-8" />, color: "text-green-600" },
-  { number: "500+", label: "Students Featured", icon: <Users className="w-8 h-8" />, color: "text-purple-600" },
-  { number: "20+", label: "Awards & Achievements", icon: <Award className="w-8 h-8" />, color: "text-primary" }
+    title: "Exhibition Celebration with Facilitators",
+    description: "Faculty facilitators and school leadership celebrating a completed academic term.",
+    category: "exhibition",
+    mediaType: "image",
+    src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.32 PM.jpeg",
+    views: 3150,
+    likes: 290,
+    featured: false,
+    tag: "Celebration",
+  },
 ];
 
 const categories = [
-  { id: 'all', name: 'All Activities', icon: CameraIcon },
-  { id: 'coding', name: 'Coding & Programming', icon: CodeBracketIcon },
-  { id: 'robotics', name: 'Robotics', icon: CpuChipIcon },
-  { id: 'computers', name: 'Computer Science', icon: ComputerDesktopIcon },
-  { id: 'science', name: 'Science Experiments', icon: BeakerIcon },
-  { id: 'technology', name: 'Technology', icon: RocketLaunchIcon },
-  { id: 'creative', name: 'Creative Tech', icon: LightBulbIcon },
-  { id: 'careers', name: 'Career Exploration', icon: AcademicCapIcon }
+  { id: "all", name: "All Media" },
+  { id: "robotics", name: "🤖 Robotics & Hardware" },
+  { id: "coding", name: "💻 Coding & Software" },
+  { id: "capstone", name: "🔬 Capstone Builds" },
+  { id: "exhibition", name: "🏆 Exhibitions & Awards" },
+  { id: "video", name: "🎥 Live Video Clips" },
 ];
 
-export default function Gallery() {
-  const touchStartY = useRef<number | null>(null);
-  const touchDeltaY = useRef<number>(0);
+export default function GalleryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState("date");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
 
-  const filteredImages = galleryData.filter(img => {
-    const matchesSearch = img.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         img.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         img.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || img.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const filteredItems = galleryData.filter((item) => {
+    const matchesSearch =
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.tag.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCat = selectedCategory === "all" || item.category === selectedCategory;
+    return matchesSearch && matchesCat;
   });
-
-  const sortedImages = filteredImages.sort((a, b) => {
-    switch (sortBy) {
-      case "views":
-        return b.views - a.views;
-      case "likes":
-        return b.likes - a.likes;
-      case "featured":
-        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
-      default:
-        return 0;
-    }
-  });
-
-  const featuredImages = sortedImages.filter(img => img.featured);
-  const regularImages = sortedImages.filter(img => !img.featured);
-
-  const openImageModal = (imageId: number) => {
-    setSelectedImage(imageId);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setSelectedImage(null);
-    setIsModalOpen(false);
-  };
-
-  const getCategoryIcon = (categoryId: string) => {
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.icon : CameraIcon;
-  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Hero Section */}
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-              <Camera className="w-10 h-10 text-white" />
-            </div>
+    <div className="min-h-screen bg-background text-foreground public-page-root font-sans">
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 -left-64 w-[400px] h-[400px] bg-brand-red-600/8 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-20 py-12 sm:py-20 relative z-10 space-y-12">
+        {/* Header Banner */}
+        <div className="text-center max-w-3xl mx-auto space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card/90 backdrop-blur-md border border-border/80 rounded-full shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-brand-red-500 animate-ping" />
+            <span className="text-[10px] font-black text-foreground uppercase tracking-widest">
+              Authentic Classroom &amp; Summit Media
+            </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">Our Learning Gallery</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-            Explore the exciting world of STEM education through the eyes of our students. See how young minds are being shaped by technology and innovation.
+
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground uppercase tracking-tight leading-[1.08]">
+            Real Classrooms. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red-600 via-primary to-brand-red-500">
+              Real Inventions.
+            </span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+            Browse authentic photography and live video clips from Rillcod partner schools — featuring hands-on robotics builds, coding sessions, and termly summit exhibitions.
           </p>
-          <div className="w-20 h-2 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className={`flex justify-center mb-4 ${stat.color}`}>
-                {stat.icon}
+        {/* Search & Kinetic Category Filter Strip */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by topic, robotics, coding, exhibition..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-card/90 border border-border/80 rounded-2xl text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-brand-red-500 shadow-sm"
+              />
+            </div>
+
+            <div className="text-xs font-bold text-muted-foreground self-center sm:self-auto">
+              Showing <span className="text-foreground font-black">{filteredItems.length}</span> authentic media items
+            </div>
+          </div>
+
+          {/* Kinetic Horizontal Category Filter */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x border-b border-border/60">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all min-h-[40px] ${
+                  selectedCategory === cat.id
+                    ? "bg-brand-red-600 text-white shadow-lg shadow-brand-red-950/40"
+                    : "bg-card text-muted-foreground hover:text-foreground border border-border/80 hover:bg-card/90"
+                }`}
+              >
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Gallery Media Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => setActiveItem(item)}
+              className="group cursor-pointer bg-card/90 backdrop-blur-xl border border-border/80 rounded-3xl overflow-hidden shadow-xl hover:bg-card transition-all hover:-translate-y-1.5 flex flex-col justify-between"
+            >
+              {/* Media Thumbnail Container */}
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-950">
+                {item.mediaType === "video" ? (
+                  <div className="relative w-full h-full">
+                    <video
+                      src={item.src}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center group-hover:bg-slate-950/20 transition-colors">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-red-600/90 text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Image
+                    src={item.src}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 350px"
+                    className="object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+
+                {/* Top Badge */}
+                <div className="absolute top-3 right-3 z-10">
+                  <span className="rounded-full bg-slate-950/80 border border-white/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white backdrop-blur-md shadow-md">
+                    {item.tag}
+                  </span>
+                </div>
               </div>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.number}</div>
-              <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
+
+              {/* Media Description */}
+              <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors leading-snug">
+                    {item.title}
+                  </h3>
+                  <p className="text-muted-foreground text-[11px] font-medium leading-relaxed mt-1 line-clamp-2">
+                    {item.description}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3 h-3 text-brand-red-500" />
+                    {item.views.toLocaleString()} views
+                  </span>
+                  <span className="text-primary font-black uppercase tracking-wider group-hover:underline">
+                    View Media ↗
+                  </span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Search and Filter Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
-            {/* Search */}
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search photos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-
-            {/* Category Filter */}
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                      selectedCategory === category.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    <span className="hidden sm:inline">{category.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-500" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="views">Sort by Views</option>
-                <option value="likes">Sort by Likes</option>
-                <option value="featured">Featured First</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Featured Images */}
-        {featuredImages.length > 0 && (
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-              <Star className="w-6 h-6 text-yellow-500 mr-2" />
-              Featured Photos
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredImages.map((img) => (
-                <div key={img.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-                  <div className="relative h-64 bg-gradient-to-br from-blue-100 dark:from-blue-900/30 to-purple-100 dark:to-purple-900/30 flex items-center justify-center cursor-pointer" onClick={() => openImageModal(img.id)}>
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-white dark:text-gray-900 font-bold text-xl">📸</span>
-                      </div>
-                      <p className="text-blue-600 dark:text-blue-400 font-semibold">Featured Photo</p>
-                    </div>
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Eye className="w-8 h-8 text-white" />
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 dark:text-blue-400 font-medium capitalize">{img.category}</span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{img.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{img.description}</p>
-                    
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                        <span className="text-sm">Rillcod Technologies, Benin City</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm">{img.views}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                          <Heart className="w-4 h-4" />
-                          <span className="text-sm">{img.likes}</span>
-                        </div>
-                      </div>
-                      <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-500">
-                        <Share2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Gallery Grid */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">Photo Gallery</h2>
-          {regularImages.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
-              <Search className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No photos found</h3>
-              <p className="text-gray-600 dark:text-gray-300">Try adjusting your search terms or filters.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {regularImages.map((img) => (
-                <div key={img.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-                  <div className="relative h-48 bg-gradient-to-br from-blue-100 dark:from-blue-900/30 to-purple-100 dark:to-purple-900/30 flex items-center justify-center cursor-pointer" onClick={() => openImageModal(img.id)}>
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center mx-auto mb-2">
-                        <span className="text-white dark:text-gray-900 font-bold text-sm">📸</span>
-                      </div>
-                      <p className="text-blue-600 dark:text-blue-400 font-semibold text-sm">Photo</p>
-                    </div>
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Eye className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 dark:text-blue-400 font-medium capitalize">{img.category}</span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{img.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{img.description}</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                          <Eye className="w-3 h-3" />
-                          <span className="text-xs">{img.views}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                          <Heart className="w-3 h-3" />
-                          <span className="text-xs">{img.likes}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Empty State */}
-        {filteredImages.length === 0 && (
-          <div className="text-center py-16">
-            <Camera className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No images found
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Try selecting a different category or check back later for new content.
-            </p>
-          </div>
-        )}
-
-        {/* Image Modal */}
-        {isModalOpen && selectedImage && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        {/* Lightbox Modal */}
+        {activeItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"
+            onClick={() => setActiveItem(null)}
+          >
             <div
-              className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-              onTouchStart={(e) => {
-                touchStartY.current = e.touches[0].clientY;
-                touchDeltaY.current = 0;
-              }}
-              onTouchMove={(e) => {
-                if (touchStartY.current === null) return;
-                touchDeltaY.current = e.touches[0].clientY - touchStartY.current;
-              }}
-              onTouchEnd={() => {
-                if (touchDeltaY.current > 120) {
-                  closeModal();
-                }
-                touchStartY.current = null;
-                touchDeltaY.current = 0;
-              }}
+              className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative h-64 md:h-96">
-                <Image
-                  src={galleryData.find(img => img.id === selectedImage)?.image || ""}
-                  alt={galleryData.find(img => img.id === selectedImage)?.title || "Gallery image"}
-                  fill
-                  unoptimized
-                  sizes="(max-width: 768px) 100vw, 70vw"
-                  className="object-cover rounded-t-xl"
-                />
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80">
+                <div className="min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-brand-red-600/20 border border-brand-red-500/40 px-2.5 py-0.5 text-[10px] font-black uppercase text-brand-red-400">
+                      {activeItem.tag}
+                    </span>
+                    <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide truncate">
+                      {activeItem.title}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+                    {activeItem.description}
+                  </p>
+                </div>
+
                 <button
-                  onClick={closeModal}
-                  className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+                  type="button"
+                  onClick={() => setActiveItem(null)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors shrink-0"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-              
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  {(() => {
-                    const Icon = getCategoryIcon(galleryData.find(img => img.id === selectedImage)?.category || 'all')
-                    return <Icon className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-2" />
-                  })()}
-                  <span className="text-blue-600 dark:text-blue-400 font-medium capitalize">{galleryData.find(img => img.id === selectedImage)?.category}</span>
+
+              {/* Main Media Stage */}
+              <div className="relative aspect-[16/10] sm:aspect-video bg-black flex items-center justify-center">
+                {activeItem.mediaType === "video" ? (
+                  <video
+                    src={activeItem.src}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={activeItem.src}
+                      alt={activeItem.title}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Lightbox Footer Actions */}
+              <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
+                  <span>{activeItem.views} views</span>
+                  <span>{activeItem.likes} likes</span>
                 </div>
-                
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  {galleryData.find(img => img.id === selectedImage)?.title}
-                </h2>
-                
-                <p className="text-gray-600 dark:text-gray-300 mb-6">
-                  {galleryData.find(img => img.id === selectedImage)?.description}
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center">
-                      <HeartIcon className="h-5 w-5 text-red-500 mr-2" />
-                      <span className="font-medium">{galleryData.find(img => img.id === selectedImage)?.likes} likes</span>
-                    </div>
-                    <div className="flex items-center">
-                      <CameraIcon className="h-5 w-5 text-blue-500 mr-2" />
-                      <span className="font-medium">{galleryData.find(img => img.id === selectedImage)?.views} views</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      <HeartIcon className="h-4 w-4 mr-2" />
-                      Like
-                    </button>
-                    <button className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                      <ShareIcon className="h-4 w-4 mr-2" />
-                      Share
-                    </button>
-                  </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`${brandContact.whatsapp}?text=${encodeURIComponent(
+                      `Hello Rillcod — I'm viewing this media "${activeItem.title}" on the Academy gallery and would like to learn more.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-950/40 transition-all"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share on WhatsApp</span>
+                  </a>
+
+                  <Link
+                    href={SCHOOL_REGISTRATION_PATH}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-red-600 hover:bg-brand-red-500 text-white text-xs font-black shadow-md shadow-brand-red-950/40 transition-all"
+                  >
+                    <span>Partner Your School</span>
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
         )}
-
-        {/* Call to Action */}
-        <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">Be Part of Our Story</h2>
-          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Join RILLCOD Academy and create your own memorable moments in technology education.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/student-registration"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <Users className="w-5 h-5 mr-2" />
-              Enroll Now
-            </Link>
-            <Link
-              href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
-            >
-              <Camera className="w-5 h-5 mr-2" />
-              Contact Us
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );
-} 
+}

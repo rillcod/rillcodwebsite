@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Users, Target, Award, Heart, Lightbulb, Shield, Globe2, BookOpen, CheckCircle2, Building2, Brain, Sparkles, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 const values = [
   {
@@ -127,8 +128,8 @@ export default function About() {
         {/* Mission, Vision, Objectives */}
         <div className="bg-card border border-border rounded-3xl p-8 sm:p-14 mb-16 shadow-xl relative overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 relative z-10">
-            <div className="space-y-3 border-l-4 border-l-primary pl-6">
-              <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest">
+            <div className="space-y-3 border-l-4 border-l-brand-red-600 pl-6">
+              <div className="flex items-center gap-2 text-brand-red-600 font-black text-xs uppercase tracking-widest">
                 <Target className="w-4 h-4" /> Our Mission
               </div>
               <h3 className="text-lg font-black text-foreground uppercase">Transform STEM Education</h3>
@@ -137,8 +138,8 @@ export default function About() {
               </p>
             </div>
             
-            <div className="space-y-3 border-l-4 border-l-blue-500 pl-6">
-              <div className="flex items-center gap-2 text-blue-500 font-black text-xs uppercase tracking-widest">
+            <div className="space-y-3 border-l-4 border-l-primary pl-6">
+              <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest">
                 <Globe2 className="w-4 h-4" /> Our Vision
               </div>
               <h3 className="text-lg font-black text-foreground uppercase">Africa’s Tech Leadership</h3>
@@ -156,6 +157,54 @@ export default function About() {
                 A seamless progression from Basic 1 to SS3 covering Scratch, Python, Web & App Development, Robotics & IoT, and Applied AI with 36+ real-world capstone projects.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Real Classroom & Facility Media Gallery */}
+        <div className="mb-16">
+          <div className="text-center mb-10">
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">On-the-Ground Evidence</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mt-1">Real Classrooms &amp; Build Labs</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[
+              {
+                src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
+                title: "Robotics Hardware Lab",
+                desc: "Classroom build session with autonomous kits",
+              },
+              {
+                src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM (1).jpeg",
+                title: "Electronics Bench",
+                desc: "Certified facilitator guiding circuit design",
+              },
+              {
+                src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
+                title: "Python Software Suite",
+                desc: "Secondary learners developing algorithms",
+              },
+              {
+                src: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.27 PM.jpeg",
+                title: "Annual STEM Exhibition",
+                desc: "Trophy and award celebrations with leadership",
+              },
+            ].map((img, i) => (
+              <div key={i} className="group relative rounded-3xl overflow-hidden border border-border/80 bg-slate-950 shadow-xl aspect-[4/3]">
+                <Image
+                  src={img.src}
+                  alt={img.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 300px"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <p className="text-xs font-black uppercase tracking-wider">{img.title}</p>
+                  <p className="text-[10px] text-slate-300 font-medium truncate">{img.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

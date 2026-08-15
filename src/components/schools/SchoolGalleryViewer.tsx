@@ -144,19 +144,19 @@ export function SchoolGalleryViewer({
   };
 
   return (
-    <div className={`space-y-4 rounded-3xl bg-slate-900/80 border border-slate-800/80 p-4 sm:p-6 shadow-xl backdrop-blur-xl ${className}`}>
+    <div className={`space-y-4 rounded-3xl bg-card border border-border p-4 sm:p-6 shadow-xl backdrop-blur-xl ${className}`}>
       {/* Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+            <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
               <span>🏛️ {schoolName} Gallery</span>
             </h3>
             <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
               {items.length} items
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Pooled classroom photos &amp; student video builds for term performance reports.
           </p>
         </div>
@@ -175,7 +175,7 @@ export function SchoolGalleryViewer({
             type="button"
             onClick={fetchGallery}
             disabled={loading}
-            className="flex items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 p-2 text-slate-300 hover:text-white transition-colors"
+            className="flex items-center gap-1 rounded-xl bg-muted hover:bg-muted/80 p-2 text-foreground/80 hover:text-foreground transition-colors"
             title="Refresh Gallery"
           >
             <ArrowPathIcon className={`h-4 w-4 ${loading ? "animate-spin text-emerald-400" : ""}`} />
@@ -194,8 +194,8 @@ export function SchoolGalleryViewer({
               onClick={() => setSelectedCategory(cat.key)}
               className={`shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
                 active
-                  ? "bg-emerald-500 text-slate-950 font-black shadow-md"
-                  : "bg-slate-800/70 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  ? "bg-emerald-500 text-primary-foreground font-black shadow-md"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               <span>{cat.icon}</span>
@@ -207,21 +207,21 @@ export function SchoolGalleryViewer({
 
       {/* Media Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center text-xs text-slate-400">
+        <div className="flex flex-col items-center justify-center py-16 text-center text-xs text-muted-foreground">
           <ArrowPathIcon className="h-7 w-7 animate-spin text-emerald-400 mb-2" />
           <span>Loading school gallery vault...</span>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-slate-800 py-14 px-4 text-center text-xs text-slate-400">
-          <PhotoIcon className="mx-auto h-10 w-10 text-slate-600 mb-2" />
-          <p className="font-bold text-white text-sm">No media recorded yet for this category</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+        <div className="rounded-2xl border-2 border-dashed border-border py-14 px-4 text-center text-xs text-muted-foreground">
+          <PhotoIcon className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+          <p className="font-bold text-foreground text-sm">No media recorded yet for this category</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
             Facilitators upload snapshots during regular sessions to populate this school&apos;s term report.
           </p>
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-white transition-all"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-muted hover:bg-muted/80 px-4 py-2 text-xs font-bold text-foreground transition-all"
           >
             <PlusIcon className="h-3.5 w-3.5 text-emerald-400" />
             <span>Upload First Media Item</span>
@@ -236,14 +236,14 @@ export function SchoolGalleryViewer({
               <div
                 key={item.id}
                 onClick={() => handleOpenMedia(item)}
-                className="group relative aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 transition-all hover:border-emerald-500/80 hover:shadow-xl hover:shadow-emerald-950/20 cursor-pointer"
+                className="group relative aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-muted/40 transition-all hover:border-emerald-500/80 hover:shadow-xl hover:shadow-emerald-950/20 cursor-pointer"
               >
                 {isVideo ? (
-                  <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center bg-slate-950 group-hover:bg-slate-900 transition-colors">
+                  <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center bg-muted/40 group-hover:bg-card transition-colors">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600/30 text-violet-300 group-hover:scale-110 transition-transform mb-1.5">
                       <VideoCameraIcon className="h-5 w-5" />
                     </div>
-                    <span className="text-[11px] font-bold text-white line-clamp-2 leading-tight px-1">
+                    <span className="text-[11px] font-bold text-foreground line-clamp-2 leading-tight px-1">
                       {item.title}
                     </span>
                     <span className="mt-1.5 rounded-md bg-violet-600/20 px-2 py-0.5 text-[9px] font-bold text-violet-300">
@@ -265,7 +265,7 @@ export function SchoolGalleryViewer({
                     {item.category}
                   </span>
                   {item.is_capstone_demo && (
-                    <span className="rounded-lg bg-amber-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-950 flex items-center gap-0.5 shadow-sm">
+                    <span className="rounded-lg bg-amber-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-primary-foreground flex items-center gap-0.5 shadow-sm">
                       <QrCodeIcon className="h-2.5 w-2.5" />
                       QR Capstone
                     </span>
@@ -285,11 +285,11 @@ export function SchoolGalleryViewer({
       {/* Media Detail & QR Lightbox Modal */}
       {activeMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
-          <div className="w-full max-w-xl rounded-3xl bg-slate-900 border border-slate-700/80 p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="w-full max-w-xl rounded-3xl bg-card border border-border p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="min-w-0 pr-2">
-                <h4 className="text-sm sm:text-base font-black text-white truncate">{activeMedia.title}</h4>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h4 className="text-sm sm:text-base font-black text-foreground truncate">{activeMedia.title}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Category: <span className="text-emerald-400 capitalize font-bold">{activeMedia.category}</span>
                   {activeMedia.uploaded_by && ` · Uploaded by ${activeMedia.uploaded_by}`}
                 </p>
@@ -297,7 +297,7 @@ export function SchoolGalleryViewer({
               <button
                 type="button"
                 onClick={() => setActiveMedia(null)}
-                className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition-colors shrink-0"
+                className="rounded-xl bg-muted p-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -323,19 +323,19 @@ export function SchoolGalleryViewer({
             </div>
 
             {/* QR Code Bar (For Scan-to-Watch verification) */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5">
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/40 border border-border p-3.5">
               <div className="flex items-center gap-3">
                 {activeQrUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={activeQrUrl} alt="Scan QR" className="h-14 w-14 rounded-lg bg-white p-1 shrink-0" />
                 ) : (
-                  <div className="h-14 w-14 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
-                    <QrCodeIcon className="h-7 w-7 text-slate-500" />
+                  <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <QrCodeIcon className="h-7 w-7 text-muted-foreground" />
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-bold text-white">Scan-to-Watch Capstone QR</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-xs font-bold text-foreground">Scan-to-Watch Capstone QR</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     Scan with phone camera to test live mobile video playback.
                   </p>
                 </div>
@@ -357,9 +357,9 @@ export function SchoolGalleryViewer({
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-700/80 p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h4 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+          <div className="w-full max-w-lg rounded-3xl bg-card border border-border p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h4 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
                 <ArrowUpTrayIcon className="h-5 w-5 text-emerald-400" />
                 <span>Upload to {schoolName} Gallery</span>
               </h4>
@@ -370,7 +370,7 @@ export function SchoolGalleryViewer({
                   setUploadFile(null);
                   setUploadPreview(null);
                 }}
-                className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition-colors"
+                className="rounded-xl bg-muted p-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -386,7 +386,7 @@ export function SchoolGalleryViewer({
                 {/* File Dropzone / Camera Trigger */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border-2 border-dashed border-slate-700 hover:border-emerald-500/80 p-5 text-center cursor-pointer transition-colors bg-slate-950/60"
+                  className="rounded-2xl border-2 border-dashed border-border hover:border-emerald-500/80 p-5 text-center cursor-pointer transition-colors bg-muted/30"
                 >
                   <input
                     ref={fileInputRef}
@@ -408,22 +408,22 @@ export function SchoolGalleryViewer({
                         <img src={uploadPreview} alt="Preview" className="h-24 max-w-full rounded-xl object-contain" />
                       )}
                       <span className="text-xs font-bold text-emerald-400">✓ {uploadFile?.name}</span>
-                      <span className="text-[10px] text-slate-400">Click to change file</span>
+                      <span className="text-[10px] text-muted-foreground">Click to change file</span>
                     </div>
                   ) : (
                     <div className="space-y-1.5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto">
                         <PhotoIcon className="h-5 w-5" />
                       </div>
-                      <p className="text-xs font-bold text-white">Snap a Photo or Select Clip</p>
-                      <p className="text-[10px] text-slate-400">JPEG, PNG, WebP, MP4, WebM, MOV (Max 60MB)</p>
+                      <p className="text-xs font-bold text-foreground">Snap a Photo or Select Clip</p>
+                      <p className="text-[10px] text-muted-foreground">JPEG, PNG, WebP, MP4, WebM, MOV (Max 60MB)</p>
                     </div>
                   )}
                 </div>
 
                 {/* Title & Caption */}
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                     Title / Caption
                   </label>
                   <input
@@ -432,13 +432,13 @@ export function SchoolGalleryViewer({
                     value={uploadTitle}
                     onChange={(e) => setUploadTitle(e.target.value)}
                     placeholder="e.g. Basic 5 Arduino Obstacle Bot Demo"
-                    className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
                 {/* Category Selection */}
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Category
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -458,8 +458,8 @@ export function SchoolGalleryViewer({
                         }}
                         className={`rounded-xl px-2.5 py-2 text-xs font-bold transition-all text-left flex items-center gap-1.5 ${
                           uploadCategory === cat.key
-                            ? "bg-emerald-500 text-slate-950 font-black"
-                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                            ? "bg-emerald-500 text-primary-foreground font-black"
+                            : "bg-muted text-foreground/80 hover:bg-muted/80"
                         }`}
                       >
                         <span>{cat.label}</span>
@@ -474,21 +474,21 @@ export function SchoolGalleryViewer({
                     type="checkbox"
                     checked={isCapstone}
                     onChange={(e) => setIsCapstone(e.target.checked)}
-                    className="rounded border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4"
+                    className="rounded border-border text-emerald-500 focus:ring-0 h-4 w-4"
                   />
                   <div>
-                    <span className="text-xs font-bold text-white">Mark as Capstone Demo Video</span>
-                    <p className="text-[10px] text-slate-400">Generates Scan-to-Watch QR code on school term reports.</p>
+                    <span className="text-xs font-bold text-foreground">Mark as Capstone Demo Video</span>
+                    <p className="text-[10px] text-muted-foreground">Generates Scan-to-Watch QR code on school term reports.</p>
                   </div>
                 </label>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                   <button
                     type="button"
                     onClick={() => setShowUploadModal(false)}
                     disabled={isUploading}
-                    className="rounded-xl px-3 py-2 text-xs font-bold text-slate-400 hover:text-white"
+                    className="rounded-xl px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground"
                   >
                     Cancel
                   </button>

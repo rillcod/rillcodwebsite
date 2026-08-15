@@ -20,79 +20,80 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
 }
 
 const inputCls = (hasIcon = true) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all`;
+    `w-full ${hasIcon ? 'pl-12' : 'pl-4'} pr-4 py-3.5 bg-background border border-border rounded-2xl text-xs sm:text-sm font-bold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand-red-500 focus:ring-2 focus:ring-brand-red-500/20 transition-all shadow-sm`;
 
 const selectCls = (hasIcon = false) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer`;
+    `w-full ${hasIcon ? 'pl-12' : 'pl-4'} pr-10 py-3.5 bg-background border border-border rounded-2xl text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:border-brand-red-500 focus:ring-2 focus:ring-brand-red-500/20 transition-all appearance-none cursor-pointer shadow-sm`;
 
 function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-2xl bg-card border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-primary">
-                <div className="p-8 sm:p-12 max-h-[85vh] overflow-y-auto custom-scrollbar">
-                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-border">
-                        <div className="w-12 h-12 bg-primary/10 border border-primary/20 flex items-center justify-center">
-                            <Scale className="w-6 h-6 text-primary" />
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+            <div className="relative w-full max-w-2xl bg-card border border-border/80 shadow-2xl rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-4 border-t-brand-red-600">
+                <div className="p-6 sm:p-10 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                    <div className="flex items-center gap-4 mb-8 pb-4 border-b border-border/80">
+                        <div className="w-12 h-12 rounded-2xl bg-brand-red-600/10 border border-brand-red-500/20 flex items-center justify-center text-brand-red-500">
+                            <Scale className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Partnership Terms</h2>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Legal Framework v2.0</p>
+                            <h2 className="text-xl sm:text-2xl font-black text-foreground uppercase tracking-tight">Partnership Terms</h2>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Turnkey Legal Framework v2.0</p>
                         </div>
                     </div>
 
-                    <div className="space-y-10 text-muted-foreground text-sm leading-relaxed">
-                        <section className="space-y-4">
-                            <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-primary">01.</span> Revenue Share
+                    <div className="space-y-8 text-muted-foreground text-xs sm:text-sm leading-relaxed">
+                        <section className="space-y-3">
+                            <h3 className="text-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                                <span className="text-brand-red-500">01.</span> Revenue Share
                             </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                                <div className="p-6 bg-background border border-border">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-primary mb-1">Rillcod Technologies</p>
-                                    <p className="text-3xl font-black text-foreground">70%</p>
-                                    <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase">Curriculum & Infrastructure</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                <div className="p-5 bg-background border border-border rounded-2xl">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-brand-red-500 mb-1">Rillcod Technologies</p>
+                                    <p className="text-2xl sm:text-3xl font-black text-foreground">70%</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">Facilitators, Hardware & LMS</p>
                                 </div>
-                                <div className="p-6 bg-background border border-border">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-blue-400 mb-1">Partner School</p>
-                                    <p className="text-3xl font-black text-foreground">30%</p>
-                                    <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase">Facility Management</p>
+                                <div className="p-5 bg-background border border-border rounded-2xl">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-500 mb-1">Partner School</p>
+                                    <p className="text-2xl sm:text-3xl font-black text-foreground">30%</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">Direct School Profit Share</p>
                                 </div>
                             </div>
                         </section>
 
-                        <section className="space-y-4">
-                            <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-primary">02.</span> Core Obligations
+                        <section className="space-y-3">
+                            <h3 className="text-foreground font-black uppercase tracking-wider flex items-center gap-2">
+                                <span className="text-brand-red-500">02.</span> Core Obligations
                             </h3>
-                            <div className="space-y-4">
-                                <div className="p-6 bg-background border border-border border-l-4 border-l-primary">
-                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-4">Rillcod Provides:</p>
-                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                        <li className="flex items-center gap-2">✓ Proprietary STEM Curriculum</li>
-                                        <li className="flex items-center gap-2">✓ Portal & LMS Access</li>
-                                        <li className="flex items-center gap-2">✓ Teacher Training & Certification</li>
+                            <div className="space-y-3">
+                                <div className="p-5 bg-background border border-border rounded-2xl border-l-4 border-l-brand-red-600">
+                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-2">Rillcod Provides:</p>
+                                    <ul className="space-y-1.5 text-xs font-bold text-muted-foreground">
+                                        <li className="flex items-center gap-2">✓ Dedicated certified facilitators deployed to school</li>
+                                        <li className="flex items-center gap-2">✓ Full robotics equipment kits (₦0 CapEx from school)</li>
+                                        <li className="flex items-center gap-2">✓ 12-Year progressive STEM curriculum (Grade 1 – 12)</li>
+                                        <li className="flex items-center gap-2">✓ Automated termly progress reports with video QR codes</li>
                                     </ul>
                                 </div>
-                                <div className="p-6 bg-background border border-border border-l-4 border-l-blue-500">
-                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-4">School Provides:</p>
-                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                        <li className="flex items-center gap-2">✓ Computer Labs or Devices</li>
-                                        <li className="flex items-center gap-2">✓ Student Enrolment Records</li>
-                                        <li className="flex items-center gap-2">✓ Programme Promotion</li>
+                                <div className="p-5 bg-background border border-border rounded-2xl border-l-4 border-l-emerald-500">
+                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-2">School Provides:</p>
+                                    <ul className="space-y-1.5 text-xs font-bold text-muted-foreground">
+                                        <li className="flex items-center gap-2">✓ Classrooms or Computer Laboratory space</li>
+                                        <li className="flex items-center gap-2">✓ Timetable allocation for STEM sessions</li>
+                                        <li className="flex items-center gap-2">✓ Student enrolment &amp; fee collection</li>
                                     </ul>
                                 </div>
                             </div>
                         </section>
 
-                        <section className="space-y-4 pt-6 border-t border-border">
+                        <section className="pt-4 border-t border-border/80">
                             <p className="italic text-xs">All intellectual property and curriculum materials remain the exclusive property of Rillcod Technologies and may only be used by authorised partner institutions.</p>
                         </section>
                     </div>
 
                     <button
                         onClick={onClose}
-                        className="w-full mt-10 py-5 bg-primary hover:bg-primary text-white font-black transition-all uppercase tracking-[0.4em] text-xs shadow-xl shadow-primary/20"
+                        className="w-full mt-8 py-4 bg-brand-red-600 hover:bg-brand-red-500 text-white font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs shadow-xl shadow-brand-red-950/40 cursor-pointer min-h-[48px]"
                     >
                         I Understand — Close
                     </button>
@@ -158,58 +159,58 @@ export function SchoolRegistration() {
     };
 
     if (submitted) return (
-        <div className="bg-card border border-border p-12 text-center shadow-2xl border-t-4 border-t-emerald-500">
-            <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8">
-                <Check className="w-10 h-10 text-emerald-500" />
+        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 sm:p-12 text-center shadow-2xl border-t-4 border-t-emerald-500">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Check className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-500" />
             </div>
-            <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">Application Submitted</h2>
-            <p className="text-muted-foreground font-medium mb-8">
-                Your application for <strong className="text-foreground">{form.schoolName}</strong> has been received. Our team will review and contact you within 48 hours.
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mb-3">Application Submitted</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-8 max-w-lg mx-auto">
+                Your partnership application for <strong className="text-foreground">{form.schoolName}</strong> has been received. Our advisory team will review and issue your formal proposal within 48 hours.
             </p>
             <button onClick={() => setSubmitted(false)}
-                className="px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-primary transition-all">
+                className="px-8 py-4 bg-brand-red-600 hover:bg-brand-red-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-brand-red-950/40 min-h-[48px]">
                 Submit Another Application
             </button>
         </div>
     );
 
     return (
-        <div className="w-full relative py-4 sm:py-12">
+        <div className="w-full relative py-4 sm:py-8 font-sans">
             <PartnershipTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
 
             {/* Header */}
-            <div className="text-center mb-12 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 sm:p-14 shadow-xl relative overflow-hidden">
+            <div className="text-center mb-8 sm:mb-12 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-12 shadow-xl relative overflow-hidden">
                 <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
                 <div className="relative z-10">
-                    <span className="inline-block px-4 py-1.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
+                    <span className="inline-block px-4 py-1.5 bg-brand-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm mb-4">
                         School Partnership Program
                     </span>
-                    <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
+                    <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground leading-tight tracking-tight uppercase mb-4">
                         REGISTER <br />
-                        <span className="text-foreground/40 italic">SCHOOL.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red-600 to-primary">YOUR SCHOOL.</span>
                     </h1>
-                    <p className="text-base sm:text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-brand-red-600 pl-6 mt-6">
-                        Join our network of partner schools delivering world-class STEM education to students across West Africa.
+                    <p className="text-xs sm:text-sm text-muted-foreground font-medium max-w-lg mx-auto border-l-2 border-brand-red-600 pl-4 sm:pl-6 text-left">
+                        Join our network of partner schools delivering turnkey robotics, AI, and coding with zero equipment CapEx and 30% direct revenue share.
                     </p>
                 </div>
             </div>
 
             {/* Application Status Check */}
-            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl border-l-4 border-l-brand-red-600 p-6 sm:p-8 mb-8 shadow-xl">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl border-l-4 border-l-brand-red-600 p-5 sm:p-8 mb-8 shadow-xl">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-foreground flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-primary" /> Application Status Tracker
+                        <h4 className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-brand-red-500" /> Application Status Tracker
                         </h4>
-                        <p className="text-xs text-muted-foreground font-medium mt-1">Enter your school email to check your application.</p>
+                        <p className="text-xs text-muted-foreground font-medium mt-1">Enter your school email to check the status of your application.</p>
                     </div>
-                    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+                    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2.5">
                         <div className="relative">
-                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             <input
                                 type="email" value={statusEmail} onChange={(e) => setStatusEmail(e.target.value)}
                                 placeholder="admin@yourschool.edu.ng"
-                                className="bg-background border border-border rounded-xl pl-12 pr-5 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-all w-full sm:w-64"
+                                className="bg-background border border-border rounded-2xl pl-11 pr-4 py-2.5 text-xs sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand-red-500 transition-all w-full sm:w-64"
                             />
                         </div>
                         <button
@@ -225,24 +226,24 @@ export function SchoolRegistration() {
                                 } catch (e: any) { setStatusError(e.message ?? 'No application found.'); }
                                 finally { setStatusLoading(false); }
                             }}
-                            className="px-6 py-3 bg-primary hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-md shadow-primary/30"
+                            className="px-5 py-2.5 bg-brand-red-600 hover:bg-brand-red-500 text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all disabled:opacity-50 shadow-md shadow-brand-red-950/40 min-h-[42px]"
                         >
                             {statusLoading ? 'Checking...' : 'Check Status'}
                         </button>
                     </div>
                 </div>
                 {statusError && (
-                    <p className="mt-4 text-rose-400 text-xs font-bold bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl text-center">{statusError}</p>
+                    <p className="mt-4 text-rose-400 text-xs font-bold bg-rose-500/10 border border-rose-500/20 p-3 rounded-2xl text-center">{statusError}</p>
                 )}
                 {statusResult && (
-                    <div className="mt-5 p-4 bg-muted/30 border border-border rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
+                    <div className="mt-4 p-4 bg-muted/40 border border-border rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in duration-300">
                         <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : statusResult.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                            <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-full border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : statusResult.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                 {statusResult.status === 'approved' ? 'Approved' : statusResult.status === 'rejected' ? 'Rejected' : 'Pending Review'}
                             </span>
-                            <p className="text-sm font-bold text-foreground">{statusResult.name}</p>
+                            <p className="text-xs sm:text-sm font-bold text-foreground">{statusResult.name}</p>
                         </div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                             Applied: {statusResult.created_at ? new Date(statusResult.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                         </p>
                     </div>
@@ -250,105 +251,104 @@ export function SchoolRegistration() {
             </div>
 
             {/* Registration Form */}
-            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-8 md:p-12 shadow-2xl border-t-4 border-t-brand-red-600">
-                <form onSubmit={handleSubmit} className="space-y-12">
+            <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-10 shadow-2xl border-t-4 border-t-brand-red-600">
+                <form onSubmit={handleSubmit} className="space-y-10">
 
-                    <section className="space-y-8">
-                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">01 — School Information</h3>
+                    <section className="space-y-6">
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pb-3 border-b border-border/80">01 — School Information</h3>
                         <Field label="Legal School Name *" icon={Building2}>
-                            <input type="text" name="schoolName" value={form.schoolName} onChange={set} required placeholder="As registered with CAC" className={inputCls()} />
+                            <input type="text" name="schoolName" value={form.schoolName} onChange={set} required placeholder="As registered with CAC / Ministry of Education" className={inputCls()} />
                         </Field>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <Field label="School Type *">
                                 <select name="schoolType" value={form.schoolType} onChange={set} required className={selectCls()}>
                                     <option value="">Select Type</option>
-                                    <option value="Primary">Primary School</option>
-                                    <option value="Secondary">Secondary School</option>
-                                    <option value="Both">Primary & Secondary (K-12)</option>
+                                    <option value="Primary">Primary School (Basic 1 – 6)</option>
+                                    <option value="Secondary">Secondary School (JSS 1 – SS 3)</option>
+                                    <option value="Both">Primary &amp; Secondary (K-12 Full)</option>
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
-                            <Field label="Principal / Head Teacher *" icon={User}>
-                                <input type="text" name="principalName" value={form.principalName} onChange={set} required placeholder="Full name" className={inputCls()} />
+                            <Field label="Principal / Head of School *" icon={User}>
+                                <input type="text" name="principalName" value={form.principalName} onChange={set} required placeholder="Full name of leadership" className={inputCls()} />
                             </Field>
                         </div>
 
                         <Field label="School Address *" icon={MapPin}>
-                            <input type="text" name="schoolAddress" value={form.schoolAddress} onChange={set} required placeholder="Street address" className={inputCls()} />
+                            <input type="text" name="schoolAddress" value={form.schoolAddress} onChange={set} required placeholder="Physical campus address" className={inputCls()} />
                         </Field>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <Field label="LGA *">
                                 <input type="text" name="lga" value={form.lga} onChange={set} required placeholder="Local Government Area" className={inputCls(false)} />
                             </Field>
                             <Field label="City">
-                                <input type="text" name="city" value={form.city} onChange={set} placeholder="City" className={inputCls(false)} />
+                                <input type="text" name="city" value={form.city} onChange={set} placeholder="City / Town" className={inputCls(false)} />
                             </Field>
                             <Field label="State *">
                                 <select name="state" value={form.state} onChange={set} required className={selectCls()}>
                                     <option value="">Select State</option>
                                     {STATES.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
                         </div>
                     </section>
 
-                    <section className="space-y-8 pt-8 border-t border-border">
-                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">02 — Contact Details</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <section className="space-y-6 pt-6 border-t border-border/80">
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pb-3 border-b border-border/80">02 — Contact Details</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <Field label="Phone Number *" icon={Phone}>
                                 <input type="tel" name="schoolPhone" value={form.schoolPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
                             </Field>
-                            <Field label="Official Email Address *" icon={Mail}>
+                            <Field label="Official School Email *" icon={Mail}>
                                 <input type="email" name="schoolEmail" value={form.schoolEmail} onChange={set} required placeholder="admin@yourschool.edu.ng" className={inputCls()} />
                             </Field>
                         </div>
                     </section>
 
-                    <section className="space-y-8 pt-8 border-t border-border">
-                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">03 — Capacity & Programme</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <Field label="Total Student Population *" icon={Users}>
-                                <input type="number" name="studentCount" value={form.studentCount} onChange={set} required placeholder="Estimated number of students" className={inputCls()} />
+                    <section className="space-y-6 pt-6 border-t border-border/80">
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pb-3 border-b border-border/80">03 — Capacity &amp; Programme</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <Field label="Estimated Student Population *" icon={Users}>
+                                <input type="number" name="studentCount" value={form.studentCount} onChange={set} required placeholder="e.g. 250" className={inputCls()} />
                             </Field>
-                            <Field label="Programme Interest *" icon={Layers}>
+                            <Field label="Programme Focus *" icon={Layers}>
                                 <select name="programInterest" value={form.programInterest} onChange={set} required className={selectCls(true)}>
-                                    <option value="">Select Programme</option>
-                                    <option value="Coding Fundamentals">Coding Fundamentals</option>
-                                    <option value="Web Development">Web Development</option>
-                                    <option value="Robotics Programming">Robotics & IoT</option>
-                                    <option value="All Programmes">All Programmes</option>
+                                    <option value="">Select Focus</option>
+                                    <option value="All Programmes">Turnkey STEM Ecosystem (Coding, Robotics &amp; AI)</option>
+                                    <option value="Robotics Programming">Robotics &amp; Physical Hardware</option>
+                                    <option value="Coding Fundamentals">Software &amp; Python Coding</option>
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
                         </div>
                     </section>
 
-                    <div className="space-y-5 pt-4">
-                        <div className="flex items-start gap-4 p-5 bg-muted/20 border border-border">
-                            <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
-                            <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
-                                I confirm all information for <span className="text-foreground font-black">{form.schoolName || 'this school'}</span> is accurate. I agree to the{' '}
-                                <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-primary underline cursor-pointer font-black">Partnership Terms</span>.
+                    <div className="space-y-4 pt-4">
+                        <div className="flex items-start gap-3.5 p-4 bg-muted/40 border border-border/80 rounded-2xl">
+                            <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-4 h-4 rounded text-brand-red-600 focus:ring-0 cursor-pointer shrink-0" />
+                            <label htmlFor="terms" className="text-xs font-semibold text-muted-foreground leading-relaxed cursor-pointer">
+                                I confirm information for <span className="text-foreground font-black">{form.schoolName || 'this institution'}</span> is accurate. I agree to the{' '}
+                                <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-brand-red-500 underline cursor-pointer font-bold">Partnership Terms (70/30 Model)</span>.
                             </label>
                         </div>
 
                         {err && (
-                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-rose-400 text-sm font-medium text-center">{err}</div>
+                            <div className="bg-rose-500/10 border border-rose-500/20 p-3.5 text-rose-400 text-xs font-bold rounded-2xl text-center">{err}</div>
                         )}
 
-                        <div className="flex flex-col gap-4 sm:flex-row">
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
                             <button type="button" onClick={() => { window.location.href = isNativeApp ? '/login' : '/'; }}
-                                className="flex-1 py-6 bg-muted border border-border text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-widest transition-all">
+                                className="w-full sm:w-auto px-6 py-3.5 bg-card border border-border text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-2xl transition-all min-h-[48px]">
                                 Cancel
                             </button>
                             <button type="submit" disabled={loading}
-                                className="flex-[2] flex items-center justify-center gap-4 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50">
+                                className="w-full sm:flex-1 flex items-center justify-center gap-2 px-8 py-3.5 bg-brand-red-600 hover:bg-brand-red-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-brand-red-950/40 disabled:opacity-50 min-h-[48px] cursor-pointer">
                                 {loading
-                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
-                                    : <><ArrowRight className="w-5 h-5" /> Submit Partnership Application</>}
+                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting Application...</>
+                                    : <><ArrowRight className="w-4 h-4" /> Submit Partnership Application</>}
                             </button>
                         </div>
                     </div>
@@ -356,15 +356,15 @@ export function SchoolRegistration() {
             </div>
 
             {/* Trust badges */}
-            <div className="flex flex-wrap items-center justify-center gap-8 mt-12 opacity-40">
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
-                    <ShieldCheck className="w-3 h-3 text-primary" /> SSL Secured
+            <div className="flex flex-wrap items-center justify-center gap-6 mt-8 opacity-60 text-xs">
+                <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-muted-foreground">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> SSL 256-Bit Encrypted
                 </div>
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
-                    <Globe className="w-3 h-3 text-blue-500" /> West Africa Network
+                <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-muted-foreground">
+                    <Globe className="w-4 h-4 text-primary" /> West Africa Network
                 </div>
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
-                    <Users className="w-3 h-3 text-emerald-500" /> 50+ Partner Schools
+                <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-muted-foreground">
+                    <Users className="w-4 h-4 text-brand-red-500" /> 25+ Accredited Partner Schools
                 </div>
             </div>
         </div>
