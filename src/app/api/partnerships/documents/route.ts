@@ -22,42 +22,10 @@ import {
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
 import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
+// The split rule lives in one module; this route does not restate it.
+import { ImpermissibleSplitError, normaliseSchoolSharePercent } from '@/lib/partnerships/split';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * The school's share of a proposed split, held to the same rule the database
- * enforces on an agreed one.
- *
- * `partnership_terms` carries `rillcod_share_percent >= 50` as a CHECK, so no
- * signed agreement can ever put Rillcod in the minority. A proposal's projection
- * had no such guard: the picker offers 20–50%, but the API took whatever number
- * arrived, so a crafted request could print "Your 90% share" on a document a
- * school then holds us to — and unlike the agreed terms, nothing downstream
- * would have caught it, because this figure is printed rather than stored.
- *
- * Out of range is refused rather than clamped. Silently turning a requested 90
- * into 50 would send a document nobody asked for.
- */
-function normaliseProposedSchoolShare(raw: unknown): number | null {
-  if (raw == null || raw === '') return null;
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return null;
-  if (value < 0 || value > 50) {
-    throw new ProposedShareOutOfRangeError(value);
-  }
-  return value;
-}
-
-class ProposedShareOutOfRangeError extends Error {
-  constructor(public readonly value: number) {
-    super(
-      `A proposed school share of ${value}% is not permitted. ` +
-        'Rillcod may not take the minority of any partnership, so the school share must be 50% or less.',
-    );
-    this.name = 'ProposedShareOutOfRangeError';
-  }
-}
 
 async function requireActor(write: boolean) {
   const supabase = await createServerClient();
@@ -156,7 +124,7 @@ export async function POST(req: NextRequest) {
         body.validity_days == null || body.validity_days === ''
           ? null
           : Number(body.validity_days),
-      proposedSchoolSharePercent: normaliseProposedSchoolShare(body.proposed_school_share_percent),
+      proposedSchoolSharePercent: normaliseSchoolSharePercent(body.proposed_school_share_percent),
       // Studio settings ride with the request so a preview and the issue that
       // follows it describe the same document.
       studio: body.studio ? normaliseStudioConfig(body.studio) : null,
@@ -213,7 +181,7 @@ export async function POST(req: NextRequest) {
     }
     // A split that would put Rillcod in the minority is a bad request, not a
     // server fault — and it is worth saying why rather than returning a 500.
-    if (error instanceof ProposedShareOutOfRangeError) {
+    if (error instanceof ImpermissibleSplitError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json(

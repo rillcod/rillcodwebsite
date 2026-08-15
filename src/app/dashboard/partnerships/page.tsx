@@ -744,7 +744,7 @@ export default function PartnershipsPage() {
               {activeTab === "studio" && (
                 <div className="space-y-4">
                   {canWrite ? (
-                    <ProposalStudio config={studio} onChange={setStudio} />
+                    <ProposalStudio config={studio} onChange={setStudio} school={selected} />
                   ) : (
                     <p className="text-xs text-muted-foreground p-6 bg-card border border-border rounded-2xl">
                       Read-only mode. Studio configurations are managed by administrators.

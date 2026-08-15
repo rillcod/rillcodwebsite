@@ -25,6 +25,7 @@ import {
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel } from "@/lib/partnerships/offers";
 import { describeTerms } from "@/lib/partnerships/terms";
+import { OFFERABLE_SCHOOL_SHARES, STANDARD_SCHOOL_SHARE_PERCENT } from "@/lib/partnerships/split";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
 import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
@@ -59,7 +60,7 @@ export function PartnershipDocumentComposer({
   const [useAI, setUseAI] = useState(false);
   const [validityDays, setValidityDays] = useState("90");
   const [notes, setNotes] = useState("");
-  const [proposedSchoolShare, setProposedSchoolShare] = useState("30");
+  const [proposedSchoolShare, setProposedSchoolShare] = useState(String(STANDARD_SCHOOL_SHARE_PERCENT));
   const [commencementTermId, setCommencementTermId] = useState("");
   const [commencement, setCommencement] = useState("");
   const [durationLabel, setDurationLabel] = useState("");
@@ -77,7 +78,11 @@ export function PartnershipDocumentComposer({
     setStage("both");
     setUseAI(false);
     setValidityDays("90");
-    setProposedSchoolShare(agreed?.school_share_percent ? String(agreed.school_share_percent) : "30");
+    setProposedSchoolShare(
+      agreed?.school_share_percent
+        ? String(agreed.school_share_percent)
+        : String(STANDARD_SCHOOL_SHARE_PERCENT),
+    );
     setNotes("");
     setCommencementTermId("");
     setCommencement("");
@@ -287,14 +292,9 @@ export function PartnershipDocumentComposer({
               Quoted in the financial projections table. Nigerian schools can be offered standard 30%, or negotiated up to 40%/50% or down to 20%/25%.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
-              {[
-                { school: 30, rillcod: 70, label: "30% (70/30 Standard)" },
-                { school: 40, rillcod: 60, label: "40% (60/40 High Retain)" },
-                { school: 35, rillcod: 65, label: "35% (65/35 Balanced)" },
-                { school: 50, rillcod: 50, label: "50% (50/50 Joint Venture)" },
-                { school: 25, rillcod: 75, label: "25% (75/25 Tech Plus)" },
-                { school: 20, rillcod: 80, label: "20% (80/20 Managed)" },
-              ].map((p) => {
+              {/* Derived from the split rule, not typed out here: a hardcoded list
+                  eventually gains an option the rule forbids. */}
+              {OFFERABLE_SCHOOL_SHARES.map((p) => {
                 const isSelected = proposedSchoolShare === String(p.school);
                 return (
                   <button

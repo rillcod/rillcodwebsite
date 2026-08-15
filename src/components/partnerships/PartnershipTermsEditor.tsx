@@ -22,6 +22,11 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@/lib/icons";
+import {
+  SPLIT_RULE_MESSAGE,
+  STANDARD_RILLCOD_SHARE_PERCENT,
+  isPermittedRillcodShare,
+} from "@/lib/partnerships/split";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { BillingModel, SchoolRow, TermsRow } from "./types";
 
@@ -30,7 +35,9 @@ const INPUT =
 const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
 /** The standard deal. Stated once, here, and only as this form's starting point. */
-const STANDARD_RILLCOD_SHARE = 70;
+// The floor, the standard and the wording all come from one module, so the
+// editor cannot drift from the database CHECK or from the proposal API.
+const STANDARD_RILLCOD_SHARE = STANDARD_RILLCOD_SHARE_PERCENT;
 
 type TierDraft = { label: string; count: string; rate: string };
 
@@ -190,7 +197,7 @@ export function PartnershipTermsEditor({
       if (!Number.isFinite(rillcodShare) || rillcodShare <= 0) return "Enter Rillcod's share.";
       // The floor is a constraint, not a preference: a fat-fingered 30/70 is the
       // inversion this whole record exists to make impossible.
-      if (rillcodShare < 50) return "Rillcod's share cannot be below 50%. Check the split is not reversed.";
+      if (!isPermittedRillcodShare(rillcodShare)) return SPLIT_RULE_MESSAGE;
       if (rillcodShare > 100) return "A share cannot exceed 100%.";
       if (!Number.isInteger(rillcodShare)) return "Use a whole percentage.";
     }
