@@ -43,14 +43,22 @@ export const Hero: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Left Column: Heading, Pitch, CTAs, Stats (7 Cols) */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-foreground leading-[1.06] tracking-tight mb-6 uppercase">
               Engineering <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red-600 via-primary to-brand-red-500">
                 Future Leaders
-              </span>
+              </span>{' '}
+              {/*
+                The space above is load-bearing. This <br> is hidden below `sm`,
+                and JSX drops the newline whitespace around it, so on a phone
+                "Future Leaders" ran straight into the next word — the headline
+                read "LeadersThrough". Desktop never showed it because the line
+                broke there anyway. At the end of a line the space collapses, so
+                the wrapped layout is unchanged.
+              */}
               <br className="hidden sm:block" />
               Through Code &amp; Robotics.
             </h1>
@@ -125,7 +133,7 @@ export const Hero: React.FC = () => {
           </div>
 
           {/* Right Column: Hero Real Media Carousel (5 Cols) */}
-          <div className="lg:col-span-5 relative order-first lg:order-last">
+          <div className="lg:col-span-5 relative order-first lg:order-last w-full lg:pt-1">
             <div className="relative w-full aspect-[4/3] sm:aspect-square max-w-[540px] mx-auto group">
               {/*
                 A "Real Build Labs · Authentic Classroom Media" badge used to float
