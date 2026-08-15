@@ -66,10 +66,10 @@ function AttendanceContent() {
   const [selectedSession, setSelectedSession] = useState<string>('');
   const [students, setStudents] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<Record<string, { status: string; notes: string }>>({});
-  
+
   // History matrix state
   const [fullAttendanceData, setFullAttendanceData] = useState<any[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -204,12 +204,12 @@ function AttendanceContent() {
         setSelectedSession('');
         setStudents([]);
         setAttendance({});
-        
+
         // If we entered via direct link, try to find/init today's session
         if (classIdFromQuery === selectedClass && sess.length === 0) {
-           quickMarkToday(sess[0]);
+          quickMarkToday(sess[0]);
         } else {
-           setLoading(false);
+          setLoading(false);
         }
       })
       .catch((error) => {
@@ -223,7 +223,7 @@ function AttendanceContent() {
   // Load attendance when session selected
   useEffect(() => {
     if (!selectedSession || !selectedClass) return;
-    
+
     async function loadAttendance() {
       setLoading(true);
       const db = createClient();
@@ -239,16 +239,16 @@ function AttendanceContent() {
         if (attRes.error) throw attRes.error;
         const studs: any[] = studsJson.students ?? [];
         setStudents(studs);
-        
+
         const attMap: Record<string, { status: string; notes: string }> = {};
         (attRes.data ?? []).forEach((a: any) => {
           attMap[a.user_id] = { status: a.status, notes: a.notes ?? '' };
         });
-        
+
         studs.forEach((s: any) => {
           if (!attMap[s.id]) attMap[s.id] = { status: 'present', notes: '' };
         });
-        
+
         setAttendance(attMap);
         setSaved(false);
       } catch (err) {
@@ -312,7 +312,7 @@ function AttendanceContent() {
       const total = sessions.length;
       const present = studentRecords.filter(r => r.status === 'present').length;
       const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-      
+
       return `
         <tr>
           <td><strong>${student.full_name}</strong><br/><small>${student.email}</small></td>
@@ -543,43 +543,43 @@ function AttendanceContent() {
     try {
       const db = createClient();
 
-    // Check if today's session already exists (read-only — OK for teachers)
-    let todaySessionQuery = db.from('class_sessions')
-      .select('*')
-      .eq('class_id', selectedClass)
-      .eq('session_date', suggestion.session_date);
-    if (selectedClassTermId) todaySessionQuery = todaySessionQuery.eq('term_id', selectedClassTermId);
-    const { data: existing, error: lookupError } = await todaySessionQuery.maybeSingle();
-    if (lookupError) {
-      throw new Error(lookupError.message || 'Today\'s session could not be prepared.');
-    }
-
-    if (existing) {
-      setSelectedSession(existing.id);
-      setPageMessage({ type: 'info', text: 'Today\'s session is ready.' });
-    } else {
-      // Create via API (bypasses RLS)
-      const res = await fetch('/api/class-sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          class_id: selectedClass,
-          term_id: selectedClassTermId,
-          session_date: suggestion.session_date,
-          topic: `Session on ${new Date().toLocaleDateString()}`,
-          start_time: suggestion.start_time,
-          end_time: suggestion.end_time,
-        }),
-      });
-      if (!res.ok) {
-        const j = await res.json();
-        throw new Error(j.error || 'Today\'s session could not be created.');
+      // Check if today's session already exists (read-only — OK for teachers)
+      let todaySessionQuery = db.from('class_sessions')
+        .select('*')
+        .eq('class_id', selectedClass)
+        .eq('session_date', suggestion.session_date);
+      if (selectedClassTermId) todaySessionQuery = todaySessionQuery.eq('term_id', selectedClassTermId);
+      const { data: existing, error: lookupError } = await todaySessionQuery.maybeSingle();
+      if (lookupError) {
+        throw new Error(lookupError.message || 'Today\'s session could not be prepared.');
       }
-      const { data: created } = await res.json();
-      setSessions(prev => sortSessionsNewestFirst([...prev, created]));
-      setSelectedSession(created.id);
-      setPageMessage({ type: 'info', text: 'Today\'s session was created with your recent class time pattern.' });
-    }
+
+      if (existing) {
+        setSelectedSession(existing.id);
+        setPageMessage({ type: 'info', text: 'Today\'s session is ready.' });
+      } else {
+        // Create via API (bypasses RLS)
+        const res = await fetch('/api/class-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            class_id: selectedClass,
+            term_id: selectedClassTermId,
+            session_date: suggestion.session_date,
+            topic: `Session on ${new Date().toLocaleDateString()}`,
+            start_time: suggestion.start_time,
+            end_time: suggestion.end_time,
+          }),
+        });
+        if (!res.ok) {
+          const j = await res.json();
+          throw new Error(j.error || 'Today\'s session could not be created.');
+        }
+        const { data: created } = await res.json();
+        setSessions(prev => sortSessionsNewestFirst([...prev, created]));
+        setSelectedSession(created.id);
+        setPageMessage({ type: 'info', text: 'Today\'s session was created with your recent class time pattern.' });
+      }
     } catch (error) {
       setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Today\'s session could not be prepared.' });
     } finally {
@@ -635,7 +635,7 @@ function AttendanceContent() {
               return;
             }
           }
-        } catch (_) {}
+        } catch (_) { }
         scanLoopRef.current = requestAnimationFrame(tick);
       };
       scanLoopRef.current = requestAnimationFrame(tick);
@@ -792,10 +792,10 @@ function AttendanceContent() {
   const currentClassProgram = currentClass?.programs?.name ?? null;
   const currentSessionContext = currentSession
     ? [
-        currentSession.session_date ? new Date(currentSession.session_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : null,
-        currentSession.start_time && currentSession.end_time ? `${currentSession.start_time}–${currentSession.end_time}` : null,
-        currentSession.topic,
-      ].filter(Boolean).join(' · ')
+      currentSession.session_date ? new Date(currentSession.session_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : null,
+      currentSession.start_time && currentSession.end_time ? `${currentSession.start_time}–${currentSession.end_time}` : null,
+      currentSession.topic,
+    ].filter(Boolean).join(' · ')
     : '';
 
   return (
@@ -1166,54 +1166,54 @@ function AttendanceContent() {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{students.length} students</p>
                   </div>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      {isCanMark && previousSessionForDraft && (
-                        <button
-                          type="button"
-                          onClick={applyPreviousPattern}
-                          disabled={reusingPattern}
-                          title="Copy only attendance statuses into this unsaved draft; session notes are never copied"
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-700 transition-colors hover:bg-violet-500/20 disabled:opacity-50 dark:text-violet-300 sm:flex-none"
-                        >
-                          {reusingPattern ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
-                          Previous pattern
-                        </button>
-                      )}
-                      {/* Mark all buttons */}
-                      {isCanMark && ['present', 'absent'].map(s => (
-                        <button key={s} onClick={() => {
-                          const next: Record<string, { status: string; notes: string }> = {};
-                          students.forEach((st: any) => next[st.id] = { status: s, notes: attendance[st.id]?.notes ?? '' });
-                          setAttendance(next);
-                          setSaved(false);
-                        }}
-                          className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors capitalize">
-                          All {s}
-                        </button>
-                      ))}
-                      <button onClick={handlePrintSession}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-xl transition-colors">
-                        <PrinterIcon className="w-4 h-4" />
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                    {isCanMark && previousSessionForDraft && (
+                      <button
+                        type="button"
+                        onClick={applyPreviousPattern}
+                        disabled={reusingPattern}
+                        title="Copy only attendance statuses into this unsaved draft; session notes are never copied"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-700 transition-colors hover:bg-violet-500/20 disabled:opacity-50 dark:text-violet-300 sm:flex-none"
+                      >
+                        {reusingPattern ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
+                        Previous pattern
                       </button>
-                      {isCanMark && (
-                        <button onClick={handleSave} disabled={saving}
-                          className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-xl transition-colors disabled:opacity-50 sm:flex-none">
-                          {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
-                          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
-                        </button>
-                      )}
-                    </div>
+                    )}
+                    {/* Mark all buttons */}
+                    {isCanMark && ['present', 'absent'].map(s => (
+                      <button key={s} onClick={() => {
+                        const next: Record<string, { status: string; notes: string }> = {};
+                        students.forEach((st: any) => next[st.id] = { status: s, notes: attendance[st.id]?.notes ?? '' });
+                        setAttendance(next);
+                        setSaved(false);
+                      }}
+                        className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors capitalize">
+                        All {s}
+                      </button>
+                    ))}
+                    <button onClick={handlePrintSession}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-xl transition-colors">
+                      <PrinterIcon className="w-4 h-4" />
+                    </button>
+                    {isCanMark && (
+                      <button onClick={handleSave} disabled={saving}
+                        className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-xl transition-colors disabled:opacity-50 sm:flex-none">
+                        {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
+                        {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* ── Session Attendance Stats ── */}
                 {(() => {
                   const vals = Object.values(attendance);
                   const present = vals.filter((a: any) => a.status === 'present').length;
-                  const absent  = vals.filter((a: any) => a.status === 'absent').length;
-                  const late    = vals.filter((a: any) => a.status === 'late').length;
+                  const absent = vals.filter((a: any) => a.status === 'absent').length;
+                  const late = vals.filter((a: any) => a.status === 'late').length;
                   const excused = vals.filter((a: any) => a.status === 'excused').length;
-                  const total   = vals.length;
-                  const rate    = total > 0 ? Math.round((present / total) * 100) : 0;
+                  const total = vals.length;
+                  const rate = total > 0 ? Math.round((present / total) * 100) : 0;
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5 border-b border-border">
                       <div className="bg-background border border-border p-3">
@@ -1256,24 +1256,24 @@ function AttendanceContent() {
                         </div>
                         <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center lg:flex-shrink-0">
                           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                          {Object.entries(STATUS_CONFIG).map(([val, c]) => (
-                          <button key={val} onClick={() => { 
+                            {Object.entries(STATUS_CONFIG).map(([val, c]) => (
+                              <button key={val} onClick={() => {
                                 if (!isCanMark) return;
-                                setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } })); 
-                                setSaved(false); 
-                            }}
-                              disabled={!isCanMark}
-                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'} ${!isCanMark ? 'cursor-default' : ''}`}>
-                              {c.label}
-                            </button>
-                          ))}
+                                setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } }));
+                                setSaved(false);
+                              }}
+                                disabled={!isCanMark}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'} ${!isCanMark ? 'cursor-default' : ''}`}>
+                                {c.label}
+                              </button>
+                            ))}
                           </div>
                           <input type="text" value={att.notes} placeholder="Notes"
                             readOnly={!isCanMark}
-                            onChange={e => { 
-                                if (!isCanMark) return;
-                                setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); 
-                                setSaved(false); 
+                            onChange={e => {
+                              if (!isCanMark) return;
+                              setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } }));
+                              setSaved(false);
                             }}
                             className="w-full lg:w-32 px-2 py-1.5 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
@@ -1305,7 +1305,7 @@ function AttendanceContent() {
                   {currentClassTerm ? ` · ${currentClassTerm}` : ''}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={handlePrintLog}
                 disabled={!selectedClass || students.length === 0}
                 className="flex w-full items-center justify-center gap-2 px-6 py-3 bg-muted hover:bg-muted disabled:opacity-40 text-foreground text-xs font-bold rounded-xl transition-all border border-border sm:w-auto"
@@ -1333,7 +1333,7 @@ function AttendanceContent() {
                     const absenteeism = studentRecords.filter(r => r.status === 'absent').length;
                     const total = sessions.length;
                     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-                    
+
                     return (
                       <tr key={student.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 text-sm">
@@ -1350,10 +1350,10 @@ function AttendanceContent() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center gap-1.5">
-                             <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</span>
-                             <div className="w-16 h-1 bg-card shadow-sm rounded-full overflow-hidden">
-                                <div className={`h-full ${rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
-                             </div>
+                            <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</span>
+                            <div className="w-16 h-1 bg-card shadow-sm rounded-full overflow-hidden">
+                              <div className={`h-full ${rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
