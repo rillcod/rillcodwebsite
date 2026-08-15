@@ -283,6 +283,8 @@ export interface SchoolReportSnapshot {
       course: string;
       summary: string;
       nextIntro: string;
+      qrDataUrl?: string;
+      videoUrl?: string;
     }>;
     /** Suggested date for a joint Rillcod + school review. */
     suggestedPartnershipReview: string;

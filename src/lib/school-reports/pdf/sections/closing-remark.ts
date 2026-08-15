@@ -40,29 +40,29 @@ export function buildClosingRemarkSection(ctx: SchoolReportPdfContext): object[]
     },
     {
       table: {
-        widths: [190, '*'],
+        widths: ['50%', '50%'],
         body: [[
           {
             stack: [
-              { text: 'AUTHORISED SIGNATORY', style: 'metaLabel', color: brand },
+              { text: `FOR ${brandContact.displayName.toUpperCase()}`, style: 'metaLabel', color: brand },
               ...(officialSignature
-                ? [{ image: officialSignature, width: 118, height: 44, margin: [0, 5, 0, 1] as [number, number, number, number] }]
-                : [{ text: '', margin: [0, 36, 0, 0] as [number, number, number, number] }]),
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.8, lineColor: INK }] },
-              { text: reportPolicy.signatory.name, bold: true, fontSize: 9, margin: [0, 3, 0, 0] },
-              { text: reportPolicy.signatory.title, color: MUTED, fontSize: 7.5 },
+                ? [{ image: officialSignature, width: 110, height: 36, margin: [0, 4, 0, 1] as [number, number, number, number] }]
+                : [{ text: '', margin: [0, 28, 0, 0] as [number, number, number, number] }]),
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.8, lineColor: INK }] },
+              { text: reportPolicy.signatory.name, bold: true, fontSize: 8.5, margin: [0, 3, 0, 0] },
+              { text: reportPolicy.signatory.title, color: MUTED, fontSize: 7 },
             ],
+            margin: [8, 8, 8, 8],
           },
           {
             stack: [
-              { text: isPublished ? 'OFFICIALLY ISSUED' : 'DRAFT PREVIEW', style: 'metaLabel', color: isPublished ? '#067647' : brand, alignment: 'right' },
-              { text: `${snapshot.period.termLabel}  |  ${snapshot.period.academicYear}`, bold: true, fontSize: 9, alignment: 'right', margin: [0, 8, 0, 2] },
-              { text: `Generated ${generatedLabel}`, color: MUTED, fontSize: 7.5, alignment: 'right' },
-              // The authentication claim is only true of a published book.
-              ...(isPublished
-                ? [{ text: 'This signature authenticates the published report.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] as [number, number, number, number] }]
-                : []),
+              { text: `FOR ${snapshot.school.name.toUpperCase()}`, style: 'metaLabel', color: brand },
+              { text: '', margin: [0, 28, 0, 0] as [number, number, number, number] },
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.8, lineColor: INK }] },
+              { text: report.acknowledgement_name || 'Principal / Head of School', bold: true, fontSize: 8.5, margin: [0, 3, 0, 0] },
+              { text: 'Authorised Signature, Date & Official Stamp', color: MUTED, fontSize: 7 },
             ],
+            margin: [8, 8, 8, 8],
           },
         ]],
       },

@@ -57,7 +57,8 @@
     "cf:secret:fcm": "node scripts/set-cloudflare-fcm-secret.mjs",
     "test:smoke:ai": "tsx scripts/smoke-ai-paths.ts",
     "check:schema": "tsx scripts/check-schema-drift.ts",
-    "check:writes": "tsx scripts/check-write-constraints.ts"
+    "check:writes": "tsx scripts/check-write-constraints.ts",
+    "check:pages": "tsx scripts/check-page-fit.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

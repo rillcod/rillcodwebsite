@@ -7,14 +7,14 @@
  * was signed. Two of them were written in the same minute.
  *
  * Here the terms come from `partnership_terms` and nowhere else, so the fee in
- * clause 4 is the fee the invoice will charge. Unlike the proposal, terms are
+ * clause 3 is the fee the invoice will charge. Unlike the proposal, terms are
  * required: an MoU is the agreement, and there is nothing to agree without them.
  *
  * Contract, not brochure — so the curriculum appears as a compact schedule
  * rather than the proposal's year cards, and no part of it is AI-written.
  */
 import { brandContact } from '@/config/brand';
-import { SIGNATURE_ANCHOR } from '../signing';
+import { SIGNATURE_ANCHOR, escapeHtml as esc } from '../signing';
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
 import { levelsForStage, splitByStage } from '../curriculum';
@@ -47,7 +47,7 @@ export type MouInput = {
    * email has gone. Never the reference: that is sequential and public.
    */
   accessCode?: string | null;
-  /** Headcount used to illustrate clause 4. Zero hides the worked example. */
+  /** Headcount used to illustrate clause 3. Zero hides the worked example. */
   illustrativeStudents?: number;
   /**
    * Which half of the ladder this agreement covers. The schedule must describe
@@ -56,13 +56,6 @@ export type MouInput = {
    */
   stage?: CurriculumStage | null;
 };
-
-const esc = (s: unknown): string =>
-  String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 const money = (n: number, currency = 'NGN'): string =>
   `${currency === 'NGN' ? '₦' : currency + ' '}${Math.round(n).toLocaleString('en-NG')}`;
@@ -91,7 +84,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   const count = Math.max(0, Math.floor(input.illustrativeStudents ?? 0));
   const example = count > 0 ? computeCharge(terms, count) : null;
 
-  // Clause 4 states the agreed terms in the one sentence every document uses,
+  // Clause 3 states the agreed terms in the one sentence every document uses,
   // then works it through at a stated headcount so neither side is doing
   // arithmetic in their head at signing.
   const worked =
@@ -189,12 +182,12 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      the boxes, and on a page whose content was clipping by 19px it was costing
      roughly 10mm to say what the masthead above it already implies. Bigger and
      quieter at the same time. */
-  .doctitle { text-align: center; margin: 1mm 0 5mm; }
+  .doctitle { text-align: center; margin: 0 0 4mm; }
   .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
   .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
   .online {
-    text-align: center; font-size: 8.6pt; color: #64748b; margin: -2mm 0 4.5mm;
-    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 2mm;
+text-align: center; font-size: 8.4pt; color: #64748b; margin: -2mm 0 3.5mm;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 1.6mm;
   }
   .online b { color: #0f172a; letter-spacing: .04em; }
   .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
@@ -206,7 +199,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      page, which is why the parties page was clipping its own content.
      Same treatment the proposal uses: a short accent rule, then strong type. The
      clause numbers stay, because this is still a contract and both sides need to
-     be able to say "clause 4". */
+     be able to say "clause 3". */
   h2 {
     font-size: 12.4pt; color: #0f172a; margin: 0 0 3mm;
     letter-spacing: -.2px; font-weight: 800; padding-top: 2mm;
@@ -216,7 +209,10 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   /* A clause that splits across a sheet is a clause somebody can say they never
      saw — and a page clips its overflow, so a section that does not fit is not
      merely awkward, it is content that silently disappears. Nothing splits. */
-  section { margin-bottom: 4.2mm; break-inside: avoid; page-break-inside: avoid; }
+  /* 3.6mm, not 4.2mm. The parties page carries three clauses and a long school
+     name reaches into all of them, so the gaps between clauses are where the
+     room comes from rather than the clauses themselves. */
+  section { margin-bottom: 3.6mm; break-inside: avoid; page-break-inside: avoid; }
   li, tr, .sign, .sign-box, .party, .terms-line, table {
     break-inside: avoid; page-break-inside: avoid;
   }
@@ -337,15 +333,11 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       </div>
     </div>
     <p style="margin-top:3mm">This Memorandum records the understanding between the parties named above for the delivery of a structured coding, robotics and artificial intelligence programme to students of ${esc(school.name)}${location ? `, ${esc(location)}` : ''}. It sets out what each party provides, the agreed commercial terms, and the basis on which the partnership may be reviewed or ended.</p>
-  </section>
-
-  <section>
-    <h2><span class="cl">2.0</span> Purpose</h2>
     <p>The parties intend to establish practical technology education as a standing part of the school's offering — not a one-off enrichment activity — so that students progress year on year and leave with demonstrable work. The partnership positions ${esc(school.name)} as a school preparing its students for technical and entrepreneurial work, and gives parents evidence of that preparation each term.</p>
   </section>
 
   <section>
-    <h2><span class="cl">3.0</span> Commitments of the Parties</h2>
+    <h2><span class="cl">2.0</span> Commitments of the Parties</h2>
     <div class="duties">
       <div>
         <h3>${esc(brandContact.registeredName)} provides</h3>
@@ -359,14 +351,14 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         </ol>
       </div>
       <div>
-        <h3>${esc(school.name)} provides</h3>
+        <h3>The School (Party B) provides</h3>
         <ol>
           <li>A suitable classroom or laboratory for each scheduled session.</li>
           <li>A confirmed slot on the school timetable for the agreed cadence.</li>
           <li>Student registration and communication with parents.</li>
           <li>A named staff contact for scheduling and day-to-day coordination.</li>
           <li>Reasonable access to power and internet where available.</li>
-          <li>Collection and remittance of programme fees on the terms in clause 4.</li>
+          <li>Collection and remittance of programme fees on the terms in clause 3.</li>
         </ol>
       </div>
     </div>
@@ -387,7 +379,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   </div>
 
   <section>
-    <h2><span class="cl">4.0</span> Financial Framework</h2>
+    <h2><span class="cl">3.0</span> Financial Framework</h2>
     <div class="terms-line">
       <div class="lbl">Agreed terms</div>
       <div class="val">${esc(describeTerms(terms))}</div>
@@ -404,7 +396,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
        to leave are the two questions a proprietor actually has, and they were on
        different sheets while this page ran barely half full. -->
   <section>
-    <h2><span class="cl">5.0</span> Term, Review and Termination</h2>
+    <h2><span class="cl">4.0</span> Term, Review and Termination</h2>
     <ol>
       <li>This Memorandum takes effect from ${esc(input.commencement || 'the commencement of the next academic term')} and continues for ${esc(input.durationLabel || 'one academic session')}, after which it is reviewed by both parties.</li>
       <li>Either party may end this Memorandum by giving one full term's written notice, so that no cohort is interrupted mid-term.</li>
@@ -429,7 +421,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   ${
     curriculum
       ? `<section>
-    <h2><span class="cl">6.0</span> Schedule of Learning — ${esc(curriculum.title)}</h2>
+    <h2><span class="cl">5.0</span> Schedule of Learning — ${esc(curriculum.title)}</h2>
     <p class="muted">Edition ${esc(curriculum.edition)}. The programme delivered under this Memorandum follows the progression below. Each year carries three termly focuses and a capstone build.</p>
     ${
       primary.length
@@ -467,7 +459,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 
 
   <section>
-    <h2><span class="cl">7.0</span> General</h2>
+    <h2><span class="cl">6.0</span> General</h2>
     <ol>
       <li>Each party is responsible for the conduct and safeguarding compliance of its own personnel on the school's premises.</li>
       <li>Neither party may use the other's name or marks in publicity without prior written consent, which is not unreasonably withheld.</li>
@@ -477,7 +469,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   </section>
 
   <section>
-    <h2><span class="cl">8.0</span> Execution</h2>
+    <h2><span class="cl">7.0</span> Execution</h2>
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     
     <div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:2.8mm 4mm; margin-top:4mm; margin-bottom:6mm; break-inside:avoid;">

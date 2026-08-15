@@ -49,7 +49,8 @@ export const MAX_SIGNATORY_NAME = 120;
 export const MAX_SIGNATORY_ROLE = 80;
 
 /** HTML-escape. The document is a legal record; nothing typed rewrites it. */
-export function escapeHtml(value: string): string {
+export function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return '';
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

@@ -33,13 +33,17 @@ import {
 // so it cannot drift from the house headline the way a typed-out string did.
 import { AUTHORED_NARRATIVE } from "@/lib/partnerships/proposal-narrative";
 
+import {
+  MEDIA_CATEGORIES,
+  type MediaCategory,
+  type MediaAsset,
+} from "@/lib/partnerships/media-library";
+
 const STORAGE_KEY = "rillcod.proposalStudio.v1";
 
 const INPUT =
   "w-full px-3.5 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
 const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5";
-
-type PhotoOption = { src: string; name: string };
 
 export function ProposalStudio({
   config,
@@ -51,20 +55,26 @@ export function ProposalStudio({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [photos, setPhotos] = useState<PhotoOption[]>([]);
+  const [photos, setPhotos] = useState<MediaAsset[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<MediaCategory>("all");
+  const [previewVideo, setPreviewVideo] = useState<string | null>(null);
 
-  // Photographs are read off the filesystem, so a newly dropped one appears
-  // without anybody editing a list.
+  // Photographs and videos are read off the media library API.
   useEffect(() => {
     if (!open || photos.length || loadingPhotos) return;
     setLoadingPhotos(true);
     fetch("/api/partnerships/photos", { cache: "no-store" })
       .then((r) => r.json())
-      .then((j) => setPhotos((j.photos ?? []) as PhotoOption[]))
+      .then((j) => setPhotos((j.photos ?? []) as MediaAsset[]))
       .catch(() => setPhotos([]))
       .finally(() => setLoadingPhotos(false));
   }, [open, photos.length, loadingPhotos]);
+
+  const filteredPhotos = useMemo(() => {
+    if (selectedCategory === "all") return photos;
+    return photos.filter((p) => p.category === selectedCategory);
+  }, [photos, selectedCategory]);
 
   const set = useCallback(
     (next: ProposalStudioConfig) => {
@@ -282,11 +292,11 @@ export function ProposalStudio({
             </p>
           </div>
 
-          {/* ── Photographs ─────────────────────────────────────────────── */}
+          {/* ── Media & Event Assets (Photos & Videos) ────────────────── */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className={LABEL + " mb-0"}>
-                Photographs — {config.photos.length} of 6
+                Classroom &amp; Event Media — {config.photos.length} of 6 selected
               </span>
               {config.photos.length > 0 && (
                 <button
@@ -299,48 +309,139 @@ export function ProposalStudio({
               )}
             </div>
 
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {MEDIA_CATEGORIES.map((cat) => {
+                const active = selectedCategory === cat.key;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.key)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {loadingPhotos ? (
               <div className="flex items-center justify-center py-8">
                 <ArrowPathIcon className="w-5 h-5 text-primary animate-spin" />
               </div>
-            ) : photos.length === 0 ? (
+            ) : filteredPhotos.length === 0 ? (
               <p className="text-xs text-muted-foreground py-4 flex items-center gap-2">
                 <PhotoIcon className="w-4 h-4" />
-                No photographs found in the events folder.
+                No media found for this category.
               </p>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {photos.map((p) => {
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {filteredPhotos.map((p) => {
+                  const isVideo = p.mediaType === "video" || /\.(mp4|webm|mov)$/i.test(p.src);
                   const index = config.photos.indexOf(p.src);
                   const chosen = index > -1;
                   const full = !chosen && config.photos.length >= 6;
+
                   return (
-                    <button
+                    <div
                       key={p.src}
-                      onClick={() => togglePhoto(p.src)}
-                      disabled={disabled || full}
-                      title={full ? "Six is all the document prints" : p.name}
-                      className={`relative aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all disabled:opacity-30 ${
-                        chosen ? "border-primary" : "border-transparent hover:border-border"
+                      className={`group relative aspect-[4/3] rounded-xl overflow-hidden border-2 bg-slate-900 transition-all ${
+                        chosen ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
                       }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.src} alt="" className="w-full h-full object-cover" />
-                      {chosen && (
-                        <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                          {index + 1}
-                        </span>
+                      {isVideo ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 p-2 text-center relative">
+                          <span className="text-2xl mb-1">🎥</span>
+                          <span className="text-[10px] font-bold text-slate-200 line-clamp-2 leading-tight">
+                            {p.title || p.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewVideo(p.src)}
+                            className="mt-1.5 px-2 py-0.5 rounded bg-violet-600/30 text-violet-300 hover:bg-violet-600 hover:text-white text-[9px] font-bold transition-colors"
+                          >
+                            ▶ Play Demo
+                          </button>
+                        </div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.src}
+                          alt={p.title || p.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
                       )}
-                    </button>
+
+                      {/* Top Badges */}
+                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
+                        {chosen && (
+                          <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-black flex items-center justify-center shadow-md">
+                            {index + 1}
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] font-bold uppercase tracking-wider text-white">
+                          {p.category || (isVideo ? "Video" : "Photo")}
+                        </span>
+                      </div>
+
+                      {/* Select Toggle Button */}
+                      {!isVideo && (
+                        <button
+                          type="button"
+                          onClick={() => togglePhoto(p.src)}
+                          disabled={disabled || full}
+                          title={full ? "Six is all the document prints" : chosen ? "Remove from proposal" : "Add to proposal"}
+                          className={`absolute bottom-1.5 right-1.5 px-2 py-1 rounded-lg text-[10px] font-bold transition-all shadow-md ${
+                            chosen
+                              ? "bg-emerald-600 text-white"
+                              : "bg-black/75 hover:bg-primary text-white"
+                          }`}
+                        >
+                          {chosen ? "✓ Selected" : "+ Pick"}
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground mt-2">
-              They print above the signature, in the order picked. Drop more into{" "}
-              <span className="font-mono">public/images/EVENTS/</span> and they appear here.
+
+            <p className="text-[11px] text-muted-foreground mt-2.5">
+              Selected photos print above the signature. Videos are available for Scan-to-Watch capstones.
             </p>
           </div>
+
+          {/* Video Lightbox Preview Modal */}
+          {previewVideo && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-white/10 p-4 shadow-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    🎥 Student Capstone Video Demo
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewVideo(null)}
+                    className="text-slate-400 hover:text-white text-xs font-bold p-1"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+                <video
+                  src={previewVideo}
+                  controls
+                  autoPlay
+                  className="w-full rounded-xl bg-black max-h-[340px] object-contain"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

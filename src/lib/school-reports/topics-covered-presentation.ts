@@ -654,57 +654,81 @@ export function buildCelebrationWallPdfStack(
 
 /** Programme spotlight cards — narrative cards alongside the delivery evidence table. */
 export function buildProgrammeSpotlightPdfStack(
-  spotlights: Array<{ programme: string; course: string; summary: string; nextIntro: string }>,
+  spotlights: Array<{
+    programme: string;
+    course: string;
+    summary: string;
+    nextIntro: string;
+    qrDataUrl?: string;
+  }>,
   colors: { ink: string; brand: string; muted: string },
 ): object[] {
   if (!spotlights.length) return [];
 
-  const cards = spotlights.slice(0, 4).map((spotlight) => ({
-    table: {
-      widths: ['*'],
-      body: [
-        [
+  const cards = spotlights.slice(0, 4).map((spotlight) => {
+    const cardContent = [
+      {
+        text: spotlight.programme.toUpperCase(),
+        fontSize: 6.75,
+        bold: true,
+        color: colors.brand,
+        characterSpacing: 0.45,
+      },
+      {
+        text: spotlight.course,
+        fontSize: 9,
+        bold: true,
+        color: colors.ink,
+        margin: [0, 2, 0, 4] as [number, number, number, number],
+      },
+      {
+        canvas: [
           {
-            stack: [
-              {
-                text: spotlight.programme.toUpperCase(),
-                fontSize: 6.75,
-                bold: true,
-                color: colors.brand,
-                characterSpacing: 0.45,
-              },
-              {
-                text: spotlight.course,
-                fontSize: 9,
-                bold: true,
-                color: colors.ink,
-                margin: [0, 2, 0, 4] as [number, number, number, number],
-              },
-              {
-                canvas: [
-                  {
-                    type: 'line',
-                    x1: 0,
-                    y1: 0,
-                    x2: 220,
-                    y2: 0,
-                    lineWidth: 0.5,
-                    lineColor: '#e5e7eb',
-                  },
-                ],
-                margin: [0, 0, 0, 5] as [number, number, number, number],
-              },
-              { text: spotlight.summary, fontSize: 8, color: colors.muted, lineHeight: 1.35, margin: [0, 0, 0, 4] },
-              { text: spotlight.nextIntro, fontSize: 8, color: colors.ink, lineHeight: 1.35 },
-            ],
-            margin: [9, 9, 9, 9],
-            fillColor: '#ffffff',
+            type: 'line',
+            x1: 0,
+            y1: 0,
+            x2: 220,
+            y2: 0,
+            lineWidth: 0.5,
+            lineColor: '#e5e7eb',
           },
         ],
-      ],
-    },
-    layout: cardBorderLayout('#e5e7eb'),
-  }));
+        margin: [0, 0, 0, 5] as [number, number, number, number],
+      },
+      { text: spotlight.summary, fontSize: 8, color: colors.muted, lineHeight: 1.35, margin: [0, 0, 0, 4] },
+      { text: spotlight.nextIntro, fontSize: 8, color: colors.ink, lineHeight: 1.35 },
+    ];
+
+    const cellBody = spotlight.qrDataUrl
+      ? {
+          columns: [
+            { width: '*', stack: cardContent },
+            {
+              width: 48,
+              stack: [
+                { image: spotlight.qrDataUrl, width: 42, height: 42, alignment: 'center' },
+                { text: 'Scan for demo', fontSize: 5.5, color: colors.muted, alignment: 'center', margin: [0, 2, 0, 0] as [number, number, number, number] },
+              ],
+              margin: [6, 0, 0, 0] as [number, number, number, number],
+            },
+          ],
+          margin: [9, 9, 9, 9] as [number, number, number, number],
+          fillColor: '#ffffff',
+        }
+      : {
+          stack: cardContent,
+          margin: [9, 9, 9, 9] as [number, number, number, number],
+          fillColor: '#ffffff',
+        };
+
+    return {
+      table: {
+        widths: ['*'],
+        body: [[cellBody]],
+      },
+      layout: cardBorderLayout('#e5e7eb'),
+    };
+  });
 
   if (cards.length === 1) {
     return [cards[0]];

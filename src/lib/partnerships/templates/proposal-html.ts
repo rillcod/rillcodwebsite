@@ -17,7 +17,7 @@
  * Edge and no Desktop.
  */
 import { brandAssets, brandContact } from '@/config/brand';
-import { SIGNATURE_ANCHOR } from '../signing';
+import { SIGNATURE_ANCHOR, escapeHtml as esc } from '../signing';
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
 import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
@@ -97,13 +97,6 @@ export type ProposalInput = {
    */
   studio?: ProposalStudioConfig | null;
 };
-
-const esc = (s: unknown): string =>
-  String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 const TERM_NAMES = ['', '1st Term', '2nd Term', '3rd Term'];
 
@@ -894,7 +887,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   p { margin: 0 0 3mm; }
   .muted { color: #64748b; font-size: 10.2pt; }
 
-  section { margin-bottom: 7mm; break-inside: avoid-page; }
+  /* 6.4mm. The return page carries three blocks and a long school name reaches
+     into the heading of one of them, which left it 12px from the sheet edge.
+     The gaps give the room back, not the content. */
+  section { margin-bottom: 6.4mm; break-inside: avoid-page; }
   .rule { display: none; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
@@ -1216,7 +1212,7 @@ ${on('sideBySide') ? `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
     <table>
-      <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>${esc(input.school.name)} provides</th></tr></thead>
+      <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>Your school provides</th></tr></thead>
       <tbody>
         <tr>
           <td>Trained facilitators for every session · full curriculum and lesson materials · robotics kits and devices · the learning platform, logins and reporting · termly progress reports for parents</td>
