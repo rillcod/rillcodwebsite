@@ -243,7 +243,7 @@ export default function PublicDocumentPage({
               <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-emerald-200">
-                  Signed and accepted{doc.signedByName ? ` by ${doc.signedByName}` : ""}
+                  Signed and officially sealed{doc.signedByName ? ` by ${doc.signedByName}` : ""}
                 </p>
                 <p className="mt-0.5 text-xs text-emerald-200/70">
                   {doc.signedByRole ? `${doc.signedByRole} · ` : ""}
@@ -254,68 +254,77 @@ export default function PublicDocumentPage({
                         year: "numeric",
                       })
                     : ""}
-                  {" · "}Keep a copy for your records.
+                  {" · "}Official digital agreement record.
                 </p>
               </div>
               <button
                 onClick={handleDownloadPdf}
                 disabled={savingPdf}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60 shadow-lg shadow-emerald-950/40"
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
-                {savingPdf ? "Building…" : "Download signed copy"}
+                {savingPdf ? "Building PDF…" : "Download signed copy"}
               </button>
             </div>
           ) : doc.kind === "mou" ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-violet-500/30 bg-slate-900/90 p-4 shadow-xl">
               <SparklesIcon className="h-6 w-6 shrink-0 text-violet-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white">
-                  Read the agreement, then sign it here
+                  Memorandum of Understanding · Ready for Execution
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Signing is binding and records your name, the date and this device.
-                  Nothing is charged until enrolment begins.
+                  Signing is binding and records your name, title, date, and digital seal.
+                  Zero CapEx — nothing is charged until termly enrolment begins.
                 </p>
               </div>
               <button
                 onClick={() => setShowSignModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition-colors hover:bg-emerald-500"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-950/50 transition-all hover:bg-emerald-500 hover:scale-[1.02]"
               >
-                <CheckCircleIcon className="h-4 w-4" /> Accept &amp; Sign
+                <CheckCircleIcon className="h-4 w-4" /> Accept &amp; Sign MoU
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <EnvelopeIcon className="h-6 w-6 shrink-0 text-violet-400" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">
-                  This is a proposal, not a contract
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Nothing here commits your school. Tell us it works and we will issue the
-                  Memorandum of Understanding for signing.
-                </p>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-xl">
+                <EnvelopeIcon className="h-6 w-6 shrink-0 text-violet-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white">
+                    Official Partnership Proposal
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Review our turnkey STEM &amp; AI ecosystem. When you are ready, we issue the formal MoU for digital signing.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`tel:${brandContact.phone}`}
+                    className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                  >
+                    Call Rillcod
+                  </a>
+                  <a
+                    href={`${brandContact.whatsapp}?text=${encodeURIComponent(
+                      `Hello Rillcod — we have reviewed proposal ${doc.reference}${
+                        doc.school?.name ? ` for ${doc.school.name}` : ""
+                      } and would like to proceed.`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-500 shadow-md shadow-emerald-950/40"
+                  >
+                    Chat on WhatsApp
+                  </a>
+                </div>
               </div>
-              <a
-                href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                  `Hello Rillcod — we have reviewed proposal ${doc.reference}${
-                    doc.school?.name ? ` for ${doc.school.name}` : ""
-                  } and would like to discuss it.`,
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-violet-500"
-              >
-                Talk to us
-              </a>
             </div>
           )}
         </div>
       </div>
 
       {/* Main Document Viewer Canvas */}
-      <main className="flex-1 bg-slate-950 p-4 md:p-8 flex justify-center items-start overflow-auto">
+      <main className="flex-1 bg-slate-950 p-4 md:p-8 flex justify-center items-start overflow-auto pb-24 md:pb-8">
         <div
           className={`transition-all duration-200 bg-white shadow-2xl shadow-black/90 rounded-sm overflow-hidden ${
             zoom === "100"
@@ -330,14 +339,48 @@ export default function PublicDocumentPage({
             srcDoc={doc.html}
             title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
             sandbox="allow-same-origin allow-modals"
-            // Height is set from the content once it has laid out, so the whole
-            // document scrolls with the page instead of inside a 900px box.
             className="w-full bg-white block"
             scrolling="no"
             style={{ border: "none", height: "900px" }}
           />
         </div>
       </main>
+
+      {/* Mobile Sticky Bottom Floating Action Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 border-t border-white/10 backdrop-blur-lg px-4 py-3 flex items-center justify-between gap-2 shadow-2xl">
+        <a
+          href={`${brandContact.whatsapp}?text=${encodeURIComponent(
+            `Hello Rillcod — regarding ${doc.kind === "mou" ? "MoU" : "proposal"} ${doc.reference} for ${doc.school?.name || "our school"}.`,
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold"
+        >
+          WhatsApp
+        </a>
+        <a
+          href={`tel:${brandContact.phone}`}
+          className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-300"
+        >
+          Call
+        </a>
+        {doc.kind === "mou" && doc.status !== "signed" ? (
+          <button
+            onClick={() => setShowSignModal(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg shadow-emerald-950/50"
+          >
+            <CheckCircleIcon className="w-4 h-4" /> Sign MoU
+          </button>
+        ) : (
+          <button
+            onClick={handleDownloadPdf}
+            disabled={savingPdf}
+            className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-violet-600 text-white text-xs font-bold shadow-lg shadow-violet-950/50"
+          >
+            <ArrowDownTrayIcon className="w-3.5 h-3.5" /> {savingPdf ? "PDF…" : "Download"}
+          </button>
+        )}
+      </div>
 
       {/* Signature Modal */}
       {showSignModal && (
@@ -347,9 +390,6 @@ export default function PublicDocumentPage({
           schoolName={doc.school?.name}
           onSigned={() => {
             setShowSignModal(false);
-            // Re-read rather than patch the local copy: the server stamped the
-            // signature into the stored document, and patching status alone left
-            // the reader looking at the unsigned page they had just signed.
             void loadDoc({ quiet: true });
           }}
           onClose={() => setShowSignModal(false)}

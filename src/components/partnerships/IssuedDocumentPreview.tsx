@@ -227,39 +227,30 @@ export function IssuedDocumentPreview({
               <button
                 onClick={async () => {
                   const url = shareUrl(shareToken);
-                  // A phone offers the share sheet, which is how this link
-                  // actually reaches a proprietor; the desktop falls back to the
-                  // clipboard. Copying is not a failure, so it is not an error.
+                  const pitchText = `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nDear School Leadership / Proprietor,\n\nWe are pleased to present our official STEM, Coding & AI Education Partnership ${kind === 'mou' ? 'Memorandum of Understanding' : 'Proposal'} (*${reference}*).\n\n🔑 *Key Highlights:*\n• *Turnkey Delivery:* Dedicated certified STEM facilitators and robotics kits deployed to your school.\n• *Zero CapEx:* ₦0 upfront equipment expenditure required from the school.\n• *Revenue Share:* 30% direct profit share settled each term.\n• *Tangible Outcomes:* Real robotics builds, coding portfolios & parent progress reports.\n\n📄 *Review & Execute Agreement Online:*\n👉 ${url}\n\nWarm regards,\n*${brandContact.displayName} Partnership Desk*\n📞 ${brandContact.phone}`;
+                  
                   try {
-                    if (navigator.share) {
-                      await navigator.share({ title: `${label} ${reference}`, url });
-                      return;
-                    }
-                  } catch {
-                    // Dismissed the share sheet — fall through to the clipboard.
-                  }
-                  try {
-                    await navigator.clipboard.writeText(url);
-                    setNotice(`Link copied — ${url}`);
+                    await navigator.clipboard.writeText(pitchText);
+                    setNotice(`Formatted WhatsApp pitch copied to clipboard! Ready to paste and send.`);
                   } catch {
                     setNotice(`Share link: ${url}`);
                   }
                 }}
-                title="Send this document to the school"
+                title="Copy formatted WhatsApp pitch with link"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold transition-all"
               >
-                <LinkIcon className="w-3.5 h-3.5" /> Share link
+                <LinkIcon className="w-3.5 h-3.5" /> Copy WhatsApp Pitch
               </button>
               <a
                 href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                  `${schoolName ? `${schoolName} — ` : ""}your ${label.toLowerCase()} ${reference} from ${brandContact.displayName}: ${shareUrl(shareToken)}`,
+                  `🌟 *Executive Technology Partnership ${kind === 'mou' ? 'Agreement' : 'Proposal'} for ${schoolName || 'Your School'}*\n\nReview our proposal *${reference}*: ${shareUrl(shareToken)}`,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open WhatsApp with the link ready to send"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-semibold transition-all"
               >
-                WhatsApp
+                Open WhatsApp
               </a>
             </>
           )}

@@ -29,6 +29,9 @@ import {
   FIELD_PROOF,
   ROLLOUT_PHASES,
   WHY_NOW,
+  ZERO_CAPEX_PROMISE,
+  TRADITIONAL_VS_RILLCOD,
+  STUDENT_CASE_STUDIES,
   type SchoolUpside,
 } from '../proposal-sections';
 import { describeTerms, type PartnershipTerms } from '../terms';
@@ -226,6 +229,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         <b>${esc(brandContact.displayName)}</b><br>
         ${esc(brandContact.address)}<br>
         ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:3mm 4.5mm; margin-top:3.5mm;">
+      <div style="display:flex; align-items:center; gap:3.5mm;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://www.rillcod.com/p?code=${input.reference}`)}" style="width:13mm; height:13mm; border-radius:1mm; display:block;" alt="QR" />
+        <div>
+          <span style="font-size:7.2pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; E-Signing</span>
+          <b style="font-size:9.2pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">rillcod.com/p</span></b>
+          <div style="font-size:8.2pt; color:#64748b; margin-top:0.5mm;">Document Code: <strong style="color:#0f172a; font-family:monospace;">${esc(input.reference)}</strong></div>
+        </div>
+      </div>
+      <div style="font-size:7.8pt; color:#64748b; text-align:right; line-height:1.35;">
+        Open &amp; sign online<br>from any smartphone
       </div>
     </div>
     <div class="sign">
@@ -532,6 +548,65 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       : svg;
   };
 
+  const zeroCapexBlock = (): string => `
+  <section>
+    <div class="rule"></div>
+    <h2>Zero-CapEx &amp; Delivery Guarantee</h2>
+    <p class="muted">We remove all operational friction and hardware investment so your school leadership incurs zero capital costs.</p>
+    <div class="guarantee-grid">
+      ${ZERO_CAPEX_PROMISE.map((g) => `
+        <div class="guarantee-card">
+          <div class="guarantee-icon">&#10003;</div>
+          <div>
+            <b>${esc(g.title)}</b>
+            <p>${esc(g.body)}</p>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </section>`;
+
+  const transformationTableBlock = (): string => `
+  <section>
+    <div class="rule"></div>
+    <h2>The Transformation: Traditional ICT vs. Rillcod AI &amp; Robotics</h2>
+    <p class="muted">Why parents and school boards immediately recognize the premium difference.</p>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th style="width:25%;">Focus Area</th>
+          <th style="width:37%;">Traditional Computer Studies</th>
+          <th style="width:38%; background:#1e3a8a; color:#fff;">${esc(brandContact.displayName)} Ecosystem</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${TRADITIONAL_VS_RILLCOD.map((t) => `
+          <tr>
+            <td><strong>${esc(t.area)}</strong></td>
+            <td style="color:#64748b;">${esc(t.traditional)}</td>
+            <td style="color:#0f172a; font-weight:600; background:#f8fafc;">${esc(t.rillcod)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </section>`;
+
+  const studentCaseStudiesBlock = (): string => `
+  <section>
+    <div class="rule"></div>
+    <h2>Tangible Student Outcomes &amp; Innovation</h2>
+    <p class="muted">Real milestones produced during termly practical project builds.</p>
+    <div class="case-grid">
+      ${STUDENT_CASE_STUDIES.map((c) => `
+        <div class="case-card">
+          <span class="case-age">${esc(c.ageGroup)}</span>
+          <div class="case-title">${esc(c.title)}</div>
+          <div class="case-outcome">${esc(c.outcome)}</div>
+        </div>
+      `).join('')}
+    </div>
+  </section>`;
+
   /**
    * What the child hands back, counted from the ladder being sold.
    *
@@ -834,6 +909,34 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     font-size: 11.6pt; letter-spacing: -.15px;
   }
 
+  /* Guarantee Grid */
+  .guarantee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; margin: 3mm 0; }
+  .guarantee-card {
+    display: flex; gap: 3.5mm; align-items: flex-start;
+    padding: 3.5mm 4mm; border: 1px solid #e2e8f0; border-radius: 2mm; background: #fff; break-inside: avoid;
+  }
+  .guarantee-icon {
+    width: 6mm; height: 6mm; border-radius: 50%; background: #dcfce7; color: #16a34a;
+    display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 9pt; shrink: 0;
+  }
+  .guarantee-card b { display: block; font-size: 10.2pt; color: #0f172a; margin-bottom: 1mm; font-weight: 700; }
+  .guarantee-card p { font-size: 8.8pt; color: #475569; margin: 0; line-height: 1.4; }
+
+  /* Comparison Table */
+  .comp-table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.2pt; }
+  .comp-table th { padding: 2.5mm 3mm; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
+  .comp-table td { padding: 2.5mm 3mm; border: 1px solid #e2e8f0; vertical-align: middle; line-height: 1.4; }
+
+  /* Case Studies */
+  .case-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0; }
+  .case-card {
+    border: 1px solid #e2e8f0; border-top: 3.5px solid #991b1b; padding: 3.5mm;
+    border-radius: 1.5mm; background: #fff; break-inside: avoid;
+  }
+  .case-age { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; font-weight: 800; display: block; margin-bottom: 1mm; }
+  .case-title { font-size: 10.2pt; font-weight: 700; color: #0f172a; margin-bottom: 1.5mm; line-height: 1.25; }
+  .case-outcome { font-size: 8.6pt; color: #475569; line-height: 1.4; }
+
   table { width: 100%; border-collapse: collapse; font-size: 10.4pt; margin-bottom: 2mm; }
   th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
   td { padding: 1.9mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
@@ -1029,6 +1132,9 @@ ${
   </section>`
       : ''
   }
+
+  ${transformationTableBlock()}
+
 ${on('disciplines') ? `  <section>
     <div class="rule"></div>
     <h2>What we teach</h2>
@@ -1089,6 +1195,8 @@ ${on('rollout') ? `  <section>
 
   ${upsideBlock()}
 
+  ${zeroCapexBlock()}
+
 ${on('sideBySide') ? `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
@@ -1136,6 +1244,8 @@ ${
      must never depend on a section that might not render. -->
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+
+  ${studentCaseStudiesBlock()}
 
 ${on('whyNow') ? `  <section>
     <div class="rule"></div>

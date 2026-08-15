@@ -460,13 +460,24 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   <section>
     <h2><span class="cl">8.0</span> Execution</h2>
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
+    
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:2.8mm 4mm; margin-top:4mm; margin-bottom:6mm; break-inside:avoid;">
+      <div style="display:flex; align-items:center; gap:3.5mm;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://www.rillcod.com/p?code=${input.reference}`)}" style="width:12mm; height:12mm; border-radius:1mm; display:block;" alt="QR" />
+        <div>
+          <span style="font-size:7pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; Online E-Signing</span>
+          <b style="font-size:8.8pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">rillcod.com/p</span></b>
+          <div style="font-size:7.8pt; color:#64748b; margin-top:0.5mm;">Quick Access Code: <strong style="color:#0f172a; font-family:monospace;">${esc(input.reference)}</strong></div>
+        </div>
+      </div>
+      <div style="font-size:7.4pt; color:#64748b; text-align:right; line-height:1.35;">
+        Authorized representatives may<br>sign digitally from any device
+      </div>
+    </div>
+
     <div class="sign">
       <!--
-        Party A is signed at issue, not left blank.
-
-        We wrote the agreement and we are the ones sending it, so our assent is
-        not in question — yet the school received a document with two empty lines
-        and was asked to commit first, into a void. Countersigning here means what
+        Party A's signature is pre-filled from brandContact, so every MoU that
         lands in their inbox is already signed by us and needs only their name.
         That is the difference between a form and an agreement.
       -->

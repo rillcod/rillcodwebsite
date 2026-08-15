@@ -75,9 +75,57 @@ export const ROLLOUT_PHASES: readonly RolloutPhase[] = [
 
 export const WHY_NOW: readonly string[] = [
   'AI has stopped being a specialism and become general literacy — the way spreadsheets did.',
-  'Parents are already comparing schools on it, and asking questions your competitors are answering.',
-  'The schools that move first hold the reputation locally; the ones that follow are matching an expectation.',
-  'Every term spent deciding is a cohort that leaves without the portfolio.',
+  'Parents are actively comparing schools on tech offerings, and asking questions competitor schools are already answering.',
+  'The schools that move first hold the reputation locally; the ones that follow are simply matching an expectation.',
+  'Every term spent deciding is a cohort of students graduating without an accredited portfolio.',
+] as const;
+
+/**
+ * What Rillcod guarantees the school: Zero CapEx, full delivery, zero operational burden.
+ */
+export const ZERO_CAPEX_PROMISE = [
+  {
+    title: 'Zero Capital Expenditure (₦0 CapEx)',
+    body: 'Rillcod supplies the robotics kits, microcontrollers, testing rigs, and digital learning platforms. The school incurs no upfront hardware costs.',
+  },
+  {
+    title: 'Dedicated Certified Instructors',
+    body: 'We deploy thoroughly vetted, DBS-checked, certified STEM & AI facilitators directly to your classrooms to lead every practical session.',
+  },
+  {
+    title: 'Turnkey Timetable Integration',
+    body: 'The curriculum fits smoothly into your existing school schedule with zero disruption to academic calendars or core national exams.',
+  },
+  {
+    title: 'Automated Parent Portals & Reports',
+    body: 'Parents receive individual digital project portfolios and milestone reports, directly demonstrating tangible value for their tuition.',
+  },
+] as const;
+
+/**
+ * Traditional ICT vs. Modern STEM & Robotics Ecosystem.
+ */
+export const TRADITIONAL_VS_RILLCOD = [
+  {
+    area: 'Curriculum Focus',
+    traditional: 'Basic typing, MS Word, and passive theory.',
+    rillcod: 'Active coding, AI neural nets, physical robotics, and real mobile app deployment.',
+  },
+  {
+    area: 'Student Outcomes',
+    traditional: 'Written exams with no tangible portfolio.',
+    rillcod: 'Working robots, live websites, and published mobile apps showcased at Termly Expos.',
+  },
+  {
+    area: 'Parent Perception',
+    traditional: 'Viewed as routine and outdated.',
+    rillcod: 'Considered a top-tier premium selling point that attracts new admissions.',
+  },
+  {
+    area: 'School Revenue',
+    traditional: 'Pure operational cost center.',
+    rillcod: 'High-margin revenue generator with 30% direct profit share settled every term.',
+  },
 ] as const;
 
 /**
@@ -90,6 +138,27 @@ export const FIELD_PROOF: readonly string[] = [
   'First place, 2024 National Youth Coding Challenge.',
   'A solar-powered irrigation control system that won the regional hardware innovation prize.',
   'Environmental monitoring research presented at the inter-school science exhibition.',
+  'Over 2,400+ active learners across partner schools building real-world projects.',
+] as const;
+
+export type StudentCaseStudy = { title: string; ageGroup: string; outcome: string };
+
+export const STUDENT_CASE_STUDIES: readonly StudentCaseStudy[] = [
+  {
+    title: 'Voice-Controlled Obstacle Avoiding Bot',
+    ageGroup: 'Basic 4 - Basic 6',
+    outcome: 'Learners assembled chassis, wired ultrasonic distance sensors, and wrote Scratch block code to guide movement.',
+  },
+  {
+    title: 'Smart Solar Irrigation Monitor',
+    ageGroup: 'JSS 1 - JSS 3',
+    outcome: 'Students programmed microcontrollers with soil moisture sensors to automate greenhouse watering systems.',
+  },
+  {
+    title: 'School Community Attendance & Notes Mobile App',
+    ageGroup: 'SS 1 - SS 3',
+    outcome: 'Senior students built, styled, and deployed a cross-platform mobile application using JavaScript and modern UI frameworks.',
+  },
 ] as const;
 
 export type UpsideRow = {
