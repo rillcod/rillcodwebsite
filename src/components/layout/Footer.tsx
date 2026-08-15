@@ -66,6 +66,10 @@ const Footer = () => {
     { href: SPECIAL_BALANCE_PATH, label: 'Pay Programme Balance' },
     { href: '/programs', label: 'Our Programs' },
     { href: '/curriculum', label: 'Curriculum' },
+    // A school that was sent a proposal and has lost the email needs a way back
+    // in without one. The document prints this address and a six-digit code, but
+    // somebody who arrives at the site first should not have to know the path.
+    { href: '/p', label: 'Open a Proposal or Agreement' },
     { href: '/contact', label: 'Contact Us' },
   ];
 
