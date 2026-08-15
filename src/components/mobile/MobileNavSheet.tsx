@@ -83,10 +83,12 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [keyboardInset, setKeyboardInset] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const groups = useMemo(() => buildGroups(navEntries), [navEntries]);
 
   const resetSheet = useCallback(() => {
     setSearch('');
+    setSelectedCategory('All');
     setExpanded(defaultExpanded(groups, pathname));
   }, [groups, pathname]);
 
@@ -119,18 +121,24 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
   const normalizedQuery = search.trim().toLowerCase();
   const isSearching = normalizedQuery.length > 0;
   const filteredGroups = useMemo(() => {
-    if (!normalizedQuery) return groups;
-    return groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter(
-          (item) =>
-            item.name.toLowerCase().includes(normalizedQuery) ||
-            item.href.toLowerCase().includes(normalizedQuery),
-        ),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [groups, normalizedQuery]);
+    let result = groups;
+    if (selectedCategory !== 'All') {
+      result = result.filter((g) => g.title === selectedCategory);
+    }
+    if (normalizedQuery) {
+      result = result
+        .map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (item) =>
+              item.name.toLowerCase().includes(normalizedQuery) ||
+              item.href.toLowerCase().includes(normalizedQuery),
+          ),
+        }))
+        .filter((group) => group.items.length > 0);
+    }
+    return result;
+  }, [groups, selectedCategory, normalizedQuery]);
   const totalMatches = filteredGroups.reduce((sum, group) => sum + group.items.length, 0);
   const firstMatch = filteredGroups[0]?.items[0];
   const compactChrome = isSearching || keyboardInset > 0;
@@ -165,24 +173,24 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
         }
       >
         {/* Identity header — Material 3 sheet header pattern */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 bg-card/60">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-black text-white shadow-md shadow-primary/20"
             aria-hidden
           >
             {profile.full_name?.charAt(0) ?? 'U'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold text-foreground">
+            <p className="truncate text-base font-bold text-foreground">
               {profile.full_name}
             </p>
-            <p className="truncate text-sm text-muted-foreground">{roleLabel}</p>
+            <p className="truncate text-xs font-semibold text-muted-foreground">{roleLabel}</p>
           </div>
           <ThemeToggle />
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:scale-90 transition-transform"
             aria-label="Close menu"
           >
             <XMarkIcon className="h-5 w-5" />
@@ -196,7 +204,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
         )}
 
         {/* Search near the top — standard for iOS Settings / Material navigation */}
-        <form onSubmit={submitSearch} className="shrink-0 border-b border-border px-4 py-3">
+        <form onSubmit={submitSearch} className="shrink-0 border-b border-border px-4 py-3 bg-muted/20">
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -204,7 +212,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search"
+              placeholder="Search pages &amp; actions…"
               aria-label="Search pages"
               enterKeyHint="go"
               autoComplete="off"
@@ -212,7 +220,7 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
               autoCapitalize="none"
               spellCheck={false}
               dir="auto"
-              className="min-h-12 w-full rounded-xl border border-border bg-muted/50 pe-10 ps-10 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:bg-background focus:outline-none"
+              className="min-h-11 w-full rounded-2xl border border-border bg-card pe-10 ps-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none shadow-sm"
             />
             {search && (
               <button
@@ -221,13 +229,45 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
                   setSearch('');
                   searchInputRef.current?.focus();
                 }}
-                className="absolute end-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                className="absolute end-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
                 aria-label="Clear search"
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
             )}
           </div>
+
+          {/* Quick Category Filter Chips */}
+          {!isSearching && groups.length > 2 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-0.5 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('All')}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${
+                  selectedCategory === 'All'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All
+              </button>
+              {groups.map((g) => (
+                <button
+                  key={g.title}
+                  type="button"
+                  onClick={() => setSelectedCategory(g.title)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${
+                    selectedCategory === g.title
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {g.title}
+                </button>
+              ))}
+            </div>
+          )}
+
           {isSearching && (
             <p className="mt-2 px-1 text-xs text-muted-foreground" aria-live="polite">
               {totalMatches === 0

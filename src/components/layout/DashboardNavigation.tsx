@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   HomeIcon,
@@ -45,6 +45,7 @@ import {
   BoltIcon,
   QuestionMarkCircleIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ExclamationTriangleIcon,
   DocumentDuplicateIcon,
 } from "@/lib/icons";
@@ -74,6 +75,7 @@ export default function DashboardNavigation() {
   const { profile, user, profileLoading, isLoading, signingOut, signOut } =
     useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isMinimal = searchParams.get("minimal") === "true";
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -1286,23 +1288,35 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/95 backdrop-blur-xl px-4 border-b border-border shadow-sm">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-3" aria-label="Go to dashboard">
-          <div className="w-9 h-9 rounded-xl bg-white dark:bg-card border border-border flex items-center justify-center shadow-sm shrink-0">
-            <Image
-              src="/images/logo.png"
-              alt="Rillcod"
-              width={21}
-              height={21}
-              className="object-contain"
-              priority
-            />
-          </div>
-          <div className="min-w-0 leading-tight">
-            <p className="text-[11px] font-semibold text-muted-foreground">Rillcod Technologies</p>
-            <p className="text-[15px] font-bold text-foreground truncate">{mobileTitle}</p>
-          </div>
-        </Link>
+      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/95 backdrop-blur-xl px-3 sm:px-4 border-b border-border shadow-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          {pathname !== '/dashboard' && (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/80 text-foreground hover:bg-muted active:scale-90 transition-transform shrink-0"
+              aria-label="Go back to previous page"
+            >
+              <ChevronLeftIcon className="w-5 h-5" />
+            </button>
+          )}
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" aria-label="Go to dashboard">
+            <div className="w-8 h-8 rounded-xl bg-white dark:bg-card border border-border flex items-center justify-center shadow-sm shrink-0">
+              <Image
+                src="/images/logo.png"
+                alt="Rillcod"
+                width={20}
+                height={20}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="text-[10px] font-semibold text-muted-foreground">Rillcod Technologies</p>
+              <p className="text-[14px] font-bold text-foreground truncate">{mobileTitle}</p>
+            </div>
+          </Link>
+        </div>
         <div className="flex items-center gap-1">
           <NotificationDropdown />
           <button
@@ -1449,7 +1463,8 @@ export default function DashboardNavigation() {
       <div
         role="navigation"
         aria-label="Primary app navigation"
-        className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-start justify-around border-t border-border bg-card/95 px-1 pt-1.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+        className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-start justify-around border-t border-border bg-card/95 px-1 pt-1.5 shadow-[0_-8px_32px_rgba(15,23,42,0.12)] backdrop-blur-2xl"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
       >
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = isNavActive(pathname, href);
@@ -1472,7 +1487,7 @@ export default function DashboardNavigation() {
               onClick={() => setMobileOpen(false)}
               className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 transition-transform active:scale-95"
             >
-              <span className={`relative flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${active ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+              <span className={`relative flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${active ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground"}`}>
                 <Icon className="w-5 h-5" />
                 {(name === "WhatsApp Inbox" || name === "Office Center") && unreadCount > 0 && (
                   <span className="absolute -top-0.5 right-1 h-4 min-w-4 rounded-full bg-brand-red-accent px-1 text-[9px] font-bold leading-4 text-white ring-2 ring-card">
@@ -1494,7 +1509,7 @@ export default function DashboardNavigation() {
           aria-label="Open app menu"
           className="flex min-h-14 flex-1 min-w-0 flex-col items-center justify-start gap-0.5 px-0.5 py-0.5 active:scale-95"
         >
-          <span className={`flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${menuActive || mobileOpen ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+          <span className={`flex h-8 min-w-12 items-center justify-center rounded-full px-3 transition-colors ${menuActive || mobileOpen ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground"}`}>
             <Bars3Icon className="w-5 h-5" />
           </span>
           <span className={`text-[10px] leading-4 ${menuActive || mobileOpen ? "font-bold text-primary" : "font-medium text-muted-foreground"}`}>

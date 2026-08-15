@@ -16,13 +16,27 @@ import { Toaster } from "sonner";
 import { usePathname } from "next/navigation";
 import SmartWhatsAppWidget from "@/components/SmartWhatsAppWidget";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
-import { hasPublicMarketingFooter } from "@/lib/layout/public-route-policy";
+import { hasPublicMarketingFooter, isAppUtilityRoute } from "@/lib/layout/public-route-policy";
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith('/dashboard');
   const isNativeApp = useIsNativeApp();
   const showPublicFooter = !isDashboard && !isNativeApp && hasPublicMarketingFooter(pathname);
+
+  /*
+    Navigation's mobile dock is `fixed bottom-0`, so it sits on top of the
+    document rather than in it. Nothing reserved the space it covers, and the
+    last 64px of the page went underneath it — at 390x844 the footer's "Official
+    Verified Node" badge was sliced in half with the page already scrolled to the
+    bottom, so there was no way to reach it.
+
+    These are the dock's own visibility conditions, repeated: it renders when
+    Navigation renders (not native, not an app-utility route) and is `lg:hidden`.
+    Tying the spacer to the same two facts is what stops it drifting out of sync
+    and reserving space for a bar that is not there.
+  */
+  const showsMobileDock = !isNativeApp && !isAppUtilityRoute(pathname);
 
   return (
     <ThemeProvider>
@@ -37,6 +51,9 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         <OfflineIndicator />
         {children}
         {showPublicFooter && <PublicFooter />}
+        {showsMobileDock && (
+          <div aria-hidden className="lg:hidden h-[var(--app-bottom-nav-height)]" />
+        )}
         {!isDashboard && !isNativeApp && <SmartWhatsAppWidget />}
         <Toaster richColors position="top-right" />
       </AuthProvider>
