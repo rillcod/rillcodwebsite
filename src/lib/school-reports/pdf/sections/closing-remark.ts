@@ -22,6 +22,7 @@ export function buildClosingRemarkSection(ctx: SchoolReportPdfContext): object[]
     isPublished,
     generatedLabel,
     verificationCode,
+    reportReference,
     verificationUrl,
     verificationQrDataUrl,
     report,
@@ -79,9 +80,14 @@ export function buildClosingRemarkSection(ctx: SchoolReportPdfContext): object[]
           {
             stack: [
               { text: 'REPORT VERIFICATION', style: 'metaLabel', color: brand },
-              { text: verificationCode, bold: true, fontSize: 8.5, margin: [0, 3, 0, 2] },
-              { text: verificationUrl, color: MUTED, fontSize: 6.5 },
-              { text: `Revision ${report.published_revision_number || 1} | Scan or enter the code to confirm this report.`, color: MUTED, fontSize: 7, margin: [0, 3, 0, 0] },
+              // The short reference leads, because it is the one a bursar files
+              // under and reads down a telephone. The twenty-character code is
+              // what the verify page matches on, and is printed beneath it —
+              // nobody dictates that one aloud.
+              { text: reportReference, bold: true, fontSize: 9.5, margin: [0, 3, 0, 1] },
+              { text: verificationCode, color: MUTED, fontSize: 7 },
+              { text: verificationUrl, color: MUTED, fontSize: 6.5, margin: [0, 1, 0, 0] },
+              { text: `Revision ${report.published_revision_number || 1} | Scan the code, or enter it at the address above, to confirm this report.`, color: MUTED, fontSize: 7, margin: [0, 3, 0, 0] },
             ],
             margin: [6, 6, 6, 6],
           },

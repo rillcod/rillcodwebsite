@@ -14,7 +14,12 @@ import { humanCurriculumSpan } from '@/lib/curriculum/humanLabels';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '../programme-course-performance';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from '../report-policy';
 import type { SchoolPerformanceReportRow } from '../types';
-import { schoolReportVerificationCode, schoolReportVerificationUrl } from '../verification';
+import {
+  formatHumanReportReference,
+  schoolReportVerificationCode,
+  schoolReportVerificationUrl,
+  termNumberFromLabel,
+} from '../verification';
 import { loadBrandLogoDataUrl, loadOfficialSignatureDataUrl } from './assets';
 
 /**
@@ -35,6 +40,11 @@ export type SchoolReportPdfContext = {
   programmeCourseRows: ReturnType<typeof mergeProgrammeCoursePerformanceWithEnrolment>;
   reportPolicy: typeof DEFAULT_SCHOOL_REPORT_POLICY;
   verificationCode: string;
+  /**
+   * Short reference a bursar can file under or read down a telephone. Not a key:
+   * verification always goes through the long code above.
+   */
+  reportReference: string;
   verificationUrl: string;
   /** Pre-rendered QR image. Null when the caller did not supply one. */
   verificationQrDataUrl: string | null;
@@ -234,6 +244,13 @@ export function buildSchoolReportPdfContext(
     ),
     reportPolicy,
     verificationCode: report.verification_code || schoolReportVerificationCode(report.id),
+    // Built from this report's own year and term, so it says something true about
+    // the period it covers rather than defaulting to 2026 term one.
+    reportReference: formatHumanReportReference(
+      report.id,
+      report.academic_year,
+      termNumberFromLabel(report.term_label),
+    ),
     verificationUrl: schoolReportVerificationUrl(report.id),
     verificationQrDataUrl: opts?.verificationQrDataUrl ?? null,
     design,
