@@ -35,7 +35,7 @@ export type ProposalNarrative = {
 
 /** The house pitch. Always valid, always the fallback, never worse than nothing. */
 export const AUTHORED_NARRATIVE: ProposalNarrative = {
-  headline: 'The technology department your school does not have to build',
+  headline: 'The Complete Tech & Innovation Hub for Your School',
   opening:
     'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding, robotics and artificial intelligence programme is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
   benefits: [
