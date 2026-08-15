@@ -38,13 +38,23 @@ export function formatSchoolDisplayName(value: unknown, fallback = 'Partner scho
 
 /** Canonical programme label for reports (e.g. "teen dev" → "Teen Developers"). */
 export function formatProgrammeDisplay(label: unknown): string {
-  return normalizeProgrammeLabel(String(label ?? '').trim());
+  let text = String(label ?? '').trim();
+  if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(text)) {
+    text = text.replace(/[_-]+/g, ' ');
+  }
+  return normalizeProgrammeLabel(text);
 }
 
-/** Course title as stored — trimmed only; course names are usually title-cased in catalog. */
+/** Course title as stored — trimmed and de-slugified into title case if raw identifier is present. */
 export function formatCourseDisplay(label: unknown): string {
-  const text = String(label ?? '').trim();
-  return text || 'Course';
+  let text = String(label ?? '').trim();
+  if (!text) return 'Course';
+  if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(text)) {
+    text = text
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+  }
+  return text;
 }
 
 /** Full class name with consistent segment casing. */

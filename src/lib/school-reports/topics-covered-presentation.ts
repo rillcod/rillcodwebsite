@@ -255,10 +255,17 @@ export function syntheticWeekTopicLabel(courseTitle: string, weekNumber: number)
   return `Week ${weekNumber}: ${focus}`;
 }
 
-/** Strip noisy prefixes so topic lines read cleanly in reports. */
+/** Strip noisy prefixes and technical slugs so topic lines read cleanly in reports. */
 export function cleanTopicTitle(topic: string, course: string): string {
   let label = String(topic || '').trim();
   if (!label) return 'Topic';
+
+  // De-slugify technical database keys (e.g. "intro_to_python_functions" -> "Intro to python functions")
+  if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(label)) {
+    label = label
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+  }
 
   const coursePrefix = new RegExp(`^${escapeRegExp(course)}\\s*(?:—|–|-|:)\\s*`, 'i');
   label = label.replace(coursePrefix, '');
