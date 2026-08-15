@@ -15,6 +15,7 @@ import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { readPostLoginRedirectParam } from '@/lib/auth/post-login-redirect';
+import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET } from '@/components/mobile/public-styles';
 
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500" },
@@ -276,8 +277,36 @@ function LoginContent() {
     );
   }
 
+  /*
+    This page is meant to fit one screen — no scrolling to reach the sign-in
+    button. It gets there by shrinking, not by being cut off.
+
+    It used to do the opposite. `h-screen max-h-screen … overflow-hidden` pinned
+    the page to exactly one viewport and clipped whatever did not fit, with no
+    scroll to recover it: an iPhone SE in Safari (375×553 of usable height) lost
+    22px — the footer — and a 320×480 handset lost 112px, taking the footer and
+    the bottom of the card with it.
+
+    So the fit is now handled where the problem is. The `max-height:620px`
+    variants further down compact the page when the screen is genuinely short —
+    the subtitle goes, paddings tighten — which is what keeps everything above
+    the fold on a small phone, while tall phones stay roomy.
+
+    `min-h-dvh` sizes to the *dynamic* viewport, tracking the browser's
+    collapsing chrome instead of overshooting the way `100vh` does on iOS. The
+    `min-` matters: it is the safety valve. If a state we did not budget for
+    turns up — an error banner, a signed-out notice, a user with large system
+    text — the page scrolls instead of hiding the button. Nothing is ever
+    unreachable, and in the ordinary case there is nothing to scroll.
+
+    PUBLIC_PAGE_ROOT and PUBLIC_SAFE_INSET are the conventions the other public
+    pages already use; the latter was written for "full-screen auth layouts" and
+    until now was used by nothing.
+  */
   return (
-    <div className="h-screen max-h-screen w-full flex flex-col justify-between p-3 sm:p-5 lg:p-6 relative font-sans transition-colors duration-300 bg-background text-foreground overflow-hidden box-border">
+    <div
+      className={`${PUBLIC_PAGE_ROOT} ${PUBLIC_SAFE_INSET} w-full flex flex-col justify-between relative font-sans transition-colors duration-300 box-border sm:px-[max(1.25rem,var(--safe-area-left))] sm:pr-[max(1.25rem,var(--safe-area-right))] sm:pt-[max(1.25rem,var(--safe-area-top))] sm:pb-[max(1.25rem,var(--safe-area-bottom))] [@media(max-height:500px)]:pt-[max(0.5rem,var(--safe-area-top))] [@media(max-height:500px)]:pb-[max(0.5rem,var(--safe-area-bottom))]`}
+    >
       {/* ── Subtle Ambient Backdrop Orbs ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10" aria-hidden>
         <div className="absolute top-1/4 -left-20 w-[500px] h-[500px] rounded-full bg-brand-blue/10 dark:bg-brand-blue/5 blur-3xl" />
@@ -303,6 +332,25 @@ function LoginContent() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {/*
+            A way out, said in words.
+
+            The logo has always linked home, but nothing announced it — somebody
+            who opened the login by mistake had no visible way back to the site.
+            Hidden inside the native app, where there is no website to return to.
+          */}
+          {!isNativeApp && (
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+              {/* "Home" on a phone, where the header also carries the logo and
+                  the Secure chip; the fuller wording once there is room. */}
+              <span className="sm:hidden">Home</span>
+              <span className="hidden sm:inline">Back to site</span>
+            </Link>
+          )}
           <Link
             href="/result-check"
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/15 transition-colors"
@@ -352,11 +400,34 @@ function LoginContent() {
 
           {/* ── Right Form Card (Compact & Fitted) ── */}
           <div className="lg:col-span-7 w-full max-w-md mx-auto lg:max-w-none">
+            {/*
+              The heading, for the screens the side panel does not reach.
+
+              The only <h1> on this page lived inside `hidden lg:flex`, so on a
+              phone there was no heading at all — a visitor met a logo, a
+              "Secure" chip and five small icons, with nothing saying what the
+              page was for. It is also the document's only h1, so on mobile the
+              page had none, which is a problem for anyone using a screen reader.
+            */}
+            <div className="lg:hidden mb-4 text-center [@media(max-height:620px)]:mb-2 [@media(max-height:500px)]:mb-1">
+              <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight text-foreground [@media(max-height:620px)]:text-lg">
+                Sign in to your portal
+              </h1>
+              {/*
+                The sentence is the first thing to go when the screen is short:
+                the role buttons directly below already say to choose a role, so
+                nothing is lost but 40px that the sign-in button needs more.
+              */}
+              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed [@media(max-height:620px)]:hidden">
+                Choose your role to reach your courses, attendance, results and reports.
+              </p>
+            </div>
+
             <div className="bg-card/95 backdrop-blur-xl border border-border rounded-3xl shadow-xl overflow-hidden">
               
               {/* Role Picker Segment */}
-              <div className="p-3 sm:p-4 border-b border-border/70 bg-muted/20">
-                <div className="flex items-center justify-between mb-2">
+              <div className="p-3 sm:p-4 border-b border-border/70 bg-muted/20 [@media(max-height:620px)]:p-2">
+                <div className="flex items-center justify-between mb-2 [@media(max-height:620px)]:mb-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Select Your Role</span>
                   {activeRole && (
                     <span className="text-[11px] font-bold text-primary flex items-center gap-1">
@@ -376,7 +447,7 @@ function LoginContent() {
                         type="button"
                         onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
                         aria-pressed={isActive}
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all duration-150 text-center ${
+                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all duration-150 text-center [@media(max-height:500px)]:py-1.5 ${
                           isActive
                             ? 'bg-primary border-primary text-white shadow-sm scale-[1.02]'
                             : 'bg-card border-border/80 text-muted-foreground hover:border-primary/40 hover:text-foreground'
@@ -391,7 +462,7 @@ function LoginContent() {
               </div>
 
               {/* Form Area */}
-              <div className="p-4 sm:p-5 sm:px-6">
+              <div className="p-4 sm:p-5 sm:px-6 [@media(max-height:620px)]:p-3 [@media(max-height:500px)]:p-2.5">
                 {signedOutNotice && (
                   <div role="status" className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -406,7 +477,7 @@ function LoginContent() {
                   </div>
                 )}
 
-                <form onSubmit={handleLogin} className="space-y-3">
+                <form onSubmit={handleLogin} className="space-y-3 [@media(max-height:620px)]:space-y-2">
                   {/* Email */}
                   <div className="space-y-1">
                     <label htmlFor="login-email" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground pl-0.5">
@@ -426,7 +497,7 @@ function LoginContent() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="yourname@school.com"
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-3 py-2.5 text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+                        className="w-full bg-background border border-border rounded-xl pl-10 pr-3 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground [@media(max-height:500px)]:py-2"
                       />
                     </div>
                   </div>
@@ -457,7 +528,7 @@ function LoginContent() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-2.5 text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
+                        className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground [@media(max-height:500px)]:py-2"
                       />
                       <button
                         type="button"
@@ -475,7 +546,7 @@ function LoginContent() {
                   <button
                     type="submit"
                     disabled={loading || googleLoading || !selectedRole}
-                    className="w-full min-h-[42px] py-2.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary/95 transition-all transform active:scale-[0.99] disabled:opacity-40 flex items-center justify-center gap-2 shadow-md shadow-primary/20 mt-1"
+                    className="w-full min-h-[42px] py-2.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary/95 transition-all transform active:scale-[0.99] disabled:opacity-40 flex items-center justify-center gap-2 shadow-md shadow-primary/20 mt-1 [@media(max-height:500px)]:min-h-[38px] [@media(max-height:500px)]:py-2"
                   >
                     {loading ? (
                       <>
@@ -530,11 +601,17 @@ function LoginContent() {
                   <Link href="/partnership" className="hover:text-primary transition-colors font-medium">
                     School Partnership
                   </Link>
-                  <span>·</span>
+                  {/*
+                    The separators only make sense while the links sit next to
+                    each other. From `sm` up "Check Results" moves to the header
+                    chip and `justify-between` pushes the two survivors to
+                    opposite edges, which left a dot stranded in open space.
+                  */}
+                  <span className="sm:hidden" aria-hidden>·</span>
                   <Link href="/result-check" className="hover:text-primary transition-colors font-medium sm:hidden">
                     Check Results
                   </Link>
-                  <span className="sm:hidden">·</span>
+                  <span className="sm:hidden" aria-hidden>·</span>
                   <Link href="/student-registration" className="hover:text-primary transition-colors font-medium">
                     New Student Enroll
                   </Link>
