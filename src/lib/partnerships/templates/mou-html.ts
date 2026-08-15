@@ -7,7 +7,7 @@
  * was signed. Two of them were written in the same minute.
  *
  * Here the terms come from `partnership_terms` and nowhere else, so the fee in
- * clause 8 is the fee the invoice will charge. Unlike the proposal, terms are
+ * clause 4 is the fee the invoice will charge. Unlike the proposal, terms are
  * required: an MoU is the agreement, and there is nothing to agree without them.
  *
  * Contract, not brochure — so the curriculum appears as a compact schedule
@@ -15,6 +15,7 @@
  */
 import { brandContact } from '@/config/brand';
 import { SIGNATURE_ANCHOR } from '../signing';
+import { assetUrl } from './asset-url';
 import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
 import { levelsForStage, splitByStage } from '../curriculum';
 import { computeCharge, describeTerms, type PartnershipTerms } from '../terms';
@@ -39,7 +40,7 @@ export type MouInput = {
   commencement?: string | null;
   /** How long the agreement runs before review. */
   durationLabel?: string | null;
-  /** Headcount used to illustrate clause 8. Zero hides the worked example. */
+  /** Headcount used to illustrate clause 4. Zero hides the worked example. */
   illustrativeStudents?: number;
   /**
    * Which half of the ladder this agreement covers. The schedule must describe
@@ -83,7 +84,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   const count = Math.max(0, Math.floor(input.illustrativeStudents ?? 0));
   const example = count > 0 ? computeCharge(terms, count) : null;
 
-  // Clause 8 states the agreed terms in the one sentence every document uses,
+  // Clause 4 states the agreed terms in the one sentence every document uses,
   // then works it through at a stated headcount so neither side is doing
   // arithmetic in their head at signing.
   const worked =
@@ -107,6 +108,21 @@ export function buildPartnershipMouHTML(input: MouInput): string {
                  <tr><td>Balance due</td><td class="num strong">${esc(money(example.balance, terms.currency))}</td></tr>`
               : ''
           }
+          ${
+            // A school plans in sessions, not terms. The agreement stated only the
+            // per-term figure, so the number a proprietor actually budgets against
+            // was left for them to work out — on the one page they reread. Shown
+            // only where a term is genuinely the billing cycle; multiplying by
+            // three under any other cadence would be inventing a number.
+            String(terms.billing_cycle || 'term').toLowerCase() === 'term'
+              ? `<tr class="sess"><td>Over a full session (three terms)</td><td class="num">${esc(money(example.subtotal * 3, terms.currency))}</td></tr>
+                 ${
+                   shareOn
+                     ? `<tr class="sess"><td>${esc(school.name)} share for the session</td><td class="num strong">${esc(money(example.schoolSettlement * 3, terms.currency))}</td></tr>`
+                     : ''
+                 }`
+              : ''
+          }
         </tbody>
       </table>
       <p class="muted">Illustrative at ${count} students. The sum invoiced each term follows actual enrolment on the same terms.</p>`
@@ -127,7 +143,10 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   html { background: #0f172a; }
   body {
     margin: 0; padding: 24px 0; background: #0f172a; color: #1e293b;
-    font: 9.8pt/1.55 "Inter", system-ui, -apple-system, sans-serif;
+    /* 1.5 rather than 1.55. The parties page was clipping its own content by
+       19px; a contract is read closely, not skimmed, and the tighter leading buys
+       back roughly a line per clause across every page. */
+    font: 9.8pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
     display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
@@ -159,12 +178,29 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .head-r { text-align: right; font-size: 8.5pt; color: #64748b; }
   .head-r b { display: block; color: #0f172a; font-size: 9.5pt; font-weight: 700; }
 
-  .doctitle { text-align: center; margin: 0 0 4.5mm; background: #f8fafc; padding: 2.8mm 0; border-radius: 2mm; border: 1px solid #e2e8f0; }
-  .doctitle h1 { font-size: 15.5pt; margin: 0 0 1.2mm; color: #0f172a; letter-spacing: -.3px; font-weight: 800; }
-  .doctitle .sub { font-size: 9.2pt; color: #64748b; font-weight: 500; }
+  /* The document names itself in type, not in a tinted box. It was the last of
+     the boxes, and on a page whose content was clipping by 19px it was costing
+     roughly 10mm to say what the masthead above it already implies. Bigger and
+     quieter at the same time. */
+  .doctitle { text-align: center; margin: 1mm 0 5mm; }
+  .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
+  .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
+  .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
 
-  h2 { font-size: 10.8pt; color: #fff; background: #0f172a; padding: 2mm 3.5mm;
-    margin: 0 0 3.5mm; letter-spacing: .02em; font-weight: 700; border-radius: 1mm; }
+  /* A clause heading is type, not a container.
+     Every section used to be a full-width solid navy bar. Three of them stack up
+     on the first page alone, and the effect is a document that looks like it was
+     built to be resisted — a wall. It also cost about 14mm of vertical space per
+     page, which is why the parties page was clipping its own content.
+     Same treatment the proposal uses: a short accent rule, then strong type. The
+     clause numbers stay, because this is still a contract and both sides need to
+     be able to say "clause 4". */
+  h2 {
+    font-size: 12.4pt; color: #0f172a; margin: 0 0 3mm;
+    letter-spacing: -.2px; font-weight: 800; padding-top: 2mm;
+    border-top: 2px solid #991b1b; display: table; padding-right: 6mm;
+  }
+  h2 .cl { color: #991b1b; font-weight: 800; margin-right: 1.6mm; }
   /* A clause that splits across a sheet is a clause somebody can say they never
      saw — and a page clips its overflow, so a section that does not fit is not
      merely awkward, it is content that silently disappears. Nothing splits. */
@@ -194,9 +230,15 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .party .nm { font-weight: 700; font-size: 10.6pt; color: #0f172a; }
   .party .meta { font-size: 8.5pt; color: #64748b; margin-top: 1.2mm; line-height: 1.45; }
 
-  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
-  .duties > div { border: 1px solid #e2e8f0; padding: 2.6mm 3.4mm; border-radius: 1.5mm; background: #fff; }
-  .duties h3 { margin: 0 0 2.5mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+  /* Obligations set as two columns of type with a hairline above each, not two
+     boxes. Boxing every block is what made this read like a form to be endured
+     rather than an agreement to be read — and the borders cost height on a page
+     that was already clipping. */
+  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm 8mm; }
+  .duties > div { border-top: 1px solid #e2e8f0; padding-top: 2.4mm; }
+  .duties li { margin-bottom: .8mm; }
+  .duties ol { padding-left: 5mm; }
+  .duties h3 { margin: 0 0 2mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
 
   .terms-line { background: #fff5f5; border: 1px solid #fecaca; padding: 3.5mm 4.5mm; margin-bottom: 3.5mm; border-radius: 1.5mm; }
   .terms-line .lbl { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; }
@@ -211,13 +253,29 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .g { white-space: nowrap; font-weight: 700; color: #0f172a; }
   .cap { color: #475569; }
   .fin { margin-bottom: 2.5mm; }
+  /* The session view, set apart from the per-term rows above it so nobody reads
+     a session total as a term invoice. */
+  .fin tr.sess td { border-top: 1.5px solid #0f172a; background: #f8fafc; font-weight: 600; }
 
   .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 10mm; break-inside: avoid; }
-  .sign-box .who { font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; margin-bottom: 14mm; font-weight: 700; }
+  /* Both signature blocks start their rule at the same height. A long school name
+     wraps this label onto a second line, and with a plain margin that pushed one
+     party's line lower than the other's — on the two lines whose whole job is to
+     look equal. */
+  .sign-box .who {
+    font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
+    font-weight: 700; min-height: 9mm; margin-bottom: 14mm;
+  }
+  .sig { display: block; height: 15mm; width: auto; max-width: 55mm; margin: 0 0 -2mm; mix-blend-mode: multiply; }
   .sign-box .line { border-top: 1.5px solid #0f172a; padding-top: 2mm; font-size: 8.6pt; color: #334155; }
   .sign-box .nm { font-weight: 700; color: #0f172a; }
   .stamp { margin-top: 7mm; border: 1.5px dashed #cbd5e1; height: 24mm; border-radius: 2mm; display: flex;
     align-items: center; justify-content: center; color: #94a3b8; font-size: 8.2pt; font-weight: 500; background: #fafafa; }
+  /* Already executed, so it is a statement rather than an empty box waiting. */
+  .stamp-done {
+    border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d;
+    border-style: solid; height: auto; padding: 3mm; text-align: center; font-weight: 600;
+  }
   .foot { border-top: 1px solid #e2e8f0; margin-top: 7mm; padding-top: 3mm;
     font-size: 8pt; color: #64748b; display: flex; justify-content: space-between; }
 </style>
@@ -236,10 +294,11 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   <div class="doctitle">
     <h1>Memorandum of Understanding</h1>
     <div class="sub">Coding, Robotics &amp; Artificial Intelligence Education Partnership</div>
+    <div class="band"></div>
   </div>
 
   <section>
-    <h2>1.0 Parties to the Agreement</h2>
+    <h2><span class="cl">1.0</span> Parties to the Agreement</h2>
     <div class="parties">
       <div class="party">
         <div class="role">Party A</div>
@@ -249,19 +308,25 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       <div class="party">
         <div class="role">Party B</div>
         <div class="nm">${esc(school.name)}</div>
-        <div class="meta">${esc(school.address || location || 'Address on file')}</div>
+        <!-- Both lines, not one. Party A carries four lines of detail and Party B
+             carried a street on its own, so the two parties looked unequal on the
+             page where the whole point is that they are not. -->
+        <div class="meta">${[school.address, location]
+          .filter(Boolean)
+          .map((line) => esc(line))
+          .join('<br>') || 'Address on file'}</div>
       </div>
     </div>
     <p style="margin-top:3mm">This Memorandum records the understanding between the parties named above for the delivery of a structured coding, robotics and artificial intelligence programme to students of ${esc(school.name)}${location ? `, ${esc(location)}` : ''}. It sets out what each party provides, the agreed commercial terms, and the basis on which the partnership may be reviewed or ended.</p>
   </section>
 
   <section>
-    <h2>2.0 Purpose</h2>
+    <h2><span class="cl">2.0</span> Purpose</h2>
     <p>The parties intend to establish practical technology education as a standing part of the school's offering — not a one-off enrichment activity — so that students progress year on year and leave with demonstrable work. The partnership positions ${esc(school.name)} as a school preparing its students for technical and entrepreneurial work, and gives parents evidence of that preparation each term.</p>
   </section>
 
   <section>
-    <h2>3.0 Commitments of the Parties</h2>
+    <h2><span class="cl">3.0</span> Commitments of the Parties</h2>
     <div class="duties">
       <div>
         <h3>${esc(brandContact.registeredName)} provides</h3>
@@ -303,7 +368,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   </div>
 
   <section>
-    <h2>4.0 Financial Framework</h2>
+    <h2><span class="cl">4.0</span> Financial Framework</h2>
     <div class="terms-line">
       <div class="lbl">Agreed terms</div>
       <div class="val">${esc(describeTerms(terms))}</div>
@@ -314,6 +379,20 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         ? `Fees are collected by ${esc(school.name)} and settled with ${esc(brandContact.registeredName)} on the split stated above.`
         : 'Payment falls due within the period stated on each invoice.'
     } Any change to these terms takes effect only when both parties record a superseding agreement in writing.</p>
+  </section>
+
+  <!-- Term and termination sit with the money on purpose. What it costs and how
+       to leave are the two questions a proprietor actually has, and they were on
+       different sheets while this page ran barely half full. -->
+  <section>
+    <h2><span class="cl">5.0</span> Term, Review and Termination</h2>
+    <ol>
+      <li>This Memorandum takes effect from ${esc(input.commencement || 'the commencement of the next academic term')} and continues for ${esc(input.durationLabel || 'one academic session')}, after which it is reviewed by both parties.</li>
+      <li>Either party may end this Memorandum by giving one full term's written notice, so that no cohort is interrupted mid-term.</li>
+      <li>Fees already invoiced for a term in progress remain payable.</li>
+      <li>Equipment supplied by ${esc(brandContact.registeredName)} remains the property of ${esc(brandContact.registeredName)} and is returned on termination.</li>
+      <li>Student records and work produced remain accessible to the students and to the school.</li>
+    </ol>
   </section>
 
   <div class="pagefoot"><span>Page 2 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
@@ -331,7 +410,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   ${
     curriculum
       ? `<section>
-    <h2>5.0 Schedule of Learning — ${esc(curriculum.title)}</h2>
+    <h2><span class="cl">6.0</span> Schedule of Learning — ${esc(curriculum.title)}</h2>
     <p class="muted">Edition ${esc(curriculum.edition)}. The programme delivered under this Memorandum follows the progression below. Each year carries three termly focuses and a capstone build.</p>
     ${
       primary.length
@@ -367,19 +446,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <div class="head-r"><b>${esc(input.reference)}</b>Page 4</div>
   </div>
 
-  <section>
-    <h2>6.0 Term, Review and Termination</h2>
-    <ol>
-      <li>This Memorandum takes effect from ${esc(input.commencement || 'the commencement of the next academic term')} and continues for ${esc(input.durationLabel || 'one academic session')}, after which it is reviewed by both parties.</li>
-      <li>Either party may end this Memorandum by giving one full term's written notice, so that no cohort is interrupted mid-term.</li>
-      <li>Fees already invoiced for a term in progress remain payable.</li>
-      <li>Equipment supplied by ${esc(brandContact.registeredName)} remains the property of ${esc(brandContact.registeredName)} and is returned on termination.</li>
-      <li>Student records and work produced remain accessible to the students and to the school.</li>
-    </ol>
-  </section>
 
   <section>
-    <h2>7.0 General</h2>
+    <h2><span class="cl">7.0</span> General</h2>
     <ol>
       <li>Each party is responsible for the conduct and safeguarding compliance of its own personnel on the school's premises.</li>
       <li>Neither party may use the other's name or marks in publicity without prior written consent, which is not unreasonably withheld.</li>
@@ -389,21 +458,42 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   </section>
 
   <section>
-    <h2>8.0 Execution</h2>
+    <h2><span class="cl">8.0</span> Execution</h2>
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     <div class="sign">
+      <!--
+        Party A is signed at issue, not left blank.
+
+        We wrote the agreement and we are the ones sending it, so our assent is
+        not in question — yet the school received a document with two empty lines
+        and was asked to commit first, into a void. Countersigning here means what
+        lands in their inbox is already signed by us and needs only their name.
+        That is the difference between a form and an agreement.
+      -->
       <div class="sign-box">
         <div class="who">For ${esc(brandContact.registeredName)} (Party A)</div>
+        ${
+          brandContact.signatory
+            ? `<img class="sig" src="${esc(assetUrl(brandContact.signatureImage))}" alt="">
         <div class="line">
+          <div class="nm">${esc(brandContact.signatory)}</div>
+          <div class="muted">${esc(brandContact.signatoryRole)} &middot; ${esc(input.dateLabel)}</div>
+        </div>
+        <div class="stamp stamp-done">Signed and issued under reference ${esc(input.reference)}</div>`
+            : `<div class="line">
           <div class="nm">Name &amp; signature</div>
           <div class="muted">Date</div>
         </div>
-        <div class="stamp">Official stamp</div>
+        <div class="stamp">Official stamp</div>`
+        }
       </div>
       <div class="sign-box">
         <div class="who">For ${esc(school.name)} (Party B)</div>
         <div class="line">
-          <div class="nm">${esc(school.signatoryName || 'Name &amp; signature')}</div>
+          <!-- The fallback is escaped with everything else, so it has to be the raw
+               character. Written pre-escaped it was escaped twice, and the entity
+               printed as visible text on the line the school signs. -->
+          <div class="nm">${esc(school.signatoryName || 'Name & signature')}</div>
           <div class="muted">${esc(school.signatoryRole || 'Date')}</div>
         </div>
         <div class="stamp">Official stamp</div>

@@ -1324,3 +1324,62 @@ export function buildPartnershipProposalEmail(opts: {
     footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
   });
 }
+
+/**
+ * Confirmation that an agreement has been signed, sent to both parties.
+ *
+ * A signature that produces no receipt is a signature somebody can reasonably
+ * doubt happened. The school signed online and heard nothing back; we were not
+ * told either. Both sides now get the same message with the same reference, the
+ * same names, and a link to the executed document.
+ */
+export function buildPartnershipSignedEmail(opts: {
+  schoolName: string;
+  reference: string;
+  signatoryName: string;
+  signatoryRole?: string | null;
+  signedAtLabel: string;
+  shareUrl?: string | null;
+  /** Changes only the greeting: the school gets "your", we get the record. */
+  audience: 'school' | 'internal';
+  appUrl?: string;
+}): string {
+  const forSchool = opts.audience === 'school';
+
+  const bodyHtml = forSchool
+    ? `
+    <p style="margin:0 0 14px;">Dear ${escapeHtml(opts.schoolName)},</p>
+    <p style="margin:0 0 14px;">
+      Thank you — the Memorandum of Understanding between
+      ${escapeHtml(brandContact.registeredName)} and ${escapeHtml(opts.schoolName)} is now signed by
+      both parties. This message is your receipt; the executed document is linked below and stays
+      available at that address.
+    </p>
+    <p style="margin:0 0 6px;">
+      We will be in touch to agree the timetable slot and the start date. Nothing is charged until
+      teaching begins.
+    </p>`
+    : `
+    <p style="margin:0 0 14px;">${escapeHtml(opts.schoolName)} has signed ${escapeHtml(opts.reference)}.</p>
+    <p style="margin:0 0 6px;">
+      The agreement is executed by both parties. Next step is scheduling: confirm the timetable slot,
+      the start date and the facilitator.
+    </p>`;
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl: opts.appUrl,
+    eyebrow: opts.schoolName,
+    title: forSchool ? 'Your agreement is signed' : 'Agreement signed',
+    bodyHtml,
+    summaryRows: [
+      { label: 'Reference', value: opts.reference },
+      { label: 'Signed by', value: opts.signatoryName },
+      ...(opts.signatoryRole ? [{ label: 'Role', value: opts.signatoryRole }] : []),
+      { label: 'Date', value: opts.signedAtLabel, highlight: true },
+    ],
+    cta: opts.shareUrl
+      ? { href: opts.shareUrl, label: 'Open the signed agreement' }
+      : undefined,
+    footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
+  });
+}

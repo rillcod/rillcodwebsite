@@ -24,6 +24,9 @@ import {
   isValidShareToken,
   stampSignature,
 } from '@/lib/partnerships/signing';
+import { notificationsService } from '@/services/notifications.service';
+import { buildPartnershipSignedEmail } from '@/lib/email/rillcod-transactional-email';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,6 +193,68 @@ export async function POST(
       console.warn('[partnerships] could not approve school after signing:', promoteError.message);
     }
   }
+
+  /**
+   * Both parties get their copy, without anyone asking for it.
+   *
+   * Signing used to end in silence: the school tapped Sign and heard nothing,
+   * and nobody here was told either. A signature with no receipt is one somebody
+   * can reasonably doubt happened. Two messages go out with the same reference,
+   * the same names and the same link — one to the school, one to us.
+   *
+   * Awaited, not fired and forgotten. The mail path reads request-scoped state,
+   * and work that outlives the response loses that scope — which shows up as a
+   * confirmation that silently never sends. Two messages cost a moment; a
+   * signature nobody can prove costs more.
+   *
+   * The whole block cannot fail the signing: the agreement is executed the moment
+   * the row is updated, and a mail provider having a bad minute must not turn
+   * that into an error on the school's phone.
+   */
+  await (async () => {
+    try {
+      const { data: school } = await db
+        .from('schools')
+        .select('name, email')
+        .eq('id', doc.school_id)
+        .maybeSingle();
+
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
+      const signedAtLabel = new Date(signedAt).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+      const common = {
+        schoolName: String(school?.name || 'the school'),
+        reference: String(doc.reference),
+        signatoryName,
+        signatoryRole,
+        signedAtLabel,
+        shareUrl: `${appUrl}/p/${value}`,
+      };
+
+      const recipients: { to: string; audience: 'school' | 'internal' }[] = [
+        ...(school?.email ? [{ to: String(school.email), audience: 'school' as const }] : []),
+        { to: brandContact.email, audience: 'internal' as const },
+      ];
+
+      for (const r of recipients) {
+        await notificationsService.sendEmail('system', {
+          to: r.to,
+          subject:
+            r.audience === 'school'
+              ? `Signed — Memorandum of Understanding (${doc.reference})`
+              : `${common.schoolName} signed ${doc.reference}`,
+          html: buildPartnershipSignedEmail({ ...common, audience: r.audience }),
+          templateKey: 'partnership_signed',
+          referenceId: String(doc.reference),
+        });
+      }
+    } catch (mailError) {
+      console.warn('[partnerships] signed but could not send confirmations:', mailError);
+    }
+  })();
 
   return NextResponse.json({
     success: true,

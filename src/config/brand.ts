@@ -71,6 +71,21 @@ export const brandContact = {
   rcNumber: 'RC 1781500',
   /** How the company is named as a party to an agreement. */
   contractingParty: 'RILLCOD LTD (trading as Rillcod Technologies)',
+  /**
+   * Who signs on behalf of the company, and the signature itself.
+   *
+   * The same name, role and image already sign every certificate and report
+   * card, so an agreement signed by anyone else — or by nobody — would be the
+   * odd one out. The MoU countersigns itself at issue with these, so a school
+   * receives an agreement already signed by us and has only to add its own name,
+   * rather than being asked to commit first into two blank lines.
+   *
+   * Overridable by environment for whoever actually holds the authority.
+   */
+  signatory: process.env.MOU_SIGNATORY_NAME?.trim() || 'Mr Osahon',
+  signatoryRole:
+    process.env.MOU_SIGNATORY_ROLE?.trim() || 'Director, Rillcod Technologies',
+  signatureImage: '/images/signature.png',
   tagline: 'STEM, Robotics & AI Education Partner',
   taglineLong: 'Inspiring Young Minds Through Technology',
   email: 'support@rillcod.com',

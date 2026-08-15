@@ -226,3 +226,34 @@ describe('the photographs a proposal actually prints', () => {
     expect(html).not.toContain('The programme running');
   });
 });
+
+/**
+ * The cover headline is the one narrative field a person types and a model
+ * writes. It was interpolated raw while `opening` and `closing` beside it were
+ * escaped — so an ampersand in a school's chosen headline printed as markup, and
+ * anything sharper printed as markup too.
+ */
+describe('the cover headline', () => {
+  it('escapes an ampersand rather than printing entity soup', () => {
+    const html = buildPartnershipProposalHTML({
+      ...base,
+      studio: { ...defaultStudioConfig(), copy: { headline: 'Coding & Robotics' } },
+    });
+
+    expect(html).toContain('Coding &amp; Robotics');
+    expect(html).not.toContain('Coding &amp;amp; Robotics');
+  });
+
+  it('escapes markup somebody types into the studio', () => {
+    const html = buildPartnershipProposalHTML({
+      ...base,
+      studio: {
+        ...defaultStudioConfig(),
+        copy: { headline: '<img src=x onerror=alert(1)>' },
+      },
+    });
+
+    expect(html).not.toContain('<img src=x');
+    expect(html).toContain('&lt;img src=x');
+  });
+});

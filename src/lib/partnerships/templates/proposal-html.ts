@@ -18,6 +18,7 @@
  */
 import { brandAssets, brandContact } from '@/config/brand';
 import { SIGNATURE_ANCHOR } from '../signing';
+import { assetUrl } from './asset-url';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
 import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
 import { PARTNERSHIP_OFFERS, offerPriceLabel, type PartnershipOffer } from '../offers';
@@ -95,27 +96,6 @@ const esc = (s: unknown): string =>
     .replace(/"/g, '&quot;');
 
 const TERM_NAMES = ['', '1st Term', '2nd Term', '3rd Term'];
-
-/**
- * Absolute URL for an image.
- *
- * The document is stored and reopened long after it was issued, sometimes
- * outside the app, so a relative `/images/...` would render as a broken frame
- * wherever the page is not the dashboard. Anchoring to the public site keeps a
- * five-year-old proposal looking like the one that was sent.
- */
-function assetUrl(src: string): string {
-  if (/^(https?:|data:)/i.test(src)) return src;
-  // Photographs come off a phone with names like "WhatsApp Image … (1).jpeg".
-  // Spaces and brackets are not valid in a URL, and an unencoded one is a broken
-  // frame on the page that is supposed to be the evidence.
-  const encoded = String(src)
-    .replace(/^\//, '')
-    .split('/')
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-  return `${brandContact.siteUrl.replace(/\/$/, '')}/${encoded}`;
-}
 
 function yearCard(level: ProgressionLevel): string {
   const terms = level.terms
@@ -937,7 +917,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   <div class="cover-mid">
     <div class="cover-kicker">Partnership Proposal</div>
-    <h1>${narrative.headline}</h1>
+    <!-- Escaped like every other narrative field. This one was raw, and it is the
+         one a person types into the studio or a model writes — an ampersand in a
+         school's chosen headline printed as markup, and anything sharper printed
+         as markup too. -->
+    <h1>${esc(narrative.headline)}</h1>
     <div class="cover-for-card">
       <div class="cover-for">Prepared for ${esc(input.school.name)}</div>
       ${location ? `<div class="cover-loc">${esc(location)}</div>` : ''}

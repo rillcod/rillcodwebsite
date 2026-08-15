@@ -157,3 +157,26 @@ describe('the Memorandum of Understanding', () => {
     expect(html.trimEnd().endsWith('</html>')).toBe(true);
   });
 });
+
+/**
+ * The signature line printed "Name &amp; signature" to the school, because the
+ * fallback was written pre-escaped and then escaped again on the way out. On the
+ * line whose whole job is to be signed.
+ */
+describe('the signature block', () => {
+  it('prints a readable fallback, not a double-escaped entity', () => {
+    const html = buildPartnershipMouHTML(base);
+
+    expect(html).not.toContain('&amp;amp;');
+    expect(html).toContain('Name &amp; signature');
+  });
+
+  it('uses the school signatory when one is on record', () => {
+    const html = buildPartnershipMouHTML({
+      ...base,
+      school: { ...base.school, signatoryName: 'Mrs A. Okafor' },
+    });
+
+    expect(html).toContain('Mrs A. Okafor');
+  });
+});
