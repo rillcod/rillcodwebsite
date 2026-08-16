@@ -1,7 +1,7 @@
 // @refresh reset
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -13,7 +13,6 @@ import {
   ChevronLeftIcon,
   BookOpenIcon,
   ChatBubbleOvalLeftIcon,
-  ArrowLeftOnRectangleIcon,
   UserIcon,
   BuildingOffice2Icon,
   HomeIcon,
@@ -21,27 +20,18 @@ import {
   PhoneIcon,
   AcademicCapIcon,
   Squares2X2Icon,
-  MagnifyingGlassIcon,
   PhotoIcon,
   DocumentCheckIcon,
 } from '@/lib/icons';
-import {
-  Sparkles,
-  Zap,
-  ShieldCheck,
-  ArrowRight,
-  Compass,
-  Rocket,
-  ExternalLink,
-  MessageCircle,
-  Award,
-  Layers,
-} from 'lucide-react';
+import { ArrowRight, Rocket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import { isAppUtilityRoute } from '@/lib/layout/public-route-policy';
-import { brandContact } from '@/config/brand';
+import {
+  SCHOOL_REGISTRATION_PATH,
+  STUDENT_REGISTRATION_PATH,
+} from '@/lib/registration/enrollment-types';
 
 /* ─── Nav data ─────────────────────────────────────────────── */
 const mainLinksBase = [
@@ -65,11 +55,9 @@ export const Navigation = () => {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { cta, open: specialOpen } = useFeaturedSpecialProgram();
 
   const mainLinks = useMemo(
@@ -90,32 +78,18 @@ export const Navigation = () => {
   );
 
   /*
-    Everything the drawer's search can match.
+    What the drawer lists, split by weight rather than by category.
 
-    Memoised because it is the dependency of the filter below, and a fresh array
-    every render makes that memo do the work every render anyway.
+    The menu used to carry two labelled sections of full-width rows plus a
+    search field. Eleven destinations do not need searching — they need to be
+    visible — so they are split instead into the handful somebody came here for
+    and the rest, which sit two-up and take a quarter of the room.
+
+    Partnering is promoted out of the secondary list: for a school proprietor it
+    is the point of the site, not an also-ran.
   */
-  const allNavItems = useMemo(
-    () => [
-      ...mainLinks.map((l) => ({ ...l, category: 'Academics & Syllabus' })),
-      ...secondaryLinks.map((l) => ({ ...l, category: 'School & Institutional' })),
-      { href: '/student-registration', label: 'Enrol a Learner', icon: AcademicCapIcon, desc: 'Register student for coding & robotics', category: 'Portals' },
-      { href: '/school-registration', label: 'School Partnership Intake', icon: BuildingOffice2Icon, desc: 'Onboard partner school', category: 'Portals' },
-      { href: LOGIN_HREF, label: 'Portal Login', icon: UserIcon, desc: 'Staff, School & Student LMS login', category: 'Portals' },
-    ],
-    [mainLinks],
-  );
-
-  const filteredItems = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return null;
-    return allNavItems.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.desc.toLowerCase().includes(q) ||
-        item.href.toLowerCase().includes(q)
-    );
-  }, [searchQuery, allNavItems]);
+  const drawerPrimary = useMemo(() => [...mainLinks, secondaryLinks[0]], [mainLinks]);
+  const drawerSecondary = useMemo(() => secondaryLinks.slice(1), []);
 
   useEffect(() => {
     setMounted(true);
@@ -144,7 +118,6 @@ export const Navigation = () => {
 
   useEffect(() => {
     setIsOpen(false);
-    setSearchQuery('');
   }, [pathname]);
 
   useEffect(() => {
@@ -193,10 +166,6 @@ export const Navigation = () => {
       }
     } catch {}
   };
-
-  const whatsappHref = `https://wa.me/2348116600091?text=${encodeURIComponent(
-    'Hello Rillcod Technologies, I would like to inquire about your STEM, Robotics and AI programs.'
-  )}`;
 
   return (
     <>
@@ -408,289 +377,106 @@ export const Navigation = () => {
                 paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
               }}
             >
-              <div className="mx-auto max-w-lg px-4 py-5 space-y-6">
-                {/* Search Inset Bar */}
-                <div className="relative">
-                  <MagnifyingGlassIcon className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    ref={searchInputRef}
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search programs, syllabus, portals…"
-                    aria-label="Search pages"
-                    className="h-11 w-full rounded-2xl border border-border bg-card pe-9 ps-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none shadow-sm"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute end-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </button>
-                  )}
+              {/*
+                One screen, no scrolling.
+
+                This drawer used to open onto a search field, three stacked
+                conversion cards and eleven list rows carrying an icon, a label,
+                a description and a chevron each — about 130px per destination,
+                so reaching "Contact" meant scrolling through roughly three
+                screens of menu. A navigation menu with eleven destinations does
+                not need a search field to find them; it needs to show them.
+
+                So: descriptions dropped, rows at 48px, secondary destinations in
+                a two-column grid, and the whole thing measured to land inside
+                the shortest phone we support. It still scrolls if a special
+                programme adds a row on a very small screen — that is a safety
+                valve, not the design.
+              */}
+              <div className="mx-auto max-w-lg px-4 pt-3.5 pb-2 flex flex-col gap-3">
+                {/* The two things a visitor is most likely here to do. */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Link
+                    href={STUDENT_REGISTRATION_PATH}
+                    onClick={() => triggerHaptic()}
+                    className="flex flex-col justify-center rounded-2xl bg-gradient-to-br from-brand-red-600 via-primary to-brand-red-500 px-3.5 py-3 text-white shadow-lg shadow-brand-red-600/20 active:scale-[0.98] transition-transform min-h-[60px]"
+                  >
+                    <span className="text-sm font-black leading-tight">Enrol a Learner</span>
+                    <span className="text-[10px] font-semibold text-white/80 mt-0.5">Coding &amp; AI intake</span>
+                  </Link>
+                  <Link
+                    href={SCHOOL_REGISTRATION_PATH}
+                    onClick={() => triggerHaptic()}
+                    className="flex flex-col justify-center rounded-2xl border border-border bg-card px-3.5 py-3 text-foreground shadow-sm active:scale-[0.98] transition-transform min-h-[60px]"
+                  >
+                    <span className="text-sm font-black leading-tight">Partner School</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">₦0 CapEx delivery</span>
+                  </Link>
                 </div>
 
-                {/* Filtered search results */}
-                {filteredItems ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-1">
-                      Search Results ({filteredItems.length})
-                    </p>
-                    {filteredItems.length === 0 ? (
-                      <div className="py-12 text-center text-muted-foreground">
-                        <p className="text-sm font-semibold">No matching pages</p>
-                        <p className="text-xs mt-1">Try searching &quot;programs&quot;, &quot;robotics&quot;, or &quot;partner&quot;</p>
-                      </div>
-                    ) : (
-                      filteredItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => {
-                              triggerHaptic(6);
-                              setIsOpen(false);
-                            }}
-                            className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/80 hover:border-primary/50 transition-all active:scale-[0.98]"
-                          >
-                            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                              {Icon && <Icon className="w-4 h-4" />}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-foreground truncate">{item.label}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{item.desc}</p>
-                            </div>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                          </Link>
-                        );
-                      })
-                    )}
+                {/* The main destinations, one tap each. */}
+                <nav
+                  aria-label="Main"
+                  className="rounded-2xl border border-border bg-card/70 overflow-hidden divide-y divide-border/60"
+                >
+                  {drawerPrimary.map(({ href, label, icon: Icon }) => {
+                    const active = isActive(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => triggerHaptic()}
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex items-center gap-3 px-3.5 min-h-12 py-2.5 transition-colors ${
+                          active ? 'bg-primary/10' : 'active:bg-muted'
+                        }`}
+                      >
+                        <Icon
+                          className={`h-5 w-5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`}
+                        />
+                        <span
+                          className={`flex-1 text-[15px] font-bold truncate ${
+                            active ? 'text-primary' : 'text-foreground'
+                          }`}
+                        >
+                          {label}
+                        </span>
+                        <ChevronLeftIcon className="h-4 w-4 shrink-0 rotate-180 text-muted-foreground/50" />
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* Everything else, two up — present without taking a row each. */}
+                <div>
+                  <p className="px-1 pb-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+                    More
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {drawerSecondary.map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => triggerHaptic()}
+                        className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 min-h-11 py-2 text-xs font-bold text-foreground active:bg-muted transition-colors"
+                      >
+                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{label}</span>
+                      </Link>
+                    ))}
                   </div>
-                ) : (
-                  <>
-                    {/* Primary User / Auth Conversion Cards */}
-                    {user ? (
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/25 flex items-center justify-between gap-3 shadow-sm">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                            Signed In
-                          </p>
-                          <p className="text-sm font-black text-foreground truncate">
-                            {profile?.full_name || user.email}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground capitalize">
-                            {profile?.role || 'Member'}
-                          </p>
-                        </div>
-                        <Link
-                          href="/dashboard"
-                          onClick={() => {
-                            triggerHaptic(8);
-                            setIsOpen(false);
-                          }}
-                          className="px-4 py-2.5 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-wider shadow-md hover:bg-primary/90 shrink-0 flex items-center gap-1.5 active:scale-95"
-                        >
-                          <Zap className="w-3.5 h-3.5 fill-current" />
-                          <span>Dashboard</span>
-                        </Link>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <Link
-                          href="/student-registration"
-                          onClick={() => {
-                            triggerHaptic(8);
-                            setIsOpen(false);
-                          }}
-                          className="p-4 rounded-2xl bg-gradient-to-br from-brand-red-600 via-primary to-brand-red-500 text-white flex flex-col justify-between shadow-lg shadow-brand-red-600/20 active:scale-[0.98] transition-transform"
-                        >
-                          <AcademicCapIcon className="w-6 h-6 text-white/90 mb-3" />
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-wider leading-tight">
-                              Enrol Learner
-                            </p>
-                            <p className="text-[10px] text-white/80 mt-0.5">Coding &amp; AI intake</p>
-                          </div>
-                        </Link>
+                </div>
 
-                        <Link
-                          href="/school-registration"
-                          onClick={() => {
-                            triggerHaptic(8);
-                            setIsOpen(false);
-                          }}
-                          className="p-4 rounded-2xl bg-card border-2 border-border text-foreground flex flex-col justify-between shadow-sm active:scale-[0.98] transition-transform hover:border-brand-red-600/60"
-                        >
-                          <BuildingOffice2Icon className="w-6 h-6 text-brand-red-600 dark:text-brand-red-500 mb-3" />
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-wider leading-tight">
-                              Partner School
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">₦0 CapEx delivery</p>
-                          </div>
-                        </Link>
-                      </div>
-                    )}
-
-                    {/* Section 1: Academic Hub */}
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
-                        Academics &amp; Syllabus
-                      </p>
-                      <div className="rounded-2xl border border-border bg-card/80 divide-y divide-border/60 overflow-hidden">
-                        {mainLinks.map(({ href, label, icon: Icon, desc }) => {
-                          const isSpecial =
-                            href === cta.href ||
-                            href.startsWith('/special/') ||
-                            href === '/summer-school';
-                          return (
-                            <Link
-                              key={href}
-                              href={href}
-                              onClick={() => {
-                                triggerHaptic(6);
-                                setIsOpen(false);
-                              }}
-                              className={`flex items-center justify-between p-3.5 transition-colors active:bg-muted ${
-                                isActive(href) ? 'bg-primary/5 text-primary' : 'hover:bg-muted/50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                    isActive(href)
-                                      ? 'bg-primary text-white shadow-sm'
-                                      : isSpecial
-                                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                      : 'bg-muted text-muted-foreground'
-                                  }`}
-                                >
-                                  {Icon && <Icon className="w-4 h-4" />}
-                                </div>
-                                <div className="min-w-0">
-                                  <p
-                                    className={`text-sm font-bold truncate ${
-                                      isActive(href) ? 'text-primary' : 'text-foreground'
-                                    }`}
-                                  >
-                                    {label}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground truncate">{desc}</p>
-                                </div>
-                              </div>
-                              <ArrowRight className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Section 2: Institutional & Trust */}
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
-                        Schools, Trust &amp; Portals
-                      </p>
-                      <div className="rounded-2xl border border-border bg-card/80 divide-y divide-border/60 overflow-hidden">
-                        {secondaryLinks.map(({ href, label, icon: Icon, desc }) => (
-                          <Link
-                            key={href}
-                            href={href}
-                            onClick={() => {
-                              triggerHaptic(6);
-                              setIsOpen(false);
-                            }}
-                            className={`flex items-center justify-between p-3.5 transition-colors active:bg-muted ${
-                              isActive(href) ? 'bg-primary/5 text-primary' : 'hover:bg-muted/50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                  isActive(href)
-                                    ? 'bg-primary text-white'
-                                    : 'bg-muted text-muted-foreground'
-                                }`}
-                              >
-                                {Icon && <Icon className="w-4 h-4" />}
-                              </div>
-                              <div className="min-w-0">
-                                <p
-                                  className={`text-sm font-bold truncate ${
-                                    isActive(href) ? 'text-primary' : 'text-foreground'
-                                  }`}
-                                >
-                                  {label}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground truncate">{desc}</p>
-                              </div>
-                            </div>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Direct WhatsApp Helpline */}
-                    <a
-                      href={whatsappHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => triggerHaptic(8)}
-                      className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 active:scale-[0.98] transition-transform"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
-                          <MessageCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-wider">
-                            Chat on WhatsApp
-                          </p>
-                          <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 font-medium">
-                            {brandContact.phone} · Instant Admissions
-                          </p>
-                        </div>
-                      </div>
-                      <ExternalLink className="w-4 h-4 shrink-0" />
-                    </a>
-
-                    {/* Portal Login or Sign Out */}
-                    <div className="pt-1">
-                      {!user ? (
-                        <Link
-                          href={LOGIN_HREF}
-                          onClick={() => {
-                            triggerHaptic(6);
-                            setIsOpen(false);
-                          }}
-                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-card border border-border text-foreground font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95"
-                        >
-                          <UserIcon className="w-4 h-4 text-muted-foreground" />
-                          <span>Staff, School &amp; Parent Login</span>
-                        </Link>
-                      ) : (
-                        <a
-                          href="/api/auth/signout"
-                          onClick={() => triggerHaptic(8)}
-                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wider active:scale-95"
-                        >
-                          <ArrowLeftOnRectangleIcon className="w-4 h-4" />
-                          <span>Sign Out</span>
-                        </a>
-                      )}
-                    </div>
-
-                    {/* Accreditation Footer */}
-                    <div className="text-center pt-2 pb-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                        {brandContact.registeredName} · {brandContact.rcNumber}
-                      </p>
-                    </div>
-                  </>
-                )}
+                {/* The portal, last: the people who need it know they need it. */}
+                <Link
+                  href={LOGIN_HREF}
+                  onClick={() => triggerHaptic()}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted/50 min-h-12 px-4 text-sm font-black text-foreground active:bg-muted transition-colors"
+                >
+                  <UserIcon className="h-4 w-4" />
+                  {user ? 'My Dashboard' : 'Portal Login'}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </motion.div>
           )}
