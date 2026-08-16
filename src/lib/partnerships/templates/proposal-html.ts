@@ -1042,7 +1042,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .guarantee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 6mm; margin: 2mm 0; }
   .guarantee-card {
     display: flex; gap: 3.5mm; align-items: flex-start;
-    padding: 3.5mm 4mm; border: 1px solid #e2e8f0; border-radius: 2mm; background: #fff; break-inside: avoid;
+    padding: 3mm 4mm; border: 1px solid #e2e8f0; border-radius: 2mm; background: #fff; break-inside: avoid;
   }
   .guarantee-icon {
     width: 6mm; height: 6mm; border-radius: 50%; background: #dcfce7; color: #16a34a;
@@ -1070,7 +1070,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   table { width: 100%; border-collapse: collapse; font-size: 10.4pt; margin-bottom: 2mm; }
   th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
-  td { padding: 1.9mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
+  td { padding: 1.6mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
   /* Options as cards. Modern, and the only way three fee options fit across A4
      once the body type is large enough to read without leaning in. */
   .offers { display: flex; flex-direction: column; gap: 3.5mm; }

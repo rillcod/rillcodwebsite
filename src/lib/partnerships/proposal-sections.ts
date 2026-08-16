@@ -97,7 +97,7 @@ export const ZERO_CAPEX_PROMISE = [
       strong enough: no hardware to buy, ever.
     */
     title: 'Zero equipment cost to the school',
-    body: 'Rillcod brings the devices, microcontrollers and kits each session needs, and supplies the learning platform. The school never buys, replaces or insures hardware; it provides the room, a slot on the timetable and, where available, power and internet.',
+    body: 'Rillcod brings the devices, microcontrollers, kits and learning platform. The school never buys, replaces or insures hardware — it provides the room and the timetable slot.',
   },
   {
     title: 'Dedicated Certified Instructors',
@@ -134,12 +134,12 @@ export const TRADITIONAL_VS_RILLCOD = [
   {
     area: 'Curriculum Focus',
     traditional: 'Basic typing, MS Word, and passive theory.',
-    rillcod: 'Hands-on coding, applied artificial intelligence, and hardware projects that put the code into something physical.',
+    rillcod: 'Hands-on coding, applied AI, and hardware projects that make the code real.',
   },
   {
     area: 'Student Outcomes',
     traditional: 'Written exams with no tangible portfolio.',
-    rillcod: 'Live websites, working apps and trained AI models a learner can demonstrate, plus hardware builds, shown at termly expos.',
+    rillcod: 'Live websites, working apps and trained AI models, demonstrated at a termly expo.',
   },
   {
     area: 'Parent Perception',
