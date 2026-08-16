@@ -43,6 +43,32 @@ const MIN_INK_POINTS = 8;
 const SIGNATURE_FONT_STACK =
   "'Segoe Script', 'Bradley Hand', 'Lucida Handwriting', 'Dancing Script', cursive, serif";
 
+/*
+  The titles that actually sign for a Nigerian school.
+
+  A free-text box on a legal document collects "Proprietor", "proprietor",
+  "Prop.", "Owner/Proprietress" and "MD" for the same office, and the role is
+  printed on the contract and stored on the row — so the inconsistency is
+  permanent. A list also tells the signer what sort of answer is wanted: a
+  title, not their name, which is the mistake a blank box invites.
+
+  "Other" is not optional politeness. Titles vary — Administrator, Trustee,
+  Group Head — and a closed list would stop a legitimate signatory from
+  executing an agreement, which is a far worse failure than untidy data.
+*/
+const SIGNATORY_ROLES = [
+  'Proprietor',
+  'Proprietress',
+  'Principal',
+  'Head of School',
+  'Vice Principal',
+  'Director',
+  'Board Chair',
+  'School Administrator',
+] as const;
+
+const OTHER_ROLE = '__other__';
+
 export function SignatureModal({
   reference,
   token,
@@ -59,7 +85,10 @@ export function SignatureModal({
 }) {
   const [mode, setMode] = useState<"draw" | "type">("type");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Proprietor / Principal");
+  /** The chosen option, or OTHER_ROLE when the signatory is typing their own. */
+  const [rolePick, setRolePick] = useState<string>("Proprietor");
+  const [roleOther, setRoleOther] = useState("");
+  const role = rolePick === OTHER_ROLE ? roleOther : rolePick;
   const [authorised, setAuthorised] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -548,15 +577,34 @@ export function SignatureModal({
               >
                 Official title / role <span className="text-red-400">*</span>
               </label>
-              <input
+              <select
                 id="sign-role"
-                type="text"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                placeholder="e.g. Proprietor / Executive Director"
-                autoCapitalize="words"
-                className="w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
-              />
+                value={rolePick}
+                onChange={(e) => setRolePick(e.target.value)}
+                className="w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
+              >
+                {SIGNATORY_ROLES.map((r) => (
+                  // Dark options: on Windows a <select> renders its list with the
+                  // OS palette, so white-on-white is the default failure here.
+                  <option key={r} value={r} className="bg-slate-900 text-white">
+                    {r}
+                  </option>
+                ))}
+                <option value={OTHER_ROLE} className="bg-slate-900 text-white">
+                  Other…
+                </option>
+              </select>
+              {rolePick === OTHER_ROLE && (
+                <input
+                  type="text"
+                  value={roleOther}
+                  onChange={(e) => setRoleOther(e.target.value)}
+                  placeholder="Enter your official title"
+                  autoCapitalize="words"
+                  autoFocus
+                  className="mt-2 w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
+                />
+              )}
             </div>
           </div>
 

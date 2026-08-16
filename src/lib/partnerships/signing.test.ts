@@ -618,12 +618,13 @@ describe('the preview shows the card it will print', () => {
     });
 
   it('draws the card on a preview', () => {
-    expect(pendingProposal()).toContain('class="scan-lead"');
+    expect(pendingProposal()).toContain('class="cover-scan-cap"'); // masthead
+    expect(pendingProposal()).toContain('class="end-scan-lead"'); // closing page
     expect(pendingMou()).toContain('class="online-lead"');
   });
 
   it('leaves the QR plate empty rather than inventing a code to scan', () => {
-    expect(pendingProposal()).toContain('scan-qr-pending');
+    expect(pendingProposal()).toContain('cover-scan-qr-pending');
     expect(pendingMou()).toContain('online-qr-pending');
     // No <img> QR, because there is no link to encode yet.
     expect(pendingProposal()).not.toContain('data:image/png;base64');
@@ -646,6 +647,54 @@ describe('the preview shows the card it will print', () => {
       reference: 'RC-PROP-2026-00042',
       dateLabel: '16 August 2026',
     });
-    expect(bare).not.toContain('class="scan-lead"');
+    expect(bare).not.toContain('class="cover-scan-cap"');
+    expect(bare).not.toContain('class="end-scan-lead"');
+  });
+});
+
+/**
+ * The declaration has to survive the browser it was made in.
+ *
+ * The signing dialogue asks the signatory to confirm they are duly authorised
+ * to bind the school — and that confirmation lived only in a checkbox. It was
+ * never sent to the server, never stored and never printed, so the signature
+ * block recorded who signed and when but not the fact most likely to be
+ * disputed later: that they said they had the authority to.
+ *
+ * It is now printed into the document, which the database freezes on signing.
+ */
+describe('the authority declaration in the stamp', () => {
+  const base = {
+    signatoryName: 'Dr. Emmanuel Okon',
+    signatoryRole: 'Proprietor',
+    signatureDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+    signedAt: '2026-08-16T10:00:00.000Z',
+  };
+
+  it('records the party the signatory affirmed authority to bind', () => {
+    const stamp = buildSignatureStamp({ ...base, boundParty: 'Bay-Flowers International School' });
+    expect(stamp).toContain('duly authorised');
+    expect(stamp).toContain('Bay-Flowers International School');
+    expect(stamp).toContain('legally binding');
+  });
+
+  it('escapes the party name like every other interpolated value', () => {
+    const stamp = buildSignatureStamp({
+      ...base,
+      boundParty: '</div><h1>VOID</h1>',
+    });
+    expect(stamp).not.toContain('<h1>');
+    expect(stamp).toContain('&lt;/div&gt;');
+  });
+
+  it('says nothing rather than naming the wrong party', () => {
+    // The school lookup can fail. An absent declaration is recoverable; one
+    // asserting authority over the wrong school on a signed contract is not.
+    for (const missing of [null, undefined, '']) {
+      const stamp = buildSignatureStamp({ ...base, boundParty: missing });
+      expect(stamp).not.toContain('duly authorised');
+      // The signature itself is still recorded.
+      expect(stamp).toContain('Dr. Emmanuel Okon');
+    }
   });
 });

@@ -142,6 +142,20 @@ export type SignatureStampInput = {
   signatoryRole: string;
   signatureDataUrl: string;
   signedAt: string;
+  /**
+   * The party the signatory affirmed authority to bind.
+   *
+   * The signing dialogue asks them to confirm they are duly authorised, and
+   * that confirmation used to live only in a checkbox in a browser: it was
+   * never sent, never stored and never printed. The signature block recorded
+   * who signed and when, but not the one fact most likely to be contested
+   * later — that they said they had the authority to.
+   *
+   * Printed here, it goes into the document itself, which the database freezes
+   * on signing. Omitted when the school is unknown, rather than asserting a
+   * declaration nobody made.
+   */
+  boundParty?: string | null;
 };
 
 /**
@@ -159,12 +173,21 @@ export function buildSignatureStamp(input: SignatureStampInput): string {
     year: 'numeric',
   });
 
+  const declaration = input.boundParty
+    ? `
+        <div style="font-size:7pt; color:#15803d; margin-top:1.8mm; padding-top:1.8mm; border-top:1px solid #bbf7d0; line-height:1.45;">
+          Confirmed on signing: the signatory is duly authorised to enter into this
+          agreement on behalf of ${escapeHtml(input.boundParty)}, that the details
+          above are correct, and that this electronic signature is legally binding.
+        </div>`
+    : '';
+
   return `
       <div class="e-signature-stamp" style="margin-top:4mm; padding:3mm; border:1px solid #16a34a; background:#f0fdf4; border-radius:4px;">
         <div style="font-size:8pt; text-transform:uppercase; color:#16a34a; font-weight:700;">Digitally Signed &amp; Accepted</div>
         <img src="${escapeHtml(input.signatureDataUrl)}" alt="Signature" style="max-height:18mm; display:block; margin:2mm 0;" />
         <div style="font-size:8.5pt; font-weight:700; color:#0f172a;">${escapeHtml(input.signatoryName)}</div>
-        <div style="font-size:7.5pt; color:#64748b;">${escapeHtml(input.signatoryRole)} &middot; ${escapeHtml(dateLabel)}</div>
+        <div style="font-size:7.5pt; color:#64748b;">${escapeHtml(input.signatoryRole)} &middot; ${escapeHtml(dateLabel)}</div>${declaration}
       </div>`;
 }
 

@@ -184,9 +184,34 @@ export async function POST(
   // Stamp the signature into the document, in place of the anchor the templates
   // leave for it. Everything interpolated is escaped: an unauthenticated caller
   // must not be able to rewrite the visible content of a signed contract.
+  /*
+    Who the signatory said they could bind.
+
+    Read from the school record rather than taken from the request: the party
+    being bound is not something the person signing gets to type. If the lookup
+    fails the stamp simply omits the declaration, because printing "authorised
+    on behalf of" with the wrong name on a contract is worse than printing
+    nothing.
+  */
+  let boundParty: string | null = null;
+  if (doc.school_id) {
+    const { data: signingSchool } = await db
+      .from('schools')
+      .select('name')
+      .eq('id', doc.school_id)
+      .maybeSingle();
+    boundParty = signingSchool?.name ? String(signingSchool.name) : null;
+  }
+
   let updatedHtml = doc.document_html || '';
   if (signatureDataUrl && updatedHtml) {
-    const stamp = buildSignatureStamp({ signatoryName, signatoryRole, signatureDataUrl, signedAt });
+    const stamp = buildSignatureStamp({
+      signatoryName,
+      signatoryRole,
+      signatureDataUrl,
+      signedAt,
+      boundParty,
+    });
 
     // Both templates leave the anchor. This used to replace the literal "Official
     // stamp", which only the MoU contains — so signing a proposal set the status

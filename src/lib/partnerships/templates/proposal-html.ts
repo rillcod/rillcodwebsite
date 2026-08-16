@@ -246,22 +246,24 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         open the document rather than the reference, which the public route
         refuses. See the note in mou-html.ts.
       */
-      input.accessCode
-        ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:3mm 4.5mm; margin-top:3.5mm;">
-      <div style="display:flex; align-items:center; gap:3.5mm;">
-        ${
-          input.accessQrDataUrl
-            ? `<img src="${esc(input.accessQrDataUrl)}" style="width:13mm; height:13mm; border-radius:1mm; display:block;" alt="Scan to read this proposal online" />`
-            : ''
-        }
-        <div>
-          <span style="font-size:7.2pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; E-Signing</span>
-          <b style="font-size:9.2pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">${esc(brandContact.web)}/p</span></b>
-          <div style="font-size:8.2pt; color:#64748b; margin-top:0.5mm;">Access code: <strong style="color:#0f172a; font-family:monospace; letter-spacing:0.06em;">${esc(input.accessCode)}</strong></div>
+      input.accessCode || input.accessPending
+        ? `<div class="end-scan">
+      ${
+        input.accessQrDataUrl
+          ? `<img class="end-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to reply to this proposal online" />`
+          : '<div class="end-scan-qr end-scan-qr-pending"></div>'
+      }
+      <div>
+        <div class="end-scan-lead">Scan to reply</div>
+        <b class="end-scan-title">Accept or ask a question from your phone</b>
+        <div class="end-scan-sub">
+          ${
+            input.accessCode
+              ? `Opens this proposal online. No camera? Go to <b>${esc(brandContact.web)}/p</b>
+          and type <span class="end-scan-code">${esc(input.accessCode)}</span>`
+              : 'Scan code and access code are assigned when this is issued.'
+          }
         </div>
-      </div>
-      <div style="font-size:7.8pt; color:#64748b; text-align:right; line-height:1.35;">
-        Open &amp; sign online<br>from any smartphone
       </div>
     </div>`
         : ''
@@ -744,12 +746,68 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .s2 { background: #dc2626; flex: 3; }
   .s3 { background: #2563eb; flex: 2; }
 
+  /* ── The closing card ─────────────────────────────────────────────────
+     The last page kept the old pale panel — "Digital Portal & E-Signing" in
+     small blue caps on grey — while the cover and the MoU moved to the dark
+     card. Two designs for the same instruction inside one document reads as an
+     oversight, and the weaker of the two was sitting on the page where the
+     reader decides what to do next. Same language as the rest, and the ask is
+     the one this page is actually making: reply. */
+  .end-scan {
+    display: flex; align-items: center; gap: 4.5mm; break-inside: avoid;
+    margin-top: 3.5mm; padding: 3mm 5mm 3mm 4mm;
+    background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
+    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
+  }
+  .end-scan-qr {
+    width: 18mm; height: 18mm; display: block; flex: none;
+    background: #fff; padding: 1.2mm; border-radius: 1.2mm;
+  }
+  .end-scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.45); }
+  .end-scan-lead {
+    font-size: 7.6pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: #fca5a5;
+  }
+  .end-scan-title { display: block; font-size: 10.5pt; color: #fff; margin-top: .7mm; font-weight: 800; }
+  .end-scan-sub { font-size: 8.2pt; color: #cbd5e1; margin-top: 1.3mm; line-height: 1.5; }
+  .end-scan-sub b { color: #fff; font-weight: 700; }
+  .end-scan-code {
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
+    font-size: 9pt; color: #fff; font-weight: 700;
+  }
+
+  /* Wordmark left, scan block right, both hanging off the top of the band. */
+  .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8mm; }
   .brand-row { display: flex; align-items: center; gap: 4mm; }
+
+  /* ── The scan block, top right of the cover ────────────────────────────
+     Large on purpose. This is the one mark on the page that turns a sheet of
+     paper into the live document, and a QR that has to be hunted for may as
+     well not be printed. At 34mm it reads from across a desk and scans on the
+     first try from a phone held at arm's length; the source is 1024px, so it
+     is still four times the resolution the paper can hold. */
+  .cover-scan { flex: none; text-align: center; }
+  .cover-scan-qr {
+    width: 34mm; height: 34mm; display: block;
+    background: #fff; padding: 2mm; border-radius: 2mm;
+    box-shadow: 0 3px 10px rgba(0,0,0,.28);
+  }
+  .cover-scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.5); }
+  .cover-scan-cap {
+    margin-top: 2.2mm; font-size: 8.4pt; font-weight: 800; color: #fff;
+    letter-spacing: .04em;
+  }
+  .cover-scan-code {
+    margin-top: .8mm; font-size: 8.6pt; font-weight: 700; color: #fca5a5;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .12em;
+  }
+  .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; }
   /* On a white tile, so the mark reads on any background and survives a
      printer that renders the dark band lighter than the screen does. */
   .brand-mark {
-    width: 16mm; height: 16mm; object-fit: contain; flex: none;
-    background: #fff; border-radius: 2.2mm; padding: 1.8mm;
+    width: 19mm; height: 19mm; object-fit: contain; flex: none;
+    background: #fff; border-radius: 2.4mm; padding: 2mm;
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   }
   /* A masthead, not a headline. At 26pt the company name was set larger than the
@@ -758,8 +816,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      than a document with something to say. Restrained here so the h1 leads, the
      way it does on any professional cover; the space this returns goes to the
      scan card below. */
-  .brand { font-size: 19pt; font-weight: 700; letter-spacing: -.3px; color: #fff; }
-  .brand-tag { color: #fca5a5; font-size: 8.6pt; letter-spacing: .1em; text-transform: uppercase; margin-top: 1.2mm; font-weight: 600; }
+  .brand { font-size: 23pt; font-weight: 800; letter-spacing: -.4px; color: #fff; }
+  .brand-tag { color: #fca5a5; font-size: 9.2pt; letter-spacing: .09em; text-transform: uppercase; margin-top: 1.4mm; font-weight: 600; }
   .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10mm 0 8mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
@@ -837,15 +895,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
 
   /* Proof Band */
-  .proof { display: flex; gap: 3.5mm; margin: 9mm 0 0; }
+  /* The counts are supporting evidence, not the headline. At 28pt they were the
+     largest thing on the cover after the title and pulled the eye away from both
+     the offer and the scan block; the room they give back is what lets the QR be
+     large enough to scan from across a desk. */
+  .proof { display: flex; gap: 3.5mm; margin: 7mm 0 0; }
   .proof-tile {
-    flex: 1; background: #f8fafc; padding: 4.5mm 4mm 4mm; text-align: center;
-    border-top: 3.5px solid #991b1b; border-radius: 1.5mm;
+    flex: 1; background: #f8fafc; padding: 3mm 4mm 2.8mm; text-align: center;
+    border-top: 3px solid #991b1b; border-radius: 1.5mm;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
   .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
-  .proof-n { display: block; font-size: 28pt; font-weight: 800; color: #0f172a; letter-spacing: -.6px; line-height: 1; }
-  .proof-l { display: block; font-size: 7.8pt; color: #64748b; margin-top: 2mm; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .proof-n { display: block; font-size: 19pt; font-weight: 800; color: #0f172a; letter-spacing: -.4px; line-height: 1; }
+  .proof-l { display: block; font-size: 7pt; color: #64748b; margin-top: 1.4mm; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
   .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
   .proof-dark .proof-n { color: #fff; }
   .proof-dark .proof-l { color: #cbd5e1; }
@@ -1095,12 +1157,44 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <!-- Cover -->
 <div class="page cover">
   <div class="cover-top">
-    <div class="brand-row">
-      <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="${esc(brandContact.displayName)}" onerror="this.onerror=null;this.src='${brandAssets.logoCloudinary}';" />
-      <div>
-        <div class="brand">${esc(brandContact.displayName)}</div>
-        <div class="brand-tag">${esc(brandContact.tagline)}</div>
+    <div class="masthead">
+      <div class="brand-row">
+        <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="${esc(brandContact.displayName)}" onerror="this.onerror=null;this.src='${brandAssets.logoCloudinary}';" />
+        <div>
+          <div class="brand">${esc(brandContact.displayName)}</div>
+          <div class="brand-tag">${esc(brandContact.tagline)}</div>
+        </div>
       </div>
+      ${
+        /*
+          The scan block, top right of the cover.
+
+          It sat mid-page under the document meta, where it had to fight the
+          headline for attention and cost the cover 34mm of the height its title
+          wanted. The masthead had that space standing empty to the right of the
+          logo — and top-right of a cover is where an eye lands after the
+          wordmark. It is also a dark band, which is what a QR wants behind its
+          white plate.
+
+          Caption underneath is deliberately four words. A QR that needs a
+          sentence to explain it has already failed.
+        */
+        input.accessCode || input.accessPending
+          ? `<div class="cover-scan">
+        ${
+          input.accessQrDataUrl
+            ? `<img class="cover-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
+            : '<div class="cover-scan-qr cover-scan-qr-pending"></div>'
+        }
+        <div class="cover-scan-cap">Scan to read online</div>
+        ${
+          input.accessCode
+            ? `<div class="cover-scan-code">Code ${esc(input.accessCode)}</div>`
+            : '<div class="cover-scan-code cover-scan-code-pending">Code on issue</div>'
+        }
+      </div>`
+          : ''
+      }
     </div>
     ${proofBand(true)}
   </div>
@@ -1124,35 +1218,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       ${years ? `<div><b>${years} school year${years === 1 ? '' : 's'}</b>${esc(rangeLabel)}</div>` : ''}
       ${input.validUntilLabel ? `<div><b>${esc(input.validUntilLabel)}</b>Fees valid until</div>` : ''}
     </div>
-    ${
-      // How to reopen this after the email is gone. On the cover, where somebody
-      // holding a printed copy will actually look.
-      input.accessCode || input.accessPending
-        ? `<div class="scan">
-      ${
-        input.accessQrDataUrl
-          ? `<img class="scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to open this proposal online">`
-          : '<div class="scan-qr scan-qr-pending"></div>'
-      }
-      <div>
-        <div class="scan-lead">Scan me</div>
-        <div class="scan-title">Open this proposal on your phone</div>
-        <!-- Two routes, in order of effort, and the typed one spelled out in
-             full: a camera is faster, but the code is what survives a
-             photocopy and a forwarded photograph of page one. -->
-        <div class="scan-sub">
-          Share it with your board and reply from the same page. No app, no login.<br>
-          ${
-            input.accessCode
-              ? `No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
-          <span class="scan-code">${esc(input.accessCode)}</span>`
-              : 'Scan code and access code are assigned when this is issued.'
-          }
-        </div>
-      </div>
-    </div>`
-        : ''
-    }
   </div>
 
   <div class="cover-foot">
