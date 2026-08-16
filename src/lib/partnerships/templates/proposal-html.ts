@@ -846,10 +846,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 9mm 0 10mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
-    font-size: 10.5pt; letter-spacing: .16em; text-transform: uppercase; font-weight: 800;
-    padding: 2.4mm 5.5mm; border-radius: 1.8mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
+    font-size: 21pt; letter-spacing: .13em; text-transform: uppercase; font-weight: 800;
+    padding: 3.4mm 8mm; border-radius: 2.4mm; box-shadow: 0 3px 8px rgba(153, 27, 27, 0.32);
+    line-height: 1.1;
   }
-  h1 { font-size: 34pt; line-height: 1.12; margin: 9mm 0 14mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 34pt; line-height: 1.12; margin: 7mm 0 13mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
     background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 0; border-radius: 0 2.5mm 2.5mm 0;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
