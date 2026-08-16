@@ -72,18 +72,50 @@ export const Navigation = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const { cta, open: specialOpen } = useFeaturedSpecialProgram();
 
-  const mainLinks = specialOpen
-    ? [
-        mainLinksBase[0],
-        {
-          href: cta.href,
-          label: cta.button_label || '☀️ Special Programme',
-          icon: Rocket,
-          desc: `${cta.title} · Now Enrolling`,
-        },
-        ...mainLinksBase.slice(1),
-      ]
-    : mainLinksBase;
+  const mainLinks = useMemo(
+    () =>
+      specialOpen
+        ? [
+            mainLinksBase[0],
+            {
+              href: cta.href,
+              label: cta.button_label || '☀️ Special Programme',
+              icon: Rocket,
+              desc: `${cta.title} · Now Enrolling`,
+            },
+            ...mainLinksBase.slice(1),
+          ]
+        : mainLinksBase,
+    [specialOpen, cta.href, cta.button_label, cta.title],
+  );
+
+  /*
+    Everything the drawer's search can match.
+
+    Memoised because it is the dependency of the filter below, and a fresh array
+    every render makes that memo do the work every render anyway.
+  */
+  const allNavItems = useMemo(
+    () => [
+      ...mainLinks.map((l) => ({ ...l, category: 'Academics & Syllabus' })),
+      ...secondaryLinks.map((l) => ({ ...l, category: 'School & Institutional' })),
+      { href: '/student-registration', label: 'Enrol a Learner', icon: AcademicCapIcon, desc: 'Register student for coding & robotics', category: 'Portals' },
+      { href: '/school-registration', label: 'School Partnership Intake', icon: BuildingOffice2Icon, desc: 'Onboard partner school', category: 'Portals' },
+      { href: LOGIN_HREF, label: 'Portal Login', icon: UserIcon, desc: 'Staff, School & Student LMS login', category: 'Portals' },
+    ],
+    [mainLinks],
+  );
+
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return null;
+    return allNavItems.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q) ||
+        item.href.toLowerCase().includes(q)
+    );
+  }, [searchQuery, allNavItems]);
 
   useEffect(() => {
     setMounted(true);
@@ -123,6 +155,22 @@ export const Navigation = () => {
     };
   }, []);
 
+  /*
+    Every hook must already have run by the time we get here.
+
+    This early return used to sit above the drawer's `useMemo`, which meant the
+    component called one fewer hook on an app-utility route than on a public
+    one. React counts hooks per render and throws when the count drops —
+    "Rendered fewer hooks than expected" — which reached the user as
+    "Application error: a client-side exception has occurred".
+
+    It fired on exactly the links most likely to be used: /login,
+    /student-registration, /school-registration and /result-check are all
+    utility routes, and all four are in this drawer. Opening the menu and
+    tapping almost anything in the Portals group crashed the page.
+
+    So the guard stays last. Anything added to this component belongs above it.
+  */
   const isHiddenRoute = isAppUtilityRoute(pathname);
   if (isHiddenRoute) return null;
 
@@ -137,26 +185,6 @@ export const Navigation = () => {
         ? 'bg-primary/10 text-primary'
         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
     }`;
-
-  // Filter links for the in-drawer live search
-  const allNavItems = [
-    ...mainLinks.map((l) => ({ ...l, category: 'Academics & Syllabus' })),
-    ...secondaryLinks.map((l) => ({ ...l, category: 'School & Institutional' })),
-    { href: '/student-registration', label: 'Enrol a Learner', icon: AcademicCapIcon, desc: 'Register student for coding & robotics', category: 'Portals' },
-    { href: '/school-registration', label: 'School Partnership Intake', icon: BuildingOffice2Icon, desc: 'Onboard partner school', category: 'Portals' },
-    { href: LOGIN_HREF, label: 'Portal Login', icon: UserIcon, desc: 'Staff, School & Student LMS login', category: 'Portals' },
-  ];
-
-  const filteredItems = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return null;
-    return allNavItems.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.desc.toLowerCase().includes(q) ||
-        item.href.toLowerCase().includes(q)
-    );
-  }, [searchQuery, allNavItems]);
 
   const triggerHaptic = (ms = 8) => {
     try {
@@ -342,16 +370,40 @@ export const Navigation = () => {
             </div>
           </div>
         </div>
+      </nav>
 
-        {/* ── Full-Screen Mobile Slide-Down Drawer (Fixed Overlay from Under Header) ── */}
-        <AnimatePresence>
+      {/*
+        ── Full-Screen Mobile Slide-Down Drawer ──
+
+        A sibling of the header, not a child of it, and that placement is the
+        whole reason it fills the screen.
+
+        The header carries `backdrop-blur`, and an element with a backdrop-filter
+        becomes the containing block for any `position: fixed` inside it. While
+        the drawer lived in there, `top-[var(--public-nav-height)] bottom-0`
+        resolved against the 97px header rather than the viewport, so the menu
+        opened as a 25px sliver: the button flipped to "Close", the body scroll
+        locked, and there was nothing to see. Measured at 390x844 — the drawer's
+        own bottom edge came out at 97px, exactly the header's height.
+      */}
+      <AnimatePresence>
           {mounted && isOpen && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:hidden fixed top-[var(--public-nav-height)] inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/98 backdrop-blur-3xl overflow-y-auto overscroll-contain shadow-2xl"
+              /*
+                Above the bottom dock, not under it.
+
+                The drawer was `z-50` and the dock below is `z-[95]`, so the dock
+                painted over the drawer's last 65px — the end of the link list
+                sat behind it, and tapping there hit the dock instead of the
+                link under the finger. The header is `z-[100]`; the drawer opens
+                beneath it by design, so `z-[96]` puts it above the dock and
+                still below the bar it hangs from.
+              */
+              className="lg:hidden fixed top-[var(--public-nav-height)] inset-x-0 bottom-0 z-[96] border-t border-border/80 bg-background/98 backdrop-blur-3xl overflow-y-auto overscroll-contain shadow-2xl"
               style={{
                 paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
               }}
@@ -642,8 +694,7 @@ export const Navigation = () => {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </nav>
+      </AnimatePresence>
     </>
   );
 };
