@@ -75,12 +75,28 @@ export const AUTHORED_NARRATIVE: ProposalNarrative = {
  */
 export function containsCommercialClaim(text: string): boolean {
   const t = String(text ?? '');
+  // "Free" belongs to this rule and not to `containsMonetaryFigure`: a model
+  // that writes "free training included" has invented a concession, whereas a
+  // salesperson offering a free demonstration is describing something we
+  // genuinely do. The narrower check exists for copy a human wrote.
+  return containsMonetaryFigure(t) || /\b(free|discount|refund|guarantee[ds]?)\b/i.test(t);
+}
+
+/**
+ * Does this text put a number against the deal?
+ *
+ * Fees, shares and rates come from `partnership_terms` and print on the
+ * document from that record. Anything else that states one — generated pitch,
+ * outreach email, WhatsApp message — is quoting a figure nobody agreed to the
+ * one person who will hold us to it.
+ */
+export function containsMonetaryFigure(text: string): boolean {
+  const t = String(text ?? '');
   return (
     /₦|\bNGN\b|\bnaira\b/i.test(t) ||
     /\b\d{1,3}(,\d{3})+\b/.test(t) ||
     /\b\d+\s*%/.test(t) ||
-    /\bper\s+(student|child|learner|term)\b/i.test(t) ||
-    /\b(free|discount|refund|guarantee[ds]?)\b/i.test(t)
+    /\bper\s+(student|child|learner|term)\b/i.test(t)
   );
 }
 

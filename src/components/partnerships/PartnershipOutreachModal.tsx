@@ -11,6 +11,12 @@ import {
   ChatBubbleLeftRightIcon,
   ExclamationTriangleIcon,
 } from "@/lib/icons";
+import {
+  OUTREACH_ANGLES,
+  outreachPlainText,
+  type OutreachAngle,
+} from "@/lib/partnerships/outreach-copy";
+import { documentSharePath } from "@/lib/partnerships/signing";
 import type { SchoolRow, IssuedDocumentRow } from "./types";
 
 interface Props {
@@ -20,34 +26,12 @@ interface Props {
   onClose: () => void;
 }
 
-type Angle = "cold_pitch" | "free_demo" | "check_in" | "resumption_slot";
+type Angle = OutreachAngle;
 
-const ANGLES: { id: Angle; label: string; icon: string; desc: string }[] = [
-  {
-    id: "cold_pitch",
-    label: "Cold Executive Pitch",
-    icon: "🌟",
-    desc: "Introduce Rillcod's 12-Year STEM Department, ₦0 CapEx guarantee & 30% revenue share.",
-  },
-  {
-    id: "free_demo",
-    label: "30-Min Free Demo Invite",
-    icon: "🤖",
-    desc: "Invite learners & school management to a live hands-on robotics trial on their campus.",
-  },
-  {
-    id: "check_in",
-    label: "48-Hour Proposal Check-In",
-    icon: "💬",
-    desc: "Polite follow-up on recently prepared proposal with direct online review link.",
-  },
-  {
-    id: "resumption_slot",
-    label: "Resumption Slot Reservation",
-    icon: "📅",
-    desc: "Urge agreement sign-off to lock in dedicated facilitator & hardware shipment.",
-  },
-];
+// The angles, their words and their descriptions all come from one file, which
+// the outbound email renders from too. What you read here is what the school
+// receives — this modal used to hold its own second copy of the pitch.
+const ANGLES = OUTREACH_ANGLES;
 
 export function PartnershipOutreachModal({ school, latestDoc, isOpen, onClose }: Props) {
   const [angle, setAngle] = useState<Angle>("cold_pitch");
@@ -60,29 +44,29 @@ export function PartnershipOutreachModal({ school, latestDoc, isOpen, onClose }:
 
   if (!isOpen) return null;
 
-  const cleanSlug = latestDoc?.reference || latestDoc?.share_token;
-  const shareUrl = cleanSlug
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${cleanSlug}`
-    : "";
+  /*
+    The link is built from the share token alone.
 
-  const greeting = contactPerson ? `Dear ${contactPerson},` : `Dear ${school.name} Leadership,`;
+    It read `reference || share_token`, and a reference is always present — so
+    every message this modal produced carried /p/RC-PROP-2026-00042, which the
+    public route refuses by design: a reference is sequential and printed on the
+    face of the document, so honouring it would let one school's copy unlock
+    every other school's fees. Prospects were being sent a dead link.
 
-  let subject = `Artificial Intelligence & Robotics Partnership for ${school.name}`;
-  let bodySummary = "";
+    Relative on purpose. This is a client component that also renders on the
+    server, and reading window.location during render is a hydration mismatch;
+    the absolute URL is composed once, below, only for the copy that leaves.
+  */
+  const sharePath = documentSharePath(latestDoc?.share_token ?? null);
+  const shareUrl =
+    sharePath && typeof window !== "undefined" ? `${window.location.origin}${sharePath}` : "";
 
-  if (angle === "cold_pitch") {
-    subject = `Equipping ${school.name} with an Elite Artificial Intelligence & Robotics Department (Zero CapEx)`;
-    bodySummary = `${greeting}\n\nIn today's fast-evolving world, traditional computer studies (typing in Word and memorizing PC parts) no longer prepares learners for global leadership — nor does it give parents a reason to choose your school.\n\nAt Rillcod Technologies, we partner with visionary schools to run an accredited 12-Year Artificial Intelligence, Robotics & Software Engineering Department directly on your timetable.\n\nKey Institutional Highlights:\n• 🧠 Practical AI & ML: From Basic 1 interactive AI models to SS3 neural networks, Python AI algorithms, and prompt engineering.\n• 🤖 Physical Robotics & IoT: Hands-on micro:bit and Arduino circuits, sensors, and autonomous rovers every term.\n• ₦0 Equipment CapEx: All robotics kits, electronic boards, laptops, and devices provided by Rillcod.\n• 👨‍🏫 Certified Facilitators: 100% delivered by our certified instructors — zero burden on your existing staff.\n• 📱 Parent Progress Cards: Scan-to-Watch QR codes on termly report cards showing each child demonstrating working code.\n• 💰 Guaranteed Revenue Share: 30% profit-sharing settled directly to your school account each term.\n\nWe would love to bring a live robotics kit and interactive AI demo to ${school.name} for a brief 20-minute discussion or a complimentary hands-on trial.\n\nWarm regards,\nThe Rillcod Technologies Team`;
-  } else if (angle === "free_demo") {
-    subject = `Complimentary Live AI & Robotics Classroom Trial for ${school.name}`;
-    bodySummary = `${greeting}\n\nWe would love to visit ${school.name} this week to deliver a complimentary 30-minute interactive Artificial Intelligence & Robotics trial for your learners.\n\nWhat students will experience:\n• Train on-screen AI computer vision models using camera gestures.\n• Assemble and code physical micro-controller circuits with LED sensors & motors.\n• Write and execute real logic commands that control hardware in real time.\n\nThere is zero cost or obligation. It gives your leadership and learners a firsthand view of modern applied technology education.\n\nWarm regards,\nThe Rillcod Technologies Team`;
-  } else if (angle === "resumption_slot") {
-    subject = `Securing Dedicated AI Facilitator & Robotics Kit Allocation for ${school.name}`;
-    bodySummary = `${greeting}\n\nAs we finalize our certified AI instructor rosters and robotics hardware allocations for the upcoming academic term, we want to ensure ${school.name} has reserved its preferred weekly timetable slot.\n\nExecuting your Memorandum of Understanding reserves your dedicated facilitator and secures physical robotics inventory so teaching commences smoothly upon school resumption.\n\n${shareUrl ? `Review & digitally sign agreement online: ${shareUrl}\n\n` : ""}Warm regards,\nThe Rillcod Technologies Team`;
-  } else {
-    subject = `Following up: AI, Coding & Robotics Partnership Proposal for ${school.name}${latestDoc?.reference ? ` (${latestDoc.reference})` : ""}`;
-    bodySummary = `${greeting}\n\nI am following up on the Artificial Intelligence, Coding & Robotics Education Proposal we recently prepared for ${school.name}.\n\n${shareUrl ? `Review proposal online: ${shareUrl}\n\n` : ""}I wanted to see if your leadership team had any questions regarding the 12-Year AI syllabus, the ₦0 equipment guarantee, or our 30% termly revenue-share model.\n\nWould you be available for a brief 10-minute call or an in-person visit so we can demonstrate the physical robotics and AI kits?\n\nWarm regards,\nThe Rillcod Technologies Team`;
-  }
+  const { subject, body: bodySummary } = outreachPlainText(angle, {
+    schoolName: school.name,
+    contactName: contactPerson,
+    reference: latestDoc?.reference ?? null,
+    shareUrl: shareUrl || null,
+  });
 
   async function handleSendEmail() {
     if (!recipientEmail || !recipientEmail.includes("@")) {
