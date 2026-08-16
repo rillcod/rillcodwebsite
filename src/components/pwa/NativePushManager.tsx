@@ -130,7 +130,7 @@ export default function NativePushManager() {
           try {
             await PushNotifications.createChannel({
               id: 'rillcod_default',
-              name: 'Rillcod Academy',
+              name: 'Rillcod Technologies',
               description: 'App alerts and reminders',
               importance: 5,
               visibility: 1,

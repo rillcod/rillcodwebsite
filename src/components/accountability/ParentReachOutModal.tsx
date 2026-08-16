@@ -96,13 +96,13 @@ export default function ParentReachOutModal({
     .replace(/\{\{\s*parent_name\s*\}\}/g, isBatchMode ? '[Parent Name]' : parentName || 'Parent')
     .replace(/\{\{\s*student_name\s*\}\}/g, isBatchMode ? '[Student Name]' : studentName || 'Student')
     .replace(/\{\{\s*class_name\s*\}\}/g, isBatchMode ? '[Class Name]' : className || 'Class')
-    .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Academy');
+    .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Technologies');
 
   const previewBody = activeTemplate.body
     .replace(/\{\{\s*parent_name\s*\}\}/g, isBatchMode ? '[Parent Name]' : parentName || 'Parent')
     .replace(/\{\{\s*student_name\s*\}\}/g, isBatchMode ? '[Student Name]' : studentName || 'Student')
     .replace(/\{\{\s*class_name\s*\}\}/g, isBatchMode ? '[Class Name]' : className || 'Class')
-    .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Academy')
+    .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Technologies')
     .replace(/\{\{\s*access_link\s*\}\}/g, `${siteUrl}/dashboard/results`)
     .replace(/\{\{\s*claim_link\s*\}\}/g, `${siteUrl}/claim`)
     .replace(/\{\{\s*meeting_link\s*\}\}/g, `${siteUrl}/dashboard/meetings`)

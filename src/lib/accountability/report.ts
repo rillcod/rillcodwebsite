@@ -114,7 +114,7 @@ export async function generateAccountabilityPdf(input: AccountabilityReportInput
       doc.setFontSize(8);
       doc.setTextColor(120);
       doc.text(
-        `Rillcod Academy · Accountability Census Report · Page ${i} of ${pages}`,
+        `Rillcod Technologies · Accountability Census Report · Page ${i} of ${pages}`,
         margin,
         doc.internal.pageSize.getHeight() - 8,
       );

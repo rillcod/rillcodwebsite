@@ -22,7 +22,7 @@ html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Memorandum of Understanding (MoU) - Rillcod Academy & Bay-Flowers International School (100% Equal 4-Page Fill)</title>
+<title>Memorandum of Understanding (MoU) - Rillcod Technologies & Bay-Flowers International School (100% Equal 4-Page Fill)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
 
@@ -435,11 +435,11 @@ table.dense-table tr.highlight-row {{
 <div class="grid-2">
     <div class="compact-card card-blue">
         <div class="compact-card-title">
-            <span>PARTY A: RILLCOD ACADEMY</span>
+            <span>PARTY A: RILLCOD TECHNOLOGIES</span>
             <span class="badge-micro badge-blue">STEM Provider</span>
         </div>
         <div style="font-size:8pt; color:#334155; line-height:1.35;">
-            <strong>Rillcod Academy</strong> (subsidiary of Rillcod Technologies), No. 26 Ogiesoba Avenue, Off Airport Road, Benin City, Edo State (over 10 years STEM experience).<br>
+            <strong>Rillcod Technologies</strong> (subsidiary of Rillcod Technologies), No. 26 Ogiesoba Avenue, Off Airport Road, Benin City, Edo State (over 10 years STEM experience).<br>
             <em>Represented by Director of Educational Technology.</em>
         </div>
     </div>
@@ -462,7 +462,7 @@ table.dense-table tr.highlight-row {{
 </div>
 
 <p style="margin-top:0; margin-bottom:6px; text-align:justify;">
-    <strong>Rillcod Academy</strong> provides future-ready, skill-based education in coding, robotics, AI, and digital technology for schools in Nigeria. With over a decade of STEM experience, our trained facilitators deliver hands-on learning that inspires creativity, innovation, and academic excellence. 
+    <strong>Rillcod Technologies</strong> provides future-ready, skill-based education in coding, robotics, AI, and digital technology for schools in Nigeria. With over a decade of STEM experience, our trained facilitators deliver hands-on learning that inspires creativity, innovation, and academic excellence. 
     This partnership aims to introduce <strong>Bay-Flowers International School</strong> students to practical coding and robotics, positioning the school as a premier STEM-focused institution in Benin City.
 </p>
 
@@ -801,7 +801,7 @@ table.dense-table tr.highlight-row {{
 
 <div class="grid-2">
     <div class="compact-card card-blue">
-        <div class="compact-card-title"><span>RILLCOD ACADEMY COMMITS TO:</span><span class="badge-micro badge-blue">Party A</span></div>
+        <div class="compact-card-title"><span>RILLCOD TECHNOLOGIES COMMITS TO:</span><span class="badge-micro badge-blue">Party A</span></div>
         <div style="font-size:8.2pt; color:#334155; line-height:1.42;">
             • Provide trained, background-checked resident STEM facilitators.<br>
             • Supply 12-Year STEM/AI Curriculum, lesson plans & cloud software.<br>
@@ -876,7 +876,7 @@ table.dense-table tr.highlight-row {{
         <div class="sig-title">FOR: RILLCOD TECHNOLOGIES (PARTY A)</div>
         <img src="{sig_data_url}" class="sig-img-sm" alt="Director Signature"><br>
         <strong>Authorized Signatory:</strong> Director of Educational Technology<br>
-        <strong>Name:</strong> Rillcod Academy Management<br>
+        <strong>Name:</strong> Rillcod Technologies Management<br>
         <strong>Date:</strong> 11th August 2026<br>
         <span style="font-size:7.2pt; color:#2563EB;">Official Stamp & Seal Affixed</span>
     </div>
@@ -906,7 +906,7 @@ table.dense-table tr.highlight-row {{
 </div>
 
 <div style="display:flex; justify-content:space-between; align-items:center; font-size:7.5pt; color:#64748B; margin-top:6px;">
-    <span>MEMORANDUM OF UNDERSTANDING (MoU) — RILLCOD ACADEMY & BAY-FLOWERS INTERNATIONAL SCHOOL</span>
+    <span>MEMORANDUM OF UNDERSTANDING (MoU) — RILLCOD TECHNOLOGIES & BAY-FLOWERS INTERNATIONAL SCHOOL</span>
     <span>© 2026 RILLCOD TECHNOLOGIES. All Rights Reserved.</span>
 </div>
 

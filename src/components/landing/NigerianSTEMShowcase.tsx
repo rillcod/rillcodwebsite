@@ -329,7 +329,7 @@ export default function NigerianSTEMShowcase() {
                     Student Robotics Inventions
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    Live classroom footage from Rillcod Academy partner school
+                    Live classroom footage from Rillcod Technologies partner school
                   </p>
                 </div>
               </div>

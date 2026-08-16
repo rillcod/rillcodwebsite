@@ -42,7 +42,7 @@ const testimonialsData: Testimonial[] = [
     name: 'Master Daniel Eze',
     role: 'SS3 Student & Web Developer',
     school: 'St. Maria Goretti College, Benin City',
-    content: 'Rillcod Academy completely changed my understanding of software engineering. I started with zero coding experience and now I build responsive web apps and Python scripts. The teachers are supportive, and the hands-on projects helped me build a strong portfolio for university.',
+    content: 'Rillcod Technologies completely changed my understanding of software engineering. I started with zero coding experience and now I build responsive web apps and Python scripts. The teachers are supportive, and the hands-on projects helped me build a strong portfolio for university.',
     rating: 5,
     category: 'Student',
     achievements: ['Built 5 Web & Python Projects', 'State STEM Competition Winner', 'Portfolio Certified'],
@@ -58,7 +58,7 @@ const testimonialsData: Testimonial[] = [
     name: 'Mr. Osaro Igbinedion',
     role: 'Parent of JSS2 Student',
     school: 'Edo College, Benin City',
-    content: 'As a parent, I wanted my daughter to develop practical technology skills early. Rillcod Academy exceeded all expectations. Her confidence has grown tremendously, and she explains Python and robotics concepts to me at home. The online gradebook keeps me informed every term.',
+    content: 'As a parent, I wanted my daughter to develop practical technology skills early. Rillcod Technologies exceeded all expectations. Her confidence has grown tremendously, and she explains Python and robotics concepts to me at home. The online gradebook keeps me informed every term.',
     rating: 5,
     category: 'Parent',
     achievements: ['Parent Portal Active', 'Term Reports Tracked', 'Robotics Showcase Top 5'],
@@ -74,7 +74,7 @@ const testimonialsData: Testimonial[] = [
     name: 'Mrs. Grace Ogbebor',
     role: 'School Principal',
     school: 'St. Maria Goretti College, Benin City',
-    content: 'Partnering with Rillcod Academy has elevated our school STEM curriculum. Our students compete in national technology challenges and show remarkable growth in analytical thinking. The digital gradebook and term report generation make continuous assessment seamless for our teachers.',
+    content: 'Partnering with Rillcod Technologies has elevated our school STEM curriculum. Our students compete in national technology challenges and show remarkable growth in analytical thinking. The digital gradebook and term report generation make continuous assessment seamless for our teachers.',
     rating: 5,
     category: 'School',
     achievements: ['School Curriculum Partner', '500+ Students Enrolled', 'Annual STEM Exhibition Winner'],
@@ -354,7 +354,7 @@ export default function TestimonialsPage() {
             Ready to Start Your Child&apos;s STEM Journey?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Enroll your child in our 12-year progressive STEM pathway or partner your school with Rillcod Academy today.
+            Enroll your child in our 12-year progressive STEM pathway or partner your school with Rillcod Technologies today.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">

@@ -115,7 +115,7 @@ const MISSIONS: Mission[] = [
     difficulty: 'Intermediate',
     language: 'python',
     xp: 120,
-    starterCode: `# 🤖 AI System Prompt Engineering\nsystem_prompt = """\nYou are an encouraging STEM Tutor at Rillcod Academy.\nRules:\n1. Explain concepts in 3 clear steps.\n2. Include code snippet & output.\n"""\n\nuser_query = "What is an API?"\nprint("=== SYSTEM PROMPT ===")\nprint(system_prompt.strip())\nprint(f"\\nQuery: {user_query}")`,
+    starterCode: `# 🤖 AI System Prompt Engineering\nsystem_prompt = """\nYou are an encouraging STEM Tutor at Rillcod Technologies.\nRules:\n1. Explain concepts in 3 clear steps.\n2. Include code snippet & output.\n"""\n\nuser_query = "What is an API?"\nprint("=== SYSTEM PROMPT ===")\nprint(system_prompt.strip())\nprint(f"\\nQuery: {user_query}")`,
     tags: ['ai', 'prompt-engineering', 'system-prompt', 'python'],
   },
   {
@@ -464,7 +464,7 @@ const MISSIONS: Mission[] = [
   </style>
 </head>
 <body>
-  <h1>Rillcod Academy</h1>
+  <h1>Rillcod Technologies</h1>
   <p>Learning to build the web, one line at a time.</p>
   <ul>
     <li>JavaScript</li>
@@ -643,7 +643,7 @@ const MISSIONS: Mission[] = [
     <div class="avatar"></div>
     <div class="info">
       <h1>Amara Okafor</h1>
-      <p>JSS3 student at Rillcod Academy. Loves Python, robotics, and building cool things.</p>
+      <p>JSS3 student at Rillcod Technologies. Loves Python, robotics, and building cool things.</p>
       <div class="badges">
         <span class="badge">Python</span>
         <span class="badge">Robotics</span>
@@ -687,7 +687,7 @@ const MISSIONS: Mission[] = [
 <body>
 
   <header>
-    <strong>Rillcod Academy</strong>
+    <strong>Rillcod Technologies</strong>
     <nav>
       <a href="#">Home</a>
       <a href="#">Blog</a>
@@ -716,7 +716,7 @@ const MISSIONS: Mission[] = [
   </main>
 
   <footer>
-    &copy; 2025 Rillcod Academy. All rights reserved.
+    &copy; 2025 Rillcod Technologies. All rights reserved.
   </footer>
 
 </body>

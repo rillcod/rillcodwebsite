@@ -3079,7 +3079,7 @@ export default function UnifiedInbox() {
                 style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.18)' }}>
                 <Mail className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7c3aed' }} />
                 <p className="text-[11px] leading-relaxed" style={{ color: '#8696a0' }}>
-                  Sent as a branded Rillcod Academy email from <strong style={{ color: '#a78bfa' }}>{brandContact.email}</strong>.
+                  Sent as a branded Rillcod Technologies email from <strong style={{ color: '#a78bfa' }}>{brandContact.email}</strong>.
                   Rillcod.com addresses are delivered as in-app notifications instead.
                 </p>
               </div>

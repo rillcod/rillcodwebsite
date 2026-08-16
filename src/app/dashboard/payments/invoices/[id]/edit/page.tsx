@@ -161,8 +161,8 @@ export default function EditInvoicePage() {
       studentEmail: isSchoolInvoice ? undefined : student?.email,
       // schoolName = the ISSUING entity shown top-right of the document
       schoolName: schoolBillingStudent
-        ? (invoice?.schools?.name ?? 'Rillcod Academy')
-        : 'Rillcod Academy',
+        ? (invoice?.schools?.name ?? 'Rillcod Technologies')
+        : 'Rillcod Technologies',
     };
   }, [form, invoice, students, totalAmount]);
 

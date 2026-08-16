@@ -1,5 +1,5 @@
 /**
- * Rillcod Academy — Unified Assessment Policy
+ * Rillcod Technologies — Unified Assessment Policy
  *
  * One internal weighting model for continuous assessment, assignments, projects,
  * attendance and scheduled assessments. WAEC/NECO bands are used to present the

@@ -58,12 +58,12 @@ export async function deliverActivationCredentials(
     emailChannel: 'external',
     emailSubject: input.emailSubject ?? (
       hasParentLogin || activation
-        ? 'Your Rillcod Academy Parent & Student Login Details'
-        : 'Your Rillcod Academy Login Credentials'
+        ? 'Your Rillcod Technologies Parent & Student Login Details'
+        : 'Your Rillcod Technologies Login Credentials'
     ),
     title: input.title ?? (
       hasParentLogin || activation
-        ? 'Your Rillcod Academy Login Details'
+        ? 'Your Rillcod Technologies Login Details'
         : `Welcome to Rillcod${input.schoolName ? ` — ${input.schoolName}` : ''}`
     ),
     bodyIntro: input.bodyIntro ?? (

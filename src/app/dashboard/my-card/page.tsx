@@ -164,7 +164,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
     doc.text(profile.full_name.toUpperCase(),cardX+4,bodyY+6);
     doc.setFontSize(6);doc.setTextColor(r,g,b);doc.text(roleLabel.toUpperCase(),cardX+4,bodyY+10);
     let fy=bodyY+18;
-    [{label:'SCHOOL',value:profile.school_name||'Rillcod Academy',accent:true},{label:'EMAIL',value:profile.email||'—',accent:false},{label:idLabel.toUpperCase(),value:code,accent:true}].forEach(f=>{
+    [{label:'SCHOOL',value:profile.school_name||'Rillcod Technologies',accent:true},{label:'EMAIL',value:profile.email||'—',accent:false},{label:idLabel.toUpperCase(),value:code,accent:true}].forEach(f=>{
       doc.setFontSize(5.5);doc.setTextColor(156,163,175);doc.setFont('helvetica','normal');doc.text(f.label,cardX+4,fy);
       doc.setFontSize(7.5);doc.setFont('courier','bold');
       if(f.accent)doc.setTextColor(r,g,b);else doc.setTextColor(17,24,39);
@@ -228,7 +228,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
       <div className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-4">
         <h2 className="text-sm font-black text-card-foreground/60 uppercase tracking-wider">Card Details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[{icon:UserIcon,label:'Full Name',value:profile.full_name},{icon:EnvelopeIcon,label:'Email',value:profile.email||'—'},{icon:BuildingOfficeIcon,label:'School',value:profile.school_name||'Rillcod Academy'},{icon:AcademicCapIcon,label:'Role',value:roleLabel},{icon:CreditCardIcon,label:idLabel,value:code},{icon:ShieldCheckIcon,label:'Card Status',value:myCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[myCard.status]??myCard.status):'Not Issued'}].map(({icon:Icon,label,value})=>(
+          {[{icon:UserIcon,label:'Full Name',value:profile.full_name},{icon:EnvelopeIcon,label:'Email',value:profile.email||'—'},{icon:BuildingOfficeIcon,label:'School',value:profile.school_name||'Rillcod Technologies'},{icon:AcademicCapIcon,label:'Role',value:roleLabel},{icon:CreditCardIcon,label:idLabel,value:code},{icon:ShieldCheckIcon,label:'Card Status',value:myCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[myCard.status]??myCard.status):'Not Issued'}].map(({icon:Icon,label,value})=>(
             <div key={label} className="flex items-start gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3">
               <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5"/>
               <div><p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider">{label}</p><p className="text-sm font-bold text-card-foreground mt-0.5">{value}</p></div>
@@ -340,7 +340,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black text-card-foreground text-base">{child.full_name}</p>
-                    <p className="text-card-foreground/40 text-xs mt-0.5">{child.school_name||'Rillcod Academy'}</p>
+                    <p className="text-card-foreground/40 text-xs mt-0.5">{child.school_name||'Rillcod Technologies'}</p>
                   </div>
                   <span className={`border text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                 </div>

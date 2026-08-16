@@ -370,7 +370,7 @@ export async function POST(
         const svg = renderGeneratedSlideSvg(slides[index], {
           index,
           total: slides.length,
-          courseTitle: course?.title || "Rillcod Academy",
+          courseTitle: course?.title || "Rillcod Technologies",
           week,
         });
         await r2Upload(

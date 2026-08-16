@@ -83,7 +83,7 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
     // A. WhatsApp Message via whatsapp_outbox queue
     if (channels.includes('whatsapp') && parentPhone) {
       const cleanPhone = String(parentPhone).replace(/\D+/g, '').replace(/^0/, '234');
-      const waText = `✅ *Rillcod Academy Milestone Update*\n\nDear ${parentName},\n${studentName} has completed *${termLabel} Week ${opts.weekNumber}* in *${courseName}*${topicSuffix}.\n\nGreat milestone progress! 🎉`;
+      const waText = `✅ *Rillcod Technologies Milestone Update*\n\nDear ${parentName},\n${studentName} has completed *${termLabel} Week ${opts.weekNumber}* in *${courseName}*${topicSuffix}.\n\nGreat milestone progress! 🎉`;
       
       try {
         await admin.from('whatsapp_outbox').insert({
@@ -115,7 +115,7 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
       const subject = `🎉 ${studentName} completed Week ${opts.weekNumber} — ${courseName}`;
       const htmlBody = `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; max-width:600px; margin:0 auto; padding:24px; border:1px solid #e2e8f0; rounded-3xl:16px;">
-          <h2 style="color:#e11d48; margin-top:0;">Rillcod Academy Progress Digest</h2>
+          <h2 style="color:#e11d48; margin-top:0;">Rillcod Technologies Progress Digest</h2>
           <p>Dear ${parentName},</p>
           <p>We are excited to share that <b>${studentName}</b> has successfully completed <b>${termLabel} Week ${opts.weekNumber}</b> in <b>${courseName}</b>.</p>
           ${opts.weekTopic ? `<blockquote style="background:#f8fafc; padding:12px 16px; border-left:4px solid #e11d48; margin:16px 0; font-style:italic;">Topic: ${opts.weekTopic}</blockquote>` : ''}
@@ -130,7 +130,7 @@ export async function triggerWeeklyMilestoneDigest(opts: MilestoneDigestInput): 
           to: parentEmail,
           subject,
           html: htmlBody,
-          fromName: 'Rillcod Academy',
+          fromName: 'Rillcod Technologies',
           fromEmail: SMTP_FROM_EMAIL,
         });
         emailsSent++;

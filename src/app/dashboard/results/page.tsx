@@ -2180,7 +2180,7 @@ tbody tr:hover{background:#f3f4f6}
                                                                 const result = await shareReportCard(
                                                                     printableRef.current,
                                                                     filename,
-                                                                    `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Academy`,
+                                                                    `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Technologies`,
                                                                 );
                                                                 if (result === 'downloaded') {
                                                                     alert('Web Share not supported on this browser. The PDF has been downloaded instead.');

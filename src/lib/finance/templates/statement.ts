@@ -40,7 +40,7 @@ export function buildStatementDocDef(input: StatementInput) {
           body: [[
             {
               stack: [
-                { text: 'RILLCOD ACADEMY', style: 'brand' },
+                { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
                 { text: 'STEM & Coding Education', style: 'tagline' },
               ],
               fillColor: '#0f172a',

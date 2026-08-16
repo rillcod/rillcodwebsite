@@ -246,7 +246,7 @@ export default function RecordsPage() {
       th,td{border:1px solid #e5e7eb;padding:6px 7px;vertical-align:top}td:nth-child(3),td:nth-child(4){word-break:break-word}.foot{margin-top:10px;font-size:9px;color:#6b7280;text-align:center}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body>
-      <div class="head"><div><h1>Rillcod Academy ${esc(title)}</h1><div class="meta" style="text-align:left">Source: Records · ${data.length} row${data.length === 1 ? '' : 's'}</div></div><div class="meta">Printed ${fmtDate(new Date().toISOString())}<br/>Sorted by ${esc(SORT_LABELS[sortKey])} (${sortDir})</div></div>
+      <div class="head"><div><h1>Rillcod Technologies ${esc(title)}</h1><div class="meta" style="text-align:left">Source: Records · ${data.length} row${data.length === 1 ? '' : 's'}</div></div><div class="meta">Printed ${fmtDate(new Date().toISOString())}<br/>Sorted by ${esc(SORT_LABELS[sortKey])} (${sortDir})</div></div>
       <table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table>
       <div class="foot">Confidential administrative record. Generated from live Records, not bulk archive copies.</div>
       <script>window.onload=()=>window.print()</script>
@@ -297,7 +297,7 @@ export default function RecordsPage() {
       id: r.portalUserId || r.id,
       full_name: r.name,
       email: r.email || null,
-      school_name: r.school || 'Rillcod Academy',
+      school_name: r.school || 'Rillcod Technologies',
       grade: r.klass || null,
       section_class: null,
       temp_password: r.password || null,

@@ -388,7 +388,7 @@ ${takeaway}
   <rect x="${MARGIN_X}" y="${
     FOOTER_Y + 14
   }" width="${progressW}" height="5" rx="3" fill="url(#accent)" />
-  <text x="${MARGIN_X}" y="${FOOTER_Y}" fill="#64748B" font-family="${FONT}" font-size="18" font-weight="700" letter-spacing="1">RILLCOD ACADEMY</text>
+  <text x="${MARGIN_X}" y="${FOOTER_Y}" fill="#64748B" font-family="${FONT}" font-size="18" font-weight="700" letter-spacing="1">RILLCOD TECHNOLOGIES</text>
   <text x="${
     W - MARGIN_X
   }" y="${FOOTER_Y}" text-anchor="end" fill="#64748B" font-family="${FONT}" font-size="18">${escapeSlideXml(

@@ -18,8 +18,8 @@ const faqs: FAQItem[] = [
   {
     id: "general-1",
     category: "General",
-    question: "What is RILLCOD Academy?",
-    answer: "RILLCOD Academy is a leading technology education institution that provides AI-integrated curriculum for students from primary to secondary school levels. We focus on preparing students for the future through comprehensive programming, robotics, and AI education.",
+    question: "What is Rillcod Technologies?",
+    answer: "Rillcod Technologies is a leading technology education institution that provides AI-integrated curriculum for students from primary to secondary school levels. We focus on preparing students for the future through comprehensive programming, robotics, and AI education.",
     tags: ["about", "academy", "education"],
     popular: true
   },
@@ -27,14 +27,14 @@ const faqs: FAQItem[] = [
     id: "general-2",
     category: "General",
     question: "Where are you located?",
-    answer: "RILLCOD Academy is based in Nigeria with multiple partner schools across the country. We also offer online learning programs and can establish partnerships with schools in various locations.",
+    answer: "Rillcod Technologies is based in Nigeria with multiple partner schools across the country. We also offer online learning programs and can establish partnerships with schools in various locations.",
     tags: ["location", "nigeria", "online"],
     popular: true
   },
   {
     id: "general-3",
     category: "General",
-    question: "What makes RILLCOD Academy different from other tech schools?",
+    question: "What makes Rillcod Technologies different from other tech schools?",
     answer: "Our unique approach combines AI-integrated curriculum, project-based learning, industry partnerships, and personalized learning paths. We focus on practical skills, portfolio development, and real-world applications rather than just theory.",
     tags: ["unique", "approach", "ai", "practical"],
     popular: true
@@ -180,7 +180,7 @@ const faqs: FAQItem[] = [
   {
     id: "support-1",
     category: "Support & Contact",
-    question: "How can I contact RILLCOD Academy?",
+    question: "How can I contact Rillcod Technologies?",
     answer: "You can contact us through our website contact form, email, phone, or by visiting our office. We also offer virtual consultations for interested schools and parents.",
     tags: ["contact", "email", "phone", "consultation"],
     popular: true

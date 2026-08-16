@@ -1646,7 +1646,7 @@ ${multiSession
 
     case "slides": {
       const count = Math.min(8, Math.max(5, Number(req.slideCount) || 7));
-      return `Create a teacher-ready ${count}-slide learning deck for Rillcod Academy.
+      return `Create a teacher-ready ${count}-slide learning deck for Rillcod Technologies.
 
 Topic: "${req.topic}"
 Class: ${req.className ?? req.gradeLevel ?? "Basic 1 to SS3"}

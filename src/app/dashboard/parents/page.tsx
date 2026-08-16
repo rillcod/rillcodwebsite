@@ -642,7 +642,7 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
           {filtered.map(parent => {
             const initials = parent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
             const childrenText = parent.children.map(c => c.full_name).join(', ') || 'No children linked';
-            const school = parent.children[0]?.school_name ?? schoolFilter ?? 'Rillcod Academy';
+            const school = parent.children[0]?.school_name ?? schoolFilter ?? 'Rillcod Technologies';
 
             return (
               <div key={parent.id} style={{

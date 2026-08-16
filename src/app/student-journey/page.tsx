@@ -142,7 +142,7 @@ const testimonials = [
     name: "Sarah Johnson",
     age: "17",
     stage: "Leadership",
-    quote: "RILLCOD Academy transformed me from a curious beginner to a confident tech entrepreneur. I'm now building my own AI startup!",
+    quote: "Rillcod Technologies transformed me from a curious beginner to a confident tech entrepreneur. I'm now building my own AI startup!",
     achievement: "Launched AI-powered educational app with 10,000+ users"
   },
   {

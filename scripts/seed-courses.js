@@ -1,5 +1,5 @@
 /**
- * Rillcod Academy — Full Program & Course Catalog Seed
+ * Rillcod Technologies — Full Program & Course Catalog Seed
  *
  * Covers ALL learner categories: Kids (6-10) → Teens (11-16) → Young Adults (17-21) → Professionals (22+)
  *
@@ -1531,7 +1531,7 @@ Teams of 2–3 build and deploy a real SaaS product. The goal is not a demo — 
 // ─── SEED FUNCTION ─────────────────────────────────────────────────────────
 
 async function seed() {
-  console.log('\n🚀 Rillcod Academy — Program & Course Catalog Seed\n');
+  console.log('\n🚀 Rillcod Technologies — Program & Course Catalog Seed\n');
 
   // ── WIPE EXISTING DATA (respect FK order) ────────────────────────────────
   console.log('🗑️  Removing existing data (clearing FK dependencies first)...');
@@ -1613,7 +1613,7 @@ async function seed() {
   console.log(`✅  Courses  inserted : ${coursesInserted}`);
   if (errors > 0) console.log(`❌  Errors            : ${errors}`);
   console.log('─'.repeat(60));
-  console.log('\n✨  Done! Programs and courses are live on Rillcod Academy.\n');
+  console.log('\n✨  Done! Programs and courses are live on Rillcod Technologies.\n');
   console.log('Next steps:');
   console.log('  • Open /dashboard/programs to review and reorder programs');
   console.log('  • Open /dashboard/courses  to add lessons to each course');

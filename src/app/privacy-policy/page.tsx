@@ -310,7 +310,7 @@ export default function PrivacyPolicy() {
 
         <section id="account-deletion" className="mt-8 rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6">
           <h2 className="text-xl font-bold text-foreground">Account and data deletion</h2>
-          <p className="mt-3 text-muted-foreground">You may request deletion of your Rillcod Academy account and associated personal data. Where limited records must be retained for safeguarding, fraud prevention, financial, or legal reasons, we will explain what is retained and why.</p>
+          <p className="mt-3 text-muted-foreground">You may request deletion of your Rillcod Technologies account and associated personal data. Where limited records must be retained for safeguarding, fraud prevention, financial, or legal reasons, we will explain what is retained and why.</p>
           <a href="/account-deletion" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-rose-600 px-5 py-3 font-bold text-white">Request account deletion</a>
         </section></div>
   )

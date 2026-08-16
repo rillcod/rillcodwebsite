@@ -374,7 +374,7 @@ export default function StaffQRScanner() {
                     )}
                     <div className="min-w-0">
                       <p className="font-black text-foreground text-base truncate">{student.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground">{student.school_name || 'Rillcod Academy'}</p>
+                      <p className="text-[11px] text-muted-foreground">{student.school_name || 'Rillcod Technologies'}</p>
                       <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${student.is_active ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/15 text-red-600 dark:text-red-400'}`}>
                         {student.is_active ? '● Active' : '● Inactive'}
                       </span>

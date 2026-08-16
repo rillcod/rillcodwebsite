@@ -22,7 +22,7 @@ html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Coding and Robotics Partnership Proposal - Rillcod Academy & Bay-Flowers International School</title>
+<title>Coding and Robotics Partnership Proposal - Rillcod Technologies & Bay-Flowers International School</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
 
@@ -460,7 +460,7 @@ table.dense-table tr.highlight-row {{
 <div class="a4-page">
     <div class="cover-container">
         <div class="cover-top">
-            <img src="{logo_data_url}" class="cover-logo" alt="Rillcod Academy Logo">
+            <img src="{logo_data_url}" class="cover-logo" alt="Rillcod Technologies Logo">
             <span class="cover-badge-top">Official Institutional Proposal</span>
         </div>
 
@@ -479,7 +479,7 @@ table.dense-table tr.highlight-row {{
                 </div>
                 <div class="party-col">
                     <h4>PRESENTED BY:</h4>
-                    <h3>Rillcod Academy</h3>
+                    <h3>Rillcod Technologies</h3>
                     <p>Subsidiary of Rillcod Technologies<br><em>Over 10 Years STEM Experience</em></p>
                 </div>
             </div>
@@ -514,7 +514,7 @@ table.dense-table tr.highlight-row {{
     </div>
 
     <p style="margin-top:0; margin-bottom:0; text-align:justify; font-size:10.2pt; line-height:1.5;">
-        <strong>Rillcod Academy</strong>, a subsidiary of Rillcod Technologies, provides future-ready, skill-based education in coding, robotics, AI, and digital technology for schools in Nigeria. With <strong>over 10 years of STEM experience</strong>, our trained facilitators deliver hands-on learning that inspires creativity, innovation, and academic excellence.<br><br>
+        <strong>Rillcod Technologies</strong>, a subsidiary of Rillcod Technologies, provides future-ready, skill-based education in coding, robotics, AI, and digital technology for schools in Nigeria. With <strong>over 10 years of STEM experience</strong>, our trained facilitators deliver hands-on learning that inspires creativity, innovation, and academic excellence.<br><br>
         This partnership aims to introduce <strong>Bay-Flowers International School</strong> students to coding and robotics while positioning the school as a leading STEM-focused institution in Benin City.
     </p>
 
@@ -568,7 +568,7 @@ table.dense-table tr.highlight-row {{
         <div class="compact-card card-blue">
             <div class="compact-card-title"><span>FOR OPTION A (EXTRACURRICULAR):</span><span class="badge-micro badge-blue">Option A</span></div>
             <div style="font-size:9pt; color:#334155; line-height:1.42;">
-                • <strong>Rillcod Academy:</strong> Provides trained facilitators, lesson notes, curriculum, robotics components, and monitoring & evaluation reports.<br>
+                • <strong>Rillcod Technologies:</strong> Provides trained facilitators, lesson notes, curriculum, robotics components, and monitoring & evaluation reports.<br>
                 • <strong>Bay-Flowers School:</strong> Provides ICT lab space, electricity, student access, and management support.<br>
                 • <strong>Schedule:</strong> Conducted once per week for 2 hours. Monthly progress reports shared with school.
             </div>
@@ -577,7 +577,7 @@ table.dense-table tr.highlight-row {{
         <div class="compact-card card-teal">
             <div class="compact-card-title"><span>FOR OPTION B (CURRICULUM INTEGRATION):</span><span class="badge-micro badge-teal">Option B</span></div>
             <div style="font-size:9pt; color:#334155; line-height:1.42;">
-                • <strong>Rillcod Academy:</strong> Provides trained facilitators, lesson notes, curriculum, robotics components, and termly evaluation reports.<br>
+                • <strong>Rillcod Technologies:</strong> Provides trained facilitators, lesson notes, curriculum, robotics components, and termly evaluation reports.<br>
                 • <strong>Bay-Flowers School:</strong> Provides ICT lab space, electricity, student access, and management support.<br>
                 • <strong>Schedule:</strong> Conducted twice per week across all classes. Continuous termly evaluation.
             </div>
@@ -599,7 +599,7 @@ table.dense-table tr.highlight-row {{
     </div>
 
     <p style="margin-top:0; margin-bottom:0; font-size:10pt; text-align:justify;">
-        All necessary materials and equipment, including laptops and robotics components, will be provided by <strong>Rillcod Academy</strong>. No additional special resources are required from Bay-Flowers International School beyond what is listed in the Implementation Plan.
+        All necessary materials and equipment, including laptops and robotics components, will be provided by <strong>Rillcod Technologies</strong>. No additional special resources are required from Bay-Flowers International School beyond what is listed in the Implementation Plan.
     </p>
 
     <div class="sec-banner-eco">
@@ -616,14 +616,14 @@ table.dense-table tr.highlight-row {{
     </div>
 
     <div class="sec-banner-eco">
-        <h2>7.0 Benefits to Rillcod Academy</h2>
+        <h2>7.0 Benefits to Rillcod Technologies</h2>
         <span class="sec-tag-eco">RILLCOD VALUE</span>
     </div>
 
     <div class="compact-card card-blue">
         <div style="font-size:9.5pt; color:#334155; line-height:1.48;">
             • <strong>Social Impact:</strong> Empowers students by equipping them with critical STEM skills.<br>
-            • <strong>Leadership Position:</strong> Establishes Rillcod Academy as a leading STEM education provider in Benin City and beyond.<br>
+            • <strong>Leadership Position:</strong> Establishes Rillcod Technologies as a leading STEM education provider in Benin City and beyond.<br>
             • <strong>Wider Community Reach:</strong> Expands the Academy’s presence and influence in technology education across schools.
         </div>
     </div>
@@ -675,7 +675,7 @@ table.dense-table tr.highlight-row {{
             <div class="sig-title">FOR: RILLCOD TECHNOLOGIES</div>
             <img src="{sig_data_url}" class="sig-img-sm" alt="Director Signature"><br>
             <strong>Authorized Signatory:</strong> Director of Educational Technology<br>
-            <strong>Name:</strong> Rillcod Academy Management<br>
+            <strong>Name:</strong> Rillcod Technologies Management<br>
             <strong>Date:</strong> 11th August 2026
         </div>
 
@@ -939,7 +939,7 @@ table.dense-table tr.highlight-row {{
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; font-size:7.8pt; color:#64748B; margin-top:4px;">
-        <span>CODING & ROBOTICS PARTNERSHIP PROPOSAL — RILLCOD ACADEMY & BAY-FLOWERS INT'L SCHOOL</span>
+        <span>CODING & ROBOTICS PARTNERSHIP PROPOSAL — RILLCOD TECHNOLOGIES & BAY-FLOWERS INT'L SCHOOL</span>
         <span>© 2026 RILLCOD TECHNOLOGIES. All Rights Reserved.</span>
     </div>
 </div>

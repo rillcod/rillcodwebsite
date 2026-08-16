@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Rillcod Academy",
+  "name": "Rillcod Technologies",
   "short_name": "Rillcod",
   "description": "Premier ICT & STEM Education Hub — enrol, learn, and track progress with Rillcod Technologies.",
   "start_url": "/login",
@@ -84,14 +84,14 @@
       "sizes": "750x1334",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Rillcod Academy Dashboard on mobile"
+      "label": "Rillcod Technologies Dashboard on mobile"
     },
     {
       "src": "/screenshot-wide.png",
       "sizes": "1280x800",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Rillcod Academy on desktop"
+      "label": "Rillcod Technologies on desktop"
     }
   ]
 }

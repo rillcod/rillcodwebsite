@@ -730,7 +730,7 @@ export default function ApprovalsPage() {
                                  {(credentials.student || credentials.parent) && (
                                      <button
                                          onClick={() => {
-                                             let txt = `Rillcod Academy Credentials for ${credentials.name}\n\n`;
+                                             let txt = `Rillcod Technologies Credentials for ${credentials.name}\n\n`;
                                              if (credentials.student) {
                                                  txt += `🎓 Student Portal:\nEmail: ${credentials.student.email}\nPassword: ${credentials.student.password || 'Existing Account'}\n\n`;
                                              }

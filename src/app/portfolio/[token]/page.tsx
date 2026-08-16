@@ -65,7 +65,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
         {/* Header */}
         <div className="border-b border-white/10 pb-8">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Rillcod Academy</span>
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">Rillcod Technologies</span>
           </div>
           <h1 className="text-4xl font-black mb-1">{student.full_name}'s Portfolio</h1>
           {student.school_name && (
@@ -122,7 +122,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
         )}
 
         <p className="text-center text-xs text-gray-700 pt-6 border-t border-white/5">
-          Powered by Rillcod Academy · rillcod.com
+          Powered by Rillcod Technologies · rillcod.com
         </p>
       </div>
     </div>

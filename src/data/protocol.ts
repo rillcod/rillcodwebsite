@@ -734,7 +734,7 @@ console.log('Class average:', avg.toFixed(1));`,
         icon: 'beaker',
         starterCode: `// Objects store related data
 const school = {
-  name: 'Rillcod Academy',
+  name: 'Rillcod Technologies',
   founded: 2020,
   subjects: ['STEM', 'Coding', 'Robotics'],
   address: {
@@ -1285,7 +1285,7 @@ const WEB_TRACK: ProtocolPhase[] = [
 <body>
 
   <!-- Headings: h1 is the most important, h6 the least -->
-  <h1>Welcome to Rillcod Academy</h1>
+  <h1>Welcome to Rillcod Technologies</h1>
   <h2>About This Page</h2>
   <p>This is a <strong>paragraph</strong> with <em>italic</em> and <strong>bold</strong> text.</p>
 
@@ -1298,11 +1298,11 @@ const WEB_TRACK: ProtocolPhase[] = [
   </ul>
 
   <!-- Links and images -->
-  <p>Visit <a href="https://rillcod.com" target="_blank">Rillcod Academy</a></p>
+  <p>Visit <a href="https://rillcod.com" target="_blank">Rillcod Technologies</a></p>
 
   <!-- Semantic landmarks -->
   <footer style="margin-top:32px; color:#64748b; font-size:0.85rem;">
-    &copy; 2025 Rillcod Academy
+    &copy; 2025 Rillcod Technologies
   </footer>
 
 </body>
@@ -1335,7 +1335,7 @@ const WEB_TRACK: ProtocolPhase[] = [
 <body>
   <div class="card">
     <h1>STEM Student Card</h1>
-    <p>Welcome to Rillcod Academy. Build the future with code.</p>
+    <p>Welcome to Rillcod Technologies. Build the future with code.</p>
     <div>
       <span class="tag">JavaScript</span>
       <span class="tag">Python</span>
@@ -1854,7 +1854,7 @@ print(f"  Ranked:  {scores}")`,
 
 # Simple function
 def greet(name):
-    print(f"Hello, {name}! Welcome to Rillcod Academy 🚀")
+    print(f"Hello, {name}! Welcome to Rillcod Technologies 🚀")
 
 greet("Amara")
 greet("Chidi")
@@ -2060,7 +2060,7 @@ power_up(2, 10)   # 2^10 = 1024`,
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Portfolio — Rillcod Academy</title>
+  <title>My Portfolio — Rillcod Technologies</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -2157,7 +2157,7 @@ power_up(2, 10)   # 2^10 = 1024`,
   </div>
 
   <footer id="contact">
-    <p>Built with ❤️ at Rillcod Academy · © 2026</p>
+    <p>Built with ❤️ at Rillcod Technologies · © 2026</p>
   </footer>
 </body>
 </html>`,
@@ -2170,7 +2170,7 @@ power_up(2, 10)   # 2^10 = 1024`,
 # This project combines everything you've learned!
 # Variables, lists, loops, functions, conditionals, and dictionaries
 
-SCHOOL_NAME = "Rillcod Academy"
+SCHOOL_NAME = "Rillcod Technologies"
 TERM = "Second Term 2026"
 
 # Student data

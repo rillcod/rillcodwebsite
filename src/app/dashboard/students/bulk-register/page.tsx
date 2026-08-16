@@ -452,7 +452,7 @@ export default function BulkRegisterPage() {
 
     const sortedClasses = Object.keys(grouped).sort();
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'Rillcod Academy';
+    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'Rillcod Technologies';
 
     const html = `
       <html><head><title>Unified Student Credentials Roster - ${schoolNameStr}</title>
@@ -534,7 +534,7 @@ export default function BulkRegisterPage() {
         }).join('')}
         
         <div class="footer">
-          CONFIDENTIAL ADMINISTRATIVE SPECIFICATION • PRINTED FROM RILLCOD ACADEMY VAULT ARCHIVE SYSTEM • PORTAL: https://rillcod.com/login
+          CONFIDENTIAL ADMINISTRATIVE SPECIFICATION • PRINTED FROM RILLCOD TECHNOLOGIES VAULT ARCHIVE SYSTEM • PORTAL: https://rillcod.com/login
         </div>
       <script>window.onload = () => { window.print(); }</script>
       </body></html>
@@ -565,7 +565,7 @@ export default function BulkRegisterPage() {
 
     const logoUrl = window.location.origin + '/logo.png';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'RILLCOD ACADEMY';
+    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'RILLCOD TECHNOLOGIES';
 
     const sorted = [...valid].sort((a, b) => {
       const classA = a.class_name || '';
@@ -696,7 +696,7 @@ export default function BulkRegisterPage() {
     // Stats
     doc.setFontSize(9);
     doc.text(`TOTAL ENROLLED: ${validResults.length}`, 14, 40);
-    doc.text(`TARGET SECTOR: RILLCOD ACADEMY`, 14, 45);
+    doc.text(`TARGET SECTOR: RILLCOD TECHNOLOGIES`, 14, 45);
 
     // Table
     const tableData = validResults.map((r, i) => [
@@ -834,7 +834,7 @@ export default function BulkRegisterPage() {
       let fy = iy + 7;
       if (fieldVis('school')) {
         doc.setFontSize(5.5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc)); doc.setFont('helvetica', 'bold');
-        doc.text((res.school_name || selectedSchoolName || 'RILLCOD ACADEMY').toUpperCase(), ix, fy);
+        doc.text((res.school_name || selectedSchoolName || 'RILLCOD TECHNOLOGIES').toUpperCase(), ix, fy);
         fy += 5;
       }
       if (fieldVis('email')) {
@@ -914,7 +914,7 @@ export default function BulkRegisterPage() {
         </div>
         <div class="meta">
            <div>TOTAL ENROLLED: ${validResults.length}</div>
-           <div>TARGET SECTOR: RILLCOD ACADEMY</div>
+           <div>TARGET SECTOR: RILLCOD TECHNOLOGIES</div>
         </div>
         <table>
           <thead>
@@ -1038,7 +1038,7 @@ export default function BulkRegisterPage() {
             ${headerHtml}
             <div class="cbody">
               <div class="info">
-                ${fieldVis('school') ? `<div class="school">${r.school_name || selectedSchoolName || 'RILLCOD ACADEMY'}</div>` : ''}
+                ${fieldVis('school') ? `<div class="school">${r.school_name || selectedSchoolName || 'RILLCOD TECHNOLOGIES'}</div>` : ''}
                 <div class="sname">${r.full_name || 'N/A'}</div>
                 <div class="sep"></div>
                 ${fieldVis('email') ? `<div class="field"><div class="lbl">Email</div><div class="val">${r.email || 'N/A'}</div></div>` : ''}

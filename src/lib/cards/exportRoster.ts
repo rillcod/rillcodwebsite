@@ -1141,7 +1141,7 @@ export async function downloadStudentRosterPdf(
     title: options.title || 'Official RC Roster',
     subject: 'Student result verification roster',
     author: org,
-    creator: 'Rillcod Academy',
+    creator: 'Rillcod Technologies',
   });
 
   const pdfGroups: RosterPdfGroup[] = options.pdfGroups && options.pdfGroups.length > 0

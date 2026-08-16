@@ -191,7 +191,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                 <CommandLineIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
               <div>
-                <p className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest mb-0.5 sm:mb-1">Rillcod Academy</p>
+                <p className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest mb-0.5 sm:mb-1">Rillcod Technologies</p>
                 <h1 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight mb-1 sm:mb-2">Protocol</h1>
                 <p className="text-[11px] sm:text-sm text-muted-foreground font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
               </div>

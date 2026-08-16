@@ -163,7 +163,7 @@ export default function MyChildrenPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-lg">
               You are an essential part of your child's learning journey. Your involvement, encouragement,
-              and support make a real difference in their success at Rillcod Academy.
+              and support make a real difference in their success at Rillcod Technologies.
             </p>
             <div className="flex flex-wrap gap-6 mt-5">
               {(() => {

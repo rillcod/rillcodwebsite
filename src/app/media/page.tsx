@@ -1,8 +1,8 @@
 import { Camera, Award, Users, Newspaper } from "lucide-react";
 
 const news = [
-  { date: "2024-05-01", title: "RILLCOD Academy Launches AI-Integrated Curriculum in 10 New Schools", summary: "RILLCOD Academy expands its reach, bringing AI and robotics education to thousands of students across Nigeria.", type: "Press Release" },
-  { date: "2024-04-15", title: "Students Win National Robotics Competition", summary: "RILLCOD Academy students take first place at the National Robotics Challenge, showcasing their skills in AI and engineering.", type: "Success Story" },
+  { date: "2024-05-01", title: "Rillcod Technologies Launches AI-Integrated Curriculum in 10 New Schools", summary: "Rillcod Technologies expands its reach, bringing AI and robotics education to thousands of students across Nigeria.", type: "Press Release" },
+  { date: "2024-04-15", title: "Students Win National Robotics Competition", summary: "Rillcod Technologies students take first place at the National Robotics Challenge, showcasing their skills in AI and engineering.", type: "Success Story" },
   { date: "2024-03-20", title: "Tech Fair Attracts 2,000+ Parents and Students", summary: "Annual AI & Robotics Showcase draws record crowds and media attention.", type: "Event" }
 ];
 
@@ -30,7 +30,7 @@ export default function Media() {
         ))}
       </div>
       <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
-        <h2 className="text-3xl font-bold mb-4">Want to Feature RILLCOD Academy?</h2>
+        <h2 className="text-3xl font-bold mb-4">Want to Feature Rillcod Technologies?</h2>
         <p className="text-xl mb-8 opacity-90">Contact us for media inquiries, interviews, or to cover our next event.</p>
         <a href="/contact" className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors">Contact Media Team</a>
       </div>

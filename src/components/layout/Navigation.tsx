@@ -167,7 +167,7 @@ export const Navigation = () => {
   };
 
   const whatsappHref = `https://wa.me/2348116600091?text=${encodeURIComponent(
-    'Hello Rillcod Academy, I would like to inquire about your STEM, Robotics and AI programs.'
+    'Hello Rillcod Technologies, I would like to inquire about your STEM, Robotics and AI programs.'
   )}`;
 
   return (

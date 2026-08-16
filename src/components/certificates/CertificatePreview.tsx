@@ -67,7 +67,7 @@ export default function CertificatePreview({
             {/* Subtle digital watermark — visible only on-screen, doesn't interfere with high-res capture usually */}
             <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center opacity-[0.02] mix-blend-multiply select-none">
                 <p className="text-[120px] font-black uppercase rotate-[-25deg] tracking-widest text-black">
-                    RILLCOD ACADEMY
+                    RILLCOD TECHNOLOGIES
                 </p>
             </div>
         </div>

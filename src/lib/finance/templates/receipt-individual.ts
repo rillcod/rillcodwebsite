@@ -27,7 +27,7 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
           body: [[
             {
               stack: [
-                { text: 'RILLCOD ACADEMY', style: 'brand' },
+                { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
                 { text: 'STEM & Coding Education', style: 'tagline' },
               ],
               fillColor: '#064e3b',

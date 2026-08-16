@@ -16,11 +16,11 @@ import {
 } from '@/lib/icons';
 
 export const metadata: Metadata = {
-  title: 'Student Projects - RILLCOD Academy | Showcase of Student Work',
-  description: 'Explore amazing projects created by RILLCOD Academy students. From games and websites to mobile apps and digital art, see the incredible work of young innovators.',
+  title: 'Student Projects - Rillcod Technologies | Showcase of Student Work',
+  description: 'Explore amazing projects created by Rillcod Technologies students. From games and websites to mobile apps and digital art, see the incredible work of young innovators.',
   keywords: 'student projects, coding projects, games, websites, mobile apps, digital art, student showcase',
   openGraph: {
-    title: 'Student Projects - RILLCOD Academy',
+    title: 'Student Projects - Rillcod Technologies',
     description: 'Amazing projects created by young innovators',
     type: 'website',
   },

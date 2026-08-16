@@ -34,7 +34,7 @@ const db = createClient(URL, KEY, { auth: { persistSession: false } });
 const ai = GKEY ? new GoogleGenAI({ apiKey: GKEY }) : null;
 
 async function genLessons(course) {
-  const system = `You are a senior curriculum designer for Rillcod Academy, an online STEM/AI bootcamp for Nigerian secondary-school and young learners. Write practical, hands-on lessons in clear British English. Output STRICT JSON only.`;
+  const system = `You are a senior curriculum designer for Rillcod Technologies, an online STEM/AI bootcamp for Nigerian secondary-school and young learners. Write practical, hands-on lessons in clear British English. Output STRICT JSON only.`;
   const user = `Design exactly ${PER} sequential lessons for the course "${course.title}" in the "AI Engineering & Automation" track.
 ${course.description ? `Course description: ${course.description}` : ''}
 Return JSON: { "lessons": [ { "title": string, "description": string (1-2 sentences), "lesson_type": one of ["lesson","interactive","hands-on","coding","project","reading","quiz"], "duration_minutes": integer 30-90, "content": markdown string ~350-500 words with: ## Objectives (3 bullets), ## Explanation, ## Worked Example (with code where relevant), ## Try It Yourself activity } ] }

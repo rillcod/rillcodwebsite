@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   const result = await generateAIContent({
     type: 'custom',
     topic: `Rewrite a weak project brief used across ${Number(rows) || 'many'} lessons`,
-    prompt: `You are writing ONE reusable practical-project brief for Rillcod Academy, a Nigerian STEM and coding academy.
+    prompt: `You are writing ONE reusable practical-project brief for Rillcod Technologies, a Nigerian STEM and coding academy.
 
 It replaces this placeholder, which is currently used verbatim across ${Number(rows) || 'many'} different weeks:
 

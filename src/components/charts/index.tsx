@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Rillcod Academy — Chart Component Library
+ * Rillcod Technologies — Chart Component Library
  * Built on recharts. All charts are dark-theme aware and mobile-responsive.
  * Use ResponsiveContainer to fill parent width.
  */

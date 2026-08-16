@@ -853,7 +853,7 @@ export default function ResendCredentialsPage() {
             {(() => {
               const lc = lastCreatedCredentials;
               const buildText = () => {
-                let txt = `Rillcod Academy login details for ${lc.studentName}\n\n`;
+                let txt = `Rillcod Technologies login details for ${lc.studentName}\n\n`;
                 txt += `🎓 Student Portal:\nEmail: ${lc.studentEmail}${lc.studentPassword ? `\nPassword: ${lc.studentPassword}` : ''}\n\n`;
                 if (lc.parentEmail) {
                   txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${lc.parentEmail}${lc.parentPassword ? `\nPassword: ${lc.parentPassword}` : ''}\n`;

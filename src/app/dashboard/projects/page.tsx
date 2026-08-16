@@ -346,7 +346,7 @@ export default function ProjectsPage() {
         if (assignmentTitle) msg += ` (${assignmentTitle})`;
         msg += ` is: *${scoreStr}*.`;
         if (feedback) msg += `\n\nTeacher's feedback: "${feedback}"`;
-        msg += '\n\n— Rillcod Academy';
+        msg += '\n\n— Rillcod Technologies';
         return msg;
     }
 

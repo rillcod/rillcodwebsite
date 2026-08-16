@@ -209,7 +209,7 @@ export const Hero: React.FC = () => {
                     Student Robotics Demonstration
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    Live classroom footage from Rillcod Academy partner school
+                    Live classroom footage from Rillcod Technologies partner school
                   </p>
                 </div>
               </div>

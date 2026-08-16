@@ -124,7 +124,7 @@ export async function deliverNewsletter(
       const nl = newsletter;
       const { notificationsService } = await import('@/services/notifications.service');
       const { buildAnnouncementEmail } = await import('@/lib/email/rillcod-transactional-email');
-      const title = (nl as any)?.title || 'Rillcod Academy Newsletter';
+      const title = (nl as any)?.title || 'Rillcod Technologies Newsletter';
       // Plain-text body for email (the announcement template paragraph-wraps it).
       const plain = String((nl as any)?.content || '')
         .replace(/^#{1,6}\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')

@@ -1095,7 +1095,7 @@ export default function CardStudioPage() {
         if(!res.ok) throw new Error(json?.error||'Failed to load parents');
         setRecords((json?.data||[]).map((r:any)=>({
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',roleLabel:'Parent',
-          school:r.children?.[0]?.school_name||(r as any).school_name||'Rillcod Academy',
+          school:r.children?.[0]?.school_name||(r as any).school_name||'Rillcod Technologies',
           badge:r.children?`${r.children.length} child${r.children.length===1?'':'ren'}`:'Parent',
           gradeLevel:'', sectionClass:'', profileUrl:`${window.location.origin}/dashboard/parent-feedback`,schoolId:null,
           isHidden: !!(r as any).is_deleted,
@@ -1108,7 +1108,7 @@ export default function CardStudioPage() {
         setRecords((json?.data||[]).map((r:any)=>({
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',
           roleLabel:type==='teacher'?'Teacher':'Student',
-          school:r.school_name||'Rillcod Academy',
+          school:r.school_name||'Rillcod Technologies',
           badge:type==='teacher'?'Staff':'',
           gradeLevel:r.grade||'',
           sectionClass:r.section_class||r.classes?.name||'',

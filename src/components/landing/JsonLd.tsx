@@ -126,7 +126,7 @@ export function WebSiteJsonLd() {
     '@id': `${seoConfig.siteUrl}/#website`,
     url: seoConfig.siteUrl,
     name: seoConfig.siteName,
-    alternateName: ["Rillcod", "Rillcod Academy", "Rillcod Technologies"],
+    alternateName: ["Rillcod", "Rillcod Technologies", "Rillcod Technologies"],
     description: seoConfig.defaultDescription,
     publisher: {
       '@id': `${seoConfig.siteUrl}/#organization`,

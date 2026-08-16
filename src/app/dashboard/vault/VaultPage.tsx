@@ -311,7 +311,7 @@ for name, score in students:
     description: 'System prompt & few-shot examples designed for tutoring secondary school STEM students.',
     code: `# 🤖 AI Prompt Engineering: STEM Tutor Framing
 system_prompt = """
-You are an expert STEM Tutor at Rillcod Academy.
+You are an expert STEM Tutor at Rillcod Technologies.
 Guidelines:
 1. Always break down complex physics, math, or coding concepts into simple real-world analogies.
 2. Structure your answer: [Core Concept, Code Example, Practice Question].

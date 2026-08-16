@@ -251,7 +251,7 @@ export function CertificateTemplates({
                         
                         <div className="w-full flex justify-between items-center relative z-10 border-b-2 border-orange-100 pb-8">
                             <div className="space-y-1">
-                                <h4 className="text-[20px] font-black text-primary uppercase tracking-tighter leading-none">Rillcod Academy</h4>
+                                <h4 className="text-[20px] font-black text-primary uppercase tracking-tighter leading-none">Rillcod Technologies</h4>
                                 <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Global Institute of Digital Excellence</p>
                             </div>
                             <img src="/images/logo.png" alt="Rillcod" className="h-10 w-auto opacity-80" />
@@ -274,7 +274,7 @@ export function CertificateTemplates({
                                 <div className="text-left border-t border-border pt-3 w-56">
                                     <img src="/images/signature.png" alt="Sig" className="h-9 w-auto mb-2 opacity-80" />
                                     <p className="text-[12px] font-black text-[#111827] uppercase leading-none">Osahon J.</p>
-                                    <p className="text-[9px] text-muted-foreground font-bold uppercase mt-1 tracking-wider italic">Director of Rillcod Academy</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase mt-1 tracking-wider italic">Director of Rillcod Technologies</p>
                                 </div>
                                 <div className="inline-flex items-center gap-3 px-3 py-1 bg-muted rounded text-muted-foreground">
                                     <p className="text-[9px] font-bold uppercase tracking-widest">Status: OFFICIAL_VERIFIED</p>

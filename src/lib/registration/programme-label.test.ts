@@ -52,7 +52,7 @@ describe('registeredProgrammeName', () => {
     expect(registeredProgrammeName({ courseInterest: 'JSS 2 Robotics Camp', className: 'X' }))
       .toBe('Robotics Camp');
     expect(registeredProgrammeName({ className: 'Holiday Coding Camp' })).toBe('Holiday Coding Camp');
-    expect(registeredProgrammeName({ fallback: 'Rillcod Academy' })).toBe('Rillcod Academy');
+    expect(registeredProgrammeName({ fallback: 'Rillcod Technologies' })).toBe('Rillcod Technologies');
   });
 
   it('never invents a cohort it was not told about', () => {

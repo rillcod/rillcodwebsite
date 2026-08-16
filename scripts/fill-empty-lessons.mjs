@@ -30,7 +30,7 @@ async function genBody(lesson, courseTitle, programName) {
   const audience = /young|innovator/i.test(programName)
     ? 'Nigerian primary-school children (ages 7-11) — playful, very simple language, lots of encouragement'
     : 'Nigerian secondary-school students (JSS/SS) — clear, practical, hands-on';
-  const system = `You are a curriculum designer for Rillcod Academy. Write ONE engaging lesson body in markdown for ${audience}. British English. Output STRICT JSON only.`;
+  const system = `You are a curriculum designer for Rillcod Technologies. Write ONE engaging lesson body in markdown for ${audience}. British English. Output STRICT JSON only.`;
   const user = `Course: "${courseTitle}" (${programName}).
 Lesson title: "${lesson.title}"
 ${lesson.description ? `Lesson summary: ${lesson.description}` : ''}

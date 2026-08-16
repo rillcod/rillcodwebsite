@@ -278,7 +278,7 @@ export async function POST(req: Request) {
         parent_name: target.parentName || 'Parent / Guardian',
         student_name: target.studentName || 'Student',
         class_name: target.className || 'Class',
-        school_name: schoolName || 'Rillcod Academy',
+        school_name: schoolName || 'Rillcod Technologies',
         access_link: `${siteUrl}/dashboard/results`,
         claim_link: `${siteUrl}/claim`,
         meeting_link: `${siteUrl}/dashboard/meetings`,
@@ -328,7 +328,7 @@ export async function POST(req: Request) {
 
       const html = buildRillcodTransactionalEmailHtml({
         title: rendered.subject,
-        eyebrow: schoolName || 'Rillcod Academy',
+        eyebrow: schoolName || 'Rillcod Technologies',
         bodyHtml: plainBodyToHtml(rendered.body),
         summaryRows: [
           { label: 'Student', value: target.studentName },
