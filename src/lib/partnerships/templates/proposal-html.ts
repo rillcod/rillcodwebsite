@@ -746,12 +746,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   /* On a white tile, so the mark reads on any background and survives a
      printer that renders the dark band lighter than the screen does. */
   .brand-mark {
-    width: 20mm; height: 20mm; object-fit: contain; flex: none;
-    background: #fff; border-radius: 2.5mm; padding: 2.2mm;
+    width: 16mm; height: 16mm; object-fit: contain; flex: none;
+    background: #fff; border-radius: 2.2mm; padding: 1.8mm;
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   }
-  .brand { font-size: 26pt; font-weight: 800; letter-spacing: -.5px; color: #fff; }
-  .brand-tag { color: #fca5a5; font-size: 10.5pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.5mm; font-weight: 600; }
+  /* A masthead, not a headline. At 26pt the company name was set larger than the
+     proposal's own title directly beneath it, so the cover announced the sender
+     before it announced the offer — which reads as a letterhead shouting rather
+     than a document with something to say. Restrained here so the h1 leads, the
+     way it does on any professional cover; the space this returns goes to the
+     scan card below. */
+  .brand { font-size: 19pt; font-weight: 700; letter-spacing: -.3px; color: #fff; }
+  .brand-tag { color: #fca5a5; font-size: 8.6pt; letter-spacing: .1em; text-transform: uppercase; margin-top: 1.2mm; font-weight: 600; }
   .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10mm 0 8mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
@@ -765,20 +771,47 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-for { font-size: 17.5pt; font-weight: 700; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
-  /* On the cover, because that is the page somebody is holding. Scan it, or type
-     six digits, or type the address — in that order of effort. */
-  .cover-online {
-    margin-top: 7mm; font-size: 9pt; color: #cbd5e1; letter-spacing: .01em;
-    display: flex; align-items: center; gap: 3.5mm;
+  /* ── Scan me ──────────────────────────────────────────────────────────
+     On the cover, because that is the page somebody is holding, and because
+     the first thing a proprietor does with a printed proposal is show it to
+     somebody else. A scan puts it on their phone, where it can be forwarded.
+
+     It used to be four lines of white text — the block set its colour to a pale
+     slate and its bold to pure white — sitting on the white middle of the cover.
+     The heading and the access code were invisible on the page, and the line
+     beneath them was the palest grey on white. The one route back into the
+     document, printed in a colour nobody could read.
+
+     Now it is a dark card, which is what makes it carry on a white cover: it
+     borrows the navy from the masthead so it reads as part of the document
+     rather than a sticker on it, and takes the red rule from the stripe above. */
+  .scan {
+    margin-top: 4mm; display: flex; align-items: center; gap: 4.5mm;
+    background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
+    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
+    padding: 3mm 5mm 3mm 4mm; max-width: 150mm;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
   }
-  .cover-online b { color: #fff; letter-spacing: .05em; }
-  .cover-online > div > b { display: block; font-size: 10pt; margin-bottom: .6mm; }
-  /* White plate: a QR on a dark cover will not scan without one. */
-  .cover-qr {
-    width: 15mm; height: 15mm; display: block; background: #fff;
-    padding: 1mm; border-radius: 1mm;
+  /* The plate is not decoration. A QR needs a quiet zone and maximum contrast,
+     and printed straight onto navy it will not resolve on a phone camera. */
+  .scan-qr {
+    width: 17mm; height: 17mm; display: block; flex: none;
+    background: #fff; padding: 1.2mm; border-radius: 1.2mm;
   }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
+  .scan-lead {
+    font-size: 8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: #fca5a5;
+  }
+  .scan-title { font-size: 11.5pt; font-weight: 800; color: #fff; margin-top: .8mm; letter-spacing: -.1px; }
+  .scan-sub { font-size: 8.4pt; color: #cbd5e1; margin-top: 1.6mm; line-height: 1.5; }
+  .scan-sub b { color: #fff; font-weight: 700; }
+  .scan-code {
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
+    font-size: 9.6pt; color: #fff; font-weight: 700;
+  }
+  /* 6mm rather than 9mm: the scan card below needs the room more than this gap
+     does, and the cover reads no worse for it. */
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 6mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
   /* The cover closes on the same dark panel the last page uses, so the
      document opens and closes on one identity. Formal rather than an ask:
@@ -1090,15 +1123,23 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       // How to reopen this after the email is gone. On the cover, where somebody
       // holding a printed copy will actually look.
       input.accessCode
-        ? `<div class="cover-online">
+        ? `<div class="scan">
       ${
         input.accessQrDataUrl
-          ? `<img class="cover-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
+          ? `<img class="scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to open this proposal online">`
           : ''
       }
       <div>
-        <b>Read it online</b>
-        <span>${esc(brandContact.web)}/p &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></span>
+        <div class="scan-lead">Scan me</div>
+        <div class="scan-title">Open this proposal on your phone</div>
+        <!-- Two routes, in order of effort, and the typed one spelled out in
+             full: a camera is faster, but the code is what survives a
+             photocopy and a forwarded photograph of page one. -->
+        <div class="scan-sub">
+          Share it with your board and reply from the same page. No app, no login.<br>
+          No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+          <span class="scan-code">${esc(input.accessCode)}</span>
+        </div>
       </div>
     </div>`
         : ''

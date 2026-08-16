@@ -130,7 +130,10 @@ describe('A4 Page-Fit and Overflow Guard', () => {
 
     // Page 4: Execution & Signature Blocks
     expect(pages[3]).toContain('Execution');
-    expect(pages[3]).toContain('Digital Portal');
+    // The execution page carries the prompt to sign from a phone. It used to
+    // read "Digital Portal & Online E-Signing", which named a feature; it now
+    // asks for the action, which is the only thing this page wants.
+    expect(pages[3]).toContain('Scan to sign');
     // The counterparty's box is a delimited region now, not a single point, so
     // that signing replaces the blank ruled line instead of printing the
     // signature underneath it.

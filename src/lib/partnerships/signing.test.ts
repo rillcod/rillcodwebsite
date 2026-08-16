@@ -16,6 +16,7 @@ import {
 import { buildPartnershipProposalHTML } from './templates/proposal-html';
 import { buildPartnershipMouHTML } from './templates/mou-html';
 import type { PartnershipTerms } from './terms';
+import { brandContact } from '@/config/brand';
 
 /**
  * The public signing link is the only unauthenticated write in the partnership
@@ -461,5 +462,108 @@ describe('the access panel printed on a document', () => {
     });
     expect(html).not.toContain('Access code:');
     expect(html).not.toContain('api.qrserver.com');
+  });
+});
+
+/**
+ * The way in is printed where a reader is, not once and out of the way.
+ *
+ * A proprietor meets these documents twice: at the front, deciding whether to
+ * read on, and at the back, deciding whether to sign. The scan card appears at
+ * both, doing a different job each time — "open this on your phone" on the
+ * front, "sign it from your phone" at the execution block.
+ *
+ * It also has to be legible, which is not as obvious as it sounds: the cover
+ * card set its text to white and its bold to pure white on the white middle of
+ * the cover, so the heading and the six-digit code were invisible on a printed
+ * page. The tests below pin what must be there; the A4 page-fit guard covers
+ * whether it still fits once it is.
+ */
+describe('the scan card, front and back', () => {
+  const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
+  const terms = {
+    id: 't1',
+    school_id: 's1',
+    billing_model: 'per_student',
+    amount_per_student: 15000,
+    fixed_package_price: null,
+    tiers: null,
+    currency: 'NGN',
+    billing_cycle: 'term',
+    rillcod_share_percent: 70,
+    school_share_percent: 30,
+    deposit_amount: 0,
+    status: 'agreed',
+  } as unknown as PartnershipTerms;
+
+  const CODE = '482915';
+  const QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=';
+
+  const mou = () =>
+    buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: null,
+      reference: 'RC-MOU-2026-00007',
+      dateLabel: '16 August 2026',
+      accessCode: CODE,
+      accessQrDataUrl: QR,
+    });
+
+  const proposal = () =>
+    buildPartnershipProposalHTML({
+      school,
+      curriculum: null,
+      reference: 'RC-PROP-2026-00042',
+      dateLabel: '16 August 2026',
+      accessCode: CODE,
+      accessQrDataUrl: QR,
+    });
+
+  const occurrences = (haystack: string, needle: string) => haystack.split(needle).length - 1;
+
+  it('says "scan" in words, so the QR is not left to explain itself', () => {
+    expect(mou().toLowerCase()).toContain('scan');
+    expect(proposal().toLowerCase()).toContain('scan');
+  });
+
+  it('carries the QR and the code in more than one place in each document', () => {
+    for (const [name, html] of [['mou', mou()], ['proposal', proposal()]] as const) {
+      expect(occurrences(html, QR), `${name}: QR placements`).toBeGreaterThanOrEqual(2);
+      expect(occurrences(html, CODE), `${name}: code placements`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('tells the reader what to do without a camera', () => {
+    // The code is only useful with somewhere to type it. A bare six digits on a
+    // page is a puzzle, not an instruction.
+    for (const html of [mou(), proposal()]) {
+      expect(html).toMatch(/No camera\?/);
+      expect(html).toContain(`${brandContact.web}/p`);
+    }
+  });
+
+  it('asks the MoU reader to sign, not merely to read', () => {
+    // The execution block is where the decision is made; "read this online"
+    // there wastes the one prompt that matters.
+    expect(mou().toLowerCase()).toContain('scan to sign');
+  });
+
+  it('never prints the card with no code behind it', () => {
+    // A preview has no row, so no code and no token: better a document with no
+    // invitation than one inviting the reader to type nothing.
+    const noCode = buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: null,
+      reference: 'RC-MOU-2026-00007',
+      dateLabel: '16 August 2026',
+    });
+    // Asserted on the markup, not the prose: the stylesheet's own section
+    // comment says "Scan me" too, and a substring search cannot tell a comment
+    // in a <style> block from a heading on the page.
+    expect(noCode).not.toContain('class="online-lead"');
+    expect(noCode).not.toContain('class="sign-scan-lead"');
+    expect(noCode).not.toContain(QR);
   });
 });

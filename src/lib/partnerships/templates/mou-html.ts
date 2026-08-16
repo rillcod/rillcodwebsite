@@ -191,15 +191,36 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
   .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
   /* Scan, or type the code, or type the address — in that order of effort. */
+  /* ── Scan me ──────────────────────────────────────────────────────────
+     The same card the proposal cover carries, sized for a page that has 6mm to
+     spare rather than 20mm. It was a pale grey strip that read as a footnote;
+     on the page where a school decides whether to sign, the route to signing
+     should not look like fine print. Dark, so it carries on white, and the red
+     rule ties it to the accent under the title. */
   .online {
-    display: flex; align-items: center; justify-content: center; gap: 3mm;
-    font-size: 8.4pt; color: #64748b; margin: -2mm 0 3.5mm;
-    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.5mm; padding: 2mm;
+    display: flex; align-items: center; gap: 3.5mm;
+    font-size: 8pt; color: #cbd5e1; line-height: 1.45;
+    margin: -1mm auto 3.5mm; max-width: 128mm;
+    background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
+    border-left: 2mm solid #dc2626; border-radius: 0 1.5mm 1.5mm 0;
+    padding: 2.2mm 4mm 2.2mm 3mm;
   }
-  .online-qr { width: 13mm; height: 13mm; display: block; }
-  .online-txt { text-align: left; line-height: 1.35; }
-  .online-txt b { display: block; color: #0f172a; font-size: 9pt; letter-spacing: .01em; }
-  .online b { color: #0f172a; letter-spacing: .04em; }
+  /* White plate: a QR printed straight onto navy will not resolve on a camera. */
+  .online-qr {
+    width: 14mm; height: 14mm; display: block; flex: none;
+    background: #fff; padding: 1mm; border-radius: 1mm;
+  }
+  .online-txt { text-align: left; }
+  .online-lead {
+    font-size: 6.8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: #fca5a5;
+  }
+  .online-txt b { display: block; color: #fff; font-size: 9pt; letter-spacing: .01em; margin-top: .4mm; }
+  .online-txt span b { display: inline; font-size: 8pt; }
+  .online-code {
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
+    font-size: 8.6pt; color: #fff; font-weight: 700;
+  }
   .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
 
   /* A clause heading is type, not a container.
@@ -285,6 +306,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     font-weight: 700; min-height: 9mm; margin-bottom: 14mm;
   }
   .sig { display: block; height: 15mm; width: auto; max-width: 55mm; margin: 0 0 -2mm; mix-blend-mode: multiply; }
+  /* Exactly what .sig occupies (15mm less its -2mm pull), so the counterparty's
+     rule lands level with ours instead of 15mm above it. */
+  .sig-space { height: 13mm; }
   .sign-box .line { border-top: 1.5px solid #0f172a; padding-top: 2mm; font-size: 8.6pt; color: #334155; }
   .sign-box .nm { font-weight: 700; color: #0f172a; }
   .stamp { margin-top: 7mm; border: 1.5px dashed #cbd5e1; height: 24mm; border-radius: 2mm; display: flex;
@@ -293,6 +317,31 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .stamp-done {
     border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d;
     border-style: solid; height: auto; padding: 3mm; text-align: center; font-weight: 600;
+  }
+  /* The execution-page card. Same language as page one, at the size a page with
+     20mm to spare can carry — this is the one instruction on the sheet that
+     turns a printed contract into a signed one. */
+  .sign-scan {
+    display: flex; align-items: center; gap: 5mm; break-inside: avoid;
+    margin: 4mm 0 6mm; padding: 4mm 6mm 4mm 4.5mm;
+    background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
+    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
+  }
+  .sign-scan-qr {
+    width: 22mm; height: 22mm; display: block; flex: none;
+    background: #fff; padding: 1.5mm; border-radius: 1.2mm;
+  }
+  .sign-scan-lead {
+    font-size: 7.6pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: #fca5a5;
+  }
+  .sign-scan-title { display: block; font-size: 11.5pt; color: #fff; margin-top: .8mm; font-weight: 800; }
+  .sign-scan-sub { font-size: 8.2pt; color: #cbd5e1; margin-top: 1.6mm; line-height: 1.5; }
+  .sign-scan-sub b { color: #fff; font-weight: 700; }
+  .sign-scan-code {
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
+    font-size: 9.4pt; color: #fff; font-weight: 700;
   }
   .foot { border-top: 1px solid #e2e8f0; margin-top: 7mm; padding-top: 3mm;
     font-size: 8pt; color: #64748b; display: flex; justify-content: space-between; }
@@ -327,8 +376,10 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           : ''
       }
       <div class="online-txt">
-        <b>Read and sign this agreement online</b>
-        <span>${esc(brandContact.web)}/p &nbsp;·&nbsp; access code <b>${esc(input.accessCode)}</b></span>
+        <div class="online-lead">Scan me</div>
+        <b>Read and sign this agreement on your phone</b>
+        <span>No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+        <span class="online-code">${esc(input.accessCode)}</span></span>
       </div>
     </div>`
       : ''
@@ -513,22 +564,31 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         token, and the six digits that actually open the document. Absent both,
         it prints nothing rather than an invitation that fails.
       */
+      /*
+        The same card again, on the page where it is actually acted on — and
+        this page has the room to let it be the largest thing on it.
+
+        The ask changes here. On page one the invitation is to read; beside the
+        signature blocks it is to sign, which is the whole reason a school can
+        execute this from a phone in a staff room instead of printing, signing,
+        scanning and emailing it back. So the QR is 22mm rather than 14mm, and
+        the wording says sign rather than read.
+      */
       input.accessCode
-        ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:2.8mm 4mm; margin-top:4mm; margin-bottom:6mm; break-inside:avoid;">
-      <div style="display:flex; align-items:center; gap:3.5mm;">
-        ${
-          input.accessQrDataUrl
-            ? `<img src="${esc(input.accessQrDataUrl)}" style="width:12mm; height:12mm; border-radius:1mm; display:block;" alt="Scan to read and sign this agreement" />`
-            : ''
-        }
-        <div>
-          <span style="font-size:7pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; Online E-Signing</span>
-          <b style="font-size:8.8pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">${esc(brandContact.web)}/p</span></b>
-          <div style="font-size:7.8pt; color:#64748b; margin-top:0.5mm;">Access code: <strong style="color:#0f172a; font-family:monospace; letter-spacing:0.06em;">${esc(input.accessCode)}</strong></div>
+        ? `<div class="sign-scan">
+      ${
+        input.accessQrDataUrl
+          ? `<img class="sign-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to sign this agreement" />`
+          : ''
+      }
+      <div>
+        <div class="sign-scan-lead">Scan to sign</div>
+        <b class="sign-scan-title">Execute this agreement from your phone</b>
+        <div class="sign-scan-sub">
+          Takes about a minute. Signed on screen, binding, and a copy is emailed to both parties.<br>
+          No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+          <span class="sign-scan-code">${esc(input.accessCode)}</span>
         </div>
-      </div>
-      <div style="font-size:7.4pt; color:#64748b; text-align:right; line-height:1.35;">
-        Authorized representatives may<br>sign digitally from any device
       </div>
     </div>`
         : ''
@@ -566,6 +626,12 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           above the school's actual signature.
         -->
         ${SIGNATURE_SLOT_START}
+        <!-- Party A carries a signature image above its rule and Party B, until
+             somebody signs, carries nothing — so the two rules printed about
+             15mm apart on a page whose entire point is that the parties are
+             equal. This reserves the same height the image occupies. It sits
+             inside the slot, so signing replaces it along with the rest. -->
+        <div class="sig-space"></div>
         <div class="line">
           <!-- The fallback is escaped with everything else, so it has to be the raw
                character. Written pre-escaped it was escaped twice, and the entity
