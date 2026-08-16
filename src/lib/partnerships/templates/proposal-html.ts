@@ -736,7 +736,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
        the shortest path produces a purple this company does not own. Routing it
        through the blue keeps every stop a colour that is actually ours. */
     background: linear-gradient(118deg, #070C1F 0%, #123069 46%, #6E1018 100%);
-    color: #fff; margin: -14mm -13mm 0; padding: 14mm 14mm 10mm;
+    color: #fff; margin: -14mm -13mm 0; padding: 10mm 14mm 8mm;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .stripe { display: flex; height: 3mm; margin: 0 -13mm; }
@@ -783,7 +783,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .end-scan-contact b { color: #fff; }
 
   /* ── Masthead: Brand left, Extra-Large QR right ───────────────────── */
-  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 8mm; }
+  .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12mm; }
   .masthead-l { flex: 1; min-width: 0; }
   .brand-row { display: flex; align-items: center; gap: 5mm; }
 
@@ -793,8 +793,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     background: #fff; border-radius: 3.5mm; padding: 2.5mm;
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   }
-  .brand { font-size: 28pt; font-weight: 800; letter-spacing: -.6px; color: #fff; line-height: 1.05; }
-  .brand-tag { color: #fca5a5; font-size: 10pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.6mm; font-weight: 600; }
+  .brand { font-size: 24pt; font-weight: 800; letter-spacing: -.5px; color: #fff; line-height: 1.05; white-space: nowrap; }
+  .brand-tag { color: #fca5a5; font-size: 9pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.4mm; font-weight: 600; white-space: nowrap; }
 
   /* Cover Scan Block — Extra-Large, High-Contrast & Commanding */
   .cover-scan { flex: none; text-align: center; }
@@ -832,9 +832,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
   /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */
+  /* A footer, not a second masthead.
+
+     These four classes had no rules at all — the stylesheet still described an
+     older grid the markup had stopped using — so the band rendered at browser
+     defaults and took far more of the sheet than an address needs. Written out
+     properly and set small, it gives the cover back roughly 15mm of white. */
   .cover-foot {
-    background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 6mm 14mm 7mm;
+    background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 4.5mm 14mm 5mm;
     border-top: 3px solid #991b1b;
+  }
+  .cover-foot-lines { font-size: 8.4pt; color: #cbd5e1; line-height: 1.5; }
+  .cover-foot-reg {
+    font-size: 7.4pt; color: #94a3b8; margin-top: 1.8mm; letter-spacing: .03em;
+    padding-top: 1.8mm; border-top: 1px solid rgba(255,255,255,.12);
   }
   .cover-foot-grid {
     display: flex; justify-content: space-between; align-items: center; gap: 6mm;
@@ -1118,6 +1129,14 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 9mm; break-inside: avoid; }
   .sign-box { border-top: 1.5px solid #0f172a; padding-top: 2.5mm; font-size: 9pt; color: #334155; }
   .sign-box b { display: block; margin-bottom: 6.5mm; color: #0f172a; font-weight: 700; }
+  /* The cover is a cover, not page one. It carries no number, and the sheet
+     after it is 1 — which is how a proposal is read and how a reader refers to
+     it on the phone. Counted, so switching a section off in the studio
+     renumbers the rest instead of leaving a gap. */
+  body { counter-reset: sheet 0; }
+  .page:not(.cover) { counter-increment: sheet; }
+  .pno::before { content: ' · Page ' counter(sheet); }
+
   .pagehead { display: flex; justify-content: space-between; border-bottom: 2.5px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 6mm; font-size: 8.8pt; color: #64748b; }
   .pagehead b { color: #0f172a; font-weight: 700; }
 </style>
@@ -1197,9 +1216,16 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
   </div>
 
+  <!--
+    The company is named once on this page, at the top, in the masthead.
+
+    The footer repeated it as a heading in its own right, so a reader met
+    "Rillcod Technologies" twice within one sheet — once beside the logo and
+    again 200mm below it. The address and the registered entity still belong
+    here; the second wordmark does not, and removing it is what lets the band
+    shrink and the white above it open up.
+  -->
   <div class="cover-foot">
-    <div class="cover-foot-name">${esc(brandContact.displayName)}</div>
-    <div class="cover-foot-rule"></div>
     <div class="cover-foot-lines">
       ${esc(brandContact.address)}<br>
       ${esc(brandContact.phone)} &nbsp;·&nbsp; ${esc(brandContact.email)} &nbsp;·&nbsp; ${esc(brandContact.web)}
@@ -1213,7 +1239,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      off, because a page that exists to hold a section nobody selected prints as
      a blank sheet in the middle of a proposal. -->
 <div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
 ${on('intro') ? `  <section>
     <div class="rule"></div>
@@ -1250,7 +1276,7 @@ ${splitOverview
 </div>
 
 <div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 `
       : ''
     }
@@ -1277,7 +1303,7 @@ ${
      the two questions a head teacher asks after "why", and cramming them under
      the pitch is what pushed that page past the sheet. -->
 <div class="page">
-  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${journey()
       ? `<section>
@@ -1318,7 +1344,7 @@ ${on('rollout') ? `  <section>
 
 <!-- Commercials -->
 <div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${agreed}
 
@@ -1343,7 +1369,7 @@ ${on('rollout') ? `  <section>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
 <div class="page">
-  <div class="pagehead"><span><b>Your return</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>Your return</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${splitBlock()}
 
@@ -1406,7 +1432,7 @@ ${on('curriculum') && secondary.length
 -->
 ${on('comparison') || on('zeroCapex') || on('caseStudies')
       ? `<div class="page">
-  <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${transformationTableBlock()}
   ${zeroCapexBlock()}
@@ -1418,7 +1444,7 @@ ${on('comparison') || on('zeroCapex') || on('caseStudies')
 <!-- How it starts, and the place to say yes. Always the last page: the close
      must never depend on a section that might not render. -->
 <div class="page">
-  <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
+  <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
 
 ${on('whyNow') ? `  <section>
