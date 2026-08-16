@@ -1260,7 +1260,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 ${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
-    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable.${input.proof
+    <!--
+      Two sentences, and only what the page does not already carry.
+
+      The supplied "about us" copy says a great deal that is already here in
+      tighter form: the ten years, the move from memorised ICT to work that gets
+      made, the breadth beyond coding \u2014 all of that is the mission line below
+      and the disciplines table. Repeating it would pad the page and dull the
+      parts that are doing work.
+
+      What was genuinely missing is who teaches it and what a learner leaves
+      with, so that is what is added: a young team, and the promise stated as
+      something a parent can check rather than an ambition.
+    -->
+    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a coding and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable. We are a young team teaching a young subject, and we hold the work to one test: a learner should see what is possible, learn the process, and leave with progress they can show anywhere in the world.${input.proof
         ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
         : ''
       }</p>

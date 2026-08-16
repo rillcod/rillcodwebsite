@@ -125,6 +125,56 @@ export default function About() {
           ))}
         </div>
 
+        {/*
+          Who we are, in our own words.
+
+          The page opened on statistics and went straight to mission and vision
+          — accurate, but nobody had said who is doing the teaching or why. This
+          is the founder's account, tightened: the claims kept, the repetition
+          removed, and the address and the "over ten years" left to the places
+          on the site that already carry them.
+
+          Kept deliberately: "memory-based learning" is the sharpest line in it,
+          because every Nigerian parent reading this page recognises exactly
+          what it describes.
+        */}
+        <div className="bg-card border border-border rounded-3xl p-8 sm:p-14 mb-16 shadow-xl">
+          <p className="text-[11px] font-black uppercase tracking-widest text-primary">Who we are</p>
+          <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mt-1 mb-6">
+            A young team, teaching a young subject
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 text-sm sm:text-base text-muted-foreground leading-relaxed font-medium">
+            <div className="space-y-4">
+              <p>
+                We are an organisation of young professionals who want children to see what is
+                possible, learn the process, and make progress they can point at. A world-class
+                professional is not built by talent alone — it takes the right skill, the right
+                manner, and exposure early enough to matter.
+              </p>
+              <p>
+                Transforming how technology is taught in Nigeria means moving primary and secondary
+                classrooms away from <span className="text-foreground font-bold">memory-based
+                learning</span> towards an education that stimulates thinking and creativity. So our
+                sessions are built to make children think, act and create — not to recite.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p>
+                Every session is delivered by qualified, trained facilitators whose job is to bring
+                out what is particular about each child rather than move a class through a syllabus
+                at one speed.
+              </p>
+              <p>
+                The work reaches past coding into animation, content creation, copywriting, data
+                science, graphics and UI/UX design — because that is the shape of the field these
+                students are entering. The standard we hold ourselves to is simple: a student who
+                finishes here should stand beside their counterparts anywhere in the world and be
+                competitive.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Mission, Vision, Objectives */}
         <div className="bg-card border border-border rounded-3xl p-8 sm:p-14 mb-16 shadow-xl relative overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 relative z-10">
