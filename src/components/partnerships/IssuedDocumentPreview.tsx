@@ -198,7 +198,7 @@ export function IssuedDocumentPreview({
       the page gets every pixel there is, and there is one thing on screen doing
       one job.
     */
-    <div className="fixed inset-0 z-50 flex flex-col bg-background sm:static sm:z-auto sm:block sm:rounded-3xl sm:border sm:border-primary/40 sm:bg-card sm:overflow-hidden sm:shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background sm:static sm:z-auto sm:block sm:rounded-3xl sm:border sm:border-primary/40 sm:bg-card sm:overflow-hidden sm:shadow-2xl">
       {/*
         The way out, pinned where a thumb is. The inline sheet has its own close
         button in the header; a full-screen overlay needs one that cannot scroll

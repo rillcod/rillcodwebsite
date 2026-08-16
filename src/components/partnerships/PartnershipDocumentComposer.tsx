@@ -42,6 +42,8 @@ export function PartnershipDocumentComposer({
   onPreview,
   onRecordTerms,
   studio,
+  kind,
+  onKindChange,
 }: {
   school: SchoolRow;
   agreed: TermsRow | null;
@@ -53,8 +55,20 @@ export function PartnershipDocumentComposer({
   onRecordTerms: () => void;
   /** What the studio decided prints. Sent with preview and issue alike. */
   studio?: ProposalStudioConfig | null;
+  /*
+    Which document is being written — owned by the workspace, not by this form.
+
+    An MoU needs agreed terms, so the one journey this component exists to
+    support is: choose MoU, discover there is no rate, go and record one, come
+    back and issue it. This panel is unmounted while the terms tab is open, so
+    when `kind` lived in here that round trip silently threw the choice away and
+    returned the user to "Proposal" — having just recorded terms for the MoU
+    they wanted. Held one level up, the choice survives the trip.
+  */
+  kind: DocumentKind;
+  onKindChange: (kind: DocumentKind) => void;
 }) {
-  const [kind, setKind] = useState<DocumentKind>("proposal");
+  const setKind = onKindChange;
   const [offerCode, setOfferCode] = useState<string>("");
   const [stage, setStage] = useState<"primary" | "secondary" | "both">("both");
   const [useAI, setUseAI] = useState(false);
@@ -73,19 +87,22 @@ export function PartnershipDocumentComposer({
   const [error, setError] = useState("");
   const { terms: academicTerms, current: currentTerm } = useAcademicTerms();
 
-  // A new school resets the composer — a commencement date typed for one school
-  // has no business riding along to the next.
+  /*
+    A new school resets the composer — a commencement date typed for one school
+    has no business riding along to the next.
+
+    Keyed on the school and nothing else. `agreed` used to be in here, and it is
+    a fresh object on every refetch: recording terms reloads the school, which
+    handed this effect a new identity and wiped the form — the notes, the
+    headcount, the commencement date — moments after the user had gone to record
+    those very terms. The one field that legitimately follows the agreed rate is
+    synced on its own below, off a primitive, so it cannot take the rest with it.
+  */
   useEffect(() => {
-    setKind("proposal");
     setOfferCode("");
     setStage("both");
     setUseAI(false);
     setValidityDays("90");
-    setProposedSchoolShare(
-      agreed?.school_share_percent
-        ? String(agreed.school_share_percent)
-        : String(STANDARD_SCHOOL_SHARE_PERCENT),
-    );
     setNotes("");
     setCommencementTermId("");
     setCommencement("");
@@ -95,7 +112,17 @@ export function PartnershipDocumentComposer({
     setSendEmail(false);
     setEmailStatus("");
     setError("");
-  }, [school.id, school.student_count, school.email, agreed]);
+  }, [school.id, school.student_count, school.email]);
+
+  // The proposed split follows what was actually agreed, and only that. A
+  // primitive dependency, so an unchanged rate re-fetched is not a change.
+  useEffect(() => {
+    setProposedSchoolShare(
+      agreed?.school_share_percent != null
+        ? String(agreed.school_share_percent)
+        : String(STANDARD_SCHOOL_SHARE_PERCENT),
+    );
+  }, [agreed?.school_share_percent]);
 
   const selectedOffer = useMemo(
     () => PARTNERSHIP_OFFERS.find((o) => o.code === offerCode) ?? null,
@@ -505,10 +532,15 @@ export function PartnershipDocumentComposer({
               <button
                 type="button"
                 onClick={onRecordTerms}
-                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-colors"
+                className="mt-3 inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-colors"
               >
                 Record the agreed terms
               </button>
+              {/* Says where they come back to, so the detour reads as one step
+                  in a sequence rather than a redirect to somewhere else. */}
+              <p className="text-[11px] text-muted-foreground mt-2">
+                You will come straight back here to issue the MoU.
+              </p>
             </div>
           </div>
         </div>
@@ -561,7 +593,27 @@ export function PartnershipDocumentComposer({
       )}
 
       {canWrite ? (
-        <div className="space-y-2.5 pt-2 border-t border-border/60">
+        /*
+          The two actions stay on screen instead of waiting at the bottom.
+
+          This form is long — kind, offer, stage, split, headcount, commencement,
+          notes, recipient — and "Preview MoU" sat under all of it. On a phone
+          that is several screens of scrolling to reach the button the whole
+          panel exists to serve, and after each edit you scroll down again to see
+          the result. Pinned to the bottom of the panel, the document is always
+          one tap away, which is what makes previewing before issuing a habit
+          rather than an effort.
+
+          Mobile only, and deliberately so. On desktop the preview renders in
+          this same column directly beneath the panel, so a bar pinned to the
+          viewport would sit on top of the document it just produced — the one
+          thing the user is now trying to read. There it returns to normal flow,
+          where a wider screen already keeps the actions in reach.
+
+          On mobile it clears the dashboard's own bottom bar, and the negative
+          margins let it span the panel's padding so the blur reaches both edges.
+        */
+        <div className="space-y-2.5 sticky md:static bottom-[var(--app-bottom-nav-height)] z-30 -mx-6 -mb-6 md:mx-0 md:mb-0 px-6 md:px-0 pt-3 pb-4 md:pb-0 border-t border-border/60 bg-card/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none rounded-b-2xl md:rounded-none">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Read it first. Issuing consumes a reference and writes a row, and
                 both are meant to be permanent — so the preview comes first and

@@ -111,6 +111,16 @@ export default function PartnershipsPage() {
 
   const [terms, setTerms] = useState<TermsRow[]>([]);
   const [agreed, setAgreed] = useState<TermsRow | null>(null);
+  /*
+    Which document the composer is writing.
+
+    Held here rather than inside the composer because the composer is unmounted
+    whenever another tab is open, and the journey an MoU requires — choose MoU,
+    find there is no agreed rate, record one, come back — crosses tabs by
+    definition. Kept in the panel, that choice was discarded exactly when the
+    user had finished satisfying it.
+  */
+  const [composeKind, setComposeKind] = useState<"proposal" | "mou">("proposal");
   const [documents, setDocuments] = useState<IssuedDocumentRow[]>([]);
   const [loadingSchool, setLoadingSchool] = useState(false);
   const [showOutreachModal, setShowOutreachModal] = useState(false);
@@ -191,6 +201,10 @@ export default function PartnershipsPage() {
     setAgreed(null);
     setDocuments([]);
     setActiveTab("compose");
+    // A new school starts on a proposal. The composer no longer resets this
+    // itself, because it is unmounted on every tab change and would have wiped
+    // the choice each time.
+    setComposeKind("proposal");
     void loadSchoolDetail(id);
   }
 
@@ -791,6 +805,8 @@ export default function PartnershipsPage() {
                     agreed={agreed}
                     canWrite={canWrite}
                     studio={studio}
+                    kind={composeKind}
+                    onKindChange={setComposeKind}
                     onRecordTerms={() => {
                       setOpenTerms((n) => n + 1);
                       setActiveTab("terms");
@@ -857,6 +873,16 @@ export default function PartnershipsPage() {
                     openSignal={openTerms}
                     onSaved={async () => {
                       await Promise.all([loadSchoolDetail(selected.id), loadSchools()]);
+                      /*
+                        Finish the journey the user started.
+
+                        Nobody opens this editor to admire a rate. They arrived
+                        because an MoU asked for one, and once it exists the next
+                        step is the document — so the workspace takes them back
+                        to it rather than leaving them on a saved form to work
+                        out where to go next.
+                      */
+                      if (composeKind === "mou") setActiveTab("compose");
                     }}
                   />
                 </div>
