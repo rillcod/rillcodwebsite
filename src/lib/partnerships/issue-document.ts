@@ -170,6 +170,92 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
 }
 
 /**
+ * Redraw a draft that has not left the building.
+ *
+ * An issued document keeps the bytes it was issued with, and that is the point:
+ * it is the record of what a school was given. But a *draft* has been given to
+ * nobody. When the template is improved, or a rate is agreed after the draft was
+ * cut, the draft is simply stale — and the only way to refresh it was to delete
+ * it and issue again, which burns a reference and changes the access code that
+ * may already have been read down a phone.
+ *
+ * So this re-renders in place: same row, same reference, same share token, same
+ * six digits. Only the body and the terms snapshot change.
+ *
+ * Drafts only, and deliberately so. Once a document is sent, somebody outside
+ * this building may be reading it on the link we gave them — rewriting the page
+ * under them is the one thing an archive of contracts must never do.
+ */
+export async function refreshPartnershipDocument(
+  input: Omit<IssueInput, 'kind' | 'schoolId'> & { documentId: string },
+): Promise<IssuedDocument> {
+  const { data: row } = await input.db
+    .from('partnership_agreements')
+    .select('id, reference, status, document_kind, school_id, share_token, access_code')
+    .eq('id', input.documentId)
+    .maybeSingle();
+
+  if (!row) throw new Error('That document does not exist.');
+  if (row.status !== 'draft') {
+    throw new StaleDocumentError(String(row.reference), String(row.status));
+  }
+
+  // The kind and the school come from the row, never from the caller. A
+  // reference reads RC-PROP or RC-MOU and a school is named on every page, so
+  // letting either be restated here would put a document under a number that
+  // describes something else.
+  const kind = String(row.document_kind) as DocumentKind;
+  const schoolId = String(row.school_id);
+  const prepared = await prepareDocument({ ...input, kind, schoolId }, schoolId);
+
+  const { html, narrativeSource } = await prepared.render(
+    String(row.reference),
+    row.access_code ? String(row.access_code) : null,
+    row.share_token ? String(row.share_token) : null,
+  );
+
+  // The snapshot is rewritten too. It records the terms the document states, and
+  // the document has just been restated — leaving the old snapshot behind would
+  // make the row disagree with the page it points at.
+  const { error: saveError } = await input.db
+    .from('partnership_agreements')
+    .update({
+      document_html: html,
+      terms_snapshot: prepared.snapshot,
+      terms_id: prepared.agreedTerms?.id ?? null,
+    })
+    .eq('id', row.id);
+  if (saveError) throw new Error(saveError.message);
+
+  return {
+    id: String(row.id),
+    reference: String(row.reference),
+    kind,
+    html,
+    schoolId,
+    schoolName: String(prepared.school.name),
+    shareToken: row.share_token ? String(row.share_token) : null,
+    accessCode: row.access_code ? String(row.access_code) : null,
+    termsId: prepared.agreedTerms?.id ?? null,
+    narrativeSource,
+    curriculumEdition: prepared.curriculum?.edition ?? null,
+  };
+}
+
+/** A document past draft cannot be redrawn — supersede it instead. */
+export class StaleDocumentError extends Error {
+  constructor(
+    readonly reference: string,
+    readonly status: string,
+  ) {
+    super(
+      `${reference} has already been ${status}. A document that left the building keeps the words it left with — issue a fresh one instead of rewriting this.`,
+    );
+    this.name = 'StaleDocumentError';
+  }
+}
+
+/**
  * Render the document without keeping it.
  *
  * Issuing consumes a reference and writes a row, and both are meant to be

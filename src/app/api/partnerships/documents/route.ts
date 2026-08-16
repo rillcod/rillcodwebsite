@@ -16,9 +16,11 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import {
+  StaleDocumentError,
   issuePartnershipDocument,
   listSchoolDocuments,
   previewPartnershipDocument,
+  refreshPartnershipDocument,
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
 import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
@@ -255,6 +257,95 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Could not issue the document' },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PUT /api/partnerships/documents — redraw a draft against today's template.
+ *
+ * A stored document is deliberately frozen: what a school received is what we
+ * can reprint. But a draft has been received by nobody, and after a template
+ * change or a newly agreed rate it is simply out of date. Redrawing keeps the
+ * reference, the share link and the six-digit code, so nothing already written
+ * down or read out over the phone stops working.
+ *
+ * The build settings ride with the request, the same ones preview and issue
+ * take, because they are not stored on the row — the draft is redrawn as the
+ * composer currently describes it.
+ */
+export async function PUT(req: NextRequest) {
+  const actor = await requireActor(true);
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const id = String(body.id ?? '').trim();
+  if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
+
+  try {
+    const refreshed = await refreshPartnershipDocument({
+      db: actor.db,
+      documentId: id,
+      actorId: actor.user.id,
+      useAI: body.use_ai === true,
+      scopeToOffer: body.scope_to_offer ? String(body.scope_to_offer) : null,
+      stage:
+        body.stage === 'primary' || body.stage === 'secondary' || body.stage === 'both'
+          ? body.stage
+          : null,
+      illustrativeStudents: Number(body.illustrative_students) || undefined,
+      commencement: body.commencement ? String(body.commencement) : null,
+      durationLabel: body.duration_label ? String(body.duration_label) : null,
+      notes: body.notes ? String(body.notes) : null,
+      validityDays:
+        body.validity_days == null || body.validity_days === ''
+          ? null
+          : Number(body.validity_days),
+      proposedSchoolSharePercent: normaliseSchoolSharePercent(body.proposed_school_share_percent),
+      studio: body.studio ? normaliseStudioConfig(body.studio) : null,
+    });
+
+    await logAudit(actor.db as any, {
+      action: 'refresh_partnership_document',
+      actorId: actor.user.id,
+      resourceType: 'partnership_agreements',
+      resourceId: refreshed.id,
+      tableName: 'partnership_agreements',
+      newValue: `${refreshed.reference} redrawn for ${refreshed.schoolName}`,
+      newValues: {
+        school_id: refreshed.schoolId,
+        reference: refreshed.reference,
+        terms_id: refreshed.termsId,
+        curriculum_edition: refreshed.curriculumEdition,
+      },
+    });
+
+    return NextResponse.json({
+      id: refreshed.id,
+      reference: refreshed.reference,
+      kind: refreshed.kind,
+      school: refreshed.schoolName,
+      html: refreshed.html,
+      share_token: refreshed.shareToken,
+      access_code: refreshed.accessCode,
+      narrative_source: refreshed.narrativeSource,
+      curriculum_edition: refreshed.curriculumEdition,
+      refreshed: true,
+    });
+  } catch (error) {
+    // Past draft is a refusal with a reason, not a fault.
+    if (error instanceof StaleDocumentError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof MissingPartnershipTermsError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof ImpermissibleSplitError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Could not redraw that draft' },
       { status: 500 },
     );
   }

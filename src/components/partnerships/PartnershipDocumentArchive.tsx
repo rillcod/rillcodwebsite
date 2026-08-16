@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  ArrowPathIcon,
   CheckCircleIcon,
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
@@ -28,7 +29,16 @@ import {
 // The same sentence the document itself printed, from the same numbers. A second
 // describer here would be a second interpretation of the deal.
 import { describeTerms } from "@/lib/partnerships/terms";
+// One rule for what a public document link looks like, shared with the preview
+// pane and the outbound email. Three hand-built URLs is how one of them ended up
+// pointing at the reference.
+import { documentSharePath } from "@/lib/partnerships/signing";
 import type { IssuedDocumentRow } from "./types";
+
+/** Where the public can read this document, or null when there is no safe link. */
+function portalUrl(doc: IssuedDocumentRow): string | null {
+  return documentSharePath(doc.share_token ?? null);
+}
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -132,6 +142,36 @@ export function PartnershipDocumentArchive({
       await onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not update that document.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  /**
+   * Re-render a draft in place.
+   *
+   * The document that is stored is the document that gets sent, so a draft cut
+   * before a template change carries the old design forever unless it is
+   * redrawn. Doing it here rather than delete-and-reissue keeps the reference,
+   * the share link and the six digits — all of which may already be written
+   * down somewhere.
+   */
+  async function redraw(doc: IssuedDocumentRow) {
+    setBusy(doc.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/partnerships/documents", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: doc.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not redraw that draft.");
+      setNotice(`${doc.reference} redrawn — same reference, same link, current design.`);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not redraw that draft.");
     } finally {
       setBusy("");
     }
@@ -253,9 +293,22 @@ export function PartnershipDocumentArchive({
                   </span>
                 </button>
 
-                {(doc.reference || doc.share_token) && (
+                {/*
+                  The link is built from the share token and nothing else.
+
+                  This read `doc.reference || doc.share_token`, and a reference
+                  is always present — so every Portal button opened
+                  /p/RC-PROP-2026-00042, which the public route does not accept
+                  by design (a reference is sequential and printed on the face
+                  of the document, so honouring it would unlock every other
+                  school's fees). The button therefore 404'd every time.
+
+                  No token means no safe link, so no button — rather than one
+                  that leads nowhere.
+                */}
+                {portalUrl(doc) && (
                   <a
-                    href={`/p/${doc.reference || doc.share_token}`}
+                    href={portalUrl(doc)!}
                     target="_blank"
                     rel="noreferrer"
                     className={`${ACTION} text-emerald-400 border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10`}
@@ -263,6 +316,19 @@ export function PartnershipDocumentArchive({
                   >
                     Portal ↗
                   </a>
+                )}
+
+                {canWrite && doc.status === "draft" && (
+                  <button
+                    onClick={() => redraw(doc)}
+                    disabled={busy === doc.id}
+                    className={ACTION}
+                    title="Re-render this draft against the current template and the terms agreed now. Keeps its reference, link and access code."
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <ArrowPathIcon className="w-3.5 h-3.5" /> Redraw
+                    </span>
+                  </button>
                 )}
 
                 {canWrite && (doc.status === "draft" || doc.status === "sent") && (

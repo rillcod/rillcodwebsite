@@ -133,8 +133,21 @@ export function buildDocumentShareUrl(
   origin: string,
   shareToken: string | null | undefined,
 ): string | null {
+  const path = documentSharePath(shareToken);
+  return path ? `${String(origin).replace(/\/$/, '')}${path}` : null;
+}
+
+/**
+ * The same link without an origin, for anywhere inside the app.
+ *
+ * A component that builds an absolute URL has to read `window.location` during
+ * render, which is null on the server and a string in the browser — a hydration
+ * mismatch for a link that never needed a host in the first place. Absolute URLs
+ * are for what leaves the building: email, WhatsApp, a printed QR.
+ */
+export function documentSharePath(shareToken: string | null | undefined): string | null {
   if (!isValidShareToken(shareToken)) return null;
-  return `${String(origin).replace(/\/$/, '')}/p/${String(shareToken).trim()}`;
+  return `/p/${String(shareToken).trim()}`;
 }
 
 export type SignatureStampInput = {
