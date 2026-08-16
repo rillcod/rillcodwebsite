@@ -272,23 +272,36 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>`
       : ''
     }
+    <!--
+      A place to sign, on both sides.
+
+      Our half carried a signature, a name, a role and a date. Theirs carried
+      one line of caption and nothing else — no rule to sign on, and no room
+      above it to sign in. A page that asks for a signature and
+      leaves nowhere to put one reads as unfinished, and it is the last page a
+      proprietor sees.
+
+      Both halves are the same shape now, the way the MoU's execution page
+      does it: who is signing, the space, the rule, then the caption. The
+      spacer matches the height our signature image occupies, so the two rules
+      print level — and it sits inside the slot, so signing replaces it.
+    -->
     <div class="sign">
       <div class="sign-box">
-        <b>For ${esc(brandContact.contractingParty)}</b>
-        <div style="margin-top:1.5mm; display:flex; align-items:center; gap:2.5mm;">
-          <img src="${esc(assetUrl(brandContact.signatureImage))}" alt="Signature" style="max-height:14mm; width:auto; display:block; opacity:0.95;" />
-          <div style="font-size:7.5pt; color:#475569; line-height:1.35;">
-            <strong style="color:#0f172a; display:block;">${esc(brandContact.signatory)}</strong>
-            <span>${esc(brandContact.signatoryRole)} &middot; ${esc(input.dateLabel)}</span>
-          </div>
-        </div>
+        <div class="sign-who">For ${esc(brandContact.contractingParty)}</div>
+        <img class="sign-ink" src="${esc(assetUrl(brandContact.signatureImage))}" alt="Signature" />
+        <div class="sign-rule"></div>
+        <div class="sign-name">${esc(brandContact.signatory)}</div>
+        <div class="sign-meta">${esc(brandContact.signatoryRole)} &middot; ${esc(input.dateLabel)}</div>
       </div>
       <div class="sign-box">
-        <b>For ${esc(input.school.name)}</b>
-        <!-- The caption is the unsigned state and signing replaces it. Left
-             outside the slot, an accepted proposal read "Name, signature and
-             date" immediately above the signature that answered it. -->
-        ${SIGNATURE_SLOT_START}Name, signature and date${SIGNATURE_SLOT_END}
+        <div class="sign-who">For ${esc(input.school.name)}</div>
+        ${SIGNATURE_SLOT_START}
+        <div class="sign-space"></div>
+        <div class="sign-rule"></div>
+        <div class="sign-name">Name &amp; signature</div>
+        <div class="sign-meta">Date</div>
+        ${SIGNATURE_SLOT_END}
       </div>
     </div>
   </section>`;
@@ -742,7 +755,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
        the shortest path produces a purple this company does not own. Routing it
        through the blue keeps every stop a colour that is actually ours. */
     background: linear-gradient(118deg, #070C1F 0%, #123069 46%, #6E1018 100%);
-    color: #fff; margin: -14mm -13mm 0; padding: 8mm 14mm 7mm;
+    color: #fff; margin: -14mm -13mm 0; padding: 6mm 14mm 6mm;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .stripe { display: flex; height: 3mm; margin: 0 -13mm; }
@@ -794,7 +807,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .end-scan-contact b { color: #fff; }
 
   /* ── Masthead: Brand left, Extra-Large QR right ───────────────────── */
-  .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12mm; }
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 12mm; }
   .masthead-l { flex: 1; min-width: 0; }
   .brand-row { display: flex; align-items: center; gap: 5mm; }
 
@@ -830,20 +843,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; background: none; }
   /* Cover Mid Section */
-  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8mm 0 6mm; }
+  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 16mm 0 14mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
-    font-size: 8.5pt; letter-spacing: .15em; text-transform: uppercase; font-weight: 700;
-    padding: 1.8mm 4mm; border-radius: 1.5mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
+    font-size: 10.5pt; letter-spacing: .16em; text-transform: uppercase; font-weight: 800;
+    padding: 2.4mm 5.5mm; border-radius: 1.8mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
   }
-  h1 { font-size: 34pt; line-height: 1.12; margin: 5mm 0 6mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 34pt; line-height: 1.12; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
-    background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 3mm; border-radius: 0 2.5mm 2.5mm 0;
+    background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 0; border-radius: 0 2.5mm 2.5mm 0;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .cover-for { font-size: 18pt; font-weight: 800; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 6mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 5mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
   /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */
@@ -1141,9 +1154,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .year-foot { border-top: 1px solid #f1f5f9; background: #f8fafc; padding: 2.4mm 3.5mm; font-size: 8.4pt; color: #475569; display: flex; flex-direction: column; gap: 1mm; }
   .foot-lbl { color: #991b1b; font-weight: 700; text-transform: uppercase; font-size: 7.3pt; letter-spacing: .06em; margin-right: 1mm; }
 
-  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 9mm; break-inside: avoid; }
-  .sign-box { border-top: 1.5px solid #0f172a; padding-top: 2.5mm; font-size: 9pt; color: #334155; }
-  .sign-box b { display: block; margin-bottom: 6.5mm; color: #0f172a; font-weight: 700; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 8mm; break-inside: avoid; }
+  .sign-box { font-size: 9pt; color: #334155; }
+  /* min-height so a long school name wrapping to two lines does not drop that
+     party's rule below the other's. */
+  .sign-who {
+    font-size: 8.2pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
+    font-weight: 700; min-height: 8.5mm; line-height: 1.35;
+  }
+  .sign-ink { display: block; height: 14mm; width: auto; max-width: 52mm; margin: 0 0 -1mm; mix-blend-mode: multiply; }
+  /* Exactly what .sign-ink occupies, so the counterparty's rule lands level. */
+  .sign-space { height: 13mm; }
+  .sign-rule { border-top: 1.5px solid #0f172a; }
+  .sign-name { font-weight: 700; color: #0f172a; margin-top: 2mm; font-size: 9pt; }
+  .sign-meta { font-size: 8pt; color: #64748b; margin-top: .4mm; }
   /* The cover is a cover, not page one. It carries no number, and the sheet
      after it is 1 — which is how a proposal is read and how a reader refers to
      it on the phone. Counted, so switching a section off in the studio

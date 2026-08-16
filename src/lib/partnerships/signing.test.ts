@@ -351,7 +351,10 @@ describe('signing replaces the placeholder rather than writing around it', () =>
 
     expect(signed).not.toBeNull();
     expect(signed).toContain(stamp);
-    expect(signed).not.toContain('Name, signature and date');
+    // The unsigned proposal offers a ruled line with 'Name & signature' and
+    // 'Date' beneath it; a signed one replaces the whole block with the stamp.
+    expect(signed).not.toContain('class="sign-space"');
+    expect(signed).not.toContain('Name &amp; signature');
   });
 
   it('still signs a document issued before the paired markers existed', () => {
