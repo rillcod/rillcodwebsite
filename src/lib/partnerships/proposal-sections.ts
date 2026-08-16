@@ -85,8 +85,19 @@ export const WHY_NOW: readonly string[] = [
  */
 export const ZERO_CAPEX_PROMISE = [
   {
-    title: 'Zero Capital Expenditure (₦0 CapEx)',
-    body: 'Rillcod supplies the robotics kits, microcontrollers, testing rigs, and digital learning platforms. The school incurs no upfront hardware costs.',
+    /*
+      Precise, because a promise a proprietor can check is worth more than a
+      bigger one they cannot.
+
+      This listed "testing rigs" among the equipment, which overstates what
+      arrives, and it implied the school provides nothing — while the MoU it
+      leads to asks for a room, a timetable slot, power and internet. A school
+      that signs on the first and reads the second has been surprised, and
+      surprise at signature is how a partnership starts badly. What is true is
+      strong enough: no hardware to buy, ever.
+    */
+    title: 'Zero equipment cost to the school',
+    body: 'Rillcod brings the devices, microcontrollers and kits each session needs, and supplies the learning platform. The school never buys, replaces or insures hardware; it provides the room, a slot on the timetable and, where available, power and internet.',
   },
   {
     title: 'Dedicated Certified Instructors',
@@ -106,15 +117,29 @@ export const ZERO_CAPEX_PROMISE = [
  * Traditional ICT vs. Modern STEM & Robotics Ecosystem.
  */
 export const TRADITIONAL_VS_RILLCOD = [
+  /*
+    Claim the strength, not the whole field.
+
+    This read "AI neural nets, physical robotics" and promised "working robots"
+    as a standard outcome. Coding and applied AI are what we teach every week
+    and can evidence; the robotics side is real but young, and a proprietor who
+    signs expecting a robotics laboratory and meets a coding programme with
+    hardware in it will feel sold to — which costs the renewal and the referral,
+    both worth more than the signature.
+
+    "Neural nets" went for the same reason: what a JSS learner actually does is
+    train and test a model on their own data, which is a truer sentence and a
+    more impressive one to a parent who understands it.
+  */
   {
     area: 'Curriculum Focus',
     traditional: 'Basic typing, MS Word, and passive theory.',
-    rillcod: 'Active coding, AI neural nets, physical robotics, and real mobile app deployment.',
+    rillcod: 'Hands-on coding, applied artificial intelligence, and hardware projects that put the code into something physical.',
   },
   {
     area: 'Student Outcomes',
     traditional: 'Written exams with no tangible portfolio.',
-    rillcod: 'Working robots, live websites, and published mobile apps showcased at Termly Expos.',
+    rillcod: 'Live websites, working apps and trained AI models a learner can demonstrate, plus hardware builds, shown at termly expos.',
   },
   {
     area: 'Parent Perception',

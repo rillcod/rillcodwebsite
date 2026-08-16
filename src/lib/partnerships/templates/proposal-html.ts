@@ -423,7 +423,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         <text class="ch-lbl" x="${LABEL_W}" y="${y + BAR_H / 2 + 4}" text-anchor="end">${esc(row.label)}</text>
         <path d="${path}" fill="#2563eb"></path>
         <text class="ch-val" x="${BAR_X + w + 8}" y="${y + BAR_H / 2 + 4}">${esc(money(row.schoolShare))}</text>
-        <text class="ch-sub" x="${BAR_X + w + 8}" y="${y + BAR_H / 2 + 14}">${row.students} students</text>`;
+        <text class="ch-sub" x="${BAR_X + w + 8}" y="${y + BAR_H / 2 + 18}">${row.students} students</text>`;
       })
       .join('');
 
@@ -570,7 +570,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         upper +
         '<path d="' + barPath(BAR_X, y, wFrom) + '" fill="#2563eb"></path>' +
         '<text class="ch-val" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
-        '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 14) + '">per student, per year</text>';
+        '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 18) + '">per student, per year</text>';
     }).join('');
     const H = top + rows.length * ROW_H;
     const svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Yearly cost per student for each option, including the range where a fee is not fixed">' +

@@ -37,7 +37,7 @@ export type ProposalNarrative = {
 export const AUTHORED_NARRATIVE: ProposalNarrative = {
   headline: 'The Complete Tech & Innovation Hub',
   opening:
-    'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding, robotics and artificial intelligence programme is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
+    'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding and artificial intelligence programme, with real hardware in it, is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
   benefits: [
     {
       title: 'Specialists teach it, your teachers inherit it',
@@ -116,14 +116,14 @@ function buildPrompt(ctx: NarrativeContext): string {
   const where = [ctx.school.city, ctx.school.state].filter(Boolean).join(', ');
   const ladder = ctx.curriculum
     ? ctx.curriculum.levels.map((l) => `${l.grade}: ${l.theme}`).join('; ')
-    : 'a multi-year coding, robotics and AI progression';
+    : 'a multi-year coding, AI and hardware progression';
 
   return [
     // The company is named from one place. A prompt that hardcodes a name teaches
     // the model whatever that name is — "Rillcod Academy" was the old one, and it
     // came back in generated copy long after it stopped being anything real.
     `You are writing the persuasive copy of a partnership proposal from ${brandContact.displayName},`,
-    'a STEM, robotics and AI education partner, to a Nigerian private school.',
+    'a coding, artificial intelligence and practical technology education partner, to a Nigerian private school.',
     '',
     `School: ${ctx.school.name}${where ? ` in ${where}` : ''}.`,
     ctx.school.student_count ? `Approximate enrolment: ${ctx.school.student_count} students.` : '',
@@ -132,6 +132,11 @@ function buildPrompt(ctx: NarrativeContext): string {
     '',
     'Write for the school proprietor or head teacher. They care about enrolment, parent',
     'perception against nearby schools, and whether this creates work for their staff.',
+    '',
+    'Claim coding and applied AI as the core of the programme. Hardware and robotics',
+    'are part of it and may be mentioned, but never as the headline and never as a',
+    'laboratory or a robotics department — that oversells what a school receives, and',
+    'a proprietor who feels oversold at signature does not renew.',
     '',
     'This document has to win the business, so the copy must persuade — but it persuades',
     'the way a good consultant does, not the way a flyer does. Open on the reader\'s own',
