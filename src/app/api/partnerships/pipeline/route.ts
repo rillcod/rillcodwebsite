@@ -23,8 +23,15 @@ import { normaliseTerms, type PartnershipTerms } from '@/lib/partnerships/terms'
 
 export const dynamic = 'force-dynamic';
 
-/** How long a sent proposal may sit unanswered before it wants chasing. */
-export const CHASE_AFTER_DAYS = 7;
+/**
+ * How long a sent proposal may sit unanswered before it wants chasing.
+ *
+ * Deliberately not exported. A route file may export request handlers and
+ * Next's route config and nothing else — anything more fails `next build` with
+ * an error that neither `tsc --noEmit` nor the test suite will ever show you.
+ * `npm run check:routes` guards it now, in about a second.
+ */
+const CHASE_AFTER_DAYS = 7;
 
 type Row = {
   id: string;
