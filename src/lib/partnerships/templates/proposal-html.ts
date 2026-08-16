@@ -230,14 +230,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <div class="rule"></div>
     <h2>Next step</h2>
     <p class="quote">${esc(narrative.closing)}</p>
-    <div class="contact">
-      <div class="contact-l">Speak to us</div>
-      <div>
-        <b>${esc(brandContact.displayName)}</b><br>
-        ${esc(brandContact.address)}<br>
-        ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}
-      </div>
-    </div>
     ${
     /*
       Same panel, same correction as the MoU's execution page: the QR is
@@ -261,6 +253,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
           and type <span class="end-scan-code">${esc(input.accessCode)}</span>`
         : 'Scan code and access code are assigned when this is issued.'
       }
+        </div>
+        <!--
+          The address lives in this card now, not in a second one beside it.
+
+          "Speak to us" and "Scan to reply" were two blocks stacked on the same
+          page saying the same thing — here is how to reach us — in two
+          different designs. One asks the reader to choose between them, which
+          is one decision more than a closing page should ask for. Merged, the
+          card answers it once: scan, type the code, or call. It also gives the
+          page back the height a second card was spending on its own padding.
+        -->
+        <div class="end-scan-contact">
+          ${esc(brandContact.address)}<br>
+          <b>${esc(brandContact.phone)}</b> &nbsp;·&nbsp; ${esc(brandContact.email)}
         </div>
       </div>
     </div>`
@@ -736,7 +742,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
        the shortest path produces a purple this company does not own. Routing it
        through the blue keeps every stop a colour that is actually ours. */
     background: linear-gradient(118deg, #070C1F 0%, #123069 46%, #6E1018 100%);
-    color: #fff; margin: -14mm -13mm 0; padding: 10mm 14mm 8mm;
+    color: #fff; margin: -14mm -13mm 0; padding: 8mm 14mm 7mm;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .stripe { display: flex; height: 3mm; margin: 0 -13mm; }
@@ -758,8 +764,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      sheet — and a page clips rather than spills, so the overflow was the
      signature block quietly disappearing off a document meant to be signed. */
   .end-scan-qr {
-    width: 22mm; height: 22mm; display: block; flex: none;
-    background: #fff; padding: 1.5mm; border-radius: 2mm;
+    width: 30mm; height: 30mm; display: block; flex: none;
+    background: #fff; padding: 2mm; border-radius: 2.2mm;
     box-shadow: 0 3px 10px rgba(0,0,0,0.3);
   }
   .end-scan-qr-pending { background: rgba(255,255,255,.12); border: 2px dashed rgba(255,255,255,.45); }
@@ -771,6 +777,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .end-scan-title { display: block; font-size: 11.5pt; color: #fff; margin-top: .8mm; font-weight: 800; letter-spacing: -.15px; }
   .end-scan-sub { font-size: 8.6pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
   .end-scan-sub b { color: #fff; font-weight: 700; }
+  .end-scan-contact {
+    margin-top: 2.2mm; padding-top: 2mm; border-top: 1px solid rgba(255,255,255,.16);
+    font-size: 8pt; color: #cbd5e1; line-height: 1.5;
+  }
+  .end-scan-contact b { color: #fff; font-weight: 700; }
   .end-scan-code {
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
     font-size: 9.8pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
@@ -804,14 +815,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     box-shadow: 0 6px 20px rgba(0,0,0,.4);
   }
   .cover-scan-qr-pending { background: rgba(255,255,255,.12); border: 2.5px dashed rgba(255,255,255,.55); }
+  /* Instruction and code on one line. Stacked, they spent two lines of the band
+     on a single thought and pushed the caption away from the code it refers to;
+     side by side they read as one sentence and the band closes up. */
   .cover-scan-cap {
-    margin-top: 2.6mm; font-size: 9.6pt; font-weight: 800; color: #fff;
-    letter-spacing: .04em;
+    margin-top: 2.4mm; font-size: 8.8pt; font-weight: 800; color: #fff;
+    letter-spacing: .02em; white-space: nowrap;
   }
   .cover-scan-code {
-    margin-top: 1.4mm; font-size: 10.2pt; font-weight: 700; color: #fca5a5;
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .12em;
-    background: rgba(255,255,255,0.12); padding: 0.8mm 2.8mm; border-radius: 1.5mm; display: inline-block;
+    font-size: 9.2pt; font-weight: 700; color: #fca5a5;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .1em;
+    background: rgba(255,255,255,0.12); padding: 0.5mm 2mm; border-radius: 1.2mm;
+    display: inline-block;
   }
   .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; background: none; }
   /* Cover Mid Section */
@@ -1184,11 +1199,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         ? `<img class="cover-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
         : '<div class="cover-scan-qr cover-scan-qr-pending"></div>'
       }
-        <div class="cover-scan-cap">Scan to read online</div>
-        ${input.accessCode
-        ? `<div class="cover-scan-code">Code ${esc(input.accessCode)}</div>`
-        : '<div class="cover-scan-code cover-scan-code-pending">Code on issue</div>'
+        <div class="cover-scan-cap">
+          Scan to read online ${input.accessCode
+        ? `&nbsp;·&nbsp; <span class="cover-scan-code">${esc(input.accessCode)}</span>`
+        : '&nbsp;·&nbsp; <span class="cover-scan-code cover-scan-code-pending">code on issue</span>'
       }
+        </div>
       </div>`
       : ''
     }
