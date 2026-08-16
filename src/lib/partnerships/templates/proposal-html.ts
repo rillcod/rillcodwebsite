@@ -843,7 +843,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; background: none; }
   /* Cover Mid Section */
-  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 9mm 0 10mm; }
+  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding: 10mm 0 3mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
     font-size: 21pt; letter-spacing: .13em; text-transform: uppercase; font-weight: 800;
@@ -857,7 +857,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-for { font-size: 18pt; font-weight: 800; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: auto; padding-top: 6mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
   /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */
