@@ -14,8 +14,34 @@
  *
  * A comment, so it is invisible in an unsigned document and survives the HTML
  * untouched until somebody signs.
+ *
+ * @deprecated Superseded by the paired markers below, and kept only so that
+ * documents issued before them can still be signed. It marks a single point, so
+ * stamping *inserted* the signature and left the blank "Name & signature / Date"
+ * line and the "Official stamp" box sitting above it — a signed agreement that
+ * still showed an empty place to sign. New templates delimit the placeholder
+ * instead, so signing replaces it.
  */
 export const SIGNATURE_ANCHOR = '<!--SIGNATURE-SLOT-->';
+
+/**
+ * The bounds of the placeholder a signature replaces.
+ *
+ * Everything between these two comments is what an unsigned document shows in
+ * the counterparty's box — the ruled line, the name and date captions, the
+ * stamp square. Signing swaps the whole region out, so the executed document
+ * carries one signature block and no leftover invitation to sign.
+ */
+export const SIGNATURE_SLOT_START = '<!--SIGNATURE-SLOT-START-->';
+export const SIGNATURE_SLOT_END = '<!--SIGNATURE-SLOT-END-->';
+
+/** Whether a rendered document has somewhere for a signature to go. */
+export function hasSignatureSlot(html: string): boolean {
+  const start = html.indexOf(SIGNATURE_SLOT_START);
+  const end = html.indexOf(SIGNATURE_SLOT_END);
+  if (start !== -1 && end !== -1 && end > start) return true;
+  return html.includes(SIGNATURE_ANCHOR);
+}
 
 /**
  * A share token, and nothing else.
@@ -89,6 +115,28 @@ export function isValidDocumentIdentifier(value: unknown): boolean {
   return SHARE_TOKEN_PATTERN.test(t) || ACCESS_CODE_PATTERN.test(t);
 }
 
+/**
+ * The public link to a document, or nothing.
+ *
+ * Every caller that has built this URL by hand has eventually reached for
+ * `reference || share_token`, because a reference is always there and a token
+ * can be null — and that expression silently produces the one URL that must
+ * never be sent. It has happened in the follow-up email and in both WhatsApp
+ * buttons. So the construction lives here, takes only the token, and returns
+ * null when there isn't one.
+ *
+ * A null means there is no safe link, and the caller should say so or offer
+ * nothing — never fall back to the reference, which the public route does not
+ * honour anyway, so the "link" would be dead as well as guessable.
+ */
+export function buildDocumentShareUrl(
+  origin: string,
+  shareToken: string | null | undefined,
+): string | null {
+  if (!isValidShareToken(shareToken)) return null;
+  return `${String(origin).replace(/\/$/, '')}/p/${String(shareToken).trim()}`;
+}
+
 export type SignatureStampInput = {
   signatoryName: string;
   signatoryRole: string;
@@ -123,10 +171,24 @@ export function buildSignatureStamp(input: SignatureStampInput): string {
 /**
  * Put the stamp where the document left room for it.
  *
- * Returns null when there is no anchor, so the caller can refuse rather than
- * record a signature nobody can see.
+ * The placeholder is *replaced*, not written around. A single-point anchor left
+ * the blank ruled line and the "Official stamp" square in place and pushed the
+ * signature underneath them, so an executed agreement showed a completed
+ * signature directly below an empty invitation to sign — which reads, on a
+ * printed contract, as though it was never signed at all.
+ *
+ * Documents issued before the paired markers still carry the old single anchor,
+ * and they must remain signable, so that form is still honoured.
+ *
+ * Returns null when there is nowhere to sign, so the caller can refuse rather
+ * than record a signature nobody can see.
  */
 export function stampSignature(html: string, stamp: string): string | null {
-  if (!html.includes(SIGNATURE_ANCHOR)) return null;
-  return html.replace(SIGNATURE_ANCHOR, stamp);
+  const start = html.indexOf(SIGNATURE_SLOT_START);
+  const end = html.indexOf(SIGNATURE_SLOT_END);
+  if (start !== -1 && end !== -1 && end > start) {
+    return html.slice(0, start) + stamp + html.slice(end + SIGNATURE_SLOT_END.length);
+  }
+  if (html.includes(SIGNATURE_ANCHOR)) return html.replace(SIGNATURE_ANCHOR, stamp);
+  return null;
 }

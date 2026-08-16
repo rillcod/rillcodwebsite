@@ -31,6 +31,14 @@ type DocData = {
   signedAt?: string | null;
   signedByName?: string | null;
   signedByRole?: string | null;
+  /**
+   * The six digits printed on this document, echoed back by the API.
+   *
+   * Shown here so a school that reaches the page once has the code in front of
+   * them: the link can be lost in a WhatsApp thread, and without the code
+   * there is no second way back to their own agreement.
+   */
+  accessCode?: string | null;
   school?: {
     id: string;
     name: string;
@@ -228,10 +236,56 @@ export default function PublicDocumentPage({
               {doc.school?.name ? `${doc.school.name} · ` : ""}
               Official Verified Dossier
             </p>
+            {/*
+              The way back in, printed where they will see it.
+
+              Reaching this page means the reader already holds a secret for
+              this document, so showing the code discloses nothing new — but
+              links get buried in WhatsApp threads and forwarded mail, and
+              without the code a school has no second route to its own
+              agreement. Six digits typed at /p is that route.
+            */}
+            {doc.accessCode && (
+              <p className="mt-1 text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5">
+                <span className="uppercase tracking-wider font-bold text-slate-500">
+                  Your access code
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-mono text-[11px] font-black border border-amber-500/30 tracking-widest">
+                  {doc.accessCode}
+                </span>
+                <span className="hidden sm:inline text-slate-500">
+                  — enter it at /p if you lose this link
+                </span>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/*
+            Zoom, in two sizes.
+
+            The four-step picker below needs more room than a phone header has,
+            so it has always been hidden under `sm` — which left a phone with no
+            zoom at all, on the one screen where an A4 page is scaled furthest
+            down and reading it matters most. This is the same control with the
+            two settings that are worth having on a phone: the whole width, or
+            actual size to read the small print.
+          */}
+          <button
+            type="button"
+            onClick={() => setZoom((z) => (z === "fit" ? "100" : "fit"))}
+            aria-label={zoom === "fit" ? "Zoom to actual size" : "Fit document to screen"}
+            className="sm:hidden flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-white/15 bg-white/5 text-white/90 text-xs font-bold active:scale-95 transition-all"
+          >
+            {zoom === "fit" ? (
+              <MagnifyingGlassPlusIcon className="w-3.5 h-3.5" />
+            ) : (
+              <MagnifyingGlassMinusIcon className="w-3.5 h-3.5" />
+            )}
+            {zoom === "fit" ? "Actual size" : "Fit to screen"}
+          </button>
+
           {/* Zoom Controls */}
           <div className="hidden sm:flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold text-white/70">
             <button
@@ -391,9 +445,21 @@ export default function PublicDocumentPage({
       </div>
 
       {/* ── Main Document Canvas & Executive Viewer ── */}
+      {/*
+        Centred while it fits, left-aligned once it does not.
+
+        `items-center` and `overflow-auto` disagree when the child is wider than
+        the box: centring pushes the overflow out of both sides equally, and the
+        half that goes past the start edge cannot be scrolled back to — there is
+        no negative scroll. At "Fit" this never arises, but the new mobile zoom
+        makes an 850px document sit in a 390px column, and centred it would have
+        put the left margin of the page permanently out of reach.
+      */}
       <main
         ref={containerRef}
-        className="flex-1 bg-slate-950 p-3 sm:p-6 md:p-8 flex flex-col items-center overflow-auto pb-28 md:pb-16 space-y-8"
+        className={`flex-1 bg-slate-950 p-3 sm:p-6 md:p-8 flex flex-col overflow-auto pb-28 md:pb-16 space-y-8 ${
+          isSmallScreen && zoom !== "fit" ? "items-start" : "items-center"
+        }`}
       >
         {/* Document Wrapper with Responsive Scaling for Mobile */}
         <div
@@ -469,7 +535,7 @@ export default function PublicDocumentPage({
           </div>
 
           {/* FAQ Accordion */}
-          <div className="pt-4 border-t border-white/10 space-y-2">
+          <div className="pt-4 border-t border-white/10 space-y-2 overscroll-contain">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 mb-3 text-center sm:text-left">
               Frequently Asked Questions by School Proprietors
             </h4>

@@ -33,7 +33,7 @@ export const dynamic = 'force-dynamic';
 
 /** Columns every public read of a document needs. */
 const DOC_COLS =
-  'id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role, share_token';
+  'id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role, share_token, access_code';
 
 /**
  * Find a document from what the URL carried.
@@ -100,6 +100,18 @@ export async function GET(
     signedAt: doc.signed_at,
     signedByName: doc.signed_by_name,
     signedByRole: doc.signed_by_role,
+    /*
+      The six digits, shown back to whoever already got in.
+
+      This is a credential, so handing it out would normally be the wrong move.
+      It is safe here precisely because of what it took to reach this line: the
+      caller presented a valid share token or a valid access code for *this*
+      document, so they already hold one of the two secrets. Echoing the code is
+      not a disclosure, it is a reminder — and it is what lets a school that
+      still has the link, but has mislaid the printed sheet, find the code to
+      type at /p next time.
+    */
+    accessCode: doc.access_code ?? null,
     school: school || null,
   });
 }

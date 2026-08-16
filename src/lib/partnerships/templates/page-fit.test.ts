@@ -4,6 +4,7 @@ import { buildPartnershipMouHTML, type MouInput } from './mou-html';
 import { defaultStudioConfig, ALL_SECTIONS, type ProposalSectionKey } from '../studio-config';
 import { PARTNERSHIP_OFFERS } from '../offers';
 import { AUTHORED_NARRATIVE } from '../proposal-narrative';
+import { hasSignatureSlot } from '../signing';
 
 const MOCK_CURRICULUM = {
   levels: [
@@ -130,7 +131,10 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     // Page 4: Execution & Signature Blocks
     expect(pages[3]).toContain('Execution');
     expect(pages[3]).toContain('Digital Portal');
-    expect(pages[3]).toContain('<!--SIGNATURE-SLOT-->');
+    // The counterparty's box is a delimited region now, not a single point, so
+    // that signing replaces the blank ruled line instead of printing the
+    // signature underneath it.
+    expect(hasSignatureSlot(pages[3])).toBe(true);
   });
 
   it('verifies every studio section toggle is wired and strictly respected', () => {

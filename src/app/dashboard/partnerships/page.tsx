@@ -38,6 +38,7 @@ import {
   UserIcon,
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
+  ChevronDownIcon,
 } from "@/lib/icons";
 import { brandContact } from "@/config/brand";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
@@ -56,6 +57,7 @@ import type {
   TermsRow,
 } from "@/components/partnerships/types";
 import { describeTerms } from "@/lib/partnerships/terms";
+import { buildDocumentShareUrl, isValidShareToken } from "@/lib/partnerships/signing";
 
 type Preview = {
   /** The stored row, so the document on screen is the one that gets emailed. */
@@ -72,6 +74,27 @@ type Preview = {
 };
 
 type WorkspaceTab = "compose" | "terms" | "studio" | "gallery" | "archive";
+
+/**
+ * A wa.me link with the message already written.
+ *
+ * Nigerian numbers are stored the way people write them — 0803…, with spaces
+ * and dashes — and wa.me wants digits in international form. Both follow-up
+ * buttons did this conversion inline, identically, which is the sort of
+ * duplication that lets two copies drift apart.
+ *
+ * A number too short to be real is dropped rather than guessed at: WhatsApp
+ * then opens its contact picker with the message intact, which is a better
+ * outcome than sending a school's proposal to whatever 234xxx happens to
+ * resolve.
+ */
+function buildWhatsAppUrl(rawPhone: string | null | undefined, message: string): string {
+  const digits = String(rawPhone || "").replace(/[^0-9]/g, "");
+  const target =
+    digits.length >= 10 ? (digits.startsWith("0") ? `234${digits.slice(1)}` : digits) : "";
+  const text = encodeURIComponent(message);
+  return target ? `https://wa.me/${target}?text=${text}` : `https://wa.me/?text=${text}`;
+}
 
 export default function PartnershipsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -201,6 +224,28 @@ export default function PartnershipsPage() {
     [documents],
   );
 
+  /*
+    The two documents the follow-up buttons act on, and whether either can
+    actually be linked to.
+
+    Both buttons used to appear on a weaker condition than they needed. "Nudge
+    MoU Signature" showed whenever terms were agreed, but agreeing terms does
+    not issue an MoU — so on a school with terms and no MoU the button opened
+    WhatsApp with an empty URL and the word "PROP" where a reference belonged.
+    Nothing failed loudly; a message simply went to a school with a dead link
+    in it. Requiring a shareable document is what makes the button honest.
+  */
+  const shareableMou = useMemo(
+    () => documents.find((d) => d.document_kind === "mou" && isValidShareToken(d.share_token)) || null,
+    [documents],
+  );
+  const shareableProposal = useMemo(
+    () =>
+      documents.find((d) => d.document_kind === "proposal" && isValidShareToken(d.share_token)) ||
+      null,
+    [documents],
+  );
+
   // Latest active document for quick header link
   const latestDoc = documents[0] || null;
 
@@ -299,19 +344,32 @@ export default function PartnershipsPage() {
 
       {/* Mobile School Switcher Bar (Visible on phones & small screens) */}
       {selected && (
-        <div className="lg:hidden bg-card border border-border rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md">
+        /*
+          The whole banner is the control, not just the button beside it.
+
+          The school name and the switcher were separate elements in one card,
+          which on a phone reads as one thing but only responds on the small
+          button at the end. Making the card itself the button gives the tap a
+          target the width of the screen, and the chevron says which way it
+          goes.
+        */
+        <button
+          type="button"
+          onClick={() => setMobileShowSidebar(!mobileShowSidebar)}
+          aria-expanded={mobileShowSidebar}
+          className="lg:hidden w-full min-h-[56px] bg-card border border-border rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md text-left active:scale-[0.99] hover:bg-muted/40 transition-all"
+        >
           <div className="min-w-0">
             <span className="text-[10px] uppercase font-bold text-muted-foreground block">Active Workspace</span>
             <span className="text-xs font-black text-foreground truncate block">{selected.name}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileShowSidebar(!mobileShowSidebar)}
-            className="px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-xs font-bold border border-border text-foreground transition-all shadow-sm shrink-0"
-          >
-            {mobileShowSidebar ? "✕ Hide School List" : "🔍 Switch School"}
-          </button>
-        </div>
+          <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted text-xs font-bold border border-border text-foreground shrink-0">
+            {mobileShowSidebar ? "Hide list" : "Switch"}
+            <ChevronDownIcon
+              className={`w-3.5 h-3.5 transition-transform ${mobileShowSidebar ? "rotate-180" : ""}`}
+            />
+          </span>
+        </button>
       )}
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
@@ -472,8 +530,15 @@ export default function PartnershipsPage() {
                   )}
                 </div>
 
-                {/* Pipeline Stepper */}
-                <div className="grid grid-cols-4 gap-2 pt-3 border-t border-border/80 text-center">
+                {/*
+                  Pipeline stepper — two up on a phone, four across from `sm`.
+
+                  Four columns inside a phone's width left each step about 70px
+                  to hold "4. MoU Sign-Off" over "✓ Executed", so the labels
+                  broke onto three or four lines of two or three characters and
+                  the row of stages stopped reading as a sequence at all.
+                */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-border/80 text-center">
                   <div className="rounded-xl bg-muted/60 p-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                     <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">1. Stage</span>
                     <span>{selected.status === "approved" ? "Partner" : "Prospect"}</span>
@@ -575,68 +640,75 @@ export default function PartnershipsPage() {
                       </p>
                     </div>
 
-                    {/* Stage-Specific 1-Click Action Buttons */}
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {/*
+                      Stage-specific 1-click actions.
+
+                      Full-width rows on a phone: these carry sentences, not
+                      words ("Send 48h AI Check-In"), and wrapping them into a
+                      flex row left ragged half-width buttons with text spilling
+                      over two lines. Stacking is both readable and easier to hit.
+                    */}
+                    <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:shrink-0">
                       {signedAgreements.length > 0 ? (
                         <>
                           <Link
                             href="/dashboard/classes"
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                            className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
                           >
-                            <BookOpenIcon className="h-3.5 w-3.5" />
+                            <BookOpenIcon className="h-3.5 w-3.5 shrink-0" />
                             <span>Setup Classes</span>
                           </Link>
                           <Link
                             href="/dashboard/school-billing"
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all"
+                            className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all"
                           >
-                            <BanknotesIcon className="h-3.5 w-3.5 text-amber-400" />
+                            <BanknotesIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                             <span>Issue Invoice</span>
                           </Link>
                         </>
-                      ) : agreed ? (
+                      ) : agreed && shareableMou ? (
                         <button
                           type="button"
                           onClick={() => {
-                            const mouDoc = documents.find((d) => d.document_kind === "mou");
-                            const slug = mouDoc?.reference || mouDoc?.share_token;
-                            const shareUrl = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${slug}` : "";
-                            const phone = (selected.phone || "").replace(/[^0-9]/g, "");
-                            const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
-                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod AI & Robotics Partnership Memorandum of Understanding is ready for digital execution:\n👉 ${shareUrl || "https://www.rillcod.com/p"}\n\nYou can review and digitally sign on your phone in 60 seconds. This immediately secures your certified AI instructor and dedicated robotics kit allocations for resumption.\n\n*Rillcod Technologies*`;
-                            const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-                            window.open(waUrl, "_blank");
+                            const shareUrl = buildDocumentShareUrl(
+                              typeof window !== "undefined" ? window.location.origin : "",
+                              shareableMou.share_token,
+                            );
+                            if (!shareUrl) return;
+                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod AI & Robotics Partnership Memorandum of Understanding is ready for digital execution:\n👉 ${shareUrl}\n\nYou can review and digitally sign on your phone in 60 seconds. This immediately secures your certified AI instructor and dedicated robotics kit allocations for resumption.\n\n*Rillcod Technologies*`;
+                            window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
                           }}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
                         >
-                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
-                          <span>Nudge MoU Signature (WhatsApp)</span>
+                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="sm:hidden">Nudge MoU Signature</span>
+                          <span className="hidden sm:inline">Nudge MoU Signature (WhatsApp)</span>
                         </button>
-                      ) : documents.some((d) => d.document_kind === "proposal") ? (
+                      ) : shareableProposal ? (
                         <button
                           type="button"
                           onClick={() => {
-                            const propDoc = documents.find((d) => d.document_kind === "proposal");
-                            const slug = propDoc?.reference || propDoc?.share_token;
-                            const shareUrl = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/p/${slug}` : "";
-                            const phone = (selected.phone || "").replace(/[^0-9]/g, "");
-                            const target = phone.length >= 10 ? (phone.startsWith("0") ? "234" + phone.slice(1) : phone) : "";
-                            const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the 12-Year AI, Coding & Robotics Partnership Proposal (${propDoc?.reference || "PROP"}) prepared for your school.\n\n👉 Review Proposal Online: ${shareUrl}\n\nKey Highlights: ₦0 Equipment CapEx, certified AI facilitators, termly Scan-to-Watch QR progress cards, and 30% profit share.\n\nWe'd love to schedule a brief 20-minute chat or bring live robotics kits to your school for a free student demonstration trial. Does that work for you?\n\n*Rillcod Technologies*`;
-                            const waUrl = target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-                            window.open(waUrl, "_blank");
+                            const shareUrl = buildDocumentShareUrl(
+                              typeof window !== "undefined" ? window.location.origin : "",
+                              shareableProposal.share_token,
+                            );
+                            if (!shareUrl) return;
+                            const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the 12-Year AI, Coding & Robotics Partnership Proposal (${shareableProposal.reference}) prepared for your school.\n\n👉 Review Proposal Online: ${shareUrl}\n\nKey Highlights: ₦0 Equipment CapEx, certified AI facilitators, termly Scan-to-Watch QR progress cards, and 30% profit share.\n\nWe'd love to schedule a brief 20-minute chat or bring live robotics kits to your school for a free student demonstration trial. Does that work for you?\n\n*Rillcod Technologies*`;
+                            window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
                           }}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
+                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
                         >
-                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
-                          <span>Send 48h AI Check-In (WhatsApp)</span>
+                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="sm:hidden">48h Check-In</span>
+                          <span className="hidden sm:inline">Send 48h AI Check-In (WhatsApp)</span>
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => setActiveTab("compose")}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
+                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
                         >
-                          <SparklesIcon className="h-3.5 w-3.5" />
+                          <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
                           <span>Draft Proposal Now</span>
                         </button>
                       )}
@@ -645,7 +717,7 @@ export default function PartnershipsPage() {
                       <button
                         type="button"
                         onClick={() => setShowOutreachModal(true)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all shadow-sm"
+                        className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all shadow-sm"
                         title="Send customized cold pitch, demo invite, or follow-up email"
                       >
                         <EnvelopeIcon className="h-3.5 w-3.5 text-violet-400" />
@@ -656,8 +728,29 @@ export default function PartnershipsPage() {
                 </div>
               </div>
 
-              {/* Workspace Tabs Navigation */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {/*
+                Workspace tabs.
+
+                Five tabs with labels this long do not fit a phone, and the bar
+                scrolled with nothing to say so — it simply looked like a row
+                that had been cut off. The mask fades the last few pixels at
+                whichever end has more to show, which is the usual signal that a
+                strip continues; snapping means a swipe settles on a tab rather
+                than halfway across one.
+
+                The mask is applied inline because it needs two properties that
+                have to agree, and `mask-image` still wants the -webkit- prefix
+                on the iOS Safari versions this has to work on.
+              */}
+              <div
+                className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-px-4 overscroll-x-contain"
+                style={{
+                  maskImage:
+                    "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%)",
+                }}
+              >
                 {[
                   { key: "compose", label: "📑 Agreements & Proposals", count: documents.length },
                   { key: "terms", label: "💰 Commercial Terms", count: terms.length },
@@ -671,7 +764,7 @@ export default function PartnershipsPage() {
                       key={tab.key}
                       type="button"
                       onClick={() => setActiveTab(tab.key as WorkspaceTab)}
-                      className={`shrink-0 flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-black transition-all ${
+                      className={`shrink-0 snap-start min-h-[44px] flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-black transition-all ${
                         active
                           ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
                           : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -741,6 +834,10 @@ export default function PartnershipsPage() {
                       curriculumEdition={preview.curriculumEdition}
                       documentId={preview.id || null}
                       shareToken={preview.shareToken}
+                      // Carried in state since the preview was built, but never
+                      // handed down — which is why the access-code pill was
+                      // always empty on an issued document.
+                      accessCode={preview.accessCode}
                       canSend={canWrite}
                       onSent={() => loadSchoolDetail(selected.id)}
                       onClose={() => setPreview(null)}

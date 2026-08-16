@@ -46,6 +46,14 @@ export type IssuedDocument = {
   schoolName: string;
   /** Secret for the public /p/<token> link. Never the reference: that is sequential and printed. */
   shareToken: string | null;
+  /**
+   * The six digits a school can type at /p when the link is gone.
+   *
+   * It is printed on the document and read back out here so the dashboard can
+   * show it beside the link — otherwise the only copy is on the sheet itself,
+   * and whoever issued it cannot tell the school what to type.
+   */
+  accessCode: string | null;
   termsId: string | null;
   narrativeSource: ProposalNarrative['source'] | null;
   curriculumEdition: number | null;
@@ -154,6 +162,7 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     schoolId: targetSchoolId,
     schoolName: String(prepared.school.name),
     shareToken: row.share_token ? String(row.share_token) : null,
+    accessCode: row.access_code ? String(row.access_code) : null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
     curriculumEdition: prepared.curriculum?.edition ?? null,
@@ -183,8 +192,12 @@ export async function previewPartnershipDocument(
     html,
     schoolId: prepared.school.id,
     schoolName: String(prepared.school.name),
-    // A preview has no row, so there is no link to share yet.
+    // A preview has no row, so there is neither a link to share nor a code to
+    // type. Both stay null rather than being faked, so the dashboard can tell
+    // "not issued yet" from "issued, code missing" instead of printing an
+    // access-code pill with nothing behind it.
     shareToken: null,
+    accessCode: null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
     curriculumEdition: prepared.curriculum?.edition ?? null,
@@ -446,8 +459,9 @@ async function renderDocument(ctx: {
       // The studio owns which sections print and in whose words. Normalised
       // here rather than trusted, because it arrives from a browser.
       studio: input.studio ? normaliseStudioConfig(input.studio, PARTNERSHIP_PHOTOS) : null,
-      // Read from the brand record, not typed again. "Rillcod Academy" is not a
-      // company we have; the MoU already learned that lesson.
+      // Read from the brand record, not typed again. The name that used to be
+      // hardcoded here — "Rillcod Academy" — is not a company we have, and the
+      // MoU already learned that lesson.
     });
   }
 

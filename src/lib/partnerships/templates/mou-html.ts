@@ -14,7 +14,7 @@
  * rather than the proposal's year cards, and no part of it is AI-written.
  */
 import { brandContact } from '@/config/brand';
-import { SIGNATURE_ANCHOR, escapeHtml as esc } from '../signing';
+import { SIGNATURE_SLOT_END, SIGNATURE_SLOT_START, escapeHtml as esc } from '../signing';
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
 import { levelsForStage, splitByStage } from '../curriculum';
@@ -494,19 +494,45 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <h2><span class="cl">7.0</span> Execution</h2>
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:2.8mm 4mm; margin-top:4mm; margin-bottom:6mm; break-inside:avoid;">
+    ${
+      /*
+        The way in, repeated beside the place they sign — and the same way in as
+        page one, which it did not used to be.
+
+        This panel had its own idea of how to get back to the document. It drew
+        its QR from api.qrserver.com, so the code only appeared if the reader
+        had a working connection and that third party was up, and it handed that
+        third party the reference on the way past. Worse, both the QR and the
+        line beneath it carried `input.reference`: the QR pointed at
+        /p?code=RC-MOU-2026-00007 and the caption offered the same string as the
+        "Quick Access Code". The reference is not a credential and the public
+        route refuses it, so a school following the instruction printed on its
+        own agreement was told the document did not exist.
+
+        It now shows what page one shows: the QR rendered locally from the share
+        token, and the six digits that actually open the document. Absent both,
+        it prints nothing rather than an invitation that fails.
+      */
+      input.accessCode
+        ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:2.8mm 4mm; margin-top:4mm; margin-bottom:6mm; break-inside:avoid;">
       <div style="display:flex; align-items:center; gap:3.5mm;">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://www.rillcod.com/p?code=${input.reference}`)}" style="width:12mm; height:12mm; border-radius:1mm; display:block;" alt="QR" />
+        ${
+          input.accessQrDataUrl
+            ? `<img src="${esc(input.accessQrDataUrl)}" style="width:12mm; height:12mm; border-radius:1mm; display:block;" alt="Scan to read and sign this agreement" />`
+            : ''
+        }
         <div>
           <span style="font-size:7pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; Online E-Signing</span>
-          <b style="font-size:8.8pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">rillcod.com/p</span></b>
-          <div style="font-size:7.8pt; color:#64748b; margin-top:0.5mm;">Quick Access Code: <strong style="color:#0f172a; font-family:monospace;">${esc(input.reference)}</strong></div>
+          <b style="font-size:8.8pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">${esc(brandContact.web)}/p</span></b>
+          <div style="font-size:7.8pt; color:#64748b; margin-top:0.5mm;">Access code: <strong style="color:#0f172a; font-family:monospace; letter-spacing:0.06em;">${esc(input.accessCode)}</strong></div>
         </div>
       </div>
       <div style="font-size:7.4pt; color:#64748b; text-align:right; line-height:1.35;">
         Authorized representatives may<br>sign digitally from any device
       </div>
-    </div>
+    </div>`
+        : ''
+    }
 
     <div class="sign">
       <!--
@@ -533,6 +559,13 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       </div>
       <div class="sign-box">
         <div class="who">For ${esc(school.name)} (Party B)</div>
+        <!--
+          Everything between the markers is the *unsigned* state, and signing
+          replaces the lot. It used to sit outside the anchor, so an executed
+          MoU printed this blank ruled line and the empty stamp square directly
+          above the school's actual signature.
+        -->
+        ${SIGNATURE_SLOT_START}
         <div class="line">
           <!-- The fallback is escaped with everything else, so it has to be the raw
                character. Written pre-escaped it was escaped twice, and the entity
@@ -541,7 +574,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
           <div class="muted">${esc(school.signatoryRole || 'Date')}</div>
         </div>
         <div class="stamp">Official stamp</div>
-        ${SIGNATURE_ANCHOR}
+        ${SIGNATURE_SLOT_END}
       </div>
     </div>
   </section>

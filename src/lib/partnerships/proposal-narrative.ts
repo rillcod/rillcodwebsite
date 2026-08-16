@@ -35,7 +35,7 @@ export type ProposalNarrative = {
 
 /** The house pitch. Always valid, always the fallback, never worse than nothing. */
 export const AUTHORED_NARRATIVE: ProposalNarrative = {
-  headline: 'The Complete Tech & Innovation Hub for Your School',
+  headline: 'The Complete Tech & Innovation Hub',
   opening:
     'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding, robotics and artificial intelligence programme is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
   benefits: [
@@ -119,8 +119,9 @@ function buildPrompt(ctx: NarrativeContext): string {
     : 'a multi-year coding, robotics and AI progression';
 
   return [
-    // The company is named from one place. A prompt that says "Rillcod Academy"
-    // teaches the model a company that does not exist, and it comes back in copy.
+    // The company is named from one place. A prompt that hardcodes a name teaches
+    // the model whatever that name is — "Rillcod Academy" was the old one, and it
+    // came back in generated copy long after it stopped being anything real.
     `You are writing the persuasive copy of a partnership proposal from ${brandContact.displayName},`,
     'a STEM, robotics and AI education partner, to a Nigerian private school.',
     '',

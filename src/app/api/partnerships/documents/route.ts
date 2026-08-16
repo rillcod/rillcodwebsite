@@ -184,7 +184,19 @@ export async function POST(req: NextRequest) {
 
       if (toEmail && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(toEmail)) {
         const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
-        const shareUrl = `${appUrl}/p/${issued.reference || issued.shareToken}`;
+        /*
+          The link is built from the share token, and only the share token.
+
+          This read `issued.reference || issued.shareToken`, and a reference is
+          always present — so every emailed link was a reference. That is the
+          sequential number printed on the document (RC-MOU-2026-00014), which
+          makes it both guessable and, since the public route stopped honouring
+          references, dead: recipients got a link that resolved to nothing.
+
+          If a token is somehow absent there is no safe link to send, so the
+          email goes out without one rather than falling back to the reference.
+        */
+        const shareUrl = issued.shareToken ? `${appUrl}/p/${issued.shareToken}` : null;
         const { subject, html } = buildPartnershipFollowUpEmail({
           schoolName: issued.schoolName,
           contactName: contactPerson,
@@ -225,6 +237,9 @@ export async function POST(req: NextRequest) {
       // What the public link is built from. Never the reference: that is
       // sequential and printed on the document, so it is not a secret.
       share_token: issued.shareToken,
+      // The typed way in, for a school that has the sheet but lost the link.
+      // Without this the dashboard's "Access Code" pill had nothing to show.
+      access_code: issued.accessCode,
       email_sent: emailSent,
       email_to: emailRecipient,
     });

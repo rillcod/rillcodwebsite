@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_SIGNATURE_BYTES,
   SIGNATURE_ANCHOR,
+  SIGNATURE_SLOT_END,
+  SIGNATURE_SLOT_START,
   SIGNATURE_DATA_URL_PATTERN,
+  buildDocumentShareUrl,
   buildSignatureStamp,
+  hasSignatureSlot,
   escapeHtml,
   isValidDocumentIdentifier,
   isValidShareToken,
@@ -146,7 +150,7 @@ describe('where the stamp lands', () => {
       reference: 'RC-PROP-0042',
       dateLabel: '14 August 2026',
     });
-    expect(html).toContain(SIGNATURE_ANCHOR);
+    expect(hasSignatureSlot(html)).toBe(true);
   });
 
   it('is present in an MoU', () => {
@@ -157,7 +161,7 @@ describe('where the stamp lands', () => {
       reference: 'RC-MOU-0007',
       dateLabel: '14 August 2026',
     });
-    expect(html).toContain(SIGNATURE_ANCHOR);
+    expect(hasSignatureSlot(html)).toBe(true);
   });
 
   it('replaces the anchor and leaves the rest of the document alone', () => {
@@ -219,5 +223,243 @@ describe('what may address a document publicly', () => {
     for (const bad of ["a'b", 'a,b', 'a%b', 'a/b', 'a.b', 'a)b']) {
       expect(isValidDocumentIdentifier(bad)).toBe(false);
     }
+  });
+});
+
+describe('buildDocumentShareUrl', () => {
+  const TOKEN = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+
+  it('builds the link from the share token', () => {
+    expect(buildDocumentShareUrl('https://www.rillcod.com', TOKEN)).toBe(
+      `https://www.rillcod.com/p/${TOKEN}`,
+    );
+  });
+
+  it('does not double the slash when the origin carries one', () => {
+    expect(buildDocumentShareUrl('https://www.rillcod.com/', TOKEN)).toBe(
+      `https://www.rillcod.com/p/${TOKEN}`,
+    );
+  });
+
+  /*
+    The regression this function exists for.
+
+    Three separate call sites — the follow-up email, both WhatsApp buttons, and
+    all four clipboard pitches in the preview — independently arrived at
+    `reference || share_token`. A reference is never null, so that expression
+    always chose the reference: the sequential number printed on the face of the
+    document. It is guessable by counting, and the public route stopped
+    accepting it, so the links were dead as well.
+
+    A reference must never come back from here, whatever it is passed as.
+  */
+  it('refuses a document reference outright', () => {
+    for (const reference of [
+      'RC-PROP-2026-00001',
+      'RC-MOU-2026-00042',
+      'MOU-2026-0002',
+      'rc-prop-2026-00001',
+    ]) {
+      expect(buildDocumentShareUrl('https://www.rillcod.com', reference)).toBeNull();
+    }
+  });
+
+  it('returns null rather than a link to nowhere when there is no token', () => {
+    expect(buildDocumentShareUrl('https://www.rillcod.com', null)).toBeNull();
+    expect(buildDocumentShareUrl('https://www.rillcod.com', undefined)).toBeNull();
+    expect(buildDocumentShareUrl('https://www.rillcod.com', '')).toBeNull();
+    expect(buildDocumentShareUrl('https://www.rillcod.com', '   ')).toBeNull();
+  });
+
+  it('refuses a six-digit access code, which is a way in but not a link', () => {
+    // The code addresses a document at /p, but it is typed by a person who
+    // already holds it — it is not something to paste into a school's inbox.
+    expect(buildDocumentShareUrl('https://www.rillcod.com', '482915')).toBeNull();
+  });
+
+  it('never emits anything that could break out of the path', () => {
+    for (const bad of ['../../admin', 'a/b', "a'b", 'a,b', 'a b']) {
+      expect(buildDocumentShareUrl('https://www.rillcod.com', bad)).toBeNull();
+    }
+  });
+});
+
+/**
+ * The executed document must not still be asking to be signed.
+ *
+ * The anchor marked a single point, so stamping inserted the signature and left
+ * the placeholder above it: a signed MoU printed a blank ruled line reading
+ * "Name & signature / Date" and an empty "Official stamp" square, and then the
+ * school's actual signature underneath. On paper that reads as an unsigned
+ * contract with something stuck to the bottom.
+ */
+describe('signing replaces the placeholder rather than writing around it', () => {
+  const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
+  const terms = {
+    id: 't1',
+    school_id: 's1',
+    billing_model: 'per_student',
+    amount_per_student: 15000,
+    fixed_package_price: null,
+    tiers: null,
+    currency: 'NGN',
+    billing_cycle: 'term',
+    rillcod_share_percent: 70,
+    school_share_percent: 30,
+    deposit_amount: 0,
+    status: 'agreed',
+  } as unknown as PartnershipTerms;
+
+  const stamp = '<div class="e-signature-stamp">SIGNED</div>';
+
+  it('takes the whole region between the markers', () => {
+    const html = `<div>before</div>${SIGNATURE_SLOT_START}<div class="line">Name &amp; signature</div>${SIGNATURE_SLOT_END}<div>after</div>`;
+    const out = stampSignature(html, stamp);
+
+    expect(out).toBe(`<div>before</div>${stamp}<div>after</div>`);
+    expect(out).not.toContain('Name &amp; signature');
+    expect(out).not.toContain(SIGNATURE_SLOT_START);
+    expect(out).not.toContain(SIGNATURE_SLOT_END);
+  });
+
+  it('leaves no blank signing line in a signed MoU', () => {
+    const html = buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: null,
+      reference: 'RC-MOU-0007',
+      dateLabel: '14 August 2026',
+    });
+    const signed = stampSignature(html, stamp);
+
+    expect(signed).not.toBeNull();
+    // Party A keeps its own stamp caption; Party B's must be gone, along with
+    // the blank line that invited a wet signature.
+    expect(signed).toContain(stamp);
+    expect(signed).not.toContain('Name &amp; signature');
+  });
+
+  it('leaves no "Name, signature and date" caption in a signed proposal', () => {
+    const html = buildPartnershipProposalHTML({
+      school,
+      curriculum: null,
+      reference: 'RC-PROP-0042',
+      dateLabel: '14 August 2026',
+    });
+    const signed = stampSignature(html, stamp);
+
+    expect(signed).not.toBeNull();
+    expect(signed).toContain(stamp);
+    expect(signed).not.toContain('Name, signature and date');
+  });
+
+  it('still signs a document issued before the paired markers existed', () => {
+    // Rows already stored carry the old single anchor and must stay signable.
+    const legacy = `<div>before</div>${SIGNATURE_ANCHOR}<div>after</div>`;
+    expect(stampSignature(legacy, stamp)).toBe(`<div>before</div>${stamp}<div>after</div>`);
+    expect(hasSignatureSlot(legacy)).toBe(true);
+  });
+
+  it('refuses a document with no slot at all', () => {
+    expect(stampSignature('<div>nothing here</div>', stamp)).toBeNull();
+    expect(hasSignatureSlot('<div>nothing here</div>')).toBe(false);
+  });
+});
+
+/**
+ * What a printed document tells a school to scan and to type.
+ *
+ * Both templates carried a second access panel that disagreed with the first.
+ * It pulled its QR from api.qrserver.com — a network dependency at print time,
+ * and the reference handed to a third party on the way past — and both that QR
+ * and the caption under it used `input.reference`. So the page invited the
+ * reader to open /p?code=RC-MOU-2026-00007 or type that string in, and the
+ * public route refuses references: the instruction printed on the agreement
+ * did not work.
+ */
+describe('the access panel printed on a document', () => {
+  const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
+  const terms = {
+    id: 't1',
+    school_id: 's1',
+    billing_model: 'per_student',
+    amount_per_student: 15000,
+    fixed_package_price: null,
+    tiers: null,
+    currency: 'NGN',
+    billing_cycle: 'term',
+    rillcod_share_percent: 70,
+    school_share_percent: 30,
+    deposit_amount: 0,
+    status: 'agreed',
+  } as unknown as PartnershipTerms;
+
+  const CODE = '482915';
+  const QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=';
+
+  const rendered = () => [
+    [
+      'mou',
+      buildPartnershipMouHTML({
+        school,
+        terms,
+        curriculum: null,
+        reference: 'RC-MOU-2026-00007',
+        dateLabel: '16 August 2026',
+        accessCode: CODE,
+        accessQrDataUrl: QR,
+      }),
+    ],
+    [
+      'proposal',
+      buildPartnershipProposalHTML({
+        school,
+        curriculum: null,
+        reference: 'RC-PROP-2026-00042',
+        dateLabel: '16 August 2026',
+        accessCode: CODE,
+        accessQrDataUrl: QR,
+      }),
+    ],
+  ] as const;
+
+  it('never fetches its QR from a third party', () => {
+    // A QR that needs the internet is a QR that is blank on a printed page, and
+    // the request tells someone else which document was opened and when.
+    for (const [name, html] of rendered()) {
+      expect(html, name).not.toContain('api.qrserver.com');
+      expect(html, name).not.toContain('chart.googleapis.com');
+    }
+  });
+
+  it('prints the six-digit code, not the reference, as the way in', () => {
+    for (const [name, html] of rendered()) {
+      expect(html, name).toContain(CODE);
+      // No caption may offer a reference as something to type.
+      expect(html.replace(/\s+/g, ' '), name).not.toMatch(
+        /(Quick Access Code|Access code|Document Code)\s*:?\s*<[^>]*>\s*RC-/i,
+      );
+    }
+  });
+
+  it('encodes the share-token QR it was handed, and only that', () => {
+    for (const [name, html] of rendered()) {
+      expect(html, name).toContain(QR);
+      expect(html, name).not.toContain('/p?code=');
+    }
+  });
+
+  it('prints no access panel at all when there is no code to print', () => {
+    // A preview has no row, so no code and no token. Better a document with no
+    // invitation than one inviting the reader to type something that fails.
+    const html = buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: null,
+      reference: 'RC-MOU-2026-00007',
+      dateLabel: '16 August 2026',
+    });
+    expect(html).not.toContain('Access code:');
+    expect(html).not.toContain('api.qrserver.com');
   });
 });

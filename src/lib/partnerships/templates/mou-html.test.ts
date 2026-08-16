@@ -143,6 +143,9 @@ describe('the Memorandum of Understanding', () => {
     // school's accountant must find the same name on both.
     expect(html).toContain('RILLCOD LTD');
     expect(html).toContain('RC 1781500');
+    // "Rillcod Academy" is not an entity that exists. It is named here, as the
+    // forbidden string, on purpose — the guard is worthless if it names the
+    // company we actually are.
     expect(html).not.toContain('Rillcod Academy');
 
     // The trading name still appears, but only to connect the two.

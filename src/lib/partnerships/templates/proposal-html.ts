@@ -17,7 +17,7 @@
  * Edge and no Desktop.
  */
 import { brandAssets, brandContact } from '@/config/brand';
-import { SIGNATURE_ANCHOR, escapeHtml as esc } from '../signing';
+import { SIGNATURE_SLOT_END, SIGNATURE_SLOT_START, escapeHtml as esc } from '../signing';
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
 import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
@@ -236,19 +236,34 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         ${esc(brandContact.phone)} · ${esc(brandContact.email)} · ${esc(brandContact.web)}
       </div>
     </div>
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:3mm 4.5mm; margin-top:3.5mm;">
+    ${
+      /*
+        Same panel, same correction as the MoU's execution page: the QR is
+        rendered locally from the share token instead of fetched from
+        api.qrserver.com, and the code printed underneath is the six digits that
+        open the document rather than the reference, which the public route
+        refuses. See the note in mou-html.ts.
+      */
+      input.accessCode
+        ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:4mm; background:#f8fafc; border:1px solid #e2e8f0; border-radius:2mm; padding:3mm 4.5mm; margin-top:3.5mm;">
       <div style="display:flex; align-items:center; gap:3.5mm;">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://www.rillcod.com/p?code=${input.reference}`)}" style="width:13mm; height:13mm; border-radius:1mm; display:block;" alt="QR" />
+        ${
+          input.accessQrDataUrl
+            ? `<img src="${esc(input.accessQrDataUrl)}" style="width:13mm; height:13mm; border-radius:1mm; display:block;" alt="Scan to read this proposal online" />`
+            : ''
+        }
         <div>
           <span style="font-size:7.2pt; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#2563eb; display:block;">Digital Portal &amp; E-Signing</span>
-          <b style="font-size:9.2pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">rillcod.com/p</span></b>
-          <div style="font-size:8.2pt; color:#64748b; margin-top:0.5mm;">Document Code: <strong style="color:#0f172a; font-family:monospace;">${esc(input.reference)}</strong></div>
+          <b style="font-size:9.2pt; color:#0f172a;">Scan QR or visit <span style="color:#2563eb;">${esc(brandContact.web)}/p</span></b>
+          <div style="font-size:8.2pt; color:#64748b; margin-top:0.5mm;">Access code: <strong style="color:#0f172a; font-family:monospace; letter-spacing:0.06em;">${esc(input.accessCode)}</strong></div>
         </div>
       </div>
       <div style="font-size:7.8pt; color:#64748b; text-align:right; line-height:1.35;">
         Open &amp; sign online<br>from any smartphone
       </div>
-    </div>
+    </div>`
+        : ''
+    }
     <div class="sign">
       <div class="sign-box">
         <b>For ${esc(brandContact.contractingParty)}</b>
@@ -262,7 +277,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       </div>
       <div class="sign-box">
         <b>For ${esc(input.school.name)}</b>
-        Name, signature and date${SIGNATURE_ANCHOR}
+        <!-- The caption is the unsigned state and signing replaces it. Left
+             outside the slot, an accepted proposal read "Name, signature and
+             date" immediately above the signature that answered it. -->
+        ${SIGNATURE_SLOT_START}Name, signature and date${SIGNATURE_SLOT_END}
       </div>
     </div>
   </section>`;

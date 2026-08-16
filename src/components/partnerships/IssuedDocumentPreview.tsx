@@ -32,6 +32,7 @@ import {
   downloadDocumentPdf,
 } from "@/lib/partnerships/proposal-pdf";
 import { brandContact } from "@/config/brand";
+import { buildDocumentShareUrl } from "@/lib/partnerships/signing";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
 const PAGE_W = 794;
@@ -48,6 +49,7 @@ export function IssuedDocumentPreview({
   loading,
   documentId,
   shareToken,
+  accessCode,
   canSend,
   onSent,
   onClose,
@@ -63,17 +65,28 @@ export function IssuedDocumentPreview({
   documentId?: string | null;
   /** Secret behind the public link. Absent on a preview, which has no row yet. */
   shareToken?: string | null;
+  /** The six digits printed on the document. Absent on a preview, same reason. */
+  accessCode?: string | null;
   canSend?: boolean;
   onSent?: () => void | Promise<void>;
   onClose: () => void;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const label = kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal";
-  /** The public link. Built from the clean reference slug (or token fallback). */
-  const shareUrl = (t?: string | null) => {
-    const slug = reference || t || "";
-    return typeof window === "undefined" ? `/p/${slug}` : `${window.location.origin}/p/${slug}`;
-  };
+  /*
+    The public link, from the share token and nothing else.
+
+    This was `reference || token`, and a reference is always present — so every
+    link this component produced pointed at /p/RC-PROP-2026-00001. That address
+    is sequential, printed on the face of the document, and no longer honoured
+    by the public route, so all four pitch buttons and the WhatsApp link were
+    copying a dead and guessable URL onto somebody's clipboard, ready to send
+    to a school.
+
+    Returns null when there is no token, and every caller is gated on the token
+    already, so there is nothing to paste rather than something wrong.
+  */
+  const shareUrl = (t?: string | null) =>
+    buildDocumentShareUrl(typeof window === "undefined" ? "" : window.location.origin, t);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -86,13 +99,21 @@ export function IssuedDocumentPreview({
    * can only be produced from a rendered document, so the sender always sees
    * exactly what is about to leave.
    */
-  async function send() {
+  /*
+    Where the recipient is typed.
+
+    This used `prompt()`, which several mobile browsers suppress outright — on
+    those, tapping "Email PDF to School" did nothing at all, with no error to
+    explain it. Firefox and Chrome also let a user tick "prevent this page from
+    creating additional dialogues", which disables it for the rest of the
+    session. An inline field works everywhere and can be corrected without
+    starting over.
+  */
+  const [showEmailField, setShowEmailField] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+
+  async function send(to: string) {
     if (!documentId) return;
-    const to = prompt(
-      `Email ${reference} to the school.\n\nLeave blank to use the address on the school record.`,
-      "",
-    );
-    if (to === null) return;
 
     setSending(true);
     setError("");
@@ -118,6 +139,8 @@ export function IssuedDocumentPreview({
       setNotice(
         `Sent to ${json.to} as ${json.format === "pdf" ? "a PDF" : "HTML"} — ${json.attachment}`,
       );
+      setShowEmailField(false);
+      setEmailTo("");
       await onSent?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not send that document.");
@@ -165,9 +188,38 @@ export function IssuedDocumentPreview({
   const scale = zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
 
   return (
-    <div className="rounded-3xl border border-primary/40 bg-card overflow-hidden shadow-2xl">
+    /*
+      A sheet on a laptop, the whole screen on a phone.
+
+      The document inside is a fixed 794px A4 page that does not reflow, so on a
+      phone it can only be scaled down — and while the preview sat inline in the
+      form's own scroll container it was competing for width with the composer
+      and scrolling inside a scroll. Below `sm` it takes the viewport instead:
+      the page gets every pixel there is, and there is one thing on screen doing
+      one job.
+    */
+    <div className="fixed inset-0 z-50 flex flex-col bg-background sm:static sm:z-auto sm:block sm:rounded-3xl sm:border sm:border-primary/40 sm:bg-card sm:overflow-hidden sm:shadow-2xl">
+      {/*
+        The way out, pinned where a thumb is. The inline sheet has its own close
+        button in the header; a full-screen overlay needs one that cannot scroll
+        away, or the document becomes a room with no door.
+      */}
+      <div className="sm:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card shrink-0 pt-[max(0.75rem,var(--safe-area-top))]">
+        <span className="text-xs font-black uppercase tracking-wider text-muted-foreground truncate">
+          {kind === "mou" ? "MoU" : "Proposal"} · {reference}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-border bg-muted/50 text-foreground text-xs font-bold shrink-0"
+        >
+          <XMarkIcon className="w-4 h-4" />
+          Close Preview
+        </button>
+      </div>
+
       {/* Top Header */}
-      <div className="p-4 sm:px-6 sm:py-4 bg-muted/60 border-b border-border/80 backdrop-blur-md space-y-3">
+      <div className="p-4 sm:px-6 sm:py-4 bg-muted/60 border-b border-border/80 backdrop-blur-md space-y-3 shrink-0 overflow-y-auto max-h-[45vh] sm:max-h-none sm:overflow-visible">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -182,6 +234,25 @@ export function IssuedDocumentPreview({
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 text-[10px] font-black uppercase tracking-wider border border-violet-500/30">
                   <SparklesIcon className="w-3 h-3 text-violet-400" /> AI Pitch
                 </span>
+              )}
+              {/*
+                Rendered only when there is a code, never as an empty "—".
+                A preview has no row, so it has no code, and a dash in that slot
+                reads as "this document's code is missing" rather than "this
+                document does not exist yet".
+              */}
+              {accessCode && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(accessCode).catch(() => null);
+                    setNotice(`Access code ${accessCode} copied — the school can type it at /p`);
+                  }}
+                  title="The six digits a school types at /p when the link is gone. Tap to copy."
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
+                >
+                  Code {accessCode}
+                </button>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -307,9 +378,10 @@ export function IssuedDocumentPreview({
 
           {canSend && documentId && (
             <button
-              onClick={send}
+              onClick={() => setShowEmailField((v) => !v)}
               disabled={sending || saving}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-emerald-950/30 transition-all min-h-[38px]"
+              aria-expanded={showEmailField}
+              className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-emerald-950/30 transition-all min-h-[44px] sm:min-h-[38px]"
             >
               {sending ? (
                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -341,6 +413,51 @@ export function IssuedDocumentPreview({
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
         </div>
+
+        {showEmailField && canSend && documentId && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(emailTo.trim());
+            }}
+            className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/60"
+          >
+            <input
+              type="email"
+              value={emailTo}
+              onChange={(e) => setEmailTo(e.target.value)}
+              // Blank is meaningful: the route then uses the address already on
+              // the school record, which is the common case.
+              placeholder="Leave blank to use the school's address on file"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              // 16px until sm, or iOS Safari zooms the page on focus and never
+              // zooms back — the same trap the login inputs had.
+              className="flex-1 min-w-0 min-h-[44px] px-3 py-2 rounded-xl bg-background border border-border text-base sm:text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={sending}
+                className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black transition-all"
+              >
+                {sending ? "Sending…" : "Send"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailField(false);
+                  setEmailTo("");
+                }}
+                className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:bg-muted text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {error && (
@@ -364,7 +481,10 @@ export function IssuedDocumentPreview({
       ) : (
         <div
           ref={paneRef}
-          className="bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto max-h-[820px] border-t border-border/60"
+          // flex-1/min-h-0 so the pane takes the leftover height of the
+          // full-screen column on a phone; the fixed cap returns from `sm`,
+          // where this is a card inside the page's own scroll again.
+          className="bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overscroll-contain flex-1 min-h-0 sm:flex-none sm:max-h-[820px] border-t border-border/60"
         >
           {/*
             The document is a fixed 794px A4 page. Squeezing the iframe to a
