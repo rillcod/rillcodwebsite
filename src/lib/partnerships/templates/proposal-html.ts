@@ -197,11 +197,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   // honest when an option stops short of SS 3.
   const scopedLevels = curriculum
     ? levelsForStage(
-        input.scopeToOffer
-          ? levelsForScope(curriculum.levels, input.scopeToOffer)
-          : curriculum.levels,
-        input.stage,
-      )
+      input.scopeToOffer
+        ? levelsForScope(curriculum.levels, input.scopeToOffer)
+        : curriculum.levels,
+      input.stage,
+    )
     : [];
   const { primary, secondary } = splitByStage(scopedLevels);
 
@@ -239,34 +239,32 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       </div>
     </div>
     ${
-      /*
-        Same panel, same correction as the MoU's execution page: the QR is
-        rendered locally from the share token instead of fetched from
-        api.qrserver.com, and the code printed underneath is the six digits that
-        open the document rather than the reference, which the public route
-        refuses. See the note in mou-html.ts.
-      */
-      input.accessCode || input.accessPending
-        ? `<div class="end-scan">
-      ${
-        input.accessQrDataUrl
-          ? `<img class="end-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to reply to this proposal online" />`
-          : '<div class="end-scan-qr end-scan-qr-pending"></div>'
+    /*
+      Same panel, same correction as the MoU's execution page: the QR is
+      rendered locally from the share token instead of fetched from
+      api.qrserver.com, and the code printed underneath is the six digits that
+      open the document rather than the reference, which the public route
+      refuses. See the note in mou-html.ts.
+    */
+    input.accessCode || input.accessPending
+      ? `<div class="end-scan">
+      ${input.accessQrDataUrl
+        ? `<img class="end-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to reply to this proposal online" />`
+        : '<div class="end-scan-qr end-scan-qr-pending"></div>'
       }
       <div>
         <div class="end-scan-lead">Scan to reply</div>
         <b class="end-scan-title">Accept or ask a question from your phone</b>
         <div class="end-scan-sub">
-          ${
-            input.accessCode
-              ? `Opens this proposal online. No camera? Go to <b>${esc(brandContact.web)}/p</b>
+          ${input.accessCode
+        ? `Opens this proposal online. No camera? Go to <b>${esc(brandContact.web)}/p</b>
           and type <span class="end-scan-code">${esc(input.accessCode)}</span>`
-              : 'Scan code and access code are assigned when this is issued.'
-          }
+        : 'Scan code and access code are assigned when this is issued.'
+      }
         </div>
       </div>
     </div>`
-        : ''
+      : ''
     }
     <div class="sign">
       <div class="sign-box">
@@ -309,8 +307,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <div class="rule"></div>
     <h2>${esc(heading)}</h2>
     <div class="gallery${large ? ' gallery-lg' : ''}">${slice
-      .map((src) => `<img src="${esc(assetUrl(src))}" alt="Rillcod STEM Session" loading="lazy" onerror="this.style.opacity='0.4';this.style.background='#f1f5f9';" />`)
-      .join('')}</div>
+        .map((src) => `<img src="${esc(assetUrl(src))}" alt="Rillcod STEM Session" loading="lazy" onerror="this.style.opacity='0.4';this.style.background='#f1f5f9';" />`)
+        .join('')}</div>
   </section>`;
   };
 
@@ -475,16 +473,16 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       u.mode === 'illustrative'
         ? `We do not have your enrolment on file yet, so this is the same arithmetic at three common school sizes. Tell us your roll and we will restate it exactly — the rate and the ${u.sharePercent}% share do not change.`
         : u.mode === 'sections'
-        ? `Your ${u.sharePercent}% is taken on each section at its own agreed rate, and the sections are added. Nothing here is averaged or estimated.`
-        : u.mode === 'package'
-          ? `The agreed package for the school, and your ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
-          : `Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.`;
+          ? `Your ${u.sharePercent}% is taken on each section at its own agreed rate, and the sections are added. Nothing here is averaged or estimated.`
+          : u.mode === 'package'
+            ? `The agreed package for the school, and your ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
+            : `Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.`;
 
     const firstCol =
       u.mode === 'sections' ? 'Section'
-      : u.mode === 'package' ? 'Agreed'
-      : u.mode === 'illustrative' ? 'School size'
-      : 'Scenario';
+        : u.mode === 'package' ? 'Agreed'
+          : u.mode === 'illustrative' ? 'School size'
+            : 'Scenario';
     const showRate = u.mode === 'sections';
 
     const bodyRow = (r: (typeof u.rows)[number], highlight: boolean) => `
@@ -582,8 +580,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     // can hover to find out what the lighter part of a bar means.
     return anyRange
       ? svg +
-          '<p class="chart-note"><span class="key key-from"></span>the fee every school pays' +
-          '&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
+      '<p class="chart-note"><span class="key key-from"></span>the fee every school pays' +
+      '&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
       : svg;
   };
 
@@ -746,154 +744,112 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .s2 { background: #dc2626; flex: 3; }
   .s3 { background: #2563eb; flex: 2; }
 
-  /* ── The closing card ─────────────────────────────────────────────────
-     The last page kept the old pale panel — "Digital Portal & E-Signing" in
-     small blue caps on grey — while the cover and the MoU moved to the dark
-     card. Two designs for the same instruction inside one document reads as an
-     oversight, and the weaker of the two was sitting on the page where the
-     reader decides what to do next. Same language as the rest, and the ask is
-     the one this page is actually making: reply. */
+  /* ── The closing card (Last page) ─────────────────────────────────── */
   .end-scan {
     display: flex; align-items: center; gap: 4.5mm; break-inside: avoid;
     margin-top: 3.5mm; padding: 3mm 5mm 3mm 4mm;
     background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
-    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
-    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
+    border-left: 3.5mm solid #dc2626; border-radius: 0 3mm 3mm 0;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .25);
   }
+  /* 22mm, not 32mm. The cover can afford a 58mm mark because it has a whole
+     band to itself; this one shares its page with the closing argument, the
+     contact card and both signature blocks. At 32mm the page ran 43px past the
+     sheet — and a page clips rather than spills, so the overflow was the
+     signature block quietly disappearing off a document meant to be signed. */
   .end-scan-qr {
-    width: 18mm; height: 18mm; display: block; flex: none;
-    background: #fff; padding: 1.2mm; border-radius: 1.2mm;
+    width: 22mm; height: 22mm; display: block; flex: none;
+    background: #fff; padding: 1.5mm; border-radius: 2mm;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
   }
-  .end-scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.45); }
+  .end-scan-qr-pending { background: rgba(255,255,255,.12); border: 2px dashed rgba(255,255,255,.45); }
+  .end-scan-txt { flex: 1; min-width: 0; }
   .end-scan-lead {
-    font-size: 7.6pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
-  .end-scan-title { display: block; font-size: 10.5pt; color: #fff; margin-top: .7mm; font-weight: 800; }
-  .end-scan-sub { font-size: 8.2pt; color: #cbd5e1; margin-top: 1.3mm; line-height: 1.5; }
+  .end-scan-title { display: block; font-size: 11.5pt; color: #fff; margin-top: .8mm; font-weight: 800; letter-spacing: -.15px; }
+  .end-scan-sub { font-size: 8.6pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
   .end-scan-sub b { color: #fff; font-weight: 700; }
   .end-scan-code {
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
-    font-size: 9pt; color: #fff; font-weight: 700;
+    font-size: 9.8pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
+    padding: 0.5mm 2.2mm; border-radius: 1.2mm;
   }
+  .end-scan-contact {
+    margin-top: 2.2mm; padding-top: 2mm; border-top: 1px solid rgba(255,255,255,0.14);
+    font-size: 8.4pt; color: #cbd5e1;
+  }
+  .end-scan-contact b { color: #fff; }
 
-  /* Wordmark and evidence left, scan block right, the two columns centred
-     against each other so neither looks like an afterthought beside the other. */
-  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 9mm; }
+  /* ── Masthead: Brand left, Extra-Large QR right ───────────────────── */
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 8mm; }
   .masthead-l { flex: 1; min-width: 0; }
-  .brand-row { display: flex; align-items: center; gap: 4mm; }
+  .brand-row { display: flex; align-items: center; gap: 5mm; }
 
-  /* ── The scan block, top right of the cover ────────────────────────────
-     Large on purpose. This is the one mark on the page that turns a sheet of
-     paper into the live document, and a QR that has to be hunted for may as
-     well not be printed. At 34mm it reads from across a desk and scans on the
-     first try from a phone held at arm's length; the source is 1024px, so it
-     is still four times the resolution the paper can hold. */
+  /* Brand Mark — prominently sized, crisp on white tile */
+  .brand-mark {
+    width: 26mm; height: 26mm; object-fit: contain; flex: none;
+    background: #fff; border-radius: 3.5mm; padding: 2.5mm;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  }
+  .brand { font-size: 28pt; font-weight: 800; letter-spacing: -.6px; color: #fff; line-height: 1.05; }
+  .brand-tag { color: #fca5a5; font-size: 10pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.6mm; font-weight: 600; }
+
+  /* Cover Scan Block — Extra-Large, High-Contrast & Commanding */
   .cover-scan { flex: none; text-align: center; }
   .cover-scan-qr {
-    width: 48mm; height: 48mm; display: block;
-    background: #fff; padding: 2.4mm; border-radius: 2.5mm;
-    box-shadow: 0 4px 14px rgba(0,0,0,.32);
+    width: 58mm; height: 58mm; display: block;
+    background: #fff; padding: 2.8mm; border-radius: 3.5mm;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4);
   }
-  .cover-scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.5); }
+  .cover-scan-qr-pending { background: rgba(255,255,255,.12); border: 2.5px dashed rgba(255,255,255,.55); }
   .cover-scan-cap {
     margin-top: 2.6mm; font-size: 9.6pt; font-weight: 800; color: #fff;
     letter-spacing: .04em;
   }
   .cover-scan-code {
-    margin-top: 1mm; font-size: 10pt; font-weight: 700; color: #fca5a5;
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
+    margin-top: 1.4mm; font-size: 10.2pt; font-weight: 700; color: #fca5a5;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .12em;
+    background: rgba(255,255,255,0.12); padding: 0.8mm 2.8mm; border-radius: 1.5mm; display: inline-block;
   }
-  .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; }
-  /* On a white tile, so the mark reads on any background and survives a
-     printer that renders the dark band lighter than the screen does. */
-  .brand-mark {
-    width: 19mm; height: 19mm; object-fit: contain; flex: none;
-    background: #fff; border-radius: 2.4mm; padding: 2mm;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  }
-  /* A masthead, not a headline. At 26pt the company name was set larger than the
-     proposal's own title directly beneath it, so the cover announced the sender
-     before it announced the offer — which reads as a letterhead shouting rather
-     than a document with something to say. Restrained here so the h1 leads, the
-     way it does on any professional cover; the space this returns goes to the
-     scan card below. */
-  .brand { font-size: 23pt; font-weight: 800; letter-spacing: -.4px; color: #fff; }
-  .brand-tag { color: #fca5a5; font-size: 9.2pt; letter-spacing: .09em; text-transform: uppercase; margin-top: 1.4mm; font-weight: 600; }
-  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10mm 0 8mm; }
+  .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; background: none; }
+  /* Cover Mid Section */
+  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8mm 0 6mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
     font-size: 8.5pt; letter-spacing: .15em; text-transform: uppercase; font-weight: 700;
     padding: 1.8mm 4mm; border-radius: 1.5mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
   }
-  h1 { font-size: 38pt; line-height: 1.08; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.8px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 34pt; line-height: 1.12; margin: 5mm 0 6mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
-    background: #f8fafc; border-left: 4mm solid #2563eb; padding: 5mm 6mm; margin-bottom: 3mm; border-radius: 0 2mm 2mm 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 3mm; border-radius: 0 2.5mm 2.5mm 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
-  .cover-for { font-size: 17.5pt; font-weight: 700; color: #0f172a; }
-  .cover-loc { color: #64748b; margin-top: 1mm; font-size: 9.5pt; font-weight: 500; }
-  /* ── Scan me ──────────────────────────────────────────────────────────
-     On the cover, because that is the page somebody is holding, and because
-     the first thing a proprietor does with a printed proposal is show it to
-     somebody else. A scan puts it on their phone, where it can be forwarded.
+  .cover-for { font-size: 18pt; font-weight: 800; color: #0f172a; }
+  .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 6mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
-     It used to be four lines of white text — the block set its colour to a pale
-     slate and its bold to pure white — sitting on the white middle of the cover.
-     The heading and the access code were invisible on the page, and the line
-     beneath them was the palest grey on white. The one route back into the
-     document, printed in a colour nobody could read.
-
-     Now it is a dark card, which is what makes it carry on a white cover: it
-     borrows the navy from the masthead so it reads as part of the document
-     rather than a sticker on it, and takes the red rule from the stripe above. */
-  .scan {
-    margin-top: 4mm; display: flex; align-items: center; gap: 4.5mm;
-    background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
-    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
-    padding: 3mm 5mm 3mm 4mm; max-width: 150mm;
-    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
-  }
-  /* The plate is not decoration. A QR needs a quiet zone and maximum contrast,
-     and printed straight onto navy it will not resolve on a phone camera. */
-  .scan-qr {
-    width: 17mm; height: 17mm; display: block; flex: none;
-    background: #fff; padding: 1.2mm; border-radius: 1.2mm;
-  }
-  /* The empty plate on a preview: the same box, visibly nothing in it yet, so
-     the card takes exactly the room it will take once issued. */
-  .scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.45); }
-  .scan-lead {
-    font-size: 8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
-    color: #fca5a5;
-  }
-  .scan-title { font-size: 11.5pt; font-weight: 800; color: #fff; margin-top: .8mm; letter-spacing: -.1px; }
-  .scan-sub { font-size: 8.4pt; color: #cbd5e1; margin-top: 1.6mm; line-height: 1.5; }
-  .scan-sub b { color: #fff; font-weight: 700; }
-  .scan-code {
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
-    font-size: 9.6pt; color: #fff; font-weight: 700;
-  }
-  /* 6mm rather than 9mm: the scan card below needs the room more than this gap
-     does, and the cover reads no worse for it. */
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 10mm; margin-top: 6mm; font-size: 9.2pt; color: #64748b; }
-  .cover-meta b { display: block; color: #0f172a; font-size: 10.2pt; font-weight: 700; }
-  /* The cover closes on the same dark panel the last page uses, so the
-     document opens and closes on one identity. Formal rather than an ask:
-     a cover says who is writing, it does not solicit yet. */
+  /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */
   .cover-foot {
-    background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 7mm 13mm 8mm;
+    background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 6mm 14mm 7mm;
     border-top: 3px solid #991b1b;
   }
-  .cover-foot-name {
-    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
-    font-size: 13pt; font-weight: 800; letter-spacing: -.3px; color: #fff;
+  .cover-foot-grid {
+    display: flex; justify-content: space-between; align-items: center; gap: 6mm;
   }
-  .cover-foot-rule { width: 16mm; height: 2px; background: #991b1b; margin: 2.5mm 0 3mm; }
-  .cover-foot-lines { font-size: 9.6pt; line-height: 1.6; color: #cbd5e1; }
-  .cover-foot-reg {
-    margin-top: 3mm; padding-top: 2.5mm; border-top: 1px solid rgba(255,255,255,.12);
-    font-size: 8.4pt; color: #94a3b8; letter-spacing: .02em;
+  .cover-foot-org {
+    font-size: 9.6pt; font-weight: 700; color: #fff; letter-spacing: .01em;
+  }
+  .cover-foot-addr {
+    font-size: 8.6pt; color: #94a3b8; margin-top: 0.8mm; line-height: 1.4;
+  }
+  .cover-foot-contact {
+    text-align: right; font-size: 8.6pt; color: #cbd5e1; line-height: 1.5;
+  }
+  .cover-foot-confidential {
+    font-size: 7.8pt; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-top: 0.8mm; font-weight: 600;
   }
 
   /* Proof Band */
@@ -988,9 +944,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     width: 2.8mm; height: 2.8mm; background: #2563eb; border-radius: 50%;
   }
 
+  /* Trimmed to make room on the closing page for the scan card beneath it.
+     This block is an address, read once; the card under it is the action. */
   .contact {
     display: flex; gap: 6mm; align-items: flex-start;
-    background: #0f172a; color: #fff; padding: 4mm 5.5mm; margin: 5mm 0 0; font-size: 9.2pt; line-height: 1.5; border-radius: 2mm;
+    background: #0f172a; color: #fff; padding: 3.2mm 5.5mm; margin: 4mm 0 0; font-size: 9pt; line-height: 1.45; border-radius: 2mm;
   }
   .contact-l {
     font-size: 7.8pt; text-transform: uppercase; letter-spacing: .12em;
@@ -1188,35 +1146,33 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         ${proofBand(true)}
       </div>
       ${
-        /*
-          The scan block, top right of the cover.
+    /*
+      The scan block, top right of the cover.
 
-          It sat mid-page under the document meta, where it had to fight the
-          headline for attention and cost the cover 34mm of the height its title
-          wanted. The masthead had that space standing empty to the right of the
-          logo — and top-right of a cover is where an eye lands after the
-          wordmark. It is also a dark band, which is what a QR wants behind its
-          white plate.
+      It sat mid-page under the document meta, where it had to fight the
+      headline for attention and cost the cover 34mm of the height its title
+      wanted. The masthead had that space standing empty to the right of the
+      logo — and top-right of a cover is where an eye lands after the
+      wordmark. It is also a dark band, which is what a QR wants behind its
+      white plate.
 
-          Caption underneath is deliberately four words. A QR that needs a
-          sentence to explain it has already failed.
-        */
-        input.accessCode || input.accessPending
-          ? `<div class="cover-scan">
-        ${
-          input.accessQrDataUrl
-            ? `<img class="cover-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
-            : '<div class="cover-scan-qr cover-scan-qr-pending"></div>'
-        }
-        <div class="cover-scan-cap">Scan to read online</div>
-        ${
-          input.accessCode
-            ? `<div class="cover-scan-code">Code ${esc(input.accessCode)}</div>`
-            : '<div class="cover-scan-code cover-scan-code-pending">Code on issue</div>'
-        }
-      </div>`
-          : ''
+      Caption underneath is deliberately four words. A QR that needs a
+      sentence to explain it has already failed.
+    */
+    input.accessCode || input.accessPending
+      ? `<div class="cover-scan">
+        ${input.accessQrDataUrl
+        ? `<img class="cover-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read this proposal online">`
+        : '<div class="cover-scan-qr cover-scan-qr-pending"></div>'
       }
+        <div class="cover-scan-cap">Scan to read online</div>
+        ${input.accessCode
+        ? `<div class="cover-scan-code">Code ${esc(input.accessCode)}</div>`
+        : '<div class="cover-scan-code cover-scan-code-pending">Code on issue</div>'
+      }
+      </div>`
+      : ''
+    }
     </div>
   </div>
   <div class="stripe"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
@@ -1262,11 +1218,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 ${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
-    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable.${
-      input.proof
+    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a STEM, robotics and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable.${input.proof
         ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
         : ''
-    }</p>
+      }</p>
     <!--
       Mission and vision are written as one argument, not two slogans: the
       mission is what changes inside the classroom, the vision is how far what
@@ -1290,16 +1245,15 @@ ${on('intro') ? `  <section>
     <p class="muted" style="margin-top:5mm">The fees, the progression and the responsibilities on each side are set out here exactly as they run in our partner schools today.</p>
   </section>` : ''}
 ${splitOverview && on('fieldProof') ? fieldProofSection : ''}
-${
-  splitOverview
-    ? `  ${portfolioBlock()}
+${splitOverview
+      ? `  ${portfolioBlock()}
 </div>
 
 <div class="page">
   <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 `
-    : ''
-}
+      : ''
+    }
 ${on('pitch') ? `  <section>
     <div class="rule"></div>
     <h2>Why this, and why now</h2>
@@ -1311,11 +1265,11 @@ ${on('pitch') ? `  <section>
     </div>
   </section>` : ''}
 ${
-  // Four claims, then photographs of them being true. Only when the overview took
-  // two sheets: that page has the room for a strip, and on the single-sheet
-  // layout there is none.
-  splitOverview ? galleryStrip(0, 'The programme running', true) : ''
-}
+    // Four claims, then photographs of them being true. Only when the overview took
+    // two sheets: that page has the room for a strip, and on the single-sheet
+    // layout there is none.
+    splitOverview ? galleryStrip(0, 'The programme running', true) : ''
+    }
   ${splitOverview ? '' : portfolioBlock()}
 </div>
 
@@ -1325,8 +1279,7 @@ ${
 <div class="page">
   <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
-  ${
-    journey()
+  ${journey()
       ? `<section>
     <div class="rule"></div>
     <h2>What a child walks out with</h2>
@@ -1334,7 +1287,7 @@ ${
     ${journey()}
   </section>`
       : ''
-  }
+    }
 
 
 ${on('disciplines') ? `  <section>
@@ -1342,8 +1295,8 @@ ${on('disciplines') ? `  <section>
     <h2>What we teach</h2>
     <div class="disc">
       ${DISCIPLINES.map(
-        (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,
-      ).join('')}
+      (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,
+    ).join('')}
     </div>
   </section>` : ''}
 
@@ -1353,12 +1306,12 @@ ${on('rollout') ? `  <section>
     <p class="muted">The first objection is never price, it is disruption. This is the whole of it.</p>
     <div class="phases">
       ${ROLLOUT_PHASES.map(
-        (p) => `<div class="phase">
+      (p) => `<div class="phase">
         <div class="phase-when">${esc(p.when)}</div>
         <div class="phase-name">${esc(p.phase)}</div>
         <div class="phase-body">${esc(p.body)}</div>
       </div>`,
-      ).join('')}
+    ).join('')}
     </div>
   </section>` : ''}
 </div>
@@ -1377,13 +1330,12 @@ ${on('rollout') ? `  <section>
 
     <div class="offers">
       ${offers
-        .map((o) => offerCard(o, !!input.scopeToOffer && o.scope === input.scopeToOffer))
-        .join('')}
+      .map((o) => offerCard(o, !!input.scopeToOffer && o.scope === input.scopeToOffer))
+      .join('')}
     </div>
-    <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${
-      input.validUntilLabel
-        ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
-        : ''
+    <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${input.validUntilLabel
+      ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
+      : ''
     }</p>
   </section>
 
@@ -1413,9 +1365,8 @@ ${on('sideBySide') ? `  <section>
   </section>` : ''}
 </div>
 
-${
-  on('curriculum') && primary.length
-    ? `<div class="page">
+${on('curriculum') && primary.length
+      ? `<div class="page">
   <div class="pagehead"><span><b>Primary Pathway</b> · Basic 1 to Basic 6</span><span>${esc(curriculum?.title ?? '')}</span></div>
   <section>
     <div class="rule"></div>
@@ -1424,12 +1375,11 @@ ${
   </section>
   <div class="years">${primary.map(yearCard).join('')}</div>
 </div>`
-    : ''
-}
+      : ''
+    }
 
-${
-  on('curriculum') && secondary.length
-    ? `<div class="page">
+${on('curriculum') && secondary.length
+      ? `<div class="page">
   <div class="pagehead"><span><b>Secondary Pathway</b> · JSS 1 to SS 3</span><span>${esc(curriculum?.title ?? '')}</span></div>
   <section>
     <div class="rule"></div>
@@ -1438,8 +1388,8 @@ ${
   </section>
   <div class="years">${secondary.map(yearCard).join('')}</div>
 </div>`
-    : ''
-}
+      : ''
+    }
 
 <!--
   The case for changing, on its own sheet.
@@ -1454,17 +1404,16 @@ ${
   is switched on, so turning all three off in the studio removes the sheet rather
   than leaving a blank one.
 -->
-${
-  on('comparison') || on('zeroCapex') || on('caseStudies')
-    ? `<div class="page">
+${on('comparison') || on('zeroCapex') || on('caseStudies')
+      ? `<div class="page">
   <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}</span></div>
 
   ${transformationTableBlock()}
   ${zeroCapexBlock()}
   ${studentCaseStudiesBlock()}
 </div>`
-    : ''
-}
+      : ''
+    }
 
 <!-- How it starts, and the place to say yes. Always the last page: the close
      must never depend on a section that might not render. -->

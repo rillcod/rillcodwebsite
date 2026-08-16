@@ -178,55 +178,55 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 
   h1, h2, h3, .brand, .party .nm, .doctitle h1 { font-family: "Plus Jakarta Sans", "Inter", sans-serif; }
 
-  .head { display: flex; justify-content: space-between; align-items: flex-end;
-    border-bottom: 3px solid #991b1b; padding-bottom: 3mm; margin-bottom: 4.5mm; }
-  .head-l .brand { font-size: 16pt; font-weight: 800; color: #0f172a; letter-spacing: -.4px; }
-  .head-l .tag { font-size: 8.2pt; text-transform: uppercase; letter-spacing: .1em; color: #991b1b; font-weight: 700; }
+  .head { display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 3px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 3.8mm; }
+  .head-l { min-width: 0; }
+  .head-l .brand { font-size: 16pt; font-weight: 800; color: #0f172a; letter-spacing: -.5px; line-height: 1.1; }
+  .head-l .tag { font-size: 8.4pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; margin-top: 0.5mm; }
   .head-r { text-align: right; font-size: 8.5pt; color: #64748b; }
-  .head-r b { display: block; color: #0f172a; font-size: 9.5pt; font-weight: 700; }
+  .head-r b { display: block; color: #0f172a; font-size: 9.6pt; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; }
 
   /* The document names itself in type, not in a tinted box. It was the last of
      the boxes, and on a page whose content was clipping by 19px it was costing
      roughly 10mm to say what the masthead above it already implies. Bigger and
      quieter at the same time. */
-  .doctitle { text-align: center; margin: 0 0 4mm; }
-  .doctitle h1 { font-size: 19pt; margin: 0 0 1.4mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
-  .doctitle .sub { font-size: 9.4pt; color: #64748b; font-weight: 500; }
+  .doctitle { text-align: center; margin: 0 0 3mm; }
+  .doctitle h1 { font-size: 17pt; margin: 0 0 1.1mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
+  .doctitle .sub { font-size: 9pt; color: #64748b; font-weight: 500; }
   /* Scan, or type the code, or type the address — in that order of effort. */
-  /* ── Scan me ──────────────────────────────────────────────────────────
-     The same card the proposal cover carries, sized for a page that has 6mm to
-     spare rather than 20mm. It was a pale grey strip that read as a footnote;
-     on the page where a school decides whether to sign, the route to signing
-     should not look like fine print. Dark, so it carries on white, and the red
-     rule ties it to the accent under the title. */
+  /* ── Scan me ────────────────────────────────────────────────────────── */
   .online {
-    display: flex; align-items: center; gap: 3.5mm;
-    font-size: 8pt; color: #cbd5e1; line-height: 1.45;
-    margin: -1mm auto 3.5mm; max-width: 128mm;
+    display: flex; align-items: center; gap: 4.5mm;
+    font-size: 8.4pt; color: #cbd5e1; line-height: 1.45;
+    margin: -1.5mm auto 2.6mm; max-width: 145mm;
     background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
-    border-left: 2mm solid #dc2626; border-radius: 0 1.5mm 1.5mm 0;
-    padding: 2.2mm 4mm 2.2mm 3mm;
+    border-left: 2.8mm solid #dc2626; border-radius: 0 2mm 2mm 0;
+    padding: 2.2mm 5mm 2.2mm 3.5mm;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, .18);
   }
   /* White plate: a QR printed straight onto navy will not resolve on a camera. */
   .online-qr {
-    width: 14mm; height: 14mm; display: block; flex: none;
-    background: #fff; padding: 1mm; border-radius: 1mm;
+    width: 15mm; height: 15mm; display: block; flex: none;
+    background: #fff; padding: 1mm; border-radius: 1.2mm;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   }
   /* The empty plate on a preview: same box, visibly nothing in it yet. */
-  .online-qr-pending { background: #e2e8f0; border: 1px dashed #94a3b8; }
-  .sign-scan-qr-pending { background: #e2e8f0; border: 1px dashed #94a3b8; }
+  .online-qr-pending { background: rgba(255,255,255,.12); border: 1.5px dashed rgba(255,255,255,.45); }
+  .sign-scan-qr-pending { background: rgba(255,255,255,.12); border: 2px dashed rgba(255,255,255,.45); }
   .online-txt { text-align: left; }
   .online-lead {
-    font-size: 6.8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 7.4pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
-  .online-txt b { display: block; color: #fff; font-size: 9pt; letter-spacing: .01em; margin-top: .4mm; }
-  .online-txt span b { display: inline; font-size: 8pt; }
+  .online-txt > b { display: block; color: #fff; font-size: 10pt; letter-spacing: -.1px; margin-top: .6mm; font-weight: 800; }
+  .online-txt span b { display: inline; color: #fff; font-size: inherit; font-weight: 700; letter-spacing: 0; margin: 0; }
+  .online-txt > span { font-size: 8.4pt; color: #cbd5e1; margin-top: 0.8mm; display: block; }
   .online-code {
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
-    font-size: 8.6pt; color: #fff; font-weight: 700;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
+    display: inline-block; font-size: 9.4pt; color: #fca5a5; font-weight: 700;
+    background: rgba(255,255,255,0.12); padding: 0.2mm 1.6mm; border-radius: 1mm;
   }
-  .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2.4mm auto 0; }
+  .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2mm auto 0; }
 
   /* A clause heading is type, not a container.
      Every section used to be a full-width solid navy bar. Three of them stack up
@@ -248,7 +248,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   /* 3.6mm, not 4.2mm. The parties page carries three clauses and a long school
      name reaches into all of them, so the gaps between clauses are where the
      room comes from rather than the clauses themselves. */
-  section { margin-bottom: 3.6mm; break-inside: avoid; page-break-inside: avoid; }
+  section { margin-bottom: 3mm; break-inside: avoid; page-break-inside: avoid; }
   li, tr, .sign, .sign-box, .party, .terms-line, table {
     break-inside: avoid; page-break-inside: avoid;
   }
@@ -268,8 +268,8 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   ol { margin: 0 0 2.5mm; padding-left: 5.5mm; }
   li { margin-bottom: 1.1mm; color: #334155; }
 
-  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
-  .party { border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 2.8mm 3.6mm; border-radius: 1.5mm; background: #f8fafc; }
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  .party { border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 2.2mm 3.4mm; border-radius: 1.5mm; background: #f8fafc; }
   .party .role { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; margin-bottom: 1.2mm; font-weight: 700; }
   .party .nm { font-weight: 700; font-size: 10.6pt; color: #0f172a; }
   .party .meta { font-size: 8.5pt; color: #64748b; margin-top: 1.2mm; line-height: 1.45; }
@@ -278,11 +278,12 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      boxes. Boxing every block is what made this read like a form to be endured
      rather than an agreement to be read — and the borders cost height on a page
      that was already clipping. */
-  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm 8mm; }
-  .duties > div { border-top: 1px solid #e2e8f0; padding-top: 2.4mm; }
-  .duties li { margin-bottom: .8mm; }
+  .duties { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm 7mm; }
+  .duties > div { border-top: 1px solid #e2e8f0; padding-top: 1.8mm; }
+  .duties ol { line-height: 1.4; }
+  .duties li { margin-bottom: .4mm; }
   .duties ol { padding-left: 5mm; }
-  .duties h3 { margin: 0 0 2mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+  .duties h3 { margin: 0 0 1.4mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
 
   .terms-line { background: #fff5f5; border: 1px solid #fecaca; padding: 3.5mm 4.5mm; margin-bottom: 3.5mm; border-radius: 1.5mm; }
   .terms-line .lbl { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; }
@@ -327,26 +328,28 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      20mm to spare can carry — this is the one instruction on the sheet that
      turns a printed contract into a signed one. */
   .sign-scan {
-    display: flex; align-items: center; gap: 5mm; break-inside: avoid;
-    margin: 4mm 0 6mm; padding: 4mm 6mm 4mm 4.5mm;
+    display: flex; align-items: center; gap: 6mm; break-inside: avoid;
+    margin: 4mm 0 5mm; padding: 4mm 6mm 4mm 5mm;
     background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
-    border-left: 2.5mm solid #dc2626; border-radius: 0 2mm 2mm 0;
-    box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
+    border-left: 3.5mm solid #dc2626; border-radius: 0 3mm 3mm 0;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .22);
   }
   .sign-scan-qr {
-    width: 22mm; height: 22mm; display: block; flex: none;
-    background: #fff; padding: 1.5mm; border-radius: 1.2mm;
+    width: 34mm; height: 34mm; display: block; flex: none;
+    background: #fff; padding: 2.2mm; border-radius: 2.5mm;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
   }
   .sign-scan-lead {
-    font-size: 7.6pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 7.8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
-  .sign-scan-title { display: block; font-size: 11.5pt; color: #fff; margin-top: .8mm; font-weight: 800; }
-  .sign-scan-sub { font-size: 8.2pt; color: #cbd5e1; margin-top: 1.6mm; line-height: 1.5; }
+  .sign-scan-title { display: block; font-size: 11.8pt; color: #fff; margin-top: .8mm; font-weight: 800; letter-spacing: -.15px; }
+  .sign-scan-sub { font-size: 8.6pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
   .sign-scan-sub b { color: #fff; font-weight: 700; }
   .sign-scan-code {
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .16em;
-    font-size: 9.4pt; color: #fff; font-weight: 700;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
+    font-size: 9.8pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
+    padding: 0.5mm 2.2mm; border-radius: 1.2mm;
   }
   .foot { border-top: 1px solid #e2e8f0; margin-top: 7mm; padding-top: 3mm;
     font-size: 8pt; color: #64748b; display: flex; justify-content: space-between; }
@@ -356,9 +359,18 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 
 <div class="page">
   <div class="head">
+    <!--
+      No mark in the running head. A contract's letterhead states who is writing
+      and under what reference; a logo on the page where the parties are named
+      reads as marketing on an instrument that is not marketing — and it was
+      setting the height of the tightest page in the document, which is how a
+      clause ends up clipped. The proposal is the brochure; this is the deed.
+    -->
     <div class="head-l">
-      <div class="brand">${esc(brandContact.displayName)}</div>
-      <div class="tag">${esc(brandContact.tagline)}</div>
+      <div>
+        <div class="brand">${esc(brandContact.displayName)}</div>
+        <div class="tag">${esc(brandContact.tagline)}</div>
+      </div>
     </div>
     <div class="head-r"><b>${esc(input.reference)}</b>${esc(input.dateLabel)}</div>
   </div>
@@ -420,6 +432,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     <p>The parties intend to establish practical technology education as a standing part of the school's offering — not a one-off enrichment activity — so that students progress year on year and leave with demonstrable work. The partnership positions ${esc(school.name)} as a school preparing its students for technical and entrepreneurial work, and gives parents evidence of that preparation each term.</p>
   </section>
 
+
   <section>
     <h2><span class="cl">2.0</span> Commitments of the Parties</h2>
     <div class="duties">
@@ -461,6 +474,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     </div>
     <div class="head-r"><b>${esc(input.reference)}</b>Page 2</div>
   </div>
+
 
   <section>
     <h2><span class="cl">3.0</span> Financial Framework</h2>
