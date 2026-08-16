@@ -93,6 +93,8 @@ export type ProposalInput = {
    * Null when the document has not been issued yet and has no link.
    */
   accessQrDataUrl?: string | null;
+  /** Preview: draw the scan card at full size, with no code behind it yet. */
+  accessPending?: boolean;
   /** Classroom photography. Empty renders no gallery rather than empty frames. */
   photos?: readonly string[];
   /**
@@ -798,6 +800,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     width: 17mm; height: 17mm; display: block; flex: none;
     background: #fff; padding: 1.2mm; border-radius: 1.2mm;
   }
+  /* The empty plate on a preview: the same box, visibly nothing in it yet, so
+     the card takes exactly the room it will take once issued. */
+  .scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.45); }
   .scan-lead {
     font-size: 8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
@@ -1122,12 +1127,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     ${
       // How to reopen this after the email is gone. On the cover, where somebody
       // holding a printed copy will actually look.
-      input.accessCode
+      input.accessCode || input.accessPending
         ? `<div class="scan">
       ${
         input.accessQrDataUrl
           ? `<img class="scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to open this proposal online">`
-          : ''
+          : '<div class="scan-qr scan-qr-pending"></div>'
       }
       <div>
         <div class="scan-lead">Scan me</div>
@@ -1137,8 +1142,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
              photocopy and a forwarded photograph of page one. -->
         <div class="scan-sub">
           Share it with your board and reply from the same page. No app, no login.<br>
-          No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
-          <span class="scan-code">${esc(input.accessCode)}</span>
+          ${
+            input.accessCode
+              ? `No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+          <span class="scan-code">${esc(input.accessCode)}</span>`
+              : 'Scan code and access code are assigned when this is issued.'
+          }
         </div>
       </div>
     </div>`

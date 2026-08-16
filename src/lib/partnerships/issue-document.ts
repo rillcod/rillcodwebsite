@@ -183,7 +183,9 @@ export async function previewPartnershipDocument(
 ): Promise<Omit<IssuedDocument, 'id'> & { preview: true }> {
   const prepared = await prepareDocument(input);
   const reference = input.kind === 'mou' ? 'MoU — not yet issued' : 'Proposal — not yet issued';
-  const { html, narrativeSource } = await prepared.render(reference);
+  // No code and no token yet, but the card is drawn: a preview that hides a
+  // panel the issued document will carry is not a preview of that document.
+  const { html, narrativeSource } = await prepared.render(reference, null, null, true);
 
   return {
     preview: true,
@@ -318,9 +320,33 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
     reference: string,
     accessCode: string | null = null,
     shareToken: string | null = null,
+    /*
+      Draw the scan card, but with nothing behind it yet.
+
+      A preview has no row, so it has no code and no token — and the card was
+      simply omitted, which made the preview a different document from the one
+      that gets issued. Somebody reads a proposal, approves it, issues it, and
+      the real thing carries a 30mm panel the preview never showed. On the cover
+      that is the difference between a page that fits and a page that does not.
+
+      So the preview draws the card at its true size and says the code is
+      assigned on issue. Nothing false is printed: there is no invented code and
+      no QR that leads anywhere.
+    */
+    accessPending = false,
   ) => {
     const dateLabel = todayLabel();
-    return renderDocument({ input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken });
+    return renderDocument({
+      input,
+      school,
+      agreedTerms,
+      curriculum,
+      reference,
+      dateLabel,
+      accessCode,
+      shareToken,
+      accessPending,
+    });
   };
 
   return { school, agreedTerms, curriculum, snapshot, render };
@@ -340,8 +366,10 @@ async function renderDocument(ctx: {
   accessCode?: string | null;
   /** Secret behind the QR a reader scans off the printed page. */
   shareToken?: string | null;
+  /** Draw the card at full size with "assigned when issued" in place of a code. */
+  accessPending?: boolean;
 }): Promise<{ html: string; narrativeSource: ProposalNarrative['source'] | null }> {
-  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken } = ctx;
+  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken, accessPending } = ctx;
   const kind = input.kind;
 
   let html: string;
@@ -380,6 +408,7 @@ async function renderDocument(ctx: {
       stage: input.stage ?? null,
       accessCode,
       accessQrDataUrl,
+      accessPending,
     });
   } else {
     // Zero or a negative number means "no expiry stated" rather than an
@@ -449,6 +478,7 @@ async function renderDocument(ctx: {
       stage: input.stage ?? null,
       accessCode,
       accessQrDataUrl,
+      accessPending,
       validUntilLabel: validUntil,
       // Counted now, so the cover cannot claim a footprint we have grown out of
       // or shrunk below. The recipient is excluded from its own proof, and null

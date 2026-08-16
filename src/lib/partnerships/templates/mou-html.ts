@@ -52,6 +52,8 @@ export type MouInput = {
    * Null when the document has not been issued yet and has no link.
    */
   accessQrDataUrl?: string | null;
+  /** Preview: draw the scan card at full size, with no code behind it yet. */
+  accessPending?: boolean;
   /** Headcount used to illustrate clause 3. Zero hides the worked example. */
   illustrativeStudents?: number;
   /**
@@ -210,6 +212,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     width: 14mm; height: 14mm; display: block; flex: none;
     background: #fff; padding: 1mm; border-radius: 1mm;
   }
+  /* The empty plate on a preview: same box, visibly nothing in it yet. */
+  .online-qr-pending { background: #e2e8f0; border: 1px dashed #94a3b8; }
+  .sign-scan-qr-pending { background: #e2e8f0; border: 1px dashed #94a3b8; }
   .online-txt { text-align: left; }
   .online-lead {
     font-size: 6.8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
@@ -366,20 +371,26 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   ${
     // Where to read and sign it, and how to get back in without the email. On
     // page one because that is where somebody looks when the link has gone.
-    input.accessCode
+    input.accessCode || input.accessPending
       ? `<div class="online">
       ${
         // Scan and it opens. The code beneath is for anybody without a camera to
-        // hand, and the address for anybody who would rather type.
+        // hand, and the address for anybody who would rather type. On a preview
+        // the plate is drawn empty, so the card occupies exactly the room it
+        // will occupy once issued.
         input.accessQrDataUrl
           ? `<img class="online-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to read and sign this agreement">`
-          : ''
+          : '<div class="online-qr online-qr-pending"></div>'
       }
       <div class="online-txt">
         <div class="online-lead">Scan me</div>
         <b>Read and sign this agreement on your phone</b>
-        <span>No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
-        <span class="online-code">${esc(input.accessCode)}</span></span>
+        ${
+          input.accessCode
+            ? `<span>No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+        <span class="online-code">${esc(input.accessCode)}</span></span>`
+            : `<span>Scan code and access code are assigned when this is issued.</span>`
+        }
       </div>
     </div>`
       : ''
@@ -574,20 +585,24 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         scanning and emailing it back. So the QR is 22mm rather than 14mm, and
         the wording says sign rather than read.
       */
-      input.accessCode
+      input.accessCode || input.accessPending
         ? `<div class="sign-scan">
       ${
         input.accessQrDataUrl
           ? `<img class="sign-scan-qr" src="${esc(input.accessQrDataUrl)}" alt="Scan to sign this agreement" />`
-          : ''
+          : '<div class="sign-scan-qr sign-scan-qr-pending"></div>'
       }
       <div>
         <div class="sign-scan-lead">Scan to sign</div>
         <b class="sign-scan-title">Execute this agreement from your phone</b>
         <div class="sign-scan-sub">
           Takes about a minute. Signed on screen, binding, and a copy is emailed to both parties.<br>
-          No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
-          <span class="sign-scan-code">${esc(input.accessCode)}</span>
+          ${
+            input.accessCode
+              ? `No camera? Go to <b>${esc(brandContact.web)}/p</b> and type
+          <span class="sign-scan-code">${esc(input.accessCode)}</span>`
+              : 'Scan code and access code are assigned when this is issued.'
+          }
         </div>
       </div>
     </div>`

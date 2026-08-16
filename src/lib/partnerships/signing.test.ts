@@ -567,3 +567,85 @@ describe('the scan card, front and back', () => {
     expect(noCode).not.toContain(QR);
   });
 });
+
+/**
+ * A preview is a preview of the document that gets issued.
+ *
+ * The scan card only rendered when there was a code, and a preview has no row
+ * and therefore no code — so it was omitted entirely. That made the preview a
+ * different document: somebody read a proposal, approved it, issued it, and the
+ * real thing carried a panel roughly 30mm tall that the preview never showed.
+ * On a cover with 51px of clearance that is the difference between a page that
+ * fits and one that does not.
+ *
+ * `accessPending` draws the card at full size and says the code is assigned on
+ * issue: the geometry matches, and nothing false is printed.
+ */
+describe('the preview shows the card it will print', () => {
+  const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
+  const terms = {
+    id: 't1',
+    school_id: 's1',
+    billing_model: 'per_student',
+    amount_per_student: 15000,
+    fixed_package_price: null,
+    tiers: null,
+    currency: 'NGN',
+    billing_cycle: 'term',
+    rillcod_share_percent: 70,
+    school_share_percent: 30,
+    deposit_amount: 0,
+    status: 'agreed',
+  } as unknown as PartnershipTerms;
+
+  const pendingProposal = () =>
+    buildPartnershipProposalHTML({
+      school,
+      curriculum: null,
+      reference: 'Proposal — not yet issued',
+      dateLabel: '16 August 2026',
+      accessPending: true,
+    });
+
+  const pendingMou = () =>
+    buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: null,
+      reference: 'MoU — not yet issued',
+      dateLabel: '16 August 2026',
+      accessPending: true,
+    });
+
+  it('draws the card on a preview', () => {
+    expect(pendingProposal()).toContain('class="scan-lead"');
+    expect(pendingMou()).toContain('class="online-lead"');
+  });
+
+  it('leaves the QR plate empty rather than inventing a code to scan', () => {
+    expect(pendingProposal()).toContain('scan-qr-pending');
+    expect(pendingMou()).toContain('online-qr-pending');
+    // No <img> QR, because there is no link to encode yet.
+    expect(pendingProposal()).not.toContain('data:image/png;base64');
+  });
+
+  it('says where the code comes from instead of printing digits', () => {
+    for (const html of [pendingProposal(), pendingMou()]) {
+      expect(html).toContain('assigned when this is issued');
+      // Nothing that could be mistaken for a real six-digit code.
+      expect(html).not.toMatch(/and type\s*<span class="(scan|sign-scan|online)-code">/);
+    }
+  });
+
+  it('still prints nothing at all when neither a code nor a pending flag is given', () => {
+    // The issue path passes a code; the preview path passes the flag. A caller
+    // that passes neither is not previewing — it gets no card.
+    const bare = buildPartnershipProposalHTML({
+      school,
+      curriculum: null,
+      reference: 'RC-PROP-2026-00042',
+      dateLabel: '16 August 2026',
+    });
+    expect(bare).not.toContain('class="scan-lead"');
+  });
+});
