@@ -698,3 +698,69 @@ describe('the authority declaration in the stamp', () => {
     }
   });
 });
+
+/**
+ * A contract never prints a page with nothing on it.
+ *
+ * The schedule of learning renders only when a curriculum edition is published,
+ * but its sheet was unconditional — so an MoU issued before publication carried
+ * a numbered page with a header, a footer, an initialling line and nothing in
+ * between, and every page after it claimed a number the document did not have.
+ * A blank page in the middle of an agreement reads as a page that went missing.
+ */
+describe('the MoU without a published curriculum', () => {
+  const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
+  const terms = {
+    id: 't1',
+    school_id: 's1',
+    billing_model: 'per_student',
+    amount_per_student: 15000,
+    fixed_package_price: null,
+    tiers: null,
+    currency: 'NGN',
+    billing_cycle: 'term',
+    rillcod_share_percent: 70,
+    school_share_percent: 30,
+    deposit_amount: 0,
+    status: 'agreed',
+  } as unknown as PartnershipTerms;
+
+  const build = (curriculum: unknown) =>
+    buildPartnershipMouHTML({
+      school,
+      terms,
+      curriculum: curriculum as never,
+      reference: 'RC-MOU-2026-00007',
+      dateLabel: '16 August 2026',
+      accessCode: '482915',
+    });
+
+  const sheets = (html: string) => html.split('<div class="page">').length - 1;
+
+  it('drops the schedule sheet entirely rather than printing it empty', () => {
+    expect(sheets(build(null))).toBe(4);
+    expect(build(null)).not.toContain('Schedule of Learning');
+  });
+
+  it('renumbers what follows, so no footer claims a page that is not there', () => {
+    const html = build(null);
+    // Execution is the last sheet; with no schedule it is page 4, not page 5.
+    expect(html).toContain('Page 4');
+    expect(html).not.toContain('Page 5');
+  });
+
+  it('still carries the parties, the money, the data clause and the signature', () => {
+    // Dropping a sheet must not drop a clause.
+    const html = build(null);
+    for (const clause of [
+      'Parties to the Agreement',
+      'Financial Framework',
+      'Records, Media and Data Protection',
+      'General',
+      'Execution',
+    ]) {
+      expect(html, clause).toContain(clause);
+    }
+    expect(hasSignatureSlot(html)).toBe(true);
+  });
+});

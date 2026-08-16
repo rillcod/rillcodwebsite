@@ -76,7 +76,7 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     });
   });
 
-  it('renders Memorandum of Understanding across exactly 4 structured A4 pages', () => {
+  it('renders Memorandum of Understanding across exactly 5 structured A4 pages', () => {
     const input: MouInput = {
       school: {
         name: 'Corona Secondary School Agbara',
@@ -112,8 +112,9 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     const html = buildPartnershipMouHTML(input);
     const pages = extractPages(html);
 
-    // MoU layout is structured into 4 distinct physical sheets
-    expect(pages.length).toBe(4);
+    // Five sheets now: the records, media and data-protection clause earned one,
+    // and execution keeps its own so a signed copy never shares a page.
+    expect(pages.length).toBe(5);
 
     // Page 1: Parties & Background & Commitments
     expect(pages[0]).toContain('Memorandum of Understanding');
@@ -128,16 +129,21 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     // Page 3: Curriculum Annex
     expect(pages[2]).toContain('Schedule of Learning');
 
-    // Page 4: Execution & Signature Blocks
-    expect(pages[3]).toContain('Execution');
+    // Page 4: Records, media and data protection, then the general clauses.
+    expect(pages[3]).toContain('Records, Media and Data Protection');
+    expect(pages[3]).toContain('General');
+
+    // Page 5: Execution & Signature Blocks — on a sheet of its own, so a signed
+    // copy is never a page that also carried half a clause.
+    expect(pages[4]).toContain('Execution');
     // The execution page carries the prompt to sign from a phone. It used to
     // read "Digital Portal & Online E-Signing", which named a feature; it now
     // asks for the action, which is the only thing this page wants.
-    expect(pages[3]).toContain('Scan to sign');
+    expect(pages[4]).toContain('Scan to sign');
     // The counterparty's box is a delimited region now, not a single point, so
     // that signing replaces the blank ruled line instead of printing the
     // signature underneath it.
-    expect(hasSignatureSlot(pages[3])).toBe(true);
+    expect(hasSignatureSlot(pages[4])).toBe(true);
   });
 
   it('verifies every studio section toggle is wired and strictly respected', () => {

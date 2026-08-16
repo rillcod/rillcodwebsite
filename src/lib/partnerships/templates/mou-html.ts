@@ -87,6 +87,24 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     ? splitByStage(levelsForStage(curriculum.levels, input.stage))
     : { primary: [], secondary: [] };
 
+  /*
+    Page numbers are counted, not typed.
+
+    The schedule prints only when a curriculum edition is published, but its
+    sheet was unconditional — so an MoU issued before publication carried a
+    numbered page with a header, a footer, an initialling line and nothing in
+    between. A blank page in the middle of a contract reads as a page that went
+    missing, which is the worst thing a contract can look like.
+
+    The sheet now appears with its clause or not at all, and everything after it
+    renumbers itself, so the footers never claim a page the document does not
+    have.
+  */
+  const hasSchedule = Boolean(curriculum);
+  const pSchedule = 3;
+  const pClosing = hasSchedule ? 4 : 3;
+  const pExecution = hasSchedule ? 5 : 4;
+
   const shareOn = terms.rillcod_share_percent != null;
   const count = Math.max(0, Math.floor(input.illustrativeStudents ?? 0));
   const example = count > 0 ? computeCharge(terms, count) : null;
@@ -507,18 +525,18 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   <div class="pagefoot"><span>Page 2 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
 </div>
 
-<div class="page">
+${
+  curriculum
+    ? `<div class="page">
   <div class="head">
     <div class="head-l">
       <div class="brand">Memorandum of Understanding</div>
       <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
     </div>
-    <div class="head-r"><b>${esc(input.reference)}</b>Page 3</div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page ${pSchedule}</div>
   </div>
 
-  ${
-    curriculum
-      ? `<section>
+  <section>
     <h2><span class="cl">5.0</span> Schedule of Learning — ${esc(curriculum.title)}</h2>
     <p class="muted">Edition ${esc(curriculum.edition)}. The programme delivered under this Memorandum follows the progression below. Each year carries three termly focuses and a capstone build.</p>
     ${
@@ -537,12 +555,14 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     </table>`
         : ''
     }
-  </section>`
-      : ''
-  }
+  </section>
 
-  <div class="pagefoot"><span>Page 3 · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
+
+  <div class="pagefoot"><span>Page ${pSchedule} · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
 </div>
+`
+    : ''
+}
 
 <!-- Closing clauses and execution. Signatures sit on a sheet of their own so a
      signed copy can never be a page that also carried half a schedule. -->
@@ -552,12 +572,41 @@ export function buildPartnershipMouHTML(input: MouInput): string {
       <div class="brand">Memorandum of Understanding</div>
       <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
     </div>
-    <div class="head-r"><b>${esc(input.reference)}</b>Page 4</div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page ${pClosing}</div>
   </div>
 
 
+  <!--
+    Clause 6.0 states what the platform already does, not what a template says
+    a contract ought to contain.
+
+    Every obligation here maps to something built: portal logins scoped to the
+    school, the student and a linked parent; termly progress reports; the school
+    gallery; the published privacy notice; the account-deletion route. The one
+    exception is deliberate — nothing in the system captures consent to
+    photograph a child, and the app cannot, because the parent relationship
+    belongs to the school. So the agreement puts that obligation where it can
+    actually be met, and requires the school to name any learner who must not be
+    recorded.
+
+    That gap is real and worth stating plainly: this school teaches children,
+    records their capstone work and publishes photographs of classrooms, and
+    until now no document said who obtains permission for any of it.
+  -->
   <section>
-    <h2><span class="cl">6.0</span> General</h2>
+    <h2><span class="cl">6.0</span> Records, Media and Data Protection</h2>
+    <ol>
+      <li>The platform holds each learner's name, class, attendance, assessment scores and termly progress reports. Access is limited to the school's authorised staff, the learner, and a parent or guardian linked to that learner through their own login.</li>
+      <li>Personal data is processed only to deliver and report on the programme, in line with Nigerian data protection law and the notice published at ${esc(brandContact.web)}/privacy-policy. Neither party sells personal data or discloses it to anyone else except where the law requires it.</li>
+      <li>Practical work is photographed and recorded so a learner's capstone can be shown to their parents. ${esc(school.name)} obtains parental consent before a learner takes part and tells ${esc(brandContact.registeredName)} in writing of any learner who must not be photographed or recorded. That learner takes part in every lesson regardless.</li>
+      <li>Those recordings are used for the school's own progress reports. They are used in ${esc(brandContact.registeredName)}'s teaching materials or promotion only where ${esc(school.name)} has given separate written consent, which may be withdrawn at any time; the material is then removed within 30 days.</li>
+      <li>${esc(brandContact.registeredName)} owns the curriculum, lesson materials and platform. The learner owns the work they make. ${esc(school.name)} may keep and use its own learners' records and work without charge.</li>
+      <li>A parent or the school may request deletion of a learner's account and personal data at ${esc(brandContact.web)}/account-deletion. Records either party is required by law to keep are retained for that period only.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="cl">7.0</span> General</h2>
     <ol>
       <li>Each party is responsible for the conduct and safeguarding compliance of its own personnel on the school's premises.</li>
       <li>Neither party may use the other's name or marks in publicity without prior written consent, which is not unreasonably withheld.</li>
@@ -566,8 +615,23 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     </ol>
   </section>
 
+  <div class="pagefoot"><span>Page ${pClosing} · ${esc(input.reference)}</span><span>Initialled …………… / ……………</span></div>
+</div>
+
+<!-- Execution on a sheet of its own. A signed copy should never be a page that
+     also carried half a clause: the signature has to sit with the parties and
+     the reference, and nothing else competing for the space. -->
+<div class="page">
+  <div class="head">
+    <div class="head-l">
+      <div class="brand">Memorandum of Understanding</div>
+      <div class="tag">${esc(brandContact.displayName)} &amp; ${esc(school.name)}</div>
+    </div>
+    <div class="head-r"><b>${esc(input.reference)}</b>Page ${pExecution}</div>
+  </div>
+
   <section>
-    <h2><span class="cl">7.0</span> Execution</h2>
+    <h2><span class="cl">8.0</span> Execution</h2>
     <p class="muted">Signed by the duly authorised representatives of the parties on the date first written above.</p>
     
     ${
