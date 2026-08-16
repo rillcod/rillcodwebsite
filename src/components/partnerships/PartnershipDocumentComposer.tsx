@@ -29,6 +29,7 @@ import { OFFERABLE_SCHOOL_SHARES, STANDARD_SCHOOL_SHARE_PERCENT } from "@/lib/pa
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
 import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
+import type { ProposalNarrative } from "@/lib/partnerships/proposal-narrative";
 
 const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
@@ -72,6 +73,16 @@ export function PartnershipDocumentComposer({
   const [offerCode, setOfferCode] = useState<string>("");
   const [stage, setStage] = useState<"primary" | "secondary" | "both">("both");
   const [useAI, setUseAI] = useState(false);
+  /*
+    The exact copy the last preview rendered, held so Issue can reuse it.
+
+    Null means "generate at issue", which is right for a document nobody has
+    previewed and right again the moment a setting changes: copy generated
+    against a different school, a different stage or different notes is not the
+    copy this proposal should carry, and reusing it would be a subtler version
+    of the bug this exists to fix.
+  */
+  const [approvedNarrative, setApprovedNarrative] = useState<ProposalNarrative | null>(null);
   const [validityDays, setValidityDays] = useState("90");
   const [notes, setNotes] = useState("");
   const [proposedSchoolShare, setProposedSchoolShare] = useState(String(STANDARD_SCHOOL_SHARE_PERCENT));
@@ -114,6 +125,18 @@ export function PartnershipDocumentComposer({
     setError("");
   }, [school.id, school.student_count, school.email]);
 
+  /*
+    Approved copy is thrown away the moment the brief behind it changes.
+
+    The words were generated for one school, one stage, one set of notes. Change
+    any of those and reusing them would issue a proposal arguing a case that is
+    no longer the one being made — which is a quieter version of the bug the
+    approved copy exists to prevent. Preview again and the new words are held.
+  */
+  useEffect(() => {
+    setApprovedNarrative(null);
+  }, [school.id, stage, notes, useAI, offerCode]);
+
   // The proposed split follows what was actually agreed, and only that. A
   // primitive dependency, so an unchanged rate re-fetched is not a change.
   useEffect(() => {
@@ -154,6 +177,18 @@ export function PartnershipDocumentComposer({
       recipient_email: !preview && sendEmail ? recipientEmail.trim() : null,
       // The same settings on both paths, so what was previewed is what issues.
       studio: kind === 'proposal' ? studio : null,
+      /*
+        The copy the last preview came back with, sent so the issue prints it.
+
+        With "tailor with AI" ticked, preview and issue each called the model —
+        two generations of the opening, the four benefits and the closing, of
+        which only the first was ever read. You approved one proposal and the
+        school received another, with no way to notice.
+
+        Cleared whenever a setting that changes the pitch changes, so a stale
+        generation cannot outlive the preview it belongs to.
+      */
+      narrative: preview ? null : approvedNarrative,
     };
   }
 
@@ -169,6 +204,9 @@ export function PartnershipDocumentComposer({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not build the preview.');
+      // Hold the words that were just rendered, so Issue prints these and not a
+      // second, different generation of them.
+      setApprovedNarrative(json?.narrative ?? null);
       await onPreview(json as IssuedDocument);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not build the preview.');

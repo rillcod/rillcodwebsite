@@ -13167,6 +13167,10 @@ export type Database = {
         Row: {
           access_code: string | null
           created_at: string
+          first_opened_at: string | null
+          last_opened_at: string | null
+          open_count: number
+          valid_until: string | null
           created_by: string | null
           document_html: string | null
           document_kind: string
@@ -13190,6 +13194,10 @@ export type Database = {
         Insert: {
           access_code?: string | null
           created_at?: string
+          first_opened_at?: string | null
+          last_opened_at?: string | null
+          open_count?: number
+          valid_until?: string | null
           created_by?: string | null
           document_html?: string | null
           document_kind: string
@@ -13212,6 +13220,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          first_opened_at?: string | null
+          last_opened_at?: string | null
+          open_count?: number
+          valid_until?: string | null
           created_by?: string | null
           document_html?: string | null
           document_kind?: string

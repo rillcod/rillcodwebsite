@@ -49,6 +49,7 @@ import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
 import { SchoolGalleryViewer } from "@/components/schools/SchoolGalleryViewer";
 import { PartnershipOutreachModal } from "@/components/partnerships/PartnershipOutreachModal";
+import { PartnershipPipeline } from "@/components/partnerships/PartnershipPipeline";
 import { defaultStudioConfig, type ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type {
   IssuedDocument,
@@ -74,6 +75,17 @@ type Preview = {
 };
 
 type WorkspaceTab = "compose" | "terms" | "studio" | "gallery" | "archive";
+
+/*
+  Which of the two jobs this page is doing.
+
+  "school" is the workspace: one school, its terms, its documents. "pipeline" is
+  the business: every document across every school, and what the signed ones
+  have in common. They were never separable before because the archive only
+  existed per school, so anything spanning schools — what is going cold, what
+  actually converts — could not be seen at all.
+*/
+type PageView = "school" | "pipeline";
 
 /**
  * A wa.me link with the message already written.
@@ -108,6 +120,7 @@ export default function PartnershipsPage() {
   const [selectedId, setSelectedId] = useState("");
   const [mobileShowSidebar, setMobileShowSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("compose");
+  const [pageView, setPageView] = useState<PageView>("school");
 
   const [terms, setTerms] = useState<TermsRow[]>([]);
   const [agreed, setAgreed] = useState<TermsRow | null>(null);
@@ -356,6 +369,48 @@ export default function PartnershipsPage() {
         </div>
       )}
 
+      {/*
+        The two jobs this page does, chosen at the top.
+
+        Everything below used to be per-school only, so the questions that span
+        schools — what is going cold, what has never been opened, what schools
+        actually sign — had nowhere to be asked.
+      */}
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-full sm:w-auto sm:inline-flex">
+        {(
+          [
+            { v: "school" as const, label: "School workspace" },
+            { v: "pipeline" as const, label: "All documents" },
+          ]
+        ).map((v) => (
+          <button
+            key={v.v}
+            onClick={() => setPageView(v.v)}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] ${
+              pageView === v.v
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {pageView === "pipeline" && (
+        <PartnershipPipeline
+          onOpenSchool={(id) => {
+            // Acting on a document happens in the school's own workspace, which
+            // owns those buttons. This is the jump between the two views.
+            setPageView("school");
+            selectSchool(id);
+            setActiveTab("archive");
+          }}
+        />
+      )}
+
+      {pageView === "school" && (
+        <>
       {/* Mobile School Switcher Bar (Visible on phones & small screens) */}
       {selected && (
         /*
@@ -948,6 +1003,8 @@ export default function PartnershipsPage() {
           isOpen={showOutreachModal}
           onClose={() => setShowOutreachModal(false)}
         />
+      )}
+        </>
       )}
     </div>
   );

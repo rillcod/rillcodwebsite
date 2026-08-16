@@ -33,11 +33,24 @@ import { describeTerms } from "@/lib/partnerships/terms";
 // pane and the outbound email. Three hand-built URLs is how one of them ended up
 // pointing at the reference.
 import { documentSharePath } from "@/lib/partnerships/signing";
+// The same expiry rule the public signing route enforces, so the badge here
+// cannot say a quote stands while the sign button refuses it.
+import { isQuoteExpired } from "@/lib/partnerships/issue-document";
 import type { IssuedDocumentRow } from "./types";
 
 /** Where the public can read this document, or null when there is no safe link. */
 function portalUrl(doc: IssuedDocumentRow): string | null {
   return documentSharePath(doc.share_token ?? null);
+}
+
+/** How many times the recipient has opened the link. */
+function opens(doc: IssuedDocumentRow): number {
+  return Number(doc.open_count) || 0;
+}
+
+/** Have the quoted fees lapsed? Same rule the signing route enforces. */
+function lapsed(doc: IssuedDocumentRow): boolean {
+  return isQuoteExpired(doc.valid_until ?? null);
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -49,7 +62,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const ACTION =
-  "px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40";
+  "shrink-0 px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[34px] inline-flex items-center";
 
 /** What may follow the state a document is in. */
 function nextStates(status: string): Array<{ to: string; label: string }> {
@@ -58,16 +71,20 @@ function nextStates(status: string): Array<{ to: string; label: string }> {
       return [
         { to: "sent", label: "Mark sent" },
         { to: "signed", label: "Record signature" },
-        { to: "void", label: "Void" },
+        { to: "void", label: "Withdraw" },
       ];
     case "sent":
       return [
         { to: "signed", label: "Record signature" },
+        // Back to draft, so a document issued with a mistake can be redrawn or
+        // deleted rather than leaving the school holding two copies of one
+        // offer under two different references.
+        { to: "draft", label: "Recall to draft" },
         { to: "declined", label: "Declined" },
-        { to: "void", label: "Void" },
+        { to: "void", label: "Withdraw" },
       ];
     case "signed":
-      return [{ to: "void", label: "Void" }];
+      return [{ to: "void", label: "Withdraw" }];
     default:
       return [];
   }
@@ -121,7 +138,36 @@ export function PartnershipDocumentArchive({
       setSignerRole("");
       return;
     }
-    if (to === "void" && !confirm(`Void ${doc.reference}? It stays on record, marked void.`)) return;
+    if (
+      to === "void" &&
+      !confirm(
+        `Withdraw ${doc.reference}? It stays on record, and the link stops working for the school.`,
+      )
+    ) {
+      return;
+    }
+    /*
+      Recall warns when the school has already read it.
+
+      The read receipt is exactly what makes this decision answerable: pulling
+      back something nobody opened is housekeeping, pulling back something a
+      proprietor has read three times is a conversation you should have with
+      them first. The button still allows it — whoever is sending knows things
+      the counter does not.
+    */
+    if (to === "draft") {
+      const opens = Number(doc.open_count) || 0;
+      const warning = opens
+        ? `${doc.reference} has already been opened ${opens} time${opens === 1 ? "" : "s"} by the school. `
+        : "";
+      if (
+        !confirm(
+          `${warning}Recall ${doc.reference} to draft? The link keeps working, and you can then redraw or delete it.`,
+        )
+      ) {
+        return;
+      }
+    }
 
     setBusy(doc.id);
     setError("");
@@ -231,8 +277,18 @@ export function PartnershipDocumentArchive({
       <ul className="space-y-2">
         {documents.map((doc) => (
           <li key={doc.id} className="p-3 rounded-xl border border-border bg-muted/40 space-y-2.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="shrink-0 text-muted-foreground">
+            {/*
+              Stacked on a phone, side by side from sm up.
+
+              This was one flex row holding the reference, the kind, a status
+              pill, a code pill, a date line and seven buttons. On a narrow
+              screen the buttons had nowhere to wrap to and ran out past the
+              card's edge. Now the identity block and the action block are
+              separate rows below sm, and the actions scroll inside their own
+              track rather than pushing the card open.
+            */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+              <span className="hidden sm:block shrink-0 text-muted-foreground mt-0.5">
                 {doc.document_kind === "mou" ? (
                   <ClipboardDocumentCheckIcon className="w-4 h-4" />
                 ) : (
@@ -273,7 +329,7 @@ export function PartnershipDocumentArchive({
                   )}
                 </div>
 
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1 break-words">
                   {doc.created_at
                     ? new Date(doc.created_at).toLocaleDateString("en-GB", {
                         day: "numeric",
@@ -284,9 +340,62 @@ export function PartnershipDocumentArchive({
                   {doc.terms ? ` · ${describeTerms(doc.terms)}` : ""}
                   {doc.signed_by_name ? ` · ✍️ Signed by ${doc.signed_by_name}` : ""}
                 </p>
+
+                {/*
+                  Has the school read it, and does the quote still stand?
+
+                  The two questions anyone chasing a proposal actually has, and
+                  neither was answerable before: a document sent and never
+                  opened needs a different conversation from one opened four
+                  times and unsigned, and a quote whose fees have lapsed cannot
+                  be signed at all — it now refuses at the point of signature,
+                  so it had better say so here first.
+                */}
+                <p className="text-[11px] mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {doc.status !== "draft" && (
+                    <span className={opens(doc) ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground"}>
+                      {opens(doc)
+                        ? `👁 Opened ${opens(doc)}×${
+                            doc.last_opened_at
+                              ? `, last ${new Date(doc.last_opened_at).toLocaleDateString("en-GB", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}`
+                              : ""
+                          }`
+                        : "👁 Not opened yet"}
+                    </span>
+                  )}
+                  {doc.valid_until && doc.status !== "signed" && (
+                    <span
+                      className={
+                        lapsed(doc)
+                          ? "text-destructive font-semibold"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {lapsed(doc) ? "⚠ Fees lapsed " : "Fees stand until "}
+                      {new Date(`${doc.valid_until}T00:00:00`).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
+                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {/*
+                The actions get their own scroll track.
+
+                Seven buttons cannot wrap inside a row that is already holding
+                the reference and the status pills, so on a narrow screen they
+                simply ran past the edge of the card. Scrolling them is honest:
+                the buttons stay full size and reachable, and the card keeps its
+                shape. `overflow-x-auto` with non-shrinking children, never
+                `flex-wrap`, which is what pushed the card open.
+              */}
+              <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto sm:overflow-visible sm:flex-wrap sm:justify-end -mx-1 px-1 pb-1 sm:mx-0 sm:px-0 sm:pb-0">
                 <button onClick={() => open(doc)} disabled={busy === doc.id} className={ACTION}>
                   <span className="flex items-center gap-1.5">
                     <EyeIcon className="w-3.5 h-3.5" /> View

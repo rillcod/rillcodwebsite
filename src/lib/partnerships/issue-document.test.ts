@@ -283,6 +283,88 @@ describe('what you previewed is what gets issued', () => {
     });
   }
 
+  /*
+    The AI case, which the two tests above do not reach.
+
+    With "tailor with AI" ticked, preview and issue each called the model. A
+    model called twice writes two different proposals — so the opening, the four
+    benefits and the closing a person read in the preview pane were not the ones
+    the school received, and nothing anywhere could show that it had happened.
+
+    The preview now hands its copy back, and issuing prints exactly that.
+  */
+  it('issues the words that were previewed, not a second generation of them', async () => {
+    const first = {
+      headline: 'ignored — the title is house copy',
+      opening:
+        'Bay-Flowers has built its name on results, and the parents who choose it are now asking a different question: what will my child be able to build. This is how that gets answered on your own timetable, without hiring a specialist or building a laboratory, and without your teachers carrying anything new.',
+      benefits: Array.from({ length: 4 }, (_, i) => ({
+        title: `A benefit worth ${i + 1} things`,
+        body: 'A claim with a concrete reason attached to it, long enough to pass the gate that rejects one-word bodies and thin filler.',
+      })),
+      closing: 'The next step is a Memorandum of Understanding setting out the obligations above.',
+    };
+    generateAIContent.mockResolvedValue({ success: true, content: JSON.stringify(first) });
+
+    const previewDb = makeDb({ terms: AGREED });
+    const draft = await previewPartnershipDocument({
+      db: previewDb.db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      useAI: true,
+    });
+    expect(draft.narrativeSource).toBe('ai');
+    expect(draft.html).toContain('what will my child be able to build');
+
+    // The model now answers differently — as a model does. Nobody read this.
+    generateAIContent.mockResolvedValue({
+      success: true,
+      content: JSON.stringify({
+        ...first,
+        opening:
+          'An entirely different opening paragraph, written on a second call to the model, which no human being has laid eyes on and which is long enough to satisfy the hundred and twenty character floor that the usability gate imposes.',
+      }),
+    });
+
+    const issueDb = makeDb({ terms: AGREED });
+    const issued = await issuePartnershipDocument({
+      db: issueDb.db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      useAI: true,
+      // What the composer sends back after a preview.
+      narrative: draft.narrative,
+    });
+
+    expect(issued.html).toContain('what will my child be able to build');
+    expect(issued.html).not.toContain('An entirely different opening paragraph');
+  });
+
+  it('refuses approved copy that has been tampered into quoting a fee', async () => {
+    const { db } = makeDb({ terms: AGREED });
+
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      narrative: {
+        headline: 'The Complete Tech & Innovation Hub',
+        opening:
+          'A perfectly well-formed opening that happens to promise ₦5,000 per student per term, which is not a number anybody agreed and not one this system will print on our behalf under any circumstances.',
+        benefits: Array.from({ length: 4 }, () => ({
+          title: 'A plausible title',
+          body: 'A plausible body with enough characters in it to clear the sixty-character floor imposed by the gate.',
+        })),
+        closing: 'A plausible closing sentence for the proposal.',
+        source: 'ai',
+      },
+    });
+
+    // Falls back to the authored copy rather than printing the invented rate.
+    expect(issued.html).not.toContain('₦5,000 per student per term');
+    expect(issued.narrativeSource).toBe('authored');
+  });
+
   it('draws the scan card in the preview at the size it will print', async () => {
     const { db } = makeDb({ terms: null });
 

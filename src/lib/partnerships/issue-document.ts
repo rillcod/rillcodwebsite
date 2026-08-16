@@ -16,6 +16,7 @@
  *   Issue a fresh document instead, which is what supersede is for.
  */
 import { brandContact } from '@/config/brand';
+import { commencementLabel, nextTeachingTerm, type TeachingTerm } from './commencement';
 import {
   getPublishedProgression,
   type CurriculumProgression,
@@ -23,11 +24,15 @@ import {
 } from './curriculum';
 import { buildPartnershipMouHTML } from './templates/mou-html';
 import { buildPartnershipProposalHTML } from './templates/proposal-html';
-import { buildProposalNarrative, type ProposalNarrative } from './proposal-narrative';
+import {
+  buildProposalNarrative,
+  isUsableNarrative,
+  type ProposalNarrative,
+} from './proposal-narrative';
 import { loadProofPoints } from './proof-points';
 import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
 import { normaliseStudioConfig, type ProposalStudioConfig } from './studio-config';
-import { PARTNERSHIP_OFFERS, resolveOffer } from './offers';
+import { PARTNERSHIP_OFFERS, recommendOffer, resolveOffer } from './offers';
 import {
   MissingPartnershipTermsError,
   getAgreedTerms,
@@ -56,6 +61,14 @@ export type IssuedDocument = {
   accessCode: string | null;
   termsId: string | null;
   narrativeSource: ProposalNarrative['source'] | null;
+  /**
+   * The exact copy this render used.
+   *
+   * A preview hands it back so the issue that follows can print the same words
+   * rather than asking the model again — two calls to a model are two different
+   * proposals, and only one of them was read.
+   */
+  narrative: ProposalNarrative | null;
   curriculumEdition: number | null;
 };
 
@@ -66,6 +79,20 @@ export type IssueInput = {
   actorId?: string | null;
   /** Tailor the proposal's pitch with the AI engine. Never applies to an MoU. */
   useAI?: boolean;
+  /**
+   * Copy that was already generated and read by a human.
+   *
+   * Without this, preview and issue each call the model, and a model called
+   * twice writes two different proposals — so the document a school received
+   * was never the document anybody approved. That is the same complaint as a
+   * stale issued copy, arriving by a different route, and it is worse: nobody
+   * can see it happen.
+   *
+   * Validated, not trusted. It arrives from a browser and goes through
+   * `isUsableNarrative`, which rejects anything malformed and anything that
+   * states a fee — so a tampered payload cannot put a price in a proposal.
+   */
+  narrative?: ProposalNarrative | null;
   /** Restrict the printed years to one offer's scope, e.g. "Basic 1 through SS 2". */
   scopeToOffer?: string | null;
   /** Quote the primary half, the secondary half, or all twelve years. */
@@ -101,6 +128,34 @@ export const DEFAULT_PROPOSAL_VALIDITY_DAYS = 90;
 
 function longDate(date: Date): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/**
+ * The date a quote lapses, or null when it stands indefinitely.
+ *
+ * Returned as a plain calendar date because that is what it is — a fee stands
+ * until the end of a day, not until a time of day — and because the column is a
+ * `date`. Zero or a negative number means no expiry stated, which is better
+ * than issuing a quote that has already expired.
+ */
+export function quoteExpiryDate(validityDays: number | null | undefined, from = new Date()): string | null {
+  if (!Number.isFinite(validityDays) || Number(validityDays) <= 0) return null;
+  const expires = new Date(from);
+  expires.setDate(expires.getDate() + Number(validityDays));
+  return expires.toISOString().slice(0, 10);
+}
+
+/**
+ * Has this quote lapsed?
+ *
+ * Compared on calendar dates, so a proposal valid until the 12th is still valid
+ * all day on the 12th. A document with no recorded expiry never lapses — that
+ * is what every document issued before expiry was stored looks like, and they
+ * are not retrospectively invalid.
+ */
+export function isQuoteExpired(validUntil: string | null | undefined, now = new Date()): boolean {
+  if (!validUntil) return false;
+  return now.toISOString().slice(0, 10) > String(validUntil).slice(0, 10);
 }
 
 function todayLabel(): string {
@@ -140,17 +195,28 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
 
   const reference = String(row.reference);
   // The code prints on the document, so it has to reach the render.
-  const { html, narrativeSource } = await prepared.render(
+  const { html, narrativeSource, narrative } = await prepared.render(
     reference,
     row.access_code ?? null,
     row.share_token ? String(row.share_token) : null,
   );
 
-  // The document is written back rather than inserted with the row, because it
-  // has to contain the reference the insert produced.
+  /*
+    The document is written back rather than inserted with the row, because it
+    has to contain the reference the insert produced.
+
+    `valid_until` goes with it. The proposal prints "these fees stand until…",
+    and until now that sentence existed only inside the rendered HTML — nothing
+    stored the date, so nothing could enforce it, and a school could sign a
+    lapsed quote months later at a rate we no longer offer. An MoU has no
+    expiry: it is the agreement, not an offer to make one.
+  */
   const { error: saveError } = await input.db
     .from('partnership_agreements')
-    .update({ document_html: html })
+    .update({
+      document_html: html,
+      valid_until: kind === 'proposal' ? quoteExpiryDate(input.validityDays ?? DEFAULT_PROPOSAL_VALIDITY_DAYS) : null,
+    })
     .eq('id', row.id);
   if (saveError) throw new Error(saveError.message);
 
@@ -165,6 +231,7 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     accessCode: row.access_code ? String(row.access_code) : null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
+    narrative,
     curriculumEdition: prepared.curriculum?.edition ?? null,
   };
 }
@@ -208,7 +275,7 @@ export async function refreshPartnershipDocument(
   const schoolId = String(row.school_id);
   const prepared = await prepareDocument({ ...input, kind, schoolId }, schoolId);
 
-  const { html, narrativeSource } = await prepared.render(
+  const { html, narrativeSource, narrative } = await prepared.render(
     String(row.reference),
     row.access_code ? String(row.access_code) : null,
     row.share_token ? String(row.share_token) : null,
@@ -223,6 +290,13 @@ export async function refreshPartnershipDocument(
       document_html: html,
       terms_snapshot: prepared.snapshot,
       terms_id: prepared.agreedTerms?.id ?? null,
+      // A redraw restates the offer, so the clock on it restarts. Leaving the
+      // old date would hand a school a freshly written proposal that expired
+      // before they read it.
+      valid_until:
+        kind === 'proposal'
+          ? quoteExpiryDate(input.validityDays ?? DEFAULT_PROPOSAL_VALIDITY_DAYS)
+          : null,
     })
     .eq('id', row.id);
   if (saveError) throw new Error(saveError.message);
@@ -238,6 +312,7 @@ export async function refreshPartnershipDocument(
     accessCode: row.access_code ? String(row.access_code) : null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
+    narrative,
     curriculumEdition: prepared.curriculum?.edition ?? null,
   };
 }
@@ -271,7 +346,7 @@ export async function previewPartnershipDocument(
   const reference = input.kind === 'mou' ? 'MoU — not yet issued' : 'Proposal — not yet issued';
   // No code and no token yet, but the card is drawn: a preview that hides a
   // panel the issued document will carry is not a preview of that document.
-  const { html, narrativeSource } = await prepared.render(reference, null, null, true);
+  const { html, narrativeSource, narrative } = await prepared.render(reference, null, null, true);
 
   return {
     preview: true,
@@ -288,6 +363,7 @@ export async function previewPartnershipDocument(
     accessCode: null,
     termsId: prepared.agreedTerms?.id ?? null,
     narrativeSource,
+    narrative,
     curriculumEdition: prepared.curriculum?.edition ?? null,
   };
 }
@@ -395,6 +471,10 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
   }
 
   const curriculum: CurriculumProgression | null = await getPublishedProgression(db);
+  // When teaching would start, named from the school calendar rather than
+  // described as "the next academic term", which is true of every school in
+  // the country and specific to none of them.
+  const teachingTerm = await nextTeachingTerm(db);
 
   // Terms are snapshotted, not referenced, so the row still says what the
   // document said after the deal is renegotiated.
@@ -427,6 +507,7 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
       school,
       agreedTerms,
       curriculum,
+      teachingTerm,
       reference,
       dateLabel,
       accessCode,
@@ -435,7 +516,7 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
     });
   };
 
-  return { school, agreedTerms, curriculum, snapshot, render };
+  return { school, agreedTerms, curriculum, snapshot, render, teachingTerm };
 }
 
 async function renderDocument(ctx: {
@@ -443,6 +524,8 @@ async function renderDocument(ctx: {
   school: any;
   agreedTerms: PartnershipTerms | null;
   curriculum: CurriculumProgression | null;
+  /** The term teaching would start in, from the school calendar. */
+  teachingTerm: TeachingTerm | null;
   reference: string;
   dateLabel: string;
   /**
@@ -454,12 +537,18 @@ async function renderDocument(ctx: {
   shareToken?: string | null;
   /** Draw the card at full size with "assigned when issued" in place of a code. */
   accessPending?: boolean;
-}): Promise<{ html: string; narrativeSource: ProposalNarrative['source'] | null }> {
-  const { input, school, agreedTerms, curriculum, reference, dateLabel, accessCode, shareToken, accessPending } = ctx;
+}): Promise<{
+  html: string;
+  narrativeSource: ProposalNarrative['source'] | null;
+  /** Handed back so a preview can be issued verbatim rather than regenerated. */
+  narrative: ProposalNarrative | null;
+}> {
+  const { input, school, agreedTerms, curriculum, teachingTerm, reference, dateLabel, accessCode, shareToken, accessPending } = ctx;
   const kind = input.kind;
 
   let html: string;
   let narrativeSource: ProposalNarrative['source'] | null = null;
+  let usedNarrative: ProposalNarrative | null = null;
   const db = input.db;
   // The resolved id, not the raw input: a prospect arrives as the sentinel
   // 'new' or as nothing, and neither is a uuid the proof-band exclusion can be
@@ -488,7 +577,9 @@ async function renderDocument(ctx: {
       curriculum,
       reference,
       dateLabel,
-      commencement: input.commencement ?? null,
+      // What was typed wins; otherwise the calendar names the term; otherwise
+      // the generic phrase the document used to carry on its own.
+      commencement: commencementLabel(input.commencement, teachingTerm),
       durationLabel: input.durationLabel ?? null,
       illustrativeStudents: input.illustrativeStudents ?? school.student_count ?? 0,
       stage: input.stage ?? null,
@@ -501,9 +592,9 @@ async function renderDocument(ctx: {
     // already-expired quote, which would be worse than saying nothing.
     const validityDays = input.validityDays ?? DEFAULT_PROPOSAL_VALIDITY_DAYS;
     let validUntil: string | null = null;
-    if (Number.isFinite(validityDays) && (validityDays as number) > 0) {
-      const expires = new Date();
-      expires.setDate(expires.getDate() + Number(validityDays));
+    const expiryDate = quoteExpiryDate(validityDays);
+    if (expiryDate) {
+      const expires = new Date(`${expiryDate}T00:00:00`);
       validUntil = longDate(expires);
     }
 
@@ -519,10 +610,24 @@ async function renderDocument(ctx: {
     // one, at its entry price. Without this the projection silently vanishes
     // from every proposal that does not pre-pick an option — which is most of
     // them, and it is the section that does the persuading.
-    // One resolver, shared with the template. This matched on `scope` first and
-    // fell back to `findOffer`, which matches on `code` — so the fee and the
-    // emphasis could come from different rows of the same menu.
-    const scopedOffer = resolveOffer(input.scopeToOffer) ?? PARTNERSHIP_OFFERS[0];
+    /*
+      The option this proposal is quoting, and why.
+
+      A person choosing one always wins — they know things the roll does not.
+      Absent that, the system picks from the enrolment and hands over the
+      sentence explaining the choice, which the document prints. Before this,
+      an unspecified option silently defaulted to the first row of the menu and
+      the page still claimed it had been "picked for the size of your roll".
+
+      One resolver, shared with the template. This matched on `scope` first and
+      fell back to `findOffer`, which matches on `code` — so the fee and the
+      emphasis could come from different rows of the same menu.
+    */
+    const chosen = resolveOffer(input.scopeToOffer);
+    const recommendation = chosen
+      ? null
+      : recommendOffer({ studentCount: school.student_count, stage: input.stage });
+    const scopedOffer = chosen ?? recommendation?.offer ?? PARTNERSHIP_OFFERS[0];
     /**
      * The money page, from whichever shape the deal actually takes.
      *
@@ -548,11 +653,23 @@ async function renderDocument(ctx: {
       cycle: agreedTerms?.billing_cycle ?? 'term',
     });
 
-    const narrative = await buildProposalNarrative(
-      { school, curriculum, notes: input.notes ?? null },
-      { useAI: input.useAI === true },
-    );
+    /*
+      Copy the caller already had approved wins over a fresh generation.
+
+      Re-running the model here would produce different words from the ones
+      somebody read in the preview pane and clicked Issue on. Reused only if it
+      still passes the same gate a generation has to pass, so a hand-edited or
+      tampered payload cannot smuggle a fee into a proposal.
+    */
+    const approved = isUsableNarrative(input.narrative) ? input.narrative : null;
+    const narrative =
+      approved ??
+      (await buildProposalNarrative(
+        { school, curriculum, notes: input.notes ?? null },
+        { useAI: input.useAI === true },
+      ));
     narrativeSource = narrative.source;
+    usedNarrative = narrative;
     html = buildPartnershipProposalHTML({
       school,
       curriculum,
@@ -560,7 +677,10 @@ async function renderDocument(ctx: {
       reference,
       dateLabel,
       narrative,
-      scopeToOffer: input.scopeToOffer ?? null,
+      // The recommended option is quoted like any other, so the page emphasises
+      // it rather than printing the whole menu at equal weight.
+      scopeToOffer: input.scopeToOffer ?? recommendation?.offer.code ?? null,
+      recommendationReason: recommendation?.reason ?? null,
       stage: input.stage ?? null,
       accessCode,
       accessQrDataUrl,
@@ -581,7 +701,7 @@ async function renderDocument(ctx: {
     });
   }
 
-  return { html, narrativeSource };
+  return { html, narrativeSource, narrative: usedNarrative };
 }
 
 /** Documents already issued to a school, newest first. */
@@ -591,7 +711,9 @@ export async function listSchoolDocuments(
 ): Promise<Array<Record<string, unknown>>> {
   const { data } = await db
     .from('partnership_agreements')
-    .select('id, reference, document_kind, status, terms_snapshot, share_token, access_code, sent_at, signed_at, signed_by_name, created_at')
+    .select(
+      'id, reference, document_kind, status, terms_snapshot, share_token, access_code, sent_at, signed_at, signed_by_name, created_at, valid_until, first_opened_at, last_opened_at, open_count',
+    )
     .eq('school_id', schoolId)
     .order('created_at', { ascending: false });
 

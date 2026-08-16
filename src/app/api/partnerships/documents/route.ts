@@ -132,6 +132,16 @@ export async function POST(req: NextRequest) {
       // Studio settings ride with the request so a preview and the issue that
       // follows it describe the same document.
       studio: body.studio ? normaliseStudioConfig(body.studio) : null,
+      /*
+        Copy that came back from a preview, sent so the issue prints it verbatim.
+
+        Without it, ticking "tailor with AI" meant the model was asked once for
+        the preview and again for the issue — two generations, two different
+        proposals, and only the first one was ever read. Revalidated in
+        `issuePartnershipDocument` rather than trusted, because it arrives from
+        a browser and a proposal must never state a fee nobody agreed.
+      */
+      narrative: body.narrative && typeof body.narrative === 'object' ? body.narrative : null,
     };
 
     if (previewOnly) {
@@ -142,6 +152,8 @@ export async function POST(req: NextRequest) {
         kind: draft.kind,
         school: draft.schoolName,
         narrative_source: draft.narrativeSource,
+        // Handed back so the issue that follows can print these exact words.
+        narrative: draft.narrative,
         curriculum_edition: draft.curriculumEdition,
         html: draft.html,
       });
@@ -391,6 +403,36 @@ export async function PATCH(req: NextRequest) {
     signed_at?: string | null;
     sent_at?: string | null;
   } = { status };
+
+  /*
+    Recall: back to draft, so a mistake can be redrawn or deleted.
+
+    A school should end up holding one copy of a proposal, not a corrected one
+    sitting beside the wrong one. Sent documents were terminal — the only
+    remedy was to void and issue again, which leaves both on the school's
+    record and gives them two references for one offer.
+
+    Only from `sent`, and never from `signed`: a signature is somebody else's
+    act, and no button here gets to undo it. `sent_at` is cleared with it,
+    because a document that is going back out has not been sent yet.
+  */
+  if (status === 'draft') {
+    if (current.status === 'signed') {
+      return NextResponse.json(
+        {
+          error: `${current.reference} has been signed. A signature is the other party's act — supersede it with a fresh document instead of recalling it.`,
+        },
+        { status: 409 },
+      );
+    }
+    if (current.status !== 'sent' && current.status !== 'draft') {
+      return NextResponse.json(
+        { error: `${current.reference} is ${current.status} and cannot be recalled to draft.` },
+        { status: 409 },
+      );
+    }
+    patch.sent_at = null;
+  }
 
   if (status === 'signed') {
     // The CHECK requires a name and a time against a signature. Asking for them

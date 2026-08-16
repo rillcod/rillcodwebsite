@@ -25,6 +25,7 @@ import {
   isValidDocumentIdentifier,
   stampSignature,
 } from '@/lib/partnerships/signing';
+import { isQuoteExpired } from '@/lib/partnerships/issue-document';
 import { notificationsService } from '@/services/notifications.service';
 import { buildPartnershipSignedEmail } from '@/lib/email/rillcod-transactional-email';
 import { brandContact } from '@/config/brand';
@@ -33,7 +34,7 @@ export const dynamic = 'force-dynamic';
 
 /** Columns every public read of a document needs. */
 const DOC_COLS =
-  'id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role, share_token, access_code';
+  'id, reference, document_kind, status, document_html, school_id, signed_at, signed_by_name, signed_by_role, share_token, access_code, valid_until, open_count, first_opened_at';
 
 /**
  * Find a document from what the URL carried.
@@ -71,6 +72,49 @@ export async function GET(
   if (!doc) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
+
+  /*
+    A withdrawn document stops being readable, not just stops being signable.
+
+    Signing already refused `void` and `declined`, but reading did not — so
+    voiding a proposal issued in error withdrew nothing: the school could still
+    open the link and read fees we had retracted, and would have no way to know
+    they were no longer on offer. 410 rather than 404 because the document did
+    exist and the reader is not wrong to have the link; the page says so and
+    points them at us.
+  */
+  if (doc.status === 'void' || doc.status === 'declined') {
+    return NextResponse.json(
+      {
+        error:
+          'This document has been withdrawn and is no longer current. Please contact us for an up-to-date copy.',
+        withdrawn: true,
+      },
+      { status: 410 },
+    );
+  }
+
+  /*
+    Record that the recipient opened it.
+
+    A proposal sent and never opened needs a different follow-up from one opened
+    four times and still unsigned, and there was no way to tell those apart —
+    the most useful signal in the whole pipeline, and nobody was writing it down.
+
+    Deliberately fire-and-forget, and deliberately swallowed. A read receipt is
+    bookkeeping; if it fails, the school still gets to read their proposal. The
+    same reasoning keeps these columns out of the signed-document freeze: a
+    signed contract can still be opened, and counting that does not amend it.
+  */
+  void db
+    .from('partnership_agreements')
+    .update({
+      open_count: (Number(doc.open_count) || 0) + 1,
+      first_opened_at: doc.first_opened_at ?? new Date().toISOString(),
+      last_opened_at: new Date().toISOString(),
+    })
+    .eq('id', doc.id)
+    .then(undefined, () => {});
 
   const { data: school } = await db
     .from('schools')
@@ -175,6 +219,28 @@ export async function POST(
   if (doc.status === 'void' || doc.status === 'declined') {
     return NextResponse.json(
       { error: `Cannot sign document with status ${doc.status}.` },
+      { status: 409 },
+    );
+  }
+  /*
+    A lapsed quote cannot be signed.
+
+    The proposal prints "these fees stand until…" and then, until now, accepted
+    a signature against those fees indefinitely. A school that opened the link
+    six months later could bind us to a rate we had already re-quoted, and the
+    record would show a perfectly valid signature — the sentence on the page was
+    the only thing that had ever said otherwise.
+
+    Documents issued before the date was stored have no expiry and are not
+    retrospectively invalid.
+  */
+  if (isQuoteExpired(doc.valid_until)) {
+    return NextResponse.json(
+      {
+        error:
+          'The fees in this proposal have lapsed, so it can no longer be signed. Please contact us and we will re-issue it at current rates.',
+        expired: true,
+      },
       { status: 409 },
     );
   }

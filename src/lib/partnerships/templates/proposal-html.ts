@@ -67,6 +67,13 @@ export type ProposalInput = {
    */
   scopeToOffer?: string | null;
   /**
+   * Why this option, in one sentence, printed under the recommendation.
+   *
+   * Absent when a person picked the option themselves — the document then says
+   * what it is showing rather than claiming a reasoning nobody performed.
+   */
+  recommendationReason?: string | null;
+  /**
    * Quote the primary half, the secondary half, or all twelve years. A primary
    * school has no use for the SS years, and reading them says we did not look.
    */
@@ -1644,7 +1651,17 @@ ${on('rollout') ? `  <section>
         ? 'Standard options for reference'
         : 'Choose the shape that fits your school'}</h2>
     <p class="muted">${quotedOffer
-      ? 'Picked for the size of your roll and the room your timetable has. The rest of the standard menu is listed beneath it, so you can see where this sits.'
+      ? /*
+          The reason, when the system actually has one.
+
+          This line used to claim the option had been "picked for the size of
+          your roll" no matter how it was chosen — a reasoning the document
+          asserted and nothing had performed. Now it prints the reason
+          `recommendOffer` gave, naming the roll it read, and falls back to a
+          plain statement when the choice came from a person instead. A head
+          teacher can then argue with the argument, not just the price.
+        */
+      esc(input.recommendationReason || 'The rest of the standard menu is listed beneath it, so you can see where this option sits against the others.')
       : 'What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.'}</p>
     ${figures()}
 

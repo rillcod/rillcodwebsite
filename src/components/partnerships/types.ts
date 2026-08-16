@@ -63,6 +63,12 @@ export type IssuedDocumentRow = {
   share_token: string | null;
   /** 6-digit access code for phone/quick lookup at /p */
   access_code?: string | null;
+  /** The date the quoted fees lapse. Null on an MoU, and on anything issued before expiry was recorded. */
+  valid_until?: string | null;
+  /** Whether the recipient has opened the link, and how often. */
+  first_opened_at?: string | null;
+  last_opened_at?: string | null;
+  open_count?: number | null;
   /**
    * The terms the document was rendered against, frozen at issue and normalised
    * from the snapshot. Null for a proposal issued before any rate was agreed.

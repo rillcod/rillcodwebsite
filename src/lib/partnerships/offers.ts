@@ -105,6 +105,82 @@ export function resolveOffer(value: string | null | undefined): PartnershipOffer
   );
 }
 
+export type OfferRecommendation = {
+  offer: PartnershipOffer;
+  /** Why this one, in the words the proposal prints. Never mentions a fee. */
+  reason: string;
+  /** What the recommendation was drawn from, for the person about to send it. */
+  basis: 'roll' | 'stage' | 'default';
+};
+
+/**
+ * Which option to put in front of this school.
+ *
+ * The proposal already said "picked for the size of your roll and the room your
+ * timetable has". Nothing was reading the roll — a human chose from a dropdown
+ * and the document claimed a reasoning it had not done. This makes the sentence
+ * true, and prints the actual reason under it so a head teacher can disagree
+ * with the argument rather than just the price.
+ *
+ * The rules are deliberately few and deliberately explainable:
+ *
+ *   A small roll cannot fill a whole-school timetable slot, and a proprietor
+ *   with eighty students is not going to rebuild their week for an unproven
+ *   subject. Option A proves it after school first.
+ *
+ *   A large roll is where whole-school integration pays: the per-student fee is
+ *   lowest precisely because everybody is enrolled, and opt-in at that size
+ *   leaves most of the school out.
+ *
+ *   In between, two contact hours is what the capstone builds actually assume,
+ *   so B2 is the honest recommendation rather than the cheaper one.
+ *
+ * This is a starting position, not a verdict. Whoever is sending the proposal
+ * can override it, and should when they know something the roll does not say.
+ */
+export const SMALL_ROLL_CEILING = 120;
+export const LARGE_ROLL_FLOOR = 600;
+
+export function recommendOffer(input: {
+  studentCount?: number | null;
+  stage?: 'primary' | 'secondary' | 'both' | null;
+}): OfferRecommendation {
+  const roll = Number(input.studentCount) || 0;
+  const byCode = (code: string) => PARTNERSHIP_OFFERS.find((o) => o.code === code)!;
+
+  if (roll > 0 && roll <= SMALL_ROLL_CEILING) {
+    return {
+      offer: byCode('A'),
+      basis: 'roll',
+      reason: `With around ${roll} learners on roll, an opt-in club proves the programme to your parents before it asks anything of your timetable.`,
+    };
+  }
+
+  if (roll >= LARGE_ROLL_FLOOR) {
+    return {
+      offer: byCode('B1'),
+      basis: 'roll',
+      reason: `At around ${roll} learners, integrating one class a week reaches every child rather than the few who opt in, and the per-student fee is at its lowest because the whole school is enrolled.`,
+    };
+  }
+
+  if (roll > 0) {
+    return {
+      offer: byCode('B2'),
+      basis: 'roll',
+      reason: `At around ${roll} learners a weekly slot fills comfortably, and two contact hours is what the capstone build in each year assumes.`,
+    };
+  }
+
+  // No roll on file. Say so rather than inventing a reason for the choice.
+  return {
+    offer: byCode('B2'),
+    basis: 'default',
+    reason:
+      'Our standard recommendation, covering the full progression at the pace each year’s capstone build assumes. Tell us your enrolment and we will re-scope it.',
+  };
+}
+
 /** "₦25,000–₦30,000 per student per term", or a single figure where the range is flat. */
 export function offerPriceLabel(offer: PartnershipOffer): string {
   const money = (n: number) => `₦${n.toLocaleString('en-NG')}`;
