@@ -777,8 +777,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     font-size: 9pt; color: #fff; font-weight: 700;
   }
 
-  /* Wordmark left, scan block right, both hanging off the top of the band. */
-  .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8mm; }
+  /* Wordmark and evidence left, scan block right, the two columns centred
+     against each other so neither looks like an afterthought beside the other. */
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 9mm; }
+  .masthead-l { flex: 1; min-width: 0; }
   .brand-row { display: flex; align-items: center; gap: 4mm; }
 
   /* ── The scan block, top right of the cover ────────────────────────────
@@ -789,18 +791,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      is still four times the resolution the paper can hold. */
   .cover-scan { flex: none; text-align: center; }
   .cover-scan-qr {
-    width: 34mm; height: 34mm; display: block;
-    background: #fff; padding: 2mm; border-radius: 2mm;
-    box-shadow: 0 3px 10px rgba(0,0,0,.28);
+    width: 48mm; height: 48mm; display: block;
+    background: #fff; padding: 2.4mm; border-radius: 2.5mm;
+    box-shadow: 0 4px 14px rgba(0,0,0,.32);
   }
   .cover-scan-qr-pending { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.5); }
   .cover-scan-cap {
-    margin-top: 2.2mm; font-size: 8.4pt; font-weight: 800; color: #fff;
+    margin-top: 2.6mm; font-size: 9.6pt; font-weight: 800; color: #fff;
     letter-spacing: .04em;
   }
   .cover-scan-code {
-    margin-top: .8mm; font-size: 8.6pt; font-weight: 700; color: #fca5a5;
-    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .12em;
+    margin-top: 1mm; font-size: 10pt; font-weight: 700; color: #fca5a5;
+    font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
   }
   .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; }
   /* On a white tile, so the mark reads on any background and survives a
@@ -899,15 +901,25 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      largest thing on the cover after the title and pulled the eye away from both
      the offer and the scan block; the room they give back is what lets the QR be
      large enough to scan from across a desk. */
-  .proof { display: flex; gap: 3.5mm; margin: 7mm 0 0; }
+  /* One line each, and small.
+
+     These are supporting evidence — the caption under a photograph, not the
+     photograph. At 28pt they were the largest thing on the cover after the
+     title, and their labels wrapped onto a second line, which pushed the whole
+     band down and squeezed the scan mark that has to be seen from across a
+     desk. No-wrap keeps each tile to one line whatever the count reads. */
+  .proof { display: flex; gap: 3mm; margin: 6mm 0 0; }
   .proof-tile {
-    flex: 1; background: #f8fafc; padding: 3mm 4mm 2.8mm; text-align: center;
-    border-top: 3px solid #991b1b; border-radius: 1.5mm;
+    flex: 1; background: #f8fafc; padding: 2.2mm 3mm 2mm; text-align: center;
+    border-top: 2.5px solid #991b1b; border-radius: 1.2mm;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
   .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
-  .proof-n { display: block; font-size: 19pt; font-weight: 800; color: #0f172a; letter-spacing: -.4px; line-height: 1; }
-  .proof-l { display: block; font-size: 7pt; color: #64748b; margin-top: 1.4mm; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .proof-n { display: block; font-size: 14pt; font-weight: 800; color: #0f172a; letter-spacing: -.3px; line-height: 1; white-space: nowrap; }
+  .proof-l {
+    display: block; font-size: 6.2pt; color: #64748b; margin-top: 1mm;
+    text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap;
+  }
   .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
   .proof-dark .proof-n { color: #fff; }
   .proof-dark .proof-l { color: #cbd5e1; }
@@ -1158,12 +1170,22 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 <div class="page cover">
   <div class="cover-top">
     <div class="masthead">
-      <div class="brand-row">
-        <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="${esc(brandContact.displayName)}" onerror="this.onerror=null;this.src='${brandAssets.logoCloudinary}';" />
-        <div>
-          <div class="brand">${esc(brandContact.displayName)}</div>
-          <div class="brand-tag">${esc(brandContact.tagline)}</div>
+      <!--
+        Two columns: who is writing and what they have done on the left, how to
+        open it on the right. The proof band used to run the full width beneath
+        the wordmark, which left the scan mark alone in a tall empty column and
+        stopped it growing. Paired against the evidence it has something to be
+        the same size as.
+      -->
+      <div class="masthead-l">
+        <div class="brand-row">
+          <img class="brand-mark" src="${esc(assetUrl(brandAssets.logo))}" alt="${esc(brandContact.displayName)}" onerror="this.onerror=null;this.src='${brandAssets.logoCloudinary}';" />
+          <div>
+            <div class="brand">${esc(brandContact.displayName)}</div>
+            <div class="brand-tag">${esc(brandContact.tagline)}</div>
+          </div>
         </div>
+        ${proofBand(true)}
       </div>
       ${
         /*
@@ -1196,7 +1218,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
           : ''
       }
     </div>
-    ${proofBand(true)}
   </div>
   <div class="stripe"><span class="s1"></span><span class="s2"></span><span class="s3"></span></div>
 
