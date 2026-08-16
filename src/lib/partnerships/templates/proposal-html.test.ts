@@ -129,6 +129,52 @@ describe('the partnership proposal', () => {
     }
   });
 
+  describe('when one option has been picked for this school', () => {
+    /*
+      A proposal that prints three options at the same size has made no
+      recommendation — the head teacher is left to choose unaided, and some of
+      them will take the cheapest rather than the right one. Once a shape has
+      been chosen for a particular roll, one option leads and the rest become
+      evidence that the price came off a standard menu.
+    */
+    it('leads with the quoted option and demotes the rest to one line', () => {
+      const html = buildPartnershipProposalHTML({ ...base, scopeToOffer: 'B1' });
+
+      expect(html).toContain('What we recommend for Bay-Flowers International School');
+      expect(html).toContain('Recommended for your school');
+      // Exactly one recommendation, and exactly one full card with it.
+      expect(html.match(/Recommended for your school/g)).toHaveLength(1);
+      expect(html.match(/class="offer offer-picked"/g)).toHaveLength(1);
+      expect(html.match(/<article class="offer/g)).toHaveLength(1);
+
+      // The other two are still there, small.
+      expect(html).toContain('Also available on the standard menu');
+      expect(html.match(/class="offer-alt"/g)).toHaveLength(2);
+      expect(html).toContain('₦25,000–₦30,000 per student per term');
+      expect(html).toContain('₦15,000 per student per term');
+    });
+
+    it('emphasises one option when two of them share a scope line', () => {
+      // B1 and B2 are both "All classes, primary to secondary". Matching on the
+      // scope lit up both of them, which is no emphasis at all.
+      const html = buildPartnershipProposalHTML({
+        ...base,
+        scopeToOffer: 'All classes, primary to secondary',
+      });
+
+      expect(html.match(/class="offer offer-picked"/g)).toHaveLength(1);
+    });
+
+    it('shows the whole menu as equals when nothing has been picked', () => {
+      const html = buildPartnershipProposalHTML(base);
+
+      expect(html).toContain('Choose the shape that fits your school');
+      expect(html).not.toContain('Recommended for your school');
+      expect(html).not.toContain('Also available on the standard menu');
+      expect(html.match(/<article class="offer/g)).toHaveLength(PARTNERSHIP_OFFERS.length);
+    });
+  });
+
   it('states the year range it is actually selling', () => {
     const full = buildPartnershipProposalHTML(base);
     expect(full).toContain('Basic 1 to SS 3');

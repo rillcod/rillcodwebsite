@@ -95,7 +95,16 @@ describe('building a narrative', () => {
     const n = await buildProposalNarrative(ctx, { useAI: true });
 
     expect(n.source).toBe('ai');
-    expect(n.headline).toBe(good.headline);
+    // The pitch is tailored to this school.
+    expect(n.opening).toBe(good.opening);
+    // The title is not. It prints at the largest size on the cover and is the
+    // same on every proposal we send, which is what makes it worth anything —
+    // a model renaming the flagship offer per school gives every prospect a
+    // different company. Even when the model returns one, it is discarded.
+    expect(n.headline).toBe(AUTHORED_NARRATIVE.headline);
+    expect(n.headline).not.toBe(good.headline);
+    // And it is not asked for in the first place.
+    expect(generateAIContent.mock.calls[0][0].prompt as string).not.toContain('"headline"');
     // The school and its city reach the model, so the copy can be specific.
     const prompt = generateAIContent.mock.calls[0][0].prompt as string;
     expect(prompt).toContain('Bay-Flowers International School');

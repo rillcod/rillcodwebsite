@@ -168,9 +168,10 @@ function buildPrompt(ctx: NarrativeContext): string {
     'discount, or per-student/per-term rate. Commercial terms are inserted separately',
     'from a signed record. Text containing any figure will be discarded entirely.',
     '',
+    // No headline is asked for. The document's title is fixed house copy, and a
+    // field the model fills but nobody reads is a field it will argue with.
     'Return ONLY JSON in exactly this shape:',
     '{',
-    '  "headline": "a benefit the head teacher wants, 6-10 words, no school name",',
     '  "opening": "one paragraph, 70-110 words: their problem first, then how this answers it",',
     '  "benefits": [',
     '    { "title": "4-7 words, a claim not a label", "body": "25-45 words, the claim plus its concrete reason" },',
@@ -201,7 +202,22 @@ function coerce(raw: unknown): ProposalNarrative | null {
   if (!parsed || typeof parsed !== 'object') return null;
 
   const candidate: ProposalNarrative = {
-    headline: String(parsed.headline ?? '').trim(),
+    /*
+      The title is ours, not the model's.
+
+      "The Complete Tech & Innovation Hub" is what the document is called. It
+      prints at the largest size on the cover, it is what a proprietor repeats
+      to a colleague, and it is the same on every proposal we have ever sent —
+      which is precisely what makes it worth something. A model rewriting it per
+      school produces a company with a different name for its flagship offer in
+      every inbox.
+
+      The model still tailors everything below it: the opening, the four
+      benefits and the closing all argue this school's own case. A human may
+      still override the headline through the studio, because a human choosing
+      is a decision and a model choosing is a coin toss.
+    */
+    headline: AUTHORED_NARRATIVE.headline,
     opening: String(parsed.opening ?? '').trim(),
     benefits: Array.isArray(parsed.benefits)
       ? parsed.benefits.slice(0, 4).map((b: any) => ({

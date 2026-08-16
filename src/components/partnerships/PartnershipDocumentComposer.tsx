@@ -139,7 +139,10 @@ export function PartnershipDocumentComposer({
       kind,
       preview,
       use_ai: kind === 'proposal' && useAI,
-      scope_to_offer: kind === 'proposal' ? (selectedOffer?.scope ?? null) : null,
+      // The code, not the scope line. B1 and B2 share a scope word for word, so
+      // sending it identified two options at once — and the proposal emphasised
+      // both, which is the same as emphasising neither.
+      scope_to_offer: kind === 'proposal' ? (selectedOffer?.code ?? null) : null,
       stage,
       notes: kind === 'proposal' ? notes.trim() || null : null,
       validity_days: kind === 'proposal' ? Number(validityDays) : null,

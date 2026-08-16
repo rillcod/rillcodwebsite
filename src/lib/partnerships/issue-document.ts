@@ -27,7 +27,7 @@ import { buildProposalNarrative, type ProposalNarrative } from './proposal-narra
 import { loadProofPoints } from './proof-points';
 import { PARTNERSHIP_PHOTOS, schoolUpside } from './proposal-sections';
 import { normaliseStudioConfig, type ProposalStudioConfig } from './studio-config';
-import { findOffer, PARTNERSHIP_OFFERS } from './offers';
+import { PARTNERSHIP_OFFERS, resolveOffer } from './offers';
 import {
   MissingPartnershipTermsError,
   getAgreedTerms,
@@ -519,10 +519,10 @@ async function renderDocument(ctx: {
     // one, at its entry price. Without this the projection silently vanishes
     // from every proposal that does not pre-pick an option — which is most of
     // them, and it is the section that does the persuading.
-    const scopedOffer =
-      PARTNERSHIP_OFFERS.find((o) => o.scope === input.scopeToOffer) ??
-      findOffer(input.scopeToOffer) ??
-      PARTNERSHIP_OFFERS[0];
+    // One resolver, shared with the template. This matched on `scope` first and
+    // fell back to `findOffer`, which matches on `code` — so the fee and the
+    // emphasis could come from different rows of the same menu.
+    const scopedOffer = resolveOffer(input.scopeToOffer) ?? PARTNERSHIP_OFFERS[0];
     /**
      * The money page, from whichever shape the deal actually takes.
      *

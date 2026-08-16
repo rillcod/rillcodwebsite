@@ -73,6 +73,38 @@ export function findOffer(code: string | null | undefined): PartnershipOffer | n
   return PARTNERSHIP_OFFERS.find((o) => o.code === wanted) ?? null;
 }
 
+/**
+ * The one offer a proposal is quoting, from whatever the caller had to hand.
+ *
+ * `scopeToOffer` has always been loosely typed: the builder sends a code, older
+ * callers sent the scope line. Each consumer then matched on whichever field it
+ * happened to think about, and the two disagreed —
+ *
+ *   the fee came from a match on `code`, so 'B1' priced correctly;
+ *   the highlight came from a match on `scope`, and 'B1' matches no scope at
+ *   all, so nothing was emphasised and all three options printed as equals.
+ *
+ * Worse when a scope line was sent: `scope` is the audience, and B1 and B2
+ * share theirs word for word, so quoting one lit up both.
+ *
+ * Matching in one place ends that. Code first because it is unique, then name,
+ * and scope last with the tie broken by the first match — a scope that names
+ * two options cannot identify one, so it picks the cheaper rather than both.
+ */
+export function resolveOffer(value: string | null | undefined): PartnershipOffer | null {
+  if (!value) return null;
+  const wanted = String(value).trim();
+  if (!wanted) return null;
+  const upper = wanted.toUpperCase();
+  const lower = wanted.toLowerCase();
+  return (
+    PARTNERSHIP_OFFERS.find((o) => o.code.toUpperCase() === upper) ??
+    PARTNERSHIP_OFFERS.find((o) => o.name.toLowerCase() === lower) ??
+    PARTNERSHIP_OFFERS.find((o) => o.scope.toLowerCase() === lower) ??
+    null
+  );
+}
+
 /** "₦25,000–₦30,000 per student per term", or a single figure where the range is flat. */
 export function offerPriceLabel(offer: PartnershipOffer): string {
   const money = (n: number) => `₦${n.toLocaleString('en-NG')}`;

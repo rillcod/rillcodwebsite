@@ -21,7 +21,12 @@ import { SIGNATURE_SLOT_END, SIGNATURE_SLOT_START, escapeHtml as esc } from '../
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
 import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
-import { PARTNERSHIP_OFFERS, offerPriceLabel, type PartnershipOffer } from '../offers';
+import {
+  PARTNERSHIP_OFFERS,
+  offerPriceLabel,
+  resolveOffer,
+  type PartnershipOffer,
+} from '../offers';
 import { AUTHORED_NARRATIVE, type ProposalNarrative } from '../proposal-narrative';
 import { approx, type ProofPoints } from '../proof-points';
 import {
@@ -145,20 +150,61 @@ function yearCard(level: ProgressionLevel): string {
  * read comfortably. A card gives each option the full width and puts the price
  * where the eye lands first.
  */
+/**
+ * Scope of supply, as prose rather than markup.
+ *
+ * Written once because it prints in two shapes — a two-column table when it has
+ * the width, two stacked lists when it is sharing a row with the chart — and
+ * the words must be the same in both.
+ */
+const SUPPLY_US =
+  'Trained facilitators for every session · full curriculum and lesson materials · devices, micro-controllers and hardware kits · the learning platform, logins and reporting · termly progress reports for parents';
+const SUPPLY_THEM =
+  'A classroom or lab for the session · a slot on the timetable · student registration and parent communication · a staff contact for scheduling';
+
 function offerCard(offer: PartnershipOffer, highlighted: boolean): string {
   return `
     <article class="offer${highlighted ? ' offer-picked' : ''}">
+      <!--
+        Two rows, not one.
+
+        The code, the tag and the price used to share a line with the offer's
+        name, and "Timetable Integration — 2 classes a week" is too long to sit
+        beside a badge: it wrapped after its first word, leaving the price
+        stranded halfway up a broken phrase. The particulars get the top line
+        and the name gets its own.
+      -->
       <header class="offer-top">
-        <div>
+        <div class="offer-tags">
           <span class="offer-code">Option ${esc(offer.code)}</span>
-          ${highlighted ? '<span class="tag">Quoted</span>' : ''}
-          <span class="offer-name">${esc(offer.name)}</span>
+          ${highlighted ? '<span class="tag">Recommended for your school</span>' : ''}
         </div>
         <div class="offer-price">${esc(offerPriceLabel(offer))}</div>
       </header>
+      <div class="offer-name">${esc(offer.name)}</div>
       <div class="offer-meta">${esc(offer.scope)} &nbsp;·&nbsp; ${esc(offer.cadence)}</div>
       <p class="offer-best">${esc(offer.bestFor)}</p>
     </article>`;
+}
+
+/**
+ * An option we are not recommending, on one line.
+ *
+ * A proposal that gives three options equal weight has made no recommendation,
+ * and a head teacher reading it has to do the work of choosing between them
+ * unaided. Once a school has been quoted a particular shape, the other two stop
+ * being choices and become context: proof that the price was picked from a
+ * standard menu rather than invented for them. That is worth keeping, and it is
+ * worth keeping small.
+ */
+function offerLine(offer: PartnershipOffer): string {
+  return `
+    <li class="offer-alt">
+      <span class="offer-alt-code">Option ${esc(offer.code)}</span>
+      <span class="offer-alt-name">${esc(offer.name)}</span>
+      <span class="offer-alt-meta">${esc(offer.cadence)}</span>
+      <span class="offer-alt-price">${esc(offerPriceLabel(offer))}</span>
+    </li>`;
 }
 
 export function buildPartnershipProposalHTML(input: ProposalInput): string {
@@ -169,6 +215,16 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   const on = (key: keyof typeof studio.sections) => studio.sections[key] !== false;
 
   const offers = input.offers ?? PARTNERSHIP_OFFERS;
+  /*
+    The one option this proposal is recommending, if it is recommending one.
+
+    Resolved once, and shared by everything that draws it — the chart, the card
+    and the alternates list. It used to be re-derived at each of those, from a
+    different field each time: the fee matched on `code` and the highlight
+    matched on `scope`, so a proposal quoted for Option B1 priced B1 correctly
+    and emphasised nothing at all.
+  */
+  const quotedOffer = resolveOffer(input.scopeToOffer);
   const base = input.narrative ?? AUTHORED_NARRATIVE;
   const narrative = {
     ...base,
@@ -195,11 +251,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   // A quote shows the years it sells. Scoping to the offer keeps the proposal
   // honest when an option stops short of SS 3.
+  // The scope line comes off the resolved offer, so the years are filtered the
+  // same way whether the caller sent a code or the scope text itself.
+  const scopeLine = quotedOffer?.scope ?? input.scopeToOffer;
   const scopedLevels = curriculum
     ? levelsForStage(
-      input.scopeToOffer
-        ? levelsForScope(curriculum.levels, input.scopeToOffer)
-        : curriculum.levels,
+      scopeLine ? levelsForScope(curriculum.levels, scopeLine) : curriculum.levels,
       input.stage,
     )
     : [];
@@ -540,20 +597,113 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   };
 
   /**
-   * The three options, compared on what a parent pays over a full year.
+   * Scope of supply — what each side actually puts in.
+   *
+   * It belongs with the fees, because it answers the question the price raises:
+   * what am I buying. Keeping it here in both layouts is what forces the chart
+   * and this table to size themselves to the room left over — see `tight` in
+   * offersChart. The alternative was letting it fall back to the returns page
+   * whenever the full menu prints, which meant the same document put the same
+   * section in two different places depending on how it was quoted.
+   */
+  const supplyTable = (stacked: boolean): string => {
+    if (!on('sideBySide')) return '';
+    // Stacked, it is two columns of a table. Beside the chart it is two stacked
+    // lists, because a two-column table inside a half-width column gives each
+    // list about nine characters a line.
+    return stacked
+      ? `<table class="compact">
+      <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>Your school provides</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>${SUPPLY_US}</td>
+          <td>${SUPPLY_THEM}</td>
+        </tr>
+      </tbody>
+    </table>`
+      : `<div class="supply">
+      <div class="supply-h">${esc(brandContact.displayName)} provides</div>
+      <p class="supply-p">${SUPPLY_US}</p>
+      <div class="supply-h">Your school provides</div>
+      <p class="supply-p">${SUPPLY_THEM}</p>
+    </div>`;
+  };
+
+  /**
+   * The chart and the scope of supply, laid out for the room that is left.
+   *
+   * With a recommendation the menu is one card and two lines, which frees about
+   * a third of the sheet — so the chart takes the full width at full size and
+   * the scope table sits under it, stacked and legible.
+   *
+   * With the full menu, three cards take that room back. The same two blocks
+   * stacked run 160px past the bottom of an A4 sheet, and A4 does not spill: it
+   * clips, silently. So they share one row instead, the chart narrows to suit
+   * its column, and the page keeps both.
+   *
+   * Same content either way. What changes is only how much room it is given.
+   */
+  const figures = (): string => {
+    const chart = offersChart(!quotedOffer);
+    // With room, the chart takes the width on its own and the scope table
+    // follows the fees, where it reads in the right order: price, then what the
+    // price buys.
+    if (quotedOffer) return chart;
+    if (!chart) return supplyTable(true);
+
+    // The unit is stated once, here. The narrow chart drops the per-bar
+    // "per student, per year" to save three lines, and a column of naira
+    // figures with no unit against it reads as a termly fee — which is a third
+    // of what it says.
+    return `<div class="fig-row">
+      <div class="fig-col">
+        <div class="fig-head">What a parent pays, per student per year</div>
+        ${chart}
+      </div>
+      <div class="fig-col">
+        <div class="fig-head">What each side brings</div>
+        ${supplyTable(false)}
+      </div>
+    </div>`;
+  };
+
+  /** The scope table on its own, for the layout that has room to stack it. */
+  const supplyStacked = (): string => {
+    if (!quotedOffer) return '';
+    const table = supplyTable(true);
+    return table
+      ? `  <section>
+    <div class="rule"></div>
+    <h2>What each side brings</h2>
+    ${table}
+  </section>`
+      : '';
+  };
+
+  /**
+   * The options, compared on what a parent pays over a full year.
    *
    * Per-term figures are what we quote, but a school decides in sessions — and
    * three prices in three different sentences are hard to weigh against each
    * other. One hue, because these are three values of one measure, and every bar
    * carries its own figure since a printed page has no hover.
+   *
+   * Two builds of the same picture, and the page picks between them by how much
+   * room it has left. Wide, it labels each bar "Option B2" in full and repeats
+   * the unit under every figure. Narrow — sharing a row with the scope table —
+   * it drops to the bare code and states the unit once in the caption, because
+   * the alternative at half width is 6px type nobody can read.
    */
-  const offersChart = (): string => {
+  const offersChart = (narrow: boolean): string => {
     if (!on('offersChart')) return '';
-    // Sized to the room the page actually has. At ROW_H 44 the chart was a
-    // thumbnail on a sheet with 190px spare beneath it — the one picture on the
-    // page a head teacher reads before the prose, drawn smaller than the
-    // footnote under it.
-    const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 320, ROW_H = 56, BAR_H = 24, R = 4, top = 10;
+    const W = narrow ? 300 : 640;
+    const LABEL_W = narrow ? 26 : 150;
+    const BAR_X = LABEL_W + 10;
+    const BAR_MAX = narrow ? 128 : 320;
+    const ROW_H = narrow ? 40 : 56;
+    const BAR_H = narrow ? 18 : 24;
+    const top = narrow ? 6 : 10;
+    const R = 4;
     // Three terms to a session. Both ends of the range are carried, because an
     // option priced ₦25,000–₦30,000 a term was charted as a firm ₦75,000 a year:
     // the chart quietly dropped the top of the range while the card beside it
@@ -562,7 +712,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       code: o.code,
       from: o.priceFrom * 3,
       to: Math.max(o.priceFrom, o.priceTo) * 3,
-      label: 'Option ' + o.code,
+      label: narrow ? o.code : 'Option ' + o.code,
     }));
     const max = Math.max(...rows.map((r) => r.to)) || 1;
     const anyRange = rows.some((r) => r.to > r.from);
@@ -578,18 +728,34 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       const wTo = Math.max(2, Math.round((r.to / max) * BAR_MAX));
       const wFrom = Math.max(2, Math.round((r.from / max) * BAR_MAX));
       const ranged = r.to > r.from;
+      /*
+        The recommended option keeps the hue; the rest step back to grey.
+
+        Not a second colour — the same measure is still being charted, so this
+        is emphasis, not a new dimension. Without it the picture contradicted
+        the cards beside it: one option was named as the recommendation and the
+        chart still drew three of them identically.
+      */
+      const isQuoted = !quotedOffer || r.code === quotedOffer.code;
+      const solid = isQuoted ? '#2563eb' : '#cbd5e1';
+      const faint = isQuoted ? '#93c5fd' : '#e2e8f0';
       // One hue, two steps of it: the solid length is the fee every school pays,
       // the lighter continuation is how far it can go. Same measure, so the same
       // colour — a second hue would read as a second thing being measured.
       const upper = ranged
-        ? '<path d="' + barPath(BAR_X, y, wTo) + '" fill="#93c5fd"></path>'
+        ? '<path d="' + barPath(BAR_X, y, wTo) + '" fill="' + faint + '"></path>'
         : '';
       const value = ranged ? money(r.from) + '–' + money(r.to) : money(r.from);
-      return '<text class="ch-lbl" x="' + LABEL_W + '" y="' + (y + BAR_H / 2 + 4) + '" text-anchor="end">' + esc(r.label) + '</text>' +
+      // Narrow states the unit once, in the caption. Repeating it under three
+      // bars in a half-width column costs a line each and says nothing new.
+      const sub = narrow
+        ? ''
+        : '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 18) + '">per student, per year</text>';
+      return '<text class="ch-lbl' + (isQuoted ? ' ch-lbl-on' : '') + '" x="' + LABEL_W + '" y="' + (y + BAR_H / 2 + 4) + '" text-anchor="end">' + esc(r.label) + '</text>' +
         upper +
-        '<path d="' + barPath(BAR_X, y, wFrom) + '" fill="#2563eb"></path>' +
-        '<text class="ch-val" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
-        '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 18) + '">per student, per year</text>';
+        '<path d="' + barPath(BAR_X, y, wFrom) + '" fill="' + solid + '"></path>' +
+        '<text class="ch-val' + (narrow ? ' ch-val-sm' : '') + '" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
+        sub;
     }).join('');
     const H = top + rows.length * ROW_H;
     const svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Yearly cost per student for each option, including the range where a fee is not fixed">' +
@@ -597,10 +763,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       bars + '</svg>';
     // Two shades of one hue need saying out loud on a printed page, where nobody
     // can hover to find out what the lighter part of a bar means.
+    // A line break between the two keys, so the narrow layout can stack them
+    // instead of wrapping mid-key. The wide layout collapses it back into a row.
     return anyRange
       ? svg +
       '<p class="chart-note"><span class="key key-from"></span>the fee every school pays' +
-      '&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
+      '<br>&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
       : svg;
   };
 
@@ -998,7 +1166,33 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
   /* Chart */
   .chart { width: 100%; height: auto; display: block; margin: 4mm 0 5mm; }
-  .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #1e293b; }
+  /* The scope-of-supply table shares a sheet with the fees, so it gives back
+     what it can: tighter rows, and prose one step down from body size. */
+  table.compact { font-size: 9.6pt; margin-bottom: 0; }
+  table.compact td { padding: 1.4mm 3mm; line-height: 1.35; }
+  table.compact th { padding: 1.8mm 3mm; }
+  /*
+    The chart and the scope of supply, sharing one row.
+
+    Only used in the layout that has no room to stack them. Aligning to the
+    start matters: the two columns are different heights, and stretching the
+    shorter one leaves its heading floating in the middle of a tall box.
+  */
+  .fig-row { display: flex; align-items: flex-start; gap: 7mm; margin: 4mm 0 1mm; }
+  .fig-col { flex: 1; min-width: 0; }
+  .fig-col .chart { margin: 0 0 2mm; }
+  .fig-head {
+    font-size: 8.4pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: #94a3b8; margin-bottom: 1.8mm;
+  }
+  .supply-h {
+    font-size: 9pt; font-weight: 800; color: #0f172a; margin-top: 2mm;
+  }
+  .supply-h:first-child { margin-top: 0; }
+  .supply-p { font-size: 9.2pt; color: #475569; line-height: 1.4; margin: .8mm 0 0; }
+  .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #94a3b8; }
+  /* The recommended row reads at full strength; the rest are context. */
+  .ch-lbl-on { font-weight: 800; fill: #1e293b; }
   .ch-val { font: 700 13px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
   .ch-sub { font: 400 10.5px "Inter", sans-serif; fill: #64748b; }
   /* What the two shades of the one bar mean. Printed, because there is no hover
@@ -1007,6 +1201,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     font-size: 9pt; color: #64748b; margin: 1mm 0 3mm; display: flex;
     align-items: center; gap: 1.5mm; flex-wrap: wrap;
   }
+  /* The break exists for the narrow column. In a flex row it becomes a flex
+     item of its own, which drops the swatch beside it off the text baseline. */
+  .chart-note br { display: none; }
+  /*
+    In a half-width column the legend has to stack.
+
+    Laid out in a row it wrapped between a swatch and the words it belongs to,
+    stranding a blue square at the end of one line and its label at the start of
+    the next. One key per line, each swatch beside its own text.
+  */
+  .fig-col .chart-note { display: block; margin: 0; font-size: 8.6pt; line-height: 1.6; }
+  .fig-col .chart-note .key { margin-right: 1.5mm; }
+  .fig-col .chart-note .key-to { margin-left: 0; }
+  .fig-col .chart-note br { display: block; }
   .key { display: inline-block; width: 3.2mm; height: 2.2mm; border-radius: .6mm; }
   .key-from { background: #2563eb; }
   .key-to { background: #93c5fd; }
@@ -1110,18 +1318,44 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .offer-picked { border-left-color: #991b1b; background: #fdf6f6; }
   .offer-top {
     display: flex; justify-content: space-between; align-items: baseline;
-    gap: 5mm; margin-bottom: 1.5mm;
+    gap: 5mm; margin-bottom: 1mm;
   }
+  .offer-tags { display: flex; align-items: baseline; gap: 2.5mm; min-width: 0; }
   .offer-code {
     font-size: 8.6pt; font-weight: 800; text-transform: uppercase; letter-spacing: .09em;
-    color: #991b1b; margin-right: 2mm;
+    color: #991b1b;
   }
-  .offer-name { font-size: 12.5pt; font-weight: 700; color: #0f172a; letter-spacing: -.25px; }
+  .offer-name {
+    font-size: 13pt; font-weight: 800; color: #0f172a; letter-spacing: -.3px;
+    line-height: 1.2; margin-bottom: 1.5mm;
+  }
   .offer-price {
     font-size: 12pt; font-weight: 800; color: #991b1b; white-space: nowrap; text-align: right;
   }
   .offer-meta { font-size: 9.4pt; color: #64748b; font-weight: 600; margin-bottom: 2mm; }
   .offer-best { font-size: 10.2pt; color: #334155; margin: 0; line-height: 1.45; }
+  /*
+    The rest of the menu, once a recommendation has been made.
+
+    Deliberately quiet and deliberately present. Quiet, because a second full
+    card competes with the option we are actually proposing. Present, because a
+    single price with nothing around it looks invented — these two lines are the
+    evidence that it came off a standard menu.
+  */
+  .offer-alts { margin-top: 4mm; }
+  .offer-alts-head {
+    font-size: 8.4pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: #94a3b8; margin-bottom: 1.6mm;
+  }
+  .offer-alts ul { list-style: none; margin: 0; padding: 0; }
+  .offer-alt {
+    display: flex; align-items: baseline; gap: 3mm;
+    padding: 1.8mm 0; border-top: 1px solid #e2e8f0; font-size: 9.4pt; color: #64748b;
+  }
+  .offer-alt-code { font-weight: 800; color: #475569; white-space: nowrap; }
+  .offer-alt-name { font-weight: 700; color: #334155; }
+  .offer-alt-meta { flex: 1; min-width: 0; }
+  .offer-alt-price { white-space: nowrap; font-weight: 700; color: #475569; }
 
   .opt { white-space: nowrap; }
   tr.picked td { background: #fff5f5; }
@@ -1404,21 +1638,43 @@ ${on('rollout') ? `  <section>
 
   <section>
     <div class="rule"></div>
-    <h2>${input.agreedTerms ? 'Standard options for reference' : 'Choose the shape that fits your school'}</h2>
-    <p class="muted">What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.</p>
-    ${offersChart()}
+    <h2>${quotedOffer
+      ? `What we recommend for ${esc(input.school.name)}`
+      : input.agreedTerms
+        ? 'Standard options for reference'
+        : 'Choose the shape that fits your school'}</h2>
+    <p class="muted">${quotedOffer
+      ? 'Picked for the size of your roll and the room your timetable has. The rest of the standard menu is listed beneath it, so you can see where this sits.'
+      : 'What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.'}</p>
+    ${figures()}
 
-    <div class="offers">
-      ${offers
-      .map((o) => offerCard(o, !!input.scopeToOffer && o.scope === input.scopeToOffer))
-      .join('')}
-    </div>
+    ${quotedOffer
+      ? /*
+          One option in full, the others on one line each.
+
+          Three cards of equal weight is a menu, and a menu is what you send a
+          school you know nothing about. Once the shape has been chosen for a
+          particular roll and a particular timetable, printing all three at the
+          same size buries the recommendation inside it — the reader has to work
+          out which one is theirs, and some of them will pick the cheapest
+          instead of the right one.
+        */
+        `<div class="offers">${offerCard(quotedOffer, true)}</div>
+    ${offers.length > 1
+          ? `<div class="offer-alts">
+      <div class="offer-alts-head">Also available on the standard menu</div>
+      <ul>${offers.filter((o) => o.code !== quotedOffer.code).map(offerLine).join('')}</ul>
+    </div>`
+          : ''}`
+      : `<div class="offers offers-full">${offers.map((o) => offerCard(o, false)).join('')}</div>`
+    }
     <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${input.validUntilLabel
       ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
       : ''
     }</p>
   </section>
 
+${supplyStacked()}
 </div>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
@@ -1429,20 +1685,6 @@ ${on('rollout') ? `  <section>
 
   ${upsideBlock()}
 
-
-${on('sideBySide') ? `  <section>
-    <div class="rule"></div>
-    <h2>What each side brings</h2>
-    <table>
-      <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>Your school provides</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Trained facilitators for every session · full curriculum and lesson materials · robotics kits and devices · the learning platform, logins and reporting · termly progress reports for parents</td>
-          <td>A classroom or lab for the session · a slot on the timetable · student registration and parent communication · a staff contact for scheduling</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>` : ''}
 </div>
 
 ${on('curriculum') && primary.length
