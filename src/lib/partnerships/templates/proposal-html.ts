@@ -843,20 +843,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   .cover-scan-code-pending { color: #cbd5e1; font-family: inherit; letter-spacing: .02em; font-weight: 600; background: none; }
   /* Cover Mid Section */
-  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 16mm 0 14mm; }
+  .cover-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 9mm 0 10mm; }
   .cover-kicker {
     display: inline-block; align-self: flex-start; background: #991b1b; color: #fff;
     font-size: 10.5pt; letter-spacing: .16em; text-transform: uppercase; font-weight: 800;
     padding: 2.4mm 5.5mm; border-radius: 1.8mm; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
   }
-  h1 { font-size: 34pt; line-height: 1.12; margin: 6mm 0 7mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 34pt; line-height: 1.12; margin: 9mm 0 14mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
   .cover-for-card {
     background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 0; border-radius: 0 2.5mm 2.5mm 0;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .cover-for { font-size: 18pt; font-weight: 800; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 5mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: 9mm; font-size: 9.2pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
   /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */

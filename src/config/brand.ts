@@ -86,7 +86,7 @@ export const brandContact = {
   signatoryRole:
     process.env.MOU_SIGNATORY_ROLE?.trim() || 'Director, Rillcod Technologies',
   signatureImage: '/images/signature.png',
-  tagline: 'STEM, Robotics & AI Education Partner',
+  tagline: 'STEM, Coding & AI Education Partner',
   taglineLong: 'Inspiring Young Minds Through Technology',
   email: 'support@rillcod.com',
   phone: '+234 811 660 0091',
