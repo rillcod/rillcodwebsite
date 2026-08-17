@@ -62,7 +62,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const ACTION =
-  "shrink-0 px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[34px] inline-flex items-center";
+  "shrink-0 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[44px] inline-flex items-center";
 
 /** What may follow the state a document is in. */
 function nextStates(status: string): Array<{ to: string; label: string }> {
@@ -466,14 +466,27 @@ export function PartnershipDocumentArchive({
                       {n.label}
                     </button>
                   ))}
+                {/*
+                  Delete, big enough to hit with a thumb and labelled.
+
+                  This was a 14px icon in a 22px box — under half the 44px a
+                  finger needs, unlabelled, at the end of a row that scrolls
+                  sideways on a phone. Clearing out test documents was
+                  effectively a desktop-only task, which is not where anyone
+                  actually does this.
+
+                  Still drafts only. A sent document is the record that it was
+                  sent; recall it to draft first, which is one button along.
+                */}
                 {canWrite && doc.status === "draft" && (
                   <button
                     onClick={() => discard(doc)}
                     disabled={busy === doc.id}
                     aria-label={`Delete draft ${doc.reference ?? ""}`}
-                    className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors disabled:opacity-40"
+                    className="shrink-0 inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg border border-destructive/40 text-destructive hover:bg-destructive/10 text-[11px] font-semibold transition-colors disabled:opacity-40"
                   >
-                    <TrashIcon className="w-3.5 h-3.5" />
+                    <TrashIcon className="w-4 h-4" />
+                    <span>Delete</span>
                   </button>
                 )}
               </div>

@@ -18,7 +18,14 @@ import { SIGNATURE_SLOT_END, SIGNATURE_SLOT_START, escapeHtml as esc } from '../
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, CurriculumStage, ProgressionLevel } from '../curriculum';
 import { levelsForStage, splitByStage } from '../curriculum';
-import { computeCharge, describeTerms, type PartnershipTerms } from '../terms';
+// settlementPoints is shared with the proposal, so the offer and the agreement
+// cannot state different things about when a school is paid.
+import {
+  computeCharge,
+  describeTerms,
+  settlementPoints,
+  type PartnershipTerms,
+} from '../terms';
 
 export type MouParty = {
   name: string;
@@ -506,6 +513,23 @@ export function buildPartnershipMouHTML(input: MouInput): string {
         ? `Fees are collected by ${esc(school.name)} and settled with ${esc(brandContact.registeredName)} on the split stated above.`
         : 'Payment falls due within the period stated on each invoice.'
     } Any change to these terms takes effect only when both parties record a superseding agreement in writing.</p>
+    ${/*
+      When the money actually moves, from the record rather than from here.
+
+      The proposal already answers this — when a share is released, what a
+      mid-term withdrawal costs, the enrolment floor below which the programme
+      is re-scoped. The MoU is the document those answers become binding in, and
+      it was silent on all three: a school could sign an agreement that priced
+      the work and never said when it would be paid for it.
+
+      Printed only where the terms record says something. Nothing here invents a
+      settlement window, which is the rule the fee itself already follows.
+    */ ''}${settlementPoints(terms).length > 1
+      ? `<ol class="clauses">${settlementPoints(terms)
+          .slice(1)
+          .map((pt) => `<li><b>${esc(pt.label)}.</b> ${esc(pt.body)}</li>`)
+          .join('')}</ol>`
+      : ''}
   </section>
 
   <!-- Term and termination sit with the money on purpose. What it costs and how
@@ -612,6 +636,23 @@ ${
       <li>Neither party may use the other's name or marks in publicity without prior written consent, which is not unreasonably withheld.</li>
       <li>This Memorandum is governed by the laws of the Federal Republic of Nigeria.</li>
       <li>Disputes are first addressed by good-faith discussion between the signatories below.</li>
+      <!--
+        The clauses that decide what happens when something goes wrong.
+
+        An MoU without them reads well and answers nothing the moment it is
+        needed. Each of these is standard, uncontroversial and costs one line —
+        and their absence is what turns a disagreement into an argument about
+        what the document meant.
+
+        Deliberately not here: liability, indemnity and insurance. Those are
+        commercial positions with real money behind them, and they are the
+        business's to take, not a template's to assume.
+      -->
+      <li>No variation of this Memorandum is effective unless it is recorded in writing and signed by both parties.</li>
+      <li>Neither party is in breach for a failure caused by events outside its reasonable control — including school closure directed by an authority, civil disturbance or the loss of power or connectivity for a sustained period. Sessions lost that way are rescheduled within the same or the following term, and fees for sessions not delivered are credited rather than charged.</li>
+      <li>If any provision of this Memorandum is found unenforceable, the remainder continues in force.</li>
+      <li>This Memorandum, together with the schedule and the commercial terms it states, is the entire agreement between the parties on its subject, and replaces any earlier understanding.</li>
+      <li>Formal notice under this Memorandum is given in writing to the addresses stated in clause 1.0, and is treated as received on the next working day.</li>
     </ol>
   </section>
 
