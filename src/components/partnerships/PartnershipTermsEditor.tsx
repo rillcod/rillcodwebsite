@@ -614,22 +614,65 @@ export function PartnershipTermsEditor({
 
           {/* The split: 100% flexible commercial negotiation toolkit */}
           <div className="rounded-2xl border border-border bg-muted/40 p-4 space-y-4 shadow-sm">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={draft.revenueShare}
-                onChange={(e) => set("revenueShare", e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded accent-emerald-500"
-              />
-              <span>
-                <span className="block text-sm font-bold text-foreground">
-                  Revenue is shared with the school (Negotiable Split)
-                </span>
-                <span className="block text-[11px] text-muted-foreground mt-0.5">
-                  The school bills parents and settles Rillcod’s share. Turn off for a flat tuition fee the school pays directly.
-                </span>
+            {/*
+              How the money moves, as a choice rather than a checkbox.
+
+              This was a tick box in the middle of a long form, and clearing it
+              writes null to both share columns. That is how the one agreed deal
+              on the system ended up at ₦8,000 per student with no split at all
+              — a returns page that could never compute, and nothing anywhere
+              saying why. Nobody chose that; they just did not notice a box.
+
+              Two cards instead, each stating what it means for the money and
+              what the document will then be able to say. A deal with no share
+              is a legitimate shape, but it should be picked on purpose.
+            */}
+            <div>
+              <span className="block text-sm font-bold text-foreground mb-2">
+                How does the money reach us?
               </span>
-            </label>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    on: true,
+                    name: "Shared with the school",
+                    blurb:
+                      "The school bills parents and keeps an agreed percentage. The proposal can then show what the partnership earns them.",
+                  },
+                  {
+                    on: false,
+                    name: "A flat fee the school pays",
+                    blurb:
+                      "No percentage split. The returns page cannot show what they earn, because on this shape they do not earn a share.",
+                  },
+                ].map((choice) => {
+                  const active = draft.revenueShare === choice.on;
+                  return (
+                    <button
+                      key={String(choice.on)}
+                      type="button"
+                      onClick={() => set("revenueShare", choice.on)}
+                      className={`text-left p-3 rounded-xl border transition-colors ${
+                        active
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-foreground/30"
+                      }`}
+                    >
+                      <span className="block text-xs font-bold text-foreground">{choice.name}</span>
+                      <span className="block text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {choice.blurb}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!draft.revenueShare && (
+                <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+                  With no share recorded, the proposal drops the returns page workings — the sheet a
+                  head teacher rereads. Choose this only if the school genuinely pays a flat fee.
+                </p>
+              )}
+            </div>
 
             {draft.revenueShare ? (
               <div className="space-y-3.5 pt-1">
