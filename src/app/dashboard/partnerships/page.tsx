@@ -121,6 +121,14 @@ export default function PartnershipsPage() {
   const [mobileShowSidebar, setMobileShowSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("compose");
   const [pageView, setPageView] = useState<PageView>("school");
+  /**
+   * How much is waiting on somebody, across every school.
+   *
+   * Null until it is known, so the page never claims "nothing needs you" before
+   * it has looked. The number badges the toggle, and on a first visit it also
+   * decides which of the two views opens.
+   */
+  const [needsAttention, setNeedsAttention] = useState<number | null>(null);
 
   const [terms, setTerms] = useState<TermsRow[]>([]);
   const [agreed, setAgreed] = useState<TermsRow | null>(null);
@@ -272,6 +280,39 @@ export default function PartnershipsPage() {
       null,
     [documents],
   );
+
+  /*
+    Open on the work, when there is work.
+
+    The workspace opened on whichever school happened to be selected, which is
+    the right screen once you know which school you are dealing with and the
+    wrong one first thing in the morning — the questions that matter then span
+    schools: what went out and was never opened, what is going cold, what has
+    lapsed. Those had nowhere to be asked until the pipeline existed, and it
+    was behind a toggle nobody had a reason to press.
+
+    Only on the first load, and only when something is actually waiting. A
+    quiet pipeline should not take you away from the school you came here for.
+  */
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/partnerships/pipeline');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!live) return;
+        const waiting = (json.documents ?? []).filter((d: { needs_attention?: boolean }) => d.needs_attention).length;
+        setNeedsAttention(waiting);
+        if (waiting > 0) setPageView('pipeline');
+      } catch {
+        // A pipeline that cannot be counted is not a reason to block the page.
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // Latest active document for quick header link
   const latestDoc = documents[0] || null;
@@ -457,6 +498,15 @@ export default function PartnershipsPage() {
             }`}
           >
             {v.label}
+            {v.v === 'pipeline' && needsAttention ? (
+              <span
+                className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black ${
+                  pageView === v.v ? 'bg-white/20' : 'bg-amber-500/20 text-amber-500'
+                }`}
+              >
+                {needsAttention}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
