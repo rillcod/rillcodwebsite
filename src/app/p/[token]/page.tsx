@@ -85,6 +85,9 @@ export default function PublicDocumentPage({
   const [zoom, setZoom] = useState<"fit" | "75" | "100" | "125">("fit");
   /** The document's own height, measured from inside the iframe. */
   const [docHeight, setDocHeight] = useState(0);
+  /** Where each A4 sheet begins inside the document, and which one is being read. */
+  const [pageTops, setPageTops] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [savingPdf, setSavingPdf] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -155,6 +158,24 @@ export default function PublicDocumentPage({
         if (h > 100) {
           setDocHeight((prev) => (Math.abs(prev - h) > 2 ? h : prev));
         }
+
+        /*
+          Where each sheet starts, so the viewer can move a sheet at a time.
+
+          The document is not a wall of text — it is ten A4 pages with headings
+          on them, and it already says so in its own markup. Reading those
+          offsets is the difference between "scroll eleven thousand pixels and
+          hope" and "take me to the money page".
+        */
+        const sheets = Array.from(inner.querySelectorAll<HTMLElement>('.page'));
+        if (sheets.length) {
+          const tops = sheets.map((el) => el.offsetTop);
+          setPageTops((prev) =>
+            prev.length === tops.length && prev.every((v, i) => Math.abs(v - tops[i]) < 2)
+              ? prev
+              : tops,
+          );
+        }
       } catch {
         // Suppress cross-origin if any
       }
@@ -212,6 +233,52 @@ export default function PublicDocumentPage({
   */
   const isScaled = isSmallScreen && zoom === "fit" && responsiveScale < 1;
   const scaledHeight = docHeight ? Math.round(docHeight * responsiveScale) : 0;
+
+  /**
+   * Move the window to the top of a given sheet.
+   *
+   * The document lives in an iframe the page scrolls past, so a sheet's own
+   * offset has to be scaled by however much the document is shrunk and then
+   * added to where the viewer starts on the page. Getting either wrong sends
+   * the reader to roughly the right area, which on a ten-page contract is the
+   * same as not moving them at all.
+   */
+  const goToPage = useCallback(
+    (index: number) => {
+      const top = pageTops[index];
+      const host = containerRef.current;
+      if (top == null || !host) return;
+      const hostTop = host.getBoundingClientRect().top + window.scrollY;
+      // A little air above the sheet, so it does not sit flush under the header.
+      window.scrollTo({ top: Math.max(0, hostTop + top * responsiveScale - 12), behavior: 'smooth' });
+    },
+    [pageTops, responsiveScale],
+  );
+
+  /*
+    Which sheet is being read, tracked from the window's own scroll.
+
+    Passive, because this fires on every scroll frame and a listener that can
+    call preventDefault forces the browser to wait for it before painting —
+    which is exactly the stutter this viewer was reported for.
+  */
+  useEffect(() => {
+    if (!pageTops.length) return;
+    const onScroll = () => {
+      const host = containerRef.current;
+      if (!host) return;
+      const hostTop = host.getBoundingClientRect().top + window.scrollY;
+      const eye = window.scrollY + window.innerHeight * 0.3;
+      let current = 0;
+      for (let i = 0; i < pageTops.length; i += 1) {
+        if (hostTop + pageTops[i] * responsiveScale <= eye) current = i;
+      }
+      setCurrentPage((prev) => (prev === current + 1 ? prev : current + 1));
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [pageTops, responsiveScale]);
 
   if (loading) {
     return (
@@ -548,6 +615,86 @@ export default function PublicDocumentPage({
             </div>
           </div>
         </div>
+
+        {/*
+          The sheet-at-a-time navigator, for the screen that needs it most.
+
+          A ten-page contract on a phone is eleven thousand pixels of scrolling,
+          and the two things a reader wants — find the fees, then sign — are
+          both a long way from wherever they are. This puts the page count, a
+          way to move a sheet at a time, and the signing button in permanent
+          reach at the bottom of the screen.
+
+          Phone only. On a laptop the whole document is on screen at a readable
+          size and the header controls are already visible, so a floating bar
+          would be covering the document to solve a problem that screen does
+          not have.
+        */}
+        {pageTops.length > 1 && (
+          <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/15 bg-slate-900/95 backdrop-blur p-1.5 shadow-2xl shadow-black/60">
+              <button
+                type="button"
+                onClick={() => goToPage(Math.max(0, currentPage - 2))}
+                disabled={currentPage <= 1}
+                aria-label="Previous page"
+                className="shrink-0 w-11 h-11 rounded-xl border border-white/10 bg-white/5 text-white/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <ChevronUpIcon className="w-4 h-4" />
+              </button>
+
+              <div className="flex-1 min-w-0 text-center">
+                <div className="text-[11px] font-black text-white tabular-nums">
+                  Page {currentPage} of {pageTops.length}
+                </div>
+                <div className="mt-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(currentPage / pageTops.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => goToPage(Math.min(pageTops.length - 1, currentPage))}
+                disabled={currentPage >= pageTops.length}
+                aria-label="Next page"
+                className="shrink-0 w-11 h-11 rounded-xl border border-white/10 bg-white/5 text-white/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <ChevronDownIcon className="w-4 h-4" />
+              </button>
+
+              {/* The action the whole page exists for, never more than a thumb away. */}
+              {doc.kind === "mou" && doc.status !== "signed" ? (
+                <button
+                  type="button"
+                  onClick={() => setShowSignModal(true)}
+                  className="shrink-0 h-11 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <CheckCircleIcon className="w-4 h-4" /> Sign
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={savingPdf}
+                  aria-label="Download PDF"
+                  className="shrink-0 w-11 h-11 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center"
+                >
+                  {savingPdf ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* The bar floats over the page, so the last section needs room under it. */}
+        {pageTops.length > 1 && <div className="sm:hidden h-20 shrink-0" aria-hidden="true" />}
 
         {/* ── Interactive Value Pillars & Proprietor Advantage Box ── */}
         <section className="w-full max-w-[850px] rounded-3xl bg-slate-900 border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
