@@ -169,11 +169,34 @@ export const TRADITIONAL_VS_RILLCOD = [
  * Keep this in step with the site: it is the same claim in two places, and a
  * prospect who checks should find them agreeing.
  */
+/**
+ * What our learners have done, with the learner left in the sentence.
+ *
+ * These read as a list of prizes: "First place, 2024 National Youth Coding
+ * Challenge." A trophy with nobody holding it. The student had been edited out
+ * of every line, and the student is the entire point — a head teacher is not
+ * buying a prize, they are buying the possibility that one of theirs does this.
+ *
+ * Same three facts, nothing added that we cannot stand behind. What changed is
+ * who is doing the verb, and how hard the verb works: "won" rather than "took
+ * first place at", "built" and "took" rather than "that won". Short verbs with
+ * a student in front of them are what a confident teacher sounds like.
+ */
 export const FIELD_PROOF: readonly string[] = [
-  'First place, 2024 National Youth Coding Challenge.',
-  'A solar-powered irrigation control system that won the regional hardware innovation prize.',
-  'Environmental monitoring research presented at the inter-school science exhibition.',
+  'Our students won the 2024 National Youth Coding Challenge — from an ordinary classroom, not a laboratory.',
+  'Our students built a solar-powered irrigation controller. It took the regional hardware prize.',
+  'Our learners presented their own environmental research at the inter-school exhibition.',
 ] as const;
+
+/*
+  There is no separate lede above this list.
+
+  The point a proprietor needs — that none of it required a laboratory they do
+  not have — was worth a sentence but not a paragraph: page two had 21px of
+  clearance, and a paragraph costs fifty. It now qualifies the first achievement
+  from inside it, which is a better place for it anyway. A caveat attached to
+  the evidence is stronger than one announced before it.
+*/
 
 export type StudentCaseStudy = { title: string; ageGroup: string; outcome: string };
 
