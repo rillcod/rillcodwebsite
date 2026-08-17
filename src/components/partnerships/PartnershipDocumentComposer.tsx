@@ -42,7 +42,7 @@ export type ComposerRedrawPayload = {
   stage: "primary" | "secondary" | "both" | null;
   notes: string | null;
   validity_days: number | null;
-  proposed_school_share_percent: number;
+  proposed_school_share_percent: number | null;
   commencement: string | null;
   duration_label: string | null;
   illustrative_students: number | undefined;
@@ -274,7 +274,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         commencement: p.commencement,
         duration_label: p.duration_label,
         illustrative_students: p.illustrative_students,
-        studio: p.studio,
+        studio: p.studio ?? null,
         narrative: p.narrative,
       };
     },

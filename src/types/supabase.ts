@@ -13331,15 +13331,19 @@ export type Database = {
           effective_to: string | null
           fixed_package_price: number | null
           id: string
+          minimum_students: number | null
           notes: string | null
           rillcod_share_percent: number | null
           school_id: string
           school_share_percent: number | null
+          settlement_days: number | null
+          settlement_trigger: string | null
           status: string
           supersedes_id: string | null
           tiers: Json | null
           updated_at: string
           version: number
+          withdrawal_policy: string | null
         }
         Insert: {
           agreed_at?: string | null
@@ -13354,15 +13358,19 @@ export type Database = {
           effective_to?: string | null
           fixed_package_price?: number | null
           id?: string
+          minimum_students?: number | null
           notes?: string | null
           rillcod_share_percent?: number | null
           school_id: string
           school_share_percent?: number | null
+          settlement_days?: number | null
+          settlement_trigger?: string | null
           status?: string
           supersedes_id?: string | null
           tiers?: Json | null
           updated_at?: string
           version?: number
+          withdrawal_policy?: string | null
         }
         Update: {
           agreed_at?: string | null
@@ -13377,15 +13385,19 @@ export type Database = {
           effective_to?: string | null
           fixed_package_price?: number | null
           id?: string
+          minimum_students?: number | null
           notes?: string | null
           rillcod_share_percent?: number | null
           school_id?: string
           school_share_percent?: number | null
+          settlement_days?: number | null
+          settlement_trigger?: string | null
           status?: string
           supersedes_id?: string | null
           tiers?: Json | null
           updated_at?: string
           version?: number
+          withdrawal_policy?: string | null
         }
         Relationships: [
           {
