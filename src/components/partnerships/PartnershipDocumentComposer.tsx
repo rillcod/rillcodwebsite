@@ -19,9 +19,7 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
-  SparklesIcon,
   CheckCircleIcon,
-  ChevronDownIcon,
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel, recommendOffer } from "@/lib/partnerships/offers";
 import { describeTerms } from "@/lib/partnerships/terms";
@@ -443,14 +441,8 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </p>
           </div>
 
-          <details className="group rounded-xl border border-border bg-muted/20">
-            <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
-              Offer, split and pitch
-              <ChevronDownIcon className="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="px-4 pb-4 space-y-4">
           <div>
-            <span className={LABEL}>Scope the quote to an option</span>
+            <span className={LABEL}>Which option to put in front</span>
             <div className="space-y-2">
               <button
                 type="button"
@@ -464,9 +456,9 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                     : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
                 }`}
               >
-                All twelve years
+                Show every option equally
                 <span className="block text-[11px] text-muted-foreground mt-0.5">
-                  Present the full ladder, Basic 1 to SS 3, with every option priced.
+                  Price A, B1 and B2 without putting one in front.
                 </span>
               </button>
               {PARTNERSHIP_OFFERS.map((offer) => (
@@ -576,29 +568,11 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Wording, sections and photographs are in the studio under this form — not a second
+              copy of these fields.
+            </p>
           </div>
-
-          <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-muted/40 p-4">
-            <input
-              type="checkbox"
-              checked={useAI}
-              onChange={(e) => setUseAI(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-primary"
-            />
-            <span>
-              <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <SparklesIcon className="w-3.5 h-3.5 text-primary" />
-                Tailor the pitch with AI
-              </span>
-              <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                Rewrites the opening and benefits for this school only. Fees, the split and the
-                curriculum always come from the record — generated text stating a price is
-                discarded, and any failure falls back to the authored copy.
-              </span>
-            </span>
-          </label>
-            </div>
-          </details>
         </div>
       ) : (
         <div className="space-y-4">

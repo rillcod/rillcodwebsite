@@ -164,6 +164,28 @@ export function IssuedDocumentPreview({
     }
   }
 
+  async function deleteStored() {
+    if (!onDelete) return;
+    const unopenedSent = liveStatus === "sent";
+    if (
+      !confirm(
+        unopenedSent
+          ? `${reference} was sent but you can still delete it if nobody opened it. Take it back and delete?`
+          : `Delete draft ${reference}? Nothing has been sent, so nothing is lost.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setError("");
+    try {
+      await onDelete();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete that document.");
+      setDeleting(false);
+    }
+  }
+
   async function download() {
     const doc = frameRef.current?.contentDocument;
     if (!doc) {
@@ -271,22 +293,7 @@ export function IssuedDocumentPreview({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 px-3 sm:px-4 pb-2.5">
-            <div className="flex sm:hidden items-center bg-muted/60 p-0.5 rounded-xl border border-border text-[11px] font-bold text-foreground/80">
-              {(["fit", "75", "100"] as const).map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  onClick={() => setZoom(z)}
-                  className={`px-2 py-1 rounded-lg ${
-                    zoom === z ? "bg-primary text-primary-foreground" : ""
-                  }`}
-                >
-                  {z === "fit" ? "Fit" : z}
-                </button>
-              ))}
-            </div>
-
+          <div className="hidden sm:flex flex-wrap items-center gap-1.5 px-3 sm:px-4 pb-2.5">
             {canSend && stored && (
               <button
                 type="button"
@@ -356,26 +363,10 @@ export function IssuedDocumentPreview({
               </button>
             )}
 
-            {onDelete && stored && liveStatus === "draft" && (
+            {onDelete && stored && (
               <button
                 type="button"
-                onClick={async () => {
-                  if (
-                    !confirm(
-                      `Delete draft ${reference}? Nothing has been sent, so nothing is lost.`,
-                    )
-                  ) {
-                    return;
-                  }
-                  setDeleting(true);
-                  setError("");
-                  try {
-                    await onDelete();
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : "Could not delete that draft.");
-                    setDeleting(false);
-                  }
-                }}
+                onClick={() => void deleteStored()}
                 disabled={deleting || sending || saving}
                 className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-50"
               >
@@ -384,7 +375,7 @@ export function IssuedDocumentPreview({
                 ) : (
                   <TrashIcon className="w-3.5 h-3.5" />
                 )}
-                {deleting ? "Deleting…" : "Delete draft"}
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             )}
           </div>
@@ -514,6 +505,46 @@ export function IssuedDocumentPreview({
             </div>
           </div>
         )}
+
+        <div className="sm:hidden shrink-0 grid grid-cols-2 gap-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {onDelete && stored ? (
+            <button
+              type="button"
+              onClick={() => void deleteStored()}
+              disabled={deleting || sending || saving}
+              className="min-h-[48px] rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold"
+            >
+              Close
+            </button>
+          )}
+          {canSend && stored ? (
+            <button
+              type="button"
+              onClick={() => setShowEmailField(true)}
+              disabled={sending || saving}
+              className="min-h-[48px] rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+            >
+              Send
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={download}
+              disabled={saving}
+              className="min-h-[48px] rounded-xl bg-foreground text-background text-xs font-bold disabled:opacity-50"
+            >
+              Download
+            </button>
+          )}
+        </div>
       </div>
     </BodyPortal>
   );

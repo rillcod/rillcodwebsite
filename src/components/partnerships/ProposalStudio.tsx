@@ -66,6 +66,12 @@ export function ProposalStudio({
   school?: StudioSchool | null;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+      setOpen(true);
+    }
+  }, []);
   const [photos, setPhotos] = useState<MediaAsset[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MediaCategory>("all");

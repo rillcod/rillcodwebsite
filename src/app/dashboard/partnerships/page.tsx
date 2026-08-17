@@ -29,12 +29,11 @@ import {
   ChevronDownIcon,
 } from "@/lib/icons";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
-import { PartnershipDocumentArchive } from "@/components/partnerships/PartnershipDocumentArchive";
+import { PartnershipDocumentArchive, canDeleteDocument, removePartnershipDocument } from "@/components/partnerships/PartnershipDocumentArchive";
 import { PartnershipDocumentComposer, type ComposerHandle } from "@/components/partnerships/PartnershipDocumentComposer";
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
-import { SchoolGalleryViewer } from "@/components/schools/SchoolGalleryViewer";
 import { PartnershipOutreachModal } from "@/components/partnerships/PartnershipOutreachModal";
 import { PartnershipPipeline } from "@/components/partnerships/PartnershipPipeline";
 import { defaultStudioConfig, type ProposalStudioConfig } from "@/lib/partnerships/studio-config";
@@ -61,10 +60,18 @@ type Preview = {
   shareToken: string | null;
   accessCode?: string | null;
   status?: string | null;
+  openCount?: number;
 };
 
 // No "studio": it is part of composing now, not a place you navigate to.
 type WorkspaceTab = "compose" | "terms" | "gallery" | "archive";
+
+const JOURNEY = [
+  { step: 2, label: "Proposal", tab: "compose" as WorkspaceTab, kind: "proposal" as const },
+  { step: 3, label: "Deal", tab: "terms" as WorkspaceTab },
+  { step: 4, label: "MoU", tab: "compose" as WorkspaceTab, kind: "mou" as const },
+  { step: 5, label: "Signed", tab: "archive" as WorkspaceTab },
+];
 
 /*
   Which of the two jobs this page is doing.
@@ -332,7 +339,7 @@ export default function PartnershipsPage() {
     if (!documents.some((d) => d.id === preview.id)) setPreview(null);
   }, [documents, preview?.id, loadingSchool]);
 
-  const writing = activeTab !== "archive";
+  const writing = activeTab === "compose";
 
   function documentForNextStep(): IssuedDocumentRow | null {
     const kind = dealState?.action?.kind;
@@ -364,10 +371,17 @@ export default function PartnershipsPage() {
         shareToken: doc.share_token,
         accessCode: doc.access_code,
         status: doc.status,
+        openCount: Number(doc.open_count) || 0,
       });
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Could not open that document.");
     }
+  }
+
+  function goToJourneyStep(tab: WorkspaceTab, kind?: "proposal" | "mou") {
+    if (kind) setComposeKind(kind);
+    if (tab === "terms") setOpenTerms((n) => n + 1);
+    setActiveTab(tab);
   }
 
   function goToNextStep() {
@@ -664,7 +678,7 @@ export default function PartnershipsPage() {
             <>
               {/* Selected School Executive Banner */}
               <div className="rounded-3xl bg-card border border-border p-5 shadow-lg space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="hidden sm:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg sm:text-xl font-black text-foreground">{selected.name}</h2>
@@ -732,90 +746,114 @@ export default function PartnershipsPage() {
                 </div>
 
                 {dealState && (
-                  <div
-                    className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                      dealState.tone === "done"
-                        ? "border-emerald-500/30 bg-emerald-500/10"
-                        : dealState.tone === "warn"
-                          ? "border-amber-500/30 bg-amber-500/10"
-                          : dealState.tone === "todo"
-                            ? "border-border bg-muted/40"
-                            : "border-sky-500/25 bg-sky-500/10"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Next step
-                      </p>
-                      <p className="text-sm font-bold text-foreground mt-0.5">{dealState.headline}</p>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  <div className="space-y-3">
+                    <ol className="grid grid-cols-4 gap-1">
+                      {JOURNEY.map((s, i) => {
+                        const current = dealState.step === s.step || (s.step === 5 && dealState.step > 5);
+                        const done = dealState.step > s.step;
+                        return (
+                          <li key={s.label}>
+                            <button
+                              type="button"
+                              onClick={() => goToJourneyStep(s.tab, s.kind)}
+                              className={`w-full min-h-[44px] rounded-xl border px-1 py-2 text-center ${
+                                current
+                                  ? "border-foreground bg-foreground text-background"
+                                  : done
+                                    ? "border-emerald-500/40 bg-emerald-500/10 text-foreground"
+                                    : "border-border bg-muted/40 text-muted-foreground"
+                              }`}
+                            >
+                              <span className="block text-[10px] font-black">{i + 1}</span>
+                              <span className="block text-[10px] sm:text-[11px] font-bold leading-tight">
+                                {s.label}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    <div
+                      className={`rounded-2xl border p-3 sm:p-4 flex flex-col gap-3 ${
+                        dealState.tone === "done"
+                          ? "border-emerald-500/30 bg-emerald-500/10"
+                          : dealState.tone === "warn"
+                            ? "border-amber-500/30 bg-amber-500/10"
+                            : dealState.tone === "todo"
+                              ? "border-border bg-muted/40"
+                              : "border-sky-500/25 bg-sky-500/10"
+                      }`}
+                    >
+                      <p className="text-sm font-bold text-foreground">{dealState.headline}</p>
+                      <p className="hidden sm:block text-xs text-muted-foreground leading-relaxed">
                         {dealState.detail}
                       </p>
-                    </div>
-                    <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2 shrink-0">
-                      {dealState.tone === "done" && dealState.hrefs ? (
-                        dealState.hrefs.map((h) => (
-                          <Link
-                            key={h.href}
-                            href={h.href}
-                            className="flex min-h-[44px] items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
-                          >
-                            {h.label}
-                          </Link>
-                        ))
-                      ) : (
-                        <>
-                          {dealState.action && (
-                            <button
-                              type="button"
-                              onClick={goToNextStep}
-                              className="min-h-[44px] px-4 py-2 rounded-xl bg-foreground text-background text-xs font-bold"
+                      <div className="flex w-full flex-col gap-2">
+                        {dealState.tone === "done" && dealState.hrefs ? (
+                          dealState.hrefs.map((h) => (
+                            <Link
+                              key={h.href}
+                              href={h.href}
+                              className="flex min-h-[48px] items-center justify-center px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold"
                             >
-                              {dealState.action.label}
-                            </button>
-                          )}
-                          {dealState.followUp === "mou" && shareableMou && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const shareUrl = buildDocumentShareUrl(
-                                  typeof window !== "undefined" ? window.location.origin : "",
-                                  shareableMou.share_token,
-                                );
-                                if (!shareUrl) return;
-                                const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour Rillcod partnership MoU is ready to sign:\n${shareUrl}\n\nYou can review and sign on your phone.\n\nRillcod Technologies`;
-                                window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
-                              }}
-                              className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
-                            >
-                              WhatsApp
-                            </button>
-                          )}
-                          {dealState.followUp === "proposal" && shareableProposal && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const shareUrl = buildDocumentShareUrl(
-                                  typeof window !== "undefined" ? window.location.origin : "",
-                                  shareableProposal.share_token,
-                                );
-                                if (!shareUrl) return;
-                                const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the partnership proposal (${shareableProposal.reference}):\n${shareUrl}\n\nHappy to talk through it or bring a demo to the school.\n\nRillcod Technologies`;
-                                window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
-                              }}
-                              className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
-                            >
-                              WhatsApp
-                            </button>
-                          )}
-                        </>
-                      )}
+                              {h.label}
+                            </Link>
+                          ))
+                        ) : (
+                          <>
+                            {dealState.action && (
+                              <button
+                                type="button"
+                                onClick={goToNextStep}
+                                className="min-h-[48px] px-4 rounded-xl bg-foreground text-background text-xs font-bold"
+                              >
+                                {dealState.action.label}
+                              </button>
+                            )}
+                            {dealState.followUp === "mou" && shareableMou && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const shareUrl = buildDocumentShareUrl(
+                                    typeof window !== "undefined" ? window.location.origin : "",
+                                    shareableMou.share_token,
+                                  );
+                                  if (!shareUrl) return;
+                                  const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour Rillcod partnership MoU is ready to sign:\n${shareUrl}\n\nYou can review and sign on your phone.\n\nRillcod Technologies`;
+                                  window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
+                                }}
+                                className="min-h-[48px] px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
+                              >
+                                WhatsApp
+                              </button>
+                            )}
+                            {dealState.followUp === "proposal" && shareableProposal && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const shareUrl = buildDocumentShareUrl(
+                                    typeof window !== "undefined" ? window.location.origin : "",
+                                    shareableProposal.share_token,
+                                  );
+                                  if (!shareUrl) return;
+                                  const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the partnership proposal (${shareableProposal.reference}):\n${shareUrl}\n\nHappy to talk through it or bring a demo to the school.\n\nRillcod Technologies`;
+                                  window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
+                                }}
+                                className="min-h-[48px] px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
+                              >
+                                WhatsApp
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border w-full sm:w-auto">
+              <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur border-b border-border/60 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0">
+              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border w-full">
                 <button
                   type="button"
                   onClick={() => setActiveTab("compose")}
@@ -841,6 +879,7 @@ export default function PartnershipsPage() {
                     <span className="ml-1.5 opacity-80">{documents.length}</span>
                   )}
                 </button>
+              </div>
               </div>
 
               {/* Composer stays mounted (hidden) on Documents so a redraw still
@@ -893,60 +932,32 @@ export default function PartnershipsPage() {
                         shareToken: doc.share_token,
                         accessCode: doc.access_code,
                         status: doc.email_sent ? "sent" : "draft",
+                        openCount: 0,
                       });
                       await loadSchoolDetail(selected.id);
                     }}
                   />
-                  {/*
-                    The studio, where the document it shapes is being made.
-
-                    It was its own tab, which meant deciding what a proposal
-                    prints happened on a different screen from composing and
-                    previewing it — you toggled a section off, switched tabs,
-                    previewed, and switched back to see whether that was what
-                    you meant. Collapsed by default, because most proposals go
-                    out whole and the controls are only wanted when they are.
-                  */}
-                  {canWrite && composeKind === 'proposal' && (
-                    <details className="group bg-card border border-border rounded-2xl overflow-hidden">
-                      <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors">
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-foreground">
-                            Choose what this proposal prints
-                          </span>
-                          <span className="block text-[11px] text-muted-foreground mt-0.5">
-                            Sections, photographs and the wording. Everything is on by default.
-                          </span>
-                        </span>
-                        <ChevronDownIcon className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                      </summary>
-                      <div className="px-1 pb-1">
-                        <ProposalStudio config={studio} onChange={setStudio} school={selected} />
-                        <div className="px-4 pb-4">
-                          <p className="text-[11px] font-semibold text-muted-foreground mb-2">
-                            School photos
-                          </p>
-                          <SchoolGalleryViewer
-                            schoolId={selected.id}
-                            schoolName={selected.name}
-                          />
-                        </div>
-                      </div>
-                    </details>
+                  {canWrite && composeKind === "proposal" && (
+                    <ProposalStudio config={studio} onChange={setStudio} school={selected} />
                   )}
                 </div>
 
               {/* Tab 2: Authoritative Commercial Terms */}
               {activeTab === "terms" && (
                 <div id="partnership-terms" className="space-y-4">
-                  <p className="text-sm font-semibold text-foreground">Record the deal</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("compose")}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    ← Back to writing
-                  </button>
+                  <div className="rounded-2xl border border-border bg-card p-5">
+                    <p className="text-base font-semibold text-foreground">Record the deal</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The rate the proposal quoted, the MoU will state, and the invoice will bill.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("compose")}
+                      className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      ← Back to the proposal
+                    </button>
+                  </div>
                   <PartnershipTermsEditor
                     school={selected}
                     agreed={agreed}
@@ -990,6 +1001,7 @@ export default function PartnershipsPage() {
                         shareToken: doc.share_token,
                         accessCode: doc.access_code,
                         status: doc.status,
+                        openCount: Number(doc.open_count) || 0,
                       });
                     }}
                   />
@@ -1023,14 +1035,19 @@ export default function PartnershipsPage() {
           canSend={canWrite}
           onSent={() => loadSchoolDetail(selected.id)}
           onDelete={
-            canWrite && preview.id && preview.status === "draft"
+            canWrite &&
+            preview.id &&
+            canDeleteDocument({
+              status: preview.status ?? "",
+              open_count: preview.openCount,
+            })
               ? async () => {
-                  const res = await fetch(
-                    `/api/partnerships/documents?id=${encodeURIComponent(preview.id)}`,
-                    { method: "DELETE" },
-                  );
-                  const json = await res.json();
-                  if (!res.ok) throw new Error(json.error || "Could not delete that draft.");
+                  await removePartnershipDocument({
+                    id: preview.id,
+                    reference: preview.reference,
+                    status: preview.status ?? "draft",
+                    open_count: preview.openCount,
+                  });
                   setPreview(null);
                   await loadSchoolDetail(selected.id);
                 }
