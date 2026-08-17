@@ -47,11 +47,11 @@ export default function DocumentAccessPortalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 text-foreground flex flex-col justify-between selection:bg-violet-500 selection:text-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
       {/* Header */}
-      <header className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-card/60 backdrop-blur-md">
+      <header className="px-6 py-4 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur-md">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center font-bold text-foreground shadow-lg shadow-violet-950/50">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center font-bold text-primary-foreground shadow-lg">
             R
           </div>
           <span className="text-sm font-bold tracking-tight text-foreground">
@@ -59,20 +59,20 @@ export default function DocumentAccessPortalPage() {
           </span>
         </Link>
         <span className="text-xs font-medium text-muted-foreground">
-          Official Partnership Portal
+          Partnership document
         </span>
       </header>
 
       {/* Main Form Container */}
       <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-card/90 border border-violet-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-violet-950/40 relative overflow-hidden backdrop-blur-xl">
+        <div className="w-full max-w-md bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
           {/* Subtle glow background */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-violet-600/20 text-violet-300 border border-violet-500/30 mb-1">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/15 text-primary border border-primary/20 mb-1">
                 <DocumentTextIcon className="w-6 h-6" />
               </div>
               <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
@@ -85,7 +85,7 @@ export default function DocumentAccessPortalPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-xs font-semibold text-red-300">
+                <div className="p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-xs font-semibold text-red-700 dark:text-red-300">
                   {error}
                 </div>
               )}
@@ -111,7 +111,7 @@ export default function DocumentAccessPortalPage() {
                     autoCapitalize="characters"
                     autoComplete="off"
                     spellCheck="false"
-                    className="w-full px-4 py-3.5 bg-muted/40 border border-white/15 focus:border-violet-500 rounded-2xl text-base font-mono font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/30 tracking-wider text-center uppercase transition-all shadow-inner"
+                    className="w-full px-4 py-3.5 bg-muted/40 border border-border focus:border-primary rounded-2xl text-base font-mono font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 tracking-wider text-center uppercase transition-all"
                   />
                 </div>
               </div>
@@ -119,7 +119,7 @@ export default function DocumentAccessPortalPage() {
               <button
                 type="submit"
                 disabled={loading || !code.trim()}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-foreground font-bold text-sm shadow-lg shadow-violet-950/50 transition-all hover:scale-[1.01]"
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold text-sm shadow-lg transition-all"
               >
                 {loading ? (
                   <>
@@ -135,13 +135,13 @@ export default function DocumentAccessPortalPage() {
               </button>
             </form>
 
-            <div className="pt-4 border-t border-white/10 space-y-2">
+            <div className="pt-4 border-t border-border space-y-2">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Zero login or portal account required.</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <QrCodeIcon className="w-4 h-4 text-violet-400 shrink-0" />
+                <QrCodeIcon className="w-4 h-4 text-primary shrink-0" />
                 <span>Or scan the QR code printed on your document.</span>
               </div>
             </div>
@@ -150,7 +150,7 @@ export default function DocumentAccessPortalPage() {
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 border-t border-white/10 text-center text-xs text-muted-foreground">
+      <footer className="px-6 py-4 border-t border-border text-center text-xs text-muted-foreground">
         &copy; {new Date().getFullYear()} {brandContact.legalName} &middot; All Rights Reserved.
       </footer>
     </div>

@@ -271,22 +271,22 @@ export default function PublicDocumentPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white">
-        <ArrowPathIcon className="w-9 h-9 text-cyan-400 animate-spin mb-3.5" />
-        <p className="text-sm font-semibold text-muted-foreground">Loading partnership dossier…</p>
-        <p className="text-xs text-muted-foreground mt-1">Preparing verified institutional documents</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground">
+        <ArrowPathIcon className="w-9 h-9 text-primary animate-spin mb-3.5" />
+        <p className="text-sm font-semibold text-foreground">Loading your document…</p>
+        <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
       </div>
     );
   }
 
   if (error || !doc) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white p-4 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 font-black text-2xl shadow-xl">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground p-4 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-600 dark:text-red-400 mb-4 font-black text-2xl shadow-xl">
           !
         </div>
-        <h1 className="text-xl font-bold text-white mb-2">
-          {withdrawn ? "Document withdrawn" : "Document Not Found"}
+        <h1 className="text-xl font-bold text-foreground mb-2">
+          {withdrawn ? "Document withdrawn" : "Document not found"}
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
           {error ||
@@ -304,8 +304,15 @@ export default function PublicDocumentPage({
     );
   }
 
+  const canSign = doc.kind === "mou" && doc.status !== "signed" && !doc.expired;
+  const whatsappHref = `${brandContact.whatsapp}?text=${encodeURIComponent(
+    `Hello Rillcod — regarding ${doc.kind === "mou" ? "MoU" : "proposal"} ${doc.reference}${
+      doc.school?.name ? ` for ${doc.school.name}` : ""
+    }.`,
+  )}`;
+
   return (
-    <div className="min-h-screen bg-background text-white flex flex-col font-sans selection:bg-cyan-500/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
       {/* ── Top Executive Sticky Header ── */}
       <header className="sticky top-0 z-40 bg-card/95 border-b border-border backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
@@ -313,15 +320,15 @@ export default function PublicDocumentPage({
             R
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white flex items-center gap-2">
+            <h1 className="text-sm font-bold text-foreground flex items-center gap-2">
               {doc.kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal"}
-              <span className="px-2 py-0.5 rounded-md bg-white/10 text-cyan-300 font-mono text-xs border border-cyan-500/30">
+              <span className="px-2 py-0.5 rounded-md bg-muted text-primary font-mono text-xs border border-border">
                 {doc.reference}
               </span>
             </h1>
             <p className="text-[11px] text-muted-foreground">
               {doc.school?.name ? `${doc.school.name} · ` : ""}
-              Official Verified Dossier
+              Your school&apos;s copy
             </p>
             {/*
               The way back in, printed where they will see it.
@@ -337,7 +344,7 @@ export default function PublicDocumentPage({
                 <span className="uppercase tracking-wider font-bold text-muted-foreground">
                   Your access code
                 </span>
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-mono text-[11px] font-black border border-amber-500/30 tracking-widest">
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono text-[11px] font-black border border-amber-500/30 tracking-widest">
                   {doc.accessCode}
                 </span>
                 <span className="hidden sm:inline text-muted-foreground">
@@ -378,7 +385,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("fit")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "fit" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
+                zoom === "fit" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
               }`}
             >
               Fit
@@ -386,7 +393,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("75")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "75" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
+                zoom === "75" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
               }`}
             >
               75%
@@ -394,7 +401,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("100")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "100" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
+                zoom === "100" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
               }`}
             >
               100%
@@ -402,7 +409,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("125")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "125" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
+                zoom === "125" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
               }`}
             >
               125%
@@ -424,23 +431,23 @@ export default function PublicDocumentPage({
 
           <button
             onClick={() => frameRef.current?.contentWindow?.print()}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-white/10 text-xs font-semibold transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted text-xs font-semibold transition-all"
           >
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
 
-          {doc.kind === "mou" && doc.status !== "signed" && !doc.expired && (
+          {canSign && (
             <button
               onClick={() => setShowSignModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.03]"
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-950/30 transition-all hover:scale-[1.03]"
             >
               <CheckCircleIcon className="w-4 h-4" /> Accept &amp; Sign MoU
             </button>
           )}
 
           {doc.status === "signed" && (
-            <span className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
-              <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> Signed by {doc.signedByName}
+            <span className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+              <CheckCircleIcon className="w-4 h-4 text-emerald-500" /> Signed by {doc.signedByName}
             </span>
           )}
         </div>
@@ -451,9 +458,9 @@ export default function PublicDocumentPage({
         <div className="mx-auto max-w-[880px]">
           {doc.expired && doc.status !== "signed" ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-amber-400" />
+              <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-amber-100">
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
                   These fees have lapsed
                   {doc.validUntil
                     ? ` — they stood until ${new Date(`${doc.validUntil}T00:00:00`).toLocaleDateString("en-GB", {
@@ -463,19 +470,19 @@ export default function PublicDocumentPage({
                       })}`
                     : ""}
                 </p>
-                <p className="mt-0.5 text-xs text-amber-200/70">
+                <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-200/70">
                   This is no longer a current offer. Contact us and we will re-issue at current rates.
                 </p>
               </div>
             </div>
           ) : doc.status === "signed" ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-400" />
+              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-emerald-200">
+                <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
                   Signed and officially executed{doc.signedByName ? ` by ${doc.signedByName}` : ""}
                 </p>
-                <p className="mt-0.5 text-xs text-emerald-200/70">
+                <p className="mt-0.5 text-xs text-emerald-800/80 dark:text-emerald-200/70">
                   {doc.signedByRole ? `${doc.signedByRole} · ` : ""}
                   {doc.signedAt
                     ? new Date(doc.signedAt).toLocaleDateString("en-GB", {
@@ -490,59 +497,55 @@ export default function PublicDocumentPage({
               <button
                 onClick={handleDownloadPdf}
                 disabled={savingPdf}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60 shadow-md"
+                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60 shadow-md"
               >
-                <ArrowDownTrayIcon className="h-3.5 h-3.5" />
-                <span>Download Executed Copy</span>
+                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                <span>Download executed copy</span>
               </button>
             </div>
           ) : doc.kind === "mou" ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-500/30 bg-card/90 p-4 shadow-xl">
-              <SparklesIcon className="h-6 w-6 shrink-0 text-cyan-400" />
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <SparklesIcon className="h-6 w-6 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">
-                  Memorandum of Understanding · Ready for Execution
+                <p className="text-sm font-bold text-foreground">
+                  Memorandum of Understanding · ready to sign
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Signing records your name, title, timestamp, and digital signature. Turnkey delivery with all robotics hardware supplied.
+                  Signing records your name, title, timestamp, and signature on this document.
                 </p>
               </div>
               <button
                 onClick={() => setShowSignModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/50 transition-all hover:bg-emerald-500 hover:scale-[1.02]"
+                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/30 transition-all hover:bg-emerald-500"
               >
                 <CheckCircleIcon className="w-4 h-4" /> Accept &amp; Sign MoU
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/90 p-4 shadow-xl">
-              <EnvelopeIcon className="h-6 w-6 shrink-0 text-cyan-400" />
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <EnvelopeIcon className="h-6 w-6 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white">
-                  Official Partnership Proposal for {doc.school?.name || "Your School"}
+                <p className="text-sm font-bold text-foreground">
+                  Partnership proposal for {doc.school?.name || "your school"}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Review the turnkey STEM curriculum, fee models, and profit share. When ready to proceed, we issue the formal MoU.
+                  Review the programme and fees. When you are ready, we issue the MoU to sign.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <a
                   href={`tel:${brandContact.phone}`}
-                  className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
                 >
-                  Call Desk
+                  Call
                 </a>
                 <a
-                  href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                    `Hello Rillcod — we have reviewed proposal ${doc.reference}${
-                      doc.school?.name ? ` for ${doc.school.name}` : ""
-                    } and would like to proceed.`,
-                  )}`}
+                  href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-500 shadow-md"
                 >
-                  WhatsApp Lead
+                  Message us
                 </a>
               </div>
             </div>
@@ -629,94 +632,13 @@ export default function PublicDocumentPage({
           </div>
         </div>
 
-        {/*
-          The sheet-at-a-time navigator, for the screen that needs it most.
-
-          A ten-page contract on a phone is eleven thousand pixels of scrolling,
-          and the two things a reader wants — find the fees, then sign — are
-          both a long way from wherever they are. This puts the page count, a
-          way to move a sheet at a time, and the signing button in permanent
-          reach at the bottom of the screen.
-
-          Phone only. On a laptop the whole document is on screen at a readable
-          size and the header controls are already visible, so a floating bar
-          would be covering the document to solve a problem that screen does
-          not have.
-        */}
-        {pageTops.length > 1 && (
-          <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
-            <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-border bg-card/95 backdrop-blur p-1.5 shadow-2xl shadow-black/60">
-              <button
-                type="button"
-                onClick={() => goToPage(Math.max(0, currentPage - 2))}
-                disabled={currentPage <= 1}
-                aria-label="Previous page"
-                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
-              >
-                <ChevronUpIcon className="w-4 h-4" />
-              </button>
-
-              <div className="flex-1 min-w-0 text-center">
-                <div className="text-[11px] font-black text-white tabular-nums">
-                  Page {currentPage} of {pageTops.length}
-                </div>
-                <div className="mt-1 h-1 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                    style={{ width: `${(currentPage / pageTops.length) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => goToPage(Math.min(pageTops.length - 1, currentPage))}
-                disabled={currentPage >= pageTops.length}
-                aria-label="Next page"
-                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
-              >
-                <ChevronDownIcon className="w-4 h-4" />
-              </button>
-
-              {/* The action the whole page exists for, never more than a thumb away. */}
-              {doc.kind === "mou" && doc.status !== "signed" && !doc.expired ? (
-                <button
-                  type="button"
-                  onClick={() => setShowSignModal(true)}
-                  className="shrink-0 h-11 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black active:scale-95 transition-all flex items-center gap-1.5"
-                >
-                  <CheckCircleIcon className="w-4 h-4" /> Sign
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={savingPdf}
-                  aria-label="Download PDF"
-                  className="shrink-0 w-11 h-11 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center"
-                >
-                  {savingPdf ? (
-                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ArrowDownTrayIcon className="w-4 h-4" />
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* The bar floats over the page, so the last section needs room under it. */}
-        {pageTops.length > 1 && <div className="sm:hidden h-20 shrink-0" aria-hidden="true" />}
-
-        {/* ── Interactive Value Pillars & Proprietor Advantage Box ── */}
-        <section className="w-full max-w-[850px] rounded-3xl bg-card border border-border p-6 sm:p-8 shadow-2xl space-y-6">
+        <section className="w-full max-w-[850px] rounded-3xl bg-card border border-border p-6 sm:p-8 shadow-sm space-y-6">
           <div className="text-center space-y-1.5 max-w-xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full text-cyan-400 text-[10px] font-black uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-wider">
               <ShieldCheckIcon className="w-3.5 h-3.5" />
-              Institutional Guarantee
+              What this includes
             </span>
-            <h3 className="text-lg sm:text-xl font-black text-white">Why schools partner with us</h3>
+            <h3 className="text-lg sm:text-xl font-black text-foreground">Why schools partner with us</h3>
             <p className="text-xs text-muted-foreground">
               Everything needed to run coding and applied AI on your own timetable, without capital outlay.
             </p>
@@ -724,58 +646,57 @@ export default function PublicDocumentPage({
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
-              <BanknotesIcon className="w-6 h-6 text-amber-400" />
-              <p className="text-xs font-black text-white">₦0 Upfront CapEx</p>
+              <BanknotesIcon className="w-6 h-6 text-amber-500" />
+              <p className="text-xs font-black text-foreground">₦0 Upfront CapEx</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Robotics kits, circuits, and learning hardware arrive with our certified facilitators.
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
-              <BuildingOffice2Icon className="w-6 h-6 text-emerald-400" />
-              <p className="text-xs font-black text-white">Negotiable Revenue Share</p>
+              <BuildingOffice2Icon className="w-6 h-6 text-emerald-500" />
+              <p className="text-xs font-black text-foreground">Negotiable Revenue Share</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Direct profit-sharing settled to your school account at the end of each academic term as agreed.
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
-              <SparklesIcon className="w-6 h-6 text-cyan-400" />
-              <p className="text-xs font-black text-white">12-Year STEM Matrix</p>
+              <SparklesIcon className="w-6 h-6 text-primary" />
+              <p className="text-xs font-black text-foreground">12-Year STEM Matrix</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Accredited ladder from Basic 1 block coding to SS3 full-stack AI, Python &amp; IoT builds.
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
-              <DevicePhoneMobileIcon className="w-6 h-6 text-violet-400" />
-              <p className="text-xs font-black text-white">Parent Progress Cards</p>
+              <DevicePhoneMobileIcon className="w-6 h-6 text-violet-500" />
+              <p className="text-xs font-black text-foreground">Parent Progress Cards</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Scan-to-Watch QR codes so parents can see their child demonstrating working code.
               </p>
             </div>
           </div>
 
-          {/* FAQ Accordion */}
           <div className="pt-4 border-t border-border space-y-2 overscroll-contain">
             <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-3 text-center sm:text-left">
-              Frequently Asked Questions by School Proprietors
+              Questions school leaders ask
             </h4>
             {PROPRIETOR_FAQS.map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
-                <div key={idx} className="rounded-2xl bg-white/[0.03] border border-border overflow-hidden">
+                <div key={idx} className="rounded-2xl bg-muted/30 border border-border overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 text-xs font-bold text-white hover:bg-muted/40 transition-colors"
+                    className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 text-xs font-bold text-foreground hover:bg-muted/40 transition-colors"
                   >
                     <span>{faq.q}</span>
                     {isOpen ? (
-                      <ChevronUpIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <ChevronUpIcon className="w-4 h-4 text-primary shrink-0" />
                     ) : (
                       <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
                     )}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 text-xs text-muted-foreground leading-relaxed border-t border-white/5 pt-2.5">
+                    <div className="px-4 pb-4 text-xs text-muted-foreground leading-relaxed border-t border-border pt-2.5">
                       {faq.a}
                     </div>
                   )}
@@ -784,63 +705,99 @@ export default function PublicDocumentPage({
             })}
           </div>
 
-          {/* Direct CTA Box */}
-          <div className="rounded-2xl bg-gradient-to-r from-cyan-500/10 via-muted to-cyan-500/10 border border-cyan-500/30 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+          <div className="rounded-2xl bg-muted/40 border border-border p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             <div>
-              <p className="text-xs font-black text-white">Ready to inspect hardware or schedule a live demo?</p>
+              <p className="text-xs font-black text-foreground">Want a live demo at your school?</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Our academic team is available to visit your school or host an online briefing.
+                We can visit, or host a short online briefing.
               </p>
             </div>
             <a
-              href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                `Hello Rillcod — regarding ${doc.kind === "mou" ? "MoU" : "proposal"} ${doc.reference} for ${doc.school?.name || "our school"}. Let's discuss next steps.`,
-              )}`}
+              href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-2"
             >
               <CheckCircleIcon className="w-4 h-4" />
-              <span>Connect on WhatsApp</span>
+              <span>Message us</span>
             </a>
           </div>
         </section>
+        <div className="sm:hidden h-20 shrink-0" aria-hidden="true" />
       </main>
 
-      {/* ── Mobile Sticky Bottom Floating Action Bar ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 border-t border-border backdrop-blur-lg px-4 py-3 flex items-center justify-between gap-2 shadow-2xl">
-        <a
-          href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-            `Hello Rillcod — regarding ${doc.kind === "mou" ? "MoU" : "proposal"} ${doc.reference} for ${doc.school?.name || "our school"}.`,
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold"
-        >
-          WhatsApp
-        </a>
-        <a
-          href={`tel:${brandContact.phone}`}
-          className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-xs font-bold text-muted-foreground"
-        >
-          Call
-        </a>
-        {doc.kind === "mou" && doc.status !== "signed" && !doc.expired ? (
-          <button
-            onClick={() => setShowSignModal(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg shadow-emerald-950/50"
+      {/*
+        One mobile bar, outside the scrolling main so it stays on the screen.
+        There used to be two bars plus the site-wide WhatsApp bubble.
+      */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-border bg-card/95 backdrop-blur p-1.5 shadow-lg">
+          {pageTops.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => goToPage(Math.max(0, currentPage - 2))}
+                disabled={currentPage <= 1}
+                aria-label="Previous page"
+                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <ChevronUpIcon className="w-4 h-4" />
+              </button>
+              <div className="min-w-0 w-14 text-center">
+                <div className="text-[10px] font-black text-foreground tabular-nums">
+                  {currentPage}/{pageTops.length}
+                </div>
+                <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${(currentPage / pageTops.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => goToPage(Math.min(pageTops.length - 1, currentPage))}
+                disabled={currentPage >= pageTops.length}
+                aria-label="Next page"
+                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <ChevronDownIcon className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center min-h-[44px] px-3 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-bold"
           >
-            <CheckCircleIcon className="w-4 h-4" /> Sign MoU
-          </button>
-        ) : (
-          <button
-            onClick={handleDownloadPdf}
-            disabled={savingPdf}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-lg"
-          >
-            <ArrowDownTrayIcon className="w-3.5 h-3.5" /> {savingPdf ? "PDF…" : "Download"}
-          </button>
-        )}
+            Message
+          </a>
+          {canSign ? (
+            <button
+              type="button"
+              onClick={() => setShowSignModal(true)}
+              className="flex-1 h-11 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <CheckCircleIcon className="w-4 h-4" /> Sign
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={savingPdf}
+              className="flex-1 h-11 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              {savingPdf ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowDownTrayIcon className="w-4 h-4" />
+              )}
+              {savingPdf ? "PDF…" : "Download"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Digital Signature Modal ── */}

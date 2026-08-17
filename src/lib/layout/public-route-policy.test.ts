@@ -13,6 +13,8 @@ describe('public route policy', () => {
     '/forms/example',
     '/result-check/example',
     '/consent/CF-AB12-CD34',
+    '/p',
+    '/p/example-token',
   ])('keeps navigation out of utility flow %s', (pathname) => {
     expect(isAppUtilityRoute(pathname)).toBe(true);
   });
@@ -37,6 +39,8 @@ describe('public route policy', () => {
     '/summer-school/pay-balance',
     '/portfolio/example',
     '/verify/example',
+    '/p',
+    '/p/example-token',
   ])('does not add a marketing footer to utility route %s', (pathname) => {
     expect(hasPublicMarketingFooter(pathname)).toBe(false);
   });

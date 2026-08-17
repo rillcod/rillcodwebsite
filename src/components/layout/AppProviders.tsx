@@ -54,7 +54,9 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         {showsMobileDock && (
           <div aria-hidden className="lg:hidden h-[var(--app-bottom-nav-height)]" />
         )}
-        {!isDashboard && !isNativeApp && <SmartWhatsAppWidget />}
+        {!isDashboard && !isNativeApp && !isAppUtilityRoute(pathname) && (
+          <SmartWhatsAppWidget />
+        )}
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </ThemeProvider>

@@ -34,6 +34,9 @@ const HIDE_ON = [
   "/school-registration",
   "/reset-password",
   "/verify",
+  "/p",
+  "/forms",
+  "/consent",
 ];
 
 type Step = "intent" | "details";

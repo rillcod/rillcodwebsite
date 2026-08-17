@@ -16,11 +16,10 @@
  *   - the exported image is composited onto white at print resolution, because
  *     its destination is a PDF somebody may hold in their hand in court.
  *
- * It keeps its own dark palette instead of adopting the shared <Modal>: it
- * opens over a page that is always dark, and <Modal> paints from theme tokens,
- * which would turn this white for a reader whose system is in light mode. The
- * behaviours that matter — scroll lock, Escape, focus containment, a footer
- * that never scrolls away — are implemented here deliberately.
+ * It uses the same theme tokens as the rest of the app rather than a private
+ * dark palette: this dialogue opens over the school's copy, which follows
+ * light or dark with the rest of the site. The signature itself is always
+ * composited onto white, because its destination is a printed PDF.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -489,7 +488,7 @@ export function SignatureModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-950/85 backdrop-blur-md overscroll-contain sm:p-4"
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-md overscroll-contain sm:p-4"
       onClick={() => {
         if (!submitting) onClose();
       }}
@@ -507,22 +506,22 @@ export function SignatureModal({
           `dvh` rather than `vh` so the cap follows the browser chrome as it
           collapses instead of running underneath it.
         */
-        className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)] flex flex-col rounded-t-3xl sm:rounded-2xl border border-violet-500/30 bg-slate-900 shadow-2xl overflow-hidden text-white"
+        className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)] flex flex-col rounded-t-3xl sm:rounded-2xl border border-border bg-card shadow-2xl overflow-hidden text-foreground"
       >
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-white/10 bg-slate-950/60 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-border bg-muted/30 shrink-0">
           <div className="min-w-0">
-            <h3 id="sign-title" className="text-base font-bold text-white flex items-center gap-2">
-              <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
+            <h3 id="sign-title" className="text-base font-bold text-foreground flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5 text-emerald-500 shrink-0" />
               Execute Agreement
             </h3>
-            <p id="sign-subtitle" className="text-xs text-slate-400 mt-1 leading-relaxed">
+            <p id="sign-subtitle" className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {documentLabel}{" "}
-              <span className="font-mono text-violet-300 break-all">{reference}</span>
+              <span className="font-mono text-primary break-all">{reference}</span>
               {schoolName ? (
                 <>
                   {" "}
-                  on behalf of <span className="text-slate-300 font-semibold">{schoolName}</span>
+                  on behalf of <span className="text-foreground font-semibold">{schoolName}</span>
                 </>
               ) : null}
             </p>
@@ -532,7 +531,7 @@ export function SignatureModal({
             onClick={onClose}
             disabled={submitting}
             aria-label="Close without signing"
-            className="p-2 -m-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-40 shrink-0"
+            className="p-2 -m-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 shrink-0"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -543,7 +542,7 @@ export function SignatureModal({
           {error && (
             <p
               role="alert"
-              className="px-4 py-2.5 text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/25 rounded-xl"
+              className="px-4 py-2.5 text-xs font-medium text-red-700 dark:text-red-200 bg-red-500/10 border border-red-500/25 rounded-xl"
             >
               {error}
             </p>
@@ -553,7 +552,7 @@ export function SignatureModal({
             <div>
               <label
                 htmlFor="sign-name"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5"
+                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5"
               >
                 Signatory full name <span className="text-red-400">*</span>
               </label>
@@ -567,14 +566,14 @@ export function SignatureModal({
                 autoComplete="name"
                 autoCapitalize="words"
                 // 16px until sm, or iOS Safari zooms in on focus and never back.
-                className="w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
+                className="w-full min-h-[44px] px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
               />
             </div>
 
             <div>
               <label
                 htmlFor="sign-role"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5"
+                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5"
               >
                 Official title / role <span className="text-red-400">*</span>
               </label>
@@ -582,16 +581,16 @@ export function SignatureModal({
                 id="sign-role"
                 value={rolePick}
                 onChange={(e) => setRolePick(e.target.value)}
-                className="w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
+                className="w-full min-h-[44px] px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-base sm:text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
               >
                 {SIGNATORY_ROLES.map((r) => (
                   // Dark options: on Windows a <select> renders its list with the
                   // OS palette, so white-on-white is the default failure here.
-                  <option key={r} value={r} className="bg-slate-900 text-white">
+                  <option key={r} value={r} className="bg-card text-foreground">
                     {r}
                   </option>
                 ))}
-                <option value={OTHER_ROLE} className="bg-slate-900 text-white">
+                <option value={OTHER_ROLE} className="bg-card text-foreground">
                   Other…
                 </option>
               </select>
@@ -603,7 +602,7 @@ export function SignatureModal({
                   placeholder="Enter your official title"
                   autoCapitalize="words"
                   autoFocus
-                  className="mt-2 w-full min-h-[44px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-base sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25"
+                  className="mt-2 w-full min-h-[44px] px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                 />
               )}
             </div>
@@ -612,13 +611,13 @@ export function SignatureModal({
           {/* ── Signature ── */}
           <div>
             <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Signature <span className="text-red-400">*</span>
               </span>
               <div
                 role="tablist"
                 aria-label="Signature method"
-                className="flex items-center bg-white/5 p-0.5 rounded-lg border border-white/10 text-xs"
+                className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border text-xs"
               >
                 <button
                   type="button"
@@ -627,8 +626,8 @@ export function SignatureModal({
                   onClick={() => setMode("type")}
                   className={`px-3 py-1.5 rounded-md transition-all ${
                     mode === "type"
-                      ? "bg-violet-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-primary text-primary-foreground font-semibold shadow"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Type
@@ -640,8 +639,8 @@ export function SignatureModal({
                   onClick={() => setMode("draw")}
                   className={`px-3 py-1.5 rounded-md transition-all ${
                     mode === "draw"
-                      ? "bg-violet-600 text-white font-semibold shadow"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-primary text-primary-foreground font-semibold shadow"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Draw
@@ -674,7 +673,7 @@ export function SignatureModal({
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-2">
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-muted-foreground">
                     Drawn signatures are cropped and saved at print resolution.
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -682,7 +681,7 @@ export function SignatureModal({
                       type="button"
                       onClick={undoStroke}
                       disabled={strokeCount === 0}
-                      className="min-h-[36px] px-3 text-[11px] font-semibold bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 rounded-lg border border-white/10 transition-colors"
+                      className="min-h-[36px] px-3 text-[11px] font-semibold bg-muted hover:bg-muted/80 disabled:opacity-30 text-foreground rounded-lg border border-border transition-colors"
                     >
                       Undo
                     </button>
@@ -690,7 +689,7 @@ export function SignatureModal({
                       type="button"
                       onClick={clearCanvas}
                       disabled={strokeCount === 0}
-                      className="min-h-[36px] px-3 text-[11px] font-semibold bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 rounded-lg border border-white/10 transition-colors"
+                      className="min-h-[36px] px-3 text-[11px] font-semibold bg-muted hover:bg-muted/80 disabled:opacity-30 text-foreground rounded-lg border border-border transition-colors"
                     >
                       Clear
                     </button>
@@ -707,7 +706,7 @@ export function SignatureModal({
                     {trimmedName || "Your signature appears here"}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-2">
+                <p className="text-[11px] text-muted-foreground mt-2">
                   Your typed name is rendered as your signature and carries the same effect.
                 </p>
               </div>
@@ -715,14 +714,14 @@ export function SignatureModal({
           </div>
 
           {/* ── Declaration ── */}
-          <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 cursor-pointer hover:bg-white/[0.05] transition-colors">
+          <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-muted/30 border border-border cursor-pointer hover:bg-muted/50 transition-colors">
             <input
               type="checkbox"
               checked={authorised}
               onChange={(e) => setAuthorised(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/20 bg-white/10 text-emerald-500 focus:ring-2 focus:ring-emerald-500/40 accent-emerald-600"
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-border bg-background text-emerald-500 focus:ring-2 focus:ring-emerald-500/40 accent-emerald-600"
             />
-            <span className="text-[11px] text-slate-300 leading-relaxed">
+            <span className="text-[11px] text-muted-foreground leading-relaxed">
               {/*
                 Affirmed, not assumed. This used to live in a sentence under the
                 button — a statement the signer was told they were making rather
@@ -731,20 +730,20 @@ export function SignatureModal({
                 worth having on the record.
               */}
               I confirm that I am duly authorised to enter into this {documentLabel} on behalf of{" "}
-              <strong className="text-white">{schoolName || "the partner school"}</strong>, that the
+              <strong className="text-foreground">{schoolName || "the partner school"}</strong>, that the
               details above are correct, and that this electronic signature is
               legally binding.
               {executionDate ? (
-                <span className="block mt-1 text-slate-500">Execution date: {executionDate}</span>
+                <span className="block mt-1 text-muted-foreground">Execution date: {executionDate}</span>
               ) : null}
             </span>
           </label>
         </div>
 
         {/* ── Footer ── */}
-        <div className="shrink-0 border-t border-white/10 bg-slate-950/60 px-5 sm:px-6 py-4 pb-[max(1rem,var(--safe-area-bottom))] space-y-2">
+        <div className="shrink-0 border-t border-border bg-muted/30 px-5 sm:px-6 py-4 pb-[max(1rem,var(--safe-area-bottom))] space-y-2">
           {blockedBecause && (
-            <p className="text-[11px] text-amber-300/90 text-center sm:text-right">
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 text-center sm:text-right">
               {blockedBecause}
             </p>
           )}
@@ -753,7 +752,7 @@ export function SignatureModal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="min-h-[44px] px-4 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 disabled:opacity-40 transition-colors"
+              className="min-h-[44px] px-4 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors"
             >
               Cancel
             </button>
