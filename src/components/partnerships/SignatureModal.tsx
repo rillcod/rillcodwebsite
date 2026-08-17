@@ -416,6 +416,7 @@ export function SignatureModal({
           signatory_name: trimmedName,
           signatory_role: trimmedRole,
           signature_data_url: signature,
+          authorised: true,
         }),
       });
 

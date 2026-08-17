@@ -6,11 +6,16 @@ import {
   SIGNATURE_SLOT_START,
   SIGNATURE_DATA_URL_PATTERN,
   buildDocumentShareUrl,
+  buildRecordedSignatureStamp,
   buildSignatureStamp,
   hasSignatureSlot,
   escapeHtml,
+  isAffirmedAuthorised,
   isValidDocumentIdentifier,
   isValidShareToken,
+  publicDocumentSharePath,
+  publicReadAccess,
+  publicSignRefusal,
   stampSignature,
 } from './signing';
 import { buildPartnershipProposalHTML } from './templates/proposal-html';
@@ -276,6 +281,13 @@ describe('buildDocumentShareUrl', () => {
     // The code addresses a document at /p, but it is typed by a person who
     // already holds it — it is not something to paste into a school's inbox.
     expect(buildDocumentShareUrl('https://www.rillcod.com', '482915')).toBeNull();
+  });
+
+  it('is what outreach must use instead of the printed reference', () => {
+    const token = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+    const reference = 'RC-PROP-2026-00042';
+    expect(buildDocumentShareUrl('https://www.rillcod.com', reference || token)).toBeNull();
+    expect(buildDocumentShareUrl('https://www.rillcod.com', token)).toContain(token);
   });
 
   it('never emits anything that could break out of the path', () => {
@@ -765,5 +777,75 @@ describe('the MoU without a published curriculum', () => {
       expect(html, clause).toContain(clause);
     }
     expect(hasSignatureSlot(html)).toBe(true);
+  });
+});
+
+describe('what the public may read and sign', () => {
+  it('serves sent and signed documents, hides drafts, withdraws the rest', () => {
+    expect(publicReadAccess('sent')).toBe('ok');
+    expect(publicReadAccess('signed')).toBe('ok');
+    expect(publicReadAccess('draft')).toBe('not_found');
+    expect(publicReadAccess('void')).toBe('withdrawn');
+    expect(publicReadAccess('declined')).toBe('withdrawn');
+  });
+
+  it('will not execute a proposal as a contract', () => {
+    const refusal = publicSignRefusal({ document_kind: 'proposal', status: 'sent' });
+    expect(refusal?.status).toBe(409);
+    expect(refusal?.error).toMatch(/proposal/i);
+  });
+
+  it('will not sign a draft, and tells an admin why', () => {
+    expect(
+      publicSignRefusal({ document_kind: 'mou', status: 'draft' })?.status,
+    ).toBe(404);
+    expect(
+      publicSignRefusal({ document_kind: 'mou', status: 'draft' }, { audience: 'admin' })?.status,
+    ).toBe(409);
+  });
+
+  it('will not sign a lapsed quote', () => {
+    const refusal = publicSignRefusal({
+      document_kind: 'mou',
+      status: 'sent',
+      expired: true,
+    });
+    expect(refusal?.expired).toBe(true);
+    expect(refusal?.status).toBe(409);
+  });
+
+  it('lets a sent MoU through', () => {
+    expect(publicSignRefusal({ document_kind: 'mou', status: 'sent' })).toBeNull();
+  });
+
+  it('does not publish a share path for a draft', () => {
+    const token = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+    expect(publicDocumentSharePath(token, 'draft')).toBeNull();
+    expect(publicDocumentSharePath(token, 'sent')).toBe(`/p/${token}`);
+  });
+});
+
+describe('the authority affirmation', () => {
+  it('requires an explicit true', () => {
+    expect(isAffirmedAuthorised(true)).toBe(true);
+    expect(isAffirmedAuthorised('true')).toBe(true);
+    expect(isAffirmedAuthorised(false)).toBe(false);
+    expect(isAffirmedAuthorised('yes')).toBe(false);
+    expect(isAffirmedAuthorised(undefined)).toBe(false);
+  });
+});
+
+describe('a signature recorded from paper', () => {
+  it('escapes the name and does not invent a drawn image', () => {
+    const stamp = buildRecordedSignatureStamp({
+      signatoryName: '</div><h1>VOID</h1>',
+      signatoryRole: 'Proprietor',
+      signedAt: '2026-08-17T10:00:00.000Z',
+      boundParty: 'Bay-Flowers',
+    });
+    expect(stamp).not.toContain('<h1>');
+    expect(stamp).not.toContain('<img');
+    expect(stamp).toContain('Signed in person');
+    expect(stamp).toContain('Bay-Flowers');
   });
 });

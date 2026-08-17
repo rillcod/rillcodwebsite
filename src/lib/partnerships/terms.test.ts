@@ -3,8 +3,8 @@ import {
   MissingPartnershipTermsError,
   computeCharge,
   describeTerms,
-
   normaliseTerms,
+  parseSettlementFields,
   requireAgreedTerms,
   type PartnershipTerms,
 } from './terms';
@@ -250,5 +250,46 @@ describe('how and when a school is paid', () => {
     // else's revenue every term, out of working capital, for every school.
     expect(RECOMMENDED_SETTLEMENT.settlement_trigger).toBe('on_collection');
     expect(RECOMMENDED_SETTLEMENT.withdrawal_policy).toBe('pro_rata');
+  });
+});
+
+describe('settlement fields the terms API stores', () => {
+  it('keeps a complete set', () => {
+    const parsed = parseSettlementFields({
+      settlement_trigger: 'on_collection',
+      settlement_days: 14,
+      withdrawal_policy: 'pro_rata',
+      minimum_students: 40,
+    });
+    expect(parsed).toEqual({
+      ok: true,
+      fields: {
+        settlement_trigger: 'on_collection',
+        settlement_days: 14,
+        withdrawal_policy: 'pro_rata',
+        minimum_students: 40,
+      },
+    });
+  });
+
+  it('treats blanks as nothing agreed, not as an invalid value', () => {
+    const parsed = parseSettlementFields({
+      settlement_trigger: '',
+      settlement_days: '',
+      withdrawal_policy: null,
+      minimum_students: undefined,
+    });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.fields.settlement_trigger).toBeNull();
+      expect(parsed.fields.settlement_days).toBeNull();
+    }
+  });
+
+  it('refuses a trigger or policy the database would reject', () => {
+    expect(parseSettlementFields({ settlement_trigger: 'whenever' }).ok).toBe(false);
+    expect(parseSettlementFields({ withdrawal_policy: 'cash' }).ok).toBe(false);
+    expect(parseSettlementFields({ settlement_days: 400 }).ok).toBe(false);
+    expect(parseSettlementFields({ minimum_students: -1 }).ok).toBe(false);
   });
 });

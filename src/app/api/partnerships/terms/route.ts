@@ -16,13 +16,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
-import { describeTerms, normaliseTerms } from '@/lib/partnerships/terms';
+import { describeTerms, normaliseTerms, parseSettlementFields } from '@/lib/partnerships/terms';
 
 export const dynamic = 'force-dynamic';
 
 // One literal, not a concatenation: a joined string widens to `string` and the
 // Supabase client can no longer infer the row shape from it.
-const SELECT = 'id, school_id, billing_model, currency, billing_cycle, amount_per_student, fixed_package_price, tiers, deposit_amount, rillcod_share_percent, school_share_percent, status, effective_from, effective_to, version, supersedes_id, notes, agreed_at, created_at, updated_at';
+const SELECT = 'id, school_id, billing_model, currency, billing_cycle, amount_per_student, fixed_package_price, tiers, deposit_amount, rillcod_share_percent, school_share_percent, settlement_days, settlement_trigger, withdrawal_policy, minimum_students, status, effective_from, effective_to, version, supersedes_id, notes, agreed_at, created_at, updated_at';
 
 async function requireActor(write: boolean) {
   const supabase = await createServerClient();
@@ -101,6 +101,11 @@ export async function POST(req: NextRequest) {
 
   const num = (v: unknown) => (v == null || v === '' ? null : Number(v));
 
+  const settlement = parseSettlementFields(body);
+  if (!settlement.ok) {
+    return NextResponse.json({ error: settlement.error }, { status: 400 });
+  }
+
   const payload = {
     school_id: schoolId,
     billing_model: String(body.billing_model ?? ''),
@@ -112,6 +117,7 @@ export async function POST(req: NextRequest) {
     deposit_amount: num(body.deposit_amount),
     rillcod_share_percent: num(body.rillcod_share_percent),
     school_share_percent: num(body.school_share_percent),
+    ...settlement.fields,
     status,
     effective_from: body.effective_from ? String(body.effective_from) : null,
     effective_to: body.effective_to ? String(body.effective_to) : null,

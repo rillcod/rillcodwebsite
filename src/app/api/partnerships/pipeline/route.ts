@@ -19,19 +19,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isQuoteExpired } from '@/lib/partnerships/issue-document';
-import { normaliseTerms, type PartnershipTerms } from '@/lib/partnerships/terms';
+import { pipelineAttention, pipelineOutcomes } from '@/lib/partnerships/pipeline';
+import { normaliseTerms } from '@/lib/partnerships/terms';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * How long a sent proposal may sit unanswered before it wants chasing.
- *
- * Deliberately not exported. A route file may export request handlers and
- * Next's route config and nothing else — anything more fails `next build` with
- * an error that neither `tsc --noEmit` nor the test suite will ever show you.
- * `npm run check:routes` guards it now, in about a second.
- */
-const CHASE_AFTER_DAYS = 7;
 
 type Row = {
   id: string;
@@ -51,103 +42,6 @@ type Row = {
   open_count: number | null;
   terms_snapshot: Record<string, unknown> | null;
 };
-
-function daysSince(value: string | null): number | null {
-  if (!value) return null;
-  const then = new Date(value).getTime();
-  if (Number.isNaN(then)) return null;
-  return Math.floor((Date.now() - then) / 86_400_000);
-}
-
-/**
- * What this row needs from a person, if anything.
- *
- * One reason per row, most urgent first, because a list where everything is
- * flagged is a list nobody reads. The order encodes what is actually at stake:
- * a lapsed quote cannot be signed at all, an unopened proposal has not started
- * the conversation, and one read repeatedly without an answer is the one worth
- * picking up the phone about.
- */
-function attention(row: Row): { needs: boolean; reason: string } {
-  if (row.status === 'signed' || row.status === 'void' || row.status === 'declined') {
-    return { needs: false, reason: '' };
-  }
-  if (isQuoteExpired(row.valid_until)) {
-    return { needs: true, reason: 'Fees have lapsed — re-issue before it can be signed' };
-  }
-  if (row.status === 'draft') {
-    const age = daysSince(row.created_at);
-    return age !== null && age >= CHASE_AFTER_DAYS
-      ? { needs: true, reason: `Drafted ${age} days ago and never sent` }
-      : { needs: false, reason: '' };
-  }
-
-  const sinceSent = daysSince(row.sent_at);
-  const opens = Number(row.open_count) || 0;
-  if (sinceSent !== null && sinceSent >= CHASE_AFTER_DAYS && opens === 0) {
-    return { needs: true, reason: `Sent ${sinceSent} days ago and never opened` };
-  }
-  if (opens >= 3) {
-    return { needs: true, reason: `Opened ${opens} times without a signature` };
-  }
-  if (sinceSent !== null && sinceSent >= CHASE_AFTER_DAYS * 2) {
-    return { needs: true, reason: `Sent ${sinceSent} days ago, still unsigned` };
-  }
-  return { needs: false, reason: '' };
-}
-
-/**
- * What the signed deals have in common.
- *
- * Counted off `terms_snapshot`, which is frozen at issue — so this measures the
- * terms a school actually agreed to, not whatever their current record says
- * after a renegotiation.
- */
-function outcomes(rows: Row[]) {
-  const proposals = rows.filter((r) => r.document_kind === 'proposal');
-  const sent = proposals.filter((r) => r.status !== 'draft');
-  const opened = sent.filter((r) => (Number(r.open_count) || 0) > 0);
-  const signed = rows.filter((r) => r.status === 'signed');
-  const declined = rows.filter((r) => r.status === 'declined');
-
-  // What was agreed, on the deals that closed.
-  const rates: number[] = [];
-  const shares: number[] = [];
-  for (const row of signed) {
-    const terms = normaliseTerms(row.terms_snapshot ?? {}) as PartnershipTerms | null;
-    if (!terms) continue;
-    if (terms.billing_model === 'per_student' && terms.amount_per_student) {
-      rates.push(Number(terms.amount_per_student));
-    }
-    if (terms.school_share_percent != null) shares.push(Number(terms.school_share_percent));
-  }
-  const median = (xs: number[]) => {
-    if (!xs.length) return null;
-    const s = [...xs].sort((a, b) => a - b);
-    return s[Math.floor(s.length / 2)];
-  };
-
-  // Days from sending to signature, which is what "how long does this take"
-  // actually means when somebody asks.
-  const closeDays = signed
-    .map((r) => (r.sent_at && r.signed_at ? daysSince(r.sent_at)! - daysSince(r.signed_at)! : null))
-    .filter((d): d is number => d !== null && d >= 0);
-
-  return {
-    issued: rows.length,
-    sent: sent.length,
-    opened: opened.length,
-    signed: signed.length,
-    declined: declined.length,
-    /** Of the proposals that went out, how many came back signed. */
-    signedRate: sent.length ? Math.round((signed.length / sent.length) * 100) : null,
-    /** Of the proposals that went out, how many were even read. */
-    openRate: sent.length ? Math.round((opened.length / sent.length) * 100) : null,
-    medianAgreedRate: median(rates),
-    medianSchoolShare: median(shares),
-    medianDaysToSign: median(closeDays),
-  };
-}
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerClient();
@@ -196,7 +90,7 @@ export async function GET(req: NextRequest) {
 
   const documents = rows.map((row) => {
     const school = byId.get(String(row.school_id));
-    const flag = attention(row);
+    const flag = pipelineAttention(row);
     return {
       id: row.id,
       reference: row.reference,
@@ -219,9 +113,10 @@ export async function GET(req: NextRequest) {
       last_opened_at: row.last_opened_at,
       needs_attention: flag.needs,
       attention_reason: flag.reason,
+      attention_tab: flag.tab,
       terms: normaliseTerms(row.terms_snapshot ?? {}),
     };
   });
 
-  return NextResponse.json({ documents, outcomes: outcomes(rows) });
+  return NextResponse.json({ documents, outcomes: pipelineOutcomes(rows) });
 }

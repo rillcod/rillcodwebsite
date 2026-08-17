@@ -369,11 +369,30 @@ export async function previewPartnershipDocument(
 }
 
 /**
- * Everything both paths need, gathered once.
+ * Match a prospect to an existing school without attaching the wrong one.
  *
- * Returns a `render` the caller invokes with whatever reference the document
- * will carry, so preview and issue cannot drift into two different documents.
+ * Case-insensitive exact name. Two schools sharing a name are disambiguated
+ * by city when the caller has one; otherwise this refuses rather than taking
+ * the oldest row — that is how a proposal for "St Mary's, Warri" landed on
+ * "St Mary's, Benin".
  */
+export function pickProspectSchool(
+  candidates: Array<{ id: string; name: string; city?: string | null }>,
+  wanted: { name: string; city?: string | null },
+): { match: 'none' } | { match: 'one'; id: string } | { match: 'ambiguous'; count: number } {
+  const name = wanted.name.trim().toLowerCase();
+  if (!name) return { match: 'none' };
+  const exact = candidates.filter((c) => c.name.trim().toLowerCase() === name);
+  if (exact.length === 0) return { match: 'none' };
+  if (exact.length === 1) return { match: 'one', id: exact[0].id };
+  const city = wanted.city?.trim().toLowerCase();
+  if (city) {
+    const inCity = exact.filter((c) => (c.city ?? '').trim().toLowerCase() === city);
+    if (inCity.length === 1) return { match: 'one', id: inCity[0].id };
+  }
+  return { match: 'ambiguous', count: exact.length };
+}
+
 /**
  * The school a document is being issued to, creating it if this is a prospect
  * we have not met before.
@@ -381,12 +400,6 @@ export async function previewPartnershipDocument(
  * Only the issue path calls this. A school row is a permanent record, and
  * preview must be free to render as many drafts as somebody wants to look at
  * without leaving any behind.
- *
- * The match is case-insensitive on name and takes the first hit rather than
- * insisting on exactly one: this codebase already has a duplicate-name problem
- * serious enough to have its own gate, and `maybeSingle()` throws outright when
- * two schools share a name — which would block issuing to a school that plainly
- * exists.
  */
 async function resolveSchoolForIssue(input: IssueInput): Promise<string> {
   const { db, schoolId, prospectSchool } = input;
@@ -397,11 +410,20 @@ async function resolveSchoolForIssue(input: IssueInput): Promise<string> {
 
   const { data: existing } = await db
     .from('schools')
-    .select('id')
+    .select('id, name, city')
     .ilike('name', name)
-    .order('created_at', { ascending: true })
-    .limit(1);
-  if (existing?.length) return String(existing[0].id);
+    .neq('is_deleted', true)
+    .limit(20);
+  const picked = pickProspectSchool((existing ?? []) as Array<{ id: string; name: string; city?: string | null }>, {
+    name,
+    city: prospectSchool?.city ?? null,
+  });
+  if (picked.match === 'ambiguous') {
+    throw new Error(
+      `More than one school is named "${name}". Open the school from the desk instead of issuing against a prospect with the same name.`,
+    );
+  }
+  if (picked.match === 'one') return picked.id;
 
   const { data: created, error: createError } = await db
     .from('schools')

@@ -150,6 +150,15 @@ export function documentSharePath(shareToken: string | null | undefined): string
   return `/p/${String(shareToken).trim()}`;
 }
 
+/** Public URL only when the school is allowed to open it (sent or signed). */
+export function publicDocumentSharePath(
+  shareToken: string | null | undefined,
+  status: string | null | undefined,
+): string | null {
+  if (publicReadAccess(status) !== 'ok') return null;
+  return documentSharePath(shareToken);
+}
+
 export type SignatureStampInput = {
   signatoryName: string;
   signatoryRole: string;
@@ -227,4 +236,118 @@ export function stampSignature(html: string, stamp: string): string | null {
   }
   if (html.includes(SIGNATURE_ANCHOR)) return html.replace(SIGNATURE_ANCHOR, stamp);
   return null;
+}
+
+/**
+ * Whether an unauthenticated reader may see this document.
+ *
+ * Drafts have a share token from the moment of issue, but they have not left
+ * the building. Serving them on the public link made "draft" a label rather
+ * than a gate. Void and declined are withdrawn: the reader is not wrong to
+ * have the link, but the offer is no longer current.
+ */
+export function publicReadAccess(
+  status: string | null | undefined,
+): 'ok' | 'withdrawn' | 'not_found' {
+  const s = String(status || '');
+  if (s === 'sent' || s === 'signed') return 'ok';
+  if (s === 'void' || s === 'declined') return 'withdrawn';
+  return 'not_found';
+}
+
+export type PublicSignRefusal = {
+  error: string;
+  status: number;
+  expired?: boolean;
+};
+
+/**
+ * Why a public (or admin-recorded) signature must not land.
+ *
+ * A proposal is an offer, not a contract. A draft has not been sent. A lapsed
+ * quote must not bind a rate we no longer offer. The UI already hid the button
+ * for proposals; the API did not, so a POST executed a quote as an MoU.
+ */
+export function publicSignRefusal(
+  doc: {
+    document_kind?: string | null;
+    status?: string | null;
+    expired?: boolean;
+  },
+  opts?: { audience?: 'public' | 'admin' },
+): PublicSignRefusal | null {
+  if (String(doc.document_kind) !== 'mou') {
+    return {
+      error:
+        'This is a proposal, not an agreement. Signing happens on the Memorandum of Understanding issued after terms are agreed.',
+      status: 409,
+    };
+  }
+  if (String(doc.status) === 'signed') {
+    return { error: 'This document has already been signed.', status: 409 };
+  }
+  const access = publicReadAccess(doc.status);
+  if (access === 'not_found') {
+    if (opts?.audience === 'admin') {
+      return {
+        error:
+          'This document has not been sent. Send it, or mark it sent, before recording a signature.',
+        status: 409,
+      };
+    }
+    return { error: 'Document not found.', status: 404 };
+  }
+  if (access === 'withdrawn') {
+    return {
+      error: `Cannot sign document with status ${doc.status}.`,
+      status: 409,
+    };
+  }
+  if (doc.expired) {
+    return {
+      error:
+        'The fees in this proposal have lapsed, so it can no longer be signed. Please contact us and we will re-issue it at current rates.',
+      status: 409,
+      expired: true,
+    };
+  }
+  return null;
+}
+
+/** The authority checkbox must arrive as an explicit true, not a present field. */
+export function isAffirmedAuthorised(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+/**
+ * Stamp used when an admin records a signature taken on paper.
+ *
+ * There is no drawn image. The document still has to show that it was executed,
+ * with the name, role and date, or the row says signed while the page still
+ * invites a signature.
+ */
+export function buildRecordedSignatureStamp(input: {
+  signatoryName: string;
+  signatoryRole: string;
+  signedAt: string;
+  boundParty?: string | null;
+}): string {
+  const dateLabel = new Date(input.signedAt).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const declaration = input.boundParty
+    ? `
+        <div style="font-size:7pt; color:#15803d; margin-top:1.8mm; padding-top:1.8mm; border-top:1px solid #bbf7d0; line-height:1.45;">
+          Recorded by Rillcod: the signatory executed this agreement on behalf of
+          ${escapeHtml(input.boundParty)}.
+        </div>`
+    : '';
+  return `
+      <div class="e-signature-stamp" style="margin-top:4mm; padding:3mm; border:1px solid #16a34a; background:#f0fdf4; border-radius:4px;">
+        <div style="font-size:8pt; text-transform:uppercase; color:#16a34a; font-weight:700;">Signed in person &amp; recorded</div>
+        <div style="font-size:8.5pt; font-weight:700; color:#0f172a;">${escapeHtml(input.signatoryName)}</div>
+        <div style="font-size:7.5pt; color:#64748b;">${escapeHtml(input.signatoryRole)} &middot; ${escapeHtml(dateLabel)}</div>${declaration}
+      </div>`;
 }

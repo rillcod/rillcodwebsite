@@ -14,7 +14,7 @@
  * the row is the record that it did, and voiding says so without erasing it.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowPathIcon,
@@ -32,7 +32,7 @@ import { describeTerms } from "@/lib/partnerships/terms";
 // One rule for what a public document link looks like, shared with the preview
 // pane and the outbound email. Three hand-built URLs is how one of them ended up
 // pointing at the reference.
-import { documentSharePath } from "@/lib/partnerships/signing";
+import { publicDocumentSharePath } from "@/lib/partnerships/signing";
 // The same expiry rule the public signing route enforces, so the badge here
 // cannot say a quote stands while the sign button refuses it.
 import { isQuoteExpired } from "@/lib/partnerships/issue-document";
@@ -40,7 +40,7 @@ import type { IssuedDocumentRow } from "./types";
 
 /** Where the public can read this document, or null when there is no safe link. */
 function portalUrl(doc: IssuedDocumentRow): string | null {
-  return documentSharePath(doc.share_token ?? null);
+  return publicDocumentSharePath(doc.share_token ?? null, doc.status);
 }
 
 /** How many times the recipient has opened the link. */
@@ -65,20 +65,21 @@ const ACTION =
   "shrink-0 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[44px] inline-flex items-center";
 
 /** What may follow the state a document is in. */
-function nextStates(status: string): Array<{ to: string; label: string }> {
+function nextStates(
+  status: string,
+  opts: { kind: string; expired: boolean },
+): Array<{ to: string; label: string }> {
   switch (status) {
     case "draft":
       return [
         { to: "sent", label: "Mark sent" },
-        { to: "signed", label: "Record signature" },
         { to: "void", label: "Withdraw" },
       ];
     case "sent":
       return [
-        { to: "signed", label: "Record signature" },
-        // Back to draft, so a document issued with a mistake can be redrawn or
-        // deleted rather than leaving the school holding two copies of one
-        // offer under two different references.
+        ...(opts.kind === "mou" && !opts.expired
+          ? [{ to: "signed" as const, label: "Record signature" }]
+          : []),
         { to: "draft", label: "Recall to draft" },
         { to: "declined", label: "Declined" },
         { to: "void", label: "Withdraw" },
@@ -95,12 +96,17 @@ export function PartnershipDocumentArchive({
   canWrite,
   onOpen,
   onChanged,
+  redrawPayload,
+  focusId,
 }: {
   documents: IssuedDocumentRow[];
   canWrite: boolean;
-  /** Hands the stored document back up so it shows in the same preview pane. */
   onOpen: (doc: IssuedDocumentRow, html: string) => void;
   onChanged: () => void | Promise<void>;
+  /** Composer settings so a redraw is not a blank-slate re-issue. */
+  redrawPayload?: () => Record<string, unknown>;
+  /** Highlight the row the pipeline sent you here to act on. */
+  focusId?: string | null;
 }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -108,6 +114,11 @@ export function PartnershipDocumentArchive({
   const [signing, setSigning] = useState("");
   const [signerName, setSignerName] = useState("");
   const [signerRole, setSignerRole] = useState("");
+
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`partnership-doc-${focusId}`)?.scrollIntoView({ block: "center" });
+  }, [focusId]);
 
   async function open(doc: IssuedDocumentRow) {
     setBusy(doc.id);
@@ -162,7 +173,7 @@ export function PartnershipDocumentArchive({
         : "";
       if (
         !confirm(
-          `${warning}Recall ${doc.reference} to draft? The link keeps working, and you can then redraw or delete it.`,
+          `${warning}Recall ${doc.reference} to draft? The public link will stop working until you send it again. You can then redraw or delete it.`,
         )
       ) {
         return;
@@ -210,7 +221,7 @@ export function PartnershipDocumentArchive({
       const res = await fetch("/api/partnerships/documents", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: doc.id }),
+        body: JSON.stringify({ id: doc.id, ...(redrawPayload?.() ?? {}) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not redraw that draft.");
@@ -259,6 +270,11 @@ export function PartnershipDocumentArchive({
         <p className="text-xs text-muted-foreground mt-1">
           {documents.length} on record. Each keeps the terms it was written against.
         </p>
+        {documents.some((d) => d.status === "draft") && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+            Drafts are not live. The school cannot open the public link until you send or mark sent.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -276,7 +292,13 @@ export function PartnershipDocumentArchive({
 
       <ul className="space-y-2">
         {documents.map((doc) => (
-          <li key={doc.id} className="p-3 rounded-xl border border-border bg-muted/40 space-y-2.5">
+          <li
+            key={doc.id}
+            id={`partnership-doc-${doc.id}`}
+            className={`p-3 rounded-xl border bg-muted/40 space-y-2.5 ${
+              focusId === doc.id ? "border-amber-500/60 ring-1 ring-amber-500/30" : "border-border"
+            }`}
+          >
             {/*
               Stacked on a phone, side by side from sm up.
 
@@ -456,7 +478,10 @@ export function PartnershipDocumentArchive({
                   </button>
                 )}
                 {canWrite &&
-                  nextStates(doc.status).map((n) => (
+                  nextStates(doc.status, {
+                    kind: doc.document_kind,
+                    expired: lapsed(doc),
+                  }).map((n) => (
                     <button
                       key={n.to}
                       onClick={() => move(doc, n.to)}

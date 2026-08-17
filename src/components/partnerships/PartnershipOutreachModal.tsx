@@ -16,7 +16,7 @@ import {
   outreachPlainText,
   type OutreachAngle,
 } from "@/lib/partnerships/outreach-copy";
-import { documentSharePath } from "@/lib/partnerships/signing";
+import { publicDocumentSharePath } from "@/lib/partnerships/signing";
 import type { SchoolRow, IssuedDocumentRow } from "./types";
 
 interface Props {
@@ -57,7 +57,7 @@ export function PartnershipOutreachModal({ school, latestDoc, isOpen, onClose }:
     server, and reading window.location during render is a hydration mismatch;
     the absolute URL is composed once, below, only for the copy that leaves.
   */
-  const sharePath = documentSharePath(latestDoc?.share_token ?? null);
+  const sharePath = publicDocumentSharePath(latestDoc?.share_token ?? null, latestDoc?.status);
   const shareUrl =
     sharePath && typeof window !== "undefined" ? `${window.location.origin}${sharePath}` : "";
 

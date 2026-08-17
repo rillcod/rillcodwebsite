@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/audit/log';
 import { notificationsService } from '@/services/notifications.service';
 import { buildPartnershipFollowUpEmail } from '@/lib/email/rillcod-transactional-email';
 import { brandContact } from '@/config/brand';
+import { buildDocumentShareUrl } from '@/lib/partnerships/signing';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,14 +60,16 @@ export async function POST(req: NextRequest) {
     .from('partnership_agreements')
     .select('id, reference, share_token')
     .eq('school_id', schoolId)
-    .neq('status', 'void')
+    .in('status', ['sent', 'signed'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
-  const cleanSlug = latestDoc?.reference || latestDoc?.share_token;
-  const shareUrl = cleanSlug ? `${appUrl}/p/${cleanSlug}` : null;
+  // Token only. `reference || share_token` always picks the sequential printed
+  // number, which the public route rejects — every outreach email then carried
+  // a dead link. No token means no safe URL, not a fallback to the reference.
+  const shareUrl = buildDocumentShareUrl(appUrl, latestDoc?.share_token);
 
   const { subject, html } = buildPartnershipFollowUpEmail({
     schoolName: school.name,

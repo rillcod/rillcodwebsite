@@ -13,12 +13,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
-import { isValidShareToken } from '@/lib/partnerships/signing';
+import { ACCESS_CODE_PATTERN, isValidShareToken, publicReadAccess } from '@/lib/partnerships/signing';
 
 export const dynamic = 'force-dynamic';
-
-/** Exactly six digits. Nothing else reaches the database. */
-const ACCESS_CODE = /^[0-9]{6}$/;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -62,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   const COLS = 'reference, share_token, document_kind, status, school_id';
   let query;
-  if (ACCESS_CODE.test(asCode)) {
+  if (ACCESS_CODE_PATTERN.test(asCode)) {
     query = db.from('partnership_agreements').select(COLS).eq('access_code', asCode);
   } else if (isValidShareToken(typed)) {
     query = db.from('partnership_agreements').select(COLS).eq('share_token', typed.toLowerCase());
@@ -75,6 +72,23 @@ export async function GET(req: NextRequest) {
   const { data: doc, error } = await query.maybeSingle();
 
   if (error || !doc) {
+    return NextResponse.json({ error: 'That code was not recognised.' }, { status: 404 });
+  }
+
+  const access = publicReadAccess(doc.status);
+  if (access !== 'ok') {
+    // Drafts look like a miss. Withdrawn documents say so, so a school that
+    // still has the printed sheet is not told the code is wrong.
+    if (access === 'withdrawn') {
+      return NextResponse.json(
+        {
+          error:
+            'This document has been withdrawn and is no longer current. Please contact us for an up-to-date copy.',
+          withdrawn: true,
+        },
+        { status: 410 },
+      );
+    }
     return NextResponse.json({ error: 'That code was not recognised.' }, { status: 404 });
   }
 

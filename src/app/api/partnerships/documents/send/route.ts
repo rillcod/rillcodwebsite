@@ -20,6 +20,7 @@ import { brandContact } from '@/config/brand';
 import { computeCharge, normaliseTerms } from '@/lib/partnerships/terms';
 import { schoolUpside } from '@/lib/partnerships/proposal-sections';
 import { approx, loadProofPoints } from '@/lib/partnerships/proof-points';
+import { buildDocumentShareUrl } from '@/lib/partnerships/signing';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   // worked solely because the public route was accepting references — the same
   // thing that let anybody count from RC-PROP-2026-00001 through every school's
   // fees. The route no longer does, so a reference here would email a dead link.
-  const shareUrl = doc.share_token ? `${appUrl}/p/${doc.share_token}` : null;
+  const shareUrl = buildDocumentShareUrl(appUrl, doc.share_token);
 
   const html = buildPartnershipProposalEmail({
     schoolName: String(school.name),

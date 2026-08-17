@@ -71,6 +71,18 @@ describe('recommending an option', () => {
       expect(reason).not.toMatch(/₦|\d{1,3}(,\d{3})+|\d+\s*%/);
     }
   });
+
+  it('does not recommend the SS-paced option to a primary-only school', () => {
+    const r = recommendOffer({ studentCount: 300, stage: 'primary' });
+    expect(r.offer.code).toBe('B1');
+    expect(r.reason).toMatch(/primary/i);
+  });
+
+  it('names the stage when that is all it has to go on', () => {
+    const r = recommendOffer({ studentCount: null, stage: 'primary' });
+    expect(r.offer.code).toBe('B1');
+    expect(r.basis).toBe('stage');
+  });
 });
 
 describe('when teaching would start', () => {

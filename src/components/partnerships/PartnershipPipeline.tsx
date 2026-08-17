@@ -23,7 +23,7 @@ import {
   ExclamationTriangleIcon,
 } from "@/lib/icons";
 import { describeTerms } from "@/lib/partnerships/terms";
-import { documentSharePath } from "@/lib/partnerships/signing";
+import { publicDocumentSharePath } from "@/lib/partnerships/signing";
 import type { PartnershipTerms } from "@/lib/partnerships/terms";
 
 type PipelineDoc = {
@@ -45,6 +45,7 @@ type PipelineDoc = {
   last_opened_at: string | null;
   needs_attention: boolean;
   attention_reason: string;
+  attention_tab?: "compose" | "archive";
   terms: PartnershipTerms | null;
 };
 
@@ -117,7 +118,10 @@ export function PartnershipPipeline({
   onOpenSchool,
 }: {
   /** Jump to the school's own workspace, where the document can be acted on. */
-  onOpenSchool: (schoolId: string) => void;
+  onOpenSchool: (
+    schoolId: string,
+    hint?: { tab?: "compose" | "archive"; kind?: "proposal" | "mou"; documentId?: string },
+  ) => void;
 }) {
   const [docs, setDocs] = useState<PipelineDoc[]>([]);
   const [outcomes, setOutcomes] = useState<Outcomes | null>(null);
@@ -201,7 +205,7 @@ export function PartnershipPipeline({
           <Stat
             value={outcomes.signedRate === null ? "—" : `${outcomes.signedRate}%`}
             label="Said yes"
-            hint={`${outcomes.signed} of the ${outcomes.sent} you sent`}
+            hint="Schools that signed an MoU, of those who received a proposal"
             tone="good"
           />
           <Stat
@@ -259,7 +263,7 @@ export function PartnershipPipeline({
       ) : shown.length === 0 ? (
         <p className="text-center py-8 text-xs text-muted-foreground">
           {lens === "attention"
-            ? "Nothing needs you right now. Everything you sent has been opened or answered."
+            ? "Nothing needs you right now."
             : "Nothing here yet."}
         </p>
       ) : (
@@ -323,14 +327,20 @@ export function PartnershipPipeline({
 
                 <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
                   <button
-                    onClick={() => onOpenSchool(doc.school_id)}
+                    onClick={() =>
+                      onOpenSchool(doc.school_id, {
+                        tab: doc.attention_tab || (doc.expired ? "compose" : "archive"),
+                        kind: doc.kind,
+                        documentId: doc.id,
+                      })
+                    }
                     className="shrink-0 px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors min-h-[34px]"
                   >
                     Open school
                   </button>
-                  {documentSharePath(doc.share_token) && (
+                  {publicDocumentSharePath(doc.share_token, doc.status) && (
                     <a
-                      href={documentSharePath(doc.share_token)!}
+                      href={publicDocumentSharePath(doc.share_token, doc.status)!}
                       target="_blank"
                       rel="noreferrer"
                       className="shrink-0 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 text-[11px] font-medium transition-colors min-h-[34px] inline-flex items-center"
@@ -349,7 +359,7 @@ export function PartnershipPipeline({
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5 pt-1 border-t border-border/60">
           <CheckCircleIcon className="w-3.5 h-3.5 shrink-0 mt-px text-emerald-500" />
           <span>
-            From the {outcomes.signed} {outcomes.signed === 1 ? "school" : "schools"} who have signed.
+            From the {outcomes.signed} signed {outcomes.signed === 1 ? "MoU" : "MoUs"}.
             These are safe numbers to quote — they are what schools really agreed to, saved at
             the moment each one signed.
           </span>

@@ -21,13 +21,20 @@ import {
   listSchoolDocuments,
   previewPartnershipDocument,
   refreshPartnershipDocument,
+  isQuoteExpired,
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
 import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
 import { ImpermissibleSplitError, normaliseSchoolSharePercent } from '@/lib/partnerships/split';
 import { notificationsService } from '@/services/notifications.service';
-import { buildPartnershipFollowUpEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildPartnershipProposalEmail } from '@/lib/email/rillcod-transactional-email';
 import { brandContact } from '@/config/brand';
+import {
+  buildDocumentShareUrl,
+  buildRecordedSignatureStamp,
+  publicSignRefusal,
+  stampSignature,
+} from '@/lib/partnerships/signing';
 
 export const dynamic = 'force-dynamic';
 
@@ -200,31 +207,22 @@ export async function POST(req: NextRequest) {
 
       if (toEmail && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(toEmail)) {
         const appUrl = (process.env.NEXT_PUBLIC_APP_URL || brandContact.siteUrl).replace(/\/$/, '');
-        /*
-          The link is built from the share token, and only the share token.
-
-          This read `issued.reference || issued.shareToken`, and a reference is
-          always present — so every emailed link was a reference. That is the
-          sequential number printed on the document (RC-MOU-2026-00014), which
-          makes it both guessable and, since the public route stopped honouring
-          references, dead: recipients got a link that resolved to nothing.
-
-          If a token is somehow absent there is no safe link to send, so the
-          email goes out without one rather than falling back to the reference.
-        */
-        const shareUrl = issued.shareToken ? `${appUrl}/p/${issued.shareToken}` : null;
-        const { subject, html } = buildPartnershipFollowUpEmail({
+        const shareUrl = buildDocumentShareUrl(appUrl, issued.shareToken);
+        const html = buildPartnershipProposalEmail({
           schoolName: issued.schoolName,
           contactName: contactPerson,
           reference: issued.reference,
-          angle: kind === 'mou' ? 'resumption_slot' : 'cold_pitch',
+          kind: kind === 'mou' ? 'mou' : 'proposal',
           shareUrl,
           appUrl,
         });
 
         const dispatched = await notificationsService.sendEmail('system', {
           to: toEmail,
-          subject,
+          subject:
+            kind === 'mou'
+              ? `Memorandum of Understanding — ${issued.schoolName} (${issued.reference})`
+              : `Partnership proposal for ${issued.schoolName} — coding, robotics & AI`,
           html,
           templateKey: kind === 'mou' ? 'partnership_mou' : 'partnership_proposal',
           referenceId: issued.reference,
@@ -233,7 +231,6 @@ export async function POST(req: NextRequest) {
         if (dispatched) {
           emailSent = true;
           emailRecipient = toEmail;
-          // Mark document status as sent
           await actor.db
             .from('partnership_agreements')
             .update({ status: 'sent', sent_at: new Date().toISOString() })
@@ -318,6 +315,7 @@ export async function PUT(req: NextRequest) {
           : Number(body.validity_days),
       proposedSchoolSharePercent: normaliseSchoolSharePercent(body.proposed_school_share_percent),
       studio: body.studio ? normaliseStudioConfig(body.studio) : null,
+      narrative: body.narrative && typeof body.narrative === 'object' ? body.narrative : null,
     });
 
     await logAudit(actor.db as any, {
@@ -393,7 +391,9 @@ export async function PATCH(req: NextRequest) {
 
   const { data: current } = await actor.db
     .from('partnership_agreements')
-    .select('id, reference, status, school_id, sent_at, signed_at, signed_by_name, signed_by_role')
+    .select(
+      'id, reference, status, school_id, sent_at, signed_at, signed_by_name, signed_by_role, document_kind, document_html, valid_until',
+    )
     .eq('id', id)
     .maybeSingle();
   if (!current) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
@@ -404,6 +404,7 @@ export async function PATCH(req: NextRequest) {
     signed_by_role?: string | null;
     signed_at?: string | null;
     sent_at?: string | null;
+    document_html?: string;
   } = { status };
 
   /*
@@ -437,8 +438,21 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (status === 'signed') {
-    // The CHECK requires a name and a time against a signature. Asking for them
-    // here means the refusal names the missing field instead of the constraint.
+    const refusal = publicSignRefusal(
+      {
+        document_kind: current.document_kind,
+        status: current.status,
+        expired: isQuoteExpired(current.valid_until),
+      },
+      { audience: 'admin' },
+    );
+    if (refusal) {
+      return NextResponse.json(
+        { error: refusal.error, ...(refusal.expired ? { expired: true } : {}) },
+        { status: refusal.status },
+      );
+    }
+
     const signedByName = String(body.signed_by_name ?? current.signed_by_name ?? '').trim();
     if (!signedByName) {
       return NextResponse.json(
@@ -447,14 +461,39 @@ export async function PATCH(req: NextRequest) {
       );
     }
     patch.signed_by_name = signedByName;
-    // Keep what is already recorded when the caller does not restate it, so a
-    // second PATCH cannot quietly blank the signer's role.
     patch.signed_by_role = body.signed_by_role
       ? String(body.signed_by_role)
       : (current.signed_by_role ?? null);
-    patch.signed_at = current.signed_at ?? new Date().toISOString();
-    // A document cannot be signed without having gone out.
+    const signedAt = current.signed_at ?? new Date().toISOString();
+    patch.signed_at = signedAt;
     patch.sent_at = current.sent_at ?? new Date().toISOString();
+
+    let boundParty: string | null = null;
+    if (current.school_id) {
+      const { data: signingSchool } = await actor.db
+        .from('schools')
+        .select('name')
+        .eq('id', current.school_id)
+        .maybeSingle();
+      boundParty = signingSchool?.name ? String(signingSchool.name) : null;
+    }
+    const stamp = buildRecordedSignatureStamp({
+      signatoryName: signedByName,
+      signatoryRole: patch.signed_by_role || 'Authorised signatory',
+      signedAt,
+      boundParty,
+    });
+    const stamped = stampSignature(String(current.document_html || ''), stamp);
+    if (stamped === null) {
+      return NextResponse.json(
+        {
+          error:
+            `${current.reference} has nowhere to record a signature on the page. Issue a fresh MoU rather than marking this one signed.`,
+        },
+        { status: 409 },
+      );
+    }
+    patch.document_html = stamped;
   } else if (status === 'sent' && !current.sent_at) {
     patch.sent_at = new Date().toISOString();
   }

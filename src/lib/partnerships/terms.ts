@@ -266,6 +266,68 @@ export const WITHDRAWAL_POLICIES: readonly WithdrawalPolicy[] = [
   'credit_next_term',
 ];
 
+export type SettlementFields = {
+  settlement_trigger: SettlementTrigger | null;
+  settlement_days: number | null;
+  withdrawal_policy: WithdrawalPolicy | null;
+  minimum_students: number | null;
+};
+
+/**
+ * Settlement columns as the terms API should store them.
+ *
+ * The editor already POSTed these; the route omitted them from the insert, so
+ * "Add settlement terms" saved the rate and dropped when the school is paid.
+ * Invalid values are an error rather than silently nulled — a typo that becomes
+ * "nothing agreed" is how a document prints the fallback clause after somebody
+ * thought they had set a date.
+ */
+export function parseSettlementFields(
+  body: Record<string, unknown>,
+): { ok: true; fields: SettlementFields } | { ok: false; error: string } {
+  const rawTrigger = body.settlement_trigger;
+  let settlement_trigger: SettlementTrigger | null = null;
+  if (rawTrigger != null && rawTrigger !== '') {
+    if (!SETTLEMENT_TRIGGERS.includes(rawTrigger as SettlementTrigger)) {
+      return { ok: false, error: 'settlement_trigger must be term_end or on_collection.' };
+    }
+    settlement_trigger = rawTrigger as SettlementTrigger;
+  }
+
+  const rawPolicy = body.withdrawal_policy;
+  let withdrawal_policy: WithdrawalPolicy | null = null;
+  if (rawPolicy != null && rawPolicy !== '') {
+    if (!WITHDRAWAL_POLICIES.includes(rawPolicy as WithdrawalPolicy)) {
+      return { ok: false, error: 'withdrawal_policy must be pro_rata, no_refund or credit_next_term.' };
+    }
+    withdrawal_policy = rawPolicy as WithdrawalPolicy;
+  }
+
+  const rawDays = body.settlement_days;
+  const settlement_days =
+    rawDays == null || rawDays === '' ? null : toNumber(rawDays);
+  if (settlement_days != null && (settlement_days < 0 || settlement_days > 365)) {
+    return { ok: false, error: 'settlement_days must be between 0 and 365.' };
+  }
+
+  const rawFloor = body.minimum_students;
+  const minimum_students =
+    rawFloor == null || rawFloor === '' ? null : toNumber(rawFloor);
+  if (minimum_students != null && minimum_students < 0) {
+    return { ok: false, error: 'minimum_students cannot be negative.' };
+  }
+
+  return {
+    ok: true,
+    fields: {
+      settlement_trigger,
+      settlement_days,
+      withdrawal_policy,
+      minimum_students,
+    },
+  };
+}
+
 export type SettlementPoint = { label: string; body: string };
 
 /**

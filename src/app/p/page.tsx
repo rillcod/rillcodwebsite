@@ -23,7 +23,7 @@ export default function DocumentAccessPortalPage() {
     if (e) e.preventDefault();
     const clean = code.trim();
     if (!clean) {
-      setError("Please enter the code or reference from your document.");
+      setError("Please enter the six-digit access code printed on your document.");
       return;
     }
 
@@ -79,7 +79,7 @@ export default function DocumentAccessPortalPage() {
                 Access Partnership Document
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                Enter the six-digit access code printed on your proposal or agreement.
+                    Enter the six-digit access code printed on your document.
               </p>
             </div>
 
@@ -95,7 +95,7 @@ export default function DocumentAccessPortalPage() {
                   htmlFor="access-code-input"
                   className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2"
                 >
-                  6-Digit Code or Reference
+                  6-digit access code
                 </label>
                 <div className="relative">
                   <input

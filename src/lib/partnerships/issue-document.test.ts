@@ -6,6 +6,7 @@ vi.mock('@/lib/ai/generate-core', () => ({ generateAIContent }));
 import {
   StaleDocumentError,
   issuePartnershipDocument,
+  pickProspectSchool,
   previewPartnershipDocument,
   refreshPartnershipDocument,
 } from './issue-document';
@@ -461,5 +462,40 @@ describe('a school that is not there', () => {
     await expect(
       issuePartnershipDocument({ db: db as any, schoolId: 'nope', kind: 'proposal' }),
     ).rejects.toThrow(/does not exist/);
+  });
+});
+
+describe('pickProspectSchool', () => {
+  it('attaches to the one school with that name', () => {
+    expect(
+      pickProspectSchool(
+        [{ id: 'a', name: "St Mary's", city: 'Benin' }],
+        { name: "st mary's", city: null },
+      ),
+    ).toEqual({ match: 'one', id: 'a' });
+  });
+
+  it('uses city when two schools share a name', () => {
+    expect(
+      pickProspectSchool(
+        [
+          { id: 'a', name: "St Mary's", city: 'Benin' },
+          { id: 'b', name: "St Mary's", city: 'Warri' },
+        ],
+        { name: "St Mary's", city: 'Warri' },
+      ),
+    ).toEqual({ match: 'one', id: 'b' });
+  });
+
+  it('refuses rather than picking the oldest duplicate', () => {
+    expect(
+      pickProspectSchool(
+        [
+          { id: 'a', name: "St Mary's", city: 'Benin' },
+          { id: 'b', name: "St Mary's", city: 'Warri' },
+        ],
+        { name: "St Mary's", city: null },
+      ),
+    ).toEqual({ match: 'ambiguous', count: 2 });
   });
 });

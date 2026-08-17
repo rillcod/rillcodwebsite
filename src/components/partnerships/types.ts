@@ -94,6 +94,7 @@ export type IssuedDocument = {
   share_token: string | null;
   /** 6-digit access code for quick phone verification */
   access_code?: string | null;
+  email_sent?: boolean;
 };
 
 export function formatMoney(amount: number, currency = 'NGN'): string {

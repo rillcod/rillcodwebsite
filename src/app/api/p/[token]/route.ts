@@ -20,9 +20,11 @@ import {
   MAX_SIGNATORY_ROLE,
   MAX_SIGNATURE_BYTES,
   SIGNATURE_DATA_URL_PATTERN,
-  SHARE_TOKEN_PATTERN,
   buildSignatureStamp,
-  isValidDocumentIdentifier,
+  isAffirmedAuthorised,
+  isValidShareToken,
+  publicReadAccess,
+  publicSignRefusal,
   stampSignature,
 } from '@/lib/partnerships/signing';
 import { isQuoteExpired } from '@/lib/partnerships/issue-document';
@@ -45,11 +47,14 @@ const DOC_COLS =
  * the others.
  */
 async function resolveDocument(db: ReturnType<typeof createAdminClient>, value: string) {
-  const column = SHARE_TOKEN_PATTERN.test(value) ? 'share_token' : 'access_code';
+  // Share token only. Six-digit codes go through /api/p/lookup, which is
+  // rate-limited. Accepting them here made that limit ornamental: a million
+  // codes against this GET, with no cap, is how the printed code unlocked
+  // every school's fees.
   const { data } = await db
     .from('partnership_agreements')
     .select(DOC_COLS)
-    .eq(column, value)
+    .eq('share_token', value)
     .maybeSingle();
   return data;
 }
@@ -62,7 +67,7 @@ export async function GET(
   const value = String(token || '').trim();
   // A malformed token is indistinguishable from a wrong one, on purpose: this
   // endpoint never confirms that a document exists to somebody without the link.
-  if (!isValidDocumentIdentifier(value)) {
+  if (!isValidShareToken(value)) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
@@ -82,8 +87,15 @@ export async function GET(
     they were no longer on offer. 410 rather than 404 because the document did
     exist and the reader is not wrong to have the link; the page says so and
     points them at us.
+
+    Drafts 404 rather than 410: they have not left the building, and confirming
+    they exist would tell a guessed token holder that a quote is sitting there.
   */
-  if (doc.status === 'void' || doc.status === 'declined') {
+  const access = publicReadAccess(doc.status);
+  if (access === 'not_found') {
+    return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+  }
+  if (access === 'withdrawn') {
     return NextResponse.json(
       {
         error:
@@ -156,6 +168,8 @@ export async function GET(
       type at /p next time.
     */
     accessCode: doc.access_code ?? null,
+    validUntil: doc.valid_until ?? null,
+    expired: isQuoteExpired(doc.valid_until),
     school: school || null,
   });
 }
@@ -166,7 +180,7 @@ export async function POST(
 ) {
   const { token } = await params;
   const value = String(token || '').trim();
-  if (!isValidDocumentIdentifier(value)) {
+  if (!isValidShareToken(value)) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
@@ -193,19 +207,24 @@ export async function POST(
   if (!signatoryName) {
     return NextResponse.json({ error: 'Signatory name is required to sign.' }, { status: 400 });
   }
-  if (signatureDataUrl) {
-    if (signatureDataUrl.length > MAX_SIGNATURE_BYTES) {
-      return NextResponse.json({ error: 'That signature image is too large.' }, { status: 413 });
-    }
-    if (!SIGNATURE_DATA_URL_PATTERN.test(signatureDataUrl)) {
-      return NextResponse.json({ error: 'That signature is not a valid image.' }, { status: 400 });
-    }
+  if (!isAffirmedAuthorised(body.authorised ?? body.authorized)) {
+    return NextResponse.json(
+      { error: 'Confirm you are authorised to bind the school before signing.' },
+      { status: 400 },
+    );
+  }
+  if (!signatureDataUrl) {
+    return NextResponse.json({ error: 'A signature image is required to sign.' }, { status: 400 });
+  }
+  if (signatureDataUrl.length > MAX_SIGNATURE_BYTES) {
+    return NextResponse.json({ error: 'That signature image is too large.' }, { status: 413 });
+  }
+  if (!SIGNATURE_DATA_URL_PATTERN.test(signatureDataUrl)) {
+    return NextResponse.json({ error: 'That signature is not a valid image.' }, { status: 400 });
   }
 
-  // Same rule as the read: a token or an access code, never a reference. This is
-  // the path that signs, so it is the one that matters most — a reference is
-  // sequential and printed, and signing an agreement in a school's name should
-  // take more than counting.
+  // Share token only. A six-digit code is for lookup, not for an unauthenticated
+  // write that executes a contract.
   const db = createAdminClient();
   const doc = await resolveDocument(db, value);
 
@@ -213,35 +232,15 @@ export async function POST(
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
 
-  if (doc.status === 'signed') {
-    return NextResponse.json({ error: 'This document has already been signed.' }, { status: 409 });
-  }
-  if (doc.status === 'void' || doc.status === 'declined') {
+  const refusal = publicSignRefusal({
+    document_kind: doc.document_kind,
+    status: doc.status,
+    expired: isQuoteExpired(doc.valid_until),
+  });
+  if (refusal) {
     return NextResponse.json(
-      { error: `Cannot sign document with status ${doc.status}.` },
-      { status: 409 },
-    );
-  }
-  /*
-    A lapsed quote cannot be signed.
-
-    The proposal prints "these fees stand until…" and then, until now, accepted
-    a signature against those fees indefinitely. A school that opened the link
-    six months later could bind us to a rate we had already re-quoted, and the
-    record would show a perfectly valid signature — the sentence on the page was
-    the only thing that had ever said otherwise.
-
-    Documents issued before the date was stored have no expiry and are not
-    retrospectively invalid.
-  */
-  if (isQuoteExpired(doc.valid_until)) {
-    return NextResponse.json(
-      {
-        error:
-          'The fees in this proposal have lapsed, so it can no longer be signed. Please contact us and we will re-issue it at current rates.',
-        expired: true,
-      },
-      { status: 409 },
+      { error: refusal.error, ...(refusal.expired ? { expired: true } : {}) },
+      { status: refusal.status },
     );
   }
 
@@ -254,10 +253,9 @@ export async function POST(
     Who the signatory said they could bind.
 
     Read from the school record rather than taken from the request: the party
-    being bound is not something the person signing gets to type. If the lookup
-    fails the stamp simply omits the declaration, because printing "authorised
-    on behalf of" with the wrong name on a contract is worse than printing
-    nothing.
+    being bound is not something the person signing gets to type. Printed only
+    because they affirmed authority on this request — the checkbox used to live
+    only in the browser, and the stamp then claimed a declaration nobody made.
   */
   let boundParty: string | null = null;
   if (doc.school_id) {
@@ -270,27 +268,22 @@ export async function POST(
   }
 
   let updatedHtml = doc.document_html || '';
-  if (signatureDataUrl && updatedHtml) {
-    const stamp = buildSignatureStamp({
-      signatoryName,
-      signatoryRole,
-      signatureDataUrl,
-      signedAt,
-      boundParty,
-    });
+  const stamp = buildSignatureStamp({
+    signatoryName,
+    signatoryRole,
+    signatureDataUrl,
+    signedAt,
+    boundParty,
+  });
 
-    // Both templates leave the anchor. This used to replace the literal "Official
-    // stamp", which only the MoU contains — so signing a proposal set the status
-    // to signed and put nothing on the page.
-    const stamped = stampSignature(updatedHtml, stamp);
-    if (stamped === null) {
-      return NextResponse.json(
-        { error: 'This document cannot be counter-signed online. Please contact us to sign it.' },
-        { status: 409 },
-      );
-    }
-    updatedHtml = stamped;
+  const stamped = stampSignature(updatedHtml, stamp);
+  if (stamped === null) {
+    return NextResponse.json(
+      { error: 'This document cannot be counter-signed online. Please contact us to sign it.' },
+      { status: 409 },
+    );
   }
+  updatedHtml = stamped;
 
   const { error: updateError } = await db
     .from('partnership_agreements')
@@ -305,7 +298,7 @@ export async function POST(
     .eq('id', doc.id)
     // Only from an unsigned state. Two taps on a slow phone would otherwise both
     // pass the check above and the second would overwrite the first signature.
-    .not('status', 'in', '("signed","void","declined")');
+    .not('status', 'in', '("signed","void","declined","draft")');
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });

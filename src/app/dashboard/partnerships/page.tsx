@@ -14,7 +14,7 @@
  * and its own rate.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -43,7 +43,7 @@ import {
 import { brandContact } from "@/config/brand";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
 import { PartnershipDocumentArchive } from "@/components/partnerships/PartnershipDocumentArchive";
-import { PartnershipDocumentComposer } from "@/components/partnerships/PartnershipDocumentComposer";
+import { PartnershipDocumentComposer, type ComposerHandle } from "@/components/partnerships/PartnershipDocumentComposer";
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
@@ -59,6 +59,7 @@ import type {
 } from "@/components/partnerships/types";
 import { describeTerms } from "@/lib/partnerships/terms";
 import { buildDocumentShareUrl, isValidShareToken } from "@/lib/partnerships/signing";
+import { partnershipNextAction } from "@/lib/partnerships/next-action";
 
 type Preview = {
   /** The stored row, so the document on screen is the one that gets emailed. */
@@ -72,6 +73,7 @@ type Preview = {
   /** Secret behind the public link. Null for a preview: nothing is stored yet. */
   shareToken: string | null;
   accessCode?: string | null;
+  status?: string | null;
 };
 
 // No "studio": it is part of composing now, not a place you navigate to.
@@ -151,7 +153,8 @@ export default function PartnershipsPage() {
   const [openTerms, setOpenTerms] = useState(0);
   // What the studio decided.
   const [studio, setStudio] = useState<ProposalStudioConfig>(() => defaultStudioConfig());
-  useEffect(() => setStudio(loadStudioConfig()), []);
+  const composerRef = useRef<ComposerHandle>(null);
+  const [focusDocumentId, setFocusDocumentId] = useState<string | null>(null);
 
   const canView = profile?.role === "admin" || profile?.role === "teacher";
   const canWrite = profile?.role === "admin";
@@ -215,18 +218,20 @@ export default function PartnershipsPage() {
     }
   }, []);
 
-  function selectSchool(id: string) {
+  function selectSchool(
+    id: string,
+    opts?: { tab?: WorkspaceTab; kind?: "proposal" | "mou"; focusDocumentId?: string | null },
+  ) {
     setSelectedId(id);
     setMobileShowSidebar(false);
     setPreview(null);
     setTerms([]);
     setAgreed(null);
     setDocuments([]);
-    setActiveTab("compose");
-    // A new school starts on a proposal. The composer no longer resets this
-    // itself, because it is unmounted on every tab change and would have wiped
-    // the choice each time.
-    setComposeKind("proposal");
+    setActiveTab(opts?.tab ?? "compose");
+    setComposeKind(opts?.kind ?? "proposal");
+    setFocusDocumentId(opts?.focusDocumentId ?? null);
+    setStudio(loadStudioConfig(id));
     void loadSchoolDetail(id);
   }
 
@@ -256,7 +261,7 @@ export default function PartnershipsPage() {
   const prospects = schools.length - partners.length;
   const awaiting = partners.length - partners.filter((s) => withTerms.has(s.id)).length;
   const signedAgreements = useMemo(
-    () => documents.filter((d) => d.status === "signed"),
+    () => documents.filter((d) => d.document_kind === "mou" && d.status === "signed"),
     [documents],
   );
 
@@ -272,13 +277,23 @@ export default function PartnershipsPage() {
     in it. Requiring a shareable document is what makes the button honest.
   */
   const shareableMou = useMemo(
-    () => documents.find((d) => d.document_kind === "mou" && isValidShareToken(d.share_token)) || null,
+    () =>
+      documents.find(
+        (d) =>
+          d.document_kind === "mou" &&
+          isValidShareToken(d.share_token) &&
+          (d.status === "sent" || d.status === "signed"),
+      ) || null,
     [documents],
   );
   const shareableProposal = useMemo(
     () =>
-      documents.find((d) => d.document_kind === "proposal" && isValidShareToken(d.share_token)) ||
-      null,
+      documents.find(
+        (d) =>
+          d.document_kind === "proposal" &&
+          isValidShareToken(d.share_token) &&
+          (d.status === "sent" || d.status === "signed"),
+      ) || null,
     [documents],
   );
 
@@ -305,7 +320,6 @@ export default function PartnershipsPage() {
         if (!live) return;
         const waiting = (json.documents ?? []).filter((d: { needs_attention?: boolean }) => d.needs_attention).length;
         setNeedsAttention(waiting);
-        if (waiting > 0) setPageView('pipeline');
       } catch {
         // A pipeline that cannot be counted is not a reason to block the page.
       }
@@ -316,70 +330,14 @@ export default function PartnershipsPage() {
   }, []);
 
   // Latest active document for quick header link
-  const latestDoc = documents[0] || null;
+  const latestDoc =
+    documents.find((d) => isValidShareToken(d.share_token) && (d.status === "sent" || d.status === "signed")) ||
+    documents[0] ||
+    null;
 
-  /**
-   * Where this school actually is, and the one thing to do next.
-   *
-   * The workspace has five tabs and the answer to "what happens now" was spread
-   * across four of them: whether a rate exists is in Terms, whether anything has
-   * been sent is in Archive, whether it was opened is nowhere, and whether the
-   * document can even compute its own returns page depends on a share recorded
-   * two screens away. Everyone was assembling this by hand, every time, and
-   * mostly getting it wrong — which is how a school ended up quoted a rate with
-   * no split and nobody noticed until the PDF was read.
-   *
-   * One sentence, one button, computed from what is already loaded.
-   */
   const dealState = useMemo(() => {
     if (!selected) return null;
-    const signed = documents.find((d) => d.status === 'signed');
-    if (signed) {
-      return {
-        tone: 'done' as const,
-        headline: `Signed — ${signed.reference ?? 'agreement on record'}`,
-        detail: signed.signed_by_name ? `Signed by ${signed.signed_by_name}.` : 'The agreement is on record.',
-        action: null,
-      };
-    }
-    if (!agreed) {
-      return {
-        tone: 'todo' as const,
-        headline: 'No agreed rate yet',
-        detail:
-          'A proposal can go out on the standard menu, but an MoU cannot be issued until a rate is recorded.',
-        action: { label: 'Record terms', tab: 'terms' as WorkspaceTab },
-      };
-    }
-    if (agreed.school_share_percent == null) {
-      return {
-        tone: 'warn' as const,
-        headline: 'Rate agreed, but no revenue share',
-        detail:
-          'The returns page cannot work out what this school earns until a split is recorded — or the deal is marked as a flat fee.',
-        action: { label: 'Fix the split', tab: 'terms' as WorkspaceTab },
-      };
-    }
-    const sent = documents.find((d) => d.status === 'sent');
-    if (sent) {
-      const opens = Number(sent.open_count) || 0;
-      return {
-        tone: 'wait' as const,
-        headline: opens ? `Sent, opened ${opens}×` : 'Sent, not opened yet',
-        detail: opens
-          ? 'They have read it. Worth a follow-up if there has been no answer.'
-          : 'It has not been opened. Check the link reached the right person.',
-        action: { label: 'Open the archive', tab: 'archive' as WorkspaceTab },
-      };
-    }
-    return {
-      tone: 'ready' as const,
-      headline: 'Terms are recorded — ready to issue',
-      detail: agreed.settlement_trigger
-        ? 'Rate, split and settlement are all on record.'
-        : 'No settlement terms yet, so the proposal will not say when they are paid.',
-      action: { label: agreed.settlement_trigger ? 'Compose a document' : 'Add settlement terms', tab: (agreed.settlement_trigger ? 'compose' : 'terms') as WorkspaceTab },
-    };
+    return partnershipNextAction({ agreed, documents });
   }, [selected, agreed, documents]);
 
   if (authLoading) {
@@ -514,12 +472,13 @@ export default function PartnershipsPage() {
 
       {pageView === "pipeline" && (
         <PartnershipPipeline
-          onOpenSchool={(id) => {
-            // Acting on a document happens in the school's own workspace, which
-            // owns those buttons. This is the jump between the two views.
+          onOpenSchool={(id, hint) => {
             setPageView("school");
-            selectSchool(id);
-            setActiveTab("archive");
+            selectSchool(id, {
+              tab: hint?.tab ?? "archive",
+              kind: hint?.kind,
+              focusDocumentId: hint?.documentId ?? null,
+            });
           }}
         />
       )}
@@ -728,12 +687,20 @@ export default function PartnershipsPage() {
                     <span>{selected.status === "approved" ? "Partner" : "Prospect"}</span>
                   </div>
                   <div className={`rounded-xl p-2 text-xs font-bold border ${
-                    documents.some((d) => d.document_kind === "proposal")
+                    documents.some((d) => d.document_kind === "proposal" && (d.status === "sent" || d.status === "signed"))
                       ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-muted/30 border-border text-muted-foreground"
+                      : documents.some((d) => d.document_kind === "proposal" && d.status === "draft")
+                        ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                        : "bg-muted/30 border-border text-muted-foreground"
                   }`}>
                     <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">2. Proposal</span>
-                    <span>{documents.some((d) => d.document_kind === "proposal") ? "✓ Issued" : "Pending"}</span>
+                    <span>
+                      {documents.some((d) => d.document_kind === "proposal" && (d.status === "sent" || d.status === "signed"))
+                        ? "✓ Sent"
+                        : documents.some((d) => d.document_kind === "proposal" && d.status === "draft")
+                          ? "Draft"
+                          : "Pending"}
+                    </span>
                   </div>
                   <div className={`rounded-xl p-2 text-xs font-bold border ${
                     agreed
@@ -805,22 +772,10 @@ export default function PartnershipsPage() {
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-0.5">
                     <div className="space-y-0.5 max-w-xl">
                       <p className="text-xs font-bold text-foreground">
-                        {signedAgreements.length > 0
-                          ? "🎉 Step 5: MoU Executed — Onboard Classes & Issue Invoice"
-                          : agreed
-                          ? "✍️ Step 4: Agreed Commercial Terms — Push MoU Digital Signature"
-                          : documents.some((d) => d.document_kind === "proposal")
-                          ? "💬 Step 3: Proposal Sent — 48h Follow-up & Live Demo Check"
-                          : "🚀 Step 2: New Prospect — Issue Customized STEM Proposal"}
+                        {dealState?.headline ?? "Pick a school to see the next step"}
                       </p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        {signedAgreements.length > 0
-                          ? "School is officially activated! Assign your STEM facilitator, add student classes, and dispatch the first-term invoice."
-                          : agreed
-                          ? `Terms agreed at ₦${agreed.amount_per_student?.toLocaleString() || "15,000"}/student. Nudge the proprietor to digitally sign the MoU online.`
-                          : documents.some((d) => d.document_kind === "proposal")
-                          ? `Proposal (${documents.find((d) => d.document_kind === "proposal")?.reference || "PROP"}) delivered. Send a polite check-in offering a 30-min live robotics demo.`
-                          : "Create an executive STEM proposal with 12-Year Curriculum Ladder and zero upfront hardware cost guarantee."}
+                        {dealState?.detail ?? "Compose a proposal first. Terms come after they pick an option."}
                       </p>
                     </div>
 
@@ -833,24 +788,24 @@ export default function PartnershipsPage() {
                       over two lines. Stacking is both readable and easier to hit.
                     */}
                     <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:shrink-0">
-                      {signedAgreements.length > 0 ? (
+                      {dealState?.tone === "done" && dealState.hrefs ? (
                         <>
-                          <Link
-                            href="/dashboard/classes"
-                            className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
-                          >
-                            <BookOpenIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span>Setup Classes</span>
-                          </Link>
-                          <Link
-                            href="/dashboard/school-billing"
-                            className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all"
-                          >
-                            <BanknotesIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                            <span>Issue Invoice</span>
-                          </Link>
+                          {dealState.hrefs.map((h) => (
+                            <Link
+                              key={h.href}
+                              href={h.href}
+                              className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all first:bg-emerald-600 [&:nth-child(2)]:bg-muted [&:nth-child(2)]:text-foreground [&:nth-child(2)]:border [&:nth-child(2)]:border-border"
+                            >
+                              {h.href.includes("billing") ? (
+                                <BanknotesIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                              ) : (
+                                <BookOpenIcon className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              <span>{h.label}</span>
+                            </Link>
+                          ))}
                         </>
-                      ) : agreed && shareableMou ? (
+                      ) : dealState?.followUp === "mou" && shareableMou ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -868,7 +823,7 @@ export default function PartnershipsPage() {
                           <span className="sm:hidden">Nudge MoU Signature</span>
                           <span className="hidden sm:inline">Nudge MoU Signature (WhatsApp)</span>
                         </button>
-                      ) : shareableProposal ? (
+                      ) : dealState?.followUp === "proposal" && shareableProposal ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -883,17 +838,20 @@ export default function PartnershipsPage() {
                           className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
                         >
                           <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="sm:hidden">48h Check-In</span>
-                          <span className="hidden sm:inline">Send 48h AI Check-In (WhatsApp)</span>
+                          <span className="sm:hidden">Follow up</span>
+                          <span className="hidden sm:inline">Follow up on WhatsApp</span>
                         </button>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setActiveTab("compose")}
+                          onClick={() => {
+                            if (dealState?.action?.kind) setComposeKind(dealState.action.kind);
+                            setActiveTab(dealState?.action?.tab ?? "compose");
+                          }}
                           className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
                         >
                           <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span>Draft Proposal Now</span>
+                          <span>{dealState?.action?.label ?? "Compose a proposal"}</span>
                         </button>
                       )}
 
@@ -942,7 +900,10 @@ export default function PartnershipsPage() {
                   {dealState.action && (
                     <button
                       type="button"
-                      onClick={() => setActiveTab(dealState.action!.tab)}
+                      onClick={() => {
+                        if (dealState.action?.kind) setComposeKind(dealState.action.kind);
+                        setActiveTab(dealState.action!.tab);
+                      }}
                       className="shrink-0 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold transition-transform active:scale-95 min-h-[42px]"
                     >
                       {dealState.action.label}
@@ -1005,16 +966,21 @@ export default function PartnershipsPage() {
                 })}
               </div>
 
-              {/* Tab 1: Compose Proposals & MoUs */}
-              {activeTab === "compose" && (
-                <div className="space-y-5">
+              {/* Tab 1: Compose Proposals & MoUs.
+                  Kept mounted (hidden) on other tabs so redraw in the archive
+                  still has the offer, studio, narrative and enrolment that
+                  were last previewed — unmounting this form is how a redraw
+                  used to re-issue a blank-slate document. */}
+              <div className={activeTab === "compose" ? "space-y-5" : "hidden"}>
                   <PartnershipDocumentComposer
+                    ref={composerRef}
                     school={selected}
                     agreed={agreed}
                     canWrite={canWrite}
                     studio={studio}
                     kind={composeKind}
                     onKindChange={setComposeKind}
+                    documents={documents}
                     onRecordTerms={() => {
                       setOpenTerms((n) => n + 1);
                       setActiveTab("terms");
@@ -1030,6 +996,7 @@ export default function PartnershipsPage() {
                         curriculumEdition: doc.curriculum_edition,
                         shareToken: null,
                         accessCode: doc.access_code,
+                        status: null,
                       });
                     }}
                     onIssued={async (doc: IssuedDocument) => {
@@ -1043,6 +1010,7 @@ export default function PartnershipsPage() {
                         curriculumEdition: doc.curriculum_edition,
                         shareToken: doc.share_token,
                         accessCode: doc.access_code,
+                        status: doc.email_sent ? "sent" : "draft",
                       });
                       await loadSchoolDetail(selected.id);
                     }}
@@ -1062,6 +1030,7 @@ export default function PartnershipsPage() {
                       // handed down — which is why the access-code pill was
                       // always empty on an issued document.
                       accessCode={preview.accessCode}
+                      documentStatus={preview.status}
                       canSend={canWrite}
                       onSent={() => loadSchoolDetail(selected.id)}
                       onClose={() => setPreview(null)}
@@ -1096,7 +1065,6 @@ export default function PartnershipsPage() {
                     </details>
                   )}
                 </div>
-              )}
 
               {/* Tab 2: Authoritative Commercial Terms */}
               {activeTab === "terms" && (
@@ -1141,7 +1109,9 @@ export default function PartnershipsPage() {
                   <PartnershipDocumentArchive
                     documents={documents}
                     canWrite={canWrite}
+                    focusId={focusDocumentId}
                     onChanged={() => loadSchoolDetail(selected.id)}
+                    redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
                     onOpen={(doc, html) => {
                       setPreview({
                         id: doc.id,
@@ -1153,6 +1123,7 @@ export default function PartnershipsPage() {
                         curriculumEdition: null,
                         shareToken: doc.share_token,
                         accessCode: doc.access_code,
+                        status: doc.status,
                       });
                       setActiveTab("compose");
                     }}

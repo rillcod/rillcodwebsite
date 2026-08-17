@@ -13,7 +13,7 @@
  * document that was archived, under the reference the database assigned.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useState, forwardRef } from "react";
 import {
   ArrowPathIcon,
   ClipboardDocumentCheckIcon,
@@ -23,11 +23,12 @@ import {
   SparklesIcon,
   CheckCircleIcon,
 } from "@/lib/icons";
-import { PARTNERSHIP_OFFERS, offerPriceLabel } from "@/lib/partnerships/offers";
+import { PARTNERSHIP_OFFERS, offerPriceLabel, recommendOffer } from "@/lib/partnerships/offers";
 import { describeTerms } from "@/lib/partnerships/terms";
 import { OFFERABLE_SCHOOL_SHARES, STANDARD_SCHOOL_SHARE_PERCENT } from "@/lib/partnerships/split";
+import { liveDocumentOfKind } from "@/lib/partnerships/next-action";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
-import type { DocumentKind, IssuedDocument, SchoolRow, TermsRow } from "./types";
+import type { DocumentKind, IssuedDocument, IssuedDocumentRow, SchoolRow, TermsRow } from "./types";
 import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type { ProposalNarrative } from "@/lib/partnerships/proposal-narrative";
 
@@ -35,42 +36,56 @@ const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
 const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
-export function PartnershipDocumentComposer({
-  school,
-  agreed,
-  canWrite,
-  onIssued,
-  onPreview,
-  onRecordTerms,
-  studio,
-  kind,
-  onKindChange,
-}: {
+export type ComposerRedrawPayload = {
+  use_ai: boolean;
+  scope_to_offer: string | null;
+  stage: "primary" | "secondary" | "both" | null;
+  notes: string | null;
+  validity_days: number | null;
+  proposed_school_share_percent: number;
+  commencement: string | null;
+  duration_label: string | null;
+  illustrative_students: number | undefined;
+  studio: ProposalStudioConfig | null;
+  narrative: ProposalNarrative | null;
+};
+
+export type ComposerHandle = {
+  getRedrawPayload: () => ComposerRedrawPayload;
+};
+
+type ComposerProps = {
   school: SchoolRow;
   agreed: TermsRow | null;
   canWrite: boolean;
   onIssued: (doc: IssuedDocument) => void | Promise<void>;
-  /** Renders without storing, so nothing is committed before it is read. */
   onPreview: (doc: IssuedDocument) => void | Promise<void>;
-  /** Opens the terms editor, so a blocked MoU has somewhere to go. */
   onRecordTerms: () => void;
-  /** What the studio decided prints. Sent with preview and issue alike. */
   studio?: ProposalStudioConfig | null;
-  /*
-    Which document is being written — owned by the workspace, not by this form.
-
-    An MoU needs agreed terms, so the one journey this component exists to
-    support is: choose MoU, discover there is no rate, go and record one, come
-    back and issue it. This panel is unmounted while the terms tab is open, so
-    when `kind` lived in here that round trip silently threw the choice away and
-    returned the user to "Proposal" — having just recorded terms for the MoU
-    they wanted. Held one level up, the choice survives the trip.
-  */
   kind: DocumentKind;
   onKindChange: (kind: DocumentKind) => void;
-}) {
+  documents?: IssuedDocumentRow[];
+};
+
+export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerProps>(
+  function PartnershipDocumentComposer(
+    {
+      school,
+      agreed,
+      canWrite,
+      onIssued,
+      onPreview,
+      onRecordTerms,
+      studio,
+      kind,
+      onKindChange,
+      documents = [],
+    },
+    ref,
+  ) {
   const setKind = onKindChange;
   const [offerCode, setOfferCode] = useState<string>("");
+  const [offerTouched, setOfferTouched] = useState(false);
   const [stage, setStage] = useState<"primary" | "secondary" | "both">("both");
   const [useAI, setUseAI] = useState(false);
   /*
@@ -110,7 +125,9 @@ export function PartnershipDocumentComposer({
     synced on its own below, off a primitive, so it cannot take the rest with it.
   */
   useEffect(() => {
-    setOfferCode("");
+    const rec = recommendOffer({ studentCount: school.student_count, stage: "both" });
+    setOfferCode(rec.offer.code);
+    setOfferTouched(false);
     setStage("both");
     setUseAI(false);
     setValidityDays("90");
@@ -123,7 +140,7 @@ export function PartnershipDocumentComposer({
     setSendEmail(false);
     setEmailStatus("");
     setError("");
-  }, [school.id, school.student_count, school.email]);
+  }, [school.id]);
 
   /*
     Approved copy is thrown away the moment the brief behind it changes.
@@ -152,6 +169,25 @@ export function PartnershipDocumentComposer({
     [offerCode],
   );
 
+  const recommendation = useMemo(
+    () =>
+      recommendOffer({
+        studentCount: Number(students) || school.student_count,
+        stage,
+      }),
+    [students, school.student_count, stage],
+  );
+
+  useEffect(() => {
+    if (offerTouched) return;
+    setOfferCode(recommendation.offer.code);
+  }, [recommendation.offer.code, offerTouched]);
+
+  const liveQuote = useMemo(
+    () => liveDocumentOfKind(documents, kind),
+    [documents, kind],
+  );
+
   /**
    * What this proposal cannot say yet, and what each omission costs it.
    *
@@ -172,8 +208,17 @@ export function PartnershipDocumentComposer({
     if (!Number(students) && !school.student_count) {
       missing.push('No enrolment for this school, so the uptake table shows illustrative sizes instead of theirs.');
     }
+    if (stage === 'primary' && !offerCode) {
+      missing.push('Years are set to primary only, but the quote still presents all twelve years.');
+    }
+    if (stage === 'primary' && offerCode === 'B2') {
+      missing.push('Option B2 assumes SS capstone years, and this school is scoped to primary only.');
+    }
+    if (stage === 'secondary' && !offerCode) {
+      missing.push('Years are set to secondary only, but the quote still presents all twelve years.');
+    }
     return missing;
-  }, [kind, agreed, students, school.student_count]);
+  }, [kind, agreed, students, school.student_count, stage, offerCode]);
 
   // An MoU without agreed terms has no fee to state. The API refuses it with a
   // 409; the button refuses it here so nobody has to read a failure to find out.
@@ -216,6 +261,25 @@ export function PartnershipDocumentComposer({
       narrative: preview ? null : approvedNarrative,
     };
   }
+
+  useImperativeHandle(ref, () => ({
+    getRedrawPayload: () => {
+      const p = payload(false);
+      return {
+        use_ai: p.use_ai,
+        scope_to_offer: p.scope_to_offer,
+        stage: p.stage,
+        notes: p.notes,
+        validity_days: p.validity_days,
+        proposed_school_share_percent: p.proposed_school_share_percent,
+        commencement: p.commencement,
+        duration_label: p.duration_label,
+        illustrative_students: p.illustrative_students,
+        studio: p.studio,
+        narrative: p.narrative,
+      };
+    },
+  }));
 
   /** Render it without keeping it, so the whole thing can be read first. */
   async function preview() {
@@ -340,7 +404,10 @@ export function PartnershipDocumentComposer({
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => setOfferCode("")}
+                onClick={() => {
+                setOfferTouched(true);
+                setOfferCode("");
+              }}
                 className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                   offerCode === ""
                     ? "border-primary bg-primary/10 text-foreground"
@@ -356,7 +423,10 @@ export function PartnershipDocumentComposer({
                 <button
                   key={offer.code}
                   type="button"
-                  onClick={() => setOfferCode(offer.code)}
+                  onClick={() => {
+                    setOfferTouched(true);
+                    setOfferCode(offer.code);
+                  }}
                   className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                     offerCode === offer.code
                       ? "border-primary bg-primary/10 text-foreground"
@@ -366,6 +436,11 @@ export function PartnershipDocumentComposer({
                   <span className="flex flex-wrap items-baseline gap-x-2">
                     <span className="font-semibold">Option {offer.code}</span>
                     <span>{offer.name}</span>
+                    {recommendation.offer.code === offer.code && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">
+                        Recommended
+                      </span>
+                    )}
                   </span>
                   <span className="block text-[11px] text-muted-foreground mt-0.5">
                     {offer.scope} · {offerPriceLabel(offer)}
@@ -373,9 +448,11 @@ export function PartnershipDocumentComposer({
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Scoping trims the printed years to what the option actually sells, so a quote does
-              not promise a year it stops short of.
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+              {recommendation.reason}
+              {offerTouched && offerCode !== recommendation.offer.code
+                ? " You have overridden that — the document will quote the option you picked."
+                : " Override it if you know something the roll does not."}
             </p>
           </div>
 
@@ -625,6 +702,24 @@ export function PartnershipDocumentComposer({
         One line per gap, each saying what it costs the document, with the one
         button that fixes all of them.
       */}
+      {liveQuote && (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {liveQuote.reference ?? "A document"} is already live
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                {liveQuote.status === "draft"
+                  ? "It is a draft — the school cannot open it. Send that one instead of issuing another, unless you mean to replace it."
+                  : "The school already has a link. Issuing another quote is how two different numbers go out. Withdraw or wait for this one to lapse first, unless you are deliberately re-quoting."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {kind === 'proposal' && gaps.length > 0 && (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 space-y-2.5">
           <div className="flex items-start gap-3">
@@ -697,13 +792,16 @@ export function PartnershipDocumentComposer({
           />
           <div className="min-w-0">
             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <span>📧 Email document directly to school contact upon issue</span>
+              <span>Email a review link when this is issued</span>
               <span className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 text-[10px] font-mono font-semibold">
                 Resend + SendPulse
               </span>
             </span>
             <p className="text-[11px] text-muted-foreground">
-              Dispatches the executive email containing the verified review link immediately upon issuing.
+              Sends the same proposal email as Archive, with the public review
+              link, and marks this sent so the school can actually open it.
+              Does not attach a PDF — use Email PDF from the preview after
+              issue if the school needs the file.
             </p>
           </div>
         </label>
@@ -786,13 +884,16 @@ export function PartnershipDocumentComposer({
                   ? "Issuing Official Record…"
                   : sendEmail
                   ? `Issue & Email to ${recipientEmail || "School"}`
+                  : liveQuote
+                  ? `Issue anyway (replace ${liveQuote.reference ?? "the live quote"})`
                   : "Issue & Save Official Copy"}
               </span>
             </button>
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            💡 Previewing generates a live document without saving. Issuing stores it permanently under a sequential reference.
+            💡 Previewing does not save. Issuing stores a draft — the school cannot open the
+            public link until you email it or mark it sent.
           </p>
         </div>
       ) : (
@@ -802,4 +903,4 @@ export function PartnershipDocumentComposer({
       )}
     </div>
   );
-}
+});

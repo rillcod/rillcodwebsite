@@ -17,6 +17,7 @@ import {
   DevicePhoneMobileIcon,
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
+  ExclamationTriangleIcon,
 } from "@/lib/icons";
 import { downloadDocumentPdf, documentFilename } from "@/lib/partnerships/proposal-pdf";
 import { SignatureModal } from "@/components/partnerships/SignatureModal";
@@ -42,6 +43,8 @@ type DocData = {
    * there is no second way back to their own agreement.
    */
   accessCode?: string | null;
+  validUntil?: string | null;
+  expired?: boolean;
   school?: {
     id: string;
     name: string;
@@ -63,6 +66,7 @@ export default function PublicDocumentPage({
   const [doc, setDoc] = useState<DocData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [withdrawn, setWithdrawn] = useState(false);
   const [zoom, setZoom] = useState<"fit" | "75" | "100" | "125">("fit");
   /** The document's own height, measured from inside the iframe. */
   const [docHeight, setDocHeight] = useState(0);
@@ -78,10 +82,14 @@ export default function PublicDocumentPage({
     async (opts?: { quiet?: boolean }) => {
       if (!opts?.quiet) setLoading(true);
       setError("");
+      setWithdrawn(false);
       try {
         const res = await fetch(`/api/p/${encodeURIComponent(token)}`, { cache: "no-store" });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Document not found.");
+        if (!res.ok) {
+          if (json.withdrawn || res.status === 410) setWithdrawn(true);
+          throw new Error(json.error || "Document not found.");
+        }
         setDoc(json);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load document.");
@@ -277,9 +285,14 @@ export default function PublicDocumentPage({
         <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 font-black text-2xl shadow-xl">
           !
         </div>
-        <h1 className="text-xl font-bold text-white mb-2">Document Not Found</h1>
+        <h1 className="text-xl font-bold text-white mb-2">
+          {withdrawn ? "Document withdrawn" : "Document Not Found"}
+        </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          {error || "The requested reference does not exist or has expired."}
+          {error ||
+            (withdrawn
+              ? "This document is no longer current. Please contact us for an up-to-date copy."
+              : "The requested document does not exist or the link is not valid.")}
         </p>
         <Link
           href="/"
@@ -416,7 +429,7 @@ export default function PublicDocumentPage({
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
 
-          {doc.kind === "mou" && doc.status !== "signed" && (
+          {doc.kind === "mou" && doc.status !== "signed" && !doc.expired && (
             <button
               onClick={() => setShowSignModal(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.03]"
@@ -436,7 +449,26 @@ export default function PublicDocumentPage({
       {/* ── Status Banner / Fast-Track Actions ── */}
       <div className="border-b border-border bg-card/60 px-4 md:px-8 py-3.5">
         <div className="mx-auto max-w-[880px]">
-          {doc.status === "signed" ? (
+          {doc.expired && doc.status !== "signed" ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-amber-400" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-amber-100">
+                  These fees have lapsed
+                  {doc.validUntil
+                    ? ` — they stood until ${new Date(`${doc.validUntil}T00:00:00`).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}`
+                    : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-amber-200/70">
+                  This is no longer a current offer. Contact us and we will re-issue at current rates.
+                </p>
+              </div>
+            </div>
+          ) : doc.status === "signed" ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-400" />
               <div className="min-w-0 flex-1">
@@ -647,7 +679,7 @@ export default function PublicDocumentPage({
               </button>
 
               {/* The action the whole page exists for, never more than a thumb away. */}
-              {doc.kind === "mou" && doc.status !== "signed" ? (
+              {doc.kind === "mou" && doc.status !== "signed" && !doc.expired ? (
                 <button
                   type="button"
                   onClick={() => setShowSignModal(true)}
@@ -793,7 +825,7 @@ export default function PublicDocumentPage({
         >
           Call
         </a>
-        {doc.kind === "mou" && doc.status !== "signed" ? (
+        {doc.kind === "mou" && doc.status !== "signed" && !doc.expired ? (
           <button
             onClick={() => setShowSignModal(true)}
             className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg shadow-emerald-950/50"

@@ -32,7 +32,7 @@ import {
   downloadDocumentPdf,
 } from "@/lib/partnerships/proposal-pdf";
 import { brandContact } from "@/config/brand";
-import { buildDocumentShareUrl, documentSharePath } from "@/lib/partnerships/signing";
+import { buildDocumentShareUrl, publicDocumentSharePath } from "@/lib/partnerships/signing";
 // The pitch buttons below read their words from here, as does the outbound
 // email. They used to hold three hand-written copies of the same pitch.
 import { OUTREACH_ANGLES, outreachPlainText } from "@/lib/partnerships/outreach-copy";
@@ -53,6 +53,7 @@ export function IssuedDocumentPreview({
   documentId,
   shareToken,
   accessCode,
+  documentStatus,
   canSend,
   onSent,
   onClose,
@@ -70,6 +71,8 @@ export function IssuedDocumentPreview({
   shareToken?: string | null;
   /** The six digits printed on the document. Absent on a preview, same reason. */
   accessCode?: string | null;
+  /** Sent/signed only — drafts are not on the public route. */
+  documentStatus?: string | null;
   canSend?: boolean;
   onSent?: () => void | Promise<void>;
   onClose: () => void;
@@ -94,6 +97,9 @@ export function IssuedDocumentPreview({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [becameSent, setBecameSent] = useState(false);
+  const liveStatus = becameSent ? "sent" : documentStatus;
+  const publicPath = publicDocumentSharePath(shareToken, liveStatus);
 
   /**
    * Email it, with the PDF built here from the very frame on screen.
@@ -144,6 +150,7 @@ export function IssuedDocumentPreview({
       );
       setShowEmailField(false);
       setEmailTo("");
+      setBecameSent(true);
       await onSent?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not send that document.");
@@ -328,9 +335,19 @@ export function IssuedDocumentPreview({
           </div>
         </div>
 
+        {documentId && liveStatus === "draft" && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5">
+            <p className="text-sm font-bold text-foreground">This is a draft — the school cannot open it</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              Issuing stored the document. Email it or mark it sent in the archive, or the public
+              link stays dead.
+            </p>
+          </div>
+        )}
+
         {/* Action CTAs (Mobile First Responsive Wrap) */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
-          {shareToken && (
+          {publicPath && (
             <>
               {/*
                 One button per outreach angle, and every one of them reads its
@@ -379,7 +396,7 @@ export function IssuedDocumentPreview({
                 </a>
 
                 <a
-                  href={documentSharePath(shareToken) ?? '#'}
+                  href={publicPath}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"

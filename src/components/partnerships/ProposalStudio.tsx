@@ -39,7 +39,8 @@ import {
   type MediaAsset,
 } from "@/lib/partnerships/media-library";
 
-const STORAGE_KEY = "rillcod.proposalStudio.v1";
+const STORAGE_KEY = (schoolId?: string | null) =>
+  schoolId ? `rillcod.proposalStudio.v1:${schoolId}` : "rillcod.proposalStudio.v1";
 
 const INPUT =
   "w-full px-3.5 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
@@ -97,12 +98,12 @@ export function ProposalStudio({
     (next: ProposalStudioConfig) => {
       onChange(next);
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        window.localStorage.setItem(STORAGE_KEY(school?.id), JSON.stringify(next));
       } catch {
         // A browser refusing storage is not a reason to stop working.
       }
     },
-    [onChange],
+    [onChange, school?.id],
   );
 
   const toggleSection = (key: (typeof ALL_SECTIONS)[number]) =>
@@ -583,11 +584,11 @@ export function ProposalStudio({
   );
 }
 
-/** What the browser remembered, or the complete document. */
-export function loadStudioConfig(): ProposalStudioConfig {
+/** What this school’s browser remembered, or the complete document. */
+export function loadStudioConfig(schoolId?: string | null): ProposalStudioConfig {
   if (typeof window === "undefined") return defaultStudioConfig();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY(schoolId));
     if (!raw) return defaultStudioConfig();
     return normaliseStudioConfig(JSON.parse(raw));
   } catch {

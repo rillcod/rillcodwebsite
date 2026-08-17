@@ -146,6 +146,7 @@ export function recommendOffer(input: {
   stage?: 'primary' | 'secondary' | 'both' | null;
 }): OfferRecommendation {
   const roll = Number(input.studentCount) || 0;
+  const stage = input.stage === 'primary' || input.stage === 'secondary' ? input.stage : null;
   const byCode = (code: string) => PARTNERSHIP_OFFERS.find((o) => o.code === code)!;
 
   if (roll > 0 && roll <= SMALL_ROLL_CEILING) {
@@ -153,6 +154,23 @@ export function recommendOffer(input: {
       offer: byCode('A'),
       basis: 'roll',
       reason: `With around ${roll} learners on roll, an opt-in club proves the programme to your parents before it asks anything of your timetable.`,
+    };
+  }
+
+  // A primary school does not run the SS years B2's two-hour capstone assumes.
+  if (stage === 'primary') {
+    if (roll > 0) {
+      return {
+        offer: byCode('B1'),
+        basis: 'roll',
+        reason: `At around ${roll} primary learners, one class a week reaches every child without asking the secondary timetable for hours it does not have.`,
+      };
+    }
+    return {
+      offer: byCode('B1'),
+      basis: 'stage',
+      reason:
+        'This school runs primary only, so one class a week is the honest whole-school option — two contact hours assumes the SS capstone years.',
     };
   }
 
@@ -169,6 +187,15 @@ export function recommendOffer(input: {
       offer: byCode('B2'),
       basis: 'roll',
       reason: `At around ${roll} learners a weekly slot fills comfortably, and two contact hours is what the capstone build in each year assumes.`,
+    };
+  }
+
+  if (stage === 'secondary') {
+    return {
+      offer: byCode('B2'),
+      basis: 'stage',
+      reason:
+        'This school runs secondary only, so two contact hours is what the capstone build in each year assumes.',
     };
   }
 
