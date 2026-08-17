@@ -121,22 +121,37 @@ async function main() {
 
   const documents: { label: string; html: string }[] = [];
 
-  // Both upside shapes, because they are different heights on the money page.
+  /*
+    Four proposals, because the layout has branches and each one is a different
+    set of page heights.
+
+    The roll changes the money page. The recommendation changes far more: one
+    option prints as a card and the other two as single lines, which frees about
+    a third of the commercials sheet — and the scope-of-supply table moves onto
+    whichever sheet has the room. Measuring only the unquoted branch left the
+    one a salesperson actually triggers unchecked.
+  */
   for (const [suffix, roll] of [['no roll', 0], ['with roll', 420]] as const) {
-    documents.push({
-      label: `proposal (${suffix})`,
-      html: buildPartnershipProposalHTML({
-        school, curriculum, reference: 'RC-PROP-2026-00042', dateLabel: '15 August 2026',
-        proof: { partnerSchools: 29, students: 895, years: curriculum.levels.length },
-        upside: schoolUpside({
-          roll, feePerStudent: PARTNERSHIP_OFFERS[0].priceFrom, sections: null,
-          fixedPackage: null, sharePercent: 30, cycle: 'term',
+    for (const quoted of [null, 'B2'] as const) {
+      documents.push({
+        label: `proposal (${suffix}, ${quoted ? 'quoted' : 'full menu'})`,
+        html: buildPartnershipProposalHTML({
+          school, curriculum, reference: 'RC-PROP-2026-00042', dateLabel: '15 August 2026',
+          proof: { partnerSchools: 29, students: 895, years: curriculum.levels.length },
+          upside: schoolUpside({
+            roll, feePerStudent: PARTNERSHIP_OFFERS[0].priceFrom, sections: null,
+            fixedPackage: null, sharePercent: 30, cycle: 'term',
+          }),
+          photos: PARTNERSHIP_PHOTOS,
+          studio: defaultStudioConfig(),
+          accessCode: '849201',
+          scopeToOffer: quoted,
+          recommendationReason: quoted
+            ? 'At around 420 learners a weekly slot fills comfortably, and two contact hours is what the capstone build in each year assumes.'
+            : null,
         }),
-        photos: PARTNERSHIP_PHOTOS,
-        studio: defaultStudioConfig(),
-        accessCode: '849201',
-      }),
-    });
+      });
+    }
   }
 
   documents.push({

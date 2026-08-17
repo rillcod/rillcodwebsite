@@ -613,13 +613,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * whenever the full menu prints, which meant the same document put the same
    * section in two different places depending on how it was quoted.
    */
-  const supplyTable = (stacked: boolean): string => {
+  const supplyTable = (): string => {
     if (!on('sideBySide')) return '';
-    // Stacked, it is two columns of a table. Beside the chart it is two stacked
-    // lists, because a two-column table inside a half-width column gives each
-    // list about nine characters a line.
-    return stacked
-      ? `<table class="compact">
+    return `<table class="compact">
       <thead><tr><th>${esc(brandContact.displayName)} provides</th><th>Your school provides</th></tr></thead>
       <tbody>
         <tr>
@@ -627,13 +623,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
           <td>${SUPPLY_THEM}</td>
         </tr>
       </tbody>
-    </table>`
-      : `<div class="supply">
-      <div class="supply-h">${esc(brandContact.displayName)} provides</div>
-      <p class="supply-p">${SUPPLY_US}</p>
-      <div class="supply-h">Your school provides</div>
-      <p class="supply-p">${SUPPLY_THEM}</p>
-    </div>`;
+    </table>`;
   };
 
   /**
@@ -650,41 +640,42 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    *
    * Same content either way. What changes is only how much room it is given.
    */
-  const figures = (): string => {
-    const chart = offersChart(!quotedOffer);
-    // With room, the chart takes the width on its own and the scope table
-    // follows the fees, where it reads in the right order: price, then what the
-    // price buys.
-    if (quotedOffer) return chart;
-    if (!chart) return supplyTable(true);
+  /*
+    Always the wide build now.
 
-    // The unit is stated once, here. The narrow chart drops the per-bar
-    // "per student, per year" to save three lines, and a column of naira
-    // figures with no unit against it reads as a termly fee — which is a third
-    // of what it says.
-    return `<div class="fig-row">
-      <div class="fig-col">
-        <div class="fig-head">What a parent pays, per student per year</div>
-        ${chart}
-      </div>
-      <div class="fig-col">
-        <div class="fig-head">What each side brings</div>
-        ${supplyTable(false)}
-      </div>
-    </div>`;
-  };
+    The narrow one exists for a chart sharing a row with something else. Nothing
+    shares a row with it any more — the scope table crosses to the returns page
+    when this one is full — and a 300-unit viewBox rendered at full page width
+    scales up by more than twice, which put this sheet 52px past the bottom.
+  */
+  const figures = (): string => offersChart();
 
-  /** The scope table on its own, for the layout that has room to stack it. */
-  const supplyStacked = (): string => {
-    if (!quotedOffer) return '';
-    const table = supplyTable(true);
-    return table
-      ? `  <section>
+  /**
+   * Scope of supply, on whichever of the two sheets has the room for it.
+   *
+   * It belongs beside the fees, because it answers the question the price
+   * raises: what am I actually buying. But "belongs beside" is a preference and
+   * A4 is a constraint, and which sheet has the room moves.
+   *
+   * With a recommendation the menu is one card and two lines, the commercials
+   * page keeps about a third of a sheet spare, and the table sits under the
+   * fees where it reads best. With the full menu, three cards take that room
+   * back — the commercials page drops to twenty pixels of clearance while the
+   * returns page carries two hundred and thirty spare — so the table crosses
+   * over. It reads perfectly well after the money: reciprocity is a natural
+   * thing to state once somebody has seen what they earn.
+   *
+   * Called from both sheets. Prints on exactly one.
+   */
+  const supplySection = (onCommercialsPage: boolean): string => {
+    const table = supplyTable();
+    if (!table) return '';
+    if (onCommercialsPage !== Boolean(quotedOffer)) return '';
+    return `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
     ${table}
-  </section>`
-      : '';
+  </section>`;
   };
 
   /**
@@ -701,16 +692,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * it drops to the bare code and states the unit once in the caption, because
    * the alternative at half width is 6px type nobody can read.
    */
-  const offersChart = (narrow: boolean): string => {
+  const offersChart = (): string => {
     if (!on('offersChart')) return '';
-    const W = narrow ? 300 : 640;
-    const LABEL_W = narrow ? 26 : 150;
-    const BAR_X = LABEL_W + 10;
-    const BAR_MAX = narrow ? 128 : 320;
-    const ROW_H = narrow ? 40 : 56;
-    const BAR_H = narrow ? 18 : 24;
-    const top = narrow ? 6 : 10;
-    const R = 4;
+    const W = 640, LABEL_W = 150, BAR_X = LABEL_W + 10, BAR_MAX = 320;
+    const ROW_H = 56, BAR_H = 24, top = 10, R = 4;
     // Three terms to a session. Both ends of the range are carried, because an
     // option priced ₦25,000–₦30,000 a term was charted as a firm ₦75,000 a year:
     // the chart quietly dropped the top of the range while the card beside it
@@ -719,7 +704,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       code: o.code,
       from: o.priceFrom * 3,
       to: Math.max(o.priceFrom, o.priceTo) * 3,
-      label: narrow ? o.code : 'Option ' + o.code,
+      label: 'Option ' + o.code,
     }));
     const max = Math.max(...rows.map((r) => r.to)) || 1;
     const anyRange = rows.some((r) => r.to > r.from);
@@ -753,15 +738,11 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         ? '<path d="' + barPath(BAR_X, y, wTo) + '" fill="' + faint + '"></path>'
         : '';
       const value = ranged ? money(r.from) + '–' + money(r.to) : money(r.from);
-      // Narrow states the unit once, in the caption. Repeating it under three
-      // bars in a half-width column costs a line each and says nothing new.
-      const sub = narrow
-        ? ''
-        : '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 18) + '">per student, per year</text>';
+      const sub = '<text class="ch-sub" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 18) + '">per student, per year</text>';
       return '<text class="ch-lbl' + (isQuoted ? ' ch-lbl-on' : '') + '" x="' + LABEL_W + '" y="' + (y + BAR_H / 2 + 4) + '" text-anchor="end">' + esc(r.label) + '</text>' +
         upper +
         '<path d="' + barPath(BAR_X, y, wFrom) + '" fill="' + solid + '"></path>' +
-        '<text class="ch-val' + (narrow ? ' ch-val-sm' : '') + '" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
+        '<text class="ch-val" x="' + (BAR_X + wTo + 8) + '" y="' + (y + BAR_H / 2 + 4) + '">' + esc(value) + '</text>' +
         sub;
     }).join('');
     const H = top + rows.length * ROW_H;
@@ -770,12 +751,10 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       bars + '</svg>';
     // Two shades of one hue need saying out loud on a printed page, where nobody
     // can hover to find out what the lighter part of a bar means.
-    // A line break between the two keys, so the narrow layout can stack them
-    // instead of wrapping mid-key. The wide layout collapses it back into a row.
     return anyRange
       ? svg +
       '<p class="chart-note"><span class="key key-from"></span>the fee every school pays' +
-      '<br>&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
+      '&nbsp;&nbsp;<span class="key key-to"></span>as far as it goes where the fee is a range</p>'
       : svg;
   };
 
@@ -1178,25 +1157,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   table.compact { font-size: 9.6pt; margin-bottom: 0; }
   table.compact td { padding: 1.4mm 3mm; line-height: 1.35; }
   table.compact th { padding: 1.8mm 3mm; }
-  /*
-    The chart and the scope of supply, sharing one row.
-
-    Only used in the layout that has no room to stack them. Aligning to the
-    start matters: the two columns are different heights, and stretching the
-    shorter one leaves its heading floating in the middle of a tall box.
-  */
-  .fig-row { display: flex; align-items: flex-start; gap: 7mm; margin: 4mm 0 1mm; }
-  .fig-col { flex: 1; min-width: 0; }
-  .fig-col .chart { margin: 0 0 2mm; }
-  .fig-head {
-    font-size: 8.4pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-    color: #94a3b8; margin-bottom: 1.8mm;
-  }
-  .supply-h {
-    font-size: 9pt; font-weight: 800; color: #0f172a; margin-top: 2mm;
-  }
-  .supply-h:first-child { margin-top: 0; }
-  .supply-p { font-size: 9.2pt; color: #475569; line-height: 1.4; margin: .8mm 0 0; }
   .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #94a3b8; }
   /* The recommended row reads at full strength; the rest are context. */
   .ch-lbl-on { font-weight: 800; fill: #1e293b; }
@@ -1208,20 +1168,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     font-size: 9pt; color: #64748b; margin: 1mm 0 3mm; display: flex;
     align-items: center; gap: 1.5mm; flex-wrap: wrap;
   }
-  /* The break exists for the narrow column. In a flex row it becomes a flex
-     item of its own, which drops the swatch beside it off the text baseline. */
-  .chart-note br { display: none; }
-  /*
-    In a half-width column the legend has to stack.
-
-    Laid out in a row it wrapped between a swatch and the words it belongs to,
-    stranding a blue square at the end of one line and its label at the start of
-    the next. One key per line, each swatch beside its own text.
-  */
-  .fig-col .chart-note { display: block; margin: 0; font-size: 8.6pt; line-height: 1.6; }
-  .fig-col .chart-note .key { margin-right: 1.5mm; }
-  .fig-col .chart-note .key-to { margin-left: 0; }
-  .fig-col .chart-note br { display: block; }
   .key { display: inline-block; width: 3.2mm; height: 2.2mm; border-radius: .6mm; }
   .key-from { background: #2563eb; }
   .key-to { background: #93c5fd; }
@@ -1691,7 +1637,7 @@ ${on('rollout') ? `  <section>
     }</p>
   </section>
 
-${supplyStacked()}
+${supplySection(true)}
 </div>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
@@ -1701,6 +1647,8 @@ ${supplyStacked()}
   ${splitBlock()}
 
   ${upsideBlock()}
+
+${supplySection(false)}
 
 </div>
 
