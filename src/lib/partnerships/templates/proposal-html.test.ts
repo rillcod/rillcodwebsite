@@ -69,9 +69,9 @@ describe('the partnership proposal', () => {
     expect(html).toContain('Secondary Pathway');
   });
 
-  it('does not put all six primary years on one sheet', () => {
-    // Six year-cards on one A4 clipped Basic 5 and 6 off the page. Three to a
-    // sheet is what actually fits once each card carries three terms.
+  it('puts primary on one sheet and secondary on one sheet', () => {
+    // Compact two-column cards fit six years on A4. Splitting at three
+    // made a head teacher hunt across four sheets for one ladder.
     const grades = [
       'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
       'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
@@ -93,17 +93,15 @@ describe('the partnership proposal', () => {
     };
     const html = buildPartnershipProposalHTML({ ...base, curriculum: full });
     const primarySheets = html.split('<div class="page">').filter((p) => p.includes('Primary Pathway'));
-    expect(primarySheets).toHaveLength(2);
+    expect(primarySheets).toHaveLength(1);
     expect(primarySheets[0]).toContain('Basic 1');
-    expect(primarySheets[0]).toContain('Basic 3');
-    expect(primarySheets[0]).not.toContain('Basic 6');
-    expect(primarySheets[1]).toContain('Basic 4');
-    expect(primarySheets[1]).toContain('Basic 6');
+    expect(primarySheets[0]).toContain('Basic 6');
+    expect(primarySheets[0]).toContain('From Basic 1 to Basic 6');
 
     const secondarySheets = html.split('<div class="page">').filter((p) => p.includes('Secondary Pathway'));
-    expect(secondarySheets).toHaveLength(2);
+    expect(secondarySheets).toHaveLength(1);
     expect(secondarySheets[0]).toContain('JSS 1');
-    expect(secondarySheets[1]).toContain('SS 3');
+    expect(secondarySheets[0]).toContain('SS 3');
   });
 
   it('prints only the pathway the desk picked, and Option A cannot grow SS 3', () => {
@@ -373,11 +371,11 @@ describe('the photographs a proposal actually prints', () => {
   it('prints all six across the two strips, none twice', () => {
     const html = buildPartnershipProposalHTML({ ...base, studio: defaultStudioConfig() });
     const srcs = [...html.matchAll(/<img src="([^"]*EVENTS[^"]*)"/g)].map((m) => m[1]);
-    const gallery = srcs.filter((src) => !src.includes('7.46.30'));
+    const gallery = srcs.filter((src) => !src.includes('7.30.03%20PM.jpeg'));
 
     expect(gallery).toHaveLength(6);
     expect(new Set(gallery).size).toBe(6);
-    expect(srcs.some((src) => src.includes('7.46.30'))).toBe(true);
+    expect(srcs.some((src) => src.includes('7.30.03%20PM.jpeg'))).toBe(true);
   });
 
   it('still lets the studio clear them deliberately', () => {
@@ -388,7 +386,7 @@ describe('the photographs a proposal actually prints', () => {
     // The money-page photograph is not the gallery. Clearing the strip
     // must not take the reason-to-pay frame with it.
     expect(html).toContain('What a parent would be paying for');
-    expect(html).toContain('7.46.30');
+    expect(html).toContain('7.30.03%20PM.jpeg');
   });
 });
 
@@ -457,11 +455,11 @@ describe('the money page', () => {
     });
     const returnPage = html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('Illustrated for');
-    expect(returnPage).toContain('Rate each');
-    // Same four columns as uptake — the rate takes the student column, because
-    // the headcount is already in the lead and a fifth column would wrap.
+    expect(returnPage).toContain('>Students<');
+    expect(returnPage).toContain('150');
+    expect(returnPage).toContain('@ ₦25,000 each');
+    // Four columns beside the chart — quantity in the second, naira in the last two.
     expect(returnPage.match(/<th>/g)).toHaveLength(4);
-    expect(returnPage).not.toContain('>Students<');
     expect(returnPage).not.toContain('class="picked"');
     expect(returnPage).toContain('under each standard option');
   });

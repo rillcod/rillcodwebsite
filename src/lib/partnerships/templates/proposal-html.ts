@@ -153,13 +153,30 @@ function yearCard(level: ProgressionLevel): string {
 }
 
 /**
- * Three years to a sheet. Six fat cards on one A4 is how Basic 5 and 6
- * disappeared: the page is pinned to 297mm and clips rather than spills.
+ * One pathway to a sheet. Six compact cards fit A4; a seventh would clip,
+ * so we still chunk — but the default is the whole primary or secondary
+ * ladder on one page, which is how a head teacher actually reads it.
  */
-function chunkLevels(levels: ProgressionLevel[], size = 3): ProgressionLevel[][] {
+function chunkLevels(levels: ProgressionLevel[], size = 6): ProgressionLevel[][] {
   const chunks: ProgressionLevel[][] = [];
   for (let i = 0; i < levels.length; i += size) chunks.push(levels.slice(i, i + size));
   return chunks;
+}
+
+/**
+ * The sentence that sells the ladder before the years begin.
+ *
+ * A page of six year-cards is a catalogue. One line that names where a child
+ * starts and what they walk out holding is the story a proprietor retells.
+ */
+function pathwayHook(levels: ProgressionLevel[]): string {
+  const first = levels[0];
+  const last = levels[levels.length - 1];
+  if (!first) return '';
+  if (!last || first === last) {
+    return `${first.grade} is a year of ${first.theme} — they leave with ${first.capstone || 'a build a parent can see'}.`;
+  }
+  return `From ${first.grade} to ${last.grade}: they begin with ${first.theme}, and they finish having shipped ${last.capstone || last.theme} — each year a thing they keep, not a grade on a sheet.`;
 }
 
 /**
@@ -320,6 +337,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     muted: string,
   ): string => {
     if (!on('curriculum') || !levels.length) return '';
+    const hook = pathwayHook(levels);
     return chunkLevels(levels)
       .map((group, i) => {
         const range = gradeRange(group);
@@ -330,11 +348,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       ? `<section>
     <div class="rule"></div>
     <h2>${esc(heading)}</h2>
+    ${hook ? `<p class="hook">${esc(hook)}</p>` : ''}
     <p class="muted">${esc(muted)}</p>
   </section>`
       : ''
   }
-  <div class="years years-stack">${group.map(yearCard).join('')}</div>
+  <div class="years years-compact">${group.map(yearCard).join('')}</div>
 </div>`;
       })
       .join('\n');
@@ -662,21 +681,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
             : u.mode === 'menu' ? 'Option'
               : 'Scenario';
     /*
-      Four columns on this half-sheet, always, except a section breakdown
-      which already had a fifth.
-
-      A fifth column for the menu would squeeze ₦ figures until they wrap,
-      the table would grow taller than the chart beside it, and on a page
-      pinned to 297mm that clips rather than spills the settlement answers
-      would be the ones to disappear. The headcount does not vary across
-      the menu — it is in the lead — so that column becomes the rate.
+      Students always print. The naira without the headcount is a figure a
+      bursar cannot check — and the menu used to hide quantity because the
+      same roll sat in the lead. A lead is not a table.
     */
     const showRate = u.mode === 'sections';
-    const secondHead = u.mode === 'menu' ? 'Rate each' : 'Students';
-    const secondCell = (r: (typeof u.rows)[number]) =>
-      u.mode === 'menu'
-        ? (r.rate ? esc(money(r.rate)) : '—')
-        : String(r.students);
+    const secondHead = 'Students';
+    const secondCell = (r: (typeof u.rows)[number]) => {
+      const qty = r.students > 0 ? String(r.students) : '—';
+      if (u.mode === 'menu' && r.rate) {
+        return `${qty}<span class="qty-sub"> @ ${esc(money(r.rate))} each</span>`;
+      }
+      return qty;
+    };
 
     const bodyRow = (r: (typeof u.rows)[number], highlight: boolean) => `
         <tr${highlight ? ' class="picked"' : ''}>
@@ -822,12 +839,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <h2>What a parent would be paying for</h2>
     <article class="value">
       <figure class="value-photo">
-        <img src="${esc(assetUrl(REASON_TO_PAY_PHOTO))}" alt="Students building a robot with kits in a Rillcod session" />
+        <img src="${esc(assetUrl(REASON_TO_PAY_PHOTO))}" alt="A Rillcod facilitator teaching coding and AI to a full class" />
       </figure>
       <div class="value-copy">
-        <span class="value-kicker">The programme, as it runs</span>
-        <p>A facilitator in the room, the kits on the desk, and a robot the children built — work a parent can see at the end of term. That is the fee in the table above.</p>
-        <p class="value-note">The school's proposed share follows the parents who enrol, not the illustration. How it is released would be written into the agreement before anything is signed.</p>
+        <span class="value-kicker">What the fee actually buys</span>
+        <p>A specialist in the room, every child on a machine, and a build they take home at the end of term. That is what a parent is paying for — and what they tell the next parent.</p>
+        <p class="value-note">Your share follows who enrols. How it is released would be written into the agreement before anything is signed.</p>
       </div>
     </article>
   </section>`;
@@ -1457,12 +1474,52 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   }
   p { margin: 0 0 3mm; }
   .muted { color: #64748b; font-size: 10.2pt; }
+  .hook {
+    font-size: 11.4pt; color: #0f172a; line-height: 1.42; margin: 0 0 2.2mm;
+    font-weight: 600;
+  }
+  .qty-sub { display: block; font-size: 8pt; color: #64748b; font-weight: 500; margin-top: 0.3mm; }
 
   /* 6.4mm. The return page carries three blocks and a long school name reaches
      into the heading of one of them, which left it 12px from the sheet edge.
      The gaps give the room back, not the content. */
   section { margin-bottom: 6.4mm; break-inside: avoid-page; }
   .rule { display: none; }
+
+  /*
+    The money sheet used to pack three blocks at the top and leave a field of
+    white under the photograph — more empty than any other page. It is a flex
+    column the height of A4, so the split, the figures and the session share
+    the leftover air evenly and the last band reaches the bottom padding.
+  */
+  .page-money {
+    display: flex; flex-direction: column; justify-content: space-between;
+    height: 297mm; min-height: 297mm;
+  }
+  .page-money > .pagehead { flex: none; margin-bottom: 3mm; }
+  .page-money > section {
+    flex: 1 1 0; min-height: 0; margin-bottom: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 3.5mm 0;
+  }
+  .page-money > section + section { border-top: 1px solid #f1f5f9; }
+  .page-money > section:first-of-type { padding-top: 1.5mm; }
+  .page-money > section:last-of-type { padding-bottom: 0; }
+  .page-money h2 { margin-bottom: 3.5mm; }
+  .page-money .split { margin: 4mm 0 3mm; }
+  .page-money .split .seg { padding: 4.2mm 4.5mm; font-size: 10.4pt; }
+  .page-money .upside-row {
+    flex: 1; align-items: stretch; margin: 2.5mm 0 0; gap: 8mm;
+  }
+  .page-money .upside-col { display: flex; flex-direction: column; justify-content: center; }
+  .page-money .upside-col .chart { width: 100%; height: 100%; min-height: 38mm; }
+  .page-money .upside-col table.compact th { padding: 2.4mm 2.4mm; }
+  .page-money .upside-col table.compact td { padding: 2.6mm 2.4mm; }
+  .page-money .value {
+    flex: 1; min-height: 52mm; grid-template-rows: 1fr;
+  }
+  .page-money .value-photo { height: auto; min-height: 0; }
+  .page-money .value-photo img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
   .split .seg {
@@ -1657,8 +1714,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
 
   .years { display: grid; grid-template-columns: 1fr 1fr; gap: 3.8mm; }
-  /* Three years on a sheet, full width. Terms sit in a row so the card is
-     short enough that the third year still has a footer on the page. */
+  /* Six years on one A4: two columns, compact terms in a row. Fat stacked
+     cards at three-to-a-sheet were how Basic 5 and 6 vanished; these are
+     short enough that the sixth footer still lands on the page. */
+  .years-compact { gap: 2.6mm; }
+  .years-compact .year-head { min-height: 10.2mm; padding: 1.8mm 2.6mm; }
+  .years-compact .year-title { font-size: 8pt; }
+  .years-compact .year-grade { font-size: 7.2pt; padding: .5mm 1.6mm; }
+  .years-compact .terms { flex-direction: row; align-items: stretch; gap: 0; padding: 2mm 2.6mm; }
+  .years-compact .term { flex: 1; min-width: 0; padding-right: 2.2mm; margin-right: 2.2mm; border-right: 1px solid #e2e8f0; }
+  .years-compact .term:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
+  .years-compact .term-name { font-size: 6.8pt; }
+  .years-compact .term-focus { font-size: 7.6pt; line-height: 1.28; }
+  .years-compact .year-foot { flex-direction: row; flex-wrap: wrap; gap: 1.2mm 6mm; padding: 1.6mm 2.6mm; font-size: 7.6pt; }
   .years-stack { grid-template-columns: 1fr; gap: 4.2mm; }
   .years-stack .terms { flex-direction: row; align-items: stretch; gap: 0; }
   .years-stack .term { flex: 1; min-width: 0; padding-right: 3.2mm; margin-right: 3.2mm; border-right: 1px solid #e2e8f0; }
@@ -1894,7 +1962,12 @@ ${
       ? `<section>
     <div class="rule"></div>
     <h2>What a child walks out with</h2>
-    <p class="muted">Every year ends in something built and kept, not a grade on a sheet.</p>
+    <p class="hook">${esc(
+      scopedLevels.length >= 2
+        ? `From ${scopedLevels[0].grade} to ${scopedLevels[scopedLevels.length - 1].grade}, the work gets harder on purpose. They start by making something run on a screen. They finish having shipped ${scopedLevels[scopedLevels.length - 1].capstone || 'a product a parent can hold'}.`
+        : 'Every year ends in something built and kept, not a grade on a sheet.',
+    )}</p>
+    <p class="muted">The four moments a parent will remember — from the first year you are quoting to the last.</p>
     ${journey()}
   </section>`
       : ''
@@ -1903,7 +1976,8 @@ ${
 
 ${on('disciplines') ? `  <section>
     <div class="rule"></div>
-    <h2>What we teach</h2>
+    <h2>What a parent can see</h2>
+    <p class="muted">This is the conversation at an open day. Their child trained a model, wrote a programme, and can open it on the spot.</p>
     <div class="disc">
       ${DISCIPLINES.map(
       (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,
@@ -1913,8 +1987,8 @@ ${on('disciplines') ? `  <section>
 
 ${on('rollout') ? `  <section>
     <div class="rule"></div>
-    <h2>How a rollout actually goes</h2>
-    <p class="muted">The first objection is never price, it is disruption. This is the whole of it.</p>
+    <h2>They see it before you sign</h2>
+    <p class="muted">The first week is for your parents. After that it is simply on the timetable — and it is your teachers who do not have to run it.</p>
     <div class="phases">
       ${ROLLOUT_PHASES.map(
       (p) => `<div class="phase">
@@ -1995,7 +2069,7 @@ ${noExtrasBlock()}
 </div>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
-<div class="page">
+<div class="page page-money">
   <div class="pagehead"><span><b>The school's share</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${splitBlock()}
@@ -2013,7 +2087,7 @@ ${pathwayPages(
   'Primary Pathway',
   primary,
   'What a primary child learns, year by year',
-  'Each year carries a theme, three termly focuses, a capstone build and a portfolio target.',
+  'Scratch that moves because they told it to. By the last primary year, a small model and a page a parent can open.',
 )}
 
 ${pathwayPages(
@@ -2021,8 +2095,8 @@ ${pathwayPages(
   secondary,
   'What a secondary student learns, year by year',
   secondary[secondary.length - 1]?.grade === 'SS 3'
-    ? 'By SS 3 a student has shipped a mobile AI product and can speak to how it was built.'
-    : 'Each year carries a theme, three termly focuses, a capstone build and a portfolio target.',
+    ? 'Python first. Then a product. By SS 3 they have shipped a mobile AI build and can speak to how it was made.'
+    : 'Python first. Then a product a parent can open on their phone. The years in between are how they get there.',
 )}
 
 <!--

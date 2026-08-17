@@ -264,7 +264,8 @@ describe('issuing a proposal', () => {
     expect(returnPage).not.toContain('Prepared from the school\'s roll');
     expect(returnPage).not.toContain('class="picked"');
     expect(returnPage).toContain('What a parent would be paying for');
-    expect(returnPage).toContain('7.46.30');
+    expect(returnPage).toContain('7.30.03%20PM.jpeg');
+    expect(returnPage).toContain('>Students<');
   });
 
   it('names the picked option on the return page', async () => {

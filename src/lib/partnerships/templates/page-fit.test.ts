@@ -187,7 +187,9 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     expect(returnPage).toContain('What a parent would be paying for');
     expect(returnPage).toContain('upside-row');
     expect(returnPage).toContain('class="value"');
-    expect(returnPage).toContain('7.46.30');
+    expect(html).toContain('page-money');
+    expect(returnPage).toContain('7.30.03%20PM.jpeg');
+    expect(returnPage).toContain('>Students<');
     expect(returnPage).not.toContain('How and when');
     // Four columns beside the chart, not five.
     expect(returnPage.match(/<th>/g)).toHaveLength(4);

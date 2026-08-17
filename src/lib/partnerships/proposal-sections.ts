@@ -36,25 +36,26 @@ export const PARTNERSHIP_PHOTOS: readonly string[] = [
 ];
 
 /**
- * The seventh frame, for the money page only: children on a robot, kits on the desk.
+ * The seventh frame, for the money page only: a class running, code on the board.
  *
  * The other six already prove the programme on the close. This one sits next
- * to the figures so a proprietor sees what a parent would be paying for,
- * rather than a payout schedule for a deal that has not started.
+ * to the figures so a proprietor sees what a parent would be paying for —
+ * a facilitator teaching coding and AI, not a robotics kit on a desk.
+ * Not one of the gallery six.
  */
 export const REASON_TO_PAY_PHOTO =
-  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.30 PM.jpeg';
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM.jpeg';
 
 export type Discipline = { name: string; body: string };
 
-/** What a student actually learns, in the words the school's parents will use. */
+/** What a student actually learns, in the words a parent will repeat. */
 export const DISCIPLINES: readonly Discipline[] = [
-  { name: 'Artificial Intelligence & Machine Learning', body: 'From how a model recognises a face to training one of their own.' },
-  { name: 'Coding & Robotics', body: 'Scratch and robotics kits in primary; Python, hardware and control systems by secondary.' },
-  { name: 'Web & App Development', body: 'HTML, CSS and JavaScript through to a mobile app a student can hand to a parent.' },
-  { name: 'UI/UX & Digital Design', body: 'Designing something someone else can use, then testing whether they actually can.' },
-  { name: 'Data Science & Analysis', body: 'Reading data, questioning it, and presenting a finding that holds up.' },
-  { name: 'Animation & Content Creation', body: 'The creative half of technology, and the one that keeps reluctant students in the room.' },
+  { name: 'Artificial Intelligence', body: 'They train a model on pictures they took themselves — then show a parent what it recognised. That is the conversation at the next open day.' },
+  { name: 'Coding', body: 'Scratch in primary; Python and JavaScript by secondary. Every session they write something that runs, and they can open it on the spot.' },
+  { name: 'Web & App Development', body: 'A site or an app a parent can hold on their phone. The prospectus claim, made visible.' },
+  { name: 'Data Science & Analysis', body: 'They take numbers from their own school, question them, and present a finding that holds up.' },
+  { name: 'UI/UX & Digital Design', body: 'Designing something someone else can use — then watching whether they actually can.' },
+  { name: 'Making it real', body: 'The model they trained, moving something they can hold. The moment a parent stops asking whether this is still computer studies.' },
 ] as const;
 
 export type RolloutPhase = { phase: string; when: string; body: string };
@@ -67,19 +68,19 @@ export type RolloutPhase = { phase: string; when: string; body: string };
  */
 export const ROLLOUT_PHASES: readonly RolloutPhase[] = [
   {
-    phase: 'Demonstration',
+    phase: 'Your parents see it',
     when: 'Week 1',
-    body: 'A live AI and robotics session for your students, and a short presentation to leadership and the PTA. Nothing is signed before your parents have seen it.',
+    body: 'A live session for your students, with leadership and the PTA in the room. They leave asking when it starts. You have not signed anything yet.',
   },
   {
-    phase: 'Preparation & launch',
+    phase: 'It is on the timetable',
     when: 'Week 2',
-    body: 'Equipment set up, timetable slots agreed, your staff introduced to the curriculum, and student orientation. We tailor the scheme of work to your calendar, not ours.',
+    body: 'Kits in, slot agreed, your staff introduced. We fit your calendar — including examination weeks. Your teachers do not take this on.',
   },
   {
-    phase: 'Delivery & growth',
+    phase: 'Parents bring a neighbour',
     when: 'Every term after',
-    body: 'Weekly sessions, termly capstone showcases for parents, progress reports per learner, and an annual curriculum review with your leadership.',
+    body: 'Weekly sessions, a termly showcase families can attend, a written report per child, and a review with your leadership once a year.',
   },
 ] as const;
 
@@ -212,19 +213,19 @@ export type StudentCaseStudy = { title: string; ageGroup: string; outcome: strin
 
 export const STUDENT_CASE_STUDIES: readonly StudentCaseStudy[] = [
   {
-    title: 'Voice-Controlled Obstacle Avoiding Bot',
+    title: 'Voice-told stories and a first trained model',
     ageGroup: 'Basic 4 - Basic 6',
-    outcome: 'Learners assembled chassis, wired ultrasonic distance sensors, and wrote Scratch block code to guide movement.',
+    outcome: 'Learners write Scratch programmes that respond to speech, then train a small classifier on pictures they took themselves.',
   },
   {
-    title: 'Smart Solar Irrigation Monitor',
+    title: 'Python that reads a classroom’s own data',
     ageGroup: 'JSS 1 - JSS 3',
-    outcome: 'Students programmed microcontrollers with soil moisture sensors to automate greenhouse watering systems.',
+    outcome: 'Students write Python to chart real numbers from the school, and put a finding on a page a parent can open.',
   },
   {
-    title: 'School Community Attendance & Notes Mobile App',
+    title: 'A school app the community can actually use',
     ageGroup: 'SS 1 - SS 3',
-    outcome: 'Senior students built, styled, and deployed a cross-platform mobile application using JavaScript and modern UI frameworks.',
+    outcome: 'Senior students build, style and ship a web or mobile product — attendance, notes, or a showcase of the year’s work.',
   },
 ] as const;
 
