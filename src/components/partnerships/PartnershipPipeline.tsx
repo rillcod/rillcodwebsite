@@ -64,10 +64,10 @@ type Outcomes = {
 type Lens = "attention" | "open" | "signed" | "all";
 
 const LENSES: ReadonlyArray<{ id: Lens; label: string }> = [
-  { id: "attention", label: "Needs attention" },
-  { id: "open", label: "In play" },
+  { id: "attention", label: "Needs you" },
+  { id: "open", label: "Waiting on them" },
   { id: "signed", label: "Signed" },
-  { id: "all", label: "Everything" },
+  { id: "all", label: "All of them" },
 ];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -166,9 +166,9 @@ export function PartnershipPipeline({
     <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">Document pipeline</h2>
+          <h2 className="text-base font-semibold text-foreground">Where every school stands</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Every proposal and MoU across every school, and what the signed ones have in common.
+            Everything you have sent, who has read it, and what the schools who said yes agreed to.
           </p>
         </div>
         <button
@@ -200,33 +200,33 @@ export function PartnershipPipeline({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           <Stat
             value={outcomes.signedRate === null ? "—" : `${outcomes.signedRate}%`}
-            label="Signed"
-            hint={`${outcomes.signed} of ${outcomes.sent} that went out`}
+            label="Said yes"
+            hint={`${outcomes.signed} of the ${outcomes.sent} you sent`}
             tone="good"
           />
           <Stat
             value={outcomes.openRate === null ? "—" : `${outcomes.openRate}%`}
-            label="Opened"
+            label="Actually read it"
             hint={
               outcomes.openRate === null
                 ? "Nothing sent yet"
-                : `${outcomes.sent - outcomes.opened} never read`
+                : `${outcomes.sent - outcomes.opened} never opened it`
             }
             tone={outcomes.openRate !== null && outcomes.openRate < 50 ? "warn" : undefined}
           />
           <Stat
             value={outcomes.medianAgreedRate ? money(outcomes.medianAgreedRate) : "—"}
-            label="Typical agreed rate"
+            label="What schools pay"
             hint={
               outcomes.medianSchoolShare != null
-                ? `Median, per student per term · school takes ${outcomes.medianSchoolShare}%`
-                : "Median of signed per-student deals"
+                ? `Per student, per term · they keep ${outcomes.medianSchoolShare}%`
+                : "The middle of what has been agreed"
             }
           />
           <Stat
             value={outcomes.medianDaysToSign == null ? "—" : `${outcomes.medianDaysToSign}d`}
-            label="Sent to signed"
-            hint="Median, on the deals that closed"
+            label="Time to sign"
+            hint="From sending it to getting it back"
           />
         </div>
       )}
@@ -259,7 +259,7 @@ export function PartnershipPipeline({
       ) : shown.length === 0 ? (
         <p className="text-center py-8 text-xs text-muted-foreground">
           {lens === "attention"
-            ? "Nothing is waiting on you. Every document that went out has been opened recently or answered."
+            ? "Nothing needs you right now. Everything you sent has been opened or answered."
             : "Nothing here yet."}
         </p>
       ) : (
@@ -335,7 +335,7 @@ export function PartnershipPipeline({
                       rel="noreferrer"
                       className="shrink-0 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 text-[11px] font-medium transition-colors min-h-[34px] inline-flex items-center"
                     >
-                      Portal ↗
+                      School’s copy ↗
                     </a>
                   )}
                 </div>
@@ -349,9 +349,9 @@ export function PartnershipPipeline({
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5 pt-1 border-t border-border/60">
           <CheckCircleIcon className="w-3.5 h-3.5 shrink-0 mt-px text-emerald-500" />
           <span>
-            Based on {outcomes.signed} signed {outcomes.signed === 1 ? "agreement" : "agreements"}.
-            These are the numbers to quote from — they are what schools have actually agreed to,
-            frozen at the moment each one signed.
+            From the {outcomes.signed} {outcomes.signed === 1 ? "school" : "schools"} who have signed.
+            These are safe numbers to quote — they are what schools really agreed to, saved at
+            the moment each one signed.
           </span>
         </p>
       )}

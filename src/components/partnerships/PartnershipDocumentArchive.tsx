@@ -421,9 +421,9 @@ export function PartnershipDocumentArchive({
                     target="_blank"
                     rel="noreferrer"
                     className={`${ACTION} text-emerald-400 border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10`}
-                    title="Open public signature portal"
+                    title="Open the page the school sees — the copy they read and sign"
                   >
-                    Portal ↗
+                    School’s copy ↗
                   </a>
                 )}
 

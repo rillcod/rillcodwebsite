@@ -363,7 +363,7 @@ export function IssuedDocumentPreview({
                   rel="noreferrer"
                   className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"
                 >
-                  Public Portal ↗
+                  Open the school’s copy ↗
                 </a>
               </div>
             </>
