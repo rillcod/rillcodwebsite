@@ -787,6 +787,57 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   </section>`;
   };
 
+  /**
+   * What is not charged — the question a price raises and this document never answered.
+   *
+   * A head teacher reading a fee is not next wondering about pedagogy. They are
+   * wondering whether this is the whole cost or the first instalment of it, and
+   * they are wondering because they have been caught before: a headline rate,
+   * then a joining fee, an equipment deposit, a licence per teacher, a
+   * subscription for the platform.
+   *
+   * The document already answered it, in pieces, on three different pages —
+   * "no capital outlay" here, "our share covers the devices and the platform"
+   * there. Said once, plainly, next to the number, it is the strongest
+   * paragraph on the page.
+   *
+   * The deposit is the one line that is not a promise but a fact, so it comes
+   * from the terms record rather than from this file. A school with a deposit
+   * agreed reads its own figure; a school without one reads that there is none.
+   */
+  const noExtrasBlock = (): string => {
+    // Same room test as the scope table: this only exists on a fees page that a
+    // recommendation has compressed, which is every proposal actually issued.
+    if (!quotedOffer) return '';
+    const deposit = Number(input.agreedTerms?.deposit_amount) || 0;
+    const items = [
+      ['No registration or joining fee', 'Nothing is payable to start, and nothing on renewal.'],
+      ['No charge for devices or kits', 'Including replacement in normal use. They arrive with the facilitator and leave with them.'],
+      ['No licence per teacher or classroom', 'The fee is per enrolled learner and nothing else scales with it.'],
+      ['No separate platform charge', 'Logins, the learning platform and the termly reports are inside the fee.'],
+      [
+        deposit > 0 ? 'Deposit' : 'No deposit',
+        deposit > 0
+          ? `A deposit of ${money(deposit)} applies, as recorded in your agreed terms.`
+          : 'Nothing is held on account before teaching begins.',
+      ],
+    ];
+    return `  <section>
+    <div class="rule"></div>
+    <h2>What else you will be charged</h2>
+    <div class="settle">
+      ${items
+        .map(
+          ([label, body]) => `<div class="settle-item">
+        <b class="settle-label">${esc(label)}</b>
+        <p class="settle-body">${esc(body)}</p>
+      </div>`,
+        )
+        .join('')}
+    </div>
+  </section>`;
+  };
+
   const supplySection = (onCommercialsPage: boolean): string => {
     const table = supplyTable();
     if (!table) return '';
@@ -1844,6 +1895,7 @@ ${on('rollout') ? `  <section>
   </section>
 
 ${supplySection(true)}
+${noExtrasBlock()}
 </div>
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
