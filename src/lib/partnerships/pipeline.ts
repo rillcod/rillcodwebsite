@@ -44,9 +44,9 @@ export function daysSince(value: string | null, now = new Date()): number | null
 export function pipelineAttention(
   row: PipelineRow,
   now = new Date(),
-): { needs: boolean; reason: string; tab: 'compose' | 'archive' } {
+): { needs: boolean; reason: string; tab: 'compose' | 'document' } {
   if (row.status === 'signed' || row.status === 'void' || row.status === 'declined') {
-    return { needs: false, reason: '', tab: 'archive' };
+    return { needs: false, reason: '', tab: 'document' };
   }
   if (isQuoteExpired(row.valid_until, now)) {
     return {
@@ -63,7 +63,7 @@ export function pipelineAttention(
         age < 1
           ? 'Issued as a draft — the school cannot open this until you send it'
           : `Drafted ${age} days ago and never sent — the public link is dead until you send it`,
-      tab: 'archive',
+      tab: 'document',
     };
   }
 
@@ -75,7 +75,7 @@ export function pipelineAttention(
     return {
       needs: true,
       reason: `Sent ${sinceSent} days ago and never opened`,
-      tab: 'archive',
+      tab: 'document',
     };
   }
   if (opens >= 3) {
@@ -85,17 +85,17 @@ export function pipelineAttention(
         kind === 'MoU'
           ? `Opened ${opens} times without a signature`
           : `Opened ${opens} times without an answer — record terms if they have agreed`,
-      tab: kind === 'MoU' ? 'archive' : 'archive',
+      tab: 'document',
     };
   }
   if (sinceSent !== null && sinceSent >= CHASE_AFTER_DAYS * 2) {
     return {
       needs: true,
       reason: `Sent ${sinceSent} days ago, still ${kind === 'MoU' ? 'unsigned' : 'unanswered'}`,
-      tab: 'archive',
+      tab: 'document',
     };
   }
-  return { needs: false, reason: '', tab: 'archive' };
+  return { needs: false, reason: '', tab: 'document' };
 }
 
 export type PipelineOutcomes = {

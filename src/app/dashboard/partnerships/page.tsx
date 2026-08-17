@@ -44,7 +44,7 @@ import type {
 } from "@/components/partnerships/types";
 import { describeTerms } from "@/lib/partnerships/terms";
 import { buildDocumentShareUrl, isValidShareToken } from "@/lib/partnerships/signing";
-import { partnershipNextAction } from "@/lib/partnerships/next-action";
+import { partnershipNextAction, type DeskTab } from "@/lib/partnerships/next-action";
 
 type Preview = {
   /** The stored row, so the document on screen is the one that gets emailed. */
@@ -62,8 +62,9 @@ type Preview = {
   openCount?: number;
 };
 
-// No "studio": it is part of composing now, not a place you navigate to.
-type WorkspaceTab = "compose" | "terms" | "archive";
+// Write the next document, or record the deal. Issued copies sit on this
+// screen — they are not a third place to navigate to.
+type WorkspaceTab = "compose" | "terms";
 
 /*
   Which of the two jobs this page is doing.
@@ -139,6 +140,8 @@ export default function PartnershipsPage() {
   const [focusDocumentId, setFocusDocumentId] = useState<string | null>(null);
   /** After picking a school, land on the next step once its documents are in. */
   const routeOnLoad = useRef(false);
+  /** A pipeline click names a copy — open it once the school's rows are in. */
+  const pendingOpenId = useRef<string | null>(null);
   /** Leave the terms editor for the real next step, but only after a save. */
   const [termsJustSaved, setTermsJustSaved] = useState(false);
 
@@ -206,7 +209,7 @@ export default function PartnershipsPage() {
 
   function selectSchool(
     id: string,
-    opts?: { tab?: WorkspaceTab; kind?: "proposal" | "mou"; focusDocumentId?: string | null },
+    opts?: { tab?: DeskTab; kind?: "proposal" | "mou"; focusDocumentId?: string | null },
   ) {
     setSelectedId(id);
     setMobileShowSidebar(false);
@@ -215,12 +218,13 @@ export default function PartnershipsPage() {
     setAgreed(null);
     setDocuments([]);
     setLoadingSchool(true);
-    setActiveTab(opts?.tab ?? "compose");
+    setActiveTab(opts?.tab === "terms" ? "terms" : "compose");
     setComposeKind(opts?.kind ?? "proposal");
     setFocusDocumentId(opts?.focusDocumentId ?? null);
+    pendingOpenId.current = opts?.focusDocumentId ?? null;
     setStudio(loadStudioConfig(id));
     setTermsJustSaved(false);
-    routeOnLoad.current = !opts?.tab;
+    routeOnLoad.current = true;
     void loadSchoolDetail(id);
   }
 
@@ -365,8 +369,7 @@ export default function PartnershipsPage() {
     const action = dealState?.action;
     if (!action) return;
     if (action.kind) setComposeKind(action.kind);
-    if (action.tab === "archive") {
-      setActiveTab("archive");
+    if (action.tab === "document") {
       const doc = documentForNextStep();
       if (doc) {
         setFocusDocumentId(doc.id);
@@ -376,8 +379,10 @@ export default function PartnershipsPage() {
     }
     if (action.tab === "terms") {
       setOpenTerms((n) => n + 1);
+      setActiveTab("terms");
+      return;
     }
-    setActiveTab(action.tab);
+    setActiveTab("compose");
   }
 
   useEffect(() => {
@@ -385,13 +390,23 @@ export default function PartnershipsPage() {
     routeOnLoad.current = false;
     const action = dealState.action;
     if (action?.kind) setComposeKind(action.kind);
-    if (action?.tab === "archive") {
-      setActiveTab("archive");
-      const doc = documentForNextStep();
-      if (doc) setFocusDocumentId(doc.id);
-    } else if (action?.tab === "terms") {
+    if (action?.tab === "terms") {
       setOpenTerms((n) => n + 1);
       setActiveTab("terms");
+    } else {
+      setActiveTab("compose");
+    }
+    const openId = pendingOpenId.current;
+    pendingOpenId.current = null;
+    if (openId) {
+      const doc = documents.find((d) => d.id === openId);
+      if (doc) {
+        setFocusDocumentId(doc.id);
+        void openStoredDocument(doc);
+      }
+    } else if (action?.tab === "document") {
+      const doc = documentForNextStep();
+      if (doc) setFocusDocumentId(doc.id);
     }
   }, [selected, loadingSchool, dealState]);
 
@@ -400,8 +415,15 @@ export default function PartnershipsPage() {
     setTermsJustSaved(false);
     const action = dealState.action;
     if (action?.kind) setComposeKind(action.kind);
-    setActiveTab(action?.tab ?? "compose");
+    setActiveTab(action?.tab === "terms" ? "terms" : "compose");
   }, [termsJustSaved, loadingSchool, dealState]);
+
+  useEffect(() => {
+    if (!selected || loadingSchool || !dealState || routeOnLoad.current) return;
+    if (activeTab === "terms" && dealState.action?.tab !== "terms") {
+      setActiveTab("compose");
+    }
+  }, [selected, loadingSchool, dealState, activeTab]);
 
   if (authLoading) {
     return (
@@ -497,7 +519,7 @@ export default function PartnershipsPage() {
           onOpenSchool={(id, hint) => {
             setPageView("school");
             selectSchool(id, {
-              tab: hint?.tab ?? "archive",
+              tab: hint?.tab === "terms" ? "terms" : "compose",
               kind: hint?.kind,
               focusDocumentId: hint?.documentId ?? null,
             });
@@ -762,8 +784,10 @@ export default function PartnershipsPage() {
                         ) : (
                           <>
                             {dealState.action &&
-                              (dealState.action.tab === "archive" ||
-                                activeTab !== dealState.action.tab) && (
+                              !(
+                                (dealState.action.tab === "compose" && activeTab === "compose") ||
+                                (dealState.action.tab === "terms" && activeTab === "terms")
+                              ) && (
                               <button
                                 type="button"
                                 onClick={goToNextStep}
@@ -808,25 +832,39 @@ export default function PartnershipsPage() {
                             )}
                           </>
                         )}
-                        {documents.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab(activeTab === "archive" ? (dealState.action?.tab ?? "compose") : "archive")}
-                            className="text-xs font-semibold text-muted-foreground hover:text-foreground min-h-[40px]"
-                          >
-                            {activeTab === "archive"
-                              ? "Back to this step"
-                              : `Issued documents (${documents.length})`}
-                          </button>
-                        )}
                       </div>
                     </div>
                 )}
               </div>
 
-              {/* Composer stays mounted (hidden) on Documents so a redraw still
-                  has the last offer, studio and enrolment. Unmounting it used
-                  to re-issue a blank document. */}
+              {documents.length > 0 && (
+                <PartnershipDocumentArchive
+                  documents={documents}
+                  canWrite={canWrite}
+                  schoolId={selected.id}
+                  focusId={focusDocumentId}
+                  onChanged={() => loadSchoolDetail(selected.id)}
+                  redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
+                  onOpen={(doc, html) => {
+                    setPreview({
+                      id: doc.id,
+                      html,
+                      reference: doc.reference || "—",
+                      kind: doc.document_kind,
+                      schoolName: selected.name,
+                      narrativeSource: null,
+                      curriculumEdition: null,
+                      shareToken: doc.share_token,
+                      accessCode: doc.access_code,
+                      status: doc.status,
+                      openCount: Number(doc.open_count) || 0,
+                    });
+                  }}
+                />
+              )}
+
+              {/* Composer stays mounted (hidden) while recording terms so a
+                  redraw still has the last offer, studio and enrolment. */}
               <div className={activeTab === "compose" ? "space-y-5" : "hidden"}>
                   <PartnershipDocumentComposer
                     ref={composerRef}
@@ -837,7 +875,6 @@ export default function PartnershipsPage() {
                     kind={composeKind}
                     documents={documents}
                     onOpenLive={(doc) => {
-                      setActiveTab("archive");
                       setFocusDocumentId(doc.id);
                       void openStoredDocument(doc);
                     }}
@@ -861,7 +898,6 @@ export default function PartnershipsPage() {
                       });
                     }}
                     onIssued={async (doc: IssuedDocument) => {
-                      setActiveTab("archive");
                       setFocusDocumentId(doc.id);
                       setPreview({
                         id: doc.id,
@@ -884,9 +920,7 @@ export default function PartnershipsPage() {
                   )}
                 </div>
 
-              {/* Tab 2: Authoritative Commercial Terms */}
-              {activeTab === "terms" && (
-                <div id="partnership-terms" className="space-y-4">
+              <div id="partnership-terms" className={activeTab === "terms" ? "space-y-4" : "hidden"}>
                   <div className="rounded-2xl border border-border bg-card p-5">
                     <p className="text-base font-semibold text-foreground">Record the deal</p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -905,47 +939,18 @@ export default function PartnershipsPage() {
                     }}
                   />
                 </div>
-              )}
-
-              {activeTab === "archive" && (
-                <div className="space-y-4">
-                  <PartnershipDocumentArchive
-                    documents={documents}
-                    canWrite={canWrite}
-                    schoolId={selected.id}
-                    focusId={focusDocumentId}
-                    onChanged={() => loadSchoolDetail(selected.id)}
-                    redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
-                    onOpen={(doc, html) => {
-                      setPreview({
-                        id: doc.id,
-                        html,
-                        reference: doc.reference || "—",
-                        kind: doc.document_kind,
-                        schoolName: selected.name,
-                        narrativeSource: null,
-                        curriculumEdition: null,
-                        shareToken: doc.share_token,
-                        accessCode: doc.access_code,
-                        status: doc.status,
-                        openCount: Number(doc.open_count) || 0,
-                      });
-                    }}
-                  />
-                </div>
-              )}
             </>
           )}
         </div>
       </div>
 
       {/*
-        One overlay for viewing, whether you just issued or opened the archive.
+        One overlay for viewing, whether you just issued or opened a stored copy.
 
-        It used to render inside the Compose tab. Opening a stored document then
-        jumped you off Archive, dropped the pages under the offer form, and on a
-        laptop the sheet was not even full-screen — so viewing, editing and
-        deleting all looked like the same screen.
+        It used to render inside the compose form. Opening a stored document then
+        dropped the pages under the offer fields, and on a laptop the sheet was
+        not even full-screen — so viewing, editing and deleting all looked like
+        the same screen.
       */}
       {preview && selected && (
         <IssuedDocumentPreview

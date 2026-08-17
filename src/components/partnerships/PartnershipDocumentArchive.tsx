@@ -372,31 +372,22 @@ export function PartnershipDocumentArchive({
   }
 
   if (!documents.length) {
-    return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold text-foreground">Issued documents</h2>
-        <p className="text-xs text-muted-foreground mt-2">
-          Nothing issued to this school yet. Anything you issue is kept here under its reference.
-        </p>
-      </div>
-    );
+    return null;
   }
 
   const withdrawn = documents.filter((d) => d.status === "void");
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+    <div id="partnership-issued" className="bg-card border border-border rounded-2xl p-5 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Issued documents</h2>
+          <h2 className="text-base font-semibold text-foreground">Issued</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {documents.length} on record. A proposal is a quote — discard and reissue as often as you need. The MoU is the legal document.
+            {documents.length === 1 ? "One copy" : `${documents.length} copies`} for this school.
+            {documents.some((d) => d.status === "draft")
+              ? " Drafts are not live until you send them."
+              : ""}
           </p>
-          {documents.some((d) => d.status === "draft") && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
-              Drafts are not live. The school cannot open the public link until you send or mark sent.
-            </p>
-          )}
         </div>
         {canWrite && withdrawn.length > 0 && (
           <button
@@ -685,10 +676,6 @@ export function PartnershipDocumentArchive({
           </li>
         ))}
       </ul>
-
-      <p className="text-[10px] text-muted-foreground border-t border-border/60 pt-3">
-        A proposal is not a contract. A signed MoU is — withdraw that first so the school’s link dies, then it comes off the list.
-      </p>
 
       <PartnershipConfirm
         open={Boolean(ask)}

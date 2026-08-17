@@ -45,7 +45,7 @@ type PipelineDoc = {
   last_opened_at: string | null;
   needs_attention: boolean;
   attention_reason: string;
-  attention_tab?: "compose" | "archive";
+  attention_tab?: "compose" | "document";
   terms: PartnershipTerms | null;
 };
 
@@ -120,7 +120,7 @@ export function PartnershipPipeline({
   /** Jump to the school's own workspace, where the document can be acted on. */
   onOpenSchool: (
     schoolId: string,
-    hint?: { tab?: "compose" | "archive"; kind?: "proposal" | "mou"; documentId?: string },
+    hint?: { tab?: "compose" | "terms" | "document"; kind?: "proposal" | "mou"; documentId?: string },
   ) => void;
 }) {
   const [docs, setDocs] = useState<PipelineDoc[]>([]);
@@ -329,7 +329,7 @@ export function PartnershipPipeline({
                   <button
                     onClick={() =>
                       onOpenSchool(doc.school_id, {
-                        tab: doc.attention_tab || (doc.expired ? "compose" : "archive"),
+                        tab: doc.attention_tab || (doc.expired ? "compose" : "document"),
                         kind: doc.kind,
                         documentId: doc.id,
                       })

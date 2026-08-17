@@ -19,7 +19,7 @@ describe('partnershipNextAction', () => {
       documents: [{ document_kind: 'proposal', status: 'draft', reference: 'RC-PROP-1' }],
     });
     expect(next.tone).toBe('warn');
-    expect(next.action?.tab).toBe('archive');
+    expect(next.action?.tab).toBe('document');
     expect(next.headline).toMatch(/draft/i);
     expect(next.followUp).toBeNull();
   });
@@ -48,7 +48,7 @@ describe('partnershipNextAction', () => {
     });
     expect(next.tone).toBe('wait');
     expect(next.followUp).toBe('proposal');
-    expect(next.action?.tab).toBe('archive');
+    expect(next.action?.tab).toBe('document');
   });
 
   it('asks for terms once they have read the proposal', () => {

@@ -26,7 +26,7 @@ describe('pipelineAttention', () => {
     );
     expect(flag.needs).toBe(true);
     expect(flag.reason).toMatch(/cannot open/i);
-    expect(flag.tab).toBe('archive');
+    expect(flag.tab).toBe('document');
   });
 
   it('sends a lapsed quote back to compose, not to chase a signature', () => {
