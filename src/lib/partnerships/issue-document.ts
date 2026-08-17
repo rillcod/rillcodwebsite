@@ -637,7 +637,16 @@ async function renderDocument(ctx: {
      * sitting between them that it has never been quoted.
      */
     const upside = schoolUpside({
-      roll: Number(school.student_count) || 0,
+      /*
+        A headcount typed into the composer beats the one on the school record.
+
+        Nineteen of twenty-nine schools have no student_count, and this read
+        only that — so most proposals fell back to illustrative rows for "a
+        school of 100, 200, 300" and there was no field anywhere that could
+        change it. The number a salesperson was told on the phone had nowhere
+        to go, on the one page a head teacher rereads.
+      */
+      roll: Number(input.illustrativeStudents) || Number(school.student_count) || 0,
       feePerStudent:
         agreedTerms?.billing_model === 'per_student'
           ? (agreedTerms.amount_per_student ?? 0)

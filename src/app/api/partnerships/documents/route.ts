@@ -120,6 +120,8 @@ export async function POST(req: NextRequest) {
         body.stage === 'primary' || body.stage === 'secondary' || body.stage === 'both'
           ? body.stage
           : null,
+      // Both kinds: an MoU works the agreed fee through it, a proposal works
+      // the uptake scenarios off it.
       illustrativeStudents: Number(body.illustrative_students) || undefined,
       commencement: body.commencement ? String(body.commencement) : null,
       durationLabel: body.duration_label ? String(body.duration_label) : null,

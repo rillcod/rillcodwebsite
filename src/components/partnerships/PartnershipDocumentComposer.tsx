@@ -172,7 +172,9 @@ export function PartnershipDocumentComposer({
       proposed_school_share_percent: kind === 'proposal' ? Number(proposedSchoolShare) : null,
       commencement: kind === 'mou' ? commencement.trim() || null : null,
       duration_label: kind === 'mou' ? durationLabel.trim() || null : null,
-      illustrative_students: kind === 'mou' ? Number(students) || undefined : undefined,
+      // A proposal uses it for the uptake scenarios on the money page; an MoU
+      // uses it to work the agreed fee through to a checkable figure.
+      illustrative_students: Number(students) || undefined,
       send_email: !preview && sendEmail,
       recipient_email: !preview && sendEmail ? recipientEmail.trim() : null,
       // The same settings on both paths, so what was previewed is what issues.
@@ -388,6 +390,38 @@ export function PartnershipDocumentComposer({
                 );
               })}
             </div>
+          </div>
+
+          {/*
+            The roll the money page is worked from.
+
+            This field existed only inside the MoU section, so a proposal took
+            its headcount from the school record and nothing could change it.
+            Nineteen of twenty-nine schools have no student_count — those
+            proposals printed "a school of 100, 200, 300" instead of the
+            school's own numbers, on the one page a head teacher rereads, and
+            the figure a salesperson had been told on the phone had nowhere to
+            go.
+          */}
+          <div className="sm:w-1/2">
+            <label className={LABEL} htmlFor="proposal-roll">
+              Their enrolment
+            </label>
+            <input
+              id="proposal-roll"
+              className={INPUT}
+              inputMode="numeric"
+              placeholder={school.student_count ? String(school.student_count) : "e.g. 420"}
+              value={students}
+              onChange={(e) => setStudents(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Drives the uptake table on the returns page — a cautious start, a
+              typical uptake and the whole school, worked at the quoted rate.
+              {school.student_count
+                ? " Defaults to the roll on the school's record."
+                : " This school has no roll on record, so without a number here the page shows illustrative sizes instead of theirs."}
+            </p>
           </div>
 
           <div className="sm:w-1/2">

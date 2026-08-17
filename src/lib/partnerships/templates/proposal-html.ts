@@ -500,13 +500,25 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * Inline SVG with no script and no external file, so it survives being stored,
    * reopened years later and printed.
    */
+  /*
+    Narrow, because it now sits beside the table rather than above it.
+
+    Both showed the same three scenarios — the picture stacked on top of the
+    numbers, which is the same information read twice and half the sheet's width
+    left unused either side. Side by side they are one statement: the shape of
+    the thing on the left, the exact figures on the right.
+
+    A 640-unit viewBox rendered into half a sheet scales its own type down by
+    more than half, so the labels come out at about 5pt. This build is drawn for
+    the width it will actually occupy.
+  */
   const upsideChart = (u: SchoolUpside): string => {
-    const W = 640;
-    const LABEL_W = 128;
-    const BAR_X = LABEL_W + 10;
-    const BAR_MAX = 330;
-    const ROW_H = 46;
-    const BAR_H = 20;
+    const W = 300;
+    const LABEL_W = 96;
+    const BAR_X = LABEL_W + 8;
+    const BAR_MAX = 150;
+    const ROW_H = 42;
+    const BAR_H = 18;
     const R = 4;
     const top = 8;
     const max = Math.max(...u.rows.map((r) => r.schoolShare)) || 1;
@@ -601,8 +613,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <h2>What this is worth to ${esc(input.school.name)}</h2>
     <p class="muted">${lead}</p>
 
-    ${/*
-      The chart and the table below it say the same thing twice.
+    <div class="upside-row">
+    <div class="upside-col">${/*
+      The chart and the table beside it are one statement, not two.
 
       Both list the same three scenarios; the table also carries the programme
       fee each one implies, so it is the more complete of the two. The picture
@@ -615,8 +628,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       sheet for four sentences would push the proposal past ten pages, which is
       the length a head teacher will actually read to the end of. So the
       duplicate goes, and the section that answers a real objection stays.
-    */ ''}${hasSettlementTerms ? '' : upsideChart(u)}
-    <table>
+    */ ''}${upsideChart(u)}</div>
+    <div class="upside-col">
+    <table class="compact">
       <thead>
         <tr>
           <th>${firstCol}</th>
@@ -631,6 +645,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         ${u.total ? bodyRow(u.total, true) : ''}
       </tbody>
     </table>
+    </div>
+    </div>
     <p class="muted" style="margin-top:2.5mm">Per ${esc(u.cycle)}, before the additional streams a programme like this opens — tech fairs, sponsored showcases and holiday workshops.</p>
   </section>`;
   };
@@ -1419,6 +1435,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .faq-a { margin: .6mm 0 0; font-size: 9.4pt; line-height: 1.42; color: #475569; }
 
   /* The settlement answers: a label a proprietor scans for, then the sentence. */
+  /*
+    The shape and the figures, side by side.
+
+    Aligned to the start rather than stretched: the chart and the table are
+    different heights, and stretching the shorter one leaves it floating in the
+    middle of a tall box.
+  */
+  .upside-row { display: flex; align-items: flex-start; gap: 6mm; margin: 3mm 0 1mm; }
+  .upside-col { flex: 1; min-width: 0; }
+  .upside-col .chart { margin: 0; }
+  .upside-col table.compact { font-size: 9pt; }
+  .upside-col table.compact th { padding: 1.6mm 2mm; font-size: 7.6pt; }
+  .upside-col table.compact td { padding: 1.6mm 2mm; }
+
   /* Same reasoning as the questions: short items, wide sheet. */
   .settle { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 7mm; margin-top: 1mm; }
   .settle-row { border-left: 3px solid #e2e8f0; padding-left: 4mm; }
