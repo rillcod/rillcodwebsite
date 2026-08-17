@@ -13167,14 +13167,13 @@ export type Database = {
         Row: {
           access_code: string | null
           created_at: string
-          first_opened_at: string | null
-          last_opened_at: string | null
-          open_count: number
-          valid_until: string | null
           created_by: string | null
           document_html: string | null
           document_kind: string
+          first_opened_at: string | null
           id: string
+          last_opened_at: string | null
+          open_count: number
           pdf_r2_key: string | null
           reference: string | null
           school_id: string
@@ -13189,19 +13188,19 @@ export type Database = {
           terms_id: string | null
           terms_snapshot: Json
           updated_at: string
+          valid_until: string | null
           version: number
         }
         Insert: {
           access_code?: string | null
           created_at?: string
-          first_opened_at?: string | null
-          last_opened_at?: string | null
-          open_count?: number
-          valid_until?: string | null
           created_by?: string | null
           document_html?: string | null
           document_kind: string
+          first_opened_at?: string | null
           id?: string
+          last_opened_at?: string | null
+          open_count?: number
           pdf_r2_key?: string | null
           reference?: string | null
           school_id: string
@@ -13216,18 +13215,19 @@ export type Database = {
           terms_id?: string | null
           terms_snapshot: Json
           updated_at?: string
+          valid_until?: string | null
           version?: number
         }
         Update: {
+          access_code?: string | null
           created_at?: string
-          first_opened_at?: string | null
-          last_opened_at?: string | null
-          open_count?: number
-          valid_until?: string | null
           created_by?: string | null
           document_html?: string | null
           document_kind?: string
+          first_opened_at?: string | null
           id?: string
+          last_opened_at?: string | null
+          open_count?: number
           pdf_r2_key?: string | null
           reference?: string | null
           school_id?: string
@@ -13242,6 +13242,7 @@ export type Database = {
           terms_id?: string | null
           terms_snapshot?: Json
           updated_at?: string
+          valid_until?: string | null
           version?: number
         }
         Relationships: [
@@ -13316,6 +13317,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      partnership_reference_counters: {
+        Row: {
+          next_value: number
+          prefix: string
+          updated_at: string
+        }
+        Insert: {
+          next_value?: number
+          prefix: string
+          updated_at?: string
+        }
+        Update: {
+          next_value?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       partnership_terms: {
         Row: {
@@ -15208,6 +15227,97 @@ export type Database = {
           },
         ]
       }
+      school_gallery_media: {
+        Row: {
+          academic_term_id: string | null
+          category: string
+          created_at: string
+          id: string
+          is_capstone_demo: boolean
+          media_type: string
+          r2_key: string | null
+          school_id: string
+          share_token: string
+          thumbnail_url: string | null
+          title: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          academic_term_id?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_capstone_demo?: boolean
+          media_type?: string
+          r2_key?: string | null
+          school_id: string
+          share_token?: string
+          thumbnail_url?: string | null
+          title?: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          academic_term_id?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_capstone_demo?: boolean
+          media_type?: string
+          r2_key?: string | null
+          school_id?: string
+          share_token?: string
+          thumbnail_url?: string | null
+          title?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_gallery_media_academic_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_gallery_media_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_gallery_media_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "school_gallery_media_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_gallery_media_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_gallery_media_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       school_performance_reports: {
         Row: {
           academic_term_id: string | null
@@ -16014,57 +16124,8 @@ export type Database = {
           },
         ]
       }
-      school_gallery_media: {
-        Row: {
-          r2_key: string | null
-          share_token: string
-          academic_term_id: string | null
-          category: string
-          created_at: string
-          id: string
-          is_capstone_demo: boolean
-          media_type: string
-          school_id: string
-          thumbnail_url: string | null
-          title: string
-          uploaded_by: string | null
-          url: string
-        }
-        Insert: {
-          r2_key?: string | null
-          share_token?: string
-          academic_term_id?: string | null
-          category?: string
-          created_at?: string
-          id?: string
-          is_capstone_demo?: boolean
-          media_type?: string
-          school_id: string
-          thumbnail_url?: string | null
-          title?: string
-          uploaded_by?: string | null
-          url: string
-        }
-        Update: {
-          r2_key?: string | null
-          share_token?: string
-          academic_term_id?: string | null
-          category?: string
-          created_at?: string
-          id?: string
-          is_capstone_demo?: boolean
-          media_type?: string
-          school_id?: string
-          thumbnail_url?: string | null
-          title?: string
-          uploaded_by?: string | null
-          url?: string
-        }
-        Relationships: []
-      }
       schools: {
         Row: {
-          logo_url: string | null
           address: string | null
           city: string | null
           commission_rate: number
@@ -16077,6 +16138,7 @@ export type Database = {
           is_active: boolean | null
           is_deleted: boolean | null
           lga: string | null
+          logo_url: string | null
           name: string
           phone: string | null
           program_interest: string[] | null
@@ -16089,7 +16151,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          logo_url?: string | null
           address?: string | null
           city?: string | null
           commission_rate?: number
@@ -16102,6 +16163,7 @@ export type Database = {
           is_active?: boolean | null
           is_deleted?: boolean | null
           lga?: string | null
+          logo_url?: string | null
           name: string
           phone?: string | null
           program_interest?: string[] | null
@@ -16114,7 +16176,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          logo_url?: string | null
           address?: string | null
           city?: string | null
           commission_rate?: number
@@ -16127,6 +16188,7 @@ export type Database = {
           is_active?: boolean | null
           is_deleted?: boolean | null
           lga?: string | null
+          logo_url?: string | null
           name?: string
           phone?: string | null
           program_interest?: string[] | null
