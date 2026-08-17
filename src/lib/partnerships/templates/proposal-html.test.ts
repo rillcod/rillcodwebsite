@@ -68,6 +68,104 @@ describe('the partnership proposal', () => {
     expect(html).toContain('Secondary Pathway');
   });
 
+  it('does not put all six primary years on one sheet', () => {
+    // Six year-cards on one A4 clipped Basic 5 and 6 off the page. Three to a
+    // sheet is what actually fits once each card carries three terms.
+    const grades = [
+      'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
+      'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
+    ];
+    const full: CurriculumProgression = {
+      ...curriculum,
+      levels: grades.map((grade, i) => ({
+        year_number: i + 1,
+        grade,
+        theme: `Theme ${i + 1}`,
+        terms: [
+          { term: 1, focus: 'a' },
+          { term: 2, focus: 'b' },
+          { term: 3, focus: 'c' },
+        ],
+        capstone: 'Capstone.',
+        portfolio: 'Portfolio.',
+      })),
+    };
+    const html = buildPartnershipProposalHTML({ ...base, curriculum: full });
+    const primarySheets = html.split('<div class="page">').filter((p) => p.includes('Primary Pathway'));
+    expect(primarySheets).toHaveLength(2);
+    expect(primarySheets[0]).toContain('Basic 1');
+    expect(primarySheets[0]).toContain('Basic 3');
+    expect(primarySheets[0]).not.toContain('Basic 6');
+    expect(primarySheets[1]).toContain('Basic 4');
+    expect(primarySheets[1]).toContain('Basic 6');
+
+    const secondarySheets = html.split('<div class="page">').filter((p) => p.includes('Secondary Pathway'));
+    expect(secondarySheets).toHaveLength(2);
+    expect(secondarySheets[0]).toContain('JSS 1');
+    expect(secondarySheets[1]).toContain('SS 3');
+  });
+
+  it('prints only the pathway the desk picked, and Option A cannot grow SS 3', () => {
+    const grades = [
+      'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
+      'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
+    ];
+    const full: CurriculumProgression = {
+      ...curriculum,
+      levels: grades.map((grade, i) => ({
+        year_number: i + 1,
+        grade,
+        theme: `Theme ${i + 1}`,
+        terms: [
+          { term: 1, focus: 'a' },
+          { term: 2, focus: 'b' },
+          { term: 3, focus: 'c' },
+        ],
+        capstone: 'Capstone.',
+        portfolio: 'Portfolio.',
+      })),
+    };
+
+    const primaryOnly = buildPartnershipProposalHTML({
+      ...base,
+      curriculum: full,
+      stage: 'primary',
+      scopeToOffer: 'B1',
+    });
+    expect(primaryOnly).toContain('Primary Pathway');
+    expect(primaryOnly).not.toContain('Secondary Pathway');
+    expect(primaryOnly).toContain('>Basic 6<');
+    expect(primaryOnly).not.toContain('>JSS 1<');
+    expect(primaryOnly).not.toContain('>SS 3<');
+
+    const secondaryOnly = buildPartnershipProposalHTML({
+      ...base,
+      curriculum: full,
+      stage: 'secondary',
+      scopeToOffer: 'B2',
+    });
+    expect(secondaryOnly).toContain('Secondary Pathway');
+    expect(secondaryOnly).not.toContain('Primary Pathway');
+    expect(secondaryOnly).toContain('>JSS 1<');
+    expect(secondaryOnly).toContain('>SS 3<');
+    expect(secondaryOnly).not.toContain('>Basic 1<');
+
+    // Option A's years are fixed on the offer. The pathway pages read that
+    // line, so SS 3 cannot reappear because a template heading still names it.
+    const optionA = buildPartnershipProposalHTML({
+      ...base,
+      curriculum: full,
+      stage: 'both',
+      scopeToOffer: 'A',
+    });
+    expect(optionA).toContain('Primary Pathway');
+    expect(optionA).toContain('Secondary Pathway');
+    expect(optionA).toContain('>SS 2<');
+    expect(optionA).not.toContain('>SS 3<');
+    expect(optionA).toContain('Basic 1 to SS 2');
+    expect(optionA).not.toContain('By SS 3 a student has shipped');
+  });
+
   it('offers all three standard options with their fees', () => {
     const html = buildPartnershipProposalHTML(base);
 
@@ -109,7 +207,7 @@ describe('the partnership proposal', () => {
 
   it('shows the menu as a choice when nothing is agreed yet', () => {
     const html = buildPartnershipProposalHTML(base);
-    expect(html).toContain('Choose the shape that fits your school');
+    expect(html).toContain('Three proposed shapes for the programme');
     expect(html).not.toContain('Agreed terms');
   });
 
@@ -169,10 +267,19 @@ describe('the partnership proposal', () => {
       expect(html.match(/class="offer offer-picked"/g)).toHaveLength(1);
     });
 
+    it('prints the picked option on the cover, and not a hardcoded SS 3 heading', () => {
+      const html = buildPartnershipProposalHTML({ ...base, scopeToOffer: 'A' });
+      expect(html).toContain('Option A');
+      expect(html).toContain('Extracurricular Club');
+      expect(html).toContain('Recommended for your school');
+      expect(html).not.toContain('JSS 1 to SS 3');
+      expect(html).not.toContain('By SS 3 a student has shipped');
+    });
+
     it('shows the whole menu as equals when nothing has been picked', () => {
       const html = buildPartnershipProposalHTML(base);
 
-      expect(html).toContain('Choose the shape that fits your school');
+      expect(html).toContain('Three proposed shapes for the programme');
       expect(html).not.toContain('Recommended for your school');
       expect(html).not.toContain('Also available on the standard menu');
       expect(html.match(/<article class="offer/g)).toHaveLength(PARTNERSHIP_OFFERS.length);
@@ -194,7 +301,9 @@ describe('the partnership proposal', () => {
     const primaryOnly = buildPartnershipProposalHTML({ ...base, stage: 'primary' });
     expect(primaryOnly).toContain('Primary Pathway');
     expect(primaryOnly).not.toContain('Secondary Pathway');
-    expect(primaryOnly).toContain('Basic 1 to Basic 1');
+    expect(primaryOnly).toContain('>Basic 1<');
+    expect(primaryOnly).not.toContain('Basic 1 to Basic 6');
+    expect(primaryOnly).not.toContain('JSS 1 to SS 3');
 
     const secondaryOnly = buildPartnershipProposalHTML({ ...base, stage: 'secondary' });
     expect(secondaryOnly).toContain('Secondary Pathway');
@@ -263,17 +372,22 @@ describe('the photographs a proposal actually prints', () => {
   it('prints all six across the two strips, none twice', () => {
     const html = buildPartnershipProposalHTML({ ...base, studio: defaultStudioConfig() });
     const srcs = [...html.matchAll(/<img src="([^"]*EVENTS[^"]*)"/g)].map((m) => m[1]);
+    const gallery = srcs.filter((src) => !src.includes('7.46.30'));
 
-    expect(srcs).toHaveLength(6);
-    expect(new Set(srcs).size).toBe(6);
+    expect(gallery).toHaveLength(6);
+    expect(new Set(gallery).size).toBe(6);
+    expect(srcs.some((src) => src.includes('7.46.30'))).toBe(true);
   });
 
   it('still lets the studio clear them deliberately', () => {
     const studio = { ...defaultStudioConfig(), photos: [] };
     const html = buildPartnershipProposalHTML({ ...base, studio });
 
-    expect(html).not.toContain('EVENTS');
     expect(html).not.toContain('The programme running');
+    // The money-page photograph is not the gallery. Clearing the strip
+    // must not take the reason-to-pay frame with it.
+    expect(html).toContain('What a parent would be paying for');
+    expect(html).toContain('7.46.30');
   });
 });
 
@@ -305,5 +419,57 @@ describe('the cover headline', () => {
 
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img src=x');
+  });
+});
+
+describe('the money page', () => {
+  it('does not highlight the last option as if it were the quote', () => {
+    const html = buildPartnershipProposalHTML({
+      ...base,
+      upside: {
+        mode: 'menu',
+        total: null,
+        feePerStudent: 0,
+        sharePercent: 30,
+        cycle: 'term',
+        rows: [
+          { label: 'Option A', students: 150, rate: 25000, gross: 3_750_000, schoolShare: 1_125_000 },
+          { label: 'Option B1', students: 150, rate: 10000, gross: 1_500_000, schoolShare: 450_000 },
+          { label: 'Option B2', students: 150, rate: 15000, gross: 2_250_000, schoolShare: 675_000 },
+        ],
+      },
+    });
+    const returnPage = html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    expect(returnPage).toContain('Illustrated for');
+    expect(returnPage).toContain('Rate each');
+    // Same four columns as uptake — the rate takes the student column, because
+    // the headcount is already in the lead and a fifth column would wrap.
+    expect(returnPage.match(/<th>/g)).toHaveLength(4);
+    expect(returnPage).not.toContain('>Students<');
+    expect(returnPage).not.toContain('class="picked"');
+    expect(returnPage).toContain('under each standard option');
+  });
+
+  it('names the quoted option when one has been picked', () => {
+    const html = buildPartnershipProposalHTML({
+      ...base,
+      scopeToOffer: 'B1',
+      upside: {
+        mode: 'uptake',
+        total: null,
+        feePerStudent: 10000,
+        sharePercent: 30,
+        cycle: 'term',
+        rows: [
+          { label: 'Cautious start', students: 60, rate: 10000, gross: 600_000, schoolShare: 180_000 },
+          { label: 'Typical uptake', students: 105, rate: 10000, gross: 1_050_000, schoolShare: 315_000 },
+          { label: 'Whole school', students: 150, rate: 10000, gross: 1_500_000, schoolShare: 450_000 },
+        ],
+      },
+    });
+    const returnPage = html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    expect(returnPage).toContain('Option B1 at ₦10,000');
+    expect(returnPage).toContain('class="picked"');
+    expect(returnPage).toContain('What a parent would be paying for');
   });
 });

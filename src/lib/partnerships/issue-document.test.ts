@@ -43,6 +43,11 @@ const LEVELS = [
     terms: [{ term: 1, focus: 'a' }, { term: 2, focus: 'b' }, { term: 3, focus: 'c' }],
     capstone: 'Robot.', portfolio: '3 games.',
   },
+  {
+    year_number: 12, grade: 'SS 3', theme: 'Mobile AI',
+    terms: [{ term: 1, focus: 'a' }, { term: 2, focus: 'b' }, { term: 3, focus: 'c' }],
+    capstone: 'App.', portfolio: '1 app.',
+  },
 ];
 
 /**
@@ -211,6 +216,83 @@ describe('issuing a proposal', () => {
 
     expect(issued.narrativeSource).toBe('authored');
     expect(issued.html).toContain('Option A');
+  });
+
+  it('leads with the option picked on the desk', async () => {
+    const { db } = makeDb({ terms: null });
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      scopeToOffer: 'A',
+    });
+
+    expect(issued.html).toContain('Recommended for your school');
+    expect(issued.html).toContain('Extracurricular Club');
+    expect(issued.html.match(/class="offer offer-picked"/g)).toHaveLength(1);
+  });
+
+  it('prints A, B1 and B2 as equals when the desk asked for that', async () => {
+    const { db } = makeDb({ terms: null });
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      scopeToOffer: '',
+    });
+
+    expect(issued.html).toContain('Three proposed shapes for the programme');
+    expect(issued.html).not.toContain('Recommended for your school');
+  });
+
+  it('does not price the return off Option A when the menu is shown equally', async () => {
+    const { db } = makeDb({ terms: null });
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      scopeToOffer: '',
+    });
+
+    const returnPage = issued.html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    expect(returnPage).toContain('Illustrated for');
+    expect(returnPage).toContain('Option A');
+    expect(returnPage).toContain('Option B1');
+    expect(returnPage).toContain('Option B2');
+    // 150 × ₦10,000, 30% — B1's share. The old fallback priced everything at A's ₦25,000.
+    expect(returnPage).toContain('₦450,000');
+    expect(returnPage).not.toContain('Prepared from the school\'s roll');
+    expect(returnPage).not.toContain('class="picked"');
+    expect(returnPage).toContain('What a parent would be paying for');
+    expect(returnPage).toContain('7.46.30');
+  });
+
+  it('names the picked option on the return page', async () => {
+    const { db } = makeDb({ terms: null });
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      scopeToOffer: 'B1',
+    });
+
+    const returnPage = issued.html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    expect(returnPage).toContain('Option B1 at ₦10,000');
+    expect(returnPage).toContain('Prepared from the school\'s roll');
+  });
+
+  it('drops the SS years when the desk scoped the quote to primary', async () => {
+    const { db } = makeDb({ terms: null });
+    const issued = await issuePartnershipDocument({
+      db: db as any,
+      schoolId: 'school-1',
+      kind: 'proposal',
+      stage: 'primary',
+      scopeToOffer: '',
+    });
+
+    expect(issued.html).toContain('Primary Pathway');
+    expect(issued.html).not.toContain('Secondary Pathway');
   });
 });
 

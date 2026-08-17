@@ -150,6 +150,49 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     expect(hasSignatureSlot(pages[4])).toBe(true);
   });
 
+  it('keeps the money page on one A4 sheet when the menu is shown equally', () => {
+    const html = buildPartnershipProposalHTML({
+      school: {
+        name: "St. Gregory's International Model College & Early Childhood Academy",
+        city: 'Lekki Phase 1',
+        state: 'Lagos State',
+      },
+      reference: 'RC-PROP-2026-00001',
+      dateLabel: '15 August 2026',
+      curriculum: MOCK_CURRICULUM as any,
+      offers: PARTNERSHIP_OFFERS,
+      upside: {
+        mode: 'menu',
+        total: null,
+        feePerStudent: 0,
+        sharePercent: 30,
+        cycle: 'term',
+        rows: [
+          { label: 'Option A', students: 150, rate: 25000, gross: 3_750_000, schoolShare: 1_125_000 },
+          { label: 'Option B1', students: 150, rate: 10000, gross: 1_500_000, schoolShare: 450_000 },
+          { label: 'Option B2', students: 150, rate: 15000, gross: 2_250_000, schoolShare: 675_000 },
+        ],
+      },
+    });
+
+    // The sheet rule itself must not move. 210 × 297mm, overflow hidden.
+    expect(html).toContain('@page { size: A4 portrait; margin: 0; }');
+    expect(html).toContain('width: 210mm; min-height: 297mm;');
+    expect(html).toContain('height: 297mm !important; min-height: 297mm !important;');
+    expect(html).toMatch(/\.page \{[\s\S]*?overflow: hidden;/);
+
+    const returnPage = extractPages(html).find((p) => p.includes("The school's share")) ?? '';
+    expect(returnPage).toContain('How programme fees would be shared');
+    expect(returnPage).toContain('What this would return');
+    expect(returnPage).toContain('What a parent would be paying for');
+    expect(returnPage).toContain('upside-row');
+    expect(returnPage).toContain('class="value"');
+    expect(returnPage).toContain('7.46.30');
+    expect(returnPage).not.toContain('How and when');
+    // Four columns beside the chart, not five.
+    expect(returnPage.match(/<th>/g)).toHaveLength(4);
+  });
+
   it('verifies every studio section toggle is wired and strictly respected', () => {
     ALL_SECTIONS.forEach((sectionKey: ProposalSectionKey) => {
       const config = defaultStudioConfig();

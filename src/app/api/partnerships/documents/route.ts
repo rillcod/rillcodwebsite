@@ -38,6 +38,23 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Which option the proposal should lead with.
+ *
+ * Missing  → the engine recommends from the roll.
+ * ""       → print A, B1 and B2 as equals (the desk control for that).
+ * "A"/…    → that option leads, the rest drop to one line.
+ *
+ * A boolean check used to collapse "" into null, and null was then treated as
+ * "recommend" — so "show every option equally" never reached the PDF.
+ */
+function parseScopeToOffer(body: Record<string, unknown>): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(body, 'scope_to_offer')) return undefined;
+  const value = body.scope_to_offer;
+  if (value == null || value === '') return '';
+  return String(value);
+}
+
 async function requireActor(write: boolean) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -122,7 +139,7 @@ export async function POST(req: NextRequest) {
       kind: kind as "proposal" | "mou",
       actorId: actor.user.id,
       useAI: body.use_ai === true,
-      scopeToOffer: body.scope_to_offer ? String(body.scope_to_offer) : null,
+      scopeToOffer: parseScopeToOffer(body),
       stage:
         body.stage === 'primary' || body.stage === 'secondary' || body.stage === 'both'
           ? body.stage
@@ -300,7 +317,7 @@ export async function PUT(req: NextRequest) {
       documentId: id,
       actorId: actor.user.id,
       useAI: body.use_ai === true,
-      scopeToOffer: body.scope_to_offer ? String(body.scope_to_offer) : null,
+      scopeToOffer: parseScopeToOffer(body),
       stage:
         body.stage === 'primary' || body.stage === 'secondary' || body.stage === 'both'
           ? body.stage

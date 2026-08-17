@@ -108,6 +108,18 @@ export function splitByStage(levels: ProgressionLevel[]): {
 export type CurriculumStage = 'primary' | 'secondary' | 'both';
 
 /**
+ * The years actually on the page, as a cover line.
+ *
+ * "Basic 1 to Basic 1" is a bug, not a range — a one-year quote names the year.
+ */
+export function gradeRange(levels: ProgressionLevel[]): string {
+  if (!levels.length) return '';
+  const first = levels[0].grade;
+  const last = levels[levels.length - 1].grade;
+  return first === last ? first : `${first} to ${last}`;
+}
+
+/**
  * Trim the ladder to one stage.
  *
  * A primary school has no use for the SS years and a secondary school does not
@@ -144,4 +156,24 @@ export function levelsForScope(levels: ProgressionLevel[], scope: string): Progr
     if (idx > lastLevel) return false;
     return n <= lastNumber;
   });
+}
+
+/**
+ * The years this quote is allowed to print.
+ *
+ * Stage and offer are applied together, from the offer's own scope line — never
+ * a second year list in the template. Option A is "Basic 1 through SS 2" on the
+ * catalogue; primary-only is the school's half. Either can narrow; neither can
+ * put a year back that the other took out.
+ */
+export function levelsForQuote(
+  levels: ProgressionLevel[],
+  opts: {
+    stage?: CurriculumStage | null;
+    /** The offer's `scope` field. Codes belong in `resolveOffer` first. */
+    offerScope?: string | null;
+  } = {},
+): ProgressionLevel[] {
+  const byOffer = opts.offerScope ? levelsForScope(levels, opts.offerScope) : levels;
+  return levelsForStage(byOffer, opts.stage);
 }

@@ -35,6 +35,9 @@ export const PARTNERSHIP_OFFERS: readonly PartnershipOffer[] = [
   {
     code: 'A',
     name: 'Extracurricular Club',
+    // Fixed on the offer, not on the template. The quote trims years from this
+    // line, so a later rewrite of the PDF cannot silently put SS 3 back on an
+    // Option A that does not sell it.
     scope: 'Basic 1 through SS 2',
     cadence: '1 session per week (2 hours)',
     priceFrom: 25000,
@@ -204,7 +207,7 @@ export function recommendOffer(input: {
     offer: byCode('B2'),
     basis: 'default',
     reason:
-      'Our standard recommendation, covering the full progression at the pace each year’s capstone build assumes. Tell us your enrolment and we will re-scope it.',
+      'The usual starting proposal, covering the full progression at the pace each year’s capstone build assumes.',
   };
 }
 

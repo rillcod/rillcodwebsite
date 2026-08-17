@@ -62,7 +62,7 @@ describe('recommending an option', () => {
     expect(r.basis).toBe('default');
     // No invented reasoning about a roll nobody told us.
     expect(r.reason).not.toMatch(/\d+ learners/);
-    expect(r.reason).toContain('Tell us your enrolment');
+    expect(r.reason).toContain('usual starting proposal');
   });
 
   it('never states a fee, because fees come from the terms record', () => {

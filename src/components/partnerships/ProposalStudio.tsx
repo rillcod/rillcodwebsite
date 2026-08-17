@@ -66,12 +66,6 @@ export function ProposalStudio({
   school?: StudioSchool | null;
 }) {
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-      setOpen(true);
-    }
-  }, []);
   const [photos, setPhotos] = useState<MediaAsset[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MediaCategory>("all");
@@ -186,11 +180,11 @@ export function ProposalStudio({
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-primary" />
-            Proposal studio
+            Optional — photos and wording
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
             {offCount === 0 && edited === 0
-              ? "The complete document, in the house words."
+              ? "Skip this. The proposal already prints in the house words."
               : [
                   offCount ? `${offCount} section${offCount === 1 ? "" : "s"} hidden` : "",
                   edited ? `${edited} passage${edited === 1 ? "" : "s"} rewritten` : "",

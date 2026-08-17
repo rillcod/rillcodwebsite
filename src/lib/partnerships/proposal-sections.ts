@@ -35,6 +35,16 @@ export const PARTNERSHIP_PHOTOS: readonly string[] = [
   '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg',
 ];
 
+/**
+ * The seventh frame, for the money page only: children on a robot, kits on the desk.
+ *
+ * The other six already prove the programme on the close. This one sits next
+ * to the figures so a proprietor sees what a parent would be paying for,
+ * rather than a payout schedule for a deal that has not started.
+ */
+export const REASON_TO_PAY_PHOTO =
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.30 PM.jpeg';
+
 export type Discipline = { name: string; body: string };
 
 /** What a student actually learns, in the words the school's parents will use. */
@@ -236,8 +246,9 @@ export type SchoolUpside = {
    *   sections — each section at its own agreed rate, then added
    *   package  — one agreed price for the school
    *   uptake   — one rate, shown at three levels of take-up
+   *   menu     — one row per standard option, because none has been picked
    */
-  mode: 'sections' | 'package' | 'uptake' | 'illustrative';
+  mode: 'sections' | 'package' | 'uptake' | 'illustrative' | 'menu';
   feePerStudent: number;
   sharePercent: number;
   cycle: string;
@@ -250,9 +261,9 @@ export type SchoolUpside = {
  * one a head teacher disbelieves. The arithmetic is deliberately shown so they
  * can redo it with their own assumption.
  *
- * Returns null when there is nothing honest to compute — no roll, no fee, or no
- * share agreed. A projection built on a guessed headcount is a number we would
- * have to defend later.
+ * Returns null when there is nothing honest to compute — no fee, no share, and
+ * no menu of options to compare. A missing roll is not a refusal: the page then
+ * shows common school sizes, or each option at a round headcount of 200.
  */
 export function schoolUpside(input: {
   roll: number;
@@ -274,6 +285,14 @@ export function schoolUpside(input: {
    * one it has never seen that happens to sit between them.
    */
   sections?: ReadonlyArray<{ label: string; count: number; rate: number }> | null;
+  /**
+   * The whole menu, when no option has been picked.
+   *
+   * Without this the money page silently priced Option A (the first catalogue
+   * row) and called it the school's return — the same drift as a quote that
+   * prints SS 3 on an Option A that stops at SS 2.
+   */
+  menuOffers?: ReadonlyArray<{ code: string; priceFrom: number }> | null;
 }): SchoolUpside | null {
   const roll = Math.floor(Number(input.roll) || 0);
   const fee = Number(input.feePerStudent) || 0;
@@ -330,6 +349,29 @@ export function schoolUpside(input: {
       feePerStudent: 0,
       sharePercent: share,
       cycle: input.cycle || 'term',
+    };
+  }
+
+  const menu = (input.menuOffers ?? []).filter((o) => Number(o.priceFrom) > 0);
+  if (menu.length && share > 0) {
+    const students = roll > 0 ? roll : 200;
+    return {
+      rows: menu.map((o) => {
+        const rate = Number(o.priceFrom);
+        const gross = students * rate;
+        return {
+          label: `Option ${o.code}`,
+          students,
+          rate,
+          gross,
+          schoolShare: Math.round((gross * share) / 100),
+        };
+      }),
+      total: null,
+      mode: 'menu',
+      feePerStudent: 0,
+      sharePercent: share,
+      cycle,
     };
   }
 

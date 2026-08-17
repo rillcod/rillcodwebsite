@@ -20,7 +20,7 @@ import { brandAssets, brandContact } from '@/config/brand';
 import { SIGNATURE_SLOT_END, SIGNATURE_SLOT_START, escapeHtml as esc } from '../signing';
 import { assetUrl } from './asset-url';
 import type { CurriculumProgression, ProgressionLevel } from '../curriculum';
-import { levelsForScope, levelsForStage, splitByStage, type CurriculumStage } from '../curriculum';
+import { levelsForQuote, splitByStage, gradeRange, type CurriculumStage } from '../curriculum';
 import {
   PARTNERSHIP_OFFERS,
   offerPriceLabel,
@@ -37,9 +37,10 @@ import {
   ZERO_CAPEX_PROMISE,
   TRADITIONAL_VS_RILLCOD,
   STUDENT_CASE_STUDIES,
+  REASON_TO_PAY_PHOTO,
   type SchoolUpside,
 } from '../proposal-sections';
-import { settlementPoints, describeTerms, type PartnershipTerms } from '../terms';
+import { describeTerms, type PartnershipTerms } from '../terms';
 // The same five answers the public portal gives, so the sheet a board reads
 // offline cannot say something different from the link a head teacher opened.
 import { PROPRIETOR_FAQS } from '../faqs';
@@ -149,6 +150,16 @@ function yearCard(level: ProgressionLevel): string {
       <div class="terms">${terms}</div>
       ${foot ? `<footer class="year-foot">${foot}</footer>` : ''}
     </article>`;
+}
+
+/**
+ * Three years to a sheet. Six fat cards on one A4 is how Basic 5 and 6
+ * disappeared: the page is pinned to 297mm and clips rather than spills.
+ */
+function chunkLevels(levels: ProgressionLevel[], size = 3): ProgressionLevel[][] {
+  const chunks: ProgressionLevel[][] = [];
+  for (let i = 0; i < levels.length; i += size) chunks.push(levels.slice(i, i + size));
+  return chunks;
 }
 
 /**
@@ -285,16 +296,14 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    */
   const splitOverview = on('intro') && on('pitch');
 
-  // A quote shows the years it sells. Scoping to the offer keeps the proposal
-  // honest when an option stops short of SS 3.
-  // The scope line comes off the resolved offer, so the years are filtered the
-  // same way whether the caller sent a code or the scope text itself.
-  const scopeLine = quotedOffer?.scope ?? input.scopeToOffer;
+  // Years come off the offer row and the stage pick, in one place. Option A's
+  // "Basic 1 through SS 2" lives on PARTNERSHIP_OFFERS, not in this file, so a
+  // template rewrite cannot put SS 3 back on a quote that does not sell it.
   const scopedLevels = curriculum
-    ? levelsForStage(
-      scopeLine ? levelsForScope(curriculum.levels, scopeLine) : curriculum.levels,
-      input.stage,
-    )
+    ? levelsForQuote(curriculum.levels, {
+        stage: input.stage,
+        offerScope: quotedOffer?.scope ?? null,
+      })
     : [];
   const { primary, secondary } = splitByStage(scopedLevels);
 
@@ -303,9 +312,34 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   // The range is read off the years actually being sold. Printing a fixed
   // "Basic 1 to SS 3" under a scoped count contradicts the quote on its own
   // cover — Option A stops at SS 2 and said so two lines below.
-  const rangeLabel = years
-    ? `${scopedLevels[0].grade} to ${scopedLevels[years - 1].grade}`
-    : '';
+  const rangeLabel = gradeRange(scopedLevels);
+
+  const pathwayPages = (
+    title: string,
+    levels: ProgressionLevel[],
+    heading: string,
+    muted: string,
+  ): string => {
+    if (!on('curriculum') || !levels.length) return '';
+    return chunkLevels(levels)
+      .map((group, i) => {
+        const range = gradeRange(group);
+        return `<div class="page">
+  <div class="pagehead"><span><b>${esc(title)}</b>${range ? ` · ${esc(range)}` : ''}</span><span>${esc(curriculum?.title ?? '')}</span></div>
+  ${
+    i === 0
+      ? `<section>
+    <div class="rule"></div>
+    <h2>${esc(heading)}</h2>
+    <p class="muted">${esc(muted)}</p>
+  </section>`
+      : ''
+  }
+  <div class="years years-stack">${group.map(yearCard).join('')}</div>
+</div>`;
+      })
+      .join('\n');
+  };
 
   // Once terms are agreed the proposal states the deal instead of the menu —
   // the same sentence the MoU prints, from the same record, so a school cannot
@@ -465,7 +499,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     const tiles = [
       { n: approx(p.partnerSchools), l: 'Schools partnered', c: 'c1' },
       { n: approx(p.students), l: 'Learners building', c: 'c2' },
-      ...(p.years > 0 ? [{ n: String(p.years), l: 'Years of curriculum', c: 'c3' }] : []),
+      ...(years > 0 ? [{ n: String(years), l: years === 1 ? 'Year quoted' : 'Years quoted', c: 'c3' }] : []),
     ];
     return `<div class="proof${dark ? ' proof-dark' : ''}">${tiles
       .map(
@@ -565,7 +599,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
 
     const H = top + u.rows.length * ROW_H;
     return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
-      aria-label="The school's ${u.sharePercent}% share per ${esc(u.cycle)} at three levels of uptake">
+      aria-label="${u.mode === 'menu'
+        ? `The school's ${u.sharePercent}% share per ${esc(u.cycle)} under each standard option`
+        : `The school's ${u.sharePercent}% share per ${esc(u.cycle)} at three levels of uptake`}">
       <line x1="${BAR_X}" y1="${top - 4}" x2="${BAR_X}" y2="${H - ROW_H + BAR_H + 4}" stroke="#c9d0dc" stroke-width="1"></line>
       ${bars}
     </svg>`;
@@ -585,7 +621,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     return `
   <section>
     <div class="rule"></div>
-    <h2>How every fee divides</h2>
+    <h2>How programme fees would be shared</h2>
     <div class="splitkey">
       <span><i class="sw sw-school"></i>${esc(input.school.name)}</span>
       <span><i class="sw sw-rc"></i>${esc(brandContact.displayName)}</span>
@@ -594,7 +630,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <div class="seg seg-school" style="flex:${u.sharePercent}">${u.sharePercent}% to your school</div>
       <div class="seg seg-rc" style="flex:${100 - u.sharePercent}">${100 - u.sharePercent}%</div>
     </div>
-    <p class="muted">Our share covers the facilitators, the devices and hardware kits, the learning platform and the termly reporting. Your share is settled against actual enrolment each ${esc(u.cycle)}.</p>
+    <p class="muted">Our share covers the facilitators, the devices and hardware kits, the learning platform and the termly reporting. The school's proposed share follows enrolment each ${esc(u.cycle)}.</p>
   </section>`;
   };
 
@@ -605,26 +641,48 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     // Each shape gets the sentence that describes its own arithmetic. A section
     // breakdown says the share is taken on each section and added, because that
     // is the sum a bursar will do by hand to check it.
+    const namedRate = quotedOffer
+      ? `Option ${esc(quotedOffer.code)} at ${money(u.feePerStudent)} per student`
+      : `${money(u.feePerStudent)} per student`;
+    const stated = input.agreedTerms ? 'agreed' : 'proposed';
     const lead =
-      u.mode === 'illustrative'
-        ? `We do not have your enrolment on file yet, so this is the same arithmetic at three common school sizes. Tell us your roll and we will restate it exactly — the rate and the ${u.sharePercent}% share do not change.`
-        : u.mode === 'sections'
-          ? `Your ${u.sharePercent}% is taken on each section at its own agreed rate, and the sections are added. Nothing here is averaged or estimated.`
-          : u.mode === 'package'
-            ? `The agreed package for the school, and your ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
-            : `Worked from your own roll at ${money(u.feePerStudent)} per student per ${esc(u.cycle)}, on the standard ${u.sharePercent}% share to the school. Change the uptake assumption and the arithmetic still holds.`;
+      u.mode === 'menu'
+        ? `Illustrated for ${u.rows[0]?.students ?? 0} students per ${esc(u.cycle)}, with ${u.sharePercent}% of programme fees proposed for the school.`
+        : u.mode === 'illustrative'
+          ? `Enrolment is not yet on file, so this page illustrates ${namedRate} at three common school sizes. The rate and the ${u.sharePercent}% share stay as proposed.`
+          : u.mode === 'sections'
+            ? `Each section at its ${stated} rate, then added, so the school's ${u.sharePercent}% follows both.`
+            : u.mode === 'package'
+              ? `The ${stated} package for the school, and the school's ${u.sharePercent}% of it, per ${esc(u.cycle)}.`
+              : `Prepared from the school's roll. Under ${quotedOffer ? `Option ${esc(quotedOffer.code)} at ${money(u.feePerStudent)}` : money(u.feePerStudent)} per student per ${esc(u.cycle)}, the school's proposed ${u.sharePercent}% is shown at three levels of uptake.`;
 
     const firstCol =
       u.mode === 'sections' ? 'Section'
         : u.mode === 'package' ? 'Agreed'
           : u.mode === 'illustrative' ? 'School size'
-            : 'Scenario';
+            : u.mode === 'menu' ? 'Option'
+              : 'Scenario';
+    /*
+      Four columns on this half-sheet, always, except a section breakdown
+      which already had a fifth.
+
+      A fifth column for the menu would squeeze ₦ figures until they wrap,
+      the table would grow taller than the chart beside it, and on a page
+      pinned to 297mm that clips rather than spills the settlement answers
+      would be the ones to disappear. The headcount does not vary across
+      the menu — it is in the lead — so that column becomes the rate.
+    */
     const showRate = u.mode === 'sections';
+    const secondHead = u.mode === 'menu' ? 'Rate each' : 'Students';
+    const secondCell = (r: (typeof u.rows)[number]) =>
+      u.mode === 'menu'
+        ? (r.rate ? esc(money(r.rate)) : '—')
+        : String(r.students);
 
     const bodyRow = (r: (typeof u.rows)[number], highlight: boolean) => `
         <tr${highlight ? ' class="picked"' : ''}>
           <td><strong>${esc(r.label)}</strong></td>
-          <td>${r.students}</td>
+          <td>${secondCell(r)}</td>
           ${showRate ? `<td>${r.rate ? esc(money(r.rate)) : '—'}</td>` : ''}
           <td>${esc(money(r.gross))}</td>
           <td class="num"><strong>${esc(money(r.schoolShare))}</strong></td>
@@ -633,7 +691,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     return `
   <section>
     <div class="rule"></div>
-    <h2>What this is worth to ${esc(input.school.name)}</h2>
+    <h2>What this would return to ${esc(input.school.name)}</h2>
     <p class="muted">${lead}</p>
 
     <div class="upside-row">
@@ -657,20 +715,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <thead>
         <tr>
           <th>${firstCol}</th>
-          <th>Students</th>
+          <th>${secondHead}</th>
           ${showRate ? '<th>Rate each</th>' : ''}
           <th>Programme fees</th>
           <th>Your ${u.sharePercent}% share</th>
         </tr>
       </thead>
       <tbody>
-        ${u.rows.map((r, i) => bodyRow(r, !u.total && i === u.rows.length - 1)).join('')}
+        ${u.rows.map((r, i) => bodyRow(r, (u.mode === 'uptake' || u.mode === 'package') && !u.total && i === u.rows.length - 1)).join('')}
         ${u.total ? bodyRow(u.total, true) : ''}
       </tbody>
     </table>
     </div>
     </div>
-    <p class="muted" style="margin-top:2.5mm">Per ${esc(u.cycle)}, before the additional streams a programme like this opens — tech fairs, sponsored showcases and holiday workshops.</p>
+    <p class="muted" style="margin-top:2.5mm">Figures are per ${esc(u.cycle)}.</p>
   </section>`;
   };
 
@@ -752,38 +810,27 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * Called from both sheets. Prints on exactly one.
    */
   /**
-   * How and when the school is actually paid.
+   * The seventh photograph, with the sentence that belongs next to it.
    *
-   * The page above says what they earn and stops, and the next three questions
-   * are always the same: when does it arrive, do I get it if the parents have
-   * not paid, and what happens when a child leaves in week four. A proposal
-   * that leaves those unanswered gets them asked in a meeting instead, where
-   * the answer is improvised.
-   *
-   * Every sentence comes from `settlementPoints`, which prints only what was
-   * agreed and recorded — so this section grows as a deal gets specific, and a
-   * school with nothing recorded gets the one line that is true regardless:
-   * the share is worked from enrolment, not from the projection above it.
+   * One composed band, not a picture dumped beside two clauses. The six on
+   * the close already prove the programme; this frame sits with the figures
+   * so the sheet argues for the fee rather than for a payout.
    */
-  const settlementSection = (): string => {
-    // Prints whenever there is a return to explain. With nothing negotiated it
-    // says so, which is the honest state of a proposal and better than a third
-    // of a sheet of white where the answer should be.
-    const points = settlementPoints(input.agreedTerms ?? null);
-    if (!points.length) return '';
+  const reasonToPayBlock = (): string => {
+    if (!on('upside') && !on('split')) return '';
     return `  <section>
     <div class="rule"></div>
-    <h2>How and when you are paid</h2>
-    <div class="settle">
-      ${points
-        .map(
-          (p: { label: string; body: string }) => `<div class="settle-row">
-        <b class="settle-label">${esc(p.label)}</b>
-        <p class="settle-body">${esc(p.body)}</p>
-      </div>`,
-        )
-        .join('')}
-    </div>
+    <h2>What a parent would be paying for</h2>
+    <article class="value">
+      <figure class="value-photo">
+        <img src="${esc(assetUrl(REASON_TO_PAY_PHOTO))}" alt="Students building a robot with kits in a Rillcod session" />
+      </figure>
+      <div class="value-copy">
+        <span class="value-kicker">The programme, as it runs</span>
+        <p>A facilitator in the room, the kits on the desk, and a robot the children built — work a parent can see at the end of term. That is the fee in the table above.</p>
+        <p class="value-note">The school's proposed share follows the parents who enrol, not the illustration. How it is released would be written into the agreement before anything is signed.</p>
+      </div>
+    </article>
   </section>`;
   };
 
@@ -824,7 +871,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     ];
     return `  <section>
     <div class="rule"></div>
-    <h2>What else you will be charged</h2>
+    <h2>Nothing else is proposed beyond this fee</h2>
     <div class="settle">
       ${items
         .map(
@@ -1534,14 +1581,51 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .upside-col table.compact { font-size: 9pt; }
   .upside-col table.compact th { padding: 1.6mm 2mm; font-size: 7.6pt; }
   .upside-col table.compact td { padding: 1.6mm 2mm; }
+  /* Figures must not wrap. A wrapped ₦ cell makes the table taller than the
+     chart it sits beside, and the settlement block below is what then clips. */
+  .upside-col table.compact th:nth-child(n+2),
+  .upside-col table.compact td:nth-child(n+2) { white-space: nowrap; }
 
-  /* Same reasoning as the questions: short items, wide sheet. */
+  /* The settlement answers: a label a proprietor scans for, then the sentence. */
   .settle { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 7mm; margin-top: 1mm; }
   .settle-row { border-left: 3px solid #e2e8f0; padding-left: 4mm; }
+  .settle-item { border-left: 3px solid #e2e8f0; padding-left: 4mm; }
   .settle-label {
     display: block; font-size: 10.4pt; font-weight: 800; color: #0f172a; margin-bottom: .8mm;
   }
   .settle-body { margin: 0; font-size: 10pt; line-height: 1.45; color: #475569; }
+
+  /*
+    One band: the session on the left, the reason on the right.
+
+    Not a thumbnail with a caption under it, and not two clauses where a
+    picture should be. The photograph fills its half; the copy is centred
+    against it, with the red edge that the rest of the document uses to
+    mark a claim. Height is capped so split, figures and this still land
+    on one A4 that clips rather than spills.
+  */
+  .value {
+    display: grid; grid-template-columns: 1.2fr 1fr; align-items: stretch;
+    border: 1px solid #e2e8f0; border-radius: 2.5mm; overflow: hidden;
+    background: #fff;
+  }
+  .value-photo { margin: 0; height: 44mm; overflow: hidden; background: #0f172a; }
+  .value-photo img {
+    width: 100%; height: 44mm; object-fit: cover; display: block;
+  }
+  .value-copy {
+    padding: 4.2mm 5mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
+    background: #f8fafc; border-left: 3.5px solid #991b1b;
+  }
+  .value-kicker {
+    font-size: 7.6pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    color: #991b1b; margin-bottom: 2mm;
+  }
+  .value-copy p { font-size: 10pt; color: #334155; line-height: 1.42; margin: 0; }
+  .value-note {
+    font-size: 9pt; color: #64748b; margin: 2.4mm 0 0; padding-top: 2.2mm;
+    border-top: 1px solid #e2e8f0; line-height: 1.4;
+  }
 
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {
@@ -1574,6 +1658,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
 
   .years { display: grid; grid-template-columns: 1fr 1fr; gap: 3.8mm; }
+  /* Three years on a sheet, full width. Terms sit in a row so the card is
+     short enough that the third year still has a footer on the page. */
+  .years-stack { grid-template-columns: 1fr; gap: 4.2mm; }
+  .years-stack .terms { flex-direction: row; align-items: stretch; gap: 0; }
+  .years-stack .term { flex: 1; min-width: 0; padding-right: 3.2mm; margin-right: 3.2mm; border-right: 1px solid #e2e8f0; }
+  .years-stack .term:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
+  .years-stack .year-foot { flex-direction: row; flex-wrap: wrap; gap: 2mm 8mm; }
   .year { border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden; break-inside: avoid; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
   /* Reserve two lines of title in every header, so a long theme like "Scratch
      Expertise + Machine Learning" does not sit taller than its neighbour and
@@ -1688,6 +1779,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <div><b>${esc(input.dateLabel)}</b>Date</div>
       <div><b>${esc(input.reference)}</b>Reference</div>
       ${years ? `<div><b>${years} school year${years === 1 ? '' : 's'}</b>${esc(rangeLabel)}</div>` : ''}
+      ${quotedOffer ? `<div><b>Option ${esc(quotedOffer.code)}</b>${esc(quotedOffer.name)}</div>` : ''}
       ${input.validUntilLabel ? `<div><b>${esc(input.validUntilLabel)}</b>Fees valid until</div>` : ''}
     </div>
   </div>
@@ -1848,7 +1940,7 @@ ${on('rollout') ? `  <section>
       ? 'Standard options for reference'
       : quotedOffer
         ? `What we recommend for ${esc(input.school.name)}`
-        : 'Choose the shape that fits your school'}</h2>
+        : 'Three proposed shapes for the programme'}</h2>
     <p class="muted">${input.agreedTerms
       ? 'Your agreed rate above is one of the standard options. They are listed here so you can see where it sits.'
       : quotedOffer
@@ -1862,8 +1954,8 @@ ${on('rollout') ? `  <section>
           plain statement when the choice came from a person instead. A head
           teacher can then argue with the argument, not just the price.
         */
-      esc(input.recommendationReason || 'The rest of the standard menu is listed beneath it, so you can see where this option sits against the others.')
-      : 'What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.'}</p>
+      esc(input.recommendationReason || 'The other standard options are listed beneath, for context.')
+      : 'What a parent would pay over a full session under each option.'}</p>
     ${figures()}
 
     ${input.agreedTerms
@@ -1905,44 +1997,34 @@ ${noExtrasBlock()}
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
 <div class="page">
-  <div class="pagehead"><span><b>Your return</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
+  <div class="pagehead"><span><b>The school's share</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${splitBlock()}
 
   ${upsideBlock()}
 
-${settlementSection()}
+${reasonToPayBlock()}
 
 ${supplySection(false)}
 
 </div>
 
 
-${on('curriculum') && primary.length
-      ? `<div class="page">
-  <div class="pagehead"><span><b>Primary Pathway</b> · Basic 1 to Basic 6</span><span>${esc(curriculum?.title ?? '')}</span></div>
-  <section>
-    <div class="rule"></div>
-    <h2>What a primary child learns, year by year</h2>
-    <p class="muted">Each year carries a theme, three termly focuses, a capstone build and a portfolio target.</p>
-  </section>
-  <div class="years">${primary.map(yearCard).join('')}</div>
-</div>`
-      : ''
-    }
+${pathwayPages(
+  'Primary Pathway',
+  primary,
+  'What a primary child learns, year by year',
+  'Each year carries a theme, three termly focuses, a capstone build and a portfolio target.',
+)}
 
-${on('curriculum') && secondary.length
-      ? `<div class="page">
-  <div class="pagehead"><span><b>Secondary Pathway</b> · JSS 1 to SS 3</span><span>${esc(curriculum?.title ?? '')}</span></div>
-  <section>
-    <div class="rule"></div>
-    <h2>What a secondary student learns, year by year</h2>
-    <p class="muted">By SS 3 a student has shipped a mobile AI product and can speak to how it was built.</p>
-  </section>
-  <div class="years">${secondary.map(yearCard).join('')}</div>
-</div>`
-      : ''
-    }
+${pathwayPages(
+  'Secondary Pathway',
+  secondary,
+  'What a secondary student learns, year by year',
+  secondary[secondary.length - 1]?.grade === 'SS 3'
+    ? 'By SS 3 a student has shipped a mobile AI product and can speak to how it was built.'
+    : 'Each year carries a theme, three termly focuses, a capstone build and a portfolio target.',
+)}
 
 <!--
   The case for changing, on its own sheet.

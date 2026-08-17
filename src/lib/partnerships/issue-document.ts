@@ -93,7 +93,13 @@ export type IssueInput = {
    * states a fee — so a tampered payload cannot put a price in a proposal.
    */
   narrative?: ProposalNarrative | null;
-  /** Restrict the printed years to one offer's scope, e.g. "Basic 1 through SS 2". */
+  /**
+   * Which option leads on the fees page.
+   *
+   * A code (A, B1, B2) emphasises that row. An empty string prints the whole
+   * menu as equals — that is a choice, not an omission. Omitted (`undefined`)
+   * lets the engine recommend from the roll.
+   */
   scopeToOffer?: string | null;
   /** Quote the primary half, the secondary half, or all twelve years. */
   stage?: CurriculumStage | null;
@@ -645,11 +651,23 @@ async function renderDocument(ctx: {
       fell back to `findOffer`, which matches on `code` — so the fee and the
       emphasis could come from different rows of the same menu.
     */
-    const chosen = resolveOffer(input.scopeToOffer);
-    const recommendation = chosen
+    /*
+      An empty string is a choice: show the three options as equals.
+
+      `null`/`undefined` used to mean the same thing as "nobody picked", and
+      then this silently recommended B1 or B2. The composer has a control for
+      "show every option equally" — selecting it sent null, the recommendation
+      overwrote it, and the PDF never matched what was on the desk.
+    */
+    const showFullMenu = input.scopeToOffer === '';
+    const chosen = showFullMenu ? null : resolveOffer(input.scopeToOffer);
+    const recommendation = chosen || showFullMenu
       ? null
       : recommendOffer({ studentCount: school.student_count, stage: input.stage });
-    const scopedOffer = chosen ?? recommendation?.offer ?? PARTNERSHIP_OFFERS[0];
+    // A picked or recommended option. Never the first catalogue row: that is
+    // Option A, and using it as a silent default priced the return sheet off
+    // ₦25,000 while page 4 still showed three equal options.
+    const quotedOffer = chosen ?? recommendation?.offer ?? null;
     /**
      * The money page, from whichever shape the deal actually takes.
      *
@@ -672,12 +690,18 @@ async function renderDocument(ctx: {
       feePerStudent:
         agreedTerms?.billing_model === 'per_student'
           ? (agreedTerms.amount_per_student ?? 0)
-          : (scopedOffer?.priceFrom ?? 0),
+          : (quotedOffer?.priceFrom ?? 0),
       sections: agreedTerms?.billing_model === 'tiered' ? agreedTerms.tiers : null,
       // A package is one price for the school; uptake does not move it.
       fixedPackage:
         agreedTerms?.billing_model === 'fixed_package'
           ? agreedTerms.fixed_package_price
+          : null,
+      // The whole menu, only when the desk asked to show it equally and no
+      // rate has been agreed. Otherwise this page would invent a single fee.
+      menuOffers:
+        !agreedTerms && showFullMenu
+          ? PARTNERSHIP_OFFERS.map((o) => ({ code: o.code, priceFrom: o.priceFrom }))
           : null,
       // The standard deal is 70/30, or the custom proposed / agreed split.
       sharePercent: agreedTerms?.school_share_percent ?? input.proposedSchoolSharePercent ?? 30,
@@ -708,9 +732,11 @@ async function renderDocument(ctx: {
       reference,
       dateLabel,
       narrative,
-      // The recommended option is quoted like any other, so the page emphasises
-      // it rather than printing the whole menu at equal weight.
-      scopeToOffer: input.scopeToOffer ?? recommendation?.offer.code ?? null,
+      // Honour a picked code, an explicit full menu (''), or the recommendation
+      // when the caller did not say. Never treat "show equally" as "recommend".
+      scopeToOffer: showFullMenu
+        ? null
+        : (chosen?.code ?? recommendation?.offer.code ?? null),
       recommendationReason: recommendation?.reason ?? null,
       stage: input.stage ?? null,
       accessCode,

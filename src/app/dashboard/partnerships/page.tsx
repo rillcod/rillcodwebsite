@@ -34,7 +34,6 @@ import { PartnershipDocumentComposer, type ComposerHandle } from "@/components/p
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
 import { ProposalStudio, loadStudioConfig } from "@/components/partnerships/ProposalStudio";
-import { PartnershipOutreachModal } from "@/components/partnerships/PartnershipOutreachModal";
 import { PartnershipPipeline } from "@/components/partnerships/PartnershipPipeline";
 import { defaultStudioConfig, type ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type {
@@ -65,13 +64,6 @@ type Preview = {
 
 // No "studio": it is part of composing now, not a place you navigate to.
 type WorkspaceTab = "compose" | "terms" | "gallery" | "archive";
-
-const JOURNEY = [
-  { step: 2, label: "Proposal", tab: "compose" as WorkspaceTab, kind: "proposal" as const },
-  { step: 3, label: "Deal", tab: "terms" as WorkspaceTab },
-  { step: 4, label: "MoU", tab: "compose" as WorkspaceTab, kind: "mou" as const },
-  { step: 5, label: "Signed", tab: "archive" as WorkspaceTab },
-];
 
 /*
   Which of the two jobs this page is doing.
@@ -130,18 +122,14 @@ export default function PartnershipsPage() {
   const [terms, setTerms] = useState<TermsRow[]>([]);
   const [agreed, setAgreed] = useState<TermsRow | null>(null);
   /*
-    Which document the composer is writing.
+    Proposal or MoU — driven by the next action, not a toggle.
 
-    Held here rather than inside the composer because the composer is unmounted
-    whenever another tab is open, and the journey an MoU requires — choose MoU,
-    find there is no agreed rate, record one, come back — crosses tabs by
-    definition. Kept in the panel, that choice was discarded exactly when the
-    user had finished satisfying it.
+    The composer used to let you pick either kind at any time, which is how
+    people issued an MoU before a proposal had gone out.
   */
   const [composeKind, setComposeKind] = useState<"proposal" | "mou">("proposal");
   const [documents, setDocuments] = useState<IssuedDocumentRow[]>([]);
   const [loadingSchool, setLoadingSchool] = useState(false);
-  const [showOutreachModal, setShowOutreachModal] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   // Bumped when a blocked MoU sends the user to record terms.
   const [openTerms, setOpenTerms] = useState(0);
@@ -151,6 +139,8 @@ export default function PartnershipsPage() {
   const [focusDocumentId, setFocusDocumentId] = useState<string | null>(null);
   /** After picking a school, land on the next step once its documents are in. */
   const routeOnLoad = useRef(false);
+  /** Leave the terms editor for the real next step, but only after a save. */
+  const [termsJustSaved, setTermsJustSaved] = useState(false);
 
   const canView = profile?.role === "admin" || profile?.role === "teacher";
   const canWrite = profile?.role === "admin";
@@ -229,6 +219,7 @@ export default function PartnershipsPage() {
     setComposeKind(opts?.kind ?? "proposal");
     setFocusDocumentId(opts?.focusDocumentId ?? null);
     setStudio(loadStudioConfig(id));
+    setTermsJustSaved(false);
     routeOnLoad.current = !opts?.tab;
     void loadSchoolDetail(id);
   }
@@ -323,12 +314,6 @@ export default function PartnershipsPage() {
     };
   }, []);
 
-  // Latest active document for quick header link
-  const latestDoc =
-    documents.find((d) => isValidShareToken(d.share_token) && (d.status === "sent" || d.status === "signed")) ||
-    documents[0] ||
-    null;
-
   const dealState = useMemo(() => {
     if (!selected) return null;
     return partnershipNextAction({ agreed, documents });
@@ -338,8 +323,6 @@ export default function PartnershipsPage() {
     if (!preview?.id || loadingSchool) return;
     if (!documents.some((d) => d.id === preview.id)) setPreview(null);
   }, [documents, preview?.id, loadingSchool]);
-
-  const writing = activeTab === "compose";
 
   function documentForNextStep(): IssuedDocumentRow | null {
     const kind = dealState?.action?.kind;
@@ -378,12 +361,6 @@ export default function PartnershipsPage() {
     }
   }
 
-  function goToJourneyStep(tab: WorkspaceTab, kind?: "proposal" | "mou") {
-    if (kind) setComposeKind(kind);
-    if (tab === "terms") setOpenTerms((n) => n + 1);
-    setActiveTab(tab);
-  }
-
   function goToNextStep() {
     const action = dealState?.action;
     if (!action) return;
@@ -417,6 +394,14 @@ export default function PartnershipsPage() {
       setActiveTab("terms");
     }
   }, [selected, loadingSchool, dealState]);
+
+  useEffect(() => {
+    if (!termsJustSaved || loadingSchool || !dealState) return;
+    setTermsJustSaved(false);
+    const action = dealState.action;
+    if (action?.kind) setComposeKind(action.kind);
+    setActiveTab(action?.tab ?? "compose");
+  }, [termsJustSaved, loadingSchool, dealState]);
 
   if (authLoading) {
     return (
@@ -719,13 +704,6 @@ export default function PartnershipsPage() {
                           {selected.email}
                         </a>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setShowOutreachModal(true)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        Cold email
-                      </button>
                     </div>
                   </div>
 
@@ -740,39 +718,12 @@ export default function PartnershipsPage() {
                     </div>
                   ) : (
                     <p className="text-[11px] text-muted-foreground sm:text-right">
-                      No rate on record yet — a proposal can still go out.
+                      Proposal first — the rate is recorded after they pick an option.
                     </p>
                   )}
                 </div>
 
                 {dealState && (
-                  <div className="space-y-3">
-                    <ol className="grid grid-cols-4 gap-1">
-                      {JOURNEY.map((s, i) => {
-                        const current = dealState.step === s.step || (s.step === 5 && dealState.step > 5);
-                        const done = dealState.step > s.step;
-                        return (
-                          <li key={s.label}>
-                            <button
-                              type="button"
-                              onClick={() => goToJourneyStep(s.tab, s.kind)}
-                              className={`w-full min-h-[44px] rounded-xl border px-1 py-2 text-center ${
-                                current
-                                  ? "border-foreground bg-foreground text-background"
-                                  : done
-                                    ? "border-emerald-500/40 bg-emerald-500/10 text-foreground"
-                                    : "border-border bg-muted/40 text-muted-foreground"
-                              }`}
-                            >
-                              <span className="block text-[10px] font-black">{i + 1}</span>
-                              <span className="block text-[10px] sm:text-[11px] font-bold leading-tight">
-                                {s.label}
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ol>
                     <div
                       className={`rounded-2xl border p-3 sm:p-4 flex flex-col gap-3 ${
                         dealState.tone === "done"
@@ -784,8 +735,17 @@ export default function PartnershipsPage() {
                               : "border-sky-500/25 bg-sky-500/10"
                       }`}
                     >
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {dealState.step <= 2
+                          ? "Now — proposal"
+                          : dealState.step === 3
+                            ? "Now — record the deal"
+                            : dealState.step === 4
+                              ? "Now — MoU"
+                              : "Now — onboard"}
+                      </p>
                       <p className="text-sm font-bold text-foreground">{dealState.headline}</p>
-                      <p className="hidden sm:block text-xs text-muted-foreground leading-relaxed">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
                         {dealState.detail}
                       </p>
                       <div className="flex w-full flex-col gap-2">
@@ -801,7 +761,9 @@ export default function PartnershipsPage() {
                           ))
                         ) : (
                           <>
-                            {dealState.action && (
+                            {dealState.action &&
+                              (dealState.action.tab === "archive" ||
+                                activeTab !== dealState.action.tab) && (
                               <button
                                 type="button"
                                 onClick={goToNextStep}
@@ -846,40 +808,20 @@ export default function PartnershipsPage() {
                             )}
                           </>
                         )}
+                        {documents.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab(activeTab === "archive" ? (dealState.action?.tab ?? "compose") : "archive")}
+                            className="text-xs font-semibold text-muted-foreground hover:text-foreground min-h-[40px]"
+                          >
+                            {activeTab === "archive"
+                              ? "Back to this step"
+                              : `Issued documents (${documents.length})`}
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
                 )}
-              </div>
-
-              <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur border-b border-border/60 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0">
-              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border w-full">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("compose")}
-                  className={`flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold ${
-                    writing
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Write
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("archive")}
-                  className={`flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold ${
-                    activeTab === "archive"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Documents
-                  {documents.length > 0 && (
-                    <span className="ml-1.5 opacity-80">{documents.length}</span>
-                  )}
-                </button>
-              </div>
               </div>
 
               {/* Composer stays mounted (hidden) on Documents so a redraw still
@@ -893,7 +835,6 @@ export default function PartnershipsPage() {
                     canWrite={canWrite}
                     studio={studio}
                     kind={composeKind}
-                    onKindChange={setComposeKind}
                     documents={documents}
                     onOpenLive={(doc) => {
                       setActiveTab("archive");
@@ -948,15 +889,8 @@ export default function PartnershipsPage() {
                   <div className="rounded-2xl border border-border bg-card p-5">
                     <p className="text-base font-semibold text-foreground">Record the deal</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      The rate the proposal quoted, the MoU will state, and the invoice will bill.
+                      They have seen the proposal. Put down the rate they agreed — the MoU and the invoice will both use it.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("compose")}
-                      className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                    >
-                      ← Back to the proposal
-                    </button>
                   </div>
                   <PartnershipTermsEditor
                     school={selected}
@@ -966,16 +900,7 @@ export default function PartnershipsPage() {
                     openSignal={openTerms}
                     onSaved={async () => {
                       await Promise.all([loadSchoolDetail(selected.id), loadSchools()]);
-                      /*
-                        Finish the journey the user started.
-
-                        Nobody opens this editor to admire a rate. They arrived
-                        because an MoU asked for one, and once it exists the next
-                        step is the document — so the workspace takes them back
-                        to it rather than leaving them on a saved form to work
-                        out where to go next.
-                      */
-                      setActiveTab("compose");
+                      setTermsJustSaved(true);
                     }}
                   />
                 </div>
@@ -1054,16 +979,6 @@ export default function PartnershipsPage() {
               : undefined
           }
           onClose={() => setPreview(null)}
-        />
-      )}
-
-      {/* Outreach & Cold Pitch Email Campaign Modal */}
-      {selected && (
-        <PartnershipOutreachModal
-          school={selected}
-          latestDoc={latestDoc}
-          isOpen={showOutreachModal}
-          onClose={() => setShowOutreachModal(false)}
         />
       )}
         </>

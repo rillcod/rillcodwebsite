@@ -61,7 +61,6 @@ type ComposerProps = {
   onRecordTerms: () => void;
   studio?: ProposalStudioConfig | null;
   kind: DocumentKind;
-  onKindChange: (kind: DocumentKind) => void;
   documents?: IssuedDocumentRow[];
   /** Open the live draft/sent copy instead of writing a second one. */
   onOpenLive?: (doc: IssuedDocumentRow) => void;
@@ -78,13 +77,11 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       onRecordTerms,
       studio,
       kind,
-      onKindChange,
       documents = [],
       onOpenLive,
     },
     ref,
   ) {
-  const setKind = onKindChange;
   const [offerCode, setOfferCode] = useState<string>("");
   const [offerTouched, setOfferTouched] = useState(false);
   const [stage, setStage] = useState<"primary" | "secondary" | "both">("both");
@@ -194,28 +191,17 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   const gaps = useMemo(() => {
     if (kind !== 'proposal') return [];
     const missing: string[] = [];
-    if (!agreed) {
-      missing.push('No agreed rate on record, so the fees page shows the standard menu rather than their price.');
-    } else if (agreed.school_share_percent == null) {
-      missing.push('No revenue share recorded, so the returns page cannot work out what the school earns.');
-    }
-    if (agreed && !agreed.settlement_trigger) {
-      missing.push('No settlement terms, so the proposal does not say when they are paid or what a mid-term withdrawal costs.');
-    }
     if (!Number(students) && !school.student_count) {
       missing.push('No enrolment for this school, so the uptake table shows illustrative sizes instead of theirs.');
-    }
-    if (stage === 'primary' && !offerCode) {
-      missing.push('Years are set to primary only, but the quote still presents all twelve years.');
     }
     if (stage === 'primary' && offerCode === 'B2') {
       missing.push('Option B2 assumes SS capstone years, and this school is scoped to primary only.');
     }
-    if (stage === 'secondary' && !offerCode) {
-      missing.push('Years are set to secondary only, but the quote still presents all twelve years.');
+    if (offerCode === 'A' && (stage === 'both' || !stage)) {
+      missing.push('Option A stops at SS 2, so this quote will not include SS 3.');
     }
     return missing;
-  }, [kind, agreed, students, school.student_count, stage, offerCode]);
+  }, [kind, students, school.student_count, stage, offerCode]);
 
   // An MoU without agreed terms has no fee to state. The API refuses it with a
   // 409; the button refuses it here so nobody has to read a failure to find out.
@@ -230,7 +216,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       // The code, not the scope line. B1 and B2 share a scope word for word, so
       // sending it identified two options at once — and the proposal emphasised
       // both, which is the same as emphasising neither.
-      scope_to_offer: kind === 'proposal' ? (selectedOffer?.code ?? null) : null,
+      scope_to_offer: kind === 'proposal' ? (selectedOffer?.code ?? '') : null,
       stage,
       notes: kind === 'proposal' ? notes.trim() || null : null,
       validity_days: kind === 'proposal' ? Number(validityDays) : null,
@@ -328,33 +314,9 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </h2>
         <p className="text-xs text-muted-foreground mt-1">
           {kind === "mou"
-            ? "The agreement they sign. Needs an agreed rate first."
-            : "The offer you send to get to a rate. Preview, then send."}
+            ? "The agreement they sign. It states the rate already on record."
+            : "Send this first. Record the deal only after they have read it and picked an option."}
         </p>
-        <div className="flex gap-1 mt-3 p-1 rounded-xl bg-muted/50 border border-border">
-          <button
-            type="button"
-            onClick={() => setKind("proposal")}
-            className={`flex-1 min-h-[40px] rounded-lg text-xs font-bold ${
-              kind === "proposal"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Proposal
-          </button>
-          <button
-            type="button"
-            onClick={() => setKind("mou")}
-            className={`flex-1 min-h-[40px] rounded-lg text-xs font-bold ${
-              kind === "mou"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            MoU
-          </button>
-        </div>
       </div>
 
       {liveQuote && (
@@ -569,8 +531,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               onChange={(e) => setNotes(e.target.value)}
             />
             <p className="text-[11px] text-muted-foreground mt-2">
-              Wording, sections and photographs are in the studio under this form — not a second
-              copy of these fields.
+              Optional. Wording and photographs sit in the panel under this form if you want them.
             </p>
           </div>
         </div>
@@ -694,15 +655,6 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               </li>
             ))}
           </ul>
-          {canWrite && (
-            <button
-              type="button"
-              onClick={onRecordTerms}
-              className="mt-3 px-4 py-2 rounded-xl border border-border text-xs font-bold min-h-[40px]"
-            >
-              Record the deal
-            </button>
-          )}
         </details>
       )}
 
