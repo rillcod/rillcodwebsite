@@ -149,6 +149,27 @@ async function main() {
     }),
   });
 
+  /*
+    The workbook, at both cadences.
+
+    It goes to a printer rather than an inbox, so a clipped page is not a
+    document that reads oddly — it is two hundred copies of a page whose last
+    ruled line is missing, paid for. Both lengths are measured because a
+    two-class-a-week book is twice as many session pages and the term opener
+    prints a different sentence on each.
+  */
+  const { buildWorkbookHTML } = await import('../src/lib/workbook/workbook-html');
+  for (const sessionsPerWeek of [1, 2] as const) {
+    documents.push({
+      label: `workbook (${sessionsPerWeek}/wk)`,
+      html: buildWorkbookHTML({
+        level: curriculum.levels[0],
+        schoolName: school.name,
+        sessionsPerWeek,
+      }),
+    });
+  }
+
   let failures = 0;
   for (const doc of documents) {
     const pages = measure(chrome, doc.html, doc.label.replace(/\W+/g, '-'));
