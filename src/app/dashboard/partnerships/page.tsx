@@ -29,7 +29,7 @@ import {
   ChevronDownIcon,
 } from "@/lib/icons";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
-import { PartnershipDocumentArchive, canDeleteDocument, removePartnershipDocument } from "@/components/partnerships/PartnershipDocumentArchive";
+import { PartnershipDocumentArchive, canDeleteDocument, removePartnershipDocument, discardPartnershipDocument } from "@/components/partnerships/PartnershipDocumentArchive";
 import { PartnershipDocumentComposer, type ComposerHandle } from "@/components/partnerships/PartnershipDocumentComposer";
 import { PartnershipTermsEditor } from "@/components/partnerships/PartnershipTermsEditor";
 import { AddProspectForm } from "@/components/partnerships/AddProspectForm";
@@ -841,6 +841,7 @@ export default function PartnershipsPage() {
                       setFocusDocumentId(doc.id);
                       void openStoredDocument(doc);
                     }}
+                    onLiveDiscarded={() => loadSchoolDetail(selected.id)}
                     onRecordTerms={() => {
                       setOpenTerms((n) => n + 1);
                       setActiveTab("terms");
@@ -911,6 +912,7 @@ export default function PartnershipsPage() {
                   <PartnershipDocumentArchive
                     documents={documents}
                     canWrite={canWrite}
+                    schoolId={selected.id}
                     focusId={focusDocumentId}
                     onChanged={() => loadSchoolDetail(selected.id)}
                     redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
@@ -965,12 +967,14 @@ export default function PartnershipsPage() {
             canDeleteDocument({
               status: preview.status ?? "",
               open_count: preview.openCount,
+              document_kind: preview.kind,
             })
               ? async () => {
                   await removePartnershipDocument({
                     id: preview.id,
                     reference: preview.reference,
                     status: preview.status ?? "draft",
+                    document_kind: preview.kind,
                     open_count: preview.openCount,
                   });
                   setPreview(null);
@@ -981,19 +985,21 @@ export default function PartnershipsPage() {
           onWithdraw={
             canWrite &&
             preview.id &&
+            preview.kind === "mou" &&
             preview.status !== "void" &&
             !canDeleteDocument({
               status: preview.status ?? "",
               open_count: preview.openCount,
+              document_kind: preview.kind,
             })
               ? async () => {
-                  const res = await fetch("/api/partnerships/documents", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: preview.id, status: "void" }),
+                  await discardPartnershipDocument({
+                    id: preview.id,
+                    reference: preview.reference,
+                    status: preview.status ?? "sent",
+                    document_kind: preview.kind,
+                    open_count: preview.openCount,
                   });
-                  const json = await res.json();
-                  if (!res.ok) throw new Error(json.error || "Could not withdraw that document.");
                   setPreview(null);
                   await loadSchoolDetail(selected.id);
                 }

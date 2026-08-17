@@ -226,6 +226,22 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     .eq('id', row.id);
   if (saveError) throw new Error(saveError.message);
 
+  /*
+    A proposal is a quote. Issuing another one used to leave the last draft or
+    send sitting beside it, which is how the desk filled with mistakes. Drop
+    the previous live/leftover copy of this kind. A signed MoU is never in
+    that set.
+  */
+  try {
+    await (input.db as { rpc?: Function }).rpc?.('replace_live_partnership_documents', {
+      p_school_id: targetSchoolId,
+      p_kind: kind,
+      p_keep_id: row.id,
+    });
+  } catch {
+    // Function missing until the migration lands; issuing still succeeds.
+  }
+
   return {
     id: String(row.id),
     reference,

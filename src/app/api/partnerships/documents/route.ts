@@ -2,7 +2,8 @@
  * GET    /api/partnerships/documents?school_id=…  — documents issued to a school
  * POST   /api/partnerships/documents               — issue a proposal or an MoU
  * PATCH  /api/partnerships/documents               — move one along its lifecycle
- * DELETE /api/partnerships/documents?id=…          — discard a draft
+ * DELETE /api/partnerships/documents?id=…                    — discard one draft or withdrawn copy
+ * DELETE /api/partnerships/documents?school_id=…&status=void — clear every withdrawn copy for a school
  *
  * Issuing renders the document and keeps it, with a reference assigned by the
  * database. That is the whole point: a generated file nobody stored is how one
@@ -542,17 +543,76 @@ export async function PATCH(req: NextRequest) {
 }
 
 /**
- * Discard a draft.
+ * Discard a proposal in any state, or an unsigned MoU.
  *
- * Drafts only. A document that has been sent or signed is the record of what a
- * school was given, and deleting it would recreate exactly the gap this table
- * was built to close — void it instead, which keeps the row and says so.
+ * A proposal is a quote, not a contract — throw it away and issue another.
+ * The MoU is the legal document: unsigned copies may still go; a live
+ * signature must be withdrawn first (`status=void` leftover, or this delete
+ * after void). Every withdrawn row on a school can go at once (`status=void`).
  */
 export async function DELETE(req: NextRequest) {
   const actor = await requireActor(true);
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const id = req.nextUrl.searchParams.get('id')?.trim() || '';
+  const schoolId = req.nextUrl.searchParams.get('school_id')?.trim() || '';
+  const status = req.nextUrl.searchParams.get('status')?.trim() || '';
+
+  if (schoolId && status === 'void') {
+    const { data: rpcData, error: rpcError } = await (actor.db as any).rpc(
+      'discard_withdrawn_partnership_agreements',
+      { p_school_id: schoolId },
+    );
+    if (!rpcError && rpcData) {
+      const deleted = Number(rpcData.deleted) || 0;
+      const references = Array.isArray(rpcData.references) ? rpcData.references : [];
+      await logAudit(actor.db as any, {
+        action: 'delete_partnership_voids',
+        actorId: actor.user.id,
+        resourceType: 'partnership_agreements',
+        resourceId: schoolId,
+        tableName: 'partnership_agreements',
+        oldValue: references.join(', '),
+        newValues: { school_id: schoolId, deleted },
+      });
+      return NextResponse.json({ deleted, references });
+    }
+    if (rpcError && !/does not exist|PGRST202/i.test(rpcError.message)) {
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    }
+
+    const { data: rows, error: loadError } = await actor.db
+      .from('partnership_agreements')
+      .select('id, reference, document_kind, school_id')
+      .eq('school_id', schoolId)
+      .eq('status', 'void');
+    if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
+    const list = rows ?? [];
+    if (!list.length) return NextResponse.json({ deleted: 0, references: [] });
+
+    const { error } = await actor.db
+      .from('partnership_agreements')
+      .delete()
+      .eq('school_id', schoolId)
+      .eq('status', 'void');
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logAudit(actor.db as any, {
+      action: 'delete_partnership_voids',
+      actorId: actor.user.id,
+      resourceType: 'partnership_agreements',
+      resourceId: schoolId,
+      tableName: 'partnership_agreements',
+      oldValue: list.map((r: { reference: string }) => r.reference).join(', '),
+      newValues: { school_id: schoolId, deleted: list.length },
+    });
+
+    return NextResponse.json({
+      deleted: list.length,
+      references: list.map((r: { reference: string }) => r.reference),
+    });
+  }
+
   if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
 
   const { data: current } = await actor.db
@@ -562,13 +622,43 @@ export async function DELETE(req: NextRequest) {
     .maybeSingle();
   if (!current) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
 
-  if (current.status !== 'draft') {
+  const isProposal = current.document_kind === 'proposal';
+  const unsignedMou = current.document_kind === 'mou' && current.status !== 'signed';
+  const leftover = current.status === 'void' || current.status === 'declined' || current.status === 'draft';
+  if (!isProposal && !unsignedMou && !leftover) {
     return NextResponse.json(
       {
         error:
-          `${current.reference} has already been ${current.status}. A document that left the building stays on record — void it instead of deleting it.`,
+          `${current.reference} is a signed MoU. Withdraw it first so the school's link stops working, then you can delete it.`,
       },
       { status: 409 },
+    );
+  }
+
+  const { data: discarded, error: rpcError } = await (actor.db as any).rpc(
+    'discard_partnership_agreement',
+    { p_id: id },
+  );
+  if (!rpcError) {
+    await logAudit(actor.db as any, {
+      action: 'delete_partnership_document',
+      actorId: actor.user.id,
+      resourceType: 'partnership_agreements',
+      resourceId: id,
+      tableName: 'partnership_agreements',
+      oldValue: `${current.reference} (${current.document_kind}, ${current.status})`,
+      newValues: { school_id: current.school_id, reference: current.reference },
+    });
+    return NextResponse.json({
+      deleted: true,
+      reference: discarded?.reference ?? current.reference,
+    });
+  }
+  if (!/does not exist|PGRST202/i.test(rpcError.message)) {
+    const signed = /signed MoU/i.test(rpcError.message);
+    return NextResponse.json(
+      { error: rpcError.message },
+      { status: signed ? 409 : 500 },
     );
   }
 
@@ -576,12 +666,12 @@ export async function DELETE(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAudit(actor.db as any, {
-    action: 'delete_partnership_draft',
+    action: 'delete_partnership_document',
     actorId: actor.user.id,
     resourceType: 'partnership_agreements',
     resourceId: id,
     tableName: 'partnership_agreements',
-    oldValue: `${current.reference} (${current.document_kind}, draft)`,
+    oldValue: `${current.reference} (${current.document_kind}, ${current.status})`,
     newValues: { school_id: current.school_id, reference: current.reference },
   });
 

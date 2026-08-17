@@ -38,6 +38,7 @@ import { brandContact } from "@/config/brand";
 import { buildDocumentShareUrl, publicDocumentSharePath } from "@/lib/partnerships/signing";
 import { OUTREACH_ANGLES, outreachPlainText } from "@/lib/partnerships/outreach-copy";
 import BodyPortal, { useOverlayScrollLock } from "@/components/ui/BodyPortal";
+import { measureIssuedDocumentHeight } from "@/lib/partnerships/document-preview-height";
 import { PartnershipConfirm } from "./PartnershipConfirm";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
@@ -98,7 +99,7 @@ export function IssuedDocumentPreview({
   onSent?: () => void | Promise<void>;
   /** Drafts only — a sent copy is the record that it went out. */
   onDelete?: () => void | Promise<void>;
-  /** Opened or signed copies — void the row, keep the record. */
+  /** Opened or signed copies — void first, then delete from the list. */
   onWithdraw?: () => void | Promise<void>;
   onClose: () => void;
 }) {
@@ -270,12 +271,7 @@ export function IssuedDocumentPreview({
       try {
         const inner = frame.contentDocument || frame.contentWindow?.document;
         if (!inner?.body) return;
-        const h = Math.max(
-          inner.body.scrollHeight,
-          inner.body.offsetHeight,
-          inner.documentElement?.scrollHeight ?? 0,
-          inner.documentElement?.offsetHeight ?? 0,
-        );
+        const h = measureIssuedDocumentHeight(inner);
         if (h > 200) {
           setDocH((prev) => (Math.abs(prev - h) > 2 ? h : prev));
         }
@@ -284,11 +280,21 @@ export function IssuedDocumentPreview({
       }
     };
 
-    frame.addEventListener("load", updateHeight);
+    const onLoad = () => {
+      updateHeight();
+      const images = frame.contentDocument?.images;
+      if (!images) return;
+      for (let i = 0; i < images.length; i += 1) {
+        images[i].addEventListener("load", updateHeight);
+        images[i].addEventListener("error", updateHeight);
+      }
+    };
+
+    frame.addEventListener("load", onLoad);
     updateHeight();
     const timers = [150, 400, 900, 1800, 3000].map((ms) => window.setTimeout(updateHeight, ms));
     return () => {
-      frame.removeEventListener("load", updateHeight);
+      frame.removeEventListener("load", onLoad);
       timers.forEach(window.clearTimeout);
     };
   }, [framedHtml, loading]);
@@ -304,9 +310,9 @@ export function IssuedDocumentPreview({
         role="dialog"
         aria-modal="true"
         aria-labelledby="issued-document-title"
-        className="fixed inset-0 z-[80] flex flex-col bg-background"
+        className="fixed inset-0 z-[110] overflow-y-auto overflow-x-hidden overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]"
       >
-        <header className="shrink-0 border-b border-border bg-card pt-[max(0.5rem,var(--safe-area-top))]">
+        <header className="sticky top-0 z-10 border-b border-border bg-card pt-[max(0.5rem,var(--safe-area-top))]">
           <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5">
             <button
               type="button"
@@ -440,7 +446,7 @@ export function IssuedDocumentPreview({
                 ) : (
                   <TrashIcon className="w-3.5 h-3.5" />
                 )}
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? (kind === "proposal" ? "Discarding…" : "Deleting…") : kind === "proposal" ? "Discard" : "Delete"}
               </button>
             )}
             {onWithdraw && stored && (
@@ -538,17 +544,17 @@ export function IssuedDocumentPreview({
         </header>
 
         {error && (
-          <p className="shrink-0 px-4 py-2 text-xs text-destructive bg-destructive/10 border-b border-destructive/20 font-medium">
+          <p className="px-4 py-2 text-xs text-destructive bg-destructive/10 border-b border-destructive/20 font-medium">
             {error}
           </p>
         )}
         {notice && (
-          <p className="shrink-0 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-b border-emerald-500/20 font-medium">
+          <p className="px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-b border-emerald-500/20 font-medium">
             {notice}
           </p>
         )}
         {loading ? (
-          <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+          <div className="flex min-h-[50dvh] items-center justify-center bg-slate-100 dark:bg-slate-950">
             <div className="flex flex-col items-center gap-3">
               <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
               <p className="text-xs text-muted-foreground font-medium">Rendering document…</p>
@@ -557,7 +563,7 @@ export function IssuedDocumentPreview({
         ) : (
           <div
             ref={paneRef}
-            className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overflow-x-hidden overscroll-contain"
+            className="bg-slate-100 dark:bg-slate-950 p-3 pb-28 md:p-8"
           >
             <div
               className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
@@ -569,11 +575,12 @@ export function IssuedDocumentPreview({
                 title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
                 sandbox="allow-same-origin allow-modals"
                 scrolling="no"
-                className="bg-white"
+                className="bg-white pointer-events-none"
                 style={{
                   width: PAGE_W,
                   height: sheetH,
                   border: "none",
+                  display: "block",
                   transform: `scale(${scale})`,
                   transformOrigin: "top left",
                 }}
@@ -582,7 +589,7 @@ export function IssuedDocumentPreview({
           </div>
         )}
 
-        <div className="sm:hidden shrink-0 space-y-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="sm:hidden sticky bottom-0 z-10 space-y-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="grid grid-cols-2 gap-2">
             {onDelete && stored ? (
               <button
@@ -591,7 +598,7 @@ export function IssuedDocumentPreview({
                 disabled={deleting || sending || saving || withdrawing}
                 className="min-h-[48px] rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-50"
               >
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? (kind === "proposal" ? "Discarding…" : "Deleting…") : kind === "proposal" ? "Discard" : "Delete"}
               </button>
             ) : onWithdraw && stored ? (
               <button
@@ -664,16 +671,18 @@ export function IssuedDocumentPreview({
       <PartnershipConfirm
         open={Boolean(ask)}
         title={
-          ask === "withdraw" ? `Withdraw ${reference}?` : `Delete ${reference}?`
+          ask === "withdraw" ? `Withdraw ${reference}?` : kind === "proposal" ? `Discard ${reference}?` : `Delete ${reference}?`
         }
         body={
           ask === "withdraw"
-            ? "It stays on record, and the link stops working for the school."
-            : liveStatus === "sent"
-              ? "It was sent but you can still delete it if nobody opened it. Take it back and delete?"
-              : "Nothing has been sent, so nothing is lost."
+            ? "This MoU is signed. The school's link stops working, then this copy comes off the list."
+            : kind === "proposal"
+              ? "A proposal is not a contract. Discard it and issue another whenever you need."
+              : liveStatus === "signed"
+                ? "A signed MoU is a legal record. Withdraw it first."
+                : "This MoU is not signed yet. Discard it and issue another if you need to."
         }
-        confirmLabel={ask === "withdraw" ? "Withdraw" : "Delete"}
+        confirmLabel={kind === "proposal" ? "Discard" : "Delete"}
         busy={deleting || withdrawing}
         onCancel={() => {
           if (!deleting && !withdrawing) setAsk(null);

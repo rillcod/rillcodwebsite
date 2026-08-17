@@ -9,9 +9,10 @@
  * issue, not looked up now — and reopening one shows the bytes that were sent,
  * not a fresh render of today's rate.
  *
- * A document moves draft → sent → signed, and can be declined or voided from
- * anywhere. Only a draft can be deleted: once something has left the building,
- * the row is the record that it did, and voiding says so without erasing it.
+ * A proposal is a quote, not a contract — discard it and issue another as
+ * often as you need. The MoU is the legal document; unsigned copies can still
+ * be thrown away. A signed MoU is withdrawn first so the school's link dies,
+ * then the leftover is deleted.
  */
 
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ import { publicDocumentSharePath } from "@/lib/partnerships/signing";
 import { isQuoteExpired } from "@/lib/partnerships/issue-document";
 import type { IssuedDocumentRow } from "./types";
 import { PartnershipConfirm } from "./PartnershipConfirm";
+import { canDeletePartnershipDocument } from "@/lib/partnerships/document-discard";
 
 /** Where the public can read this document, or null when there is no safe link. */
 function portalUrl(doc: IssuedDocumentRow): string | null {
@@ -53,6 +55,14 @@ function lapsed(doc: IssuedDocumentRow): boolean {
   return isQuoteExpired(doc.valid_until ?? null);
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  signed: "Signed",
+  declined: "Declined",
+  void: "Withdrawn",
+};
+
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   sent: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
@@ -64,34 +74,63 @@ const STATUS_STYLES: Record<string, string> = {
 const ACTION =
   "shrink-0 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center";
 
-export function canDeleteDocument(doc: { status: string; open_count?: number | null }): boolean {
-  return doc.status === "draft" || (doc.status === "sent" && !(Number(doc.open_count) || 0));
-}
+export const canDeleteDocument = canDeletePartnershipDocument;
 
-/** Drafts delete outright. A send nobody opened is recalled, then deleted. */
+/** Remove a quote or an unsigned MoU. A signed MoU must be withdrawn first. */
 export async function removePartnershipDocument(doc: {
   id: string;
   reference?: string | null;
   status: string;
+  document_kind?: string | null;
+  kind?: string | null;
   open_count?: number | null;
 }): Promise<void> {
   if (!canDeleteDocument(doc)) {
-    throw new Error("This copy has been opened or signed. Withdraw it — deleting would erase the record.");
-  }
-  if (doc.status === "sent") {
-    const patch = await fetch("/api/partnerships/documents", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: doc.id, status: "draft" }),
-    });
-    const patchJson = await patch.json();
-    if (!patch.ok) throw new Error(patchJson.error || "Could not take that copy back.");
+    throw new Error("A signed MoU is a legal record. Withdraw it first, then you can delete it.");
   }
   const res = await fetch(`/api/partnerships/documents?id=${encodeURIComponent(doc.id)}`, {
     method: "DELETE",
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Could not delete that document.");
+}
+
+/** A signed MoU: kill the school's link, then erase the leftover. */
+export async function discardPartnershipDocument(doc: {
+  id: string;
+  reference?: string | null;
+  status: string;
+  document_kind?: string | null;
+  kind?: string | null;
+  open_count?: number | null;
+}): Promise<void> {
+  if (canDeleteDocument(doc)) {
+    await removePartnershipDocument(doc);
+    return;
+  }
+  const patch = await fetch("/api/partnerships/documents", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: doc.id, status: "void" }),
+  });
+  const patchJson = await patch.json();
+  if (!patch.ok) throw new Error(patchJson.error || "Could not withdraw that document.");
+  const res = await fetch(`/api/partnerships/documents?id=${encodeURIComponent(doc.id)}`, {
+    method: "DELETE",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Could not delete that document.");
+}
+
+/** Every withdrawn copy on this school — test leftovers, not a live issue. */
+export async function clearWithdrawnDocuments(schoolId: string): Promise<number> {
+  const res = await fetch(
+    `/api/partnerships/documents?school_id=${encodeURIComponent(schoolId)}&status=void`,
+    { method: "DELETE" },
+  );
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Could not clear withdrawn documents.");
+  return Number(json.deleted) || 0;
 }
 
 /** What may follow the state a document is in. */
@@ -118,6 +157,7 @@ export function PartnershipDocumentArchive({
   onChanged,
   redrawPayload,
   focusId,
+  schoolId,
 }: {
   documents: IssuedDocumentRow[];
   canWrite: boolean;
@@ -127,6 +167,7 @@ export function PartnershipDocumentArchive({
   redrawPayload?: () => Record<string, unknown>;
   /** Highlight the row the pipeline sent you here to act on. */
   focusId?: string | null;
+  schoolId: string;
 }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -138,8 +179,8 @@ export function PartnershipDocumentArchive({
     title: string;
     body: string;
     confirmLabel: string;
-    kind: "void" | "draft" | "delete";
-    doc: IssuedDocumentRow;
+    kind: "void" | "draft" | "delete" | "clear-void";
+    doc: IssuedDocumentRow | null;
   } | null>(null);
   const [askBusy, setAskBusy] = useState(false);
 
@@ -207,8 +248,8 @@ export function PartnershipDocumentArchive({
     if (to === "void") {
       setAsk({
         title: `Withdraw ${doc.reference}?`,
-        body: "It stays on record, and the link stops working for the school.",
-        confirmLabel: "Withdraw",
+        body: "This MoU is signed. The school's link stops working, then this copy comes off the list.",
+        confirmLabel: "Delete",
         kind: "void",
         doc,
       });
@@ -272,18 +313,22 @@ export function PartnershipDocumentArchive({
   }
 
   async function remove(doc: IssuedDocumentRow) {
+    const isProposal = doc.document_kind === "proposal";
     const unopened = doc.status === "sent" && opens(doc) === 0;
-    const body =
-      doc.status === "draft"
-        ? "Nothing has been sent, so nothing is lost."
-        : unopened
-          ? "It was sent but nobody opened it. Take it back and delete it?"
-          : "";
+    const body = isProposal
+      ? "A proposal is not a contract. Discard it and issue another whenever you need."
+      : doc.status === "draft"
+        ? "This MoU has not been signed. Nothing is lost."
+        : doc.status === "void" || doc.status === "declined"
+          ? "The school's link already stopped working. Remove it from this list?"
+          : unopened || doc.status === "sent"
+            ? "This MoU is not signed yet. Discard it and issue another if you need to."
+            : "";
     if (!body) return;
     setAsk({
-      title: `Delete ${doc.reference}?`,
+      title: `${isProposal ? "Discard" : "Delete"} ${doc.reference}?`,
       body,
-      confirmLabel: "Delete",
+      confirmLabel: isProposal ? "Discard" : "Delete",
       kind: "delete",
       doc,
     });
@@ -293,13 +338,27 @@ export function PartnershipDocumentArchive({
     if (!ask) return;
     setAskBusy(true);
     try {
-      if (ask.kind === "delete") {
+      if (ask.kind === "clear-void") {
+        setError("");
+        const n = await clearWithdrawnDocuments(schoolId);
+        setNotice(n ? `${n} withdrawn ${n === 1 ? "copy" : "copies"} removed.` : "Nothing withdrawn to remove.");
+        await onChanged();
+      } else if (ask.kind === "delete") {
+        if (!ask.doc) return;
         setBusy(ask.doc.id);
         setError("");
         await removePartnershipDocument(ask.doc);
         await onChanged();
         setBusy("");
+      } else if (ask.kind === "void") {
+        if (!ask.doc) return;
+        setBusy(ask.doc.id);
+        setError("");
+        await discardPartnershipDocument(ask.doc);
+        await onChanged();
+        setBusy("");
       } else {
+        if (!ask.doc) return;
         const ok = await applyMove(ask.doc, ask.kind);
         if (!ok) return;
       }
@@ -323,17 +382,39 @@ export function PartnershipDocumentArchive({
     );
   }
 
+  const withdrawn = documents.filter((d) => d.status === "void");
+
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-foreground">Issued documents</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {documents.length} on record. View the pages, or delete a draft — and a send nobody opened.
-        </p>
-        {documents.some((d) => d.status === "draft") && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
-            Drafts are not live. The school cannot open the public link until you send or mark sent.
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Issued documents</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {documents.length} on record. A proposal is a quote — discard and reissue as often as you need. The MoU is the legal document.
           </p>
+          {documents.some((d) => d.status === "draft") && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+              Drafts are not live. The school cannot open the public link until you send or mark sent.
+            </p>
+          )}
+        </div>
+        {canWrite && withdrawn.length > 0 && (
+          <button
+            type="button"
+            onClick={() =>
+              setAsk({
+                title: `Delete ${withdrawn.length} withdrawn ${withdrawn.length === 1 ? "copy" : "copies"}?`,
+                body: "These never needed to stay on the desk — they are mistakes. The school's links already stopped working.",
+                confirmLabel: "Delete them",
+                kind: "clear-void",
+                doc: null,
+              })
+            }
+            disabled={Boolean(busy) || askBusy}
+            className="shrink-0 min-h-[44px] px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-40"
+          >
+            Delete withdrawn ({withdrawn.length})
+          </button>
         )}
       </div>
 
@@ -379,7 +460,7 @@ export function PartnershipDocumentArchive({
                       STATUS_STYLES[doc.status] || STATUS_STYLES.draft
                     }`}
                   >
-                    {doc.status}
+                    {STATUS_LABEL[doc.status] ?? doc.status}
                   </span>
 
                   {/* 6-Digit Access Code Pill */}
@@ -474,11 +555,11 @@ export function PartnershipDocumentArchive({
                         type="button"
                         onClick={() => remove(doc)}
                         disabled={busy === doc.id}
-                        aria-label={`Delete ${doc.reference ?? "this document"}`}
+                        aria-label={`${doc.document_kind === "proposal" ? "Discard" : "Delete"} ${doc.reference ?? "this document"}`}
                         className="inline-flex items-center justify-center gap-1.5 min-h-[48px] px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-40"
                       >
                         <TrashIcon className="w-4 h-4" />
-                        Delete
+                        {doc.document_kind === "proposal" ? "Discard" : "Delete"}
                       </button>
                     )}
                     {canWrite && !canDeleteDocument(doc) && doc.status !== "void" && (
@@ -606,7 +687,7 @@ export function PartnershipDocumentArchive({
       </ul>
 
       <p className="text-[10px] text-muted-foreground border-t border-border/60 pt-3">
-        A sent or signed document is never deleted — voiding keeps the record that it existed.
+        A proposal is not a contract. A signed MoU is — withdraw that first so the school’s link dies, then it comes off the list.
       </p>
 
       <PartnershipConfirm

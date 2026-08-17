@@ -188,7 +188,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     background: #ffffff; color: #1e293b;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
     border-radius: 2px; position: relative; box-sizing: border-box;
-    overflow: hidden;
+    overflow: hidden; flex-shrink: 0;
   }
 
   @media print {

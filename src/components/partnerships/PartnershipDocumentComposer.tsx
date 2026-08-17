@@ -29,6 +29,9 @@ import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { DocumentKind, IssuedDocument, IssuedDocumentRow, SchoolRow, TermsRow } from "./types";
 import type { ProposalStudioConfig } from "@/lib/partnerships/studio-config";
 import type { ProposalNarrative } from "@/lib/partnerships/proposal-narrative";
+import { canDeletePartnershipDocument } from "@/lib/partnerships/document-discard";
+import { removePartnershipDocument } from "./PartnershipDocumentArchive";
+import { PartnershipConfirm } from "./PartnershipConfirm";
 
 const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
@@ -64,6 +67,8 @@ type ComposerProps = {
   documents?: IssuedDocumentRow[];
   /** Open the live draft/sent copy instead of writing a second one. */
   onOpenLive?: (doc: IssuedDocumentRow) => void;
+  /** After discarding the live copy from this panel. */
+  onLiveDiscarded?: () => void | Promise<void>;
 };
 
 export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerProps>(
@@ -79,6 +84,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       kind,
       documents = [],
       onOpenLive,
+      onLiveDiscarded,
     },
     ref,
   ) {
@@ -106,6 +112,8 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   const [recipientEmail, setRecipientEmail] = useState(school.email || "");
   const [issuing, setIssuing] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [askDiscard, setAskDiscard] = useState(false);
   const [error, setError] = useState("");
   const { terms: academicTerms, current: currentTerm } = useAcademicTerms();
 
@@ -181,6 +189,31 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
     () => liveDocumentOfKind(documents, kind),
     [documents, kind],
   );
+
+  const liveRow = useMemo(
+    () =>
+      documents.find(
+        (d) =>
+          d.document_kind === kind &&
+          (d.id === liveQuote?.id || d.reference === liveQuote?.reference),
+      ) ?? null,
+    [documents, kind, liveQuote],
+  );
+
+  async function discardLive() {
+    if (!liveRow || !canDeletePartnershipDocument(liveRow)) return;
+    setDiscarding(true);
+    setError("");
+    try {
+      await removePartnershipDocument(liveRow);
+      setAskDiscard(false);
+      await onLiveDiscarded?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not discard that copy.");
+    } finally {
+      setDiscarding(false);
+    }
+  }
 
   /**
    * What this proposal cannot say yet, and what each omission costs it.
@@ -328,26 +361,35 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 {liveQuote.reference ?? "A document"} is already here
               </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {liveQuote.status === "draft"
-                  ? "It is a draft — the school cannot open it. Send that copy instead of writing another."
-                  : "The school already has a live link. Another quote is how two different numbers go out."}
+                {kind === "proposal"
+                  ? liveQuote.status === "draft"
+                    ? "It is a draft — discard it and write another, or send this copy."
+                    : "A proposal is not a contract. Discard it and issue another, or the new send will replace this one."
+                  : liveQuote.status === "draft"
+                    ? "It is a draft — the school cannot open it. Send that copy, or discard it and write another."
+                    : "An unsigned MoU can be discarded and reissued. Sending a new one replaces this copy."}
               </p>
-              {onOpenLive && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const row = documents.find(
-                      (d) =>
-                        d.document_kind === kind &&
-                        (d.id === liveQuote.id || d.reference === liveQuote.reference),
-                    );
-                    if (row) onOpenLive(row);
-                  }}
-                  className="mt-3 inline-flex min-h-[44px] items-center px-4 rounded-xl bg-foreground text-background text-xs font-bold"
-                >
-                  Open {liveQuote.reference ?? "it"}
-                </button>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {onOpenLive && liveRow && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenLive(liveRow)}
+                    className="inline-flex min-h-[44px] items-center px-4 rounded-xl bg-foreground text-background text-xs font-bold"
+                  >
+                    Open {liveQuote.reference ?? "it"}
+                  </button>
+                )}
+                {canWrite && liveRow && canDeletePartnershipDocument(liveRow) && (
+                  <button
+                    type="button"
+                    onClick={() => setAskDiscard(true)}
+                    disabled={discarding}
+                    className="inline-flex min-h-[44px] items-center px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-40"
+                  >
+                    Discard this {kind === "mou" ? "MoU" : "quote"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -750,7 +792,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 the commitment second. */}
             <button
               onClick={preview}
-              disabled={previewing || issuing || mouBlocked}
+              disabled={previewing || issuing || mouBlocked || discarding}
               className="w-full sm:w-auto px-6 py-3 rounded-2xl text-xs sm:text-sm font-black bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground shadow-lg shadow-violet-950/30 transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
               {previewing ? (
@@ -763,7 +805,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
 
             <button
               onClick={() => void issue(true)}
-              disabled={issuing || previewing || mouBlocked}
+              disabled={issuing || previewing || mouBlocked || discarding}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
               {issuing ? (
@@ -784,7 +826,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
           <button
             type="button"
             onClick={() => void issue(false)}
-            disabled={issuing || previewing || mouBlocked}
+            disabled={issuing || previewing || mouBlocked || discarding}
             className="text-[11px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
             Save draft without sending
@@ -792,6 +834,11 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
 
           <p className="text-[11px] text-muted-foreground">
             Preview does not save. Send stores the copy and emails the link so the school can open it.
+            {liveQuote
+              ? kind === "proposal"
+                ? " A new send discards the previous quote."
+                : " A new send discards the previous unsigned MoU."
+              : ""}
           </p>
         </div>
       ) : (
@@ -799,6 +846,22 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
           Sending a document is an admin action. You are viewing this in read-only mode.
         </p>
       )}
+
+      <PartnershipConfirm
+        open={askDiscard}
+        title={`Discard ${liveQuote?.reference ?? "this copy"}?`}
+        body={
+          kind === "proposal"
+            ? "A proposal is not a contract. Discard it and write another whenever you need."
+            : "This MoU is not signed. Discard it and issue another if you need to."
+        }
+        confirmLabel="Discard"
+        busy={discarding}
+        onCancel={() => {
+          if (!discarding) setAskDiscard(false);
+        }}
+        onConfirm={() => void discardLive()}
+      />
     </div>
   );
 });

@@ -106,6 +106,7 @@ function makeDb(
       }
       return chain;
     },
+    rpc: async () => ({ data: 0, error: null }),
   };
   return { db, updates, inserted };
 }

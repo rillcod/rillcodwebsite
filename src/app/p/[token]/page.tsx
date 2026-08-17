@@ -20,6 +20,7 @@ import {
   ExclamationTriangleIcon,
 } from "@/lib/icons";
 import { downloadDocumentPdf, documentFilename } from "@/lib/partnerships/proposal-pdf";
+import { measureIssuedDocumentHeight } from "@/lib/partnerships/document-preview-height";
 import { SignatureModal } from "@/components/partnerships/SignatureModal";
 import { brandContact } from "@/config/brand";
 // One list, shared with the printed document. Two copies of an answer is how
@@ -142,12 +143,7 @@ export default function PublicDocumentPage({
       try {
         const inner = frame.contentDocument || frame.contentWindow?.document;
         if (!inner?.body) return;
-        const h = Math.max(
-          inner.body.scrollHeight,
-          inner.body.offsetHeight,
-          inner.documentElement?.scrollHeight ?? 0,
-          inner.documentElement?.offsetHeight ?? 0,
-        );
+        const h = measureIssuedDocumentHeight(inner);
         if (h > 100) {
           setDocHeight((prev) => (Math.abs(prev - h) > 2 ? h : prev));
         }
@@ -624,7 +620,7 @@ export default function PublicDocumentPage({
                 srcDoc={doc.html}
                 title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
                 sandbox="allow-same-origin allow-modals"
-                className="w-full bg-white block"
+                className="w-full bg-white block pointer-events-none"
                 scrolling="no"
                 // No minimum height once the real one is known. A floor of
                 // 1400px on a document measured at 1100 is 300px of white the
