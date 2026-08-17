@@ -70,7 +70,16 @@
       "Bash(mkdir -p __TRACKED_VAR__/vercel-backup)",
       "Bash(cp .env.vercel.local __TRACKED_VAR__/vercel-backup/)",
       "Bash(cp vercel.json __TRACKED_VAR__/vercel-backup/)",
-      "Bash(cp -r .vercel __TRACKED_VAR__/vercel-backup/dot-vercel)"
+      "Bash(cp -r .vercel __TRACKED_VAR__/vercel-backup/dot-vercel)",
+      "Bash(grep -v \"^$\")",
+      "Bash(PAGE_FIT_VERBOSE=1 npx tsx scripts/check-page-fit.ts)",
+      "Bash(echo \"push rc=$?\")",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && npx tsc --noEmit; TSC=$?; npx vitest run > /tmp/v.log 2>&1; VT=$?; PAGE_FIT_VERBOSE=1 npm run check:pages > /tmp/p.log 2>&1; PG=$?; grep -E \"Tests +[0-9]|FAIL\" /tmp/v.log|head -6; grep -E \"proposal|mou|CLIPPED\" /tmp/p.log|head -6; echo \"tsc=$TSC vitest=$VT pages=$PG\")",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && npx tsc --noEmit; TSC=$?; npx vitest run > /tmp/v.log 2>&1; VT=$?; npm run check:pages > /tmp/p.log 2>&1; PG=$?; grep -E \"Tests +[0-9]|FAIL\" /tmp/v.log|head -8; tail -1 /tmp/p.log; echo \"tsc=$TSC vitest=$VT pages=$PG\")",
+      "Bash(npx vitest *)",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && npm run check:pages 2>&1 | grep -E \"ok |CLIPPED|TIGHT|every page\" | head -8 && npx tsc --noEmit; TSC=$?; npx vitest run >/tmp/v.log 2>&1; VT=$?; npm run check:routes >/tmp/r.log 2>&1; RT=$?; grep -E \"Tests +[0-9]|FAIL\" /tmp/v.log|head -3; tail -1 /tmp/r.log; echo \"tsc=$TSC vitest=$VT routes=$RT\")",
+      "Bash(echo \"tsc=$?\")",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && npx tsc --noEmit; TSC=$?; npx vitest run >/tmp/v.log 2>&1; VT=$?; npm run check:routes >/tmp/r.log 2>&1; RT=$?; npm run check:pages >/tmp/p.log 2>&1; PG=$?; grep -E \"Tests +[0-9]|FAIL\" /tmp/v.log|head -3; tail -1 /tmp/r.log; tail -1 /tmp/p.log; echo \"tsc=$TSC vitest=$VT routes=$RT pages=$PG\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",

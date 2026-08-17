@@ -15,7 +15,7 @@
  * what lets the print dialog open at all.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -168,6 +168,27 @@ export function IssuedDocumentPreview({
       setSaving(false);
     }
   }
+
+  /**
+   * The document with a base address, so its images can be found.
+   *
+   * An iframe fed through srcDoc has no URL of its own, so a path like
+   * "/images/logo.png" has nothing to resolve against and silently fails —
+   * which is why the logo came out as a broken or washed-out box in the
+   * dashboard while looking perfectly fine on the school's copy, where the
+   * public page rewrites those paths before rendering.
+   *
+   * A single <base> tag is the whole fix: every relative path in the document
+   * then resolves against this origin, exactly as it does when the school
+   * opens it. Data URLs — the QR among them — are absolute already and are
+   * unaffected either way, so a QR missing here was never in the stored bytes
+   * and the document needs redrawing rather than re-viewing.
+   */
+  const framedHtml = useMemo(() => {
+    if (!html || typeof window === 'undefined') return html;
+    if (html.includes('<base ')) return html;
+    return html.replace(/<head(s[^>]*)?>/i, (m) => `${m}<base href="${window.location.origin}/">`);
+  }, [html]);
 
   const [zoom, setZoom] = useState<"fit" | "75" | "100">("fit");
   const paneRef = useRef<HTMLDivElement>(null);
@@ -492,7 +513,7 @@ export function IssuedDocumentPreview({
           >
             <iframe
               ref={frameRef}
-              srcDoc={html}
+              srcDoc={framedHtml}
               title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
               sandbox="allow-same-origin allow-modals"
               className="bg-white"

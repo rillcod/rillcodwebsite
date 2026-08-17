@@ -263,22 +263,22 @@ export default function PublicDocumentPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white">
         <ArrowPathIcon className="w-9 h-9 text-cyan-400 animate-spin mb-3.5" />
-        <p className="text-sm font-semibold text-slate-300">Loading partnership dossier…</p>
-        <p className="text-xs text-slate-500 mt-1">Preparing verified institutional documents</p>
+        <p className="text-sm font-semibold text-muted-foreground">Loading partnership dossier…</p>
+        <p className="text-xs text-muted-foreground mt-1">Preparing verified institutional documents</p>
       </div>
     );
   }
 
   if (error || !doc) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4 text-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white p-4 text-center">
         <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4 font-black text-2xl shadow-xl">
           !
         </div>
         <h1 className="text-xl font-bold text-white mb-2">Document Not Found</h1>
-        <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
           {error || "The requested reference does not exist or has expired."}
         </p>
         <Link
@@ -292,9 +292,9 @@ export default function PublicDocumentPage({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-cyan-500/30">
+    <div className="min-h-screen bg-background text-white flex flex-col font-sans selection:bg-cyan-500/30">
       {/* ── Top Executive Sticky Header ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/95 border-b border-white/10 backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+      <header className="sticky top-0 z-40 bg-card/95 border-b border-border backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-primary flex items-center justify-center text-white font-black text-base shadow-md shadow-primary/20">
             R
@@ -306,7 +306,7 @@ export default function PublicDocumentPage({
                 {doc.reference}
               </span>
             </h1>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-muted-foreground">
               {doc.school?.name ? `${doc.school.name} · ` : ""}
               Official Verified Dossier
             </p>
@@ -320,14 +320,14 @@ export default function PublicDocumentPage({
               agreement. Six digits typed at /p is that route.
             */}
             {doc.accessCode && (
-              <p className="mt-1 text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5">
-                <span className="uppercase tracking-wider font-bold text-slate-500">
+              <p className="mt-1 text-[10px] text-muted-foreground flex flex-wrap items-center gap-1.5">
+                <span className="uppercase tracking-wider font-bold text-muted-foreground">
                   Your access code
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-mono text-[11px] font-black border border-amber-500/30 tracking-widest">
                   {doc.accessCode}
                 </span>
-                <span className="hidden sm:inline text-slate-500">
+                <span className="hidden sm:inline text-muted-foreground">
                   — enter it at /p if you lose this link
                 </span>
               </p>
@@ -350,7 +350,7 @@ export default function PublicDocumentPage({
             type="button"
             onClick={() => setZoom((z) => (z === "fit" ? "100" : "fit"))}
             aria-label={zoom === "fit" ? "Zoom to actual size" : "Fit document to screen"}
-            className="sm:hidden flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-white/15 bg-white/5 text-white/90 text-xs font-bold active:scale-95 transition-all"
+            className="sm:hidden flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-border bg-muted/40 text-foreground/90 text-xs font-bold active:scale-95 transition-all"
           >
             {zoom === "fit" ? (
               <MagnifyingGlassPlusIcon className="w-3.5 h-3.5" />
@@ -361,11 +361,11 @@ export default function PublicDocumentPage({
           </button>
 
           {/* Zoom Controls */}
-          <div className="hidden sm:flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold text-white/70">
+          <div className="hidden sm:flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs font-semibold text-muted-foreground">
             <button
               onClick={() => setZoom("fit")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "fit" ? "bg-primary text-white shadow-sm" : "hover:text-white"
+                zoom === "fit" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
               }`}
             >
               Fit
@@ -373,7 +373,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("75")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "75" ? "bg-primary text-white shadow-sm" : "hover:text-white"
+                zoom === "75" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
               }`}
             >
               75%
@@ -381,7 +381,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("100")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "100" ? "bg-primary text-white shadow-sm" : "hover:text-white"
+                zoom === "100" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
               }`}
             >
               100%
@@ -389,7 +389,7 @@ export default function PublicDocumentPage({
             <button
               onClick={() => setZoom("125")}
               className={`px-2.5 py-1 rounded-lg transition-all ${
-                zoom === "125" ? "bg-primary text-white shadow-sm" : "hover:text-white"
+                zoom === "125" ? "bg-primary text-white shadow-sm" : "hover:text-foreground"
               }`}
             >
               125%
@@ -411,7 +411,7 @@ export default function PublicDocumentPage({
 
           <button
             onClick={() => frameRef.current?.contentWindow?.print()}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 text-xs font-semibold transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-white/10 text-xs font-semibold transition-all"
           >
             <PrinterIcon className="w-3.5 h-3.5" /> Print
           </button>
@@ -434,7 +434,7 @@ export default function PublicDocumentPage({
       </header>
 
       {/* ── Status Banner / Fast-Track Actions ── */}
-      <div className="border-b border-white/10 bg-slate-900/60 px-4 md:px-8 py-3.5">
+      <div className="border-b border-border bg-card/60 px-4 md:px-8 py-3.5">
         <div className="mx-auto max-w-[880px]">
           {doc.status === "signed" ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
@@ -465,13 +465,13 @@ export default function PublicDocumentPage({
               </button>
             </div>
           ) : doc.kind === "mou" ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-500/30 bg-slate-900/90 p-4 shadow-xl">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-500/30 bg-card/90 p-4 shadow-xl">
               <SparklesIcon className="h-6 w-6 shrink-0 text-cyan-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white">
                   Memorandum of Understanding · Ready for Execution
                 </p>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Signing records your name, title, timestamp, and digital signature. Turnkey delivery with all robotics hardware supplied.
                 </p>
               </div>
@@ -483,20 +483,20 @@ export default function PublicDocumentPage({
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-xl">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/90 p-4 shadow-xl">
               <EnvelopeIcon className="h-6 w-6 shrink-0 text-cyan-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white">
                   Official Partnership Proposal for {doc.school?.name || "Your School"}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Review the turnkey STEM curriculum, fee models, and profit share. When ready to proceed, we issue the formal MoU.
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <a
                   href={`tel:${brandContact.phone}`}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/10 transition-colors"
                 >
                   Call Desk
                 </a>
@@ -531,7 +531,7 @@ export default function PublicDocumentPage({
       */}
       <main
         ref={containerRef}
-        className={`flex-1 bg-slate-950 p-3 sm:p-6 md:p-8 flex flex-col overflow-auto pb-28 md:pb-16 space-y-8 ${
+        className={`flex-1 bg-background p-3 sm:p-6 md:p-8 flex flex-col overflow-auto pb-28 md:pb-16 space-y-8 ${
           isSmallScreen && zoom !== "fit" ? "items-start" : "items-center"
         }`}
       >
@@ -612,14 +612,14 @@ export default function PublicDocumentPage({
           not have.
         */}
         {pageTops.length > 1 && (
-          <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
-            <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/15 bg-slate-900/95 backdrop-blur p-1.5 shadow-2xl shadow-black/60">
+          <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-border bg-card/95 backdrop-blur p-1.5 shadow-2xl shadow-black/60">
               <button
                 type="button"
                 onClick={() => goToPage(Math.max(0, currentPage - 2))}
                 disabled={currentPage <= 1}
                 aria-label="Previous page"
-                className="shrink-0 w-11 h-11 rounded-xl border border-white/10 bg-white/5 text-white/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
               >
                 <ChevronUpIcon className="w-4 h-4" />
               </button>
@@ -641,7 +641,7 @@ export default function PublicDocumentPage({
                 onClick={() => goToPage(Math.min(pageTops.length - 1, currentPage))}
                 disabled={currentPage >= pageTops.length}
                 aria-label="Next page"
-                className="shrink-0 w-11 h-11 rounded-xl border border-white/10 bg-white/5 text-white/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
+                className="shrink-0 w-11 h-11 rounded-xl border border-border bg-muted/40 text-foreground/90 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center"
               >
                 <ChevronDownIcon className="w-4 h-4" />
               </button>
@@ -678,72 +678,72 @@ export default function PublicDocumentPage({
         {pageTops.length > 1 && <div className="sm:hidden h-20 shrink-0" aria-hidden="true" />}
 
         {/* ── Interactive Value Pillars & Proprietor Advantage Box ── */}
-        <section className="w-full max-w-[850px] rounded-3xl bg-slate-900 border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+        <section className="w-full max-w-[850px] rounded-3xl bg-card border border-border p-6 sm:p-8 shadow-2xl space-y-6">
           <div className="text-center space-y-1.5 max-w-xl mx-auto">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full text-cyan-400 text-[10px] font-black uppercase tracking-wider">
               <ShieldCheckIcon className="w-3.5 h-3.5" />
               Institutional Guarantee
             </span>
             <h3 className="text-lg sm:text-xl font-black text-white">Why schools partner with us</h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Everything needed to run coding and applied AI on your own timetable, without capital outlay.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
               <BanknotesIcon className="w-6 h-6 text-amber-400" />
               <p className="text-xs font-black text-white">₦0 Upfront CapEx</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Robotics kits, circuits, and learning hardware arrive with our certified facilitators.
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
               <BuildingOffice2Icon className="w-6 h-6 text-emerald-400" />
               <p className="text-xs font-black text-white">Negotiable Revenue Share</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Direct profit-sharing settled to your school account at the end of each academic term as agreed.
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
               <SparklesIcon className="w-6 h-6 text-cyan-400" />
               <p className="text-xs font-black text-white">12-Year STEM Matrix</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Accredited ladder from Basic 1 block coding to SS3 full-stack AI, Python &amp; IoT builds.
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-1.5">
               <DevicePhoneMobileIcon className="w-6 h-6 text-violet-400" />
               <p className="text-xs font-black text-white">Parent Progress Cards</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Scan-to-Watch QR codes so parents can see their child demonstrating working code.
               </p>
             </div>
           </div>
 
           {/* FAQ Accordion */}
-          <div className="pt-4 border-t border-white/10 space-y-2 overscroll-contain">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 mb-3 text-center sm:text-left">
+          <div className="pt-4 border-t border-border space-y-2 overscroll-contain">
+            <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-3 text-center sm:text-left">
               Frequently Asked Questions by School Proprietors
             </h4>
             {PROPRIETOR_FAQS.map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
-                <div key={idx} className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+                <div key={idx} className="rounded-2xl bg-white/[0.03] border border-border overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 text-xs font-bold text-white hover:bg-white/5 transition-colors"
+                    className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 text-xs font-bold text-white hover:bg-muted/40 transition-colors"
                   >
                     <span>{faq.q}</span>
                     {isOpen ? (
                       <ChevronUpIcon className="w-4 h-4 text-cyan-400 shrink-0" />
                     ) : (
-                      <ChevronDownIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                      <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
                     )}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 text-xs text-slate-300 leading-relaxed border-t border-white/5 pt-2.5">
+                    <div className="px-4 pb-4 text-xs text-muted-foreground leading-relaxed border-t border-white/5 pt-2.5">
                       {faq.a}
                     </div>
                   )}
@@ -753,10 +753,10 @@ export default function PublicDocumentPage({
           </div>
 
           {/* Direct CTA Box */}
-          <div className="rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-800 to-cyan-950/40 border border-cyan-500/30 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+          <div className="rounded-2xl bg-gradient-to-r from-cyan-500/10 via-muted to-cyan-500/10 border border-cyan-500/30 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             <div>
               <p className="text-xs font-black text-white">Ready to inspect hardware or schedule a live demo?</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 Our academic team is available to visit your school or host an online briefing.
               </p>
             </div>
@@ -776,7 +776,7 @@ export default function PublicDocumentPage({
       </main>
 
       {/* ── Mobile Sticky Bottom Floating Action Bar ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 border-t border-white/10 backdrop-blur-lg px-4 py-3 flex items-center justify-between gap-2 shadow-2xl">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 border-t border-border backdrop-blur-lg px-4 py-3 flex items-center justify-between gap-2 shadow-2xl">
         <a
           href={`${brandContact.whatsapp}?text=${encodeURIComponent(
             `Hello Rillcod — regarding ${doc.kind === "mou" ? "MoU" : "proposal"} ${doc.reference} for ${doc.school?.name || "our school"}.`,
@@ -789,7 +789,7 @@ export default function PublicDocumentPage({
         </a>
         <a
           href={`tel:${brandContact.phone}`}
-          className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-300"
+          className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-xs font-bold text-muted-foreground"
         >
           Call
         </a>
