@@ -1721,19 +1721,25 @@ ${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
     <!--
-      Two sentences, and only what the page does not already carry.
+      The hook first, the company second.
 
-      The supplied "about us" copy says a great deal that is already here in
-      tighter form: the ten years, the move from memorised ICT to work that gets
-      made, the breadth beyond coding \u2014 all of that is the mission line below
-      and the disciplines table. Repeating it would pad the page and dull the
-      parts that are doing work.
+      This opened on a registered name, an RC number and a postal address —
+      three facts already printed on the cover footer, and the least interesting
+      sentence available to start with. Everything after it then arrived as one
+      paragraph carrying five separate ideas, so nothing in it landed.
 
-      What was genuinely missing is who teaches it and what a learner leaves
-      with, so that is what is added: a young team, and the promise stated as
-      something a parent can check rather than an ambition.
+      A proposal is read by somebody deciding whether to keep reading. The first
+      sentence has to be about their world, not our paperwork: nearly every
+      school already teaches computers, and very few teach a child to build
+      anything with one. That is a gap a head teacher recognises in their own
+      timetable, and it is the whole argument in two lines.
+
+      The legal identity is not lost — it is on the cover footer, on the running
+      head of every sheet, and in full on the MoU that follows. It does not need
+      to be the opening line of the pitch as well.
     -->
-    <p><b>${esc(brandContact.registeredName)}</b>, trading as ${esc(brandContact.displayName)} (${esc(brandContact.rcNumber)}), is a coding and artificial intelligence education partner based in ${esc(brandContact.addressShort)}. For over ten years we have taught young people to build with technology, and we deliver that work as a school\u2019s own technology department \u2014 our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable. We are a young team teaching a young subject, and we hold the work to one test: a learner should see what is possible, learn the process, and leave with progress they can show anywhere in the world.${input.proof
+    <p>Nearly every school already teaches computers. Very few teach a child to build anything with one — the lesson is still the parts of a machine and the names of the menus, and a learner leaves able to operate software somebody else made. Closing that gap is the whole of what we do.</p>
+    <p>${esc(brandContact.displayName)} has taught young people to build with technology for over ten years, and we deliver it as a school’s own technology department — our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable. We are a young team teaching a young subject, and we hold the work to one test: a learner should see what is possible, learn the process, and leave with progress they can show anywhere in the world.${input.proof
         ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
         : ''
       }</p>
@@ -1757,7 +1763,6 @@ ${on('intro') ? `  <section>
     <!-- Says nothing about how many years. A quote can be scoped to one, and the
          page beside this one already prints the real count from the curriculum
          being sold; a hardcoded "twelve-year" here would contradict it. -->
-    <p class="muted" style="margin-top:5mm">The fees, the progression and the responsibilities on each side are set out here exactly as they run in our partner schools today.</p>
   </section>` : ''}
 ${splitOverview && on('fieldProof') ? fieldProofSection : ''}
 ${splitOverview
