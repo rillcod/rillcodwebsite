@@ -276,6 +276,70 @@ export default function PartnershipsPage() {
   // Latest active document for quick header link
   const latestDoc = documents[0] || null;
 
+  /**
+   * Where this school actually is, and the one thing to do next.
+   *
+   * The workspace has five tabs and the answer to "what happens now" was spread
+   * across four of them: whether a rate exists is in Terms, whether anything has
+   * been sent is in Archive, whether it was opened is nowhere, and whether the
+   * document can even compute its own returns page depends on a share recorded
+   * two screens away. Everyone was assembling this by hand, every time, and
+   * mostly getting it wrong — which is how a school ended up quoted a rate with
+   * no split and nobody noticed until the PDF was read.
+   *
+   * One sentence, one button, computed from what is already loaded.
+   */
+  const dealState = useMemo(() => {
+    if (!selected) return null;
+    const signed = documents.find((d) => d.status === 'signed');
+    if (signed) {
+      return {
+        tone: 'done' as const,
+        headline: `Signed — ${signed.reference ?? 'agreement on record'}`,
+        detail: signed.signed_by_name ? `Signed by ${signed.signed_by_name}.` : 'The agreement is on record.',
+        action: null,
+      };
+    }
+    if (!agreed) {
+      return {
+        tone: 'todo' as const,
+        headline: 'No agreed rate yet',
+        detail:
+          'A proposal can go out on the standard menu, but an MoU cannot be issued until a rate is recorded.',
+        action: { label: 'Record terms', tab: 'terms' as WorkspaceTab },
+      };
+    }
+    if (agreed.school_share_percent == null) {
+      return {
+        tone: 'warn' as const,
+        headline: 'Rate agreed, but no revenue share',
+        detail:
+          'The returns page cannot work out what this school earns until a split is recorded — or the deal is marked as a flat fee.',
+        action: { label: 'Fix the split', tab: 'terms' as WorkspaceTab },
+      };
+    }
+    const sent = documents.find((d) => d.status === 'sent');
+    if (sent) {
+      const opens = Number(sent.open_count) || 0;
+      return {
+        tone: 'wait' as const,
+        headline: opens ? `Sent, opened ${opens}×` : 'Sent, not opened yet',
+        detail: opens
+          ? 'They have read it. Worth a follow-up if there has been no answer.'
+          : 'It has not been opened. Check the link reached the right person.',
+        action: { label: 'Open the archive', tab: 'archive' as WorkspaceTab },
+      };
+    }
+    return {
+      tone: 'ready' as const,
+      headline: 'Terms are recorded — ready to issue',
+      detail: agreed.settlement_trigger
+        ? 'Rate, split and settlement are all on record.'
+        : 'No settlement terms yet, so the proposal will not say when they are paid.',
+      action: { label: agreed.settlement_trigger ? 'Compose a document' : 'Add settlement terms', tab: (agreed.settlement_trigger ? 'compose' : 'terms') as WorkspaceTab },
+    };
+  }, [selected, agreed, documents]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -796,6 +860,45 @@ export default function PartnershipsPage() {
                   </div>
                 </div>
               </div>
+
+              {/*
+                Where this school is, above the tabs rather than inside one.
+
+                It is the first question anybody opening a school has, and until
+                now answering it meant visiting Terms to see if there was a rate,
+                then Archive to see if anything had gone out, then working out
+                for yourself whether the two agreed. The tabs stay; this just
+                means you no longer have to tour them to find out where you are.
+              */}
+              {dealState && (
+                <div
+                  className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                    dealState.tone === 'done'
+                      ? 'border-emerald-500/30 bg-emerald-500/10'
+                      : dealState.tone === 'warn'
+                        ? 'border-amber-500/30 bg-amber-500/10'
+                        : dealState.tone === 'todo'
+                          ? 'border-border bg-muted/40'
+                          : 'border-sky-500/25 bg-sky-500/10'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-foreground">{dealState.headline}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {dealState.detail}
+                    </p>
+                  </div>
+                  {dealState.action && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(dealState.action!.tab)}
+                      className="shrink-0 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold transition-transform active:scale-95 min-h-[42px]"
+                    >
+                      {dealState.action.label}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/*
                 Workspace tabs.
