@@ -50,7 +50,7 @@ type DocData = {
 const PROPRIETOR_FAQS = [
   {
     q: "What if our school doesn't have an equipped computer laboratory?",
-    a: "Rillcod provides turnkey delivery. Our certified facilitators bring standalone robotics kits, micro-controllers, and practical learning hardware directly to your timetable sessions. No upfront lab buildout required.",
+    a: "You do not need one. Our facilitators bring the devices, micro-controllers and hardware kits to your timetable slot, and take them away again. There is no laboratory to build and no equipment for the school to buy, replace or insure.",
   },
   {
     q: "Will our existing school teachers be burdened with extra work?",
@@ -58,15 +58,15 @@ const PROPRIETOR_FAQS = [
   },
   {
     q: "How does the revenue share settlement work?",
-    a: "For every student enrolled in the STEM & Coding programme, the agreed revenue share (e.g. 30% or custom percentage) is retained by / settled directly to your school account at the end of each academic term.",
+    a: "Your school's share is the percentage set out in this document, worked from the learners who actually enrol each term. When and how it is settled is stated in the document above.",
   },
   {
     q: "What tangible proof do parents receive at the end of each term?",
-    a: "Every learner completes a hands-on capstone build. Parents receive an official progress report with a Scan-to-Watch QR code linking directly to a video of their child demonstrating their working coding/robotics project.",
+    a: "Every learner completes a hands-on capstone build and keeps a portfolio of work that runs. Parents receive a written progress report each term, and the report card carries a QR code they can scan to verify it online.",
   },
   {
     q: "How quickly can teaching commence once signed?",
-    a: "Teaching begins immediately upon term resumption on the agreed timetable slot. Facilitator deployment and hardware allocation are finalized within 48 hours of MoU execution.",
+    a: "Teaching starts the term after signing, in the timetable slot you choose. Signing early is what reserves a facilitator and the equipment for that slot.",
   },
 ];
 
@@ -83,6 +83,8 @@ export default function PublicDocumentPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [zoom, setZoom] = useState<"fit" | "75" | "100" | "125">("fit");
+  /** The document's own height, measured from inside the iframe. */
+  const [docHeight, setDocHeight] = useState(0);
   const [savingPdf, setSavingPdf] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -127,6 +129,19 @@ export default function PublicDocumentPage({
     const frame = frameRef.current;
     if (!frame || !doc?.html) return;
 
+    /*
+      Measure the document, and put the number in state.
+
+      It used to be written straight onto the iframe's style. That works for the
+      iframe and tells the rest of the layout nothing — so the wrapper that has
+      to reserve the scaled height had no idea how tall the document was, and
+      the centring and the height correction were computed from two different
+      ideas of the same document.
+
+      Only set when it actually changes: this runs on load, on resize and on
+      five timers, and writing identical state on every one of them re-renders
+      the page repeatedly while somebody is trying to scroll it.
+    */
     const updateHeight = () => {
       try {
         const inner = frame.contentDocument || frame.contentWindow?.document;
@@ -138,7 +153,7 @@ export default function PublicDocumentPage({
           inner.documentElement?.offsetHeight ?? 0,
         );
         if (h > 100) {
-          frame.style.height = `${h + 30}px`;
+          setDocHeight((prev) => (Math.abs(prev - h) > 2 ? h : prev));
         }
       } catch {
         // Suppress cross-origin if any
@@ -186,6 +201,17 @@ export default function PublicDocumentPage({
   const isSmallScreen = containerWidth < baseDocWidth && containerWidth > 0;
   const responsiveScale =
     zoom === "fit" && isSmallScreen ? Math.max(0.4, (containerWidth - 24) / baseDocWidth) : 1;
+  /*
+    The two numbers the layout actually needs.
+
+    `isScaled` is the only condition under which the document is painted at a
+    size different from the room it occupies, and `scaledHeight` is that room.
+    Both were previously recomputed inline in three places with slightly
+    different conditions, which is how the height correction and the transform
+    ended up disagreeing about whether scaling was happening at all.
+  */
+  const isScaled = isSmallScreen && zoom === "fit" && responsiveScale < 1;
+  const scaledHeight = docHeight ? Math.round(docHeight * responsiveScale) : 0;
 
   if (loading) {
     return (
@@ -469,24 +495,57 @@ export default function PublicDocumentPage({
             maxWidth: zoom === "125" ? "1060px" : zoom === "100" ? "850px" : zoom === "75" ? "640px" : "850px",
           }}
         >
+          {/*
+            Scaling changes what a page looks like, not how much room it takes.
+
+            A transform is painted, not laid out: the browser still reserves the
+            document's full unscaled height underneath it. The old fix was a
+            negative percentage bottom margin — but percentage margins resolve
+            against the container's WIDTH, never its height. On a phone that is
+            about 221px of correction for roughly 6,500px of removed height, so
+            a reader reached the end of a ten-page proposal and then scrolled
+            through six thousand pixels of empty black. It reads as the page
+            having frozen.
+
+            The wrapper is now simply told how tall the scaled document is, and
+            the document is centred by translating it rather than by relying on
+            a 794mm-wide box behaving inside a 375px one.
+          */}
           <div
-            className="bg-white shadow-2xl shadow-black/90 rounded-sm overflow-hidden"
+            className="relative w-full"
             style={{
-              width: `${baseDocWidth}px`,
-              transform: isSmallScreen && zoom === "fit" ? `scale(${responsiveScale})` : "none",
-              transformOrigin: "top center",
-              marginBottom: isSmallScreen && zoom === "fit" ? `-${(1 - responsiveScale) * 100}%` : "0",
+              height: isScaled && scaledHeight ? `${scaledHeight}px` : undefined,
             }}
           >
-            <iframe
-              ref={frameRef}
-              srcDoc={doc.html}
-              title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
-              sandbox="allow-same-origin allow-modals"
-              className="w-full bg-white block"
-              scrolling="no"
-              style={{ border: "none", minHeight: "1400px", height: "auto" }}
-            />
+            <div
+              className="bg-white shadow-2xl shadow-black/90 rounded-sm overflow-hidden"
+              style={{
+                width: `${baseDocWidth}px`,
+                position: isScaled ? "absolute" : "relative",
+                top: 0,
+                left: isScaled ? "50%" : undefined,
+                transform: isScaled
+                  ? `translateX(-50%) scale(${responsiveScale})`
+                  : undefined,
+                transformOrigin: "top center",
+              }}
+            >
+              <iframe
+                ref={frameRef}
+                srcDoc={doc.html}
+                title={`${doc.kind === "mou" ? "MoU" : "Proposal"} ${doc.reference}`}
+                sandbox="allow-same-origin allow-modals"
+                className="w-full bg-white block"
+                scrolling="no"
+                // No minimum height once the real one is known. A floor of
+                // 1400px on a document measured at 1100 is 300px of white the
+                // reader has to scroll past to reach the buttons.
+                style={{
+                  border: "none",
+                  height: docHeight ? `${docHeight}px` : "1400px",
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -497,9 +556,9 @@ export default function PublicDocumentPage({
               <ShieldCheckIcon className="w-3.5 h-3.5" />
               Institutional Guarantee
             </span>
-            <h3 className="text-lg sm:text-xl font-black text-white">Why Forward-Thinking Schools Partner with Rillcod</h3>
+            <h3 className="text-lg sm:text-xl font-black text-white">Why schools partner with us</h3>
             <p className="text-xs text-slate-400">
-              Everything needed to run an elite computing, robotics and AI department without upfront capital outlay.
+              Everything needed to run coding and applied AI on your own timetable, without capital outlay.
             </p>
           </div>
 
