@@ -152,6 +152,29 @@ export function PartnershipDocumentComposer({
     [offerCode],
   );
 
+  /**
+   * What this proposal cannot say yet, and what each omission costs it.
+   *
+   * Every one of these silently thins the money page — the sheet a head
+   * teacher rereads — and none of them raised anything anywhere before now.
+   */
+  const gaps = useMemo(() => {
+    if (kind !== 'proposal') return [];
+    const missing: string[] = [];
+    if (!agreed) {
+      missing.push('No agreed rate on record, so the fees page shows the standard menu rather than their price.');
+    } else if (agreed.school_share_percent == null) {
+      missing.push('No revenue share recorded, so the returns page cannot work out what the school earns.');
+    }
+    if (agreed && !agreed.settlement_trigger) {
+      missing.push('No settlement terms, so the proposal does not say when they are paid or what a mid-term withdrawal costs.');
+    }
+    if (!Number(students) && !school.student_count) {
+      missing.push('No enrolment for this school, so the uptake table shows illustrative sizes instead of theirs.');
+    }
+    return missing;
+  }, [kind, agreed, students, school.student_count]);
+
   // An MoU without agreed terms has no fee to state. The API refuses it with a
   // 409; the button refuses it here so nobody has to read a failure to find out.
   const mouBlocked = kind === "mou" && !agreed;
@@ -586,6 +609,48 @@ export function PartnershipDocumentComposer({
           <p className="text-[11px] text-muted-foreground leading-relaxed border-l-2 border-border pl-3">
             No part of an MoU is generated. It states the terms on record and nothing else.
           </p>
+        </div>
+      )}
+
+      {/*
+        What is missing, said once, where the document is being made.
+
+        Everything here was already knowable and scattered: the rate is in the
+        terms tab, the share is in the terms tab, the settlement answers are in
+        the terms tab, and the roll is on the school record — while the person
+        deciding whether to send a proposal is looking at this panel. So they
+        issued, opened the PDF, found a thin money page, and had to work out
+        which of four screens the hole came from.
+
+        One line per gap, each saying what it costs the document, with the one
+        button that fixes all of them.
+      */}
+      {kind === 'proposal' && gaps.length > 0 && (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 space-y-2.5">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                This proposal will print thinner than it needs to
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {gaps.map((g) => (
+                  <li key={g} className="text-xs text-muted-foreground leading-relaxed">
+                    · {g}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {canWrite && (
+            <button
+              type="button"
+              onClick={onRecordTerms}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors min-h-[40px]"
+            >
+              Record the commercial terms
+            </button>
+          )}
         </div>
       )}
 
