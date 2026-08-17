@@ -501,6 +501,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * reopened years later and printed.
    */
   /*
+    The shape of the three scenarios. Not the numbers — those are beside it.
+
+    Printing the figure after each bar is what put "₦3,15(" and "420 stu" past
+    the edge of a 300-unit canvas, clipped mid-digit: the largest and most
+    important number on the money page, cut in half. Widening the canvas would
+    only shrink the type.
+
+    The right fix is that the labels should not be there at all. The table to
+    the right of this carries every one of these figures exactly, and repeating
+    them inside the picture is the same duplication that stacking the two
+    created. The chart says which is bigger and by how much; the table says
+    what they are.
+
     Narrow, because it now sits beside the table rather than above it.
 
     Both showed the same three scenarios — the picture stacked on top of the
@@ -516,7 +529,8 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     const W = 300;
     const LABEL_W = 96;
     const BAR_X = LABEL_W + 8;
-    const BAR_MAX = 150;
+    // The bars now run to the edge, because nothing is printed after them.
+    const BAR_MAX = W - BAR_X - 4;
     const ROW_H = 42;
     const BAR_H = 18;
     const R = 4;
@@ -534,9 +548,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
           `V${y + BAR_H - r} A${r} ${r} 0 0 1 ${BAR_X + w - r} ${y + BAR_H} H${BAR_X} Z`;
         return `
         <text class="ch-lbl" x="${LABEL_W}" y="${y + BAR_H / 2 + 4}" text-anchor="end">${esc(row.label)}</text>
-        <path d="${path}" fill="#2563eb"></path>
-        <text class="ch-val" x="${BAR_X + w + 8}" y="${y + BAR_H / 2 + 4}">${esc(money(row.schoolShare))}</text>
-        <text class="ch-sub" x="${BAR_X + w + 8}" y="${y + BAR_H / 2 + 18}">${row.students} students</text>`;
+        <path d="${path}" fill="#2563eb"></path>`;
       })
       .join('');
 
