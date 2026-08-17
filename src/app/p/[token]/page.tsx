@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDownTrayIcon,
@@ -76,7 +76,9 @@ export default function PublicDocumentPage({
   const [savingPdf, setSavingPdf] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(850);
+  const [containerWidth, setContainerWidth] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerWidth : 0,
+  );
 
   const loadDoc = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -105,10 +107,12 @@ export default function PublicDocumentPage({
   }, [loadDoc]);
 
   // Track outer container width for responsive scaling on mobile screens
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
         setContainerWidth(containerRef.current.clientWidth);
+      } else if (typeof window !== "undefined") {
+        setContainerWidth(window.innerWidth);
       }
     };
     handleResize();
@@ -208,9 +212,11 @@ export default function PublicDocumentPage({
 
   // Calculate scale factor for mobile screens (A4 base width is approx 794px ~ 850px)
   const baseDocWidth = 850;
-  const isSmallScreen = containerWidth < baseDocWidth && containerWidth > 0;
+  const isSmallScreen = containerWidth < baseDocWidth;
   const responsiveScale =
-    zoom === "fit" && isSmallScreen ? Math.max(0.4, (containerWidth - 24) / baseDocWidth) : 1;
+    zoom === "fit" && isSmallScreen
+      ? Math.max(0.25, (Math.max(containerWidth, 280) - 24) / baseDocWidth)
+      : 1;
   /*
     The two numbers the layout actually needs.
 

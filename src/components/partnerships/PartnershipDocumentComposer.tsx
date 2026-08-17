@@ -530,9 +530,21 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Optional. Wording and photographs sit in the panel under this form if you want them.
-            </p>
+            <label className="mt-3 flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border"
+                checked={useAI}
+                onChange={(e) => setUseAI(e.target.checked)}
+              />
+              <span>
+                <span className="text-sm font-semibold text-foreground">Tailor the pitch with AI</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                  Preview first — the words you read are the words that issue. Notes above go into
+                  the brief. Photographs and which pages print sit in the panel under this form.
+                </span>
+              </span>
+            </label>
           </div>
         </div>
       ) : (

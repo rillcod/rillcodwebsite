@@ -5,6 +5,7 @@ import type { CurriculumProgression } from '../curriculum';
 import type { PartnershipTerms } from '../terms';
 import { defaultStudioConfig } from '../studio-config';
 import { PARTNERSHIP_PHOTOS } from '../proposal-sections';
+import { AUTHORED_NARRATIVE } from '../proposal-narrative';
 
 const curriculum: CurriculumProgression = {
   id: 'prog-1',
@@ -396,29 +397,44 @@ describe('the photographs a proposal actually prints', () => {
  * writes. It was interpolated raw while `opening` and `closing` beside it were
  * escaped — so an ampersand in a school's chosen headline printed as markup, and
  * anything sharper printed as markup too.
+ *
+ * Studio copy used to overlay this. That overlay is gone: leftover copilot
+ * text in localStorage must not replace the narrative the composer approved.
  */
 describe('the cover headline', () => {
   it('escapes an ampersand rather than printing entity soup', () => {
     const html = buildPartnershipProposalHTML({
       ...base,
-      studio: { ...defaultStudioConfig(), copy: { headline: 'Coding & Robotics' } },
+      narrative: { ...AUTHORED_NARRATIVE, headline: 'Coding & Robotics' },
     });
 
     expect(html).toContain('Coding &amp; Robotics');
     expect(html).not.toContain('Coding &amp;amp; Robotics');
   });
 
-  it('escapes markup somebody types into the studio', () => {
+  it('escapes markup in the narrative headline', () => {
     const html = buildPartnershipProposalHTML({
       ...base,
-      studio: {
-        ...defaultStudioConfig(),
-        copy: { headline: '<img src=x onerror=alert(1)>' },
-      },
+      narrative: { ...AUTHORED_NARRATIVE, headline: '<img src=x onerror=alert(1)>' },
     });
 
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img src=x');
+  });
+
+  it('prints the composer narrative, not leftover studio copy', () => {
+    const html = buildPartnershipProposalHTML({
+      ...base,
+      narrative: { ...AUTHORED_NARRATIVE, headline: 'The school we actually wrote for' },
+      studio: {
+        ...defaultStudioConfig(),
+        copy: { headline: 'A second editor was here', opening: 'Not this opening.' },
+      },
+    });
+
+    expect(html).toContain('The school we actually wrote for');
+    expect(html).not.toContain('A second editor was here');
+    expect(html).not.toContain('Not this opening.');
   });
 });
 

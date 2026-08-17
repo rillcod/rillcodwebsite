@@ -1,10 +1,14 @@
 /**
- * What the proposal studio controls.
+ * What the proposal studio controls: which pages print, and which photographs.
  *
- * The document already renders itself from stored data; this is the layer that
- * decides which of it a given school sees and in whose words. It is deliberately
- * a plain, serialisable object: the studio holds one, the API receives one, and
- * the template reads one, so what is previewed is what is issued.
+ * Words are not its job. Headline, opening and closing come from the proposal
+ * narrative — house copy, or the one AI pass on the composer. A second editor
+ * here used to overlay those fields at render time, so a document could carry
+ * a studio headline, a composer opening, and the house close, and read as if
+ * two people had written it.
+ *
+ * `copy` remains on the type so old localStorage and stored configs still parse;
+ * `normaliseStudioConfig` drops it, and the template never reads it.
  *
  * Every section defaults to on. A studio that starts empty makes the operator
  * rebuild the document each time; a studio that starts complete lets them remove
@@ -124,15 +128,10 @@ export function normaliseStudioConfig(
     }
   }
 
-  const copy: ProposalCopy = {};
-  for (const field of ['headline', 'opening', 'closing'] as const) {
-    const value = input.copy?.[field];
-    if (typeof value === 'string' && value.trim()) copy[field] = value.trim();
-  }
-
   const photos = Array.isArray(input.photos)
     ? input.photos.filter((p): p is string => typeof p === 'string' && p.startsWith('/'))
     : base.photos;
 
-  return { sections, copy, photos };
+  // Leftover studio copy from a previous session must not overlay the narrative.
+  return { sections, copy: {}, photos };
 }

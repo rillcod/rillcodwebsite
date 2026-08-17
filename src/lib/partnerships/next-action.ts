@@ -16,7 +16,7 @@
  */
 import { isQuoteExpired } from './issue-document';
 
-export type DeskTab = 'compose' | 'terms' | 'gallery' | 'archive';
+export type DeskTab = 'compose' | 'terms' | 'archive';
 export type NextActionKind = 'proposal' | 'mou';
 
 export type NextActionDoc = {

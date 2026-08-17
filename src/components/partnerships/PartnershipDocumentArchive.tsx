@@ -36,6 +36,7 @@ import { publicDocumentSharePath } from "@/lib/partnerships/signing";
 // cannot say a quote stands while the sign button refuses it.
 import { isQuoteExpired } from "@/lib/partnerships/issue-document";
 import type { IssuedDocumentRow } from "./types";
+import { PartnershipConfirm } from "./PartnershipConfirm";
 
 /** Where the public can read this document, or null when there is no safe link. */
 function portalUrl(doc: IssuedDocumentRow): string | null {
@@ -133,6 +134,14 @@ export function PartnershipDocumentArchive({
   const [signing, setSigning] = useState("");
   const [signerName, setSignerName] = useState("");
   const [signerRole, setSignerRole] = useState("");
+  const [ask, setAsk] = useState<{
+    title: string;
+    body: string;
+    confirmLabel: string;
+    kind: "void" | "draft" | "delete";
+    doc: IssuedDocumentRow;
+  } | null>(null);
+  const [askBusy, setAskBusy] = useState(false);
 
   useEffect(() => {
     if (!focusId) return;
@@ -160,45 +169,7 @@ export function PartnershipDocumentArchive({
     }
   }
 
-  async function move(doc: IssuedDocumentRow, to: string) {
-    if (to === "signed" && signing !== doc.id) {
-      // A signature needs a name against it, so ask before sending.
-      setSigning(doc.id);
-      setSignerName("");
-      setSignerRole("");
-      return;
-    }
-    if (
-      to === "void" &&
-      !confirm(
-        `Withdraw ${doc.reference}? It stays on record, and the link stops working for the school.`,
-      )
-    ) {
-      return;
-    }
-    /*
-      Recall warns when the school has already read it.
-
-      The read receipt is exactly what makes this decision answerable: pulling
-      back something nobody opened is housekeeping, pulling back something a
-      proprietor has read three times is a conversation you should have with
-      them first. The button still allows it — whoever is sending knows things
-      the counter does not.
-    */
-    if (to === "draft") {
-      const opens = Number(doc.open_count) || 0;
-      const warning = opens
-        ? `${doc.reference} has already been opened ${opens} time${opens === 1 ? "" : "s"} by the school. `
-        : "";
-      if (
-        !confirm(
-          `${warning}Recall ${doc.reference} to draft? The public link will stop working until you send it again. You can then redraw or delete it.`,
-        )
-      ) {
-        return;
-      }
-    }
-
+  async function applyMove(doc: IssuedDocumentRow, to: string): Promise<boolean> {
     setBusy(doc.id);
     setError("");
     try {
@@ -216,11 +187,58 @@ export function PartnershipDocumentArchive({
       if (!res.ok) throw new Error(json.error || "Could not update that document.");
       setSigning("");
       await onChanged();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not update that document.");
+      return false;
     } finally {
       setBusy("");
     }
+  }
+
+  async function move(doc: IssuedDocumentRow, to: string) {
+    if (to === "signed" && signing !== doc.id) {
+      // A signature needs a name against it, so ask before sending.
+      setSigning(doc.id);
+      setSignerName("");
+      setSignerRole("");
+      return;
+    }
+    if (to === "void") {
+      setAsk({
+        title: `Withdraw ${doc.reference}?`,
+        body: "It stays on record, and the link stops working for the school.",
+        confirmLabel: "Withdraw",
+        kind: "void",
+        doc,
+      });
+      return;
+    }
+    /*
+      Recall warns when the school has already read it.
+
+      The read receipt is exactly what makes this decision answerable: pulling
+      back something nobody opened is housekeeping, pulling back something a
+      proprietor has read three times is a conversation you should have with
+      them first. The button still allows it — whoever is sending knows things
+      the counter does not.
+    */
+    if (to === "draft") {
+      const opened = Number(doc.open_count) || 0;
+      const warning = opened
+        ? `${doc.reference} has already been opened ${opened} time${opened === 1 ? "" : "s"} by the school. `
+        : "";
+      setAsk({
+        title: `Recall ${doc.reference}?`,
+        body: `${warning}The public link will stop working until you send it again. You can then redraw or delete it.`,
+        confirmLabel: "Recall",
+        kind: "draft",
+        doc,
+      });
+      return;
+    }
+
+    await applyMove(doc, to);
   }
 
   /**
@@ -255,22 +273,42 @@ export function PartnershipDocumentArchive({
 
   async function remove(doc: IssuedDocumentRow) {
     const unopened = doc.status === "sent" && opens(doc) === 0;
-    const msg =
+    const body =
       doc.status === "draft"
-        ? `Delete draft ${doc.reference}? Nothing has been sent, so nothing is lost.`
+        ? "Nothing has been sent, so nothing is lost."
         : unopened
-          ? `${doc.reference} was sent but nobody opened it. Take it back and delete it?`
+          ? "It was sent but nobody opened it. Take it back and delete it?"
           : "";
-    if (!msg || !confirm(msg)) return;
-    setBusy(doc.id);
-    setError("");
+    if (!body) return;
+    setAsk({
+      title: `Delete ${doc.reference}?`,
+      body,
+      confirmLabel: "Delete",
+      kind: "delete",
+      doc,
+    });
+  }
+
+  async function runAsk() {
+    if (!ask) return;
+    setAskBusy(true);
     try {
-      await removePartnershipDocument(doc);
-      await onChanged();
+      if (ask.kind === "delete") {
+        setBusy(ask.doc.id);
+        setError("");
+        await removePartnershipDocument(ask.doc);
+        await onChanged();
+        setBusy("");
+      } else {
+        const ok = await applyMove(ask.doc, ask.kind);
+        if (!ok) return;
+      }
+      setAsk(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete that document.");
-    } finally {
+      setError(e instanceof Error ? e.message : "Could not finish that.");
       setBusy("");
+    } finally {
+      setAskBusy(false);
     }
   }
 
@@ -423,6 +461,7 @@ export function PartnershipDocumentArchive({
                 <div className="flex flex-col gap-2 w-full sm:w-auto sm:shrink-0">
                   <div className={`gap-2 ${canWrite ? "grid grid-cols-2" : ""}`}>
                     <button
+                      type="button"
                       onClick={() => open(doc)}
                       disabled={busy === doc.id}
                       className="w-full inline-flex items-center justify-center gap-1.5 min-h-[48px] px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-40"
@@ -432,6 +471,7 @@ export function PartnershipDocumentArchive({
                     </button>
                     {canWrite && canDeleteDocument(doc) && (
                       <button
+                        type="button"
                         onClick={() => remove(doc)}
                         disabled={busy === doc.id}
                         aria-label={`Delete ${doc.reference ?? "this document"}`}
@@ -441,8 +481,9 @@ export function PartnershipDocumentArchive({
                         Delete
                       </button>
                     )}
-                    {canWrite && !canDeleteDocument(doc) && (
+                    {canWrite && !canDeleteDocument(doc) && doc.status !== "void" && (
                       <button
+                        type="button"
                         onClick={() => move(doc, "void")}
                         disabled={busy === doc.id}
                         className="inline-flex items-center justify-center gap-1.5 min-h-[48px] px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-40"
@@ -567,6 +608,18 @@ export function PartnershipDocumentArchive({
       <p className="text-[10px] text-muted-foreground border-t border-border/60 pt-3">
         A sent or signed document is never deleted — voiding keeps the record that it existed.
       </p>
+
+      <PartnershipConfirm
+        open={Boolean(ask)}
+        title={ask?.title ?? ""}
+        body={ask?.body ?? ""}
+        confirmLabel={ask?.confirmLabel ?? "Confirm"}
+        busy={askBusy}
+        onCancel={() => {
+          if (!askBusy) setAsk(null);
+        }}
+        onConfirm={() => void runAsk()}
+      />
     </div>
   );
 }

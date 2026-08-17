@@ -272,13 +272,12 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       input.agreedTerms?.withdrawal_policy ||
       input.agreedTerms?.minimum_students,
   );
-  const base = input.narrative ?? AUTHORED_NARRATIVE;
-  const narrative = {
-    ...base,
-    headline: studio.copy.headline || base.headline,
-    opening: studio.copy.opening || base.opening,
-    closing: studio.copy.closing || base.closing,
-  };
+  /*
+    One writer. The narrative is the pitch — house copy, or the composer’s
+    approved generation. Studio copy used to overlay these three fields, which
+    is how a proposal went out with a copilot headline and a different opening.
+  */
+  const narrative = input.narrative ?? AUTHORED_NARRATIVE;
   const curriculum = input.curriculum;
 
   /**

@@ -18,7 +18,7 @@
  * print; `allow-modals` lets the print dialog open at all.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -38,11 +38,17 @@ import { brandContact } from "@/config/brand";
 import { buildDocumentShareUrl, publicDocumentSharePath } from "@/lib/partnerships/signing";
 import { OUTREACH_ANGLES, outreachPlainText } from "@/lib/partnerships/outreach-copy";
 import BodyPortal, { useOverlayScrollLock } from "@/components/ui/BodyPortal";
+import { PartnershipConfirm } from "./PartnershipConfirm";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
 const PAGE_W = 794;
-/** Tall enough to show a page and a half, so scrolling has somewhere to go. */
+/** Fallback height until the iframe reports how tall the document actually is. */
 const FRAME_H = 1500;
+
+function initialPaneW() {
+  if (typeof window === "undefined") return PAGE_W;
+  return Math.max(280, window.innerWidth - 24);
+}
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft — school cannot open this",
@@ -70,6 +76,7 @@ export function IssuedDocumentPreview({
   canSend,
   onSent,
   onDelete,
+  onWithdraw,
   onClose,
 }: {
   html: string;
@@ -91,6 +98,8 @@ export function IssuedDocumentPreview({
   onSent?: () => void | Promise<void>;
   /** Drafts only — a sent copy is the record that it went out. */
   onDelete?: () => void | Promise<void>;
+  /** Opened or signed copies — void the row, keep the record. */
+  onWithdraw?: () => void | Promise<void>;
   onClose: () => void;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -117,6 +126,8 @@ export function IssuedDocumentPreview({
   const [showEmailField, setShowEmailField] = useState(false);
   const [emailTo, setEmailTo] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [ask, setAsk] = useState<"delete" | "withdraw" | null>(null);
 
   useOverlayScrollLock(true);
 
@@ -166,23 +177,39 @@ export function IssuedDocumentPreview({
 
   async function deleteStored() {
     if (!onDelete) return;
-    const unopenedSent = liveStatus === "sent";
-    if (
-      !confirm(
-        unopenedSent
-          ? `${reference} was sent but you can still delete it if nobody opened it. Take it back and delete?`
-          : `Delete draft ${reference}? Nothing has been sent, so nothing is lost.`,
-      )
-    ) {
+    setAsk("delete");
+  }
+
+  async function withdrawStored() {
+    if (!onWithdraw) return;
+    setAsk("withdraw");
+  }
+
+  async function runAsk() {
+    if (ask === "delete") {
+      if (!onDelete) return;
+      setDeleting(true);
+      setError("");
+      try {
+        await onDelete();
+        setAsk(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not delete that document.");
+        setDeleting(false);
+      }
       return;
     }
-    setDeleting(true);
-    setError("");
-    try {
-      await onDelete();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete that document.");
-      setDeleting(false);
+    if (ask === "withdraw") {
+      if (!onWithdraw) return;
+      setWithdrawing(true);
+      setError("");
+      try {
+        await onWithdraw();
+        setAsk(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not withdraw that document.");
+        setWithdrawing(false);
+      }
     }
   }
 
@@ -218,20 +245,58 @@ export function IssuedDocumentPreview({
 
   const [zoom, setZoom] = useState<"fit" | "75" | "100">("fit");
   const paneRef = useRef<HTMLDivElement>(null);
-  const [paneW, setPaneW] = useState(PAGE_W);
+  const [paneW, setPaneW] = useState(initialPaneW);
+  const [docH, setDocH] = useState(FRAME_H);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = paneRef.current;
     if (!el) return;
-    const measure = () => setPaneW(el.clientWidth - 24);
+    const measure = () => setPaneW(Math.max(280, el.clientWidth - 24));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [loading]);
+
+  useEffect(() => {
+    setDocH(FRAME_H);
+  }, [framedHtml]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || !framedHtml || loading) return;
+
+    const updateHeight = () => {
+      try {
+        const inner = frame.contentDocument || frame.contentWindow?.document;
+        if (!inner?.body) return;
+        const h = Math.max(
+          inner.body.scrollHeight,
+          inner.body.offsetHeight,
+          inner.documentElement?.scrollHeight ?? 0,
+          inner.documentElement?.offsetHeight ?? 0,
+        );
+        if (h > 200) {
+          setDocH((prev) => (Math.abs(prev - h) > 2 ? h : prev));
+        }
+      } catch {
+        // Sandbox without scripts; same-origin is allowed.
+      }
+    };
+
+    frame.addEventListener("load", updateHeight);
+    updateHeight();
+    const timers = [150, 400, 900, 1800, 3000].map((ms) => window.setTimeout(updateHeight, ms));
+    return () => {
+      frame.removeEventListener("load", updateHeight);
+      timers.forEach(window.clearTimeout);
+    };
+  }, [framedHtml, loading]);
 
   const fitScale = Math.min(1, Math.max(0.25, paneW / PAGE_W));
-  const scale = zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
+  const phone = paneW < PAGE_W;
+  const scale = phone ? fitScale : zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
+  const sheetH = docH || FRAME_H;
 
   return (
     <BodyPortal>
@@ -367,7 +432,7 @@ export function IssuedDocumentPreview({
               <button
                 type="button"
                 onClick={() => void deleteStored()}
-                disabled={deleting || sending || saving}
+                disabled={deleting || sending || saving || withdrawing}
                 className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-50"
               >
                 {deleting ? (
@@ -376,6 +441,16 @@ export function IssuedDocumentPreview({
                   <TrashIcon className="w-3.5 h-3.5" />
                 )}
                 {deleting ? "Deleting…" : "Delete"}
+              </button>
+            )}
+            {onWithdraw && stored && (
+              <button
+                type="button"
+                onClick={() => void withdrawStored()}
+                disabled={withdrawing || sending || saving || deleting}
+                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-50"
+              >
+                {withdrawing ? "Withdrawing…" : "Withdraw"}
               </button>
             )}
           </div>
@@ -482,21 +557,22 @@ export function IssuedDocumentPreview({
         ) : (
           <div
             ref={paneRef}
-            className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overscroll-contain"
+            className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overflow-x-hidden overscroll-contain"
           >
             <div
               className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
-              style={{ width: PAGE_W * scale, height: FRAME_H * scale }}
+              style={{ width: PAGE_W * scale, height: sheetH * scale }}
             >
               <iframe
                 ref={frameRef}
                 srcDoc={framedHtml}
                 title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
                 sandbox="allow-same-origin allow-modals"
+                scrolling="no"
                 className="bg-white"
                 style={{
                   width: PAGE_W,
-                  height: FRAME_H,
+                  height: sheetH,
                   border: "none",
                   transform: `scale(${scale})`,
                   transformOrigin: "top left",
@@ -506,46 +582,104 @@ export function IssuedDocumentPreview({
           </div>
         )}
 
-        <div className="sm:hidden shrink-0 grid grid-cols-2 gap-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {onDelete && stored ? (
-            <button
-              type="button"
-              onClick={() => void deleteStored()}
-              disabled={deleting || sending || saving}
-              className="min-h-[48px] rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-50"
-            >
-              {deleting ? "Deleting…" : "Delete"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold"
-            >
-              Close
-            </button>
-          )}
-          {canSend && stored ? (
-            <button
-              type="button"
-              onClick={() => setShowEmailField(true)}
-              disabled={sending || saving}
-              className="min-h-[48px] rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
-            >
-              Send
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={download}
-              disabled={saving}
-              className="min-h-[48px] rounded-xl bg-foreground text-background text-xs font-bold disabled:opacity-50"
-            >
-              Download
-            </button>
+        <div className="sm:hidden shrink-0 space-y-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-2 gap-2">
+            {onDelete && stored ? (
+              <button
+                type="button"
+                onClick={() => void deleteStored()}
+                disabled={deleting || sending || saving || withdrawing}
+                className="min-h-[48px] rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            ) : onWithdraw && stored ? (
+              <button
+                type="button"
+                onClick={() => void withdrawStored()}
+                disabled={withdrawing || sending || saving || deleting}
+                className="min-h-[48px] rounded-xl border border-destructive/50 text-destructive bg-destructive/5 text-xs font-bold disabled:opacity-50"
+              >
+                {withdrawing ? "Withdrawing…" : "Withdraw"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold"
+              >
+                Close
+              </button>
+            )}
+            {canSend && stored ? (
+              <button
+                type="button"
+                onClick={() => setShowEmailField(true)}
+                disabled={sending || saving}
+                className="min-h-[48px] rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+              >
+                Send
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void download()}
+                disabled={saving}
+                className="min-h-[48px] rounded-xl bg-foreground text-background text-xs font-bold disabled:opacity-50"
+              >
+                {saving ? "Building…" : "Download"}
+              </button>
+            )}
+          </div>
+          {(publicPath || (canSend && stored)) && (
+            <div className="flex gap-2">
+              {publicPath && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const url = shareUrl(shareToken);
+                    if (!url) return;
+                    await navigator.clipboard.writeText(url).catch(() => null);
+                    setNotice("Link copied — paste it to the school.");
+                  }}
+                  className="flex-1 min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold"
+                >
+                  Copy link
+                </button>
+              )}
+              {canSend && stored && (
+                <button
+                  type="button"
+                  onClick={() => void download()}
+                  disabled={saving}
+                  className="flex-1 min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold disabled:opacity-50"
+                >
+                  {saving ? "Building…" : "Download"}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
+      <PartnershipConfirm
+        open={Boolean(ask)}
+        title={
+          ask === "withdraw" ? `Withdraw ${reference}?` : `Delete ${reference}?`
+        }
+        body={
+          ask === "withdraw"
+            ? "It stays on record, and the link stops working for the school."
+            : liveStatus === "sent"
+              ? "It was sent but you can still delete it if nobody opened it. Take it back and delete?"
+              : "Nothing has been sent, so nothing is lost."
+        }
+        confirmLabel={ask === "withdraw" ? "Withdraw" : "Delete"}
+        busy={deleting || withdrawing}
+        onCancel={() => {
+          if (!deleting && !withdrawing) setAsk(null);
+        }}
+        onConfirm={() => void runAsk()}
+      />
     </BodyPortal>
   );
 }

@@ -63,7 +63,7 @@ type Preview = {
 };
 
 // No "studio": it is part of composing now, not a place you navigate to.
-type WorkspaceTab = "compose" | "terms" | "gallery" | "archive";
+type WorkspaceTab = "compose" | "terms" | "archive";
 
 /*
   Which of the two jobs this page is doing.
@@ -827,7 +827,7 @@ export default function PartnershipsPage() {
               {/* Composer stays mounted (hidden) on Documents so a redraw still
                   has the last offer, studio and enrolment. Unmounting it used
                   to re-issue a blank document. */}
-              <div className={activeTab === "compose" || activeTab === "gallery" ? "space-y-5" : "hidden"}>
+              <div className={activeTab === "compose" ? "space-y-5" : "hidden"}>
                   <PartnershipDocumentComposer
                     ref={composerRef}
                     school={selected}
@@ -973,6 +973,27 @@ export default function PartnershipsPage() {
                     status: preview.status ?? "draft",
                     open_count: preview.openCount,
                   });
+                  setPreview(null);
+                  await loadSchoolDetail(selected.id);
+                }
+              : undefined
+          }
+          onWithdraw={
+            canWrite &&
+            preview.id &&
+            preview.status !== "void" &&
+            !canDeleteDocument({
+              status: preview.status ?? "",
+              open_count: preview.openCount,
+            })
+              ? async () => {
+                  const res = await fetch("/api/partnerships/documents", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: preview.id, status: "void" }),
+                  });
+                  const json = await res.json();
+                  if (!res.ok) throw new Error(json.error || "Could not withdraw that document.");
                   setPreview(null);
                   await loadSchoolDetail(selected.id);
                 }
