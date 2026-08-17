@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ArrowPathIcon,
   CheckCircleIcon,
+  ChevronDownIcon,
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
   EnvelopeIcon,
@@ -65,27 +66,35 @@ const ACTION =
   "shrink-0 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-[11px] font-medium transition-colors disabled:opacity-40 min-h-[44px] inline-flex items-center";
 
 /** What may follow the state a document is in. */
-function nextStates(
+function primaryStates(
   status: string,
   opts: { kind: string; expired: boolean },
 ): Array<{ to: string; label: string }> {
   switch (status) {
     case "draft":
-      return [
-        { to: "sent", label: "Mark sent" },
-        { to: "void", label: "Withdraw" },
-      ];
+      return [{ to: "sent", label: "Mark as sent" }];
+    case "sent":
+      return opts.kind === "mou" && !opts.expired
+        ? [{ to: "signed", label: "Record signature" }]
+        : [];
+    default:
+      return [];
+  }
+}
+
+function extraStates(
+  status: string,
+  opts: { opened: boolean },
+): Array<{ to: string; label: string }> {
+  switch (status) {
+    case "draft":
+      return [{ to: "void", label: "Withdraw (keep on record)" }];
     case "sent":
       return [
-        ...(opts.kind === "mou" && !opts.expired
-          ? [{ to: "signed" as const, label: "Record signature" }]
-          : []),
-        { to: "draft", label: "Recall to draft" },
-        { to: "declined", label: "Declined" },
-        { to: "void", label: "Withdraw" },
+        ...(opts.opened ? [{ to: "draft", label: "Take back to draft" }] : []),
+        { to: "declined", label: "Mark declined" },
+        ...(opts.opened ? [] : [{ to: "void", label: "Withdraw (keep on record)" }]),
       ];
-    case "signed":
-      return [{ to: "void", label: "Withdraw" }];
     default:
       return [];
   }
@@ -114,9 +123,12 @@ export function PartnershipDocumentArchive({
   const [signing, setSigning] = useState("");
   const [signerName, setSignerName] = useState("");
   const [signerRole, setSignerRole] = useState("");
+  /** One card's manage panel at a time, so View is not buried in seven buttons. */
+  const [manageId, setManageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!focusId) return;
+    setManageId(focusId);
     document.getElementById(`partnership-doc-${focusId}`)?.scrollIntoView({ block: "center" });
   }, [focusId]);
 
@@ -244,6 +256,7 @@ export function PartnershipDocumentArchive({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not delete that draft.");
+      setManageId((id) => (id === doc.id ? null : id));
       await onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not delete that draft.");
@@ -268,7 +281,8 @@ export function PartnershipDocumentArchive({
       <div>
         <h2 className="text-base font-semibold text-foreground">Issued documents</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          {documents.length} on record. Each keeps the terms it was written against.
+          {documents.length} on record. Delete is on the card for drafts. If it went out but
+          nobody opened it, Take back turns it into a draft so you can delete it.
         </p>
         {documents.some((d) => d.status === "draft") && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
@@ -299,16 +313,8 @@ export function PartnershipDocumentArchive({
               focusId === doc.id ? "border-amber-500/60 ring-1 ring-amber-500/30" : "border-border"
             }`}
           >
-            {/*
-              Stacked on a phone, side by side from sm up.
-
-              This was one flex row holding the reference, the kind, a status
-              pill, a code pill, a date line and seven buttons. On a narrow
-              screen the buttons had nowhere to wrap to and ran out past the
-              card's edge. Now the identity block and the action block are
-              separate rows below sm, and the actions scroll inside their own
-              track rather than pushing the card open.
-            */}
+            {/* Identity on the left, View / Manage on the right. Status changes
+                and delete live in Manage so they are not mixed with reading. */}
             <div className="flex flex-col sm:flex-row sm:items-start gap-3">
               <span className="hidden sm:block shrink-0 text-muted-foreground mt-0.5">
                 {doc.document_kind === "mou" ? (
@@ -407,115 +413,159 @@ export function PartnershipDocumentArchive({
                 </p>
               </div>
 
-              {/*
-                The actions get their own scroll track.
-
-                Seven buttons cannot wrap inside a row that is already holding
-                the reference and the status pills, so on a narrow screen they
-                simply ran past the edge of the card. Scrolling them is honest:
-                the buttons stay full size and reachable, and the card keeps its
-                shape. `overflow-x-auto` with non-shrinking children, never
-                `flex-wrap`, which is what pushed the card open.
-              */}
-              <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto sm:overflow-visible sm:flex-wrap sm:justify-end -mx-1 px-1 pb-1 sm:mx-0 sm:px-0 sm:pb-0">
-                <button onClick={() => open(doc)} disabled={busy === doc.id} className={ACTION}>
-                  <span className="flex items-center gap-1.5">
-                    <EyeIcon className="w-3.5 h-3.5" /> View
-                  </span>
-                </button>
-
-                {/*
-                  The link is built from the share token and nothing else.
-
-                  This read `doc.reference || doc.share_token`, and a reference
-                  is always present — so every Portal button opened
-                  /p/RC-PROP-2026-00042, which the public route does not accept
-                  by design (a reference is sequential and printed on the face
-                  of the document, so honouring it would unlock every other
-                  school's fees). The button therefore 404'd every time.
-
-                  No token means no safe link, so no button — rather than one
-                  that leads nowhere.
-                */}
-                {portalUrl(doc) && (
-                  <a
-                    href={portalUrl(doc)!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`${ACTION} text-emerald-400 border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10`}
-                    title="Open the page the school sees — the copy they read and sign"
-                  >
-                    School’s copy ↗
-                  </a>
-                )}
-
-                {canWrite && doc.status === "draft" && (
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
-                    onClick={() => redraw(doc)}
+                    onClick={() => open(doc)}
                     disabled={busy === doc.id}
-                    className={ACTION}
-                    title="Re-render this draft against the current template and the terms agreed now. Keeps its reference, link and access code."
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-40"
                   >
-                    <span className="flex items-center gap-1.5">
-                      <ArrowPathIcon className="w-3.5 h-3.5" /> Redraw
-                    </span>
+                    <EyeIcon className="w-4 h-4" />
+                    View
                   </button>
-                )}
-
-                {canWrite && (doc.status === "draft" || doc.status === "sent") && (
-                  <button
-                    onClick={() => {
-                      setNotice(`Opening ${doc.reference} — use “Email PDF to school” above it.`);
-                      void open(doc);
-                    }}
-                    disabled={busy === doc.id}
-                    className={`${ACTION} border-primary/50 text-primary hover:border-violet-400`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <EnvelopeIcon className="w-3.5 h-3.5" />
-                      {doc.status === "sent" ? "Resend" : "Email"}
-                    </span>
-                  </button>
-                )}
-                {canWrite &&
-                  nextStates(doc.status, {
-                    kind: doc.document_kind,
-                    expired: lapsed(doc),
-                  }).map((n) => (
+                  {canWrite && doc.status === "draft" && (
                     <button
-                      key={n.to}
-                      onClick={() => move(doc, n.to)}
+                      onClick={() => discard(doc)}
                       disabled={busy === doc.id}
+                      aria-label={`Delete draft ${doc.reference ?? ""}`}
+                      className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-40"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
+                  {canWrite && doc.status === "sent" && opens(doc) === 0 && (
+                    <button
+                      onClick={() => move(doc, "draft")}
+                      disabled={busy === doc.id}
+                      title="Pull it back to draft so you can delete it or send it again. The school’s link stops working."
+                      className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-xl border border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold disabled:opacity-40"
+                    >
+                      Take back
+                    </button>
+                  )}
+                  {canWrite &&
+                    (doc.status === "signed" || (doc.status === "sent" && opens(doc) > 0)) && (
+                      <button
+                        onClick={() => move(doc, "void")}
+                        disabled={busy === doc.id}
+                        className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-40"
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => setManageId(manageId === doc.id ? null : doc.id)}
+                      aria-expanded={manageId === doc.id}
                       className={ACTION}
                     >
-                      {n.label}
+                      Manage
+                      <ChevronDownIcon
+                        className={`w-3.5 h-3.5 ml-1 transition-transform ${
+                          manageId === doc.id ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
-                  ))}
-                {/*
-                  Delete, big enough to hit with a thumb and labelled.
-
-                  This was a 14px icon in a 22px box — under half the 44px a
-                  finger needs, unlabelled, at the end of a row that scrolls
-                  sideways on a phone. Clearing out test documents was
-                  effectively a desktop-only task, which is not where anyone
-                  actually does this.
-
-                  Still drafts only. A sent document is the record that it was
-                  sent; recall it to draft first, which is one button along.
-                */}
-                {canWrite && doc.status === "draft" && (
-                  <button
-                    onClick={() => discard(doc)}
-                    disabled={busy === doc.id}
-                    aria-label={`Delete draft ${doc.reference ?? ""}`}
-                    className="shrink-0 inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg border border-destructive/40 text-destructive hover:bg-destructive/10 text-[11px] font-semibold transition-colors disabled:opacity-40"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                    <span>Delete</span>
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+
+              {canWrite && manageId === doc.id && (
+                <div className="rounded-xl border border-border bg-background/60 p-3 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Send or change status
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {portalUrl(doc) && (
+                      <a
+                        href={portalUrl(doc)!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${ACTION} text-emerald-600 dark:text-emerald-400 border-emerald-500/30`}
+                        title="Open the page the school sees"
+                      >
+                        School’s copy ↗
+                      </a>
+                    )}
+                    {doc.status === "draft" && (
+                      <button
+                        onClick={() => redraw(doc)}
+                        disabled={busy === doc.id}
+                        className={ACTION}
+                        title="Re-render this draft against the current template and terms. Keeps its reference, link and access code."
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <ArrowPathIcon className="w-3.5 h-3.5" /> Redraw pages
+                        </span>
+                      </button>
+                    )}
+                    {(doc.status === "draft" || doc.status === "sent") && (
+                      <button
+                        onClick={() => void open(doc)}
+                        disabled={busy === doc.id}
+                        className={ACTION}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <EnvelopeIcon className="w-3.5 h-3.5" />
+                          {doc.status === "sent" ? "Resend PDF" : "Email PDF"}
+                        </span>
+                      </button>
+                    )}
+                    {primaryStates(doc.status, {
+                      kind: doc.document_kind,
+                      expired: lapsed(doc),
+                    }).map((n) => (
+                      <button
+                        key={n.to}
+                        onClick={() => move(doc, n.to)}
+                        disabled={busy === doc.id}
+                        className={ACTION}
+                      >
+                        {n.label}
+                      </button>
+                    ))}
+                  </div>
+                  {extraStates(doc.status, { opened: opens(doc) > 0 }).length > 0 && (
+                    <details>
+                      <summary className="cursor-pointer text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+                        More
+                      </summary>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {extraStates(doc.status, { opened: opens(doc) > 0 }).map((n) => (
+                          <button
+                            key={n.to}
+                            onClick={() => move(doc, n.to)}
+                            disabled={busy === doc.id}
+                            className={ACTION}
+                          >
+                            {n.label}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  {doc.status === "draft" && (
+                    <div className="pt-2 border-t border-border/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-destructive mb-1.5">
+                        Delete this draft
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Only drafts can be deleted. A sent copy stays on record — withdraw it instead.
+                      </p>
+                      <button
+                        onClick={() => discard(doc)}
+                        disabled={busy === doc.id}
+                        aria-label={`Delete draft ${doc.reference ?? ""}`}
+                        className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg border border-destructive/40 text-destructive hover:bg-destructive/10 text-[11px] font-semibold transition-colors disabled:opacity-40"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                        Delete draft
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
             {/* A signature is a name and a date, not a checkbox. */}
             {signing === doc.id && (

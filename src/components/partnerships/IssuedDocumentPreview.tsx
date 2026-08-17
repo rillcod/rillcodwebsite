@@ -1,30 +1,33 @@
 "use client";
 
 /**
- * The document, as it will print.
+ * The document, full screen, on its own.
+ *
+ * Viewing used to dump the pages back into the compose form: on a laptop the
+ * sheet sat under the offer fields, and on a phone a 45vh toolbar of pitch
+ * buttons ate the page. This is one overlay, one document, and a short bar
+ * of send / print / download. Pitch copy lives behind “Copy a message”.
  *
  * The templates are print-ready A4 with their own @page rules, so the browser's
- * own print path produces the PDF and there is no headless renderer to keep
- * alive. Printing the iframe rather than the page means the dashboard's dark
- * chrome is not in the output.
+ * own print path produces the PDF. Printing the iframe rather than the page
+ * means the dashboard's chrome is not in the output.
  *
  * The frame is sandboxed without `allow-scripts`: a stored document is HTML we
  * rendered, but it is also the one string on this page long enough to hide
- * something in, and nothing in a proposal needs to execute. `allow-same-origin`
- * is what lets the parent reach `contentWindow` to print, and `allow-modals` is
- * what lets the print dialog open at all.
+ * something in. `allow-same-origin` lets the parent reach `contentWindow` to
+ * print; `allow-modals` lets the print dialog open at all.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
-  CheckCircleIcon,
+  ChevronDownIcon,
   EnvelopeIcon,
   LinkIcon,
   PrinterIcon,
-  SparklesIcon,
   XMarkIcon,
+  TrashIcon,
 } from "@/lib/icons";
 import {
   documentFilename,
@@ -33,14 +36,24 @@ import {
 } from "@/lib/partnerships/proposal-pdf";
 import { brandContact } from "@/config/brand";
 import { buildDocumentShareUrl, publicDocumentSharePath } from "@/lib/partnerships/signing";
-// The pitch buttons below read their words from here, as does the outbound
-// email. They used to hold three hand-written copies of the same pitch.
 import { OUTREACH_ANGLES, outreachPlainText } from "@/lib/partnerships/outreach-copy";
+import BodyPortal, { useOverlayScrollLock } from "@/components/ui/BodyPortal";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
 const PAGE_W = 794;
 /** Tall enough to show a page and a half, so scrolling has somewhere to go. */
 const FRAME_H = 1500;
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft — school cannot open this",
+  sent: "Sent",
+  signed: "Signed",
+  declined: "Declined",
+  void: "Withdrawn",
+};
+
+const BTN =
+  "inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-semibold hover:bg-muted transition-colors disabled:opacity-50";
 
 export function IssuedDocumentPreview({
   html,
@@ -56,6 +69,7 @@ export function IssuedDocumentPreview({
   documentStatus,
   canSend,
   onSent,
+  onDelete,
   onClose,
 }: {
   html: string;
@@ -75,6 +89,8 @@ export function IssuedDocumentPreview({
   documentStatus?: string | null;
   canSend?: boolean;
   onSent?: () => void | Promise<void>;
+  /** Drafts only — a sent copy is the record that it went out. */
+  onDelete?: () => void | Promise<void>;
   onClose: () => void;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -84,12 +100,7 @@ export function IssuedDocumentPreview({
     This was `reference || token`, and a reference is always present — so every
     link this component produced pointed at /p/RC-PROP-2026-00001. That address
     is sequential, printed on the face of the document, and no longer honoured
-    by the public route, so all four pitch buttons and the WhatsApp link were
-    copying a dead and guessable URL onto somebody's clipboard, ready to send
-    to a school.
-
-    Returns null when there is no token, and every caller is gated on the token
-    already, so there is nothing to paste rather than something wrong.
+    by the public route.
   */
   const shareUrl = (t?: string | null) =>
     buildDocumentShareUrl(typeof window === "undefined" ? "" : window.location.origin, t);
@@ -100,26 +111,22 @@ export function IssuedDocumentPreview({
   const [becameSent, setBecameSent] = useState(false);
   const liveStatus = becameSent ? "sent" : documentStatus;
   const publicPath = publicDocumentSharePath(shareToken, liveStatus);
+  const stored = Boolean(documentId);
+  const title = kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal";
 
-  /**
-   * Email it, with the PDF built here from the very frame on screen.
-   *
-   * Sending from the preview rather than the archive list is deliberate: the PDF
-   * can only be produced from a rendered document, so the sender always sees
-   * exactly what is about to leave.
-   */
-  /*
-    Where the recipient is typed.
-
-    This used `prompt()`, which several mobile browsers suppress outright — on
-    those, tapping "Email PDF to School" did nothing at all, with no error to
-    explain it. Firefox and Chrome also let a user tick "prevent this page from
-    creating additional dialogues", which disables it for the rest of the
-    session. An inline field works everywhere and can be corrected without
-    starting over.
-  */
   const [showEmailField, setShowEmailField] = useState(false);
   const [emailTo, setEmailTo] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  useOverlayScrollLock(true);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   async function send(to: string) {
     if (!documentId) return;
@@ -133,8 +140,6 @@ export function IssuedDocumentPreview({
         const doc = frameRef.current?.contentDocument;
         if (doc) pdf_base64 = await documentPdfBase64(doc);
       } catch {
-        // The route falls back to the stored HTML, so a browser that cannot
-        // build the PDF still gets the document delivered.
         pdf_base64 = undefined;
       }
 
@@ -180,20 +185,12 @@ export function IssuedDocumentPreview({
    * The document with a base address, so its images can be found.
    *
    * An iframe fed through srcDoc has no URL of its own, so a path like
-   * "/images/logo.png" has nothing to resolve against and silently fails —
-   * which is why the logo came out as a broken or washed-out box in the
-   * dashboard while looking perfectly fine on the school's copy, where the
-   * public page rewrites those paths before rendering.
-   *
-   * A single <base> tag is the whole fix: every relative path in the document
-   * then resolves against this origin, exactly as it does when the school
-   * opens it. Data URLs — the QR among them — are absolute already and are
-   * unaffected either way, so a QR missing here was never in the stored bytes
-   * and the document needs redrawing rather than re-viewing.
+   * "/images/logo.png" has nothing to resolve against. A single <base> tag
+   * makes every relative path resolve against this origin.
    */
   const framedHtml = useMemo(() => {
-    if (!html || typeof window === 'undefined') return html;
-    if (html.includes('<base ')) return html;
+    if (!html || typeof window === "undefined") return html;
+    if (html.includes("<base ")) return html;
     return html.replace(/<head(s[^>]*)?>/i, (m) => `${m}<base href="${window.location.origin}/">`);
   }, [html]);
 
@@ -201,8 +198,6 @@ export function IssuedDocumentPreview({
   const paneRef = useRef<HTMLDivElement>(null);
   const [paneW, setPaneW] = useState(PAGE_W);
 
-  // The pane is the constraint, so it is what gets measured. ResizeObserver
-  // rather than a window listener: the sidebar and the preview both move.
   useEffect(() => {
     const el = paneRef.current;
     if (!el) return;
@@ -213,154 +208,194 @@ export function IssuedDocumentPreview({
     return () => ro.disconnect();
   }, []);
 
-  // Fit never enlarges past 1: a document blown up beyond its own size is
-  // blurry, not bigger.
   const fitScale = Math.min(1, Math.max(0.25, paneW / PAGE_W));
   const scale = zoom === "100" ? 1 : zoom === "75" ? 0.75 : fitScale;
 
   return (
-    /*
-      A sheet on a laptop, the whole screen on a phone.
+    <BodyPortal>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="issued-document-title"
+        className="fixed inset-0 z-[80] flex flex-col bg-background"
+      >
+        <header className="shrink-0 border-b border-border bg-card pt-[max(0.5rem,var(--safe-area-top))]">
+          <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-border bg-muted/50 text-foreground text-xs font-bold shrink-0"
+            >
+              <XMarkIcon className="w-4 h-4" />
+              Close
+            </button>
 
-      The document inside is a fixed 794px A4 page that does not reflow, so on a
-      phone it can only be scaled down — and while the preview sat inline in the
-      form's own scroll container it was competing for width with the composer
-      and scrolling inside a scroll. Below `sm` it takes the viewport instead:
-      the page gets every pixel there is, and there is one thing on screen doing
-      one job.
-    */
-    <div className="fixed inset-0 z-[60] flex flex-col bg-background sm:static sm:z-auto sm:block sm:rounded-3xl sm:border sm:border-primary/40 sm:bg-card sm:overflow-hidden sm:shadow-2xl">
-      {/*
-        The way out, pinned where a thumb is. The inline sheet has its own close
-        button in the header; a full-screen overlay needs one that cannot scroll
-        away, or the document becomes a room with no door.
-      */}
-      <div className="sm:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card shrink-0 pt-[max(0.75rem,var(--safe-area-top))]">
-        <span className="text-xs font-black uppercase tracking-wider text-muted-foreground truncate">
-          {kind === "mou" ? "MoU" : "Proposal"} · {reference}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-border bg-muted/50 text-foreground text-xs font-bold shrink-0"
-        >
-          <XMarkIcon className="w-4 h-4" />
-          Close Preview
-        </button>
-      </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <h2 id="issued-document-title" className="text-sm font-bold text-foreground truncate">
+                  {title}
+                </h2>
+                <span className="font-mono text-[11px] font-black text-primary">{reference}</span>
+                {liveStatus && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {STATUS_LABEL[liveStatus] ?? liveStatus}
+                  </span>
+                )}
+                {!stored && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    Not stored yet
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {schoolName ?? "This school"}
+                {accessCode ? ` · code ${accessCode}` : ""}
+                {narrativeSource === "ai" ? " · AI pitch" : ""}
+                {curriculumEdition ? ` · curriculum ${curriculumEdition}` : ""}
+              </p>
+            </div>
 
-      {/* Top Header */}
-      <div className="p-4 sm:px-6 sm:py-4 bg-muted/60 border-b border-border/80 backdrop-blur-md space-y-3 shrink-0 overflow-y-auto max-h-[45vh] sm:max-h-none sm:overflow-visible">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <CheckCircleIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span className="font-bold text-foreground text-sm sm:text-base">
-                {kind === "mou" ? "Memorandum of Understanding" : "Partnership Proposal"}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-lg bg-primary/15 text-primary font-mono text-xs font-black border border-primary/30">
-                {reference}
-              </span>
-              {narrativeSource === "ai" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 text-[10px] font-black uppercase tracking-wider border border-violet-500/30">
-                  <SparklesIcon className="w-3 h-3 text-violet-400" /> AI Pitch
-                </span>
+            <div className="hidden sm:flex items-center bg-muted/60 p-0.5 rounded-xl border border-border text-[11px] font-bold text-foreground/80 shrink-0">
+              {(["fit", "75", "100"] as const).map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => setZoom(z)}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    zoom === z ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
+                  }`}
+                >
+                  {z === "fit" ? "Fit" : `${z}%`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 px-3 sm:px-4 pb-2.5">
+            <div className="flex sm:hidden items-center bg-muted/60 p-0.5 rounded-xl border border-border text-[11px] font-bold text-foreground/80">
+              {(["fit", "75", "100"] as const).map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => setZoom(z)}
+                  className={`px-2 py-1 rounded-lg ${
+                    zoom === z ? "bg-primary text-primary-foreground" : ""
+                  }`}
+                >
+                  {z === "fit" ? "Fit" : z}
+                </button>
+              ))}
+            </div>
+
+            {canSend && stored && (
+              <button
+                type="button"
+                onClick={() => setShowEmailField((v) => !v)}
+                disabled={sending || saving}
+                aria-expanded={showEmailField}
+                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold"
+              >
+                {sending ? (
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <EnvelopeIcon className="w-3.5 h-3.5" />
+                )}
+                {sending ? "Sending…" : "Email PDF"}
+              </button>
+            )}
+
+            <button type="button" onClick={download} disabled={saving} className={BTN}>
+              {saving ? (
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ArrowDownTrayIcon className="w-3.5 h-3.5" />
               )}
-              {/*
-                Rendered only when there is a code, never as an empty "—".
-                A preview has no row, so it has no code, and a dash in that slot
-                reads as "this document's code is missing" rather than "this
-                document does not exist yet".
-              */}
-              {accessCode && (
+              {saving ? "Building…" : "Download"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => frameRef.current?.contentWindow?.print()}
+              className={BTN}
+            >
+              <PrinterIcon className="w-3.5 h-3.5" />
+              Print
+            </button>
+
+            {publicPath && (
+              <>
                 <button
                   type="button"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(accessCode).catch(() => null);
-                    setNotice(`Access code ${accessCode} copied — the school can type it at /p`);
+                    const url = shareUrl(shareToken);
+                    if (!url) return;
+                    await navigator.clipboard.writeText(url).catch(() => null);
+                    setNotice("Link copied — paste it to the school.");
                   }}
-                  title="The six digits a school types at /p when the link is gone. Tap to copy."
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
+                  className={BTN}
                 >
-                  Code {accessCode}
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  Copy link
                 </button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {schoolName ? `${schoolName} · ` : ""}
-              {documentId ? "Official Stored Record" : "Preview Draft (Unsaved)"}
-              {curriculumEdition ? ` · Curriculum Edition ${curriculumEdition}` : ""}
-            </p>
-          </div>
+                <a href={publicPath} target="_blank" rel="noreferrer" className={BTN}>
+                  School’s copy ↗
+                </a>
+              </>
+            )}
 
-          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-            {/* Zoom Controls */}
-            <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border text-xs font-bold text-foreground/80">
+            {accessCode && (
               <button
                 type="button"
-                onClick={() => setZoom("fit")}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  zoom === "fit" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
-                }`}
+                onClick={async () => {
+                  await navigator.clipboard.writeText(accessCode).catch(() => null);
+                  setNotice(`Access code ${accessCode} copied — they can type it at /p`);
+                }}
+                className={BTN}
               >
-                Fit
+                Copy code
               </button>
+            )}
+
+            {onDelete && stored && liveStatus === "draft" && (
               <button
                 type="button"
-                onClick={() => setZoom("75")}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  zoom === "75" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
-                }`}
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      `Delete draft ${reference}? Nothing has been sent, so nothing is lost.`,
+                    )
+                  ) {
+                    return;
+                  }
+                  setDeleting(true);
+                  setError("");
+                  try {
+                    await onDelete();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Could not delete that draft.");
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting || sending || saving}
+                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl border border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/15 text-xs font-bold disabled:opacity-50"
               >
-                75%
+                {deleting ? (
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <TrashIcon className="w-3.5 h-3.5" />
+                )}
+                {deleting ? "Deleting…" : "Delete draft"}
               </button>
-              <button
-                type="button"
-                onClick={() => setZoom("100")}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  zoom === "100" ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
-                }`}
-              >
-                100%
-              </button>
-            </div>
-
-            <button
-              onClick={onClose}
-              aria-label="Close preview"
-              className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
+            )}
           </div>
-        </div>
 
-        {documentId && liveStatus === "draft" && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5">
-            <p className="text-sm font-bold text-foreground">This is a draft — the school cannot open it</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              Issuing stored the document. Email it or mark it sent in the archive, or the public
-              link stays dead.
-            </p>
-          </div>
-        )}
-
-        {/* Action CTAs (Mobile First Responsive Wrap) */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
           {publicPath && (
-            <>
-              {/*
-                One button per outreach angle, and every one of them reads its
-                words from `outreach-copy` — the same file the outbound email
-                renders from.
-
-                These were three hand-written pitches sitting in JSX. They had
-                drifted from both the email and the document: they led with
-                robotics kits, promised a thirty-percent share the terms record
-                had never been asked about, and described a "Zero CapEx"
-                differently from the page they were attached to.
-              */}
-              <div className="flex flex-wrap items-center gap-1.5">
+            <details className="group border-t border-border/60 px-3 sm:px-4">
+              <summary className="cursor-pointer list-none py-2 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+                <span>Copy a WhatsApp or email message</span>
+                <ChevronDownIcon className="w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-wrap items-center gap-1.5 pb-2.5">
                 {OUTREACH_ANGLES.map((a) => (
                   <button
                     key={a.id}
@@ -372,180 +407,114 @@ export function IssuedDocumentPreview({
                         shareUrl: shareUrl(shareToken),
                       });
                       await navigator.clipboard.writeText(body).catch(() => null);
-                      setNotice(`✅ ${a.label} copied — paste it into WhatsApp or an email.`);
+                      setNotice(`${a.label} copied — paste it into WhatsApp or an email.`);
                     }}
                     title={a.desc}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-bold transition-all min-h-[38px]"
+                    className={BTN}
                   >
-                    <span>
-                      {a.icon} {a.label}
-                    </span>
+                    {a.icon} {a.label}
                   </button>
                 ))}
-
                 <a
                   href={`${brandContact.whatsapp}?text=${encodeURIComponent(
-                    `${kind === 'mou' ? 'Memorandum of Understanding' : 'Partnership proposal'} ${reference} for ${schoolName || 'your school'} — read it here: ${shareUrl(shareToken)}`,
+                    `${title} ${reference} for ${schoolName || "your school"} — read it here: ${shareUrl(shareToken)}`,
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Open WhatsApp with the link ready to send"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold transition-all min-h-[38px]"
+                  className={BTN}
                 >
                   Open WhatsApp
                 </a>
-
-                <a
-                  href={publicPath}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 text-foreground/90 hover:bg-muted border border-border text-xs font-bold transition-all min-h-[38px]"
-                >
-                  Open the school’s copy ↗
-                </a>
               </div>
-            </>
+            </details>
           )}
 
-          {canSend && documentId && (
-            <button
-              onClick={() => setShowEmailField((v) => !v)}
-              disabled={sending || saving}
-              aria-expanded={showEmailField}
-              className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-emerald-950/30 transition-all min-h-[44px] sm:min-h-[38px]"
+          {showEmailField && canSend && stored && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send(emailTo.trim());
+              }}
+              className="flex flex-col sm:flex-row gap-2 px-3 sm:px-4 pb-3 border-t border-border/60 pt-2"
             >
-              {sending ? (
-                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <EnvelopeIcon className="w-3.5 h-3.5" />
-              )}
-              <span>{sending ? "Sending…" : "Email PDF to School"}</span>
-            </button>
+              <input
+                type="email"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                placeholder="Leave blank to use the school's address on file"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="flex-1 min-w-0 min-h-[44px] px-3 py-2 rounded-xl bg-background border border-border text-base sm:text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black"
+                >
+                  {sending ? "Sending…" : "Send"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEmailField(false);
+                    setEmailTo("");
+                  }}
+                  className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-bold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           )}
+        </header>
 
-          <button
-            onClick={download}
-            disabled={saving}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-black shadow-md shadow-violet-950/40 transition-all min-h-[38px]"
-          >
-            {saving ? (
-              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-            )}
-            <span>{saving ? "Building PDF…" : "Download PDF"}</span>
-          </button>
-
-          <button
-            onClick={() => frameRef.current?.contentWindow?.print()}
-            title="Prints cleanly through browser print dialog"
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted text-xs font-bold transition-all min-h-[38px]"
-          >
-            <PrinterIcon className="w-3.5 h-3.5" /> Print
-          </button>
-        </div>
-
-        {showEmailField && canSend && documentId && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send(emailTo.trim());
-            }}
-            className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/60"
-          >
-            <input
-              type="email"
-              value={emailTo}
-              onChange={(e) => setEmailTo(e.target.value)}
-              // Blank is meaningful: the route then uses the address already on
-              // the school record, which is the common case.
-              placeholder="Leave blank to use the school's address on file"
-              autoComplete="email"
-              inputMode="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              // 16px until sm, or iOS Safari zooms the page on focus and never
-              // zooms back — the same trap the login inputs had.
-              className="flex-1 min-w-0 min-h-[44px] px-3 py-2 rounded-xl bg-background border border-border text-base sm:text-xs text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={sending}
-                className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black transition-all"
-              >
-                {sending ? "Sending…" : "Send"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEmailField(false);
-                  setEmailTo("");
-                }}
-                className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-muted/40 text-foreground/80 hover:bg-muted text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
+        {error && (
+          <p className="shrink-0 px-4 py-2 text-xs text-destructive bg-destructive/10 border-b border-destructive/20 font-medium">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p className="shrink-0 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-b border-emerald-500/20 font-medium">
+            {notice}
+          </p>
+        )}
+        {loading ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+            <div className="flex flex-col items-center gap-3">
+              <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-xs text-muted-foreground font-medium">Rendering document…</p>
             </div>
-          </form>
+          </div>
+        ) : (
+          <div
+            ref={paneRef}
+            className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overscroll-contain"
+          >
+            <div
+              className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
+              style={{ width: PAGE_W * scale, height: FRAME_H * scale }}
+            >
+              <iframe
+                ref={frameRef}
+                srcDoc={framedHtml}
+                title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
+                sandbox="allow-same-origin allow-modals"
+                className="bg-white"
+                style={{
+                  width: PAGE_W,
+                  height: FRAME_H,
+                  border: "none",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
-
-      {error && (
-        <p className="px-5 py-2 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20 font-medium">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p className="px-5 py-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-b border-emerald-500/20 font-medium">
-          {notice}
-        </p>
-      )}
-
-      {loading ? (
-        <div className="h-[400px] flex items-center justify-center bg-slate-100 dark:bg-slate-950">
-          <div className="flex flex-col items-center gap-3">
-            <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-xs text-muted-foreground font-medium">Rendering document preview…</p>
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={paneRef}
-          // flex-1/min-h-0 so the pane takes the leftover height of the
-          // full-screen column on a phone; the fixed cap returns from `sm`,
-          // where this is a card inside the page's own scroll again.
-          className="bg-slate-100 dark:bg-slate-950 p-3 md:p-8 overflow-auto overscroll-contain flex-1 min-h-0 sm:flex-none sm:max-h-[820px] border-t border-border/60"
-        >
-          {/*
-            The document is a fixed 794px A4 page. Squeezing the iframe to a
-            phone's width does not reflow it — the page just gets cut off — so
-            the frame keeps its true width and the whole thing is scaled down to
-            whatever room there is. On a laptop the scale lands at 1 and nothing
-            has been done to it.
-          */}
-          <div
-            className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
-            style={{ width: PAGE_W * scale, height: FRAME_H * scale }}
-          >
-            <iframe
-              ref={frameRef}
-              srcDoc={framedHtml}
-              title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
-              sandbox="allow-same-origin allow-modals"
-              className="bg-white"
-              style={{
-                width: PAGE_W,
-                height: FRAME_H,
-                border: "none",
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    </BodyPortal>
   );
 }
-

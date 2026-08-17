@@ -20,27 +20,14 @@ import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
   BuildingOffice2Icon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
-  DocumentTextIcon,
-  BanknotesIcon,
-  SparklesIcon,
-  PhotoIcon,
-  ArchiveBoxIcon,
-  LinkIcon,
-  QrCodeIcon,
-  CheckBadgeIcon,
-  BookOpenIcon,
   PhoneIcon,
   EnvelopeIcon,
   UserIcon,
-  ChatBubbleLeftRightIcon,
-  PaperAirplaneIcon,
   ChevronDownIcon,
 } from "@/lib/icons";
-import { brandContact } from "@/config/brand";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
 import { PartnershipDocumentArchive } from "@/components/partnerships/PartnershipDocumentArchive";
 import { PartnershipDocumentComposer, type ComposerHandle } from "@/components/partnerships/PartnershipDocumentComposer";
@@ -155,6 +142,8 @@ export default function PartnershipsPage() {
   const [studio, setStudio] = useState<ProposalStudioConfig>(() => defaultStudioConfig());
   const composerRef = useRef<ComposerHandle>(null);
   const [focusDocumentId, setFocusDocumentId] = useState<string | null>(null);
+  /** After picking a school, land on the next step once its documents are in. */
+  const routeOnLoad = useRef(false);
 
   const canView = profile?.role === "admin" || profile?.role === "teacher";
   const canWrite = profile?.role === "admin";
@@ -228,10 +217,12 @@ export default function PartnershipsPage() {
     setTerms([]);
     setAgreed(null);
     setDocuments([]);
+    setLoadingSchool(true);
     setActiveTab(opts?.tab ?? "compose");
     setComposeKind(opts?.kind ?? "proposal");
     setFocusDocumentId(opts?.focusDocumentId ?? null);
     setStudio(loadStudioConfig(id));
+    routeOnLoad.current = !opts?.tab;
     void loadSchoolDetail(id);
   }
 
@@ -260,10 +251,6 @@ export default function PartnershipsPage() {
   const partners = useMemo(() => schools.filter((s) => s.status === "approved"), [schools]);
   const prospects = schools.length - partners.length;
   const awaiting = partners.length - partners.filter((s) => withTerms.has(s.id)).length;
-  const signedAgreements = useMemo(
-    () => documents.filter((d) => d.document_kind === "mou" && d.status === "signed"),
-    [documents],
-  );
 
   /*
     The two documents the follow-up buttons act on, and whether either can
@@ -340,6 +327,83 @@ export default function PartnershipsPage() {
     return partnershipNextAction({ agreed, documents });
   }, [selected, agreed, documents]);
 
+  useEffect(() => {
+    if (!preview?.id || loadingSchool) return;
+    if (!documents.some((d) => d.id === preview.id)) setPreview(null);
+  }, [documents, preview?.id, loadingSchool]);
+
+  const writing = activeTab !== "archive";
+
+  function documentForNextStep(): IssuedDocumentRow | null {
+    const kind = dealState?.action?.kind;
+    if (!kind) return null;
+    return (
+      documents.find((d) => d.document_kind === kind && d.status === "draft") ??
+      documents.find((d) => d.document_kind === kind && d.status === "sent") ??
+      null
+    );
+  }
+
+  async function openStoredDocument(doc: IssuedDocumentRow) {
+    try {
+      const { data, error } = await createClient()
+        .from("partnership_agreements")
+        .select("document_html")
+        .eq("id", doc.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.document_html) throw new Error("This document has no stored copy.");
+      setPreview({
+        id: doc.id,
+        html: data.document_html,
+        reference: doc.reference || "—",
+        kind: doc.document_kind,
+        schoolName: selected?.name ?? null,
+        narrativeSource: null,
+        curriculumEdition: null,
+        shareToken: doc.share_token,
+        accessCode: doc.access_code,
+        status: doc.status,
+      });
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Could not open that document.");
+    }
+  }
+
+  function goToNextStep() {
+    const action = dealState?.action;
+    if (!action) return;
+    if (action.kind) setComposeKind(action.kind);
+    if (action.tab === "archive") {
+      setActiveTab("archive");
+      const doc = documentForNextStep();
+      if (doc) {
+        setFocusDocumentId(doc.id);
+        void openStoredDocument(doc);
+      }
+      return;
+    }
+    if (action.tab === "terms") {
+      setOpenTerms((n) => n + 1);
+    }
+    setActiveTab(action.tab);
+  }
+
+  useEffect(() => {
+    if (!selected || loadingSchool || !dealState || !routeOnLoad.current) return;
+    routeOnLoad.current = false;
+    const action = dealState.action;
+    if (action?.kind) setComposeKind(action.kind);
+    if (action?.tab === "archive") {
+      setActiveTab("archive");
+      const doc = documentForNextStep();
+      if (doc) setFocusDocumentId(doc.id);
+    } else if (action?.tab === "terms") {
+      setOpenTerms((n) => n + 1);
+      setActiveTab("terms");
+    }
+  }, [selected, loadingSchool, dealState]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -363,66 +427,25 @@ export default function PartnershipsPage() {
   return (
     <div className="space-y-6 pb-20 max-w-7xl mx-auto px-2 sm:px-4">
       {/* Top Header & Metrics Banner */}
-      <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-teal-950/40 to-slate-900 border border-border p-6 shadow-xl space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🤝</span>
-              <h1 className="text-2xl font-black text-white tracking-tight">
-                Partnerships &amp; Legal Desk
-              </h1>
-            </div>
-            <p className="text-xs text-slate-300 mt-1">
-              Authoritative commercial agreements, AI proposals, revenue sharing, and school sign-offs.
-            </p>
-          </div>
-
-          {/* Quick Metrics */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 border border-slate-700/80 px-3.5 py-2">
-              <BuildingOffice2Icon className="h-4 w-4 text-emerald-400" />
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400">Approved Partners</p>
-                <p className="text-xs font-black text-white">{partners.length}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 border border-slate-700/80 px-3.5 py-2">
-              <SparklesIcon className="h-4 w-4 text-amber-400" />
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400">Prospect Pipeline</p>
-                <p className="text-xs font-black text-white">{prospects}</p>
-              </div>
-            </div>
-
-            <div className={`flex items-center gap-2 rounded-2xl border px-3.5 py-2 ${
-              awaiting > 0 ? "bg-amber-500/10 border-amber-500/30 text-amber-300" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-            }`}>
-              {awaiting > 0 ? (
-                <ExclamationTriangleIcon className="h-4 w-4 text-amber-400" />
-              ) : (
-                <CheckCircleIcon className="h-4 w-4 text-emerald-400" />
-              )}
-              <div>
-                <p className="text-[10px] uppercase font-bold">Terms In Force</p>
-                <p className="text-xs font-black">{partners.length - awaiting} of {partners.length}</p>
-              </div>
-            </div>
-
-            <Link
-              href="/dashboard/academic/build"
-              className="flex items-center gap-2 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-900/50 px-3.5 py-2 transition-all group"
-              title="Open Curriculum Builder"
-            >
-              <BookOpenIcon className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <div>
-                <p className="text-[10px] uppercase font-bold text-cyan-400">Master Syllabus</p>
-                <p className="text-xs font-black text-white flex items-center gap-1">
-                  Curriculum Builder <span className="text-cyan-400">→</span>
-                </p>
-              </div>
-            </Link>
-          </div>
+      <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
+        <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+          Partnerships
+        </h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          Write a proposal, send it, record the deal, then send the MoU.
+        </p>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <span className="rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground">
+            {partners.length} partners
+          </span>
+          <span className="rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground">
+            {prospects} prospects
+          </span>
+          {awaiting > 0 && (
+            <span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              {awaiting} partners without terms
+            </span>
+          )}
         </div>
       </div>
 
@@ -443,8 +466,8 @@ export default function PartnershipsPage() {
       <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-full sm:w-auto sm:inline-flex">
         {(
           [
-            { v: "school" as const, label: "School workspace" },
-            { v: "pipeline" as const, label: "All documents" },
+            { v: "school" as const, label: "This school" },
+            { v: "pipeline" as const, label: "Waiting" },
           ]
         ).map((v) => (
           <button
@@ -625,9 +648,9 @@ export default function PartnershipsPage() {
           {!selected ? (
             <div className="bg-card border border-border rounded-3xl p-16 text-center shadow-lg space-y-3">
               <BuildingOffice2Icon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-              <h2 className="text-base font-bold text-foreground">Select a School to Manage</h2>
+              <h2 className="text-base font-bold text-foreground">Pick a school</h2>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Review commercial terms, compose tailored AI proposals, manage revenue splits, and issue legally binding MoUs.
+                Write a proposal, send it, record the deal, then send the MoU.
               </p>
             </div>
           ) : loadingSchool ? (
@@ -655,323 +678,175 @@ export default function PartnershipsPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {[selected.city, selected.state].filter(Boolean).join(", ") || "Nigeria"}
-                      {selected.student_count ? ` · Enrolled Roll: ${selected.student_count} students` : ""}
+                      {selected.student_count ? ` · ${selected.student_count} students` : ""}
                     </p>
-                  </div>
-
-                  {/* Deal Snippet Pill */}
-                  {agreed ? (
-                    <div className="rounded-2xl bg-emerald-950/20 border border-emerald-500/30 px-3.5 py-2 text-xs">
-                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">Agreed Deal</span>
-                      <span className="font-semibold text-emerald-200">{agreed.summary || describeTerms(agreed)}</span>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl bg-amber-950/20 border border-amber-500/30 px-3.5 py-2 text-xs text-amber-300">
-                      <span className="text-[10px] uppercase font-bold text-amber-400 block">Status</span>
-                      <span>Awaiting agreed terms</span>
-                    </div>
-                  )}
-                </div>
-
-                {/*
-                  Pipeline stepper — two up on a phone, four across from `sm`.
-
-                  Four columns inside a phone's width left each step about 70px
-                  to hold "4. MoU Sign-Off" over "✓ Executed", so the labels
-                  broke onto three or four lines of two or three characters and
-                  the row of stages stopped reading as a sequence at all.
-                */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-border/80 text-center">
-                  <div className="rounded-xl bg-muted/60 p-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">1. Stage</span>
-                    <span>{selected.status === "approved" ? "Partner" : "Prospect"}</span>
-                  </div>
-                  <div className={`rounded-xl p-2 text-xs font-bold border ${
-                    documents.some((d) => d.document_kind === "proposal" && (d.status === "sent" || d.status === "signed"))
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : documents.some((d) => d.document_kind === "proposal" && d.status === "draft")
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                        : "bg-muted/30 border-border text-muted-foreground"
-                  }`}>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">2. Proposal</span>
-                    <span>
-                      {documents.some((d) => d.document_kind === "proposal" && (d.status === "sent" || d.status === "signed"))
-                        ? "✓ Sent"
-                        : documents.some((d) => d.document_kind === "proposal" && d.status === "draft")
-                          ? "Draft"
-                          : "Pending"}
-                    </span>
-                  </div>
-                  <div className={`rounded-xl p-2 text-xs font-bold border ${
-                    agreed
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-muted/30 border-border text-muted-foreground"
-                  }`}>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">3. Terms</span>
-                    <span>{agreed ? "✓ Agreed" : "Pending"}</span>
-                  </div>
-                  <div className={`rounded-xl p-2 text-xs font-bold border ${
-                    signedAgreements.length > 0
-                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
-                      : "bg-muted/30 border-border text-muted-foreground"
-                  }`}>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">4. MoU Sign-Off</span>
-                    <span>{signedAgreements.length > 0 ? "✓ Executed" : "Awaiting"}</span>
-                  </div>
-                </div>
-
-                {/* ⚡ Smart Automated Follow-Up & Conversion Engine */}
-                <div className="rounded-2xl bg-gradient-to-br from-card via-card to-emerald-950/20 border border-emerald-500/30 p-4 shadow-md space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-border/70 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
-                        <SparklesIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
-                          <span>Automated Follow-Up &amp; Conversion Assistant</span>
-                        </h3>
-                        <p className="text-[10px] text-muted-foreground">
-                          Multi-channel client acquisition toolkit for teachers &amp; desk admins.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Direct Contact Bar */}
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {selected.contact_person && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-muted-foreground text-[11px] font-medium">
+                          <UserIcon className="h-3 w-3" />
+                          {selected.contact_person}
+                        </span>
+                      )}
                       {selected.phone && (
                         <a
                           href={`tel:${selected.phone}`}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-bold transition-colors"
-                          title="Call school directly"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-medium"
                         >
-                          <PhoneIcon className="h-3 w-3 text-cyan-400" />
-                          <span>{selected.phone}</span>
+                          <PhoneIcon className="h-3 w-3" />
+                          {selected.phone}
                         </a>
                       )}
                       {selected.email && (
                         <a
-                          href={`mailto:${selected.email}?subject=${encodeURIComponent(`STEM & Robotics Partnership for ${selected.name}`)}`}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-bold transition-colors"
-                          title="Email school directly"
+                          href={`mailto:${selected.email}`}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[11px] font-medium"
                         >
-                          <EnvelopeIcon className="h-3 w-3 text-violet-400" />
-                          <span>{selected.email}</span>
+                          <EnvelopeIcon className="h-3 w-3" />
+                          {selected.email}
                         </a>
                       )}
-                      {selected.contact_person && (
-                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-muted-foreground text-[11px] font-bold">
-                          <UserIcon className="h-3 w-3 text-emerald-400" />
-                          <span>{selected.contact_person}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dynamic Action Trigger based on Stage */}
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-0.5">
-                    <div className="space-y-0.5 max-w-xl">
-                      <p className="text-xs font-bold text-foreground">
-                        {dealState?.headline ?? "Pick a school to see the next step"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        {dealState?.detail ?? "Compose a proposal first. Terms come after they pick an option."}
-                      </p>
-                    </div>
-
-                    {/*
-                      Stage-specific 1-click actions.
-
-                      Full-width rows on a phone: these carry sentences, not
-                      words ("Send 48h AI Check-In"), and wrapping them into a
-                      flex row left ragged half-width buttons with text spilling
-                      over two lines. Stacking is both readable and easier to hit.
-                    */}
-                    <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:shrink-0">
-                      {dealState?.tone === "done" && dealState.hrefs ? (
-                        <>
-                          {dealState.hrefs.map((h) => (
-                            <Link
-                              key={h.href}
-                              href={h.href}
-                              className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all first:bg-emerald-600 [&:nth-child(2)]:bg-muted [&:nth-child(2)]:text-foreground [&:nth-child(2)]:border [&:nth-child(2)]:border-border"
-                            >
-                              {h.href.includes("billing") ? (
-                                <BanknotesIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                              ) : (
-                                <BookOpenIcon className="h-3.5 w-3.5 shrink-0" />
-                              )}
-                              <span>{h.label}</span>
-                            </Link>
-                          ))}
-                        </>
-                      ) : dealState?.followUp === "mou" && shareableMou ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const shareUrl = buildDocumentShareUrl(
-                              typeof window !== "undefined" ? window.location.origin : "",
-                              shareableMou.share_token,
-                            );
-                            if (!shareUrl) return;
-                            const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour official Rillcod AI & Robotics Partnership Memorandum of Understanding is ready for digital execution:\n👉 ${shareUrl}\n\nYou can review and digitally sign on your phone in 60 seconds. This immediately secures your certified AI instructor and dedicated robotics kit allocations for resumption.\n\n*Rillcod Technologies*`;
-                            window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
-                          }}
-                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
-                        >
-                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="sm:hidden">Nudge MoU Signature</span>
-                          <span className="hidden sm:inline">Nudge MoU Signature (WhatsApp)</span>
-                        </button>
-                      ) : dealState?.followUp === "proposal" && shareableProposal ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const shareUrl = buildDocumentShareUrl(
-                              typeof window !== "undefined" ? window.location.origin : "",
-                              shareableProposal.share_token,
-                            );
-                            if (!shareUrl) return;
-                            const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the 12-Year AI, Coding & Robotics Partnership Proposal (${shareableProposal.reference}) prepared for your school.\n\n👉 Review Proposal Online: ${shareUrl}\n\nKey Highlights: ₦0 Equipment CapEx, certified AI facilitators, termly Scan-to-Watch QR progress cards, and 30% profit share.\n\nWe'd love to schedule a brief 20-minute chat or bring live robotics kits to your school for a free student demonstration trial. Does that work for you?\n\n*Rillcod Technologies*`;
-                            window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
-                          }}
-                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black shadow-md transition-all"
-                        >
-                          <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="sm:hidden">Follow up</span>
-                          <span className="hidden sm:inline">Follow up on WhatsApp</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (dealState?.action?.kind) setComposeKind(dealState.action.kind);
-                            setActiveTab(dealState?.action?.tab ?? "compose");
-                          }}
-                          className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all"
-                        >
-                          <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span>{dealState?.action?.label ?? "Compose a proposal"}</span>
-                        </button>
-                      )}
-
-                      {/* Additional Outreach & Cold Pitch Email Trigger */}
                       <button
                         type="button"
                         onClick={() => setShowOutreachModal(true)}
-                        className="flex w-full sm:w-auto min-h-[44px] items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold transition-all shadow-sm"
-                        title="Send customized cold pitch, demo invite, or follow-up email"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground"
                       >
-                        <EnvelopeIcon className="h-3.5 w-3.5 text-violet-400" />
-                        <span>Outreach &amp; Cold Email</span>
+                        Cold email
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/*
-                Where this school is, above the tabs rather than inside one.
-
-                It is the first question anybody opening a school has, and until
-                now answering it meant visiting Terms to see if there was a rate,
-                then Archive to see if anything had gone out, then working out
-                for yourself whether the two agreed. The tabs stay; this just
-                means you no longer have to tour them to find out where you are.
-              */}
-              {dealState && (
-                <div
-                  className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                    dealState.tone === 'done'
-                      ? 'border-emerald-500/30 bg-emerald-500/10'
-                      : dealState.tone === 'warn'
-                        ? 'border-amber-500/30 bg-amber-500/10'
-                        : dealState.tone === 'todo'
-                          ? 'border-border bg-muted/40'
-                          : 'border-sky-500/25 bg-sky-500/10'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-foreground">{dealState.headline}</p>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {dealState.detail}
+                  {agreed ? (
+                    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs">
+                      <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                        Agreed deal
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {agreed.summary || describeTerms(agreed)}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground sm:text-right">
+                      No rate on record yet — a proposal can still go out.
                     </p>
-                  </div>
-                  {dealState.action && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (dealState.action?.kind) setComposeKind(dealState.action.kind);
-                        setActiveTab(dealState.action!.tab);
-                      }}
-                      className="shrink-0 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold transition-transform active:scale-95 min-h-[42px]"
-                    >
-                      {dealState.action.label}
-                    </button>
                   )}
                 </div>
-              )}
 
-              {/*
-                Workspace tabs.
-
-                Five tabs with labels this long do not fit a phone, and the bar
-                scrolled with nothing to say so — it simply looked like a row
-                that had been cut off. The mask fades the last few pixels at
-                whichever end has more to show, which is the usual signal that a
-                strip continues; snapping means a swipe settles on a tab rather
-                than halfway across one.
-
-                The mask is applied inline because it needs two properties that
-                have to agree, and `mask-image` still wants the -webkit- prefix
-                on the iOS Safari versions this has to work on.
-              */}
-              <div
-                className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-px-4 overscroll-x-contain"
-                style={{
-                  maskImage:
-                    "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%)",
-                  WebkitMaskImage:
-                    "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%)",
-                }}
-              >
-                {[
-                  { key: "compose", label: "📑 Agreements & Proposals", count: documents.length },
-                  { key: "terms", label: "💰 Commercial Terms", count: terms.length },
-                  { key: "gallery", label: "🏛️ School Gallery" },
-                  { key: "archive", label: "📜 Document Archive", count: documents.length },
-                ].map((tab) => {
-                  const active = activeTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key as WorkspaceTab)}
-                      className={`shrink-0 snap-start min-h-[44px] flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-black transition-all ${
-                        active
-                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
-                          : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                      }`}
-                    >
-                      <span>{tab.label}</span>
-                      {tab.count !== undefined && (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                          active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                        }`}>
-                          {tab.count}
-                        </span>
+                {dealState && (
+                  <div
+                    className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                      dealState.tone === "done"
+                        ? "border-emerald-500/30 bg-emerald-500/10"
+                        : dealState.tone === "warn"
+                          ? "border-amber-500/30 bg-amber-500/10"
+                          : dealState.tone === "todo"
+                            ? "border-border bg-muted/40"
+                            : "border-sky-500/25 bg-sky-500/10"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Next step
+                      </p>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{dealState.headline}</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {dealState.detail}
+                      </p>
+                    </div>
+                    <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2 shrink-0">
+                      {dealState.tone === "done" && dealState.hrefs ? (
+                        dealState.hrefs.map((h) => (
+                          <Link
+                            key={h.href}
+                            href={h.href}
+                            className="flex min-h-[44px] items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                          >
+                            {h.label}
+                          </Link>
+                        ))
+                      ) : (
+                        <>
+                          {dealState.action && (
+                            <button
+                              type="button"
+                              onClick={goToNextStep}
+                              className="min-h-[44px] px-4 py-2 rounded-xl bg-foreground text-background text-xs font-bold"
+                            >
+                              {dealState.action.label}
+                            </button>
+                          )}
+                          {dealState.followUp === "mou" && shareableMou && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const shareUrl = buildDocumentShareUrl(
+                                  typeof window !== "undefined" ? window.location.origin : "",
+                                  shareableMou.share_token,
+                                );
+                                if (!shareUrl) return;
+                                const msg = `Dear ${selected.contact_person || selected.name} Leadership,\n\nYour Rillcod partnership MoU is ready to sign:\n${shareUrl}\n\nYou can review and sign on your phone.\n\nRillcod Technologies`;
+                                window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
+                              }}
+                              className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
+                            >
+                              WhatsApp
+                            </button>
+                          )}
+                          {dealState.followUp === "proposal" && shareableProposal && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const shareUrl = buildDocumentShareUrl(
+                                  typeof window !== "undefined" ? window.location.origin : "",
+                                  shareableProposal.share_token,
+                                );
+                                if (!shareUrl) return;
+                                const msg = `Hello ${selected.contact_person || selected.name},\n\nFollowing up on the partnership proposal (${shareableProposal.reference}):\n${shareUrl}\n\nHappy to talk through it or bring a demo to the school.\n\nRillcod Technologies`;
+                                window.open(buildWhatsAppUrl(selected.phone, msg), "_blank");
+                              }}
+                              className="min-h-[44px] px-4 py-2 rounded-xl border border-border bg-card text-foreground text-xs font-bold"
+                            >
+                              WhatsApp
+                            </button>
+                          )}
+                        </>
                       )}
-                    </button>
-                  );
-                })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Tab 1: Compose Proposals & MoUs.
-                  Kept mounted (hidden) on other tabs so redraw in the archive
-                  still has the offer, studio, narrative and enrolment that
-                  were last previewed — unmounting this form is how a redraw
-                  used to re-issue a blank-slate document. */}
-              <div className={activeTab === "compose" ? "space-y-5" : "hidden"}>
+              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("compose")}
+                  className={`flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold ${
+                    writing
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Write
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("archive")}
+                  className={`flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold ${
+                    activeTab === "archive"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Documents
+                  {documents.length > 0 && (
+                    <span className="ml-1.5 opacity-80">{documents.length}</span>
+                  )}
+                </button>
+              </div>
+
+              {/* Composer stays mounted (hidden) on Documents so a redraw still
+                  has the last offer, studio and enrolment. Unmounting it used
+                  to re-issue a blank document. */}
+              <div className={activeTab === "compose" || activeTab === "gallery" ? "space-y-5" : "hidden"}>
                   <PartnershipDocumentComposer
                     ref={composerRef}
                     school={selected}
@@ -981,6 +856,11 @@ export default function PartnershipsPage() {
                     kind={composeKind}
                     onKindChange={setComposeKind}
                     documents={documents}
+                    onOpenLive={(doc) => {
+                      setActiveTab("archive");
+                      setFocusDocumentId(doc.id);
+                      void openStoredDocument(doc);
+                    }}
                     onRecordTerms={() => {
                       setOpenTerms((n) => n + 1);
                       setActiveTab("terms");
@@ -1000,6 +880,8 @@ export default function PartnershipsPage() {
                       });
                     }}
                     onIssued={async (doc: IssuedDocument) => {
+                      setActiveTab("archive");
+                      setFocusDocumentId(doc.id);
                       setPreview({
                         id: doc.id,
                         html: doc.html,
@@ -1015,27 +897,6 @@ export default function PartnershipsPage() {
                       await loadSchoolDetail(selected.id);
                     }}
                   />
-
-                  {preview && (
-                    <IssuedDocumentPreview
-                      html={preview.html}
-                      reference={preview.reference}
-                      kind={preview.kind}
-                      schoolName={preview.schoolName}
-                      narrativeSource={preview.narrativeSource}
-                      curriculumEdition={preview.curriculumEdition}
-                      documentId={preview.id || null}
-                      shareToken={preview.shareToken}
-                      // Carried in state since the preview was built, but never
-                      // handed down — which is why the access-code pill was
-                      // always empty on an issued document.
-                      accessCode={preview.accessCode}
-                      documentStatus={preview.status}
-                      canSend={canWrite}
-                      onSent={() => loadSchoolDetail(selected.id)}
-                      onClose={() => setPreview(null)}
-                    />
-                  )}
                   {/*
                     The studio, where the document it shapes is being made.
 
@@ -1061,6 +922,15 @@ export default function PartnershipsPage() {
                       </summary>
                       <div className="px-1 pb-1">
                         <ProposalStudio config={studio} onChange={setStudio} school={selected} />
+                        <div className="px-4 pb-4">
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-2">
+                            School photos
+                          </p>
+                          <SchoolGalleryViewer
+                            schoolId={selected.id}
+                            schoolName={selected.name}
+                          />
+                        </div>
                       </div>
                     </details>
                   )}
@@ -1069,6 +939,14 @@ export default function PartnershipsPage() {
               {/* Tab 2: Authoritative Commercial Terms */}
               {activeTab === "terms" && (
                 <div id="partnership-terms" className="space-y-4">
+                  <p className="text-sm font-semibold text-foreground">Record the deal</p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("compose")}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back to writing
+                  </button>
                   <PartnershipTermsEditor
                     school={selected}
                     agreed={agreed}
@@ -1086,24 +964,12 @@ export default function PartnershipsPage() {
                         to it rather than leaving them on a saved form to work
                         out where to go next.
                       */
-                      if (composeKind === "mou") setActiveTab("compose");
+                      setActiveTab("compose");
                     }}
                   />
                 </div>
               )}
 
-              {/* Tab 3: Proposal Studio Customizer */}
-              {/* Tab 4: School Media Vault (Centralized Gallery) */}
-              {activeTab === "gallery" && (
-                <div className="space-y-4">
-                  <SchoolGalleryViewer
-                    schoolId={selected.id}
-                    schoolName={selected.name}
-                  />
-                </div>
-              )}
-
-              {/* Tab 5: Document Archive & Audits */}
               {activeTab === "archive" && (
                 <div className="space-y-4">
                   <PartnershipDocumentArchive
@@ -1125,7 +991,6 @@ export default function PartnershipsPage() {
                         accessCode: doc.access_code,
                         status: doc.status,
                       });
-                      setActiveTab("compose");
                     }}
                   />
                 </div>
@@ -1134,6 +999,46 @@ export default function PartnershipsPage() {
           )}
         </div>
       </div>
+
+      {/*
+        One overlay for viewing, whether you just issued or opened the archive.
+
+        It used to render inside the Compose tab. Opening a stored document then
+        jumped you off Archive, dropped the pages under the offer form, and on a
+        laptop the sheet was not even full-screen — so viewing, editing and
+        deleting all looked like the same screen.
+      */}
+      {preview && selected && (
+        <IssuedDocumentPreview
+          html={preview.html}
+          reference={preview.reference}
+          kind={preview.kind}
+          schoolName={preview.schoolName}
+          narrativeSource={preview.narrativeSource}
+          curriculumEdition={preview.curriculumEdition}
+          documentId={preview.id || null}
+          shareToken={preview.shareToken}
+          accessCode={preview.accessCode}
+          documentStatus={preview.status}
+          canSend={canWrite}
+          onSent={() => loadSchoolDetail(selected.id)}
+          onDelete={
+            canWrite && preview.id && preview.status === "draft"
+              ? async () => {
+                  const res = await fetch(
+                    `/api/partnerships/documents?id=${encodeURIComponent(preview.id)}`,
+                    { method: "DELETE" },
+                  );
+                  const json = await res.json();
+                  if (!res.ok) throw new Error(json.error || "Could not delete that draft.");
+                  setPreview(null);
+                  await loadSchoolDetail(selected.id);
+                }
+              : undefined
+          }
+          onClose={() => setPreview(null)}
+        />
+      )}
 
       {/* Outreach & Cold Pitch Email Campaign Modal */}
       {selected && (

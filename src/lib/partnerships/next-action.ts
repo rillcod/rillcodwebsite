@@ -124,7 +124,7 @@ export function partnershipNextAction(input: {
       headline: `${draftMou.reference ?? 'The MoU'} is a draft`,
       detail:
         'The school cannot open the public link until you send it or mark it sent. Issuing it did not deliver it.',
-      action: { label: 'Send the MoU', tab: 'archive', kind: 'mou' },
+      action: { label: 'Send this MoU', tab: 'archive', kind: 'mou' },
       followUp: null,
     };
   }
@@ -138,7 +138,7 @@ export function partnershipNextAction(input: {
       detail: n
         ? 'They have the agreement. Nudge the proprietor to sign it on their phone.'
         : 'The link has not been opened. Check it reached the right person.',
-      action: { label: 'Open the archive', tab: 'archive', kind: 'mou' },
+      action: { label: 'View the MoU', tab: 'archive', kind: 'mou' },
       followUp: 'mou',
     };
   }
@@ -162,7 +162,7 @@ export function partnershipNextAction(input: {
       headline: `${draftProposal.reference ?? 'The proposal'} is a draft`,
       detail:
         'The school cannot open it. Send it or mark it sent — the public link stays dead until then.',
-      action: { label: 'Send the proposal', tab: 'archive', kind: 'proposal' },
+      action: { label: 'Send this proposal', tab: 'archive', kind: 'proposal' },
       followUp: null,
     };
   }
@@ -208,7 +208,7 @@ export function partnershipNextAction(input: {
         : 'It has not been opened. Check the link reached the right person, then follow up.',
       action: n
         ? { label: 'Record terms', tab: 'terms' }
-        : { label: 'Open the archive', tab: 'archive', kind: 'proposal' },
+        : { label: 'View the proposal', tab: 'archive', kind: 'proposal' },
       followUp: 'proposal',
     };
   }

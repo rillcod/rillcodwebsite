@@ -76,7 +76,7 @@ describe('partnershipNextAction', () => {
         { document_kind: 'proposal', status: 'sent' },
       ],
     });
-    expect(next.action?.label).toMatch(/send the mou/i);
+    expect(next.action?.label).toMatch(/send this mou/i);
     expect(next.followUp).toBeNull();
   });
 

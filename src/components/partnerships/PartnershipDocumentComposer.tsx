@@ -16,12 +16,12 @@
 import { useEffect, useImperativeHandle, useMemo, useState, forwardRef } from "react";
 import {
   ArrowPathIcon,
-  ClipboardDocumentCheckIcon,
-  DocumentTextIcon,
+  EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   SparklesIcon,
   CheckCircleIcon,
+  ChevronDownIcon,
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel, recommendOffer } from "@/lib/partnerships/offers";
 import { describeTerms } from "@/lib/partnerships/terms";
@@ -65,6 +65,8 @@ type ComposerProps = {
   kind: DocumentKind;
   onKindChange: (kind: DocumentKind) => void;
   documents?: IssuedDocumentRow[];
+  /** Open the live draft/sent copy instead of writing a second one. */
+  onOpenLive?: (doc: IssuedDocumentRow) => void;
 };
 
 export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerProps>(
@@ -80,6 +82,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       kind,
       onKindChange,
       documents = [],
+      onOpenLive,
     },
     ref,
   ) {
@@ -105,9 +108,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   const [commencement, setCommencement] = useState("");
   const [durationLabel, setDurationLabel] = useState("");
   const [students, setStudents] = useState("");
-  const [sendEmail, setSendEmail] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState(school.email || "");
-  const [emailStatus, setEmailStatus] = useState("");
   const [issuing, setIssuing] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
@@ -137,8 +138,6 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
     setDurationLabel("");
     setStudents(school.student_count ? String(school.student_count) : "");
     setRecipientEmail(school.email || "");
-    setSendEmail(false);
-    setEmailStatus("");
     setError("");
   }, [school.id]);
 
@@ -224,7 +223,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   // 409; the button refuses it here so nobody has to read a failure to find out.
   const mouBlocked = kind === "mou" && !agreed;
 
-  function payload(preview: boolean) {
+  function payload(preview: boolean, send = false) {
     return {
       school_id: school.id,
       kind,
@@ -243,8 +242,8 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       // A proposal uses it for the uptake scenarios on the money page; an MoU
       // uses it to work the agreed fee through to a checkable figure.
       illustrative_students: Number(students) || undefined,
-      send_email: !preview && sendEmail,
-      recipient_email: !preview && sendEmail ? recipientEmail.trim() : null,
+      send_email: !preview && send,
+      recipient_email: !preview && send ? recipientEmail.trim() : null,
       // The same settings on both paths, so what was previewed is what issues.
       studio: kind === 'proposal' ? studio : null,
       /*
@@ -304,20 +303,20 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
     }
   }
 
-  async function issue() {
+  async function issue(send: boolean) {
     setIssuing(true);
     setError("");
     try {
       const res = await fetch("/api/partnerships/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload(false)),
+        body: JSON.stringify(payload(false, send)),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not issue the document.");
+      if (!res.ok) throw new Error(json.error || "Could not save the document.");
       await onIssued(json as IssuedDocument);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not issue the document.");
+      setError(e instanceof Error ? e.message : "Could not save the document.");
     } finally {
       setIssuing(false);
     }
@@ -326,11 +325,73 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
       <div>
-        <h2 className="text-base font-semibold text-foreground">Issue a document</h2>
+        <h2 className="text-base font-semibold text-foreground">
+          {kind === "mou" ? "Write the MoU" : "Write a proposal"}
+        </h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Rendered and archived in one step, under a reference the database assigns.
+          {kind === "mou"
+            ? "The agreement they sign. Needs an agreed rate first."
+            : "The offer you send to get to a rate. Preview, then send."}
         </p>
+        <div className="flex gap-1 mt-3 p-1 rounded-xl bg-muted/50 border border-border">
+          <button
+            type="button"
+            onClick={() => setKind("proposal")}
+            className={`flex-1 min-h-[40px] rounded-lg text-xs font-bold ${
+              kind === "proposal"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Proposal
+          </button>
+          <button
+            type="button"
+            onClick={() => setKind("mou")}
+            className={`flex-1 min-h-[40px] rounded-lg text-xs font-bold ${
+              kind === "mou"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            MoU
+          </button>
+        </div>
       </div>
+
+      {liveQuote && (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {liveQuote.reference ?? "A document"} is already here
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                {liveQuote.status === "draft"
+                  ? "It is a draft — the school cannot open it. Send that copy instead of writing another."
+                  : "The school already has a live link. Another quote is how two different numbers go out."}
+              </p>
+              {onOpenLive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const row = documents.find(
+                      (d) =>
+                        d.document_kind === kind &&
+                        (d.id === liveQuote.id || d.reference === liveQuote.reference),
+                    );
+                    if (row) onOpenLive(row);
+                  }}
+                  className="mt-3 inline-flex min-h-[44px] items-center px-4 rounded-xl bg-foreground text-background text-xs font-bold"
+                >
+                  Open {liveQuote.reference ?? "it"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Applies to both kinds: a primary school should not read the SS years,
           and an MoU must not annex years we are not contracting to teach. */}
@@ -361,44 +422,33 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => setKind("proposal")}
-          className={`text-left p-4 rounded-xl border transition-colors ${
-            kind === "proposal"
-              ? "border-primary bg-primary/10"
-              : "border-border bg-muted/40 hover:border-foreground/30"
-          }`}
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <DocumentTextIcon className="w-4 h-4" /> Proposal
-          </span>
-          <span className="block text-[11px] text-muted-foreground mt-1.5 leading-snug">
-            The pitch and the standard options. Send this to get to a rate — no agreed terms
-            needed.
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setKind("mou")}
-          className={`text-left p-4 rounded-xl border transition-colors ${
-            kind === "mou"
-              ? "border-primary bg-primary/10"
-              : "border-border bg-muted/40 hover:border-foreground/30"
-          }`}
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Memorandum of Understanding
-          </span>
-          <span className="block text-[11px] text-muted-foreground mt-1.5 leading-snug">
-            The agreement itself, stating the agreed fee. Requires terms on record.
-          </span>
-        </button>
-      </div>
-
       {kind === "proposal" ? (
         <div className="space-y-4">
+          <div className="sm:w-1/2">
+            <label className={LABEL} htmlFor="proposal-roll">
+              Their enrolment
+            </label>
+            <input
+              id="proposal-roll"
+              className={INPUT}
+              inputMode="numeric"
+              placeholder={school.student_count ? String(school.student_count) : "e.g. 420"}
+              value={students}
+              onChange={(e) => setStudents(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              {school.student_count
+                ? "Defaults to the roll on the school's record."
+                : "This school has no roll on record — add it so the money page uses their numbers."}
+            </p>
+          </div>
+
+          <details className="group rounded-xl border border-border bg-muted/20">
+            <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
+              Offer, split and pitch
+              <ChevronDownIcon className="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-4 pb-4 space-y-4">
           <div>
             <span className={LABEL}>Scope the quote to an option</span>
             <div className="space-y-2">
@@ -492,38 +542,6 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </div>
           </div>
 
-          {/*
-            The roll the money page is worked from.
-
-            This field existed only inside the MoU section, so a proposal took
-            its headcount from the school record and nothing could change it.
-            Nineteen of twenty-nine schools have no student_count — those
-            proposals printed "a school of 100, 200, 300" instead of the
-            school's own numbers, on the one page a head teacher rereads, and
-            the figure a salesperson had been told on the phone had nowhere to
-            go.
-          */}
-          <div className="sm:w-1/2">
-            <label className={LABEL} htmlFor="proposal-roll">
-              Their enrolment
-            </label>
-            <input
-              id="proposal-roll"
-              className={INPUT}
-              inputMode="numeric"
-              placeholder={school.student_count ? String(school.student_count) : "e.g. 420"}
-              value={students}
-              onChange={(e) => setStudents(e.target.value)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Drives the uptake table on the returns page — a cautious start, a
-              typical uptake and the whole school, worked at the quoted rate.
-              {school.student_count
-                ? " Defaults to the roll on the school's record."
-                : " This school has no roll on record, so without a number here the page shows illustrative sizes instead of theirs."}
-            </p>
-          </div>
-
           <div className="sm:w-1/2">
             <label className={LABEL} htmlFor="validity-days">
               Fees stand for
@@ -579,37 +597,38 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               </span>
             </span>
           </label>
+            </div>
+          </details>
         </div>
       ) : (
         <div className="space-y-4">
           {/* Active Agreed Terms Banner for MoU */}
           {agreed && (
-            <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-4 space-y-2 shadow-md">
+            <div className="rounded-2xl border border-border bg-muted/40 p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                  <CheckCircleIcon className="w-4 h-4 text-cyan-400" />
-                  Agreed Commercial Deal on Record
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                  Agreed deal on record
                 </span>
                 <button
                   type="button"
                   onClick={onRecordTerms}
-                  className="px-2.5 py-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[11px] font-bold transition-all"
-                  title="Negotiate different split or rates for this MoU"
+                  className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted text-foreground text-[11px] font-bold"
                 >
-                  ⚙️ Renegotiate / Adjust Split
+                  Change
                 </button>
               </div>
-              <p className="text-xs text-slate-200 font-semibold">
+              <p className="text-xs text-foreground font-semibold">
                 {describeTerms(agreed)}
               </p>
-              <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1 border-t border-white/5">
+              <div className="flex items-center gap-4 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
                 <span>
                   Split:{" "}
-                  <strong className="text-emerald-400">
+                  <strong className="text-foreground">
                     {agreed.rillcod_share_percent ? `${agreed.rillcod_share_percent}% Rillcod` : "100% Flat"}
                   </strong>
                   {" / "}
-                  <strong className="text-cyan-400">
+                  <strong className="text-foreground">
                     {agreed.school_share_percent ? `${agreed.school_share_percent}% School` : "0%"}
                   </strong>
                 </span>
@@ -689,64 +708,28 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </div>
       )}
 
-      {/*
-        What is missing, said once, where the document is being made.
-
-        Everything here was already knowable and scattered: the rate is in the
-        terms tab, the share is in the terms tab, the settlement answers are in
-        the terms tab, and the roll is on the school record — while the person
-        deciding whether to send a proposal is looking at this panel. So they
-        issued, opened the PDF, found a thin money page, and had to work out
-        which of four screens the hole came from.
-
-        One line per gap, each saying what it costs the document, with the one
-        button that fixes all of them.
-      */}
-      {liveQuote && (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
-          <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                {liveQuote.reference ?? "A document"} is already live
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {liveQuote.status === "draft"
-                  ? "It is a draft — the school cannot open it. Send that one instead of issuing another, unless you mean to replace it."
-                  : "The school already has a link. Issuing another quote is how two different numbers go out. Withdraw or wait for this one to lapse first, unless you are deliberately re-quoting."}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {kind === 'proposal' && gaps.length > 0 && (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 space-y-2.5">
-          <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                This proposal will print thinner than it needs to
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {gaps.map((g) => (
-                  <li key={g} className="text-xs text-muted-foreground leading-relaxed">
-                    · {g}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+      {kind === "proposal" && gaps.length > 0 && (
+        <details className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            This quote can be fuller ({gaps.length})
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {gaps.map((g) => (
+              <li key={g} className="text-xs text-muted-foreground leading-relaxed">
+                · {g}
+              </li>
+            ))}
+          </ul>
           {canWrite && (
             <button
               type="button"
               onClick={onRecordTerms}
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors min-h-[40px]"
+              className="mt-3 px-4 py-2 rounded-xl border border-border text-xs font-bold min-h-[40px]"
             >
-              Record the commercial terms
+              Record the deal
             </button>
           )}
-        </div>
+        </details>
       )}
 
       {mouBlocked && (
@@ -771,56 +754,30 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               >
                 Record the agreed terms
               </button>
-              {/* Says where they come back to, so the detour reads as one step
-                  in a sequence rather than a redirect to somewhere else. */}
               <p className="text-[11px] text-muted-foreground mt-2">
-                You will come straight back here to issue the MoU.
+                When this is saved you can send the MoU.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Direct Email Delivery Option */}
-      <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/20 via-slate-900/40 to-slate-900/80 p-4 space-y-3">
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={sendEmail}
-            onChange={(e) => setSendEmail(e.target.checked)}
-            className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
-          />
-          <div className="min-w-0">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <span>Email a review link when this is issued</span>
-              <span className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 text-[10px] font-mono font-semibold">
-                Resend + SendPulse
-              </span>
-            </span>
-            <p className="text-[11px] text-muted-foreground">
-              Sends the same proposal email as Archive, with the public review
-              link, and marks this sent so the school can actually open it.
-              Does not attach a PDF — use Email PDF from the preview after
-              issue if the school needs the file.
-            </p>
-          </div>
+      {/* Who receives it, always in view — sending is the default path. */}
+      <div>
+        <label className={LABEL} htmlFor="composer-recipient-email">
+          Send to
         </label>
-
-        {sendEmail && (
-          <div className="pt-2 border-t border-border/50">
-            <label className={LABEL} htmlFor="composer-recipient-email">
-              Recipient Email Address
-            </label>
-            <input
-              id="composer-recipient-email"
-              type="email"
-              className={INPUT}
-              placeholder="e.g. principal@school.edu.ng, proprietor@gmail.com"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-            />
-          </div>
-        )}
+        <input
+          id="composer-recipient-email"
+          type="email"
+          className={INPUT}
+          placeholder="principal@school.edu.ng"
+          value={recipientEmail}
+          onChange={(e) => setRecipientEmail(e.target.value)}
+        />
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Send emails the link and marks it live. Save draft if you are not ready for them to open it.
+        </p>
       </div>
 
       {error && (
@@ -842,14 +799,11 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
           one tap away, which is what makes previewing before issuing a habit
           rather than an effort.
 
-          Mobile only, and deliberately so. On desktop the preview renders in
-          this same column directly beneath the panel, so a bar pinned to the
-          viewport would sit on top of the document it just produced — the one
-          thing the user is now trying to read. There it returns to normal flow,
-          where a wider screen already keeps the actions in reach.
+          Mobile only. The document itself opens as a full-screen overlay, so
+          this bar never has to share the column with the pages.
 
-          On mobile it clears the dashboard's own bottom bar, and the negative
-          margins let it span the panel's padding so the blur reaches both edges.
+          It clears the dashboard's own bottom bar, and the negative margins
+          let it span the panel's padding so the blur reaches both edges.
         */
         <div className="space-y-2.5 sticky md:static bottom-[var(--app-bottom-nav-height)] z-30 -mx-6 -mb-6 md:mx-0 md:mb-0 px-6 md:px-0 pt-3 pb-4 md:pb-0 border-t border-border/60 bg-card/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none rounded-b-2xl md:rounded-none">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -870,35 +824,41 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </button>
 
             <button
-              onClick={issue}
+              onClick={() => void issue(true)}
               disabled={issuing || previewing || mouBlocked}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black border border-border bg-card text-foreground/90 hover:text-foreground hover:bg-muted/70 hover:border-emerald-500/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
               {issuing ? (
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />
               ) : (
-                <DocumentTextIcon className="w-4 h-4 text-emerald-400" />
+                <EnvelopeIcon className="w-4 h-4" />
               )}
               <span>
                 {issuing
-                  ? "Issuing Official Record…"
-                  : sendEmail
-                  ? `Issue & Email to ${recipientEmail || "School"}`
+                  ? "Sending…"
                   : liveQuote
-                  ? `Issue anyway (replace ${liveQuote.reference ?? "the live quote"})`
-                  : "Issue & Save Official Copy"}
+                    ? `Send (replaces ${liveQuote.reference ?? "the live copy"})`
+                    : `Send ${kind === "mou" ? "MoU" : "proposal"}`}
               </span>
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={() => void issue(false)}
+            disabled={issuing || previewing || mouBlocked}
+            className="text-[11px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            Save draft without sending
+          </button>
+
           <p className="text-[11px] text-muted-foreground">
-            💡 Previewing does not save. Issuing stores a draft — the school cannot open the
-            public link until you email it or mark it sent.
+            Preview does not save. Send stores the copy and emails the link so the school can open it.
           </p>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-xl">
-          Issuing a document is an admin action. You are viewing this in read-only mode.
+          Sending a document is an admin action. You are viewing this in read-only mode.
         </p>
       )}
     </div>
