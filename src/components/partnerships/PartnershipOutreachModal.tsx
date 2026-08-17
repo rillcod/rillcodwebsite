@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   XMarkIcon,
-  EnvelopeIcon,
   PaperAirplaneIcon,
   ClipboardDocumentCheckIcon,
   CheckCircleIcon,

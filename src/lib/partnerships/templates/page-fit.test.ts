@@ -195,20 +195,138 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     expect(returnPage.match(/<th>/g)).toHaveLength(4);
   });
 
-  it('verifies every studio section toggle is wired and strictly respected', () => {
-    ALL_SECTIONS.forEach((sectionKey: ProposalSectionKey) => {
-      const config = defaultStudioConfig();
-      config.sections[sectionKey] = false;
+  /*
+    Every switch in the studio does what its label says.
 
-      const html = buildPartnershipProposalHTML({
-        school: { name: 'Grange School Ikeja' },
-        reference: 'RC-PROP-TEST',
-        dateLabel: '15 August 2026',
-        curriculum: MOCK_CURRICULUM as any,
-        studio: config,
-      });
+    This test used to render each section off and assert the HTML was `defined`,
+    which is true of every string ever returned — so four switches rotted behind
+    it without a failure. "The standard options" printed the fee cards whatever
+    it was set to, "What a parent gets to hold" and "Speak to us" the same, and
+    "Student outcomes" toggled a block of questions while the outcomes block it
+    named had been deleted from the document.
 
-      expect(html).toBeDefined();
+    A switch on a proposal is not cosmetic: it is how an operator keeps a fee
+    page out of a document going to a school that has already agreed a rate. The
+    marker below is a string only that section prints, so the assertion is the
+    same in both directions — present when on, gone when off.
+  */
+  const SECTION_MARKERS: Record<ProposalSectionKey, string> = {
+    proofBand: 'Schools partnered',
+    intro: 'Who you would be partnering with',
+    pitch: 'Why this, and why now',
+    portfolio: 'What a parent gets to hold',
+    journey: 'What a child walks out with',
+    disciplines: 'What a parent can see',
+    rollout: 'They see it before you sign',
+    offers: 'class="offers',
+    offersChart: 'per student, per year',
+    split: 'How programme fees would be shared',
+    upside: 'What this would return',
+    sideBySide: 'What each side brings',
+    curriculum: 'Primary Pathway',
+    comparison: 'What changes, against what you run today',
+    zeroCapex: 'What we commit to in writing',
+    caseStudies: 'Questions we are usually asked',
+    whyNow: '<h2>Why now</h2>',
+    fieldProof: 'What our students have already done',
+    photos: 'class="gallery',
+    // The class, as written on the element — the stylesheet names it too, and a
+    // marker that matches the CSS would pass with the block itself missing.
+    contact: 'class="end-scan-contact"',
+  };
+
+  /** Everything a proposal needs before every section has something to draw. */
+  const fullInput = (studio: ReturnType<typeof defaultStudioConfig>): ProposalInput => ({
+    school: { name: 'Grange School Ikeja', city: 'Ikeja', state: 'Lagos' },
+    reference: 'RC-PROP-TEST',
+    dateLabel: '15 August 2026',
+    curriculum: MOCK_CURRICULUM as any,
+    offers: PARTNERSHIP_OFFERS,
+    proof: { partnerSchools: 42, students: 6500, years: 5 },
+    // A picked option is what compresses the fees page enough for the scope
+    // table to print there, which is the only place it prints.
+    scopeToOffer: 'B2',
+    accessCode: '482915',
+    validUntilLabel: '15 November 2026',
+    narrative: AUTHORED_NARRATIVE,
+    upside: {
+      mode: 'uptake',
+      total: null,
+      feePerStudent: 25000,
+      sharePercent: 30,
+      cycle: 'term',
+      rows: [
+        { label: '50% uptake', students: 175, rate: 25000, gross: 4_375_000, schoolShare: 1_312_500 },
+        { label: '100% uptake', students: 350, rate: 25000, gross: 8_750_000, schoolShare: 2_625_000 },
+      ],
+    },
+    studio,
+  });
+
+  it('prints every studio section when the studio is complete', () => {
+    const html = buildPartnershipProposalHTML(fullInput(defaultStudioConfig()));
+    ALL_SECTIONS.forEach((key: ProposalSectionKey) => {
+      expect(html, `${key} should print when switched on`).toContain(SECTION_MARKERS[key]);
     });
+  });
+
+  it('drops exactly the section switched off, and nothing else', () => {
+    ALL_SECTIONS.forEach((key: ProposalSectionKey) => {
+      const studio = defaultStudioConfig();
+      studio.sections[key] = false;
+      const html = buildPartnershipProposalHTML(fullInput(studio));
+
+      expect(html, `${key} should not print when switched off`).not.toContain(
+        SECTION_MARKERS[key],
+      );
+
+      ALL_SECTIONS.filter((other) => other !== key).forEach((other) => {
+        // The photo strips share one marker with the gallery, and the two
+        // overview sheets trade sections between them, so a section that only
+        // moved is not a section that vanished — every other marker must still
+        // be somewhere in the document.
+        expect(html, `${other} should survive switching ${key} off`).toContain(
+          SECTION_MARKERS[other],
+        );
+      });
+    });
+  });
+
+  /*
+    A page is a 297mm box with overflow hidden, so a sheet holding nothing at all
+    still prints: a running head, a page number, and half a millimetre of rule,
+    in the middle of a document a head teacher is reading. Every combination of
+    switches has to leave either content or no sheet.
+  */
+  it('prints no empty sheet, whatever the studio switches off', () => {
+    const cases: Array<[string, ProposalSectionKey[]]> = [
+      ['the whole overview', ['intro', 'pitch', 'portfolio']],
+      ['the programme sheet', ['journey', 'disciplines', 'rollout']],
+      ['the fees sheet', ['offers', 'offersChart', 'sideBySide']],
+      ['the money sheet', ['split', 'upside']],
+      ['the case sheet', ['comparison', 'zeroCapex', 'caseStudies']],
+      ['everything', [...ALL_SECTIONS]],
+    ];
+
+    for (const [what, keys] of cases) {
+      const studio = defaultStudioConfig();
+      for (const key of keys) studio.sections[key] = false;
+      const html = buildPartnershipProposalHTML(fullInput(studio));
+
+      for (const page of extractPages(html)) {
+        // What is left once the running head and the markup come off it.
+        const text = page
+          .replace(/<div class="pagehead">[\s\S]*?<\/div>/, '')
+          .replace(/<!--[\s\S]*?-->/g, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&[a-z]+;|&#\d+;/g, '')
+          .trim();
+        expect(text.length, `a blank sheet printed with ${what} switched off`).toBeGreaterThan(0);
+      }
+      // And the close is never one of the sheets that can be dropped: it carries
+      // the signature block, so a proposal without it cannot be accepted.
+      expect(html, `the close must survive ${what} being switched off`).toContain('Next step');
+      expect(hasSignatureSlot(html)).toBe(true);
+    }
   });
 });

@@ -14,7 +14,7 @@
  * short enough to act on rather than long enough to ignore.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -116,12 +116,24 @@ function Stat({
 
 export function PartnershipPipeline({
   onOpenSchool,
+  onAttentionCount,
 }: {
   /** Jump to the school's own workspace, where the document can be acted on. */
   onOpenSchool: (
     schoolId: string,
     hint?: { tab?: "compose" | "terms" | "document"; kind?: "proposal" | "mou"; documentId?: string },
   ) => void;
+  /**
+   * How many documents are waiting, reported every time this list is loaded.
+   *
+   * The page badges its own toggle with this number and counted it once, on
+   * mount. Sending the draft it was counting left the badge claiming the work
+   * was still outstanding until somebody reloaded the page — a count that is
+   * wrong is worse than no count, because it is the thing telling you whether
+   * to look. This list already knows the answer whenever it refreshes; saying
+   * so is cheaper and more honest than a second fetch of the same endpoint.
+   */
+  onAttentionCount?: (waiting: number) => void;
 }) {
   const [docs, setDocs] = useState<PipelineDoc[]>([]);
   const [outcomes, setOutcomes] = useState<Outcomes | null>(null);
@@ -129,15 +141,29 @@ export function PartnershipPipeline({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /*
+    Held in a ref, so a caller cannot make this list fetch itself forever.
+
+    `load` runs from an effect keyed on its own identity. With the callback in
+    its dependency list, a parent passing an inline arrow — the ordinary thing
+    to write — would hand `load` a new identity on every render, and every run
+    sets state, which renders again. One `() => …` at a call site would have
+    been an endless loop against the pipeline endpoint.
+  */
+  const report = useRef(onAttentionCount);
+  report.current = onAttentionCount;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/partnerships/pipeline");
+      const res = await fetch("/api/partnerships/pipeline", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load the pipeline.");
-      setDocs(json.documents ?? []);
+      const rows: PipelineDoc[] = json.documents ?? [];
+      setDocs(rows);
       setOutcomes(json.outcomes ?? null);
+      report.current?.(rows.filter((d) => d.needs_attention).length);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the pipeline.");
     } finally {

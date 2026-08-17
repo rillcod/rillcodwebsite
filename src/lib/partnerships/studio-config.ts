@@ -73,11 +73,22 @@ export const SECTION_LABELS: Array<{
   { key: 'curriculum', label: 'The year-by-year curriculum', hint: 'Every year, its three terms and its capstone', page: 'Curriculum' },
   { key: 'comparison', label: 'Traditional ICT vs Rillcod', hint: 'Why a board sees the difference', page: 'The case' },
   { key: 'zeroCapex', label: 'Zero-CapEx guarantee', hint: 'What the school never has to buy', page: 'The case' },
-  { key: 'caseStudies', label: 'Student outcomes', hint: 'Three builds, by age group', page: 'The case' },
+  /*
+    Named for the switch, not for the history of it.
+
+    This used to print three student builds by age group, and the block was
+    dropped: page 3 already lists the same capstones off the curriculum, and one
+    of the builds was a competition result printed on page 1 — a proprietor
+    reading one project three times does not conclude there are three. The room
+    it freed went to the questions a board actually asks, and the switch came
+    with it. The key stays `caseStudies` because stored configs and browsers hold
+    it; only the words a person reads are corrected.
+  */
+  { key: 'caseStudies', label: 'Questions we are usually asked', hint: 'Answered on the sheet, not only on the portal', page: 'The case' },
   { key: 'whyNow', label: 'Why now', hint: 'The urgency argument', page: 'Closing' },
   { key: 'fieldProof', label: 'What our students have done', hint: 'Competition wins and builds', page: 'Closing' },
   { key: 'photos', label: 'Photographs of the programme', hint: 'The gallery above the signature', page: 'Closing' },
-  { key: 'contact', label: 'Speak to us', hint: 'The contact block by the signature', page: 'Closing' },
+  { key: 'contact', label: 'Speak to us', hint: 'Our address and phone, inside the reply card', page: 'Closing' },
 ];
 
 export const ALL_SECTIONS: ProposalSectionKey[] = SECTION_LABELS.map((s) => s.key);

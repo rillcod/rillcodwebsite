@@ -299,24 +299,37 @@ export default function PartnershipsPage() {
     Only on the first load, and only when something is actually waiting. A
     quiet pipeline should not take you away from the school you came here for.
   */
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/partnerships/pipeline');
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!live) return;
-        const waiting = (json.documents ?? []).filter((d: { needs_attention?: boolean }) => d.needs_attention).length;
-        setNeedsAttention(waiting);
-      } catch {
-        // A pipeline that cannot be counted is not a reason to block the page.
-      }
-    })();
-    return () => {
-      live = false;
-    };
+  const countWaiting = useCallback(async () => {
+    try {
+      const res = await fetch('/api/partnerships/pipeline', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setNeedsAttention(
+        (json.documents ?? []).filter((d: { needs_attention?: boolean }) => d.needs_attention).length,
+      );
+    } catch {
+      // A pipeline that cannot be counted is not a reason to block the page.
+    }
   }, []);
+
+  useEffect(() => {
+    void countWaiting();
+  }, [countWaiting]);
+
+  /**
+   * A document on this school changed, so both records of it are now stale.
+   *
+   * The school's own list is reloaded, and the count on the "Waiting" toggle
+   * with it. Sending the draft that badge was counting is precisely the moment
+   * it stops being true, and it is the same click — leaving it to be corrected
+   * by a page reload means the one number telling you whether to look is the
+   * one number that is wrong.
+   */
+  const documentsChanged = useCallback(async () => {
+    if (!selectedId) return;
+    await loadSchoolDetail(selectedId);
+    void countWaiting();
+  }, [selectedId, loadSchoolDetail, countWaiting]);
 
   const dealState = useMemo(() => {
     if (!selected) return null;
@@ -418,13 +431,6 @@ export default function PartnershipsPage() {
     setActiveTab(action?.tab === "terms" ? "terms" : "compose");
   }, [termsJustSaved, loadingSchool, dealState]);
 
-  useEffect(() => {
-    if (!selected || loadingSchool || !dealState || routeOnLoad.current) return;
-    if (activeTab === "terms" && dealState.action?.tab !== "terms") {
-      setActiveTab("compose");
-    }
-  }, [selected, loadingSchool, dealState, activeTab]);
-
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -516,6 +522,7 @@ export default function PartnershipsPage() {
 
       {pageView === "pipeline" && (
         <PartnershipPipeline
+          onAttentionCount={setNeedsAttention}
           onOpenSchool={(id, hint) => {
             setPageView("school");
             selectSchool(id, {
@@ -837,31 +844,51 @@ export default function PartnershipsPage() {
                 )}
               </div>
 
-              {documents.length > 0 && (
-                <PartnershipDocumentArchive
-                  documents={documents}
-                  canWrite={canWrite}
-                  schoolId={selected.id}
-                  focusId={focusDocumentId}
-                  onChanged={() => loadSchoolDetail(selected.id)}
-                  redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
-                  onOpen={(doc, html) => {
-                    setPreview({
-                      id: doc.id,
-                      html,
-                      reference: doc.reference || "—",
-                      kind: doc.document_kind,
-                      schoolName: selected.name,
-                      narrativeSource: null,
-                      curriculumEdition: null,
-                      shareToken: doc.share_token,
-                      accessCode: doc.access_code,
-                      status: doc.status,
-                      openCount: Number(doc.open_count) || 0,
-                    });
-                  }}
-                />
-              )}
+              {/*
+                The two halves of the desk, reachable on purpose.
+
+                The next-step card drives the usual path, and that is right — it
+                knows what this school is waiting on. But it is not the only
+                reason to be here. A rate typed as ₦25,000 when it was ₦30,000
+                has to be correctable, and the deal is the record the invoice
+                bills on, so "look at what we agreed" is a question the desk must
+                be able to answer at any point in the journey.
+
+                It could not. The terms editor was reachable only while the next
+                action happened to be "record terms": every other route in —
+                Change on the MoU banner, the blocked-MoU prompt — set the tab
+                and was flipped straight back to composing by a guard meant to
+                stop you being stranded there. The guard is gone; this is the way
+                back and forth, and it says which side you are on.
+              */}
+              <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border">
+                {(
+                  [
+                    {
+                      v: "compose" as const,
+                      label: composeKind === "mou" ? "Write the MoU" : "Write the proposal",
+                    },
+                    {
+                      v: "terms" as const,
+                      label: agreed ? "The agreed deal" : "Record the deal",
+                    },
+                  ]
+                ).map((t) => (
+                  <button
+                    key={t.v}
+                    type="button"
+                    onClick={() => setActiveTab(t.v)}
+                    aria-current={activeTab === t.v}
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] ${
+                      activeTab === t.v
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
               {/* Composer stays mounted (hidden) while recording terms so a
                   redraw still has the last offer, studio and enrolment. */}
@@ -878,7 +905,7 @@ export default function PartnershipsPage() {
                       setFocusDocumentId(doc.id);
                       void openStoredDocument(doc);
                     }}
-                    onLiveDiscarded={() => loadSchoolDetail(selected.id)}
+                    onLiveDiscarded={documentsChanged}
                     onRecordTerms={() => {
                       setOpenTerms((n) => n + 1);
                       setActiveTab("terms");
@@ -912,7 +939,7 @@ export default function PartnershipsPage() {
                         status: doc.email_sent ? "sent" : "draft",
                         openCount: 0,
                       });
-                      await loadSchoolDetail(selected.id);
+                      await documentsChanged();
                     }}
                   />
                   {canWrite && composeKind === "proposal" && (
@@ -921,10 +948,18 @@ export default function PartnershipsPage() {
                 </div>
 
               <div id="partnership-terms" className={activeTab === "terms" ? "space-y-4" : "hidden"}>
+                  {/* Says which of the two jobs this is. The panel is no longer
+                      only reached on the way to a first agreement, so a heading
+                      that assumes the school has just read a proposal would be
+                      wrong every time somebody came here to correct a rate. */}
                   <div className="rounded-2xl border border-border bg-card p-5">
-                    <p className="text-base font-semibold text-foreground">Record the deal</p>
+                    <p className="text-base font-semibold text-foreground">
+                      {agreed ? "The agreed deal" : "Record the deal"}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      They have seen the proposal. Put down the rate they agreed — the MoU and the invoice will both use it.
+                      {agreed
+                        ? "This is the rate the MoU states and the invoice bills. Correcting it supersedes this version and leaves it on record — documents already issued keep the terms they were issued with."
+                        : "They have seen the proposal. Put down the rate they agreed — the MoU and the invoice will both use it."}
                     </p>
                   </div>
                   <PartnershipTermsEditor
@@ -939,6 +974,42 @@ export default function PartnershipsPage() {
                     }}
                   />
                 </div>
+
+              {/*
+                What has already gone out, under the work in hand.
+
+                On this screen rather than behind a tab, because "is that quote
+                still live" is a question about the school and not a place to
+                navigate to — but below the switch and the panel it labels, so a
+                control is never separated from the thing it controls by a list
+                of six documents. Opening one from the pipeline scrolls to its
+                row, so nothing depends on it being the first thing in view.
+              */}
+              {documents.length > 0 && (
+                <PartnershipDocumentArchive
+                  documents={documents}
+                  canWrite={canWrite}
+                  schoolId={selected.id}
+                  focusId={focusDocumentId}
+                  onChanged={documentsChanged}
+                  redrawPayload={() => composerRef.current?.getRedrawPayload() ?? {}}
+                  onOpen={(doc, html) => {
+                    setPreview({
+                      id: doc.id,
+                      html,
+                      reference: doc.reference || "—",
+                      kind: doc.document_kind,
+                      schoolName: selected.name,
+                      narrativeSource: null,
+                      curriculumEdition: null,
+                      shareToken: doc.share_token,
+                      accessCode: doc.access_code,
+                      status: doc.status,
+                      openCount: Number(doc.open_count) || 0,
+                    });
+                  }}
+                />
+              )}
             </>
           )}
         </div>
@@ -965,7 +1036,7 @@ export default function PartnershipsPage() {
           accessCode={preview.accessCode}
           documentStatus={preview.status}
           canSend={canWrite}
-          onSent={() => loadSchoolDetail(selected.id)}
+          onSent={documentsChanged}
           onDelete={
             canWrite &&
             preview.id &&
@@ -983,7 +1054,7 @@ export default function PartnershipsPage() {
                     open_count: preview.openCount,
                   });
                   setPreview(null);
-                  await loadSchoolDetail(selected.id);
+                  await documentsChanged();
                 }
               : undefined
           }
@@ -1006,7 +1077,7 @@ export default function PartnershipsPage() {
                     open_count: preview.openCount,
                   });
                   setPreview(null);
-                  await loadSchoolDetail(selected.id);
+                  await documentsChanged();
                 }
               : undefined
           }

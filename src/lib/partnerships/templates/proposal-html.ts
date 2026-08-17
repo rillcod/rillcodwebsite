@@ -36,7 +36,6 @@ import {
   WHY_NOW,
   ZERO_CAPEX_PROMISE,
   TRADITIONAL_VS_RILLCOD,
-  STUDENT_CASE_STUDIES,
   REASON_TO_PAY_PHOTO,
   type SchoolUpside,
 } from '../proposal-sections';
@@ -264,32 +263,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   */
   const quotedOffer = resolveOffer(input.scopeToOffer);
   /*
-    Does this school have settlement terms worth a section of their own?
-
-    `settlementPoints` always returns one line — that the share is worked from
-    enrolment rather than the projection — because that is true of every deal
-    and is the thing a proprietor most often misreads. But one line does not
-    earn a heading, and the split block above already says it. A section appears
-    only once there is something specific to say: when the money arrives, who
-    carries collection risk, what a mid-term withdrawal costs.
-
-    It also decides where the scope table goes. On the sheet the settlement
-    section prints, there is no longer room for both — and between "what am I
-    buying" and "when am I paid", the money page belongs to the money.
-  */
-  /*
-    Whether settlement was actually negotiated — not whether we have sentences.
-
-    This counted points, and the no-terms case now produces two of them, so
-    counting would have reported terms that do not exist and sent the scope
-    table to the wrong sheet. The question is what the school agreed.
-  */
-  const hasSettlementTerms = Boolean(
-    input.agreedTerms?.settlement_trigger ||
-      input.agreedTerms?.withdrawal_policy ||
-      input.agreedTerms?.minimum_students,
-  );
-  /*
     One writer. The narrative is the pitch — house copy, or the composer’s
     approved generation. Studio copy used to overlay these three fields, which
     is how a proposal went out with a copilot headline and a different opening.
@@ -391,7 +364,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       }
       <div>
         <div class="end-scan-lead">Scan to reply</div>
-        <b class="end-scan-title">Accept or ask a question from your phone</b>
+        <!--
+          What the link actually does, which is read and reply — not accept.
+
+          This said "Accept or ask a question from your phone", and the portal
+          has no accept for a quote: a proposal is an offer, and the public
+          route refuses to sign one on purpose ("This is a proposal, not an
+          agreement"). So the card advertised a button that does not exist, on
+          the page a proprietor reads last, and a school that scanned expecting
+          to accept found a phone number instead. Accepting happens by
+          telling us — then the MoU is what gets signed.
+        -->
+        <b class="end-scan-title">Read it and reply from your phone</b>
         <div class="end-scan-sub">
           ${input.accessCode
         ? `Opens this proposal online. No camera? Go to <b>${esc(brandContact.web)}/p</b>
@@ -408,11 +392,19 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
           is one decision more than a closing page should ask for. Merged, the
           card answers it once: scan, type the code, or call. It also gives the
           page back the height a second card was spending on its own padding.
+
+          The studio's "Speak to us" switch controls this half of the card and
+          not the scan panel around it: turning the contact block off is a
+          decision about printing our address, and it must not take the reader's
+          way of replying with it.
         -->
-        <div class="end-scan-contact">
+        ${on('contact')
+        ? `<div class="end-scan-contact">
           ${esc(brandContact.address)}<br>
           <b>${esc(brandContact.phone)}</b> &nbsp;·&nbsp; ${esc(brandContact.email)}
-        </div>
+        </div>`
+        : ''
+      }
       </div>
     </div>`
       : ''
@@ -1072,21 +1064,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </table>
   </section>`;
 
-  const studentCaseStudiesBlock = (): string => !on('caseStudies') ? '' : `
-  <section>
-    <div class="rule"></div>
-    <h2>Tangible Student Outcomes &amp; Innovation</h2>
-    <div class="case-grid">
-      ${STUDENT_CASE_STUDIES.map((c) => `
-        <div class="case-card">
-          <span class="case-age">${esc(c.ageGroup)}</span>
-          <div class="case-title">${esc(c.title)}</div>
-          <div class="case-outcome">${esc(c.outcome)}</div>
-        </div>
-      `).join('')}
-    </div>
-  </section>`;
-
   /**
    * What the child hands back, counted from the ladder being sold.
    *
@@ -1096,6 +1073,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * with it, because it is the same list of years.
    */
   const portfolioBlock = (): string => {
+    if (!on('portfolio')) return '';
     const withPortfolio = scopedLevels.filter((l) => (l.portfolio ?? "").trim());
     if (withPortfolio.length < 2) return '';
     const first = withPortfolio[0];
@@ -1122,6 +1100,128 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
         <div class="parent-body">A portfolio of shipped work, which is what a university admissions officer or a first employer actually asks to see.</div>
       </div>
     </div>
+  </section>`;
+  };
+
+  /**
+   * One A4 sheet, or nothing at all.
+   *
+   * Every page below is a fixed 297mm box with a running head, holding sections
+   * the studio is allowed to switch off. Printing the box unconditionally is how
+   * switching off both halves of a page produced a blank sheet — head, rule,
+   * page number, no content — in the middle of a document a head teacher is
+   * reading. A page with nothing on it is worse than a shorter proposal.
+   *
+   * The head is built here rather than repeated at each call, because it was
+   * repeated at each call: the same span, the same separator and the same page
+   * counter written out eight times, which is eight chances for one of them to
+   * name a different reference. The label is house copy written in this file —
+   * the school name and the reference beside it are the untrusted halves, and
+   * those are escaped.
+   */
+  const sheet = (label: string, body: string, cls = 'page'): string => {
+    if (!body.trim()) return '';
+    return `<div class="${cls}">
+  <div class="pagehead"><span><b>${label}</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
+
+${body}
+</div>`;
+  };
+
+  /**
+   * The opening argument, and the four reasons under it.
+   *
+   * Built here because it prints on one of two sheets depending on how much room
+   * the overview needed, and a block that can appear in two places has to exist
+   * in one — written out at both, the two copies drift, and a proposal ends up
+   * arguing slightly differently depending on a layout decision.
+   */
+  const pitchSection = !on('pitch')
+    ? ''
+    : `  <section>
+    <div class="rule"></div>
+    <h2>Why this, and why now</h2>
+    <p>${esc(narrative.opening)}</p>
+    <div class="why">
+      ${narrative.benefits
+      .map((b) => `<div><b>${esc(b.title)}</b>${esc(b.body)}</div>`)
+      .join('\n      ')}
+    </div>
+  </section>`;
+
+  /**
+   * The fees, and the shapes they come in.
+   *
+   * Two studio switches meet in this one section, and both used to be read only
+   * halfway. "Option comparison chart" was honoured; "The standard options" was
+   * not — the cards printed whatever the studio said, so a desk that turned the
+   * menu off still sent a menu. Now the cards answer to their own switch, the
+   * chart to its, and with both off the section does not print at all rather
+   * than printing a heading over an empty rule.
+   *
+   * The validity sentence belongs to whichever of them printed: it dates the
+   * fees, and the fees are what either build is showing.
+   */
+  const feesSection = (): string => {
+    if (!on('offers') && !on('offersChart')) return '';
+    const menu = !on('offers')
+      ? ''
+      : input.agreedTerms
+        ? /*
+            A settled deal does not need three cards arguing for themselves. The
+            menu drops to its quiet form, which keeps the evidence that the agreed
+            rate came off a standard list without reopening the choice.
+          */
+          `<div class="offer-alts"><ul>${offers.map(offerLine).join('')}</ul></div>`
+        : quotedOffer
+          ? /*
+              One option in full, the others on one line each.
+
+              Three cards of equal weight is a menu, and a menu is what you send a
+              school you know nothing about. Once the shape has been chosen for a
+              particular roll and a particular timetable, printing all three at the
+              same size buries the recommendation inside it — the reader has to work
+              out which one is theirs, and some of them will pick the cheapest
+              instead of the right one.
+            */
+            `<div class="offers">${offerCard(quotedOffer, true)}</div>
+    ${offers.length > 1
+              ? `<div class="offer-alts">
+      <div class="offer-alts-head">Also available on the standard menu</div>
+      <ul>${offers.filter((o) => o.code !== quotedOffer.code).map(offerLine).join('')}</ul>
+    </div>`
+              : ''}`
+          : `<div class="offers offers-full">${offers.map((o) => offerCard(o, false)).join('')}</div>`;
+
+    return `  <section>
+    <div class="rule"></div>
+    <h2>${input.agreedTerms
+      ? 'Standard options for reference'
+      : quotedOffer
+        ? `What we recommend for ${esc(input.school.name)}`
+        : 'Three proposed shapes for the programme'}</h2>
+    <p class="muted">${input.agreedTerms
+      ? 'Your agreed rate above is one of the standard options. They are listed here so you can see where it sits.'
+      : quotedOffer
+        ? /*
+            The reason, when the system actually has one.
+
+            This line used to claim the option had been "picked for the size of
+            your roll" no matter how it was chosen — a reasoning the document
+            asserted and nothing had performed. Now it prints the reason
+            `recommendOffer` gave, naming the roll it read, and falls back to a
+            plain statement when the choice came from a person instead. A head
+            teacher can then argue with the argument, not just the price.
+          */
+          esc(input.recommendationReason || 'The other standard options are listed beneath, for context.')
+        : 'What a parent would pay over a full session under each option.'}</p>
+    ${figures()}
+
+    ${menu}
+    <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${input.validUntilLabel
+      ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
+      : ''
+    }</p>
   </section>`;
   };
 
@@ -1561,16 +1661,6 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   .comp-table th { padding: 2.5mm 3mm; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
   .comp-table td { padding: 2mm 3mm; border: 1px solid #e2e8f0; vertical-align: middle; line-height: 1.4; }
 
-  /* Case Studies */
-  .case-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 0; }
-  .case-card {
-    border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 3mm;
-    border-radius: 1.5mm; background: #fff; break-inside: avoid;
-  }
-  .case-age { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b; font-weight: 800; display: block; margin-bottom: 1mm; }
-  .case-title { font-size: 10.2pt; font-weight: 700; color: #0f172a; margin-bottom: 1.5mm; line-height: 1.25; }
-  .case-outcome { font-size: 8.6pt; color: #475569; line-height: 1.4; }
-
   table { width: 100%; border-collapse: collapse; font-size: 10.4pt; margin-bottom: 2mm; }
   th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
   td { padding: 1.6mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
@@ -1873,10 +1963,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
      when both are printing — and share one when the studio has switched either
      off, because a page that exists to hold a section nobody selected prints as
      a blank sheet in the middle of a proposal. -->
-<div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-
-${on('intro') ? `  <section>
+${sheet(
+      'Partnership Proposal',
+      `${on('intro') ? `  <section>
     <div class="rule"></div>
     <h2>Who you would be partnering with</h2>
     <!--
@@ -1923,42 +2012,34 @@ ${on('intro') ? `  <section>
          page beside this one already prints the real count from the curriculum
          being sold; a hardcoded "twelve-year" here would contradict it. -->
   </section>` : ''}
-${splitOverview && on('fieldProof') ? fieldProofSection : ''}
-${splitOverview
-      ? `  ${portfolioBlock()}
-</div>
+${splitOverview ? `${on('fieldProof') ? fieldProofSection : ''}
+  ${portfolioBlock()}` : `${pitchSection}
+  ${portfolioBlock()}`}`,
+    )}
 
-<div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-`
-      : ''
-    }
-${on('pitch') ? `  <section>
-    <div class="rule"></div>
-    <h2>Why this, and why now</h2>
-    <p>${esc(narrative.opening)}</p>
-    <div class="why">
-      ${narrative.benefits
-        .map((b) => `<div><b>${esc(b.title)}</b>${esc(b.body)}</div>`)
-        .join('\n      ')}
-    </div>
-  </section>` : ''}
 ${
-    // Four claims, then photographs of them being true. Only when the overview took
-    // two sheets: that page has the room for a strip, and on the single-sheet
-    // layout there is none.
-    splitOverview ? galleryStrip(0, 'The programme running', true) : ''
+      // The pitch takes a sheet of its own only when the overview needed two. On
+      // the single-sheet layout it printed above, under the introduction.
+      splitOverview
+        ? sheet(
+          'Partnership Proposal',
+          `${pitchSection}
+${
+          // Four claims, then photographs of them being true. Only when the overview
+          // took two sheets: that page has the room for a strip, and on the
+          // single-sheet layout there is none.
+          galleryStrip(0, 'The programme running', true)
+          }`,
+        )
+        : ''
     }
-  ${splitOverview ? '' : portfolioBlock()}
-</div>
 
 <!-- What is taught, and how it lands in the school. Its own sheet: these are
      the two questions a head teacher asks after "why", and cramming them under
      the pitch is what pushed that page past the sheet. -->
-<div class="page">
-  <div class="pagehead"><span><b>The programme</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-
-  ${journey()
+${sheet(
+      'The programme',
+      `  ${journey()
       ? `<section>
     <div class="rule"></div>
     <h2>What a child walks out with</h2>
@@ -1998,89 +2079,33 @@ ${on('rollout') ? `  <section>
       </div>`,
     ).join('')}
     </div>
-  </section>` : ''}
-</div>
+  </section>` : ''}`,
+    )}
 
 <!-- Commercials -->
-<div class="page">
-  <div class="pagehead"><span><b>Partnership Proposal</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
+${sheet(
+      'Partnership Proposal',
+      `  ${agreed}
 
-  ${agreed}
-
-  <section>
-    <div class="rule"></div>
-    <h2>${input.agreedTerms
-      ? 'Standard options for reference'
-      : quotedOffer
-        ? `What we recommend for ${esc(input.school.name)}`
-        : 'Three proposed shapes for the programme'}</h2>
-    <p class="muted">${input.agreedTerms
-      ? 'Your agreed rate above is one of the standard options. They are listed here so you can see where it sits.'
-      : quotedOffer
-      ? /*
-          The reason, when the system actually has one.
-
-          This line used to claim the option had been "picked for the size of
-          your roll" no matter how it was chosen — a reasoning the document
-          asserted and nothing had performed. Now it prints the reason
-          `recommendOffer` gave, naming the roll it read, and falls back to a
-          plain statement when the choice came from a person instead. A head
-          teacher can then argue with the argument, not just the price.
-        */
-      esc(input.recommendationReason || 'The other standard options are listed beneath, for context.')
-      : 'What a parent would pay over a full session under each option.'}</p>
-    ${figures()}
-
-    ${input.agreedTerms
-      ? /*
-          A settled deal does not need three cards arguing for themselves. The
-          menu drops to its quiet form, which keeps the evidence that the agreed
-          rate came off a standard list without reopening the choice.
-        */
-        `<div class="offer-alts"><ul>${offers.map(offerLine).join('')}</ul></div>`
-      : quotedOffer
-      ? /*
-          One option in full, the others on one line each.
-
-          Three cards of equal weight is a menu, and a menu is what you send a
-          school you know nothing about. Once the shape has been chosen for a
-          particular roll and a particular timetable, printing all three at the
-          same size buries the recommendation inside it — the reader has to work
-          out which one is theirs, and some of them will pick the cheapest
-          instead of the right one.
-        */
-        `<div class="offers">${offerCard(quotedOffer, true)}</div>
-    ${offers.length > 1
-          ? `<div class="offer-alts">
-      <div class="offer-alts-head">Also available on the standard menu</div>
-      <ul>${offers.filter((o) => o.code !== quotedOffer.code).map(offerLine).join('')}</ul>
-    </div>`
-          : ''}`
-      : `<div class="offers offers-full">${offers.map((o) => offerCard(o, false)).join('')}</div>`
-    }
-    <p class="muted" style="margin-top:2mm">Fees are per student per term. The programme runs on the school calendar, and billing follows the same terms your school already invoices on.${input.validUntilLabel
-      ? ` These fees stand until ${esc(input.validUntilLabel)}; after that we will re-quote before anything is signed.`
-      : ''
-    }</p>
-  </section>
+${feesSection()}
 
 ${supplySection(true)}
-${noExtrasBlock()}
-</div>
+${noExtrasBlock()}`,
+    )}
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
-<div class="page page-money">
-  <div class="pagehead"><span><b>The school's share</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-
-  ${splitBlock()}
+${sheet(
+      "The school's share",
+      `  ${splitBlock()}
 
   ${upsideBlock()}
 
 ${reasonToPayBlock()}
 
 ${supplySection(false)}
-
-</div>
+`,
+      'page page-money',
+    )}
 
 
 ${pathwayPages(
@@ -2123,19 +2148,20 @@ ${pathwayPages(
 -->
 
 
-<!-- How it starts, and the place to say yes. Always the last page: the close
-     must never depend on a section that might not render. -->
-${on('comparison') || on('zeroCapex')
-      ? `<div class="page">
-  <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-
-  ${transformationTableBlock()}
+<!-- The comparison, the guarantee and the questions. The page is emitted by the
+     sheet helper, so switching all three off drops the sheet instead of printing
+     a running head over nothing — which is what the hand-written condition here
+     used to do the moment the questions were the only one left on. -->
+${sheet(
+      'The case for changing',
+      `  ${transformationTableBlock()}
   ${zeroCapexBlock()}
-  ${faqBlock()}
-</div>`
-      : ''
-    }
+  ${faqBlock()}`,
+    )}
 
+<!-- How it starts, and the place to say yes. Always the last page, and always
+     emitted: the close carries the signature block, so this sheet must never
+     depend on a section the studio can switch off. -->
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 

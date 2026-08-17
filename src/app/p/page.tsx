@@ -9,7 +9,6 @@ import {
   CheckCircleIcon,
   DocumentTextIcon,
   QrCodeIcon,
-  SparklesIcon,
 } from "@/lib/icons";
 import { brandContact } from "@/config/brand";
 

@@ -56,6 +56,17 @@ function parseScopeToOffer(body: Record<string, unknown>): string | undefined {
   return String(value);
 }
 
+/**
+ * The references of rows being removed, for the audit entry.
+ *
+ * `reference` is assigned by the database and is nullable, so a row can reach
+ * here without one — and an audit line reading "null, null, RC-PROP-2026-00003"
+ * is worse than one that simply lists the references there were.
+ */
+function references(rows: Array<{ reference: string | null }>): string[] {
+  return rows.map((r) => r.reference).filter((r): r is string => Boolean(r));
+}
+
 async function requireActor(write: boolean) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -603,13 +614,13 @@ export async function DELETE(req: NextRequest) {
       resourceType: 'partnership_agreements',
       resourceId: schoolId,
       tableName: 'partnership_agreements',
-      oldValue: list.map((r: { reference: string }) => r.reference).join(', '),
+      oldValue: references(list).join(', '),
       newValues: { school_id: schoolId, deleted: list.length },
     });
 
     return NextResponse.json({
       deleted: list.length,
-      references: list.map((r: { reference: string }) => r.reference),
+      references: references(list),
     });
   }
 

@@ -1,5 +1,3 @@
-import { brandContact } from '@/config/brand';
-
 /**
  * Clean URL for an image inside a stored or previewed document.
  *

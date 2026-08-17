@@ -233,7 +233,11 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     that set.
   */
   try {
-    await (input.db as { rpc?: Function }).rpc?.('replace_live_partnership_documents', {
+    await (
+      input.db as {
+        rpc?: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+      }
+    ).rpc?.('replace_live_partnership_documents', {
       p_school_id: targetSchoolId,
       p_kind: kind,
       p_keep_id: row.id,
