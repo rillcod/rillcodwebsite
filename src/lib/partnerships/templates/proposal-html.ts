@@ -40,6 +40,9 @@ import {
   type SchoolUpside,
 } from '../proposal-sections';
 import { settlementPoints, describeTerms, type PartnershipTerms } from '../terms';
+// The same five answers the public portal gives, so the sheet a board reads
+// offline cannot say something different from the link a head teacher opened.
+import { PROPRIETOR_FAQS } from '../faqs';
 import { defaultStudioConfig, type ProposalStudioConfig } from '../studio-config';
 
 export type ProposalInput = {
@@ -837,6 +840,32 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       : svg;
   };
 
+  /**
+   * The five questions, answered in the document rather than only on the web.
+   *
+   * They were answered on the portal and nowhere else, so a proposal forwarded
+   * to a board, printed for a meeting or read on a phone with no signal was
+   * silent on the things it is most often asked about. The artefact that
+   * survives the conversation is the document, not the page.
+   *
+   * It also happens to fill the room the duplicated case studies used to take,
+   * which is the right way round: the space was freed by removing something
+   * said three times, and filled with something not said at all.
+   */
+  const faqBlock = (): string => !on('caseStudies') ? '' : `
+  <section>
+    <div class="rule"></div>
+    <h2>Questions we are usually asked</h2>
+    <div class="faqs">
+      ${PROPRIETOR_FAQS.map((f) => `
+        <div class="faq">
+          <b class="faq-q">${esc(f.q)}</b>
+          <p class="faq-a">${esc(f.a)}</p>
+        </div>
+      `).join('')}
+    </div>
+  </section>`;
+
   const zeroCapexBlock = (): string => !on('zeroCapex') ? '' : `
   <section>
     <div class="rule"></div>
@@ -1374,8 +1403,24 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     single price with nothing around it looks invented — these two lines are the
     evidence that it came off a standard menu.
   */
+  /*
+    Two columns, because these are short answers and A4 is wide.
+
+    Five questions stacked in a single column use half the sheet's width and
+    twice its height — which is what put this page 35px past the bottom, where
+    the last answer would simply have been cut off. Side by side they fit with
+    room over.
+  */
+  .faqs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2.6mm 7mm; margin-top: 1mm;
+  }
+  .faq { break-inside: avoid; }
+  .faq-q { display: block; font-size: 10pt; font-weight: 800; color: #0f172a; }
+  .faq-a { margin: .6mm 0 0; font-size: 9.4pt; line-height: 1.42; color: #475569; }
+
   /* The settlement answers: a label a proprietor scans for, then the sentence. */
-  .settle { display: flex; flex-direction: column; gap: 3mm; margin-top: 1mm; }
+  /* Same reasoning as the questions: short items, wide sheet. */
+  .settle { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 7mm; margin-top: 1mm; }
   .settle-row { border-left: 3px solid #e2e8f0; padding-left: 4mm; }
   .settle-label {
     display: block; font-size: 10.4pt; font-weight: 800; color: #0f172a; margin-bottom: .8mm;
@@ -1809,6 +1854,7 @@ ${on('comparison') || on('zeroCapex')
 
   ${transformationTableBlock()}
   ${zeroCapexBlock()}
+  ${faqBlock()}
 </div>`
       : ''
     }

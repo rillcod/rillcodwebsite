@@ -21,6 +21,9 @@ import {
 import { downloadDocumentPdf, documentFilename } from "@/lib/partnerships/proposal-pdf";
 import { SignatureModal } from "@/components/partnerships/SignatureModal";
 import { brandContact } from "@/config/brand";
+// One list, shared with the printed document. Two copies of an answer is how
+// this page ended up promising a video no report card has ever carried.
+import { PROPRIETOR_FAQS } from "@/lib/partnerships/faqs";
 
 type DocData = {
   id: string;
@@ -47,28 +50,6 @@ type DocData = {
   } | null;
 };
 
-const PROPRIETOR_FAQS = [
-  {
-    q: "What if our school doesn't have an equipped computer laboratory?",
-    a: "You do not need one. Our facilitators bring the devices, micro-controllers and hardware kits to your timetable slot, and take them away again. There is no laboratory to build and no equipment for the school to buy, replace or insure.",
-  },
-  {
-    q: "Will our existing school teachers be burdened with extra work?",
-    a: "None at all. Rillcod facilitators handle 100% of syllabus delivery, CBT practical grading, and term assessments. Your teachers can observe and co-learn without adding a single hour to their workload.",
-  },
-  {
-    q: "How does the revenue share settlement work?",
-    a: "Your school's share is the percentage set out in this document, worked from the learners who actually enrol each term. When and how it is settled is stated in the document above.",
-  },
-  {
-    q: "What tangible proof do parents receive at the end of each term?",
-    a: "Every learner completes a hands-on capstone build and keeps a portfolio of work that runs. Parents receive a written progress report each term, and the report card carries a QR code they can scan to verify it online.",
-  },
-  {
-    q: "How quickly can teaching commence once signed?",
-    a: "Teaching starts the term after signing, in the timetable slot you choose. Signing early is what reserves a facilitator and the equipment for that slot.",
-  },
-];
 
 export default function PublicDocumentPage({
   params,

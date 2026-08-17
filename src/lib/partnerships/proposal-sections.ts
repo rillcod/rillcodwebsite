@@ -98,25 +98,18 @@ export const WHY_NOW: readonly string[] = [
  * the document is padded.
  *
  * What survives is the part that was buried inside those repetitions and said
- * nowhere else: that we replace and insure the hardware, that there is a named
- * person accountable for the programme, and that the timetable work is planned
- * around the national examination calendar. Those are commitments a head
- * teacher can hold us to, which is what makes them worth a page.
+ * nowhere else: that there is a named person accountable for the programme, and
+ * that the timetable work is planned around the national examination calendar.
+ * Those are commitments a head teacher can hold us to, which is what makes them
+ * worth printing.
+ *
+ * A third — that we replace and insure hardware that is dropped, worn out or
+ * stolen — was written and then removed. It reads well and it is an open-ended
+ * liability against every kit in every partner school. A promise printed in a
+ * contract is one somebody will eventually present back; this list carries only
+ * the ones we mean to honour.
  */
 export const ZERO_CAPEX_PROMISE = [
-  {
-    /*
-      Precise, because a promise a proprietor can check is worth more than a
-      bigger one they cannot.
-
-      The earlier version listed "testing rigs" among the equipment, which
-      overstates what arrives, and implied the school provides nothing — while
-      the MoU it leads to asks for a room, a timetable slot, power and internet.
-      Surprise at signature is how a partnership starts badly.
-    */
-    title: 'Replaced and insured, not just supplied',
-    body: 'Every device, micro-controller and kit stays ours. When one is dropped, worn out or stolen we replace it at our cost — the school never buys, replaces or insures a single piece of hardware.',
-  },
   {
     title: 'A named person accountable for it',
     body: 'Facilitators are vetted and reference-checked before they enter a classroom, and one named programme coordinator owns your school. You escalate to a person, not an inbox.',
