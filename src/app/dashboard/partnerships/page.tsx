@@ -74,7 +74,8 @@ type Preview = {
   accessCode?: string | null;
 };
 
-type WorkspaceTab = "compose" | "terms" | "studio" | "gallery" | "archive";
+// No "studio": it is part of composing now, not a place you navigate to.
+type WorkspaceTab = "compose" | "terms" | "gallery" | "archive";
 
 /*
   Which of the two jobs this page is doing.
@@ -976,7 +977,6 @@ export default function PartnershipsPage() {
                 {[
                   { key: "compose", label: "📑 Agreements & Proposals", count: documents.length },
                   { key: "terms", label: "💰 Commercial Terms", count: terms.length },
-                  { key: "studio", label: "🎨 Proposal Studio" },
                   { key: "gallery", label: "🏛️ School Gallery" },
                   { key: "archive", label: "📜 Document Archive", count: documents.length },
                 ].map((tab) => {
@@ -1067,6 +1067,34 @@ export default function PartnershipsPage() {
                       onClose={() => setPreview(null)}
                     />
                   )}
+                  {/*
+                    The studio, where the document it shapes is being made.
+
+                    It was its own tab, which meant deciding what a proposal
+                    prints happened on a different screen from composing and
+                    previewing it — you toggled a section off, switched tabs,
+                    previewed, and switched back to see whether that was what
+                    you meant. Collapsed by default, because most proposals go
+                    out whole and the controls are only wanted when they are.
+                  */}
+                  {canWrite && composeKind === 'proposal' && (
+                    <details className="group bg-card border border-border rounded-2xl overflow-hidden">
+                      <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">
+                            Choose what this proposal prints
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground mt-0.5">
+                            Sections, photographs and the wording. Everything is on by default.
+                          </span>
+                        </span>
+                        <ChevronDownIcon className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="px-1 pb-1">
+                        <ProposalStudio config={studio} onChange={setStudio} school={selected} />
+                      </div>
+                    </details>
+                  )}
                 </div>
               )}
 
@@ -1097,18 +1125,6 @@ export default function PartnershipsPage() {
               )}
 
               {/* Tab 3: Proposal Studio Customizer */}
-              {activeTab === "studio" && (
-                <div className="space-y-4">
-                  {canWrite ? (
-                    <ProposalStudio config={studio} onChange={setStudio} school={selected} />
-                  ) : (
-                    <p className="text-xs text-muted-foreground p-6 bg-card border border-border rounded-2xl">
-                      Read-only mode. Studio configurations are managed by administrators.
-                    </p>
-                  )}
-                </div>
-              )}
-
               {/* Tab 4: School Media Vault (Centralized Gallery) */}
               {activeTab === "gallery" && (
                 <div className="space-y-4">
