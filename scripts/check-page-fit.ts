@@ -145,6 +145,7 @@ async function main() {
           photos: PARTNERSHIP_PHOTOS,
           studio: defaultStudioConfig(),
           accessCode: '849201',
+          agreedTerms: quoted ? { ...terms, settlement_days: 14, settlement_trigger: 'on_collection', withdrawal_policy: 'pro_rata', minimum_students: 40 } : undefined,
           scopeToOffer: quoted,
           recommendationReason: quoted
             ? 'At around 420 learners a weekly slot fills comfortably, and two contact hours is what the capstone build in each year assumes.'

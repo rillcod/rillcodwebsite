@@ -92,6 +92,10 @@ describe('the partnership proposal', () => {
       deposit_amount: null,
       rillcod_share_percent: 70,
       school_share_percent: 30,
+      settlement_days: null,
+      settlement_trigger: null,
+      withdrawal_policy: null,
+      minimum_students: null,
       status: 'agreed',
     };
 

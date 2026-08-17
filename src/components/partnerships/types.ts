@@ -39,6 +39,11 @@ export type TermsRow = {
   deposit_amount: number | null;
   rillcod_share_percent: number | null;
   school_share_percent: number | null;
+  /** When the school's share arrives, and what moves it. Null means not agreed. */
+  settlement_days: number | null;
+  settlement_trigger: 'term_end' | 'on_collection' | null;
+  withdrawal_policy: 'pro_rata' | 'no_refund' | 'credit_next_term' | null;
+  minimum_students: number | null;
   status: string;
   effective_from: string | null;
   effective_to: string | null;

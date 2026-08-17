@@ -39,7 +39,7 @@ import {
   STUDENT_CASE_STUDIES,
   type SchoolUpside,
 } from '../proposal-sections';
-import { describeTerms, type PartnershipTerms } from '../terms';
+import { settlementPoints, describeTerms, type PartnershipTerms } from '../terms';
 import { defaultStudioConfig, type ProposalStudioConfig } from '../studio-config';
 
 export type ProposalInput = {
@@ -232,6 +232,21 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     and emphasised nothing at all.
   */
   const quotedOffer = resolveOffer(input.scopeToOffer);
+  /*
+    Does this school have settlement terms worth a section of their own?
+
+    `settlementPoints` always returns one line — that the share is worked from
+    enrolment rather than the projection — because that is true of every deal
+    and is the thing a proprietor most often misreads. But one line does not
+    earn a heading, and the split block above already says it. A section appears
+    only once there is something specific to say: when the money arrives, who
+    carries collection risk, what a mid-term withdrawal costs.
+
+    It also decides where the scope table goes. On the sheet the settlement
+    section prints, there is no longer room for both — and between "what am I
+    buying" and "when am I paid", the money page belongs to the money.
+  */
+  const hasSettlementTerms = settlementPoints(input.agreedTerms ?? null).length > 1;
   const base = input.narrative ?? AUTHORED_NARRATIVE;
   const narrative = {
     ...base,
@@ -541,7 +556,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <div class="seg seg-school" style="flex:${u.sharePercent}">${u.sharePercent}% to your school</div>
       <div class="seg seg-rc" style="flex:${100 - u.sharePercent}">${100 - u.sharePercent}%</div>
     </div>
-    <p class="muted">Our share covers the facilitators, the robotics kits and devices, the learning platform and the termly reporting. Your share is settled against actual enrolment each ${esc(u.cycle)}.</p>
+    <p class="muted">Our share covers the facilitators, the devices and hardware kits, the learning platform and the termly reporting. Your share is settled against actual enrolment each ${esc(u.cycle)}.</p>
   </section>`;
   };
 
@@ -583,7 +598,21 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     <h2>What this is worth to ${esc(input.school.name)}</h2>
     <p class="muted">${lead}</p>
 
-    ${upsideChart(u)}
+    ${/*
+      The chart and the table below it say the same thing twice.
+
+      Both list the same three scenarios; the table also carries the programme
+      fee each one implies, so it is the more complete of the two. The picture
+      is the more scannable, and while the sheet had room for both that was a
+      fair trade.
+
+      It stops being fair once the settlement answers need the same sheet: this
+      page ran 115px past the bottom, and on a page that clips rather than
+      spills the withdrawal clause would simply have vanished. A whole extra
+      sheet for four sentences would push the proposal past ten pages, which is
+      the length a head teacher will actually read to the end of. So the
+      duplicate goes, and the section that answers a real objection stays.
+    */ ''}${hasSettlementTerms ? '' : upsideChart(u)}
     <table>
       <thead>
         <tr>
@@ -648,7 +677,20 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     when this one is full — and a 300-unit viewBox rendered at full page width
     scales up by more than twice, which put this sheet 52px past the bottom.
   */
-  const figures = (): string => offersChart();
+  /*
+    Once a rate is agreed, stop selling the menu.
+
+    A chart comparing three options against each other is for a school still
+    choosing between them. Printing it to a school that has already agreed a
+    price is at best noise and at worst an invitation to reopen a settled
+    negotiation — and it is the single biggest block on the sheet, which is the
+    room the agreed terms and the scope of supply then need.
+
+    The options stay, as three quiet lines under "Standard options for
+    reference", so the agreed rate is still visibly one of a standard set
+    rather than a number invented for this school.
+  */
+  const figures = (): string => (input.agreedTerms ? '' : offersChart());
 
   /**
    * Scope of supply, on whichever of the two sheets has the room for it.
@@ -667,10 +709,47 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    *
    * Called from both sheets. Prints on exactly one.
    */
+  /**
+   * How and when the school is actually paid.
+   *
+   * The page above says what they earn and stops, and the next three questions
+   * are always the same: when does it arrive, do I get it if the parents have
+   * not paid, and what happens when a child leaves in week four. A proposal
+   * that leaves those unanswered gets them asked in a meeting instead, where
+   * the answer is improvised.
+   *
+   * Every sentence comes from `settlementPoints`, which prints only what was
+   * agreed and recorded — so this section grows as a deal gets specific, and a
+   * school with nothing recorded gets the one line that is true regardless:
+   * the share is worked from enrolment, not from the projection above it.
+   */
+  const settlementSection = (): string => {
+    if (!hasSettlementTerms) return '';
+    const points = settlementPoints(input.agreedTerms ?? null);
+    if (!points.length) return '';
+    return `  <section>
+    <div class="rule"></div>
+    <h2>How and when you are paid</h2>
+    <div class="settle">
+      ${points
+        .map(
+          (p: { label: string; body: string }) => `<div class="settle-row">
+        <b class="settle-label">${esc(p.label)}</b>
+        <p class="settle-body">${esc(p.body)}</p>
+      </div>`,
+        )
+        .join('')}
+    </div>
+  </section>`;
+  };
+
   const supplySection = (onCommercialsPage: boolean): string => {
     const table = supplyTable();
     if (!table) return '';
-    if (onCommercialsPage !== Boolean(quotedOffer)) return '';
+    // The returns page only takes it when it is not already carrying the
+    // settlement answers; otherwise it stays with the fees, tight or not.
+    const wantsCommercials = Boolean(quotedOffer) || hasSettlementTerms;
+    if (onCommercialsPage !== wantsCommercials) return '';
     return `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
@@ -1295,6 +1374,14 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     single price with nothing around it looks invented — these two lines are the
     evidence that it came off a standard menu.
   */
+  /* The settlement answers: a label a proprietor scans for, then the sentence. */
+  .settle { display: flex; flex-direction: column; gap: 3mm; margin-top: 1mm; }
+  .settle-row { border-left: 3px solid #e2e8f0; padding-left: 4mm; }
+  .settle-label {
+    display: block; font-size: 10.4pt; font-weight: 800; color: #0f172a; margin-bottom: .8mm;
+  }
+  .settle-body { margin: 0; font-size: 10pt; line-height: 1.45; color: #475569; }
+
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {
     font-size: 8.4pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
@@ -1591,12 +1678,14 @@ ${on('rollout') ? `  <section>
 
   <section>
     <div class="rule"></div>
-    <h2>${quotedOffer
-      ? `What we recommend for ${esc(input.school.name)}`
-      : input.agreedTerms
-        ? 'Standard options for reference'
+    <h2>${input.agreedTerms
+      ? 'Standard options for reference'
+      : quotedOffer
+        ? `What we recommend for ${esc(input.school.name)}`
         : 'Choose the shape that fits your school'}</h2>
-    <p class="muted">${quotedOffer
+    <p class="muted">${input.agreedTerms
+      ? 'Your agreed rate above is one of the standard options. They are listed here so you can see where it sits.'
+      : quotedOffer
       ? /*
           The reason, when the system actually has one.
 
@@ -1611,7 +1700,14 @@ ${on('rollout') ? `  <section>
       : 'What a parent pays over a full session, so the three can be weighed against each other rather than read one at a time.'}</p>
     ${figures()}
 
-    ${quotedOffer
+    ${input.agreedTerms
+      ? /*
+          A settled deal does not need three cards arguing for themselves. The
+          menu drops to its quiet form, which keeps the evidence that the agreed
+          rate came off a standard list without reopening the choice.
+        */
+        `<div class="offer-alts"><ul>${offers.map(offerLine).join('')}</ul></div>`
+      : quotedOffer
       ? /*
           One option in full, the others on one line each.
 
@@ -1648,9 +1744,12 @@ ${supplySection(true)}
 
   ${upsideBlock()}
 
+${settlementSection()}
+
 ${supplySection(false)}
 
 </div>
+
 
 ${on('curriculum') && primary.length
       ? `<div class="page">

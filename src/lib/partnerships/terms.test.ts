@@ -8,6 +8,7 @@ import {
   requireAgreedTerms,
   type PartnershipTerms,
 } from './terms';
+import { RECOMMENDED_SETTLEMENT, settlementPoints } from './terms';
 
 const base: PartnershipTerms = {
   id: 'terms-1',
@@ -21,6 +22,10 @@ const base: PartnershipTerms = {
   deposit_amount: null,
   rillcod_share_percent: 70,
   school_share_percent: 30,
+  settlement_days: null,
+  settlement_trigger: null,
+  withdrawal_policy: null,
+  minimum_students: null,
   status: 'agreed',
 };
 
@@ -62,6 +67,10 @@ describe('a flat agreed rate', () => {
     amount_per_student: 25000,
     rillcod_share_percent: null,
     school_share_percent: null,
+    settlement_days: null,
+    settlement_trigger: null,
+    withdrawal_policy: null,
+    minimum_students: null,
   };
 
   it('treats the whole amount as Rillcod’s, not a 0% share', () => {
@@ -102,6 +111,10 @@ describe('other agreed shapes', () => {
       amount_per_student: null,
       rillcod_share_percent: null,
       school_share_percent: null,
+      settlement_days: null,
+      settlement_trigger: null,
+      withdrawal_policy: null,
+      minimum_students: null,
       tiers: [
         { label: 'First 100', count: 100, rate: 30000 },
         { label: 'Next 150', count: 150, rate: 25000 },
@@ -168,5 +181,62 @@ describe('normalising a database row', () => {
   it('is null for an empty row', () => {
     expect(normaliseTerms(null)).toBeNull();
     expect(normaliseTerms({})).toBeNull();
+  });
+});
+
+describe('how and when a school is paid', () => {
+  const base = {
+    id: 't1', school_id: 's1', billing_model: 'per_student' as const, currency: 'NGN',
+    billing_cycle: 'term', amount_per_student: 25000, fixed_package_price: null,
+    tiers: null, deposit_amount: null, rillcod_share_percent: 70, school_share_percent: 30,
+    settlement_days: null, settlement_trigger: null, withdrawal_policy: null,
+    minimum_students: null, status: 'agreed',
+  } as PartnershipTerms;
+
+  it('always states that the share follows enrolment, not the projection', () => {
+    // The proposal shows a projection immediately above this. Leaving the
+    // mechanism unsaid is what makes a proprietor read the projection as a
+    // promise, and then feel misled when the roll comes in lower.
+    for (const terms of [null, base]) {
+      const points = settlementPoints(terms);
+      expect(points[0].body).toContain('actually enrol');
+    }
+  });
+
+  it('says nothing about timing that was not agreed', () => {
+    // One line only: no invented settlement window, no invented refund policy.
+    expect(settlementPoints(base)).toHaveLength(1);
+    expect(JSON.stringify(settlementPoints(base))).not.toMatch(/\bdays\b/);
+  });
+
+  it('states who carries collection risk, and says it differently for each', () => {
+    const onCollection = settlementPoints({ ...base, settlement_trigger: 'on_collection', settlement_days: 14 });
+    expect(JSON.stringify(onCollection)).toContain('14 days');
+    expect(JSON.stringify(onCollection)).toContain('collection risk');
+
+    const atTermEnd = settlementPoints({ ...base, settlement_trigger: 'term_end', settlement_days: 14 });
+    // The difference that matters commercially: who is out of pocket meanwhile.
+    expect(JSON.stringify(atTermEnd)).toContain('We carry the collection risk');
+    expect(JSON.stringify(onCollection)).not.toContain('We carry the collection risk');
+  });
+
+  it('answers the withdrawal question in the way that was agreed', () => {
+    const proRata = settlementPoints({ ...base, withdrawal_policy: 'pro_rata' });
+    expect(JSON.stringify(proRata)).toContain('pro rata');
+
+    const full = settlementPoints({ ...base, withdrawal_policy: 'no_refund' });
+    expect(JSON.stringify(full)).toContain('charged in full');
+  });
+
+  it('names the floor when one was agreed', () => {
+    const withFloor = settlementPoints({ ...base, minimum_students: 40 });
+    expect(JSON.stringify(withFloor)).toContain('40 enrolled learners');
+  });
+
+  it('recommends a position that protects cash flow', () => {
+    // Paying a school before the parents have paid means fronting somebody
+    // else's revenue every term, out of working capital, for every school.
+    expect(RECOMMENDED_SETTLEMENT.settlement_trigger).toBe('on_collection');
+    expect(RECOMMENDED_SETTLEMENT.withdrawal_policy).toBe('pro_rata');
   });
 });

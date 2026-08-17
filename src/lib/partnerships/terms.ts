@@ -36,8 +36,28 @@ export type PartnershipTerms = {
   deposit_amount: number | null;
   rillcod_share_percent: number | null;
   school_share_percent: number | null;
+  /**
+   * When the school's share arrives, and what moves it.
+   *
+   * The money page tells a proprietor what they earn and then stops; the next
+   * three questions are always when do I get paid, do I get paid if the parents
+   * have not, and what happens when a child leaves in week four. They are
+   * commercial terms, so they live here beside the rate rather than in template
+   * prose, where they would be the same promise made to every school regardless
+   * of what was negotiated. Null throughout means nothing was agreed, and a
+   * document that prints a date nobody agreed is worse than one that does not.
+   */
+  settlement_days: number | null;
+  settlement_trigger: SettlementTrigger | null;
+  withdrawal_policy: WithdrawalPolicy | null;
+  /** Enrolment floor below which the programme is re-scoped rather than run. */
+  minimum_students: number | null;
   status: string;
 };
+
+/** Whether we carry the collection risk, or share it. */
+export type SettlementTrigger = 'term_end' | 'on_collection';
+export type WithdrawalPolicy = 'pro_rata' | 'no_refund' | 'credit_next_term';
 
 /**
  * Raised when a school has no agreed terms.
@@ -90,6 +110,14 @@ export function normaliseTerms(row: Record<string, unknown> | null | undefined):
     deposit_amount: toNumber(row.deposit_amount),
     rillcod_share_percent: toNumber(row.rillcod_share_percent),
     school_share_percent: toNumber(row.school_share_percent),
+    settlement_days: toNumber(row.settlement_days),
+    settlement_trigger: SETTLEMENT_TRIGGERS.includes(row.settlement_trigger as SettlementTrigger)
+      ? (row.settlement_trigger as SettlementTrigger)
+      : null,
+    withdrawal_policy: WITHDRAWAL_POLICIES.includes(row.withdrawal_policy as WithdrawalPolicy)
+      ? (row.withdrawal_policy as WithdrawalPolicy)
+      : null,
+    minimum_students: toNumber(row.minimum_students),
     status: String(row.status ?? 'draft'),
   };
 }
@@ -97,7 +125,8 @@ export function normaliseTerms(row: Record<string, unknown> | null | undefined):
 const TERMS_COLUMNS =
   'id, school_id, billing_model, currency, billing_cycle, amount_per_student, ' +
   'fixed_package_price, tiers, deposit_amount, rillcod_share_percent, ' +
-  'school_share_percent, status';
+  'school_share_percent, settlement_days, settlement_trigger, withdrawal_policy, ' +
+  'minimum_students, status';
 
 /**
  * The agreed terms in force for a school, or null when there are none.
@@ -228,3 +257,112 @@ export function describeTerms(terms: PartnershipTerms): string {
     `school ${terms.school_share_percent}%`
   );
 }
+
+/** The two shapes a settlement can take, in the order the editor offers them. */
+export const SETTLEMENT_TRIGGERS: readonly SettlementTrigger[] = ['term_end', 'on_collection'];
+export const WITHDRAWAL_POLICIES: readonly WithdrawalPolicy[] = [
+  'pro_rata',
+  'no_refund',
+  'credit_next_term',
+];
+
+export type SettlementPoint = { label: string; body: string };
+
+/**
+ * How and when the school is paid, as sentences a document can print.
+ *
+ * Returns only what was actually agreed. A school whose terms say nothing about
+ * withdrawals gets no withdrawal sentence — the alternative is a template
+ * promising every school the same thing, which is precisely the drift that put
+ * a 15% default and a hardcoded 30% share into this codebase.
+ *
+ * The one thing stated unconditionally is the mechanism: the share is worked
+ * from enrolment rather than projection. That is not a negotiated term, it is
+ * how the arithmetic on the page above it was done, and leaving it out is what
+ * makes a proprietor assume the number is a forecast.
+ */
+export function settlementPoints(terms: PartnershipTerms | null): SettlementPoint[] {
+  const points: SettlementPoint[] = [
+    {
+      label: 'Worked from actual enrolment',
+      body: 'Your share is calculated on the learners who actually enrol each term, not on the projection above. If uptake is lower, both sides earn less on the same terms; nothing is owed on students who did not join.',
+    },
+  ];
+  if (!terms) return points;
+
+  if (terms.settlement_trigger === 'on_collection') {
+    points.push({
+      label: 'Settled as fees are collected',
+      body: terms.settlement_days
+        ? `Your share is released within ${terms.settlement_days} days of the fees being collected, so collection risk sits with neither party alone.`
+        : 'Your share is released as the programme fees are collected, so collection risk sits with neither party alone.',
+    });
+  } else if (terms.settlement_trigger === 'term_end') {
+    points.push({
+      label: 'Settled at the end of each term',
+      body: terms.settlement_days
+        ? `Your share is paid within ${terms.settlement_days} days of the term ending, whether or not every parent has settled by then. We carry the collection risk.`
+        : 'Your share is paid at the end of each term, whether or not every parent has settled by then. We carry the collection risk.',
+    });
+  }
+
+  if (terms.withdrawal_policy) {
+    points.push({
+      label: 'If a learner withdraws mid-term',
+      body:
+        terms.withdrawal_policy === 'pro_rata'
+          ? 'The term is charged pro rata to the sessions actually taught, and your share follows the same reduction.'
+          : terms.withdrawal_policy === 'credit_next_term'
+            ? 'The balance of the term is carried as a credit against the following term rather than refunded, and your share follows it.'
+            : 'The term is charged in full, because the facilitator and the equipment were committed to that slot for the whole of it.',
+    });
+  }
+
+  if (terms.minimum_students) {
+    points.push({
+      label: 'If uptake is very low',
+      body: `Below ${terms.minimum_students} enrolled learners we will re-scope the programme with you rather than run it thinly — a session with too few children in it is not worth either side's name on it.`,
+    });
+  }
+
+  return points;
+}
+
+/**
+ * What we suggest when nobody has decided yet.
+ *
+ * A blank form is not help. Four empty fields on a terms editor is the same
+ * work as writing the clause from scratch, and the likely outcome is that they
+ * stay empty and the proposal goes on saying nothing about the questions its
+ * own numbers raise.
+ *
+ * So the editor opens on a position we can defend, and whoever is agreeing the
+ * deal changes it. The reasoning behind each:
+ *
+ *   `on_collection` rather than `term_end`. Paying a school's share before the
+ *   parents have paid means fronting somebody else's revenue out of working
+ *   capital, every term, for every school. It is the more generous position and
+ *   it is the one that breaks a small business in a bad term. Where the school
+ *   invoices parents directly it is also the natural one, because the money is
+ *   in their hands first.
+ *
+ *   Fourteen days. Long enough to reconcile a term's enrolment against what was
+ *   actually collected, short enough that a bursar does not have to chase it.
+ *
+ *   `pro_rata` on withdrawal. It is the answer a proprietor expects, it is
+ *   arithmetic rather than judgement, and refusing to refund a term a child did
+ *   not attend is the kind of clause that wins one term and loses the renewal.
+ *
+ *   A floor of forty. Below roughly two class-sets the facilitator cost per
+ *   child stops working, and a session with eight children in it does not look
+ *   like the programme anybody was sold.
+ *
+ * None of these print until they are saved against a school, because a
+ * suggestion nobody accepted is not a term.
+ */
+export const RECOMMENDED_SETTLEMENT = {
+  settlement_trigger: 'on_collection' as SettlementTrigger,
+  settlement_days: 14,
+  withdrawal_policy: 'pro_rata' as WithdrawalPolicy,
+  minimum_students: 40,
+} as const;

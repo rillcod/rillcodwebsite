@@ -27,6 +27,13 @@ import {
   STANDARD_RILLCOD_SHARE_PERCENT,
   isPermittedRillcodShare,
 } from "@/lib/partnerships/split";
+// Settlement terms live with the rate and the split, because they are terms.
+// The recommendation is what this form opens on; see RECOMMENDED_SETTLEMENT.
+import {
+  RECOMMENDED_SETTLEMENT,
+  type SettlementTrigger,
+  type WithdrawalPolicy,
+} from "@/lib/partnerships/terms";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { BillingModel, SchoolRow, TermsRow } from "./types";
 
@@ -54,8 +61,47 @@ type Draft = {
   effective_from: string;
   effective_to: string;
   notes: string;
+  /** When the school's share arrives, and what moves it. */
+  settlement_trigger: SettlementTrigger | "";
+  settlement_days: string;
+  withdrawal_policy: WithdrawalPolicy | "";
+  minimum_students: string;
   status: "draft" | "proposed" | "agreed";
 };
+
+/** The two shapes a settlement takes, in the words a proprietor would use. */
+const SETTLEMENT_SHAPES: Array<{ value: SettlementTrigger; name: string; blurb: string }> = [
+  {
+    value: "on_collection",
+    name: "As fees are collected",
+    blurb:
+      "The school's share is released as parents pay. Neither side fronts the other's money, which is what protects cash flow in a slow term.",
+  },
+  {
+    value: "term_end",
+    name: "At the end of every term",
+    blurb:
+      "Paid whether or not every parent has settled. The stronger offer, and it means we carry the collection risk out of working capital.",
+  },
+];
+
+const WITHDRAWAL_SHAPES: Array<{ value: WithdrawalPolicy; name: string; blurb: string }> = [
+  {
+    value: "pro_rata",
+    name: "Charge pro rata",
+    blurb: "Billed for the sessions actually taught. The answer a proprietor expects.",
+  },
+  {
+    value: "credit_next_term",
+    name: "Credit the next term",
+    blurb: "The balance carries forward rather than being refunded.",
+  },
+  {
+    value: "no_refund",
+    name: "Charge the full term",
+    blurb: "The slot and the facilitator were committed. Wins the term, risks the renewal.",
+  },
+];
 
 const MODELS: Array<{ value: BillingModel; name: string; blurb: string }> = [
   {
@@ -99,6 +145,19 @@ function emptyDraft(): Draft {
     effective_from: "",
     effective_to: "",
     notes: "",
+    /*
+      Settlement opens on what we recommend, not on four blank fields.
+
+      A blank form is the same work as writing the clause from scratch, so the
+      likely outcome is that it stays blank and the proposal goes on saying
+      nothing about the questions its own numbers raise. The reasoning behind
+      each default is in RECOMMENDED_SETTLEMENT; whoever is agreeing the deal
+      changes them, and nothing prints until the terms are saved.
+    */
+    settlement_trigger: RECOMMENDED_SETTLEMENT.settlement_trigger,
+    settlement_days: String(RECOMMENDED_SETTLEMENT.settlement_days),
+    withdrawal_policy: RECOMMENDED_SETTLEMENT.withdrawal_policy,
+    minimum_students: String(RECOMMENDED_SETTLEMENT.minimum_students),
     status: "agreed",
   };
 }
@@ -129,6 +188,13 @@ function draftFrom(terms: TermsRow | null): Draft {
     effective_from: terms.effective_from ?? "",
     effective_to: terms.effective_to ?? "",
     notes: terms.notes ?? "",
+    // What was agreed wins over what we recommend, every time.
+    settlement_trigger: terms.settlement_trigger ?? base.settlement_trigger,
+    settlement_days:
+      terms.settlement_days != null ? String(terms.settlement_days) : base.settlement_days,
+    withdrawal_policy: terms.withdrawal_policy ?? base.withdrawal_policy,
+    minimum_students:
+      terms.minimum_students != null ? String(terms.minimum_students) : base.minimum_students,
     status: "agreed",
   };
 }
@@ -245,6 +311,10 @@ export function PartnershipTermsEditor({
           // be left inferring the remainder.
           rillcod_share_percent: draft.revenueShare ? rillcodShare : null,
           school_share_percent: draft.revenueShare ? schoolShare : null,
+          settlement_trigger: draft.settlement_trigger || null,
+          settlement_days: draft.settlement_days ? num(draft.settlement_days) : null,
+          withdrawal_policy: draft.withdrawal_policy || null,
+          minimum_students: draft.minimum_students ? num(draft.minimum_students) : null,
           status: draft.status,
           effective_from: draft.effective_from || null,
           effective_to: draft.effective_to || null,
@@ -719,6 +789,106 @@ export function PartnershipTermsEditor({
                 value={draft.effective_to}
                 onChange={(e) => set("effective_to", e.target.value)}
               />
+            </div>
+          </div>
+
+          {/*
+            Settlement: the three questions the proposal's money page raises.
+
+            Pre-filled with what we recommend rather than left blank, because
+            four empty fields are the same work as writing the clause and would
+            simply stay empty — which is how the proposal ended up silent on
+            when a school actually gets paid. Whatever is set here prints on the
+            proposal; nothing prints until it is saved.
+          */}
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">How and when the school is paid</h4>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Pre-filled with what we recommend. Change anything that is not what you agreed —
+                these sentences print on the proposal exactly as set here.
+              </p>
+            </div>
+
+            <div>
+              <span className={LABEL}>When their share is released</span>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {SETTLEMENT_SHAPES.map((shape) => {
+                  const active = draft.settlement_trigger === shape.value;
+                  return (
+                    <button
+                      key={shape.value}
+                      type="button"
+                      onClick={() => set("settlement_trigger", shape.value)}
+                      className={`text-left p-3 rounded-xl border transition-colors ${
+                        active
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-foreground/30"
+                      }`}
+                    >
+                      <span className="block text-xs font-bold text-foreground">{shape.name}</span>
+                      <span className="block text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {shape.blurb}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="terms-settle-days">
+                  Paid within (days)
+                </label>
+                <input
+                  id="terms-settle-days"
+                  className={INPUT}
+                  inputMode="numeric"
+                  placeholder="14"
+                  value={draft.settlement_days}
+                  onChange={(e) => set("settlement_days", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="terms-min-students">
+                  Re-scope below (students)
+                </label>
+                <input
+                  id="terms-min-students"
+                  className={INPUT}
+                  inputMode="numeric"
+                  placeholder="40"
+                  value={draft.minimum_students}
+                  onChange={(e) => set("minimum_students", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <span className={LABEL}>If a learner withdraws mid-term</span>
+              <div className="grid sm:grid-cols-3 gap-2">
+                {WITHDRAWAL_SHAPES.map((shape) => {
+                  const active = draft.withdrawal_policy === shape.value;
+                  return (
+                    <button
+                      key={shape.value}
+                      type="button"
+                      onClick={() => set("withdrawal_policy", shape.value)}
+                      className={`text-left p-3 rounded-xl border transition-colors ${
+                        active
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-foreground/30"
+                      }`}
+                    >
+                      <span className="block text-xs font-bold text-foreground">{shape.name}</span>
+                      <span className="block text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {shape.blurb}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
