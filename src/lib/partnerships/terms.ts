@@ -285,9 +285,24 @@ export function settlementPoints(terms: PartnershipTerms | null): SettlementPoin
   const points: SettlementPoint[] = [
     {
       label: 'Worked from actual enrolment',
-      body: 'Your share is calculated on the learners who actually enrol each term, not on the projection above. If uptake is lower, both sides earn less on the same terms; nothing is owed on students who did not join.',
+      body: 'Your share is calculated on the learners who actually enrol, not on the projection above. If uptake is lower both sides earn less on the same terms — nothing is owed on students who did not join.',
     },
   ];
+  /*
+    Nothing agreed yet is itself an answer, and a better one than silence.
+
+    Suppressing the section left the returns page a third empty, and left a
+    proprietor to assume the worst about terms nobody had discussed. Saying they
+    are settled in the agreement — not assumed here — is true, useful, and the
+    honest state of a proposal.
+  */
+  if (!terms?.settlement_trigger && !terms?.withdrawal_policy && !terms?.minimum_students) {
+    points.push({
+      label: 'Settled in the agreement, not assumed here',
+      body: 'When your share is released, and what a mid-term withdrawal costs, are agreed with you and written into the MoU before anything is signed.',
+    });
+    return points;
+  }
   if (!terms) return points;
 
   if (terms.settlement_trigger === 'on_collection') {

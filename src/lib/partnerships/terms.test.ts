@@ -204,9 +204,21 @@ describe('how and when a school is paid', () => {
   });
 
   it('says nothing about timing that was not agreed', () => {
-    // One line only: no invented settlement window, no invented refund policy.
-    expect(settlementPoints(base)).toHaveLength(1);
-    expect(JSON.stringify(settlementPoints(base))).not.toMatch(/\bdays\b/);
+    /*
+      Two lines, and neither invents a term.
+
+      The first states how the share is worked out, which is true of every
+      deal. The second says the timing is settled in the MoU rather than
+      assumed here — the honest state of a proposal with nothing negotiated,
+      and better than the silence that left a third of the returns page blank
+      for a proprietor to fill in with their own assumptions.
+
+      What must never appear is a number nobody agreed.
+    */
+    const points = settlementPoints(base);
+    expect(points).toHaveLength(2);
+    expect(JSON.stringify(points)).not.toMatch(/[0-9]+ days/);
+    expect(JSON.stringify(points)).toContain('agreed with you');
   });
 
   it('states who carries collection risk, and says it differently for each', () => {

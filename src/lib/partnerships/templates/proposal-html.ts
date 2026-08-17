@@ -249,7 +249,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     section prints, there is no longer room for both — and between "what am I
     buying" and "when am I paid", the money page belongs to the money.
   */
-  const hasSettlementTerms = settlementPoints(input.agreedTerms ?? null).length > 1;
+  /*
+    Whether settlement was actually negotiated — not whether we have sentences.
+
+    This counted points, and the no-terms case now produces two of them, so
+    counting would have reported terms that do not exist and sent the scope
+    table to the wrong sheet. The question is what the school agreed.
+  */
+  const hasSettlementTerms = Boolean(
+    input.agreedTerms?.settlement_trigger ||
+      input.agreedTerms?.withdrawal_policy ||
+      input.agreedTerms?.minimum_students,
+  );
   const base = input.narrative ?? AUTHORED_NARRATIVE;
   const narrative = {
     ...base,
@@ -755,7 +766,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * the share is worked from enrolment, not from the projection above it.
    */
   const settlementSection = (): string => {
-    if (!hasSettlementTerms) return '';
+    // Prints whenever there is a return to explain. With nothing negotiated it
+    // says so, which is the honest state of a proposal and better than a third
+    // of a sheet of white where the answer should be.
     const points = settlementPoints(input.agreedTerms ?? null);
     if (!points.length) return '';
     return `  <section>
@@ -779,8 +792,18 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     if (!table) return '';
     // The returns page only takes it when it is not already carrying the
     // settlement answers; otherwise it stays with the fees, tight or not.
-    const wantsCommercials = Boolean(quotedOffer) || hasSettlementTerms;
-    if (onCommercialsPage !== wantsCommercials) return '';
+    /*
+      It goes with the fees, or it does not go at all.
+
+      The returns page now always explains how the money reaches the school, so
+      it no longer has room to also carry this. The fees page only has room when
+      a recommendation has compressed the menu to one card and two lines — which
+      is every proposal the system issues, since it recommends one when nobody
+      picks. On the full menu there is room on neither sheet, and this is the
+      block to lose: the MoU sets out obligations in full, and a proposal that
+      clips its own last row is worse than one that says less.
+    */
+    if (!quotedOffer || !onCommercialsPage) return '';
     return `  <section>
     <div class="rule"></div>
     <h2>What each side brings</h2>
