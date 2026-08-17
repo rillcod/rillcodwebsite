@@ -77,11 +77,31 @@ export const WHY_NOW: readonly string[] = [
   'AI has stopped being a specialism and become general literacy — the way spreadsheets did.',
   'Parents are actively comparing schools on tech offerings, and asking questions competitor schools are already answering.',
   'The schools that move first hold the reputation locally; the ones that follow are simply matching an expectation.',
-  'Every term spent deciding is a cohort of students graduating without an accredited portfolio.',
+  // Not "accredited": no body accredits this curriculum, and the claim was
+  // removed from the outreach copy for the same reason.
+  'Every term spent deciding is a cohort of students graduating without a portfolio to show.',
 ] as const;
 
 /**
  * What Rillcod guarantees the school: Zero CapEx, full delivery, zero operational burden.
+ */
+/**
+ * What we commit to that is not said anywhere else in the document.
+ *
+ * This list used to have four entries and three of them were already made,
+ * better, on earlier pages: "zero equipment cost" restated the benefits page's
+ * "No capital outlay, and no idle laboratory" and then the scope-of-supply
+ * table restated it a third time; "Dedicated Certified Instructors" restated
+ * "Specialists teach it"; "Automated Parent Portals" restated "Evidence your
+ * admissions team can show". A proprietor reading the same promise three times
+ * in three registers does not conclude it is three promises — they conclude
+ * the document is padded.
+ *
+ * What survives is the part that was buried inside those repetitions and said
+ * nowhere else: that we replace and insure the hardware, that there is a named
+ * person accountable for the programme, and that the timetable work is planned
+ * around the national examination calendar. Those are commitments a head
+ * teacher can hold us to, which is what makes them worth a page.
  */
 export const ZERO_CAPEX_PROMISE = [
   {
@@ -89,27 +109,21 @@ export const ZERO_CAPEX_PROMISE = [
       Precise, because a promise a proprietor can check is worth more than a
       bigger one they cannot.
 
-      This listed "testing rigs" among the equipment, which overstates what
-      arrives, and it implied the school provides nothing — while the MoU it
-      leads to asks for a room, a timetable slot, power and internet. A school
-      that signs on the first and reads the second has been surprised, and
-      surprise at signature is how a partnership starts badly. What is true is
-      strong enough: no hardware to buy, ever.
+      The earlier version listed "testing rigs" among the equipment, which
+      overstates what arrives, and implied the school provides nothing — while
+      the MoU it leads to asks for a room, a timetable slot, power and internet.
+      Surprise at signature is how a partnership starts badly.
     */
-    title: 'Zero equipment cost to the school',
-    body: 'Rillcod brings the devices, microcontrollers, kits and learning platform. The school never buys, replaces or insures hardware — it provides the room and the timetable slot.',
+    title: 'Replaced and insured, not just supplied',
+    body: 'Every device, micro-controller and kit stays ours. When one is dropped, worn out or stolen we replace it at our cost — the school never buys, replaces or insures a single piece of hardware.',
   },
   {
-    title: 'Dedicated Certified Instructors',
-    body: 'We deploy vetted, reference-checked facilitators to your classrooms, trained on our curriculum and led by a named programme coordinator.',
+    title: 'A named person accountable for it',
+    body: 'Facilitators are vetted and reference-checked before they enter a classroom, and one named programme coordinator owns your school. You escalate to a person, not an inbox.',
   },
   {
-    title: 'Turnkey Timetable Integration',
-    body: 'The curriculum fits smoothly into your existing school schedule with zero disruption to academic calendars or core national exams.',
-  },
-  {
-    title: 'Automated Parent Portals & Reports',
-    body: 'Parents receive individual digital project portfolios and milestone reports, directly demonstrating tangible value for their tuition.',
+    title: 'Planned around your examinations',
+    body: 'Sessions are timetabled around your existing calendar and around the national examination periods, so nothing we run competes with WAEC, NECO or your internal examination weeks.',
   },
 ] as const;
 
@@ -143,13 +157,16 @@ export const TRADITIONAL_VS_RILLCOD = [
   },
   {
     area: 'Parent Perception',
-    traditional: 'Viewed as routine and outdated.',
-    rillcod: 'Considered a top-tier premium selling point that attracts new admissions.',
+    traditional: 'Taken for granted, and rarely mentioned.',
+    rillcod: 'Something a parent asks about at an open day, and repeats to another parent.',
   },
   {
     area: 'School Revenue',
     traditional: 'Pure operational cost centre.',
-    rillcod: 'High-margin revenue generator with 30% direct profit share settled every term.',
+    // No percentage here. The share is negotiated per school and lives in
+    // partnership_terms; a hardcoded 30% told every school with a different
+    // deal something untrue, on the page that argues we are worth it.
+    rillcod: 'A revenue-sharing line rather than a cost line, settled every term.',
   },
 ] as const;
 

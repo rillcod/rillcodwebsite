@@ -840,7 +840,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   const zeroCapexBlock = (): string => !on('zeroCapex') ? '' : `
   <section>
     <div class="rule"></div>
-    <h2>Zero-CapEx &amp; Delivery Guarantee</h2>
+    <h2>What we commit to in writing</h2>
     <div class="guarantee-grid">
       ${ZERO_CAPEX_PROMISE.map((g) => `
         <div class="guarantee-card">
@@ -857,13 +857,13 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   const transformationTableBlock = (): string => !on('comparison') ? '' : `
   <section>
     <div class="rule"></div>
-    <h2>The Transformation: Traditional ICT vs. Rillcod AI &amp; Robotics</h2>
+    <h2>What changes, against what you run today</h2>
     <table class="comp-table">
       <thead>
         <tr>
           <th style="width:25%;">Focus Area</th>
           <th style="width:37%;">Traditional Computer Studies</th>
-          <th style="width:38%; background:#1e3a8a; color:#fff;">${esc(brandContact.displayName)} Ecosystem</th>
+          <th style="width:38%; background:#1e3a8a; color:#fff;">With ${esc(brandContact.displayName)}</th>
         </tr>
       </thead>
       <tbody>
@@ -1780,32 +1780,41 @@ ${on('curriculum') && secondary.length
 <!--
   The case for changing, on its own sheet.
 
-  These three arrived appended to pages that were already full — the comparison
-  onto the programme page, the guarantee onto the return page, the case studies
-  onto the close — and pushed all three past A4 by 381px, 336px and 246px. A
-  page clips rather than spills, so every one of them was losing its own tail
-  and taking the bottom of the page it landed on with it.
+  This page used to carry three blocks. Two of them were saying, in a louder
+  voice, what earlier pages had already said properly:
 
-  Together they fill a sheet almost exactly. The page prints only if at least one
-  is switched on, so turning all three off in the studio removes the sheet rather
-  than leaving a blank one.
+  The zero-CapEx guarantee repeated "No capital outlay, and no idle laboratory"
+  from the benefits page and then repeated it a third time as the scope-of-supply
+  table — the same promise, three times, in three registers. Its certified
+  instructors line repeated "Specialists teach it", and its parent-portal line
+  repeated "Evidence your admissions team can show".
+
+  The case studies repeated the capstones page 3 already lists from the
+  curriculum, and one of them — the solar irrigation build — was already on
+  page 1 as a competition result. A proprietor reading the same project three
+  times does not conclude there are three projects.
+
+  What survives is the comparison, because nothing else in the document does
+  that job: it is the only place the proposal argues against the alternative
+  rather than for itself. On its own it no longer fills a sheet, so it moves up
+  to the close and the document loses a page it did not need.
 -->
-${on('comparison') || on('zeroCapex') || on('caseStudies')
+
+
+<!-- How it starts, and the place to say yes. Always the last page: the close
+     must never depend on a section that might not render. -->
+${on('comparison') || on('zeroCapex')
       ? `<div class="page">
   <div class="pagehead"><span><b>The case for changing</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
   ${transformationTableBlock()}
   ${zeroCapexBlock()}
-  ${studentCaseStudiesBlock()}
 </div>`
       : ''
     }
 
-<!-- How it starts, and the place to say yes. Always the last page: the close
-     must never depend on a section that might not render. -->
 <div class="page">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
-
 
 ${on('whyNow') ? `  <section>
     <div class="rule"></div>
