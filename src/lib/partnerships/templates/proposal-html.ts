@@ -314,7 +314,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     return chunkLevels(levels)
       .map((group, i) => {
         const range = gradeRange(group);
-        return `<div class="page">
+        return `<div class="page page-pathway">
   <div class="pagehead"><span><b>${esc(title)}</b>${range ? ` · ${esc(range)}` : ''}</span><span>${esc(curriculum?.title ?? '')}</span></div>
   ${
     i === 0
@@ -1311,25 +1311,25 @@ ${body}
   .end-scan-qr-pending { background: rgba(255,255,255,.12); border: 2px dashed rgba(255,255,255,.45); }
   .end-scan-txt { flex: 1; min-width: 0; }
   .end-scan-lead {
-    font-size: 8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 10pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
   .end-scan-title { display: block; font-size: 11.5pt; color: #fff; margin-top: .8mm; font-weight: 800; letter-spacing: -.15px; }
-  .end-scan-sub { font-size: 8.6pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
+  .end-scan-sub { font-size: 10pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
   .end-scan-sub b { color: #fff; font-weight: 700; }
   .end-scan-contact {
     margin-top: 2.2mm; padding-top: 2mm; border-top: 1px solid rgba(255,255,255,.16);
-    font-size: 8pt; color: #cbd5e1; line-height: 1.5;
+    font-size: 10pt; color: #cbd5e1; line-height: 1.5;
   }
   .end-scan-contact b { color: #fff; font-weight: 700; }
   .end-scan-code {
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
-    font-size: 9.8pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
+    font-size: 10pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
     padding: 0.5mm 2.2mm; border-radius: 1.2mm;
   }
   .end-scan-contact {
     margin-top: 2.2mm; padding-top: 2mm; border-top: 1px solid rgba(255,255,255,0.14);
-    font-size: 8.4pt; color: #cbd5e1;
+    font-size: 10pt; color: #cbd5e1;
   }
   .end-scan-contact b { color: #fff; }
 
@@ -1345,7 +1345,7 @@ ${body}
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   }
   .brand { font-size: 24pt; font-weight: 800; letter-spacing: -.5px; color: #fff; line-height: 1.05; white-space: nowrap; }
-  .brand-tag { color: #fca5a5; font-size: 9pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.4mm; font-weight: 600; white-space: nowrap; }
+  .brand-tag { color: #fca5a5; font-size: 10pt; letter-spacing: .08em; text-transform: uppercase; margin-top: 1.4mm; font-weight: 600; white-space: nowrap; }
 
   /* Cover Scan Block — Extra-Large, High-Contrast & Commanding */
   .cover-scan { flex: none; text-align: center; }
@@ -1359,11 +1359,11 @@ ${body}
      on a single thought and pushed the caption away from the code it refers to;
      side by side they read as one sentence and the band closes up. */
   .cover-scan-cap {
-    margin-top: 2.4mm; font-size: 8.8pt; font-weight: 800; color: #fff;
+    margin-top: 2.4mm; font-size: 10pt; font-weight: 800; color: #fff;
     letter-spacing: .02em; white-space: nowrap;
   }
   .cover-scan-code {
-    font-size: 9.2pt; font-weight: 700; color: #fca5a5;
+    font-size: 10pt; font-weight: 700; color: #fca5a5;
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .1em;
     background: rgba(255,255,255,0.12); padding: 0.5mm 2mm; border-radius: 1.2mm;
     display: inline-block;
@@ -1384,7 +1384,7 @@ ${body}
   }
   .cover-for { font-size: 18pt; font-weight: 800; color: #0f172a; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
-  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: auto; padding-top: 6mm; font-size: 9.2pt; color: #64748b; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 8mm 12mm; margin-top: auto; padding-top: 6mm; font-size: 10pt; color: #64748b; }
   .cover-meta b { display: block; color: #0f172a; font-size: 10.4pt; font-weight: 700; }
 
   /* Cover Footer — Clean, balanced corporate credentials without repetitive branding */
@@ -1398,25 +1398,25 @@ ${body}
     background: #0f172a; color: #fff; margin: 0 -13mm -14mm; padding: 4.5mm 14mm 5mm;
     border-top: 3px solid #991b1b;
   }
-  .cover-foot-lines { font-size: 8.4pt; color: #cbd5e1; line-height: 1.5; }
+  .cover-foot-lines { font-size: 10pt; color: #cbd5e1; line-height: 1.5; }
   .cover-foot-reg {
-    font-size: 7.4pt; color: #94a3b8; margin-top: 1.8mm; letter-spacing: .03em;
+    font-size: 10pt; color: #94a3b8; margin-top: 1.8mm; letter-spacing: .03em;
     padding-top: 1.8mm; border-top: 1px solid rgba(255,255,255,.12);
   }
   .cover-foot-grid {
     display: flex; justify-content: space-between; align-items: center; gap: 6mm;
   }
   .cover-foot-org {
-    font-size: 9.6pt; font-weight: 700; color: #fff; letter-spacing: .01em;
+    font-size: 10pt; font-weight: 700; color: #fff; letter-spacing: .01em;
   }
   .cover-foot-addr {
-    font-size: 8.6pt; color: #94a3b8; margin-top: 0.8mm; line-height: 1.4;
+    font-size: 10pt; color: #94a3b8; margin-top: 0.8mm; line-height: 1.4;
   }
   .cover-foot-contact {
-    text-align: right; font-size: 8.6pt; color: #cbd5e1; line-height: 1.5;
+    text-align: right; font-size: 10pt; color: #cbd5e1; line-height: 1.5;
   }
   .cover-foot-confidential {
-    font-size: 7.8pt; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-top: 0.8mm; font-weight: 600;
+    font-size: 10pt; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-top: 0.8mm; font-weight: 600;
   }
 
   /* Proof Band */
@@ -1440,7 +1440,7 @@ ${body}
   .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
   .proof-n { display: block; font-size: 14pt; font-weight: 800; color: #0f172a; letter-spacing: -.3px; line-height: 1; white-space: nowrap; }
   .proof-l {
-    display: block; font-size: 6.2pt; color: #64748b; margin-top: 1mm;
+    display: block; font-size: 10pt; color: #64748b; margin-top: 1mm;
     text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap;
   }
   .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
@@ -1462,10 +1462,10 @@ ${body}
     background: #991b1b; border: 2.5px solid #fff; border-radius: 50%;
   }
   .leg-grade {
-    display: block; margin-top: 7mm; font-size: 8.4pt; text-transform: uppercase;
+    display: block; margin-top: 7mm; font-size: 10pt; text-transform: uppercase;
     letter-spacing: .09em; color: #991b1b; font-weight: 800;
   }
-  .leg-what { font-size: 8.8pt; color: #334155; margin-top: 1.5mm; line-height: 1.4; font-weight: 500; }
+  .leg-what { font-size: 10pt; color: #334155; margin-top: 1.5mm; line-height: 1.4; font-weight: 500; }
 
   .quote {
     border-left: 3.5px solid #991b1b; padding: 1.2mm 0 1.2mm 5mm; margin: 4mm 0;
@@ -1487,24 +1487,24 @@ ${body}
   .parent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
   .parent > div { border-top: 2.5px solid #2563eb; padding-top: 3mm; break-inside: avoid; }
   .parent-when {
-    font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em;
+    font-size: 10pt; text-transform: uppercase; letter-spacing: .08em;
     color: #2563eb; font-weight: 800;
   }
   .parent-what {
     font-size: 11.4pt; font-weight: 700; color: #0f172a;
     margin: 1.2mm 0 1.8mm; letter-spacing: -.2px; line-height: 1.25;
   }
-  .parent-body { font-size: 9.6pt; color: #334155; line-height: 1.45; }
+  .parent-body { font-size: 10pt; color: #334155; line-height: 1.45; }
 
   .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
   .phase { border: 1px solid #e2e8f0; border-top: 3.5px solid #2563eb; padding: 4mm 4.5mm; border-radius: 1.5mm; background: #fff; break-inside: avoid; }
-  .phase-when { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: #2563eb; font-weight: 800; }
+  .phase-when { font-size: 10pt; text-transform: uppercase; letter-spacing: .08em; color: #2563eb; font-weight: 800; }
   .phase-name { font-size: 10.2pt; font-weight: 700; color: #0f172a; margin: 1mm 0 1.8mm; }
-  .phase-body { font-size: 8.8pt; color: #475569; line-height: 1.45; }
+  .phase-body { font-size: 10pt; color: #475569; line-height: 1.45; }
 
   .ticks { margin: 0; padding: 0; list-style: none; }
   .ticks li {
-    position: relative; padding-left: 6.5mm; margin-bottom: 1.6mm; font-size: 9.5pt; color: #334155;
+    position: relative; padding-left: 6.5mm; margin-bottom: 1.6mm; font-size: 10pt; color: #334155;
   }
   .ticks li:before {
     content: ""; position: absolute; left: 0; top: 1.6mm;
@@ -1515,10 +1515,10 @@ ${body}
      This block is an address, read once; the card under it is the action. */
   .contact {
     display: flex; gap: 6mm; align-items: flex-start;
-    background: #0f172a; color: #fff; padding: 3.2mm 5.5mm; margin: 4mm 0 0; font-size: 9pt; line-height: 1.45; border-radius: 2mm;
+    background: #0f172a; color: #fff; padding: 3.2mm 5.5mm; margin: 4mm 0 0; font-size: 10pt; line-height: 1.45; border-radius: 2mm;
   }
   .contact-l {
-    font-size: 7.8pt; text-transform: uppercase; letter-spacing: .12em;
+    font-size: 10pt; text-transform: uppercase; letter-spacing: .12em;
     color: #60a5fa; font-weight: 800; white-space: nowrap; padding-top: .6mm;
   }
   .contact b { font-size: 10.8pt; color: #fff; }
@@ -1527,18 +1527,18 @@ ${body}
   .chart { width: 100%; height: auto; display: block; margin: 4mm 0 5mm; }
   /* The scope-of-supply table shares a sheet with the fees, so it gives back
      what it can: tighter rows, and prose one step down from body size. */
-  table.compact { font-size: 9.6pt; margin-bottom: 0; }
+  table.compact { font-size: 10pt; margin-bottom: 0; }
   table.compact td { padding: 1.4mm 3mm; line-height: 1.35; }
   table.compact th { padding: 1.8mm 3mm; }
-  .ch-lbl { font: 600 12px "Inter", sans-serif; fill: #94a3b8; }
+  .ch-lbl { font: 600 14px "Inter", sans-serif; fill: #94a3b8; }
   /* The recommended row reads at full strength; the rest are context. */
   .ch-lbl-on { font-weight: 800; fill: #1e293b; }
-  .ch-val { font: 700 13px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
-  .ch-sub { font: 400 10.5px "Inter", sans-serif; fill: #64748b; }
+  .ch-val { font: 700 15px "Plus Jakarta Sans", sans-serif; fill: #0f172a; }
+  .ch-sub { font: 400 14px "Inter", sans-serif; fill: #64748b; }
   /* What the two shades of the one bar mean. Printed, because there is no hover
      on paper and the lighter segment is otherwise unexplained. */
   .chart-note {
-    font-size: 9pt; color: #64748b; margin: 1mm 0 3mm; display: flex;
+    font-size: 10pt; color: #64748b; margin: 1mm 0 3mm; display: flex;
     align-items: center; gap: 1.5mm; flex-wrap: wrap;
   }
   .key { display: inline-block; width: 3.2mm; height: 2.2mm; border-radius: .6mm; }
@@ -1578,7 +1578,7 @@ ${body}
     font-size: 11.4pt; color: #0f172a; line-height: 1.42; margin: 0 0 2.2mm;
     font-weight: 600;
   }
-  .qty-sub { display: block; font-size: 8pt; color: #64748b; font-weight: 500; margin-top: 0.3mm; }
+  .qty-sub { display: block; font-size: 10pt; color: #64748b; font-weight: 500; margin-top: 0.3mm; }
 
   /* 6.4mm. The return page carries three blocks and a long school name reaches
      into the heading of one of them, which left it 12px from the sheet edge.
@@ -1596,6 +1596,98 @@ ${body}
     display: flex; flex-direction: column; justify-content: space-between;
     height: 297mm; min-height: 297mm;
   }
+  /*
+    The same distribution for the sheet that says what the fee covers.
+
+    Two blocks — the scope of supply and the five things nobody is charged for —
+    do not fill A4 on their own, and a page that stops two-thirds down reads as
+    an accident. Spread, they hold the sheet.
+  */
+  /*
+    And for the fee sheet, which changes height with the deal.
+
+    A cold quote fills it — the chart, the recommended card, the alternates. Once
+    a rate is agreed the chart comes out and the menu drops to three quiet lines,
+    which is right, and leaves the sheet a third empty. Distributing the air
+    means one rule serves both states instead of the page looking finished in one
+    and abandoned in the other.
+  */
+  .page-fees,
+  .page-covers {
+    display: flex; flex-direction: column;
+    height: 297mm; min-height: 297mm;
+  }
+  .page-fees > .pagehead,
+  .page-covers > .pagehead { flex: none; margin-bottom: 3mm; }
+  /*
+    Sections share the leftover height rather than the page pushing them apart.
+
+    Spacing the page out from the ends put every gap in two places — a hole under
+    the running head and another mid-sheet — which reads as content that has come
+    loose. Giving each section an equal share of the spare room and centring what
+    is inside it spreads the same air evenly, and the sheet looks set rather than
+    padded.
+  */
+  .page-fees > section,
+  .page-covers > section {
+    flex: 1; margin-bottom: 0;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .page-covers > .pagehead { flex: none; margin-bottom: 3mm; }
+  .page-covers > section { margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+  /* Air spent on legibility rather than left at the foot: the rows and the five
+     promises take the room this sheet has going spare. */
+  .page-covers table.compact td { padding: 3.4mm 3mm; }
+  .page-covers table.compact th { padding: 3mm 3mm; }
+  .page-covers .settle { gap: 6mm 8mm; }
+  .page-covers .settle-body { line-height: 1.55; }
+
+  /*
+    Three sections on one sheet, at a size they can be read at.
+
+    A page is clipped, not spilled, so 32mm past A4 meant the last rollout card
+    printed with its body cut off. The type is the one thing that may not give,
+    so the room comes out of the gaps — which are still generous at 10pt, and
+    are the part of the page a reader does not look at.
+  */
+  .page-programme > section { margin-bottom: 4mm; }
+  .page-programme h2 { margin-bottom: 2.6mm; }
+  .page-programme .disc { gap: 3.4mm 8mm; }
+  .page-programme .disc b { margin-bottom: .5mm; }
+  .page-programme .hook { margin-bottom: 1.6mm; }
+  .page-programme .phase { padding: 3.2mm 3.6mm; }
+  .page-programme .phase-name { margin: .8mm 0 1.2mm; }
+
+  .page-programme > section { margin-bottom: 3mm; }
+  .page-programme h2 { margin-bottom: 2mm; padding-bottom: 2.2mm; }
+  .page-programme p { margin-bottom: 2mm; }
+  .page-programme .journey { margin-top: 1mm; }
+  .page-programme .leg-grade { margin-top: 5.5mm; }
+
+  /* The overview sheet was 2mm past A4 — the last line of the portfolio block.
+     One heading's worth of gap covers it. */
+  .page-overview > section { margin-bottom: 5mm; }
+  .page-overview h2 { margin-bottom: 4mm; }
+
+  /*
+    The closing sheet, which must never be the one that clips.
+
+    It carries the last argument, the photographs and both signature boxes — and
+    a signature box with its rule cut off is a page a school cannot sign. The
+    photographs give up 3mm of height for it, which nobody reads as smaller.
+  */
+  .page-close > section { margin-bottom: 4.6mm; }
+  .page-close h2 { margin-bottom: 3.4mm; }
+  .page-close .gallery-lg img { height: 41mm; }
+  .page-close .ticks li { margin-bottom: 1.2mm; }
+
+  /* Same again for the sheet that argues against the alternative. */
+  .page-case > section { margin-bottom: 4.4mm; }
+  .page-case h2 { margin-bottom: 2.6mm; }
+  .page-case .comp-table td { padding: 1.5mm 3mm; }
+  .page-case .comp-table th { padding: 2mm 3mm; }
+  .page-case .guarantee-grid { gap: 2.4mm 6mm; margin: 1.5mm 0; }
+  .page-case .faqs { gap: 2.6mm 7mm; }
   .page-money > .pagehead { flex: none; margin-bottom: 3mm; }
   .page-money > section {
     flex: 1 1 0; min-height: 0; margin-bottom: 0;
@@ -1623,11 +1715,11 @@ ${body}
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
   .split .seg {
-    padding: 2.8mm 3.5mm; color: #fff; font-size: 9.2pt; font-weight: 700; white-space: nowrap;
+    padding: 2.8mm 3.5mm; color: #fff; font-size: 10pt; font-weight: 700; white-space: nowrap;
   }
   .seg-school { background: #2563eb; }
   .seg-rc { background: #dc2626; }
-  .splitkey { display: flex; gap: 7mm; font-size: 8.8pt; color: #64748b; font-weight: 500; }
+  .splitkey { display: flex; gap: 7mm; font-size: 10pt; color: #64748b; font-weight: 500; }
   .splitkey span { display: flex; align-items: center; gap: 2mm; }
   .sw { width: 3.2mm; height: 3.2mm; display: inline-block; border-radius: .8mm; }
   .sw-school { background: #2563eb; } .sw-rc { background: #dc2626; }
@@ -1649,20 +1741,20 @@ ${body}
   }
   .guarantee-icon {
     width: 6mm; height: 6mm; border-radius: 50%; background: #dcfce7; color: #16a34a;
-    display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 9pt; shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 10pt; shrink: 0;
   }
   .guarantee-card b { display: block; font-size: 10.2pt; color: #0f172a; margin-bottom: 1mm; font-weight: 700; }
-  .guarantee-card p { font-size: 8.8pt; color: #475569; margin: 0; line-height: 1.4; }
+  .guarantee-card p { font-size: 10pt; color: #475569; margin: 0; line-height: 1.4; }
 
   /* Comparison Table */
   /* This page carries three sections and lands within a few millimetres of the
      sheet, so the table gives back the margin rather than the content. */
-  .comp-table { width: 100%; border-collapse: collapse; margin: 2mm 0 2.5mm; font-size: 9.2pt; }
-  .comp-table th { padding: 2.5mm 3mm; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 2mm 0 2.5mm; font-size: 10pt; }
+  .comp-table th { padding: 2.5mm 3mm; font-size: 10pt; text-transform: uppercase; letter-spacing: .06em; }
   .comp-table td { padding: 2mm 3mm; border: 1px solid #e2e8f0; vertical-align: middle; line-height: 1.4; }
 
   table { width: 100%; border-collapse: collapse; font-size: 10.4pt; margin-bottom: 2mm; }
-  th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+  th { text-align: left; background: #0f172a; color: #fff; padding: 2.2mm 3mm; font-size: 10pt; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
   td { padding: 1.6mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.4; }
   /* Options as cards. Modern, and the only way three fee options fit across A4
      once the body type is large enough to read without leaning in. */
@@ -1678,7 +1770,7 @@ ${body}
   }
   .offer-tags { display: flex; align-items: baseline; gap: 2.5mm; min-width: 0; }
   .offer-code {
-    font-size: 8.6pt; font-weight: 800; text-transform: uppercase; letter-spacing: .09em;
+    font-size: 10pt; font-weight: 800; text-transform: uppercase; letter-spacing: .09em;
     color: #991b1b;
   }
   .offer-name {
@@ -1688,7 +1780,7 @@ ${body}
   .offer-price {
     font-size: 12pt; font-weight: 800; color: #991b1b; white-space: nowrap; text-align: right;
   }
-  .offer-meta { font-size: 9.4pt; color: #64748b; font-weight: 600; margin-bottom: 2mm; }
+  .offer-meta { font-size: 10pt; color: #64748b; font-weight: 600; margin-bottom: 2mm; }
   .offer-best { font-size: 10.2pt; color: #334155; margin: 0; line-height: 1.45; }
   /*
     The rest of the menu, once a recommendation has been made.
@@ -1711,7 +1803,7 @@ ${body}
   }
   .faq { break-inside: avoid; }
   .faq-q { display: block; font-size: 10pt; font-weight: 800; color: #0f172a; }
-  .faq-a { margin: .6mm 0 0; font-size: 9.4pt; line-height: 1.42; color: #475569; }
+  .faq-a { margin: .6mm 0 0; font-size: 10pt; line-height: 1.42; color: #475569; }
 
   /* The settlement answers: a label a proprietor scans for, then the sentence. */
   /*
@@ -1724,8 +1816,8 @@ ${body}
   .upside-row { display: flex; align-items: flex-start; gap: 6mm; margin: 3mm 0 1mm; }
   .upside-col { flex: 1; min-width: 0; }
   .upside-col .chart { margin: 0; }
-  .upside-col table.compact { font-size: 9pt; }
-  .upside-col table.compact th { padding: 1.6mm 2mm; font-size: 7.6pt; }
+  .upside-col table.compact { font-size: 10pt; }
+  .upside-col table.compact th { padding: 1.6mm 2mm; font-size: 10pt; }
   .upside-col table.compact td { padding: 1.6mm 2mm; }
   /* Figures must not wrap. A wrapped ₦ cell makes the table taller than the
      chart it sits beside, and the settlement block below is what then clips. */
@@ -1764,24 +1856,24 @@ ${body}
     background: #f8fafc; border-left: 3.5px solid #991b1b;
   }
   .value-kicker {
-    font-size: 7.6pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    font-size: 10pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
     color: #991b1b; margin-bottom: 2mm;
   }
   .value-copy p { font-size: 10pt; color: #334155; line-height: 1.42; margin: 0; }
   .value-note {
-    font-size: 9pt; color: #64748b; margin: 2.4mm 0 0; padding-top: 2.2mm;
+    font-size: 10pt; color: #64748b; margin: 2.4mm 0 0; padding-top: 2.2mm;
     border-top: 1px solid #e2e8f0; line-height: 1.4;
   }
 
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {
-    font-size: 8.4pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    font-size: 10pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
     color: #94a3b8; margin-bottom: 1.6mm;
   }
   .offer-alts ul { list-style: none; margin: 0; padding: 0; }
   .offer-alt {
     display: flex; align-items: baseline; gap: 3mm;
-    padding: 1.8mm 0; border-top: 1px solid #e2e8f0; font-size: 9.4pt; color: #64748b;
+    padding: 1.8mm 0; border-top: 1px solid #e2e8f0; font-size: 10pt; color: #64748b;
   }
   .offer-alt-code { font-weight: 800; color: #475569; white-space: nowrap; }
   .offer-alt-name { font-weight: 700; color: #334155; }
@@ -1793,12 +1885,12 @@ ${body}
   tr.picked .opt strong { color: #991b1b; }
   .tag {
     display: inline-block; margin-left: 2.5mm; background: #991b1b; color: #fff;
-    font-size: 7pt; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
+    font-size: 10pt; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
     padding: .6mm 1.8mm; border-radius: 1mm; vertical-align: middle;
   }
-  .opt-name { font-size: 9.4pt; color: #64748b; font-weight: 500; }
+  .opt-name { font-size: 10pt; color: #64748b; font-weight: 500; }
   .num { white-space: nowrap; color: #991b1b; font-weight: 700; }
-  .best { color: #334155; font-size: 9.2pt; line-height: 1.35; }
+  .best { color: #334155; font-size: 10pt; line-height: 1.35; }
 
   .agreed { background: #fff5f5; border: 1px solid #fecaca; padding: 4.5mm 5.5mm; border-radius: 2mm; margin-bottom: 6mm; }
   .agreed-line { font-size: 11.8pt; font-weight: 700; color: #991b1b; margin-bottom: 2mm; }
@@ -1809,20 +1901,44 @@ ${body}
      short enough that the sixth footer still lands on the page. */
   .years-compact { gap: 2.6mm; }
   .years-compact .year-head { min-height: 10.2mm; padding: 1.8mm 2.6mm; }
-  .years-compact .year-title { font-size: 8pt; }
-  .years-compact .year-grade { font-size: 7.2pt; padding: .5mm 1.6mm; }
+  .years-compact .year-title { font-size: 10pt; }
+  .years-compact .year-grade { font-size: 10pt; padding: .5mm 1.6mm; }
   .years-compact .terms { flex-direction: row; align-items: stretch; gap: 0; padding: 2mm 2.6mm; }
   .years-compact .term { flex: 1; min-width: 0; padding-right: 2.2mm; margin-right: 2.2mm; border-right: 1px solid #e2e8f0; }
   .years-compact .term:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
-  .years-compact .term-name { font-size: 6.8pt; }
-  .years-compact .term-focus { font-size: 7.6pt; line-height: 1.28; }
-  .years-compact .year-foot { flex-direction: row; flex-wrap: wrap; gap: 1.2mm 6mm; padding: 1.6mm 2.6mm; font-size: 7.6pt; }
+  .years-compact .term-name { font-size: 10pt; }
+  .years-compact .term-focus { font-size: 10pt; line-height: 1.28; }
+  .years-compact .year-foot { flex-direction: row; flex-wrap: wrap; gap: 1.2mm 6mm; padding: 1.6mm 2.6mm; font-size: 10pt; }
   .years-stack { grid-template-columns: 1fr; gap: 4.2mm; }
   .years-stack .terms { flex-direction: row; align-items: stretch; gap: 0; }
   .years-stack .term { flex: 1; min-width: 0; padding-right: 3.2mm; margin-right: 3.2mm; border-right: 1px solid #e2e8f0; }
   .years-stack .term:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
   .years-stack .year-foot { flex-direction: row; flex-wrap: wrap; gap: 2mm 8mm; }
   .year { border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden; break-inside: avoid; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+
+  /*
+    A pathway sheet fills itself.
+
+    Six year-cards at a size they can be read at left 50mm of white below the
+    last row — the "plain at the bottom" that makes a document look like it ran
+    out rather than finished. The grid takes the sheet's leftover height and the
+    rows share it, so the cards breathe instead of the page trailing off.
+
+    Only when the sheet is actually carrying a full set. A quote scoped to two
+    or three years must not stretch three cards over a whole side of A4, so the
+    stretch is conditional on a fifth card being there to share it.
+  */
+  .page-pathway { display: flex; flex-direction: column; height: 297mm; min-height: 297mm; }
+  .page-pathway > section { flex: none; }
+  .page-pathway .years:has(> .year:nth-child(5)) { flex: 1; grid-auto-rows: 1fr; }
+  .page-pathway .years:has(> .year:nth-child(5)) .year { display: flex; flex-direction: column; }
+  .page-pathway .years:has(> .year:nth-child(5)) .terms { flex: 1; }
+  /* The three terms sit in a row, so the height the card gained is theirs to
+     use: each column centres in it rather than leaving a band of white under
+     three lines of text. */
+  .page-pathway .years:has(> .year:nth-child(5)) .term {
+    display: flex; flex-direction: column; justify-content: center;
+  }
   /* Reserve two lines of title in every header, so a long theme like "Scratch
      Expertise + Machine Learning" does not sit taller than its neighbour and
      leave the grid looking ragged. Short titles centre in the same height. */
@@ -1830,28 +1946,28 @@ ${body}
     display: flex; justify-content: space-between; align-items: center; gap: 2.5mm;
     background: #0f172a; color: #fff; padding: 2.5mm 3.5mm; min-height: 13.4mm;
   }
-  .year-title { font-size: 9.2pt; font-weight: 700; line-height: 1.25; }
-  .year-grade { font-size: 7.8pt; background: #991b1b; padding: .8mm 2.2mm; border-radius: 1mm; font-weight: 700; white-space: nowrap; }
+  .year-title { font-size: 10pt; font-weight: 700; line-height: 1.25; }
+  .year-grade { font-size: 10pt; background: #991b1b; padding: .8mm 2.2mm; border-radius: 1mm; font-weight: 700; white-space: nowrap; }
   .terms { padding: 2.8mm 3.5mm; display: flex; flex-direction: column; gap: 2mm; }
-  .term-name { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
-  .term-focus { font-size: 8.8pt; color: #334155; }
-  .year-foot { border-top: 1px solid #f1f5f9; background: #f8fafc; padding: 2.4mm 3.5mm; font-size: 8.4pt; color: #475569; display: flex; flex-direction: column; gap: 1mm; }
-  .foot-lbl { color: #991b1b; font-weight: 700; text-transform: uppercase; font-size: 7.3pt; letter-spacing: .06em; margin-right: 1mm; }
+  .term-name { font-size: 10pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+  .term-focus { font-size: 10pt; color: #334155; }
+  .year-foot { border-top: 1px solid #f1f5f9; background: #f8fafc; padding: 2.4mm 3.5mm; font-size: 10pt; color: #475569; display: flex; flex-direction: column; gap: 1mm; }
+  .foot-lbl { color: #991b1b; font-weight: 700; text-transform: uppercase; font-size: 10pt; letter-spacing: .06em; margin-right: 1mm; }
 
   .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 8mm; break-inside: avoid; }
-  .sign-box { font-size: 9pt; color: #334155; }
+  .sign-box { font-size: 10pt; color: #334155; }
   /* min-height so a long school name wrapping to two lines does not drop that
      party's rule below the other's. */
   .sign-who {
-    font-size: 8.2pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
+    font-size: 10pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
     font-weight: 700; min-height: 8.5mm; line-height: 1.35;
   }
   .sign-ink { display: block; height: 14mm; width: auto; max-width: 52mm; margin: 0 0 -1mm; mix-blend-mode: multiply; }
   /* Exactly what .sign-ink occupies, so the counterparty's rule lands level. */
   .sign-space { height: 13mm; }
   .sign-rule { border-top: 1.5px solid #0f172a; }
-  .sign-name { font-weight: 700; color: #0f172a; margin-top: 2mm; font-size: 9pt; }
-  .sign-meta { font-size: 8pt; color: #64748b; margin-top: .4mm; }
+  .sign-name { font-weight: 700; color: #0f172a; margin-top: 2mm; font-size: 10pt; }
+  .sign-meta { font-size: 10pt; color: #64748b; margin-top: .4mm; }
   /* The cover is a cover, not page one. It carries no number, and the sheet
      after it is 1 — which is how a proposal is read and how a reader refers to
      it on the phone. Counted, so switching a section off in the studio
@@ -1860,7 +1976,7 @@ ${body}
   .page:not(.cover) { counter-increment: sheet; }
   .pno::before { content: ' · Page ' counter(sheet); }
 
-  .pagehead { display: flex; justify-content: space-between; border-bottom: 2.5px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 6mm; font-size: 8.8pt; color: #64748b; }
+  .pagehead { display: flex; justify-content: space-between; border-bottom: 2.5px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 6mm; font-size: 10pt; color: #64748b; }
   .pagehead b { color: #0f172a; font-weight: 700; }
 </style>
 </head>
@@ -2015,6 +2131,7 @@ ${sheet(
 ${splitOverview ? `${on('fieldProof') ? fieldProofSection : ''}
   ${portfolioBlock()}` : `${pitchSection}
   ${portfolioBlock()}`}`,
+      'page page-overview',
     )}
 
 ${
@@ -2080,17 +2197,37 @@ ${on('rollout') ? `  <section>
     ).join('')}
     </div>
   </section>` : ''}`,
+      'page page-programme',
     )}
 
-<!-- Commercials -->
+<!--
+  Commercials, across two sheets.
+
+  All four blocks — the agreed line, the menu, the scope of supply and what is
+  not charged for — used to be pinned to one sheet, and at a readable 10pt they
+  run 66mm past A4. A page does not spill: it clips. So the last block printed as
+  a heading and two of five promises, cut mid-sentence, on the page a proprietor
+  reads hardest.
+
+  Nothing is dropped and nothing is reordered. The fee argument keeps a sheet of
+  its own — the recommendation, the chart, the card, the alternates and the
+  validity date, which belong together. What the fee buys, and what it does not,
+  follows on the next. The second sheet distributes its own air the way the money
+  sheet does, so it reads as a designed page rather than a short one.
+-->
 ${sheet(
       'Partnership Proposal',
       `  ${agreed}
 
-${feesSection()}
+${feesSection()}`,
+      'page page-fees',
+    )}
 
-${supplySection(true)}
+${sheet(
+      'What the fee covers',
+      `  ${supplySection(true)}
 ${noExtrasBlock()}`,
+      'page page-covers',
     )}
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
@@ -2157,12 +2294,13 @@ ${sheet(
       `  ${transformationTableBlock()}
   ${zeroCapexBlock()}
   ${faqBlock()}`,
+      'page page-case',
     )}
 
 <!-- How it starts, and the place to say yes. Always the last page, and always
      emitted: the close carries the signature block, so this sheet must never
      depend on a section the studio can switch off. -->
-<div class="page">
+<div class="page page-close">
   <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
 
 ${on('whyNow') ? `  <section>

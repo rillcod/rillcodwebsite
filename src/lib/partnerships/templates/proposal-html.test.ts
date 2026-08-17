@@ -92,13 +92,13 @@ describe('the partnership proposal', () => {
       })),
     };
     const html = buildPartnershipProposalHTML({ ...base, curriculum: full });
-    const primarySheets = html.split('<div class="page">').filter((p) => p.includes('Primary Pathway'));
+    const primarySheets = html.split(/<div class="page[ "][^>]*>/).filter((p) => p.includes('Primary Pathway'));
     expect(primarySheets).toHaveLength(1);
     expect(primarySheets[0]).toContain('Basic 1');
     expect(primarySheets[0]).toContain('Basic 6');
     expect(primarySheets[0]).toContain('From Basic 1 to Basic 6');
 
-    const secondarySheets = html.split('<div class="page">').filter((p) => p.includes('Secondary Pathway'));
+    const secondarySheets = html.split(/<div class="page[ "][^>]*>/).filter((p) => p.includes('Secondary Pathway'));
     expect(secondarySheets).toHaveLength(1);
     expect(secondarySheets[0]).toContain('JSS 1');
     expect(secondarySheets[0]).toContain('SS 3');
@@ -453,7 +453,7 @@ describe('the money page', () => {
         ],
       },
     });
-    const returnPage = html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    const returnPage = html.split(/<div class="page[ "][^>]*>/).find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('Illustrated for');
     expect(returnPage).toContain('>Students<');
     expect(returnPage).toContain('150');
@@ -481,7 +481,7 @@ describe('the money page', () => {
         ],
       },
     });
-    const returnPage = html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    const returnPage = html.split(/<div class="page[ "][^>]*>/).find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('Option B1 at ₦10,000');
     expect(returnPage).toContain('class="picked"');
     expect(returnPage).toContain('What a parent would be paying for');

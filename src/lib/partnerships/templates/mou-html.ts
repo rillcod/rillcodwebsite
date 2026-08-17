@@ -178,7 +178,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     /* 1.5 rather than 1.55. The parties page was clipping its own content by
        19px; a contract is read closely, not skimmed, and the tighter leading buys
        back roughly a line per clause across every page. */
-    font: 9.8pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
+    font: 10.4pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
     display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
@@ -207,9 +207,9 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     border-bottom: 3px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 3.8mm; }
   .head-l { min-width: 0; }
   .head-l .brand { font-size: 16pt; font-weight: 800; color: #0f172a; letter-spacing: -.5px; line-height: 1.1; }
-  .head-l .tag { font-size: 8.4pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; margin-top: 0.5mm; }
-  .head-r { text-align: right; font-size: 8.5pt; color: #64748b; }
-  .head-r b { display: block; color: #0f172a; font-size: 9.6pt; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; }
+  .head-l .tag { font-size: 10pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; margin-top: 0.5mm; }
+  .head-r { text-align: right; font-size: 10pt; color: #64748b; }
+  .head-r b { display: block; color: #0f172a; font-size: 10pt; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; }
 
   /* The document names itself in type, not in a tinted box. It was the last of
      the boxes, and on a page whose content was clipping by 19px it was costing
@@ -217,12 +217,12 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      quieter at the same time. */
   .doctitle { text-align: center; margin: 0 0 3mm; }
   .doctitle h1 { font-size: 17pt; margin: 0 0 1.1mm; color: #0f172a; letter-spacing: -.5px; font-weight: 800; }
-  .doctitle .sub { font-size: 9pt; color: #64748b; font-weight: 500; }
+  .doctitle .sub { font-size: 10pt; color: #64748b; font-weight: 500; }
   /* Scan, or type the code, or type the address — in that order of effort. */
   /* ── Scan me ────────────────────────────────────────────────────────── */
   .online {
     display: flex; align-items: center; gap: 4.5mm;
-    font-size: 8.4pt; color: #cbd5e1; line-height: 1.45;
+    font-size: 10pt; color: #cbd5e1; line-height: 1.45;
     margin: -1.5mm auto 2.6mm; max-width: 145mm;
     background: linear-gradient(118deg, #070C1F 0%, #123069 100%);
     border-left: 2.8mm solid #dc2626; border-radius: 0 2mm 2mm 0;
@@ -240,15 +240,15 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .sign-scan-qr-pending { background: rgba(255,255,255,.12); border: 2px dashed rgba(255,255,255,.45); }
   .online-txt { text-align: left; }
   .online-lead {
-    font-size: 7.4pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 10pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
   .online-txt > b { display: block; color: #fff; font-size: 10pt; letter-spacing: -.1px; margin-top: .6mm; font-weight: 800; }
   .online-txt span b { display: inline; color: #fff; font-size: inherit; font-weight: 700; letter-spacing: 0; margin: 0; }
-  .online-txt > span { font-size: 8.4pt; color: #cbd5e1; margin-top: 0.8mm; display: block; }
+  .online-txt > span { font-size: 10pt; color: #cbd5e1; margin-top: 0.8mm; display: block; }
   .online-code {
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
-    display: inline-block; font-size: 9.4pt; color: #fca5a5; font-weight: 700;
+    display: inline-block; font-size: 10pt; color: #fca5a5; font-weight: 700;
     background: rgba(255,255,255,0.12); padding: 0.2mm 1.6mm; border-radius: 1mm;
   }
   .doctitle .band { width: 22mm; height: 2px; background: #991b1b; margin: 2mm auto 0; }
@@ -284,20 +284,20 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .pagefoot {
     position: absolute; left: 14mm; right: 14mm; bottom: 7mm;
     border-top: 1px solid #e2e8f0; padding-top: 2mm;
-    font-size: 7.4pt; color: #94a3b8; letter-spacing: .02em;
+    font-size: 10pt; color: #94a3b8; letter-spacing: .02em;
     display: flex; justify-content: space-between;
   }
 
   p { margin: 0 0 2.2mm; }
-  .muted { color: #64748b; font-size: 8.8pt; }
+  .muted { color: #64748b; font-size: 10pt; }
   ol { margin: 0 0 2.5mm; padding-left: 5.5mm; }
   li { margin-bottom: 1.1mm; color: #334155; }
 
   .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
   .party { border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 2.2mm 3.4mm; border-radius: 1.5mm; background: #f8fafc; }
-  .party .role { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; margin-bottom: 1.2mm; font-weight: 700; }
+  .party .role { font-size: 10pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; margin-bottom: 1.2mm; font-weight: 700; }
   .party .nm { font-weight: 700; font-size: 10.6pt; color: #0f172a; }
-  .party .meta { font-size: 8.5pt; color: #64748b; margin-top: 1.2mm; line-height: 1.45; }
+  .party .meta { font-size: 10pt; color: #64748b; margin-top: 1.2mm; line-height: 1.45; }
 
   /* Obligations set as two columns of type with a hairline above each, not two
      boxes. Boxing every block is what made this read like a form to be endured
@@ -308,15 +308,15 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   .duties ol { line-height: 1.4; }
   .duties li { margin-bottom: .4mm; }
   .duties ol { padding-left: 5mm; }
-  .duties h3 { margin: 0 0 1.4mm; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
+  .duties h3 { margin: 0 0 1.4mm; font-size: 10pt; text-transform: uppercase; letter-spacing: .07em; color: #991b1b; font-weight: 700; }
 
   .terms-line { background: #fff5f5; border: 1px solid #fecaca; padding: 3.5mm 4.5mm; margin-bottom: 3.5mm; border-radius: 1.5mm; }
-  .terms-line .lbl { font-size: 7.8pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; }
+  .terms-line .lbl { font-size: 10pt; text-transform: uppercase; letter-spacing: .09em; color: #991b1b; font-weight: 700; }
   .terms-line .val { font-size: 11.8pt; font-weight: 800; color: #991b1b; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
   th { background: #0f172a; color: #fff; text-align: left; padding: 2.2mm 3mm;
-    font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+    font-size: 10pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
   td { padding: 2.2mm 3mm; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .strong { font-weight: 700; color: #991b1b; }
@@ -333,17 +333,17 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      party's line lower than the other's — on the two lines whose whole job is to
      look equal. */
   .sign-box .who {
-    font-size: 8.4pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
+    font-size: 10pt; text-transform: uppercase; letter-spacing: .08em; color: #991b1b;
     font-weight: 700; min-height: 9mm; margin-bottom: 14mm;
   }
   .sig { display: block; height: 15mm; width: auto; max-width: 55mm; margin: 0 0 -2mm; mix-blend-mode: multiply; }
   /* Exactly what .sig occupies (15mm less its -2mm pull), so the counterparty's
      rule lands level with ours instead of 15mm above it. */
   .sig-space { height: 13mm; }
-  .sign-box .line { border-top: 1.5px solid #0f172a; padding-top: 2mm; font-size: 8.6pt; color: #334155; }
+  .sign-box .line { border-top: 1.5px solid #0f172a; padding-top: 2mm; font-size: 10pt; color: #334155; }
   .sign-box .nm { font-weight: 700; color: #0f172a; }
   .stamp { margin-top: 7mm; border: 1.5px dashed #cbd5e1; height: 24mm; border-radius: 2mm; display: flex;
-    align-items: center; justify-content: center; color: #94a3b8; font-size: 8.2pt; font-weight: 500; background: #fafafa; }
+    align-items: center; justify-content: center; color: #94a3b8; font-size: 10pt; font-weight: 500; background: #fafafa; }
   /* Already executed, so it is a statement rather than an empty box waiting. */
   .stamp-done {
     border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d;
@@ -365,19 +365,19 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     box-shadow: 0 3px 10px rgba(0,0,0,0.3);
   }
   .sign-scan-lead {
-    font-size: 7.8pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    font-size: 10pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
     color: #fca5a5;
   }
   .sign-scan-title { display: block; font-size: 11.8pt; color: #fff; margin-top: .8mm; font-weight: 800; letter-spacing: -.15px; }
-  .sign-scan-sub { font-size: 8.6pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
+  .sign-scan-sub { font-size: 10pt; color: #cbd5e1; margin-top: 1.4mm; line-height: 1.45; }
   .sign-scan-sub b { color: #fff; font-weight: 700; }
   .sign-scan-code {
     font-family: ui-monospace, 'DM Mono', Menlo, monospace; letter-spacing: .14em;
-    font-size: 9.8pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
+    font-size: 10pt; color: #fca5a5; font-weight: 700; background: rgba(255,255,255,0.12);
     padding: 0.5mm 2.2mm; border-radius: 1.2mm;
   }
   .foot { border-top: 1px solid #e2e8f0; margin-top: 7mm; padding-top: 3mm;
-    font-size: 8pt; color: #64748b; display: flex; justify-content: space-between; }
+    font-size: 10pt; color: #64748b; display: flex; justify-content: space-between; }
 </style>
 </head>
 <body>

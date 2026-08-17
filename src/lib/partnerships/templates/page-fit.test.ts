@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildPartnershipProposalHTML, type ProposalInput } from './proposal-html';
 import { buildPartnershipMouHTML, type MouInput } from './mou-html';
@@ -24,8 +26,15 @@ const MOCK_CURRICULUM = {
 };
 
 function extractPages(html: string): string[] {
-  // Split on <div class="page"> boundaries
-  const parts = html.split(/<div class="page"[^>]*>/);
+  /*
+    Split on sheet boundaries — including the sheets that carry a second class.
+
+    This matched `class="page"` and nothing else, so `class="page page-money"`
+    was not a boundary and the money sheet was silently glued onto the end of
+    the fees sheet. Every assertion that went looking for "the money page" was
+    handed both, which is how a test can pass while measuring the wrong thing.
+  */
+  const parts = html.split(/<div class="page[ "][^>]*>/);
   // Drop the HTML prelude before the first page
   return parts.slice(1).map((p) => {
     // Cut off at the end of the page div or body
@@ -67,12 +76,23 @@ describe('A4 Page-Fit and Overflow Guard', () => {
 
     expect(pages.length).toBeGreaterThanOrEqual(4);
 
-    pages.forEach((pageContent, idx) => {
+    pages.forEach((pageContent) => {
       expect(pageContent.trim().length).toBeGreaterThan(50);
-      // Ensure no unclosed tags or corrupted templates
-      expect(pageContent).not.toContain('undefined');
-      expect(pageContent).not.toContain('null');
-      expect(pageContent).not.toContain('NaN');
+      /*
+        Nothing interpolated into the page resolved to a missing value.
+
+        Inline handlers are exempt, and have to be: the logo's fallback is
+        `onerror="this.onerror=null; …"`, which is ordinary JavaScript and not a
+        value that leaked out of the template. Once the cover became a page this
+        test could see — it was glued to the prelude before — that handler failed
+        the check, which is the assertion being wrong rather than the document.
+      */
+      const rendered = pageContent
+        .replace(/\son[a-z]+="[^"]*"/g, '')
+        .replace(/<script[\s\S]*?<\/script>/g, '');
+      expect(rendered).not.toContain('undefined');
+      expect(rendered).not.toContain('null');
+      expect(rendered).not.toContain('NaN');
     });
   });
 
@@ -261,6 +281,30 @@ describe('A4 Page-Fit and Overflow Guard', () => {
       ],
     },
     studio,
+  });
+
+  /*
+    Nothing in either document is set below 10pt.
+
+    These are printed on A4 and read by a proprietor across a desk, often on a
+    photocopy of a photocopy. The type had drifted down to 6.2pt in places —
+    legible on a screen at 150% and not on paper — because shrinking type is the
+    easiest way to make a section fit. It is also the one way that costs the
+    reader, so the floor is a test rather than an intention: a page that will not
+    fit at 10pt has to give up spacing, or take another sheet.
+  */
+  it('sets no type below 10pt in either document', () => {
+    const sources = [
+      ['the proposal', readFileSync(join(__dirname, 'proposal-html.ts'), 'utf8')],
+      ['the MoU', readFileSync(join(__dirname, 'mou-html.ts'), 'utf8')],
+    ] as const;
+
+    for (const [name, source] of sources) {
+      const tooSmall = [...source.matchAll(/font(?:-size)?: (?:[^;]*?\s)?([0-9.]+)pt/g)]
+        .map((m) => Number(m[1]))
+        .filter((size) => size < 10);
+      expect(tooSmall, `${name} sets type below the 10pt floor: ${tooSmall.join(', ')}`).toEqual([]);
+    }
   });
 
   it('prints every studio section when the studio is complete', () => {
