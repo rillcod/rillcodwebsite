@@ -188,15 +188,43 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     background: #ffffff; color: #1e293b;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
     border-radius: 2px; position: relative; box-sizing: border-box;
-    overflow: hidden; flex-shrink: 0;
+    /* Visible, so the preview on the desk shows what the printer will, rather
+       than hiding an overrun that only appears on paper. */
+    overflow: visible; flex-shrink: 0;
+    display: flex; flex-direction: column;
   }
+
+  /*
+    A clause takes the room it needs; the sheet shares out what is left.
+
+    The execution page ran two-thirds down and stopped, and the clause pages sat
+    bunched under the head with a band of white beneath them — on a document
+    whose whole job is to look like it was drawn up rather than run off. The foot
+    stays where it belongs, the blocks between it spread, and a page with nothing
+    to spare is untouched.
+  */
+  .page > section { flex-shrink: 0; }
 
   @media print {
     html, body { background: #ffffff !important; padding: 0 !important; gap: 0 !important; display: block !important; }
+    /*
+      At least A4, never exactly A4 — and this document above all.
+
+      A page pinned to 297mm with its overflow hidden does not keep itself to a
+      sheet, it deletes whatever does not fit. On a proposal that costs an
+      argument. Here it would cost a clause: a withdrawal policy typed a little
+      longer, a school name that runs to two lines, and the last term of an
+      agreement a proprietor is about to sign would not be printed on the copy
+      they signed. Nothing would have recorded it.
+
+      A minimum lets the page carry on to another sheet. Clauses already refuse
+      to split down the middle, so the break lands between them.
+    */
     .page {
-      width: 210mm !important; height: 297mm !important; min-height: 297mm !important;
+      width: 210mm !important; min-height: 297mm !important; height: auto !important;
+      overflow: visible !important;
       padding: 15mm 14mm !important; box-shadow: none !important; border-radius: 0 !important;
-      page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
+      page-break-after: always; break-after: page;
     }
     .page:last-child { page-break-after: auto; break-after: auto; }
   }
@@ -281,6 +309,15 @@ export function buildPartnershipMouHTML(input: MouInput): string {
 
   /* Every sheet names itself and carries somewhere to initial, which is how a
      four-page agreement stays one document once it has been printed. */
+  /*
+    The foot rides on the page box, out of the flow.
+
+    Taking it into the column costs its own height on every sheet — about 7mm —
+    and these pages have no 7mm to give: three of four ran past A4 the moment it
+    joined the flow. Out of flow it sits at the foot of the box, and the box is
+    at least a sheet tall, so on any page that fits it lands exactly where a
+    footer belongs.
+  */
   .pagefoot {
     position: absolute; left: 14mm; right: 14mm; bottom: 7mm;
     border-top: 1px solid #e2e8f0; padding-top: 2mm;

@@ -303,6 +303,30 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     reader, so the floor is a test rather than an intention: a page that will not
     fit at 10pt has to give up spacing, or take another sheet.
   */
+  /*
+    Neither document may clip a page.
+
+    The proposal's rule is asserted where its own page-fit test lives; this one
+    holds the same line for the MoU, where the stake is higher. A clause that
+    does not print is a clause that was not agreed to, on the copy a proprietor
+    signed — and a page pinned to 297mm with its overflow hidden deletes exactly
+    that, silently.
+  */
+  it('lets a long page take another sheet rather than cutting it, in both documents', () => {
+    for (const file of ['proposal-html.ts', 'mou-html.ts']) {
+      const source = readFileSync(join(__dirname, file), 'utf8');
+      const print = source.slice(source.indexOf('@media print'));
+      // Not `min-height` — that is the rule we want. A bare `height` is the one
+      // that turns a sheet into a guillotine.
+      expect(print, `${file} pins its pages to exactly A4`).not.toMatch(
+        /\.page \{[^}]*[^-]height: 297mm !important;/,
+      );
+      expect(print, `${file} hides what does not fit`).toMatch(
+        /\.page \{[^}]*overflow: visible !important;/,
+      );
+    }
+  });
+
   it('sets no type below 10pt in either document', () => {
     const sources = [
       ['the proposal', readFileSync(join(__dirname, 'proposal-html.ts'), 'utf8')],
