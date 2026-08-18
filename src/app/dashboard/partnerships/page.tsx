@@ -982,6 +982,7 @@ export default function PartnershipsPage() {
                     history={terms}
                     canWrite={canWrite}
                     openSignal={openTerms}
+                    signedMou={documents.some((d) => d.document_kind === "mou" && d.status === "signed")}
                     onSaved={async () => {
                       await Promise.all([loadSchoolDetail(selected.id), loadSchools()]);
                       setTermsJustSaved(true);

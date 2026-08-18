@@ -279,23 +279,61 @@ export async function DELETE(req: NextRequest) {
     .maybeSingle();
   if (!current) return NextResponse.json({ error: 'Those terms do not exist.' }, { status: 404 });
 
-  if (current.status === 'agreed' || current.status === 'superseded') {
+  /*
+    A deal can be discarded until an MoU has been signed against it.
+
+    The rule used to be that any agreed row stayed for ever, on the reasoning
+    that agreements point at it. That is true of a *signed* agreement, and only
+    of a signed one: until somebody has put their name to an MoU, a recorded rate
+    is a note about a negotiation — as disposable as the quote that led to it,
+    and worth disposing of when it was recorded against the wrong school.
+
+    So the question asked here is the real one: has anything been signed on these
+    terms. A signature is what makes a rate permanent; nothing else does.
+  */
+  const { data: signed } = await actor.db
+    .from('partnership_agreements')
+    .select('reference')
+    .eq('terms_id', id)
+    .eq('document_kind', 'mou')
+    .eq('status', 'signed')
+    .limit(1)
+    .maybeSingle();
+
+  if (signed) {
     return NextResponse.json(
       {
         error:
-          current.status === 'agreed'
-            ? 'These terms are in force. End the deal to stop them applying, or record new agreed terms to supersede them — either way this row stays, because previously signed agreements point at it.'
-            : 'Terms that once applied are kept on purpose: an agreement signed earlier was signed against them.',
+          `${signed.reference ?? 'A signed MoU'} was signed against these terms, so they stay on record. ` +
+          'End the deal instead — it stops applying without erasing what was signed.',
       },
       { status: 409 },
     );
   }
 
   const { error } = await actor.db.from('partnership_terms').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    /*
+      An unsigned document still points at the row.
+
+      The foreign key is the backstop and it is right to hold: a proposal or an
+      unsigned MoU issued on these terms would be left pointing at nothing. But
+      those documents are themselves discardable, so the answer is a route, not a
+      wall — say which way out there is.
+    */
+    const blocked = /foreign key|violates|referenced/i.test(error.message);
+    return NextResponse.json(
+      {
+        error: blocked
+          ? 'A document issued on these terms still points at them. Discard that proposal or unsigned MoU first, then this deal will go.'
+          : error.message,
+      },
+      { status: blocked ? 409 : 500 },
+    );
+  }
 
   await logAudit(actor.db as any, {
-    action: 'delete_partnership_terms_draft',
+    action: 'delete_partnership_terms',
     actorId: actor.user.id,
     resourceType: 'partnership_terms',
     resourceId: id,

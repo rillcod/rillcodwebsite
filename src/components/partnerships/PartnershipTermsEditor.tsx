@@ -212,6 +212,7 @@ export function PartnershipTermsEditor({
   canWrite,
   onSaved,
   openSignal,
+  signedMou = false,
 }: {
   school: SchoolRow;
   agreed: TermsRow | null;
@@ -220,6 +221,14 @@ export function PartnershipTermsEditor({
   onSaved: () => void | Promise<void>;
   /** Bumped from outside to open the form — e.g. a blocked MoU sending you here. */
   openSignal?: number;
+  /**
+   * Has an MoU been signed against the deal in force?
+   *
+   * Until one has, a recorded rate is a note about a negotiation and can be
+   * discarded outright. After one has, it is what somebody put their name to,
+   * and it can only be closed.
+   */
+  signedMou?: boolean;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(agreed));
   const [open, setOpen] = useState(false);
@@ -356,18 +365,24 @@ export function PartnershipTermsEditor({
     setError("");
     setSaved("");
     try {
-      const res = await fetch("/api/partnerships/terms", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: agreed.id, action: "end" }),
-      });
+      const res = signedMou
+        ? await fetch("/api/partnerships/terms", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: agreed.id, action: "end" }),
+          })
+        : await fetch(`/api/partnerships/terms?id=${encodeURIComponent(agreed.id)}`, { method: "DELETE" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not end that deal.");
+      if (!res.ok) throw new Error(json.error || "Could not remove that deal.");
       setAskEnd(false);
-      setSaved("The deal has been ended. This school has no agreed rate until you record one.");
+      setSaved(
+        signedMou
+          ? "The deal has been ended. This school has no agreed rate until you record one."
+          : "The deal has been discarded. This school has no agreed rate until you record one.",
+      );
       await onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not end that deal.");
+      setError(e instanceof Error ? e.message : "Could not remove that deal.");
     } finally {
       setEnding(false);
     }
@@ -445,10 +460,12 @@ export function PartnershipTermsEditor({
                     disabled={ending}
                     className="min-h-[36px] px-3 rounded-lg border border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/15 text-[11px] font-bold disabled:opacity-40"
                   >
-                    {ending ? "Ending…" : "End this deal"}
+                    {ending ? (signedMou ? "Ending…" : "Discarding…") : signedMou ? "End this deal" : "Discard this deal"}
                   </button>
                   <span className="text-[11px] text-muted-foreground">
-                    Stops it applying. Documents already issued keep the terms they were issued with.
+                    {signedMou
+                      ? "A signed MoU points at these terms, so they stay on record — this stops them applying."
+                      : "Nothing has been signed against this deal, so it can go entirely."}
                   </span>
                 </div>
               )}
@@ -1114,9 +1131,13 @@ export function PartnershipTermsEditor({
 
       <PartnershipConfirm
         open={askEnd}
-        title="End this deal?"
-        body={`${agreed?.summary || "The agreed terms"} stops applying from today. It stays on record, because documents already issued point at it — but this school will have no agreed rate, so an MoU cannot be issued until you record one. Proposals can still go out.`}
-        confirmLabel="End the deal"
+        title={signedMou ? "End this deal?" : "Discard this deal?"}
+        body={
+          signedMou
+            ? `${agreed?.summary || "The agreed terms"} stops applying from today, and stays on record because a signed MoU points at it. The school will have no agreed rate until you record one.`
+            : `${agreed?.summary || "The agreed terms"} is removed. Nothing has been signed against it, so nothing is lost — but the school will have no agreed rate, and an MoU cannot be issued until you record one. Proposals can still go out.`
+        }
+        confirmLabel={signedMou ? "End the deal" : "Discard the deal"}
         busy={ending}
         onCancel={() => { if (!ending) setAskEnd(false); }}
         onConfirm={() => void endDeal()}
