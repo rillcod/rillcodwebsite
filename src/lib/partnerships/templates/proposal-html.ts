@@ -152,14 +152,88 @@ function yearCard(level: ProgressionLevel): string {
 }
 
 /**
- * One pathway to a sheet. Six compact cards fit A4; a seventh would clip,
- * so we still chunk — but the default is the whole primary or secondary
- * ladder on one page, which is how a head teacher actually reads it.
+ * Roughly how tall a year card prints, in pixels at A4 width.
+ *
+ * The cards sit two to a row inside a 184mm column, so each is about 340px wide
+ * and each of its three term columns about 95px — which at 10pt holds roughly
+ * thirteen characters before it wraps. The capstone and portfolio lines run the
+ * width of the card, so about forty.
+ *
+ * An estimate is enough, and it is the only measurement available: this runs in
+ * a template on a server, with no browser to ask. It only has to be right about
+ * which cards are tall, because that is what decides how many share a sheet.
  */
-function chunkLevels(levels: ProgressionLevel[], size = 6): ProgressionLevel[][] {
-  const chunks: ProgressionLevel[][] = [];
-  for (let i = 0; i < levels.length; i += size) chunks.push(levels.slice(i, i + size));
-  return chunks;
+function yearCardHeight(level: ProgressionLevel): number {
+  const lines = (text: string, perLine: number) =>
+    Math.max(1, Math.ceil((text || '').trim().length / perLine));
+
+  // Two lines of theme are reserved in every header, so it is a floor not a sum.
+  const head = Math.max(50, 20 + lines(`Year ${level.year_number} — ${level.theme ?? ''}`, 34) * 17);
+  const term = Math.max(...(level.terms ?? []).map((t) => lines(String(t.focus ?? ''), 13)), 1);
+  const terms = 22 + 18 + term * 17;
+  const foot =
+    16 +
+    (level.capstone ? lines(String(level.capstone), 40) * 17 : 0) +
+    (level.portfolio ? lines(String(level.portfolio), 40) * 17 : 0);
+  return head + terms + foot;
+}
+
+/**
+ * How many year-cards share a sheet, decided by what is written on them.
+ *
+ * This was a fixed six, chosen against a curriculum whose rows were short. Rows
+ * are typed by a person: a theme reaches a phrase, a capstone reaches a
+ * sentence, and six of those run 100mm past A4 — which used to be clipped away
+ * and now would spill onto a second sheet mid-grid. Neither is a document you
+ * would send.
+ *
+ * So the sheet is filled rather than counted. Cards are laid two to a row, rows
+ * are added while the room lasts, and the count falls out of the content: six
+ * short years, four long ones. Chunks are evened out afterwards, because five
+ * years on one sheet and one on the next reads as a mistake.
+ */
+function chunkLevels(levels: ProgressionLevel[], size?: number): ProgressionLevel[][] {
+  if (!levels.length) return [];
+  if (size) {
+    const fixed: ProgressionLevel[][] = [];
+    for (let i = 0; i < levels.length; i += size) fixed.push(levels.slice(i, i + size));
+    return fixed;
+  }
+
+  // A4 less its margins and the running head, less the heading block that only
+  // the first sheet of a pathway carries.
+  const ROOM_FIRST = 800;
+  const ROOM_REST = 960;
+  const ROW_GAP = 10;
+
+  const rows: Array<{ levels: ProgressionLevel[]; height: number }> = [];
+  for (let i = 0; i < levels.length; i += 2) {
+    const pair = levels.slice(i, i + 2);
+    rows.push({ levels: pair, height: Math.max(...pair.map(yearCardHeight)) });
+  }
+
+  const sheets: ProgressionLevel[][] = [];
+  let current: ProgressionLevel[] = [];
+  let used = 0;
+  for (const row of rows) {
+    const room = sheets.length === 0 ? ROOM_FIRST : ROOM_REST;
+    const next = used + row.height + (current.length ? ROW_GAP : 0);
+    if (current.length && next > room) {
+      sheets.push(current);
+      current = [...row.levels];
+      used = row.height;
+      continue;
+    }
+    current.push(...row.levels);
+    used = next;
+  }
+  if (current.length) sheets.push(current);
+
+  // A trailing sheet of one or two years is not rebalanced — six years split
+  // four-and-two either way round. It is laid out differently instead: two cards
+  // take the full width of the sheet rather than sitting in one half of a grid
+  // built for six. See `years-stack`, which the stylesheet already carried.
+  return sheets;
 }
 
 /**
@@ -321,12 +395,22 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       ? `<section>
     <div class="rule"></div>
     <h2>${esc(heading)}</h2>
-    ${hook ? `<p class="hook">${esc(hook)}</p>` : ''}
-    <p class="muted">${esc(muted)}</p>
+    ${
+      /*
+        The hook, or the description — never both.
+
+        They were stacked, and they say the same thing twice: the hook names
+        where a child starts and what they finish holding, then the line under it
+        described the same ladder in other words. Two sentences introducing a
+        page of cards is one more than the page needs, and it is the room the
+        cards wanted.
+      */
+      hook ? `<p class="hook">${esc(hook)}</p>` : `<p class="muted">${esc(muted)}</p>`
+    }
   </section>`
       : ''
   }
-  <div class="years years-compact">${group.map(yearCard).join('')}</div>
+  <div class="years ${group.length > 2 ? 'years-compact' : 'years-stack'}">${group.map(yearCard).join('')}</div>
 </div>`;
       })
       .join('\n');
@@ -1082,7 +1166,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   <section>
     <div class="rule"></div>
     <h2>What a parent gets to hold</h2>
-    <p class="muted">Not a report saying it went well — the work itself, kept and added to every year. Taken from the progression below, so this is the actual list for the years being quoted.</p>
+    <p class="muted">Not a report saying it went well — the work itself, kept and added to every year.</p>
     <div class="parent">
       <div>
         <div class="parent-when">${esc(first.grade)} — the first year</div>
@@ -1263,10 +1347,24 @@ ${body}
 
   @media print {
     html, body { background: #ffffff !important; padding: 0 !important; gap: 0 !important; display: block !important; }
+    /*
+      A sheet is at least A4, never exactly A4.
+
+      It was pinned to 297mm with the overflow hidden, which does not mean "keep
+      it to a page" — it means "delete whatever does not fit". A curriculum row
+      typed a little longer than the sample, or a school with a long name, and
+      the last card on the sheet simply was not printed. Nothing recorded it.
+
+      Given a minimum instead, a page that runs long carries on to a second
+      sheet. Sections already refuse to split down the middle, so the break lands
+      between blocks. An occasional extra sheet is a cost worth paying; a
+      sentence that stops halfway is not.
+    */
     .page {
-      width: 210mm !important; height: 297mm !important; min-height: 297mm !important;
+      width: 210mm !important; min-height: 297mm !important; height: auto !important;
+      overflow: visible !important;
       padding: 14mm 13mm !important; box-shadow: none !important; border-radius: 0 !important;
-      page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
+      page-break-after: always; break-after: page;
     }
     .page:last-child { page-break-after: auto; break-after: auto; }
   }
@@ -1594,7 +1692,7 @@ ${body}
   */
   .page-money {
     display: flex; flex-direction: column; justify-content: space-between;
-    height: 297mm; min-height: 297mm;
+    min-height: 297mm; height: auto;
   }
   /*
     The same distribution for the sheet that says what the fee covers.
@@ -1615,7 +1713,7 @@ ${body}
   .page-fees,
   .page-covers {
     display: flex; flex-direction: column;
-    height: 297mm; min-height: 297mm;
+    min-height: 297mm; height: auto;
   }
   .page-fees > .pagehead,
   .page-covers > .pagehead { flex: none; margin-bottom: 3mm; }
@@ -1928,11 +2026,21 @@ ${body}
     or three years must not stretch three cards over a whole side of A4, so the
     stretch is conditional on a fifth card being there to share it.
   */
-  .page-pathway { display: flex; flex-direction: column; height: 297mm; min-height: 297mm; }
+  .page-pathway { display: flex; flex-direction: column; min-height: 297mm; height: auto; }
   .page-pathway > section { flex: none; }
-  .page-pathway .years:has(> .year:nth-child(5)) { flex: 1; grid-auto-rows: 1fr; }
-  .page-pathway .years:has(> .year:nth-child(5)) .year { display: flex; flex-direction: column; }
-  .page-pathway .years:has(> .year:nth-child(5)) .terms { flex: 1; }
+  /*
+    A trailing sheet of one or two years spreads rather than stretches.
+
+    Stacked full-width, a card is already the right shape; pulling two of them to
+    half a metre of A4 each would give a header, three short columns and a field
+    of white inside the border. Spacing them evenly down the sheet uses the same
+    room without distorting the card.
+  */
+  .page-pathway .years-stack { flex: 1; align-content: space-evenly; }
+
+  .page-pathway .years:has(> .year:nth-child(3)) { flex: 1; grid-auto-rows: 1fr; }
+  .page-pathway .years:has(> .year:nth-child(3)) .year { display: flex; flex-direction: column; }
+  .page-pathway .years:has(> .year:nth-child(3)) .terms { flex: 1; }
   /* The three terms sit in a row, so the height the card gained is theirs to
      use: each column centres in it rather than leaving a band of white under
      three lines of text. */
@@ -2165,7 +2273,6 @@ ${sheet(
         ? `From ${scopedLevels[0].grade} to ${scopedLevels[scopedLevels.length - 1].grade}, the work gets harder on purpose. They start by making something run on a screen. They finish having shipped ${scopedLevels[scopedLevels.length - 1].capstone || 'a product a parent can hold'}.`
         : 'Every year ends in something built and kept, not a grade on a sheet.',
     )}</p>
-    <p class="muted">The four moments a parent will remember — from the first year you are quoting to the last.</p>
     ${journey()}
   </section>`
       : ''
@@ -2175,7 +2282,7 @@ ${sheet(
 ${on('disciplines') ? `  <section>
     <div class="rule"></div>
     <h2>What a parent can see</h2>
-    <p class="muted">This is the conversation at an open day. Their child trained a model, wrote a programme, and can open it on the spot.</p>
+    <p class="muted">The conversation at an open day: their child trained a model, wrote a programme, and can open it on the spot.</p>
     <div class="disc">
       ${DISCIPLINES.map(
       (d) => `<div><b>${esc(d.name)}</b>${esc(d.body)}</div>`,

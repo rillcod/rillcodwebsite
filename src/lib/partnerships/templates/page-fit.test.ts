@@ -195,11 +195,21 @@ describe('A4 Page-Fit and Overflow Guard', () => {
       },
     });
 
-    // The sheet rule itself must not move. 210 × 297mm, overflow hidden.
+    /*
+      A sheet is A4 wide and at least A4 tall — and never clips.
+
+      This asserted the opposite: a page pinned to exactly 297mm with its
+      overflow hidden. That is not "keep it to a page", it is "delete whatever
+      does not fit", and it did — a curriculum row typed longer than the sample
+      took the last card off the sheet, and the fees page cut its own promises
+      mid-sentence. A minimum lets a long page carry on to a second sheet
+      instead, which costs paper rather than meaning.
+    */
     expect(html).toContain('@page { size: A4 portrait; margin: 0; }');
     expect(html).toContain('width: 210mm; min-height: 297mm;');
-    expect(html).toContain('height: 297mm !important; min-height: 297mm !important;');
-    expect(html).toMatch(/\.page \{[\s\S]*?overflow: hidden;/);
+    expect(html).toMatch(/@media print \{[\s\S]*?min-height: 297mm !important; height: auto !important;/);
+    expect(html).toMatch(/@media print \{[\s\S]*?overflow: visible !important;/);
+    expect(html).not.toMatch(/@media print \{[\s\S]*?\.page \{[^}]*overflow: hidden/);
 
     const returnPage = extractPages(html).find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('How programme fees would be shared');
