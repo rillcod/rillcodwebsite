@@ -1573,7 +1573,12 @@ ${body}
   */
   .cover-for-word {
     font-size: 21pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-    color: #991b1b; margin: 0 0 3.5mm; line-height: 1;
+    /* The blue the card beside it is ruled in, not a third accent.
+       A second red word under a solid red badge reads as one mark repeated;
+       slate merely retreated from the problem. Taking the card's own colour ties
+       the label to the thing it labels — they read as one object — and leaves red
+       to the badge alone, which is then the single strongest mark on the page. */
+    color: #2563eb; margin: 0 0 3.5mm; line-height: 1;
   }
   .cover-for { font-size: 20pt; font-weight: 800; color: #0f172a; line-height: 1.18; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
