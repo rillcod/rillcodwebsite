@@ -255,7 +255,7 @@ describe('issuing a proposal', () => {
       scopeToOffer: '',
     });
 
-    const returnPage = issued.html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    const returnPage = issued.html.split(/<div class="page[ "][^>]*>/).slice(1).find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('Illustrated for');
     expect(returnPage).toContain('Option A');
     expect(returnPage).toContain('Option B1');
@@ -278,7 +278,7 @@ describe('issuing a proposal', () => {
       scopeToOffer: 'B1',
     });
 
-    const returnPage = issued.html.split('<div class="page">').find((p) => p.includes("The school's share")) ?? '';
+    const returnPage = issued.html.split(/<div class="page[ "][^>]*>/).slice(1).find((p) => p.includes("The school's share")) ?? '';
     expect(returnPage).toContain('Option B1 at ₦10,000');
     expect(returnPage).toContain('Prepared from the school\'s roll');
   });

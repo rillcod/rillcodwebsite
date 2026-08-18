@@ -665,13 +665,26 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     the width it will actually occupy.
   */
   const upsideChart = (u: SchoolUpside): string => {
-    const W = 300;
-    const LABEL_W = 96;
-    const BAR_X = LABEL_W + 8;
-    // The bars now run to the edge, because nothing is printed after them.
+    /*
+      Drawn for the width it is given, rather than shrunk into it.
+
+      This was built 300 units wide to sit beside the table, in half a sheet. The
+      table needs the full width at a readable size, so the chart moved above it
+      — and a 300-unit drawing stretched across 184mm then had to be capped in
+      height to fit the page, which scaled its labels down to about 7pt. Type
+      inside an SVG is type: it obeys the same floor as the rest of the document.
+
+      Wide and short is the shape the slot actually is. At 760 units across 184mm
+      the drawing renders close to 1:1, so a 14px label prints near 11pt and the
+      three bars take about 20mm of the sheet.
+    */
+    const W = 760;
+    const LABEL_W = 190;
+    const BAR_X = LABEL_W + 10;
+    // The bars run to the edge, because nothing is printed after them.
     const BAR_MAX = W - BAR_X - 4;
-    const ROW_H = 42;
-    const BAR_H = 18;
+    const ROW_H = 30;
+    const BAR_H = 17;
     const R = 4;
     const top = 8;
     const max = Math.max(...u.rows.map((r) => r.schoolShare)) || 1;
@@ -1722,6 +1735,16 @@ ${body}
     justify-content: space-between;
   }
   .page:not(.cover) > .pagehead { flex: none; }
+  /*
+    A block may take spare room; it may never be squeezed for it.
+
+    Flex children shrink by default, so on a sheet whose content had grown past
+    A4 the sections were compressed below the height of their own text and
+    printed on top of one another — a heading landing across the last row of the
+    table above it. Distribution is for room that is going spare; when there is
+    none, the page grows instead.
+  */
+  .page:not(.cover) > section { flex-shrink: 0; }
   /* Margins would fight the distribution — the gaps come from the spacing now,
      and a trailing margin would push the last block off the bottom edge. */
   .page:not(.cover) > section:last-child { margin-bottom: 0; }
@@ -1812,28 +1835,52 @@ ${body}
   .page-case .guarantee-grid { gap: 2.4mm 6mm; margin: 1.5mm 0; }
   .page-case .faqs { gap: 2.6mm 7mm; }
   .page-money > .pagehead { flex: none; margin-bottom: 3mm; }
+  /*
+    Room to spread, never squeezed. Shrinking was allowed here, and once the
+    table went full-width these compressed below the height of their own text —
+    three sections in the room for two, printing on top of each other.
+  */
   .page-money > section {
-    flex: 1 1 0; min-height: 0; margin-bottom: 0;
+    flex: 1 0 auto; margin-bottom: 0;
     display: flex; flex-direction: column; justify-content: center;
-    padding: 3.5mm 0;
+    padding: 2mm 0;
   }
   .page-money > section + section { border-top: 1px solid #f1f5f9; }
   .page-money > section:first-of-type { padding-top: 1.5mm; }
   .page-money > section:last-of-type { padding-bottom: 0; }
-  .page-money h2 { margin-bottom: 3.5mm; }
-  .page-money .split { margin: 4mm 0 3mm; }
-  .page-money .split .seg { padding: 4.2mm 4.5mm; font-size: 10.4pt; }
+  .page-money h2 { margin-bottom: 2.6mm; }
+  .page-money .split { margin: 3mm 0 2.5mm; }
+  .page-money .split .seg { padding: 3.4mm 4.5mm; font-size: 10.4pt; }
+  /*
+    The figures take the sheet; the picture sits under them.
+
+    These shared a row, half the width each, which held while the table was set
+    at 7.6pt. At a readable 10pt its four columns — scenario, students, fees, and
+    what the school keeps — no longer fit in half a sheet, and since the money
+    figures may not wrap the table simply ran off the right edge of the paper.
+    The last column, the one number this page exists for, printed as "₦1,4".
+
+    (Nothing in these comments may repeat a heading the document prints: the
+    stylesheet ships inside the page, and a test that goes looking for a sheet by
+    its heading will find the comment first.)
+
+    A table that cannot be narrowed and must not wrap gets the full width, and
+    the chart takes the full width above it. Same order as before — the shape of
+    the three scenarios, then their exact figures — stacked instead of side by
+    side, because half a sheet is no longer enough for either of them.
+  */
   .page-money .upside-row {
-    flex: 1; align-items: stretch; margin: 2.5mm 0 0; gap: 8mm;
+    flex: 1; display: flex; flex-direction: column; align-items: stretch;
+    margin: 2mm 0 0; gap: 3mm;
   }
   .page-money .upside-col { display: flex; flex-direction: column; justify-content: center; }
-  .page-money .upside-col .chart { width: 100%; height: 100%; min-height: 38mm; }
+  .page-money .upside-col .chart { width: 100%; height: auto; }
   .page-money .upside-col table.compact th { padding: 2.4mm 2.4mm; }
   .page-money .upside-col table.compact td { padding: 2.6mm 2.4mm; }
   .page-money .value {
-    flex: 1; min-height: 52mm; grid-template-rows: 1fr;
+    flex: 1; min-height: 0; grid-template-rows: 1fr;
   }
-  .page-money .value-photo { height: auto; min-height: 0; }
+  .page-money .value-photo { height: 100%; min-height: 0; max-height: none; }
   .page-money .value-photo img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
