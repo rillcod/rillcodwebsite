@@ -742,23 +742,14 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </div>
       )}
 
-      {/* Who receives it, always in view — sending is the default path. */}
-      <div>
-        <label className={LABEL} htmlFor="composer-recipient-email">
-          Send to
-        </label>
-        <input
-          id="composer-recipient-email"
-          type="email"
-          className={INPUT}
-          placeholder="principal@school.edu.ng"
-          value={recipientEmail}
-          onChange={(e) => setRecipientEmail(e.target.value)}
-        />
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Send emails the link and marks it live. Save draft if you are not ready for them to open it.
-        </p>
-      </div>
+      {/*
+        No address on this form, because nothing is sent from it.
+
+        The field belonged to a button that created the document and emailed it
+        in one press. Sending now happens from the document itself, where the
+        address is asked for beside the copy that is about to go — which is the
+        only place it can be checked against what it is being sent.
+      */}
 
       {error && (
         <p className="text-xs text-destructive flex items-start gap-2">
@@ -804,7 +795,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </button>
 
             <button
-              onClick={() => void issue(true)}
+              onClick={() => void issue(false)}
               disabled={issuing || previewing || mouBlocked || discarding}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
@@ -815,25 +806,16 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               )}
               <span>
                 {issuing
-                  ? "Sending…"
+                  ? "Issuing…"
                   : liveQuote
-                    ? `Send (replaces ${liveQuote.reference ?? "the live copy"})`
-                    : `Send ${kind === "mou" ? "MoU" : "proposal"}`}
+                    ? `Issue (replaces ${liveQuote.reference ?? "the live copy"})`
+                    : `Issue the ${kind === "mou" ? "MoU" : "proposal"}`}
               </span>
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void issue(false)}
-            disabled={issuing || previewing || mouBlocked || discarding}
-            className="text-[11px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-40"
-          >
-            Save draft without sending
-          </button>
-
           <p className="text-[11px] text-muted-foreground">
-            Preview does not save. Send stores the copy and emails the link so the school can open it.
+            Preview renders it and saves nothing. Issuing stores the document under its reference and opens it — you send it from there, once you have read it.
             {liveQuote
               ? kind === "proposal"
                 ? " A new send discards the previous quote."

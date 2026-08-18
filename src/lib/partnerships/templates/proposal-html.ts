@@ -1563,17 +1563,17 @@ ${body}
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   /*
-    "For" is a label, not the first two words of a sentence.
+    "For" is a word of its own, at the weight of the badge above it.
 
-    The line read "Prepared for X", which buries the one word that matters —
-    the school's name — behind two words about our own admin. Set as an
-    eyebrow above the name, the way the proposal badge sits above the
-    headline, the card says what it is and then says who it is for, and the
-    name gets the weight.
+    It read "Prepared for X" — two words of our own admin in front of the one
+    word that matters. Set small inside the card it was a caption; set at this
+    size, on its own line, it does what the PARTNERSHIP PROPOSAL badge does:
+    it announces the line beneath it. The cover then reads as three beats —
+    what this is, what it offers, who it is for.
   */
-  .cover-for-label {
-    display: block; font-size: 10pt; font-weight: 800; letter-spacing: .16em;
-    text-transform: uppercase; color: #2563eb; margin-bottom: 1.6mm;
+  .cover-for-word {
+    font-size: 21pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    color: #991b1b; margin: 0 0 3.5mm; line-height: 1;
   }
   .cover-for { font-size: 20pt; font-weight: 800; color: #0f172a; line-height: 1.18; }
   .cover-loc { color: #64748b; margin-top: 1mm; font-size: 10pt; font-weight: 600; }
@@ -2320,8 +2320,8 @@ ${body}
          school's chosen headline printed as markup, and anything sharper printed
          as markup too. -->
     <h1>${esc(narrative.headline)}</h1>
+    <div class="cover-for-word">For</div>
     <div class="cover-for-card">
-      <span class="cover-for-label">For</span>
       <div class="cover-for">${esc(input.school.name)}</div>
       ${location ? `<div class="cover-loc">${esc(location)}</div>` : ''}
     </div>
