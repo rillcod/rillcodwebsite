@@ -20,6 +20,43 @@
 /** A4 at 96dpi, the size the templates lay out against. */
 const A4 = { w: 794, h: 1123 };
 
+/**
+ * Where a captured page sits on its A4 sheet, and at what size.
+ *
+ * Every page used to be captured at exactly one sheet and placed at exactly one
+ * sheet, which is not "fit it to A4" — it is a crop. A page a few millimetres
+ * long lost its last lines, in the file that goes out by email, with nothing to
+ * say so. Printing stopped doing that; this is the same guarantee for the copy a
+ * school actually receives.
+ *
+ * A long page is scaled down to fit instead of being cut. That costs a little
+ * type size on that one page, which is the lesser of the two harms: type a
+ * fraction smaller can still be read, and a clause that was never drawn cannot.
+ * It should also be rare — every sheet of an ordinary proposal and agreement
+ * lays out inside A4 — so this is a net that is not meant to be landed in.
+ *
+ * Pure, and exported, because it is the whole rule and it can be checked without
+ * a browser.
+ */
+export function fitPageToSheet(naturalHeight: number): {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  scaled: boolean;
+} {
+  const height = Math.max(1, Math.round(naturalHeight) || A4.h);
+  if (height <= A4.h) return { width: A4.w, height: A4.h, x: 0, y: 0, scaled: false };
+  const scale = A4.h / height;
+  const width = A4.w * scale;
+  return { width, height: A4.h, x: (A4.w - width) / 2, y: 0, scaled: true };
+}
+
+/** The height a page actually occupies, which may be more than one sheet. */
+function naturalHeight(page: HTMLElement): number {
+  return Math.max(page.scrollHeight, Math.round(page.getBoundingClientRect().height), A4.h);
+}
+
 async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string> {
   const { toPng } = await import('html-to-image');
 
@@ -28,7 +65,9 @@ async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string
     cacheBust: true,
     backgroundColor: '#ffffff',
     width: A4.w,
-    height: A4.h,
+    // The page as it really is. Asking for exactly A4 here is what made a long
+    // page come back already cut, before anything could decide what to do.
+    height: naturalHeight(page),
     style: {
       transform: 'none',
       margin: '0',
@@ -89,8 +128,9 @@ export async function buildDocumentPdf(doc: Document): Promise<import('jspdf').j
 
   for (let i = 0; i < pages.length; i++) {
     const jpeg = await pageToJpeg(pages[i], 3);
+    const fit = fitPageToSheet(naturalHeight(pages[i]));
     if (i > 0) pdf.addPage([A4.w, A4.h], 'portrait');
-    pdf.addImage(jpeg, 'JPEG', 0, 0, A4.w, A4.h, undefined, 'FAST');
+    pdf.addImage(jpeg, 'JPEG', fit.x, fit.y, fit.width, fit.height, undefined, 'FAST');
   }
 
   return pdf;
