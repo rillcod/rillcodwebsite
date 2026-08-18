@@ -1270,23 +1270,21 @@ export function buildPartnershipProposalEmail(opts: {
     : `
     <p style="margin:0 0 14px;">${greeting}</p>
     <p style="margin:0 0 14px;">
-      Parents are choosing schools on whether their children will be ready for work that does not
-      exist yet. We run the coding, robotics and AI programme that answers that — taught on your
-      site, on your timetable, by our facilitators, with your teachers taking it on over time.
+      Parents now choose a school on whether it will make their children ready for work that does
+      not exist yet. We run the coding, robotics and AI programme that answers that — on your site,
+      on your timetable, taught by our facilitators.
     </p>
     <p style="margin:0 0 14px;">
-      The attached proposal is written for ${escapeHtml(opts.schoolName)} specifically. It sets out the
-      full year-by-year curriculum, what each side provides, how a rollout runs in its first two
-      weeks, and what the programme is worth to you at your own enrolment${
-        opts.partnerSchools
-          ? ` — the same programme already running in ${escapeHtml(opts.partnerSchools)} schools`
-          : ''
-      }.
+      The attached proposal is written for ${escapeHtml(opts.schoolName)}: the year-by-year
+      curriculum, what each side provides, and what it earns you${
+        opts.schoolShareLabel
+          ? ` — ${escapeHtml(opts.schoolShareLabel)} a term at your own enrolment`
+          : ' at your own enrolment'
+      }.${opts.validUntil ? ` Fees hold until ${escapeHtml(opts.validUntil)}.` : ''}
     </p>
     <p style="margin:0 0 6px;">
-      We are not asking you to commit to anything from an email. The next step is a live
-      demonstration for your students and a short session with your leadership and PTA — after
-      which you will know whether this belongs in your school.
+      Nothing to commit to from an email — the next step is a live session for your students, with
+      your leadership in the room.
     </p>`;
 
   return buildRillcodTransactionalEmailHtml({
@@ -1300,7 +1298,10 @@ export function buildPartnershipProposalEmail(opts: {
         ? `Coding, Robotics & AI — ${escapeHtml(opts.coverage)}`
         : 'Coding, Robotics & AI in your school',
     bodyHtml,
-    summaryRows: rows,
+    // No summary grid: every figure worth stating is in the sentence above, and
+    // the rest is in the document the button opens. A pitch that starts with a
+    // table of labels reads as a receipt.
+    summaryRows: [],
     // The link is the primary action whenever there is one: it opens on a phone,
     // survives forwarding, and for an MoU it is the only way to sign.
     cta: opts.shareUrl
@@ -1312,21 +1313,6 @@ export function buildPartnershipProposalEmail(opts: {
           href: `mailto:${brandContact.email}?subject=${encodeURIComponent(`Demonstration request — ${opts.schoolName}`)}`,
           label: 'Book a demonstration',
         },
-    extraBlock: `
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-collapse:collapse;">
-        <tr><td style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};padding:14px 16px;">
-          <p style="margin:0 0 4px;font-size:11px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">${
-            opts.shareUrl ? 'Your copy' : 'The attachment'
-          }</p>
-          <p style="margin:0;font-size:13px;color:${BRAND.white};line-height:1.6;">
-            ${
-              opts.shareUrl
-                ? `Reference <b>${escapeHtml(opts.reference)}</b>. The link above always shows the current version and offers a PDF download. The attached copy is yours to keep.`
-                : `Open <b>${escapeHtml(opts.reference)}</b> in any browser. To keep a PDF copy, use your browser's Print option and choose “Save as PDF”.`
-            }
-          </p>
-        </td></tr>
-      </table>`,
     footerNote: `${brandContact.legalName} · ${brandContact.address} · ${brandContact.phone}`,
   });
 }
@@ -1466,3 +1452,6 @@ export function buildPartnershipFollowUpEmail(opts: {
   return { subject: message.subject, html };
 }
 
+    // Deliberately none. Every figure worth stating is in the sentence above,
+    // and the rest is in the document the button opens — a pitch that begins
+    // with a grid of labels reads as a receipt.
