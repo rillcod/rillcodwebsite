@@ -1502,7 +1502,10 @@ ${body}
   .end-scan-contact b { color: #fff; }
 
   /* ── Masthead: Brand left, Extra-Large QR right ───────────────────── */
-  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 12mm; }
+  /* The scan card needs air between it and the tiles beside it. At 12mm the
+     two blocks read as one crowded object with the QR pressed against the
+     counts, which is the first thing anyone looks at. */
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: 18mm; }
   .masthead-l { flex: 1; min-width: 0; }
   .brand-row { display: flex; align-items: center; gap: 5mm; }
 
@@ -2470,14 +2473,14 @@ ${sheet(
       'Partnership Proposal',
       `  ${agreed}
 
-${feesSection()}`,
+${feesSection()}
+${supplySection(true)}`,
       'page page-fees',
     )}
 
 ${sheet(
       'What the fee covers',
-      `  ${supplySection(true)}
-${noExtrasBlock()}`,
+      `  ${noExtrasBlock()}`,
       'page page-covers',
     )}
 
