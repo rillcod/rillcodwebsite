@@ -166,6 +166,7 @@ export function IssuedDocumentPreview({
       */
       let pdf_base64: string | undefined;
       let tooLarge = false;
+      let attachmentProblem = "";
       try {
         const doc = frameRef.current?.contentDocument;
         if (doc) {
@@ -173,8 +174,17 @@ export function IssuedDocumentPreview({
           if (built.length > MAX_ATTACHMENT_CHARS) tooLarge = true;
           else pdf_base64 = built;
         }
-      } catch {
+      } catch (e) {
+        /*
+          A capture that fails must not fail quietly.
+
+          It did, and the document went out as an HTML attachment — which is
+          what a school opens, and it does not look like a proposal. The send
+          still goes ahead, because the link inside it is what matters most,
+          but the reason is carried back to the person who pressed the button.
+        */
         pdf_base64 = undefined;
+        attachmentProblem = e instanceof Error ? e.message : "the PDF could not be built";
       }
 
       const res = await fetch("/api/partnerships/documents/send", {
@@ -188,7 +198,9 @@ export function IssuedDocumentPreview({
         `Sent to ${json.to} as ${json.format === "pdf" ? "a PDF" : "HTML"} — ${json.attachment}` +
           (tooLarge
             ? ". The PDF was too large to attach, so the document went as HTML with its link."
-            : ""),
+            : attachmentProblem
+              ? `. The PDF could not be built (${attachmentProblem}), so the document went as HTML with its link.`
+              : ""),
       );
       setShowEmailField(false);
       setEmailTo("");

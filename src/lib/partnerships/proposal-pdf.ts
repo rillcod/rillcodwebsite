@@ -57,11 +57,24 @@ function naturalHeight(page: HTMLElement): number {
   return Math.max(page.scrollHeight, Math.round(page.getBoundingClientRect().height), A4.h);
 }
 
-async function pageToJpeg(page: HTMLElement, pixelRatio: number, quality = 0.96): Promise<string> {
+async function pageToJpeg(
+  page: HTMLElement,
+  pixelRatio: number,
+  quality = 0.96,
+  skipFonts = false,
+): Promise<string> {
   const { toPng } = await import('html-to-image');
 
   const pngUrl = await toPng(page, {
     pixelRatio,
+    /*
+      Web fonts are fetched and inlined by default, and the document loads its
+      faces from Google. That fetch is cross-origin, and when it is refused the
+      whole capture throws — which is how a proposal went out as an HTML
+      attachment with nobody told why. Skipping the embed renders with the
+      faces the browser has already loaded.
+    */
+    skipFonts,
     cacheBust: true,
     backgroundColor: '#ffffff',
     width: A4.w,
@@ -114,7 +127,11 @@ const GRADES: Record<PdfQuality, { pixelRatio: number; quality: number }> = {
   email: { pixelRatio: 2, quality: 0.82 },
 };
 
-export async function buildDocumentPdf(doc: Document, grade: PdfQuality = 'download'): Promise<import('jspdf').jsPDF> {
+export async function buildDocumentPdf(
+  doc: Document,
+  grade: PdfQuality = 'download',
+  skipFonts = false,
+): Promise<import('jspdf').jsPDF> {
   const { default: jsPDF } = await import('jspdf');
 
   // Wait for document fonts and all external assets to be fully ready
@@ -142,7 +159,7 @@ export async function buildDocumentPdf(doc: Document, grade: PdfQuality = 'downl
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [A4.w, A4.h] });
 
   for (let i = 0; i < pages.length; i++) {
-    const jpeg = await pageToJpeg(pages[i], GRADES[grade].pixelRatio, GRADES[grade].quality);
+    const jpeg = await pageToJpeg(pages[i], GRADES[grade].pixelRatio, GRADES[grade].quality, skipFonts);
     const fit = fitPageToSheet(naturalHeight(pages[i]));
     if (i > 0) pdf.addPage([A4.w, A4.h], 'portrait');
     pdf.addImage(jpeg, 'JPEG', fit.x, fit.y, fit.width, fit.height, undefined, 'FAST');
@@ -157,9 +174,22 @@ export async function downloadDocumentPdf(doc: Document, filename: string): Prom
   pdf.save(filename);
 }
 
-/** The PDF as base64, ready to be posted for emailing. */
+/**
+ * The PDF as base64, ready to be posted for emailing.
+ *
+ * Tried once with the fonts embedded, and once without if that fails. A
+ * capture that throws used to leave the caller with nothing, and the document
+ * was emailed as an HTML file — which is what a school then receives, and it
+ * does not look like a proposal. A PDF set in the faces the browser already
+ * has is a far better outcome than no PDF at all.
+ */
 export async function documentPdfBase64(doc: Document): Promise<string> {
-  const pdf = await buildDocumentPdf(doc, 'email');
+  let pdf;
+  try {
+    pdf = await buildDocumentPdf(doc, 'email');
+  } catch {
+    pdf = await buildDocumentPdf(doc, 'email', true);
+  }
   const data = pdf.output('datauristring');
   return data.includes('base64,') ? data.split('base64,')[1] : data;
 }
