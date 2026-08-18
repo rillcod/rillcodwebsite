@@ -1557,7 +1557,7 @@ ${body}
     padding: 3.4mm 8mm; border-radius: 2.4mm; box-shadow: 0 3px 8px rgba(153, 27, 27, 0.32);
     line-height: 1.1;
   }
-  h1 { font-size: 34pt; line-height: 1.12; margin: 7mm 0 13mm; color: #0f172a; letter-spacing: -.7px; max-width: 155mm; font-weight: 800; }
+  h1 { font-size: 34pt; line-height: 1.12; margin: 7mm 0 13mm; color: #0f172a; letter-spacing: -.7px; max-width: 172mm; font-weight: 800; }
   .cover-for-card {
     background: #f8fafc; border-left: 4.5mm solid #2563eb; padding: 4.5mm 6mm; margin-bottom: 0; border-radius: 0 2.5mm 2.5mm 0;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);

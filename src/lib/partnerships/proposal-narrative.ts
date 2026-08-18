@@ -35,7 +35,7 @@ export type ProposalNarrative = {
 
 /** The house pitch. Always valid, always the fallback, never worse than nothing. */
 export const AUTHORED_NARRATIVE: ProposalNarrative = {
-  headline: 'Technology and Innovation Hub',
+  headline: 'Technology & Innovation Hub',
   opening:
     'Ask a parent today why they chose a school and the answer has moved. They are not buying results alone any more — they are buying evidence that their child will be ready for work that does not exist yet. A visible coding and artificial intelligence programme, with real hardware in it, is the clearest signal a school can give that it is preparing them for it, and it is the reason a family chooses you over the school down the road. This proposal sets out how that programme runs in your school from next term, without you hiring a specialist, building a laboratory or writing a line of curriculum.',
   benefits: [
@@ -205,7 +205,7 @@ function coerce(raw: unknown): ProposalNarrative | null {
     /*
       The title is ours, not the model's.
 
-      "Technology and Innovation Hub" is what the document is called. It
+      "Technology & Innovation Hub" is what the document is called. It
       prints at the largest size on the cover, it is what a proprietor repeats
       to a colleague, and it is the same on every proposal we have ever sent —
       which is precisely what makes it worth something. A model rewriting it per
