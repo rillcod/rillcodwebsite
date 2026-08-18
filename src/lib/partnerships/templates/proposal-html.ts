@@ -1702,6 +1702,31 @@ ${body}
     an accident. Spread, they hold the sheet.
   */
   /*
+    Every sheet spreads its own content down the page.
+
+    Four of them did this and the rest did not, so a document read straight
+    through alternated between pages that filled A4 and pages that stopped
+    two-thirds down with their sections bunched under the running head. The rule
+    belongs to the sheet, not to the four sheets somebody happened to fix.
+
+    A page that is already full is untouched — there is no room to distribute. A
+    page with room spreads the gaps between its blocks evenly and the last block
+    reaches the bottom margin, which is the difference between a page that was
+    laid out and a page that ran out.
+
+    The cover is exempt: it is a poster, with its own masthead, band and footer
+    already spanning the sheet.
+  */
+  .page:not(.cover) {
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+  }
+  .page:not(.cover) > .pagehead { flex: none; }
+  /* Margins would fight the distribution — the gaps come from the spacing now,
+     and a trailing margin would push the last block off the bottom edge. */
+  .page:not(.cover) > section:last-child { margin-bottom: 0; }
+
+  /*
     And for the fee sheet, which changes height with the deal.
 
     A cold quote fills it — the chart, the recommended card, the alternates. Once
