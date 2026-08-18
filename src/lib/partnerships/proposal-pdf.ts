@@ -57,11 +57,11 @@ function naturalHeight(page: HTMLElement): number {
   return Math.max(page.scrollHeight, Math.round(page.getBoundingClientRect().height), A4.h);
 }
 
-async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string> {
+async function pageToJpeg(page: HTMLElement, pixelRatio: number, quality = 0.96): Promise<string> {
   const { toPng } = await import('html-to-image');
 
   const pngUrl = await toPng(page, {
-    pixelRatio: Math.max(pixelRatio, 3), // High-DPI 3x resolution for crystal clear text
+    pixelRatio,
     cacheBust: true,
     backgroundColor: '#ffffff',
     width: A4.w,
@@ -87,7 +87,7 @@ async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0);
-      resolve(c.toDataURL('image/jpeg', 0.96)); // 0.96 high quality compression
+      resolve(c.toDataURL('image/jpeg', quality));
     };
     img.src = pngUrl;
   });
@@ -99,7 +99,22 @@ async function pageToJpeg(page: HTMLElement, pixelRatio: number): Promise<string
  * `doc` is the iframe's own document, which is same-origin because the preview
  * is set through srcDoc.
  */
-export async function buildDocumentPdf(doc: Document): Promise<import('jspdf').jsPDF> {
+/**
+ * How finely each sheet is rasterised.
+ *
+ * A download is read on a screen and printed, so it is worth three times A4.
+ * An email attachment has to survive being posted as base64 inside a JSON
+ * request first, and ten sheets at that resolution do not: the request never
+ * arrives, and the server can only say it could not read it. Two is still
+ * beyond what a printer resolves and roughly halves the weight.
+ */
+export type PdfQuality = 'download' | 'email';
+const GRADES: Record<PdfQuality, { pixelRatio: number; quality: number }> = {
+  download: { pixelRatio: 3, quality: 0.96 },
+  email: { pixelRatio: 2, quality: 0.82 },
+};
+
+export async function buildDocumentPdf(doc: Document, grade: PdfQuality = 'download'): Promise<import('jspdf').jsPDF> {
   const { default: jsPDF } = await import('jspdf');
 
   // Wait for document fonts and all external assets to be fully ready
@@ -127,7 +142,7 @@ export async function buildDocumentPdf(doc: Document): Promise<import('jspdf').j
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [A4.w, A4.h] });
 
   for (let i = 0; i < pages.length; i++) {
-    const jpeg = await pageToJpeg(pages[i], 3);
+    const jpeg = await pageToJpeg(pages[i], GRADES[grade].pixelRatio, GRADES[grade].quality);
     const fit = fitPageToSheet(naturalHeight(pages[i]));
     if (i > 0) pdf.addPage([A4.w, A4.h], 'portrait');
     pdf.addImage(jpeg, 'JPEG', fit.x, fit.y, fit.width, fit.height, undefined, 'FAST');
@@ -144,7 +159,7 @@ export async function downloadDocumentPdf(doc: Document, filename: string): Prom
 
 /** The PDF as base64, ready to be posted for emailing. */
 export async function documentPdfBase64(doc: Document): Promise<string> {
-  const pdf = await buildDocumentPdf(doc);
+  const pdf = await buildDocumentPdf(doc, 'email');
   const data = pdf.output('datauristring');
   return data.includes('base64,') ? data.split('base64,')[1] : data;
 }

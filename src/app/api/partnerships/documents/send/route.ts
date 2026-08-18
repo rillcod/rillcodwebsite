@@ -41,7 +41,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   }
 
-  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  /*
+    An unreadable request is not a missing id.
+
+    This swallowed every parse failure into the same empty object, so a body
+    the server could not read — most likely a rasterised PDF too large to
+    post — came back as "An id is required." That sends whoever is debugging
+    it looking for a missing document, which is the one thing that cannot be
+    wrong here: the caller refuses to send without one.
+  */
+  let body: Record<string, unknown> | null = null;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          'The request could not be read — most often the attached PDF is too large to post. Try again without the attachment, or send the link instead.',
+      },
+      { status: 413 },
+    );
+  }
   const id = String(body.id ?? '').trim();
   if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
 

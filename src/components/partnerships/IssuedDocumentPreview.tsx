@@ -43,6 +43,14 @@ import { PartnershipConfirm } from "./PartnershipConfirm";
 
 /** A4 at 96dpi — the width every page in these templates lays out against. */
 const PAGE_W = 794;
+/**
+ * The most base64 an attachment may carry, in characters.
+ *
+ * Roughly six megabytes of encoded PDF. Past that the JSON request stops
+ * arriving, and the server can only report that it could not read it.
+ */
+const MAX_ATTACHMENT_CHARS = 6_000_000;
+
 /** Fallback height until the iframe reports how tall the document actually is. */
 const FRAME_H = 1500;
 
@@ -147,10 +155,24 @@ export function IssuedDocumentPreview({
     setError("");
     setNotice("");
     try {
+      /*
+        The attachment is dropped rather than allowed to sink the send.
+
+        The PDF is rasterised page by page at three times A4, so a ten-page
+        proposal encodes to tens of megabytes of base64 — more than a JSON
+        request survives. When that happens the document still has to reach
+        the school: the route sends it as HTML with the private link, which
+        is the whole point of the link.
+      */
       let pdf_base64: string | undefined;
+      let tooLarge = false;
       try {
         const doc = frameRef.current?.contentDocument;
-        if (doc) pdf_base64 = await documentPdfBase64(doc);
+        if (doc) {
+          const built = await documentPdfBase64(doc);
+          if (built.length > MAX_ATTACHMENT_CHARS) tooLarge = true;
+          else pdf_base64 = built;
+        }
       } catch {
         pdf_base64 = undefined;
       }
@@ -163,7 +185,10 @@ export function IssuedDocumentPreview({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not send that document.");
       setNotice(
-        `Sent to ${json.to} as ${json.format === "pdf" ? "a PDF" : "HTML"} — ${json.attachment}`,
+        `Sent to ${json.to} as ${json.format === "pdf" ? "a PDF" : "HTML"} — ${json.attachment}` +
+          (tooLarge
+            ? ". The PDF was too large to attach, so the document went as HTML with its link."
+            : ""),
       );
       setShowEmailField(false);
       setEmailTo("");
