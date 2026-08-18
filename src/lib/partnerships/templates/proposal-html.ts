@@ -935,7 +935,16 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     reference", so the agreed rate is still visibly one of a standard set
     rather than a number invented for this school.
   */
-  const figures = (): string => (input.agreedTerms ? '' : offersChart());
+  /*
+    The comparison chart prints when there is a comparison to make.
+
+    With the full menu it is the point of the page: three options, weighed
+    over a year. With one option recommended it repeats the card above it and
+    the two lines below it, at the size of a third of a sheet — and that third
+    of a sheet is what the fee promises needed, which were otherwise exiled to
+    a page of their own with nothing else on it.
+  */
+  const figures = (): string => (input.agreedTerms || quotedOffer ? '' : offersChart());
 
   /**
    * Scope of supply, on whichever of the two sheets has the room for it.
@@ -2474,15 +2483,11 @@ ${sheet(
       `  ${agreed}
 
 ${feesSection()}
-${supplySection(true)}`,
+${supplySection(true)}
+${noExtrasBlock()}`,
       'page page-fees',
     )}
 
-${sheet(
-      'What the fee covers',
-      `  ${noExtrasBlock()}`,
-      'page page-covers',
-    )}
 
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
 ${sheet(

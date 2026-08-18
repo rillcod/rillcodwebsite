@@ -271,7 +271,20 @@ describe('A4 Page-Fit and Overflow Guard', () => {
   };
 
   /** Everything a proposal needs before every section has something to draw. */
-  const fullInput = (studio: ReturnType<typeof defaultStudioConfig>): ProposalInput => ({
+  /*
+    Two shapes, because two sections cannot appear together by design.
+
+    The comparison chart belongs to the menu — three options weighed against
+    each other. The scope table and the fee promises belong to a quote where
+    one option has been picked, and they take the room the chart was using.
+    A single document can therefore never show all twenty sections at once, so
+    the sweep renders both and asks that every section prints in the shape
+    that owns it.
+  */
+  const fullInput = (
+    studio: ReturnType<typeof defaultStudioConfig>,
+    scope: string = 'B2',
+  ): ProposalInput => ({
     school: { name: 'Grange School Ikeja', city: 'Ikeja', state: 'Lagos' },
     reference: 'RC-PROP-TEST',
     dateLabel: '15 August 2026',
@@ -280,7 +293,7 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     proof: { partnerSchools: 42, students: 6500, years: 5 },
     // A picked option is what compresses the fees page enough for the scope
     // table to print there, which is the only place it prints.
-    scopeToOffer: 'B2',
+    scopeToOffer: scope,
     accessCode: '482915',
     validUntilLabel: '15 November 2026',
     narrative: AUTHORED_NARRATIVE,
@@ -359,9 +372,14 @@ describe('A4 Page-Fit and Overflow Guard', () => {
   });
 
   it('prints every studio section when the studio is complete', () => {
-    const html = buildPartnershipProposalHTML(fullInput(defaultStudioConfig()));
+    const picked = buildPartnershipProposalHTML(fullInput(defaultStudioConfig()));
+    const menu = buildPartnershipProposalHTML(fullInput(defaultStudioConfig(), ''));
     ALL_SECTIONS.forEach((key: ProposalSectionKey) => {
-      expect(html, `${key} should print when switched on`).toContain(SECTION_MARKERS[key]);
+      const marker = SECTION_MARKERS[key];
+      expect(
+        picked.includes(marker) || menu.includes(marker),
+        `${key} should print in one of the two shapes`,
+      ).toBe(true);
     });
   });
 
@@ -369,13 +387,17 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     ALL_SECTIONS.forEach((key: ProposalSectionKey) => {
       const studio = defaultStudioConfig();
       studio.sections[key] = false;
-      const html = buildPartnershipProposalHTML(fullInput(studio));
+      const scope = key === 'offersChart' ? '' : 'B2';
+      const html = buildPartnershipProposalHTML(fullInput(studio, scope));
 
       expect(html, `${key} should not print when switched off`).not.toContain(
         SECTION_MARKERS[key],
       );
 
-      ALL_SECTIONS.filter((other) => other !== key).forEach((other) => {
+      ALL_SECTIONS.filter((other) => other !== key)
+        // Sections the other shape owns are not expected in this one.
+        .filter((other) => (scope === '' ? !['offers', 'sideBySide'].includes(other) : other !== 'offersChart'))
+        .forEach((other) => {
         // The photo strips share one marker with the gallery, and the two
         // overview sheets trade sections between them, so a section that only
         // moved is not a section that vanished — every other marker must still
