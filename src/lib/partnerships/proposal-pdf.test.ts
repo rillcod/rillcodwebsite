@@ -27,6 +27,14 @@ describe('placing a captured page on its sheet', () => {
     expect(fit.height).toBe(A4.h);
   });
 
+  it('fills the sheet when a page is over by a hair', () => {
+    // A border or a rounded height should not inset the whole document.
+    const fit = fitPageToSheet(1140);
+    expect(fit.scaled).toBe(false);
+    expect(fit.width).toBe(A4.w);
+    expect(fit.x).toBe(0);
+  });
+
   it('scales a long page down to the sheet instead of cutting it', () => {
     const fit = fitPageToSheet(1300);
     expect(fit.scaled).toBe(true);

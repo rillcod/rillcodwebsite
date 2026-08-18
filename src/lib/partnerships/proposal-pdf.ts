@@ -47,6 +47,24 @@ export function fitPageToSheet(naturalHeight: number): {
 } {
   const height = Math.max(1, Math.round(naturalHeight) || A4.h);
   if (height <= A4.h) return { width: A4.w, height: A4.h, x: 0, y: 0, scaled: false };
+
+  /*
+    A page barely over the sheet fills it; only a genuinely long one is inset.
+
+    Scaling to fit keeps the page's proportions, which means a narrower image on
+    a full-width sheet — white bars down both sides. That is the right trade for
+    a page carrying an extra section, and quite wrong for one a few pixels over
+    from a border or a rounded height: the reader sees a document that does not
+    fit its own paper, over an overshoot nobody could point to.
+
+    Within a small tolerance the page is simply drawn to the full sheet. The
+    distortion is a fraction of a percent — far below anything the eye reads as
+    stretched — and it is the difference between a document that looks printed
+    and one that looks pasted.
+  */
+  const overshoot = height / A4.h - 1;
+  if (overshoot <= 0.02) return { width: A4.w, height: A4.h, x: 0, y: 0, scaled: false };
+
   const scale = A4.h / height;
   const width = A4.w * scale;
   return { width, height: A4.h, x: (A4.w - width) / 2, y: 0, scaled: true };
