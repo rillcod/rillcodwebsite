@@ -18,7 +18,7 @@
  * print; `allow-modals` lets the print dialog open at all.
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -249,22 +249,48 @@ export function IssuedDocumentPreview({
   const [paneW, setPaneW] = useState(initialPaneW);
   const [docH, setDocH] = useState(FRAME_H);
 
+  /*
+    The elements are held in state, not only in refs, because of when they
+    arrive.
+
+    This whole overlay renders inside a portal that returns null until its own
+    effect has run. So on the render that sets these effects up, neither the pane
+    nor the frame is in the document yet: both read null, both give up, and
+    nothing ever changes their dependencies to make them try again. The frame
+    stayed at its 1500px placeholder for the life of the overlay, which clipped a
+    ten-sheet proposal to a sheet and a third — the document opened and would not
+    scroll past the first page.
+
+    A callback ref fires when the node actually attaches, so the measurements
+    start when there is something to measure.
+  */
+  const [paneEl, setPaneEl] = useState<HTMLDivElement | null>(null);
+  const [frameEl, setFrameEl] = useState<HTMLIFrameElement | null>(null);
+  const attachPane = useCallback((node: HTMLDivElement | null) => {
+    paneRef.current = node;
+    setPaneEl(node);
+  }, []);
+  const attachFrame = useCallback((node: HTMLIFrameElement | null) => {
+    frameRef.current = node;
+    setFrameEl(node);
+  }, []);
+
   useLayoutEffect(() => {
-    const el = paneRef.current;
+    const el = paneEl;
     if (!el) return;
     const measure = () => setPaneW(Math.max(280, el.clientWidth - 24));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [loading]);
+  }, [paneEl, loading]);
 
   useEffect(() => {
     setDocH(FRAME_H);
   }, [framedHtml]);
 
   useEffect(() => {
-    const frame = frameRef.current;
+    const frame = frameEl;
     if (!frame || !framedHtml || loading) return;
 
     const updateHeight = () => {
@@ -297,7 +323,7 @@ export function IssuedDocumentPreview({
       frame.removeEventListener("load", onLoad);
       timers.forEach(window.clearTimeout);
     };
-  }, [framedHtml, loading]);
+  }, [frameEl, framedHtml, loading]);
 
   const fitScale = Math.min(1, Math.max(0.25, paneW / PAGE_W));
   const phone = paneW < PAGE_W;
@@ -562,7 +588,7 @@ export function IssuedDocumentPreview({
           </div>
         ) : (
           <div
-            ref={paneRef}
+            ref={attachPane}
             className="bg-slate-100 dark:bg-slate-950 p-3 pb-28 md:p-8"
           >
             <div
@@ -570,7 +596,7 @@ export function IssuedDocumentPreview({
               style={{ width: PAGE_W * scale, height: sheetH * scale }}
             >
               <iframe
-                ref={frameRef}
+                ref={attachFrame}
                 srcDoc={framedHtml}
                 title={`${kind === "mou" ? "MoU" : "Proposal"} ${reference}`}
                 sandbox="allow-same-origin allow-modals"
