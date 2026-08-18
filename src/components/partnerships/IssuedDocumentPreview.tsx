@@ -441,7 +441,7 @@ export function IssuedDocumentPreview({
                 ) : (
                   <EnvelopeIcon className="w-3.5 h-3.5" />
                 )}
-                {sending ? "Sending…" : "Email PDF"}
+                {sending ? "Sending…" : liveStatus === "sent" ? "Send again" : "Send to the school"}
               </button>
             )}
 
