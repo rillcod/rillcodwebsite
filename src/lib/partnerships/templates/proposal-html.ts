@@ -388,6 +388,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     return chunkLevels(levels)
       .map((group, i) => {
         const range = gradeRange(group);
+        nextSheetNumber();
         return `<div class="page page-pathway">
   <div class="pagehead"><span><b>${esc(title)}</b>${range ? ` · ${esc(range)}` : ''}</span><span>${esc(curriculum?.title ?? '')}</span></div>
   ${
@@ -739,6 +740,45 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
     </div>
     <p class="muted">Our share covers the facilitators, the devices and hardware kits, the learning platform and the termly reporting. The school's proposed share follows enrolment each ${esc(u.cycle)}.</p>
   </section>`;
+  };
+
+  /**
+   * The money page's opening line, worked from this school's own roll.
+   *
+   * Every other page leads with a sentence that says what the page is for. This
+   * one — the page a head teacher rereads, and the only page about their money —
+   * opened on a section heading and a bar chart, and left the reader to find the
+   * figure in the last column of a table further down.
+   *
+   * So it says it first, in the register a proprietor thinks in: the fullest
+   * scenario on the page, per term, and what that comes to across a session. No
+   * new arithmetic — it names the row the table already prints, so the hook and
+   * the figures cannot disagree. Nothing is claimed when there is nothing to
+   * work from: a menu of options with no chosen rate, or a school whose roll is
+   * not on file, gets no hook rather than an invented one.
+   */
+  const moneyHook = (): string => {
+    const u = input.upside;
+    if (!u || !on('upside')) return '';
+    if (u.mode === 'menu' || u.mode === 'illustrative') return '';
+
+    const best = u.total ?? u.rows[u.rows.length - 1];
+    if (!best || !(best.schoolShare > 0)) return '';
+
+    const cycle = String(u.cycle || 'term').toLowerCase();
+    const stated = input.agreedTerms ? 'agreed' : 'proposed';
+    // Three terms make a session, and only where a term is the billing cycle.
+    // Multiplying anything else by three would be inventing a number.
+    const session =
+      cycle === 'term' ? ` — ${money(best.schoolShare * 3)} across a full session` : '';
+    const at =
+      u.mode === 'package'
+        ? 'On the package as it stands'
+        : best.students > 0
+          ? `At ${best.students} enrolled`
+          : 'At full uptake';
+
+    return `<p class="hook">${at}, ${esc(input.school.name)} earns ${money(best.schoolShare)} per ${esc(cycle)}${session}, as the ${stated} ${u.sharePercent}% share of programme fees.</p>`;
   };
 
   const upsideBlock = (): string => {
@@ -1216,10 +1256,27 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    * the school name and the reference beside it are the untrusted halves, and
    * those are escaped.
    */
+  /*
+    Page numbers are written into the page, not counted by the stylesheet.
+
+    They were a CSS counter — `counter-increment` on each sheet, printed through
+    a `::before`. That resolves in a browser and in print, and nowhere else. The
+    PDF a school is emailed is built by rasterising each sheet on its own, and a
+    sheet lifted out of the document has no counter to count: every page came out
+    with the number missing.
+
+    Counted here instead, in the one place a sheet is emitted, so the number is
+    ordinary text that survives being printed, rasterised or copied. The cover is
+    not numbered and does not count — the sheet after it is Page 1, which is how
+    a reader refers to it on the phone.
+  */
+  let sheetsSoFar = 0;
+  const nextSheetNumber = () => (sheetsSoFar += 1);
+
   const sheet = (label: string, body: string, cls = 'page'): string => {
     if (!body.trim()) return '';
     return `<div class="${cls}">
-  <div class="pagehead"><span><b>${label}</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
+  <div class="pagehead"><span><b>${label}</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)} · Page ${nextSheetNumber()}</span></div>
 
 ${body}
 </div>`;
@@ -1550,8 +1607,22 @@ ${body}
   }
   .proof-tile.c1, .proof-tile.c2, .proof-tile.c3 { border-top-color: #dc2626; }
   .proof-n { display: block; font-size: 14pt; font-weight: 800; color: #0f172a; letter-spacing: -.3px; line-height: 1; white-space: nowrap; }
+  /*
+    The masthead band keeps its own scale.
+
+    These are not read, they are counted: a number and the word under it, sized
+    to sit in a row beside the wordmark and the scan card. Raised to the 10pt
+    floor with nowrap on, each tile demanded the width of "SCHOOLS PARTNERED"
+    set large, the row grew past its half of the band, and the third tile ran
+    underneath the QR. Nothing in the head lined up any more.
+
+    So the floor stops at the masthead. Everything a proprietor actually reads —
+    every clause, every fee, every line of the curriculum — is 10pt or larger;
+    this is a caption on a logo band, and it belongs at the size the band was
+    drawn for.
+  */
   .proof-l {
-    display: block; font-size: 10pt; color: #64748b; margin-top: 1mm;
+    display: block; font-size: 6.2pt; color: #64748b; margin-top: 1mm;
     text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap;
   }
   .proof-dark .proof-tile { background: rgba(255,255,255,.09); backdrop-filter: blur(8px); border-top-color: #f87171; }
@@ -1878,7 +1949,7 @@ ${body}
   .page-money .upside-col table.compact th { padding: 2.4mm 2.4mm; }
   .page-money .upside-col table.compact td { padding: 2.6mm 2.4mm; }
   .page-money .value {
-    flex: 1; min-height: 0; grid-template-rows: 1fr;
+    flex: none; height: 57mm; min-height: 0; grid-template-rows: 1fr;
   }
   .page-money .value-photo { height: 100%; min-height: 0; max-height: none; }
   .page-money .value-photo img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
@@ -2034,6 +2105,14 @@ ${body}
     font-size: 10pt; color: #64748b; margin: 2.4mm 0 0; padding-top: 2.2mm;
     border-top: 1px solid #e2e8f0; line-height: 1.4;
   }
+  /* The panel is as tall as the photograph beside it; the copy spreads to meet
+     it instead of stacking at the top and leaving a band of grey. */
+  .page-money .value-copy { justify-content: space-between; padding: 3.6mm 4.5mm; }
+  .page-money .value-copy p { line-height: 1.45; }
+  .page-money .value-note { margin-top: 2mm; }
+  /* Portrait frame in a landscape slot: hold the crop on the table, where the
+     hands and the board are, rather than centring on a row of heads. */
+  .page-money .value-photo img { object-position: center 62%; }
 
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {
@@ -2148,13 +2227,6 @@ ${body}
   .sign-rule { border-top: 1.5px solid #0f172a; }
   .sign-name { font-weight: 700; color: #0f172a; margin-top: 2mm; font-size: 10pt; }
   .sign-meta { font-size: 10pt; color: #64748b; margin-top: .4mm; }
-  /* The cover is a cover, not page one. It carries no number, and the sheet
-     after it is 1 — which is how a proposal is read and how a reader refers to
-     it on the phone. Counted, so switching a section off in the studio
-     renumbers the rest instead of leaving a gap. */
-  body { counter-reset: sheet 0; }
-  .page:not(.cover) { counter-increment: sheet; }
-  .pno::before { content: ' · Page ' counter(sheet); }
 
   .pagehead { display: flex; justify-content: space-between; border-bottom: 2.5px solid #991b1b; padding-bottom: 2.8mm; margin-bottom: 6mm; font-size: 10pt; color: #64748b; }
   .pagehead b { color: #0f172a; font-weight: 700; }
@@ -2412,7 +2484,8 @@ ${noExtrasBlock()}`,
 <!-- The money page. Its own sheet, because a head teacher reads this one twice. -->
 ${sheet(
       "The school's share",
-      `  ${splitBlock()}
+      `${moneyHook()}
+  ${splitBlock()}
 
   ${upsideBlock()}
 
@@ -2480,7 +2553,7 @@ ${sheet(
      emitted: the close carries the signature block, so this sheet must never
      depend on a section the studio can switch off. -->
 <div class="page page-close">
-  <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)}<span class="pno"></span></span></div>
+  <div class="pagehead"><span><b>Getting started</b> · ${esc(input.school.name)}</span><span>${esc(input.reference)} · Page ${nextSheetNumber()}</span></div>
 
 ${on('whyNow') ? `  <section>
     <div class="rule"></div>

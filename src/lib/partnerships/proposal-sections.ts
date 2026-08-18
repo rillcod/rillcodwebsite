@@ -36,15 +36,17 @@ export const PARTNERSHIP_PHOTOS: readonly string[] = [
 ];
 
 /**
- * The seventh frame, for the money page only: a class running, code on the board.
+ * The seventh frame, for the money page only: a build in progress, hands in it.
  *
- * The other six already prove the programme on the close. This one sits next
- * to the figures so a proprietor sees what a parent would be paying for —
- * a facilitator teaching coding and AI, not a robotics kit on a desk.
- * Not one of the gallery six.
+ * The other six already prove the programme on the close. This one sits beside
+ * the figures, so it has to answer the question those figures raise — what is a
+ * parent paying for. A facilitator's hands guiding a board, children round the
+ * components, code open on the laptop behind them: the specialist, the kit and
+ * the work, in one frame. It replaces a dim wide shot of a room, which proved
+ * a class was happening and nothing else. Not one of the gallery six.
  */
 export const REASON_TO_PAY_PHOTO =
-  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM.jpeg';
+  '/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.01 PM.jpeg';
 
 export type Discipline = { name: string; body: string };
 

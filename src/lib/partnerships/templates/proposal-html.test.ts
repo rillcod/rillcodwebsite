@@ -4,6 +4,7 @@ import { PARTNERSHIP_OFFERS } from '../offers';
 import type { CurriculumProgression } from '../curriculum';
 import type { PartnershipTerms } from '../terms';
 import { defaultStudioConfig } from '../studio-config';
+import { REASON_TO_PAY_PHOTO } from '../proposal-sections';
 import { PARTNERSHIP_PHOTOS } from '../proposal-sections';
 import { AUTHORED_NARRATIVE } from '../proposal-narrative';
 
@@ -45,6 +46,10 @@ const curriculum: CurriculumProgression = {
 
 const school = { name: 'Bay-Flowers International School', city: 'Benin City', state: 'Edo' };
 const base = { school, curriculum, reference: 'RC-PROP-0007', dateLabel: '14 August 2026' };
+
+
+/** The money-page photograph as it appears in a src attribute. */
+const REASON_PHOTO_SRC = REASON_TO_PAY_PHOTO.split('/').filter(Boolean).map(encodeURIComponent).join('/');
 
 describe('the partnership proposal', () => {
   it('names the school it was prepared for', () => {
@@ -371,11 +376,11 @@ describe('the photographs a proposal actually prints', () => {
   it('prints all six across the two strips, none twice', () => {
     const html = buildPartnershipProposalHTML({ ...base, studio: defaultStudioConfig() });
     const srcs = [...html.matchAll(/<img src="([^"]*EVENTS[^"]*)"/g)].map((m) => m[1]);
-    const gallery = srcs.filter((src) => !src.includes('7.30.03%20PM.jpeg'));
+    const gallery = srcs.filter((src) => !src.includes(REASON_PHOTO_SRC));
 
     expect(gallery).toHaveLength(6);
     expect(new Set(gallery).size).toBe(6);
-    expect(srcs.some((src) => src.includes('7.30.03%20PM.jpeg'))).toBe(true);
+    expect(srcs.some((src) => src.includes(REASON_PHOTO_SRC))).toBe(true);
   });
 
   it('still lets the studio clear them deliberately', () => {
@@ -386,7 +391,7 @@ describe('the photographs a proposal actually prints', () => {
     // The money-page photograph is not the gallery. Clearing the strip
     // must not take the reason-to-pay frame with it.
     expect(html).toContain('What a parent would be paying for');
-    expect(html).toContain('7.30.03%20PM.jpeg');
+    expect(html).toContain(REASON_PHOTO_SRC);
   });
 });
 

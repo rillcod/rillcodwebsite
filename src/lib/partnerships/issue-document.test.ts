@@ -11,6 +11,7 @@ import {
   refreshPartnershipDocument,
 } from './issue-document';
 import { MissingPartnershipTermsError } from './terms';
+import { REASON_TO_PAY_PHOTO } from './proposal-sections';
 
 const SCHOOL = {
   id: 'school-1',
@@ -265,7 +266,7 @@ describe('issuing a proposal', () => {
     expect(returnPage).not.toContain('Prepared from the school\'s roll');
     expect(returnPage).not.toContain('class="picked"');
     expect(returnPage).toContain('What a parent would be paying for');
-    expect(returnPage).toContain('7.30.03%20PM.jpeg');
+    expect(returnPage).toContain(REASON_TO_PAY_PHOTO.split('/').filter(Boolean).map(encodeURIComponent).join('/'));
     expect(returnPage).toContain('>Students<');
   });
 

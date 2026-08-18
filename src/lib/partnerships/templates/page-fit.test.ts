@@ -6,6 +6,7 @@ import { buildPartnershipMouHTML, type MouInput } from './mou-html';
 import { defaultStudioConfig, ALL_SECTIONS, type ProposalSectionKey } from '../studio-config';
 import { PARTNERSHIP_OFFERS } from '../offers';
 import { AUTHORED_NARRATIVE } from '../proposal-narrative';
+import { REASON_TO_PAY_PHOTO } from '../proposal-sections';
 import { hasSignatureSlot } from '../signing';
 
 const MOCK_CURRICULUM = {
@@ -42,6 +43,10 @@ function extractPages(html: string): string[] {
     return end > 0 ? p.slice(0, end) : p;
   });
 }
+
+
+/** The money-page photograph as it appears in a src attribute. */
+const REASON_PHOTO_SRC = REASON_TO_PAY_PHOTO.split('/').filter(Boolean).map(encodeURIComponent).join('/');
 
 describe('A4 Page-Fit and Overflow Guard', () => {
   it('renders standard full-scale proposal across bounded discrete A4 pages', () => {
@@ -218,7 +223,7 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     expect(returnPage).toContain('upside-row');
     expect(returnPage).toContain('class="value"');
     expect(html).toContain('page-money');
-    expect(returnPage).toContain('7.30.03%20PM.jpeg');
+    expect(returnPage).toContain(REASON_PHOTO_SRC);
     expect(returnPage).toContain('>Students<');
     expect(returnPage).not.toContain('How and when');
     // Four columns beside the chart, not five.
@@ -327,10 +332,22 @@ describe('A4 Page-Fit and Overflow Guard', () => {
     }
   });
 
+  /*
+    One exemption, named here so it stays one.
+
+    The cover's proof band is a caption on a logo strip — a number and the word
+    under it, sized to sit in a row beside the wordmark and the scan card. At
+    10pt with nowrap the tiles demanded more width than the band has, the row
+    grew, and the third tile printed underneath the QR. It is the only place in
+    either document where type is set below the floor, and it is not read the way
+    a clause is read.
+  */
+  const EXEMPT = /\.proof-l \{[^}]*\}/g;
+
   it('sets no type below 10pt in either document', () => {
     const sources = [
-      ['the proposal', readFileSync(join(__dirname, 'proposal-html.ts'), 'utf8')],
-      ['the MoU', readFileSync(join(__dirname, 'mou-html.ts'), 'utf8')],
+      ['the proposal', readFileSync(join(__dirname, 'proposal-html.ts'), 'utf8').replace(EXEMPT, '')],
+      ['the MoU', readFileSync(join(__dirname, 'mou-html.ts'), 'utf8').replace(EXEMPT, '')],
     ] as const;
 
     for (const [name, source] of sources) {
