@@ -193,13 +193,77 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * End the deal in force, without putting another in its place.
+ *
+ * Recording terms is easy to do to the wrong school, and until now there was no
+ * way back: an agreed row cannot be deleted — invoices billed on it and
+ * agreements were signed against it — and the only other path was to supersede
+ * it, which requires a replacement deal the desk does not have. So a rate
+ * entered by mistake stood for ever, and the school read as a partner on terms
+ * nobody had agreed.
+ *
+ * Ending it keeps the row and stops it applying: the same close a supersede
+ * performs, minus the successor. The school goes back to having no agreed rate,
+ * which is the truth, and the desk asks for one again.
+ */
+export async function PATCH(req: NextRequest) {
+  const actor = await requireActor(true);
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const id = String(body.id ?? '').trim();
+  if (!id) return NextResponse.json({ error: 'An id is required.' }, { status: 400 });
+  if (String(body.action ?? '') !== 'end') {
+    return NextResponse.json({ error: 'The only change available here is ending the deal.' }, { status: 400 });
+  }
+
+  const { data: current } = await actor.db
+    .from('partnership_terms')
+    .select('id, school_id, status, version')
+    .eq('id', id)
+    .maybeSingle();
+  if (!current) return NextResponse.json({ error: 'Those terms do not exist.' }, { status: 404 });
+  if (current.status !== 'agreed') {
+    return NextResponse.json(
+      { error: 'Only the deal currently in force can be ended.' },
+      { status: 409 },
+    );
+  }
+
+  const { error } = await actor.db
+    .from('partnership_terms')
+    .update({ status: 'superseded', effective_to: new Date().toISOString().slice(0, 10) })
+    .eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: school } = await actor.db
+    .from('schools')
+    .select('name')
+    .eq('id', current.school_id)
+    .maybeSingle();
+
+  await logAudit(actor.db as any, {
+    action: 'end_partnership_terms',
+    actorId: actor.user.id,
+    resourceType: 'partnership_terms',
+    resourceId: id,
+    tableName: 'partnership_terms',
+    oldValue: `v${current.version} agreed`,
+    newValues: { school_id: current.school_id, school_name: school?.name ?? null, status: 'superseded' },
+  });
+
+  return NextResponse.json({ ended: true });
+}
+
+/**
  * Discard a set of terms that was never agreed.
  *
  * Drafts and proposals only. An agreed or superseded row is what some invoice
  * was billed on and what some agreement was signed against, so it stays —
- * superseding is how terms end, not deletion. The foreign key from
- * `partnership_agreements.terms_id` enforces the same thing one layer down; this
- * check exists so the answer is a sentence rather than a constraint name.
+ * ending or superseding is how terms stop applying, not deletion. The foreign
+ * key from `partnership_agreements.terms_id` enforces the same thing one layer
+ * down; this check exists so the answer is a sentence rather than a constraint
+ * name.
  */
 export async function DELETE(req: NextRequest) {
   const actor = await requireActor(true);
@@ -220,8 +284,8 @@ export async function DELETE(req: NextRequest) {
       {
         error:
           current.status === 'agreed'
-            ? 'These terms are in force. Record new agreed terms to supersede them — that keeps this row, which is what previously signed agreements point at.'
-            : 'Superseded terms are kept on purpose: an agreement signed earlier was signed against them.',
+            ? 'These terms are in force. End the deal to stop them applying, or record new agreed terms to supersede them — either way this row stays, because previously signed agreements point at it.'
+            : 'Terms that once applied are kept on purpose: an agreement signed earlier was signed against them.',
       },
       { status: 409 },
     );

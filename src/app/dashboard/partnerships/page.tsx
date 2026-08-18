@@ -423,12 +423,26 @@ export default function PartnershipsPage() {
     }
   }, [selected, loadingSchool, dealState]);
 
+  /*
+    Saving the deal leaves you looking at the deal.
+
+    This used to jump to the composer the moment terms were saved, on the theory
+    that the next step is the document. What it actually did was take the screen
+    away at the instant a person wanted confirmation: you changed a rate, pressed
+    supersede, and landed on the MoU form with the editor gone. The save had
+    worked every time — the banner behind you now read the new figure — but from
+    the chair it looked like the edit had been thrown away, which is a fair thing
+    to conclude when the form you were filling in disappears.
+
+    The next step is still announced, on the card above, with a button. Moving is
+    the operator's decision; the desk's job here is to show what was recorded.
+  */
   useEffect(() => {
     if (!termsJustSaved || loadingSchool || !dealState) return;
     setTermsJustSaved(false);
-    const action = dealState.action;
-    if (action?.kind) setComposeKind(action.kind);
-    setActiveTab(action?.tab === "terms" ? "terms" : "compose");
+    // Keep the document kind in step, so the switch offers the right one when
+    // they do go — but do not go for them.
+    if (dealState.action?.kind) setComposeKind(dealState.action.kind);
   }, [termsJustSaved, loadingSchool, dealState]);
 
   if (authLoading) {

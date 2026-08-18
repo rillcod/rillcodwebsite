@@ -36,6 +36,7 @@ import {
 } from "@/lib/partnerships/terms";
 import { termDisplay, useAcademicTerms } from "./useAcademicTerms";
 import type { BillingModel, SchoolRow, TermsRow } from "./types";
+import { PartnershipConfirm } from "./PartnershipConfirm";
 
 const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
@@ -225,6 +226,9 @@ export function PartnershipTermsEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  /** Ending the deal in force — asked for first, because it is not undoable. */
+  const [askEnd, setAskEnd] = useState(false);
+  const [ending, setEnding] = useState(false);
   const { terms: academicTerms } = useAcademicTerms();
 
   // Switching school (or superseding) reopens the form on the new deal in force.
@@ -339,6 +343,36 @@ export function PartnershipTermsEditor({
   // the only rows it is safe to remove.
   const unagreed = history.filter((t) => t.status === "draft" || t.status === "proposed");
 
+  /**
+   * Stop the agreed deal applying, without deleting it.
+   *
+   * The row is what invoices billed on and agreements were signed against, so
+   * it stays; ending it closes it off and leaves the school with no agreed
+   * rate, which is the honest state for a deal recorded in error.
+   */
+  async function endDeal() {
+    if (!agreed?.id) return;
+    setEnding(true);
+    setError("");
+    setSaved("");
+    try {
+      const res = await fetch("/api/partnerships/terms", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: agreed.id, action: "end" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not end that deal.");
+      setAskEnd(false);
+      setSaved("The deal has been ended. This school has no agreed rate until you record one.");
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not end that deal.");
+    } finally {
+      setEnding(false);
+    }
+  }
+
   async function discard(id: string) {
     if (!confirm("Delete these unagreed terms? Nothing was billed or signed against them.")) return;
     setError("");
@@ -393,6 +427,31 @@ export function PartnershipTermsEditor({
                   : ""}
               </p>
               {agreed.notes && <p className="text-[11px] text-muted-foreground mt-1.5">{agreed.notes}</p>}
+              {/*
+                The way out of a deal, said plainly and kept where the deal is.
+
+                A rate is easy to record against the wrong school, and there was
+                no way back: an agreed row cannot be deleted, and superseding it
+                needs a replacement deal you may not have. So the only visible
+                options were to live with it or invent one. This ends it — the
+                row stays on record, it stops applying, and the school goes back
+                to having no agreed rate.
+              */}
+              {canWrite && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAskEnd(true)}
+                    disabled={ending}
+                    className="min-h-[36px] px-3 rounded-lg border border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/15 text-[11px] font-bold disabled:opacity-40"
+                  >
+                    {ending ? "Ending…" : "End this deal"}
+                  </button>
+                  <span className="text-[11px] text-muted-foreground">
+                    Stops it applying. Documents already issued keep the terms they were issued with.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1052,6 +1111,16 @@ export function PartnershipTermsEditor({
           </ul>
         </details>
       )}
+
+      <PartnershipConfirm
+        open={askEnd}
+        title="End this deal?"
+        body={`${agreed?.summary || "The agreed terms"} stops applying from today. It stays on record, because documents already issued point at it — but this school will have no agreed rate, so an MoU cannot be issued until you record one. Proposals can still go out.`}
+        confirmLabel="End the deal"
+        busy={ending}
+        onCancel={() => { if (!ending) setAskEnd(false); }}
+        onConfirm={() => void endDeal()}
+      />
     </div>
   );
 }
