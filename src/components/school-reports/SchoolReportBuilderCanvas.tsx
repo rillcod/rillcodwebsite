@@ -44,42 +44,42 @@ type FieldKey = keyof EditorState;
 
 const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: number; list?: boolean; featured?: boolean }> = [
   {
-    key: 'executiveSummary',
-    label: 'Executive summary',
-    hint: 'One clear paragraph for school leadership — your voice, not a data dump.',
-    rows: 4,
-  },
-  {
     key: 'topicsCovered',
-    label: 'Report story',
-    hint: 'One or two sentences for school leaders — no statistics.',
+    label: 'Step 1 — What we taught (Curriculum delivery & Report story)',
+    hint: 'Confirm what was taught first — executive summary, achievements, and recommendations draw directly from this.',
     rows: 4,
     featured: true,
   },
   {
+    key: 'executiveSummary',
+    label: 'Step 2 — Executive summary',
+    hint: 'One clear paragraph for school leadership — your voice, not a data dump.',
+    rows: 4,
+  },
+  {
     key: 'achievements',
-    label: 'Strengths & excellence',
+    label: 'Step 3 — Strengths & excellence',
     hint: 'Factual wins from the data — one per line.',
     rows: 4,
     list: true,
   },
   {
     key: 'concerns',
-    label: 'Partnership focus',
+    label: 'Step 4 — Partnership focus',
     hint: 'What Rillcod and the school will do together — not audit language.',
     rows: 4,
     list: true,
   },
   {
     key: 'recommendations',
-    label: 'Recommendations',
+    label: 'Step 5 — Recommendations',
     hint: 'One action per line.',
     rows: 4,
     list: true,
   },
   {
     key: 'nextPeriodFocus',
-    label: 'Next module focus',
+    label: 'Step 6 — Next module focus',
     hint: 'Coherent next steps drawn from learner reports and curriculum — one per line.',
     rows: 4,
     list: true,
@@ -676,6 +676,15 @@ export function SchoolReportBuilderCanvas({
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
                 Refresh data
               </button>
+              <button
+                type="button"
+                onClick={() => setDataQualityOpen(true)}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-2 text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-500/20 transition-all sm:flex-none shadow-2xs"
+                title="View attendance rolls, score sources, and data readiness"
+              >
+                <EyeIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                Attendance & Data Health
+              </button>
               {onRefreshAndReady ? (
                 <button
                   type="button"
@@ -690,7 +699,17 @@ export function SchoolReportBuilderCanvas({
               ) : null}
             </div>
           ) : canManage && published ? (
-            <p className="text-[11px] font-bold text-muted-foreground">Unlock to refresh data or edit</p>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <p className="text-[11px] font-bold text-muted-foreground">Unlock to refresh data or edit</p>
+              <button
+                type="button"
+                onClick={() => setDataQualityOpen(true)}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-500/20 transition-all shadow-2xs"
+              >
+                <EyeIcon className="h-3.5 w-3.5" />
+                Attendance & Data Health
+              </button>
+            </div>
           ) : null}
         </div>
         {(aiNote || aiError) && (

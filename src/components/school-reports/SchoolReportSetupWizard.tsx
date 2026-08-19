@@ -145,8 +145,8 @@ export function SchoolReportSetupWizard({
     if (target === 2) return true;
     if (!preflightReady) return false;
     if (target === 3) return true;
-    if (target === 4) return deliveryReady && curriculumStepReady;
-    if (target === 5) return deliveryReady && curriculumStepReady;
+    if (target === 4) return curriculumStepReady;
+    if (target === 5) return curriculumStepReady;
     return true;
   }
 
@@ -156,9 +156,6 @@ export function SchoolReportSetupWizard({
     }
     if (target > 2 && !preflightReady) {
       return 'Run Step 2 preflight first so readiness checks can complete.';
-    }
-    if (target > 3 && !deliveryReady) {
-      return 'Select at least one delivered topic in Step 3 before continuing.';
     }
     if (target > 3 && !curriculumStepReady) {
       return 'Provide the curriculum override reason before continuing.';
