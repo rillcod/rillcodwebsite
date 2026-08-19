@@ -62,6 +62,73 @@ export const ACCENT_PRESETS = [
   { label: 'Charcoal', value: '#374151' },
 ] as const;
 
+/** Maps dark hex accents to high-contrast luminous colors for dark mode text and indicators. */
+export const DARK_ACCENT_TEXT_MAP: Record<string, string> = {
+  '#7a0606': '#f87171',
+  '#1e3a5f': '#60a5fa',
+  '#065f46': '#34d399',
+  '#5b21b6': '#c084fc',
+  '#374151': '#94a3b8',
+};
+
+/**
+ * Returns a CSS color value or style that ensures high contrast in both light and dark themes.
+ */
+export function resolveThemeAwareAccent(hexColor: string | undefined): {
+  base: string;
+  textClass: string;
+  borderClass: string;
+  bgLightClass: string;
+} {
+  const norm = String(hexColor || DEFAULT_ACCENT).toLowerCase().trim();
+  if (norm === '#7a0606') {
+    return {
+      base: norm,
+      textClass: 'text-[#7a0606] dark:text-red-400',
+      borderClass: 'border-[#7a0606]/30 dark:border-red-400/40',
+      bgLightClass: 'bg-[#7a0606]/10 dark:bg-red-500/15',
+    };
+  }
+  if (norm === '#1e3a5f') {
+    return {
+      base: norm,
+      textClass: 'text-[#1e3a5f] dark:text-blue-400',
+      borderClass: 'border-[#1e3a5f]/30 dark:border-blue-400/40',
+      bgLightClass: 'bg-[#1e3a5f]/10 dark:bg-blue-500/15',
+    };
+  }
+  if (norm === '#065f46') {
+    return {
+      base: norm,
+      textClass: 'text-[#065f46] dark:text-emerald-400',
+      borderClass: 'border-[#065f46]/30 dark:border-emerald-400/40',
+      bgLightClass: 'bg-[#065f46]/10 dark:bg-emerald-500/15',
+    };
+  }
+  if (norm === '#5b21b6') {
+    return {
+      base: norm,
+      textClass: 'text-[#5b21b6] dark:text-purple-400',
+      borderClass: 'border-[#5b21b6]/30 dark:border-purple-400/40',
+      bgLightClass: 'bg-[#5b21b6]/10 dark:bg-purple-500/15',
+    };
+  }
+  if (norm === '#374151') {
+    return {
+      base: norm,
+      textClass: 'text-[#374151] dark:text-slate-300',
+      borderClass: 'border-[#374151]/30 dark:border-slate-400/40',
+      bgLightClass: 'bg-[#374151]/10 dark:bg-slate-500/15',
+    };
+  }
+  return {
+    base: norm,
+    textClass: 'text-primary dark:text-primary',
+    borderClass: 'border-primary/30 dark:border-primary/40',
+    bgLightClass: 'bg-primary/10 dark:bg-primary/15',
+  };
+}
+
 export const SECTION_META: Array<{
   key: SchoolReportSectionKey;
   label: string;

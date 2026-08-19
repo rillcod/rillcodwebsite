@@ -69,17 +69,17 @@ export function TopicsDeliveryPanel({
   return (
     <div className="mb-4 space-y-3">
       {autoApplied ? (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-950 dark:text-emerald-100">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-200">
           <span className="font-black">Auto-applied delivery</span>
           {' '}from {deliveryDecl?.autoSource === 'tracking' ? 'week tracking' : 'programme catalog'}.
           Adjust topics below and apply to override — manual picks are preserved on refresh.
         </div>
       ) : deliveryDecl?.manualOverride ? (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-foreground">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
           <span className="font-black">Manual delivery confirmed</span> — refresh will keep your topic selection.
         </div>
       ) : !deliveryConfirmed ? (
-        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-950 dark:text-amber-100">
+        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
           <span className="font-black">Delivery not confirmed yet.</span>{' '}
           Tick the topics actually taught below, apply, then generate or edit the narrative — you can complete this any time while the report stays in draft.
         </div>
@@ -145,13 +145,13 @@ export function TopicsDeliveryPanel({
             <span className="font-black text-foreground">3. Edit</span> — refine the paragraph below for the PDF
           </li>
         </ol>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           {hasDraft ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => onInsertDraft(ctx.draftParagraph)}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-2.5 py-2 text-[11px] font-black text-emerald-800 disabled:opacity-50 dark:text-emerald-200 sm:w-auto"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-600/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 shadow-2xs transition-all disabled:opacity-50 dark:text-emerald-200 sm:w-auto"
             >
               {isEmpty ? 'Insert data draft' : 'Replace with data draft'}
             </button>
@@ -160,7 +160,7 @@ export function TopicsDeliveryPanel({
             type="button"
             disabled={busy}
             onClick={onGenerateAi}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg bg-primary px-2.5 py-2 text-[11px] font-black text-white disabled:opacity-50 sm:w-auto"
+            className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-black text-white hover:from-blue-700 hover:to-purple-700 shadow-sm transition-all disabled:opacity-50 sm:w-auto"
           >
             {aiWorking ? (
               <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />

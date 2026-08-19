@@ -90,7 +90,7 @@ export async function loadSchoolReportEvidence(
         .range(from, to)),
       fetchAllReportRows((from, to) => admin
         .from('attendance')
-        .select('user_id,student_id,status,term_id,created_at')
+        .select('user_id,student_id,status,term_id,created_at,class_sessions(term_id,session_date)')
         .or(`user_id.in.(${attendanceIdList}),student_id.in.(${attendanceIdList})`)
         .range(from, to)),
       fetchAllReportRows((from, to) => {

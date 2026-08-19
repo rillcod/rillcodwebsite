@@ -122,13 +122,23 @@ export function evidenceBelongsToSchoolTerm(
   return inDateWindow(stamp, range);
 }
 
-/** Attendance uses term_id when present; otherwise the date window. */
+/** Attendance uses term_id when present; otherwise class_sessions or date window. */
 export function attendanceBelongsToSchoolTerm(
-  row: { term_id?: string | null; created_at?: string | null },
+  row: {
+    term_id?: string | null;
+    created_at?: string | null;
+    class_sessions?:
+      | { term_id?: string | null; session_date?: string | null }
+      | Array<{ term_id?: string | null; session_date?: string | null }>
+      | null;
+  },
   range: EvidenceWindow,
 ): boolean {
-  if (range.academicTermId && row.term_id) {
-    return row.term_id === range.academicTermId;
+  const session = Array.isArray(row.class_sessions) ? row.class_sessions[0] : row.class_sessions;
+  const termId = row.term_id || session?.term_id;
+  if (range.academicTermId && termId) {
+    return termId === range.academicTermId;
   }
-  return inDateWindow(row.created_at, range);
+  const dateStamp = session?.session_date || row.created_at;
+  return inDateWindow(dateStamp, range);
 }

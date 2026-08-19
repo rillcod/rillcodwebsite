@@ -229,8 +229,8 @@ function collectTopicsFromCurricula(
     const programmeRel = Array.isArray(courseRel?.programs)
       ? courseRel.programs[0]
       : courseRel?.programs;
-    const programme = String(programmeRel?.name || "Programme");
-    const course = String(courseRel?.title || "Course");
+    const programme = String(programmeRel?.name || (content as any)?.programme || "Programme");
+    const course = String(courseRel?.title || (content as any)?.course_title || "Course");
 
     for (const term of terms) {
       const termNumber = Number(

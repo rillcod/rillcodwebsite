@@ -113,11 +113,11 @@ export async function POST(req: NextRequest) {
         weekNumbers: missingWeeks,
         reachedTopics,
       });
-      if (expansion.source === 'ai') aiCourseCount++;
-      else {
+
+      if (expansion.source === 'ai') {
+        aiCourseCount++;
+      } else {
         placeholderCourseCount++;
-        unresolvedCourses.push(`${course.programme} / ${course.title}`);
-        continue;
       }
 
       const weekByNumber = new Map(expansion.weeks.map((week) => [week.week, week]));

@@ -98,16 +98,16 @@ export function SchoolReportWorkspace({
       </div>
 
       <section aria-label="Report safeguards" className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-          <p className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Manual records protected</p>
+        <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 shadow-2xs">
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Manual records protected</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Teacher results and attendance rolls are read as evidence and are never rewritten here.</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-2xs">
           <p className="text-xs font-black uppercase tracking-wide text-primary">Curriculum connected</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">The report reads official delivery scope without changing curriculum direction.</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-xs font-black uppercase tracking-wide text-primary">Client output</p>
+        <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-muted/30 via-card to-card p-4 shadow-2xs">
+          <p className="text-xs font-black uppercase tracking-wide text-foreground">Client output</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the live book, then open the polished PDF before publishing or sharing.</p>
         </div>
       </section>

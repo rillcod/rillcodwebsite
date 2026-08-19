@@ -18,7 +18,7 @@ function SourceTag({ source }: { source: DeliveryTopicRow['source'] }) {
   const label =
     source === 'both' ? 'Curriculum + results' : source === 'curriculum' ? 'Weeks logged' : 'Results path';
   return (
-    <span className="rounded-full border border-border/70 bg-background px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+    <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] font-bold text-primary">
       {label}
     </span>
   );
@@ -26,19 +26,16 @@ function SourceTag({ source }: { source: DeliveryTopicRow['source'] }) {
 
 function TopicCard({ row, accent }: { row: DeliveryTopicRow; accent: string }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
-      <div className="h-1 shrink-0" style={{ backgroundColor: accent }} aria-hidden />
-      <div className="flex flex-1 flex-col p-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: accent }}>
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card p-4 shadow-2xs transition-all hover:shadow-md">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: accent }}>
           {formatProgrammeDisplay(row.programme)}
-        </p>
-        <p className="mt-1 text-sm font-black text-foreground">{formatCourseDisplay(row.course)}</p>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{row.weekRange}</p>
-        <p className="mt-2 text-xs text-muted-foreground">{row.evidence}</p>
-        <div className="mt-auto pt-3">
-          <SourceTag source={row.source} />
-        </div>
+        </span>
+        <SourceTag source={row.source} />
       </div>
+      <p className="mt-1.5 text-sm font-black text-foreground">{formatCourseDisplay(row.course)}</p>
+      <p className="mt-2 text-xs font-semibold text-muted-foreground">{row.weekRange}</p>
+      <p className="mt-1 text-xs text-muted-foreground/80 leading-relaxed">{row.evidence}</p>
     </div>
   );
 }

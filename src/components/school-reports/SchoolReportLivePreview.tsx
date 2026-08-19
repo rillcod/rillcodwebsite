@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   densityClasses,
   REPORT_SEMANTIC_COLORS,
+  resolveThemeAwareAccent,
   showReportSection,
   type SchoolReportDesignSettings,
   type SchoolReportPreviewDevice,
@@ -63,10 +64,11 @@ function PreviewSection({
   accent: string;
   children: ReactNode;
 }) {
+  const themeAccent = resolveThemeAwareAccent(accent);
   return (
     <section className="min-w-0">
       <div className="mb-2.5 flex items-center gap-2">
-        <div className="h-1 w-8 shrink-0 rounded-full" style={{ background: accent }} />
+        <div className="h-1 w-8 shrink-0 rounded-full bg-primary" style={{ background: accent }} />
         <h4 className="text-xs font-black uppercase tracking-[0.14em] text-foreground">{title}</h4>
       </div>
       <div className="min-w-0">{children}</div>
@@ -183,11 +185,21 @@ export function SchoolReportLivePreview({
     || (show('appendixPayment') && finance && finance.totalPaid > 0);
 
   return (
-    <div className="w-full min-w-0">
-      <article className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-lg">
+    <div
+      className={`relative mx-auto w-full transition-all ${
+        device === 'mobile'
+          ? 'max-w-md'
+          : device === 'tablet'
+            ? 'max-w-2xl'
+            : 'max-w-4xl'
+      }`}
+    >
+      <article
+        className={`rounded-2xl border border-border/80 bg-card text-card-foreground shadow-sm ${density.card}`}
+      >
         <header
-          className={`border-b px-4 py-4 sm:px-5 sm:py-5 ${
-            design.headerStyle === 'minimal' ? 'border-border bg-card' : 'border-b-2 bg-card'
+          className={`border-b border-border/80 ${density.header} ${
+            design.headerStyle === 'minimal' ? 'bg-transparent' : 'bg-muted/30'
           }`}
           style={
             design.headerStyle === 'minimal'
@@ -201,7 +213,7 @@ export function SchoolReportLivePreview({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {design.showLogo ? (
-                <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>
+                <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${themeAccent.textClass}`}>
                   Rillcod Technologies
                 </p>
               ) : null}
@@ -209,7 +221,7 @@ export function SchoolReportLivePreview({
               <h1 className={`mt-2 break-words font-black leading-snug ${density.heading} sm:text-base`}>
                 {report.title}
               </h1>
-              <p className="mt-1 break-words text-sm font-bold" style={{ color: accent }}>
+              <p className={`mt-1 break-words text-sm font-black ${themeAccent.textClass}`}>
                 {snapshot.school?.name || 'Partner school'}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -217,10 +229,11 @@ export function SchoolReportLivePreview({
               </p>
             </div>
             <span
-              className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-black uppercase ${
-                report.status === 'published' ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground'
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-[11px] font-black uppercase shadow-2xs ${
+                report.status === 'published'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
               }`}
-              style={report.status === 'published' ? undefined : { background: accent }}
             >
               {report.status === 'published' ? 'Published' : draft ? 'Draft preview' : 'Draft'}
             </span>
@@ -228,13 +241,16 @@ export function SchoolReportLivePreview({
         </header>
 
         <div className={`flex flex-col ${density.page}`}>
-          <div className={`grid gap-2 sm:gap-3 ${layout.statsGrid}`}>
-            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
-              <p className="text-[11px] font-black uppercase text-muted-foreground">Active Learners</p>
-              <p className="mt-1 text-2xl font-black text-foreground">{snapshot.summary?.activeStudents ?? 0}</p>
-              <p className="text-xs text-muted-foreground">{snapshot.summary?.studentsWithScores ?? 0} with scores</p>
+          <div className={`grid gap-2.5 sm:gap-3.5 ${layout.statsGrid}`}>
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-primary/10 via-card to-card p-3.5 text-center shadow-2xs">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-black mb-1">
+                👥
+              </span>
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Active Learners</p>
+              <p className="mt-0.5 text-2xl font-black text-foreground">{snapshot.summary?.activeStudents ?? 0}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">{snapshot.summary?.studentsWithScores ?? 0} with scores</p>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-emerald-500/5 to-transparent p-3 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-emerald-500/10 via-card to-card p-3.5 text-center shadow-2xs">
               <RadialRing
                 value={Number(snapshot.summary?.averageScore || 0)}
                 size={layout.ringSize}
@@ -242,9 +258,9 @@ export function SchoolReportLivePreview({
                 color={REPORT_SEMANTIC_COLORS.emerald}
                 label={pct(snapshot.summary?.averageScore)}
               />
-              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Average Score</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Average Score</p>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-teal-500/5 to-transparent p-3 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-teal-500/10 via-card to-card p-3.5 text-center shadow-2xs">
               <RadialRing
                 value={Number(snapshot.summary?.attendanceRate || 0)}
                 size={layout.ringSize}
@@ -252,9 +268,9 @@ export function SchoolReportLivePreview({
                 color={REPORT_SEMANTIC_COLORS.teal}
                 label={pct(snapshot.summary?.attendanceRate)}
               />
-              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Attendance</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Attendance</p>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-primary/10 via-card to-card p-3.5 text-center shadow-2xs">
               <RadialRing
                 value={Number(snapshot.summary?.curriculumCoverage || 0)}
                 size={layout.ringSize}
@@ -262,7 +278,7 @@ export function SchoolReportLivePreview({
                 color={accent}
                 label={pct(snapshot.summary?.curriculumCoverage)}
               />
-              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Curriculum</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Curriculum</p>
             </div>
           </div>
 

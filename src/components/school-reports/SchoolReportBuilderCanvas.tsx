@@ -654,8 +654,10 @@ export function SchoolReportBuilderCanvas({
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`inline-flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black transition ${
-                tab === id ? 'bg-primary text-white shadow-sm' : 'bg-muted text-muted-foreground hover:text-foreground'
+              className={`inline-flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                tab === id
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm'
+                  : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -664,12 +666,12 @@ export function SchoolReportBuilderCanvas({
           ))}
           </div>
           {canManage && !published ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void onRegenerate(false)}
-                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-xs font-black disabled:opacity-50 sm:flex-none"
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted/40 transition-all disabled:opacity-50 sm:flex-none shadow-2xs"
               >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
                 Refresh data
@@ -679,7 +681,7 @@ export function SchoolReportBuilderCanvas({
                   type="button"
                   disabled={busy}
                   onClick={() => void onRefreshAndReady()}
-                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-black text-white disabled:opacity-50 sm:flex-none"
+                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-black text-white hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 sm:flex-none shadow-sm"
                   title="Refresh snapshot, auto-apply delivery from tracking, and regenerate AI narrative"
                 >
                   <SparklesIcon className={`h-3.5 w-3.5 ${working === 'refresh-ready' ? 'animate-spin' : ''}`} />

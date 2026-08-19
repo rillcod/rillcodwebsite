@@ -16,9 +16,9 @@ type Props = {
 };
 
 const toneClass: Record<SegmentTone, string> = {
-  neutral: 'border-border/80 bg-card',
-  brand: 'border-primary/30 bg-primary/[0.04]',
-  emerald: 'border-emerald-500/30 bg-emerald-500/[0.04]',
+  neutral: 'border-border/80 bg-card/95',
+  brand: 'border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-card',
+  emerald: 'border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.04] via-card to-card',
 };
 
 export function SegmentPanel({

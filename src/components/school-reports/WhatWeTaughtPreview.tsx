@@ -84,7 +84,7 @@ export function WhatWeTaughtPreview({
           <div
             className={
               courseGridClass ||
-              `grid grid-cols-1 gap-3 ${courseCards.length >= 2 ? 'sm:grid-cols-2' : ''} ${
+              `grid grid-cols-1 gap-3.5 ${courseCards.length >= 2 ? 'sm:grid-cols-2' : ''} ${
                 courseCards.length >= 3 ? 'lg:grid-cols-3' : ''
               }`
             }
@@ -92,22 +92,31 @@ export function WhatWeTaughtPreview({
             {courseCards.map((item) => (
               <article
                 key={`${item.programme}-${item.course}`}
-                className={`min-w-0 rounded-xl border bg-card/90 p-3 ${
-                  embedded ? 'border-border/70' : 'border-border/80 shadow-sm sm:p-3.5'
+                className={`min-w-0 rounded-2xl border bg-card/95 p-3.5 transition-all hover:shadow-md ${
+                  embedded ? 'border-border/70' : 'border-border/80 shadow-2xs sm:p-4'
                 }`}
               >
-                <p className="text-[10px] font-black uppercase tracking-wide text-primary break-words">{item.programme}</p>
-                <h4 className={`mt-1 font-black text-foreground break-words ${embedded ? 'text-sm' : 'text-sm'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center rounded-md bg-gradient-to-r from-blue-600/10 to-purple-600/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary border border-primary/20">
+                    {item.programme}
+                  </span>
+                  <span className="text-[10px] font-bold text-muted-foreground">
+                    {item.topics.length} topic{item.topics.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <h4 className={`mt-2 font-black text-foreground break-words ${embedded ? 'text-sm' : 'text-sm'}`}>
                   {item.course}
                 </h4>
                 {item.topics.length ? (
-                  <ul className="mt-2 space-y-1.5 border-t border-border/60 pt-2">
-                    {item.topics.map((topic) => (
+                  <ul className="mt-2.5 space-y-1.5 border-t border-border/60 pt-2.5">
+                    {item.topics.map((topic, idx) => (
                       <li
-                        key={`${item.course}-${topic}`}
-                        className={`flex gap-2 leading-snug text-foreground ${embedded ? 'text-xs' : 'text-[12px]'}`}
+                        key={`${item.course}-${topic}-${idx}`}
+                        className={`flex items-start gap-2 leading-snug text-foreground ${embedded ? 'text-xs' : 'text-[12px]'}`}
                       >
-                        <span className="mt-0.5 shrink-0 font-black text-primary">•</span>
+                        <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-primary/10 text-[9px] font-bold text-primary">
+                          ✓
+                        </span>
                         <span className="min-w-0 break-words">{topic}</span>
                       </li>
                     ))}
@@ -120,10 +129,10 @@ export function WhatWeTaughtPreview({
 
         {presentation.closing ? (
           <p
-            className={`leading-relaxed break-words ${
+            className={`leading-relaxed break-words rounded-xl border p-3.5 ${
               embedded
-                ? 'text-xs italic text-muted-foreground'
-                : 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-950 dark:text-amber-100'
+                ? 'border-border/60 bg-muted/20 text-xs italic text-muted-foreground'
+                : 'border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent text-xs text-amber-950 dark:text-amber-100 font-medium'
             }`}
           >
             {presentation.closing}
