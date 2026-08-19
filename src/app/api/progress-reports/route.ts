@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     if (updatePayload.student_id && pointed.student_id && String(pointed.student_id) !== String(updatePayload.student_id)) {
       return NextResponse.json({ error: 'This save does not match the report you opened.' }, { status: 409 });
     }
-    existingRow = pointed as typeof existingRow;
+    existingRow = pointed;
   }
 
   if (updatePayload.student_id) {
