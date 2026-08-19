@@ -370,6 +370,8 @@ export async function POST(req: NextRequest) {
         await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
         return reportId;
       },
+    });
+
     if (result.action === 'reused' && result.status === 'draft') {
       try {
         const policy = await loadSchoolReportPolicy(actor.admin);
