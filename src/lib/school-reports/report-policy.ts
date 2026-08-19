@@ -30,7 +30,7 @@ export const DEFAULT_SCHOOL_REPORT_POLICY: SchoolReportPolicy = {
   attendance: { strongMin: 80, riskBelow: 60, minRollRecords: 3 },
   phases: { '1': 'Foundations', '2': 'Application', '3': 'Innovation' },
   programmePhases: {},
-  signatory: { name: 'Mr Osahon', title: 'Director, Rillcod Technologies', signatureAsset: '/images/signature.png', activeFrom: null, activeUntil: null },
+  signatory: { name: brandContact.signatory, title: brandContact.signatoryRole, signatureAsset: brandContact.signatureImage, activeFrom: null, activeUntil: null },
   payment: { whatsappDisplay: brandContact.phoneShort, whatsappUrl: brandContact.whatsapp },
   finance: { defaultCurrency: 'NGN', locale: 'en-NG', enrolmentToleranceCount: 2, enrolmentTolerancePercent: 10 },
   display: { maxChartRows: 12, maxHighlights: 4, maxRecommendations: 4 },

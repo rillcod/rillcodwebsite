@@ -437,9 +437,9 @@ export function buildInvoiceEmail(opts: {
   // ── Bank transfer section ──────────────────────────────────────────────────
   // Always show Providus Bank as fallback; append any extra accounts from DB
   const defaultAccount: InvoiceBankAccount = {
-    bank_name: 'Providus Bank',
-    account_number: '7901178957',
-    account_name: 'Rillcod Ltd',
+    bank_name: brandContact.bankAccount.bankName,
+    account_number: brandContact.bankAccount.accountNumber,
+    account_name: brandContact.bankAccount.accountName,
   };
   const accounts: InvoiceBankAccount[] = (opts.bankAccounts && opts.bankAccounts.length > 0)
     ? opts.bankAccounts

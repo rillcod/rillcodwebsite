@@ -356,7 +356,7 @@ export function SchoolReportBuilderCanvas({
     <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[70vh]'}`}>
       {/* Sticky toolbar */}
       <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-start md:justify-between md:px-5">
+        <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-start xl:justify-between md:px-5">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
@@ -384,7 +384,7 @@ export function SchoolReportBuilderCanvas({
                 className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-lg font-black text-foreground outline-none focus:border-border focus:bg-background focus:px-2 md:text-xl"
               />
             ) : (
-              <h2 className="truncate text-lg font-black text-foreground md:text-xl">{report.title}</h2>
+              <h2 className="mt-1 text-lg font-black text-foreground md:text-xl leading-snug">{report.title}</h2>
             )}
             <p className="truncate text-xs text-muted-foreground">
               {formatSchoolDisplayName(snapshot.school.name)} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
@@ -430,7 +430,7 @@ export function SchoolReportBuilderCanvas({
               </div>
             ) : null}
           </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {onBack ? (
               <button
                 type="button"
@@ -607,7 +607,7 @@ export function SchoolReportBuilderCanvas({
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
             <p className="mt-1 break-words text-xs text-amber-900/80 dark:text-amber-100/90">
-              Fix the items in the Source data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
+              Confirm curriculum delivery and fix required items in the Source data tab, then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>
         ) : null}
@@ -700,11 +700,11 @@ export function SchoolReportBuilderCanvas({
 
       {/* Workspace — editor + preview stack on mobile, side-by-side on large screens */}
       <div
-        className={`grid flex-1 gap-0 ${
-          previewOpen ? 'grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : ''
+        className={`grid flex-1 gap-0 w-full min-w-0 ${
+          previewOpen ? 'grid-cols-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]' : 'grid-cols-1'
         }`}
       >
-        <div className="min-h-0 overflow-y-auto p-3 sm:p-4 md:p-5">
+        <div className="min-h-0 min-w-0 overflow-y-auto p-3 sm:p-4 md:p-5">
           {tab === 'write' ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -1303,7 +1303,7 @@ export function SchoolReportBuilderCanvas({
         </div>
 
         {previewOpen ? (
-          <aside className="min-h-0 border-t border-border bg-muted/20 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:border-l lg:border-t-0">
+          <aside className="min-h-0 min-w-0 border-t border-border bg-muted/20 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:border-l lg:border-t-0">
             <div className="p-3 sm:p-4 md:p-5">{previewPanel}</div>
           </aside>
         ) : null}

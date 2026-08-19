@@ -178,13 +178,13 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     /* 1.5 rather than 1.55. The parties page was clipping its own content by
        19px; a contract is read closely, not skimmed, and the tighter leading buys
        back roughly a line per clause across every page. */
-    font: 10.4pt/1.5 "Inter", system-ui, -apple-system, sans-serif;
+    font: 10.1pt/1.44 "Inter", system-ui, -apple-system, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
     display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
 
   .page {
-    width: 210mm; min-height: 297mm; padding: 15mm 14mm;
+    width: 210mm; min-height: 297mm; padding: 13.5mm 14mm;
     background: #ffffff; color: #1e293b;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
     border-radius: 2px; position: relative; box-sizing: border-box;
@@ -223,7 +223,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     .page {
       width: 210mm !important; min-height: 297mm !important; height: auto !important;
       overflow: visible !important;
-      padding: 15mm 14mm !important; box-shadow: none !important; border-radius: 0 !important;
+      padding: 13.5mm 14mm !important; box-shadow: none !important; border-radius: 0 !important;
       page-break-after: always; break-after: page;
     }
     .page:last-child { page-break-after: auto; break-after: auto; }
@@ -290,8 +290,8 @@ export function buildPartnershipMouHTML(input: MouInput): string {
      clause numbers stay, because this is still a contract and both sides need to
      be able to say "clause 3". */
   h2 {
-    font-size: 12.4pt; color: #0f172a; margin: 0 0 3mm;
-    letter-spacing: -.2px; font-weight: 800; padding-top: 2mm;
+    font-size: 12.2pt; color: #0f172a; margin: 0 0 2.2mm;
+    letter-spacing: -.2px; font-weight: 800; padding-top: 1.6mm;
     border-top: 2px solid #991b1b; display: table; padding-right: 6mm;
   }
   h2 .cl { color: #991b1b; font-weight: 800; margin-right: 1.6mm; }
@@ -301,7 +301,7 @@ export function buildPartnershipMouHTML(input: MouInput): string {
   /* 3.6mm, not 4.2mm. The parties page carries three clauses and a long school
      name reaches into all of them, so the gaps between clauses are where the
      room comes from rather than the clauses themselves. */
-  section { margin-bottom: 3mm; break-inside: avoid; page-break-inside: avoid; }
+  section { margin-bottom: 2.4mm; break-inside: avoid; page-break-inside: avoid; }
   li, tr, .sign, .sign-box, .party, .terms-line, table {
     break-inside: avoid; page-break-inside: avoid;
   }
@@ -325,10 +325,10 @@ export function buildPartnershipMouHTML(input: MouInput): string {
     display: flex; justify-content: space-between;
   }
 
-  p { margin: 0 0 2.2mm; }
+  p { margin: 0 0 2mm; }
   .muted { color: #64748b; font-size: 10pt; }
-  ol { margin: 0 0 2.5mm; padding-left: 5.5mm; }
-  li { margin-bottom: 1.1mm; color: #334155; }
+  ol { margin: 0 0 2mm; padding-left: 5mm; }
+  li { margin-bottom: 0.6mm; color: #334155; }
 
   .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
   .party { border: 1px solid #e2e8f0; border-top: 3px solid #991b1b; padding: 2.2mm 3.4mm; border-radius: 1.5mm; background: #f8fafc; }

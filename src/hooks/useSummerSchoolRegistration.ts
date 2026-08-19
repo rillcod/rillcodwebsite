@@ -17,6 +17,7 @@ import { getSpecialTotalTuition, getSpecialDepositAmount, specialTuitionLabels }
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { useContactCapture } from "@/hooks/useContactCapture";
 import { fetchActionJson } from "@/lib/async-timeout";
+import { brandContact } from "@/config/brand";
 
 export type SummerFormState = {
   studentName: string;
@@ -241,11 +242,11 @@ export function useSummerSchoolRegistration({
           data?.length
             ? data
             : [{
-                bank_name: "Providus Bank",
-                account_number: "7901178957",
-                account_name: "Rillcod Ltd",
-                label: "Corporate Operations",
-              }]
+              bank_name: brandContact.bankAccount.bankName,
+              account_number: brandContact.bankAccount.accountNumber,
+              account_name: brandContact.bankAccount.accountName,
+              label: "Corporate Operations",
+            }]
         );
       });
     fetchActiveSchoolNames(supabase).then(setSchoolsList);

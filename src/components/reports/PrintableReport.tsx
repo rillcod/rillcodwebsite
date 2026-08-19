@@ -11,6 +11,7 @@ import {
 
 import { StudentReport, OrgSettings, parseEngagementMetrics } from '@/types/reports';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
+import { brandContact } from '@/config/brand';
 
 interface PrintableReportProps {
     report: StudentReport;
@@ -352,18 +353,18 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 {/* Left — single signature */}
                 <div style={{ flexShrink: 0, textAlign: 'center' }}>
                     <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>Signatory Authority</p>
-                    <img src="/images/signature.png" alt="Official Signature" crossOrigin="anonymous" style={{ height: '40px', margin: '0 auto 8px', opacity: 0.85, filter: 'contrast(1.25)', mixBlendMode: 'multiply' }} />
+                    <img src={brandContact.signatureImage} alt="Official Signature" crossOrigin="anonymous" style={{ height: '40px', margin: '0 auto 8px', opacity: 0.85, filter: 'contrast(1.25)', mixBlendMode: 'multiply' }} />
                     <div style={{ width: '160px', height: '2.5px', background: C.black, margin: '0 auto 6px' }} />
-                    <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic' }}>Director</p>
-                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rillcod Technologies</p>
+                    <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic' }}>{brandContact.signatory}</p>
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{brandContact.signatoryRole}</p>
                 </div>
 
                 {/* Centre — bank account details (conditional) */}
                 {report.show_payment_notice && (
                     <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                         <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
-                        <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
-                        <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>RILLCOD LTD</p>
+                        <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>{brandContact.bankAccount.bankName} &nbsp;&middot;&nbsp; <span style={{ fontFamily: 'monospace' }}>{brandContact.bankAccount.accountNumber}</span></p>
+                        <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>{brandContact.bankAccount.accountName.toUpperCase()}</p>
                         <p style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Use student name as reference &nbsp;·&nbsp; Send proof to admin</p>
                     </div>
                 )}

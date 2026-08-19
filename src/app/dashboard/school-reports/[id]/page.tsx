@@ -40,7 +40,7 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-7 p-4 md:p-8 mobile-page-root">
+    <div className="mx-auto max-w-[1600px] min-w-0 w-full space-y-7 p-4 md:p-8 mobile-page-root">
       <header>
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report editor</p>
         <h1 className="mt-2 text-2xl font-black text-foreground">{editor.report.title}</h1>

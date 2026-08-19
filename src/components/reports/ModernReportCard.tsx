@@ -447,13 +447,13 @@ export default function ModernReportCard({ report, orgSettings }: {
                         <div>
                             <p style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>Signatory Authority</p>
                             <img
-                                src="/images/signature.png"
+                                src={brandContact.signatureImage}
                                 alt="Signature"
                                 style={{ height: 38, objectFit: 'contain', mixBlendMode: 'multiply', marginBottom: 3 }}
                             />
                             <div style={{ width: 160, height: isIndustrial ? 2 : 1, background: isExecutive ? '#C5A059' : '#111827', marginBottom: 4 }} />
-                            <p style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111' }}>Director</p>
-                            <p style={{ fontSize: 8, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Rillcod Technologies</p>
+                            <p style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111' }}>{brandContact.signatory}</p>
+                            <p style={{ fontSize: 8, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em' }}>{brandContact.signatoryRole}</p>
                             {report.instructor_name && (
                                 <p style={{ fontSize: 8, fontWeight: 900, color: accent, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 2, fontStyle: 'italic' }}>
                                     {report.instructor_name}
@@ -471,8 +471,8 @@ export default function ModernReportCard({ report, orgSettings }: {
                                 textAlign: 'center',
                             }}>
                                 <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>₦{report.fee_amount || '30,000'} · RILLCOD LTD</p>
-                                <p style={{ fontSize: 12, fontWeight: 900, color: '#78350f' }}>Providus · 7901178957</p>
+                                <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>&#x20a6;{report.fee_amount || '30,000'} &middot; {brandContact.bankAccount.accountName.toUpperCase()}</p>
+                                <p style={{ fontSize: 12, fontWeight: 900, color: '#78350f' }}>{brandContact.bankAccount.bankName} &middot; {brandContact.bankAccount.accountNumber}</p>
                             </div>
                         )}
 

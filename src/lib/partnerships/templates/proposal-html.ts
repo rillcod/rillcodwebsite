@@ -1897,19 +1897,16 @@ ${body}
     so the room comes out of the gaps — which are still generous at 10pt, and
     are the part of the page a reader does not look at.
   */
-  .page-programme > section { margin-bottom: 4mm; }
-  .page-programme h2 { margin-bottom: 2.6mm; }
-  .page-programme .disc { gap: 3.4mm 8mm; }
-  .page-programme .disc b { margin-bottom: .5mm; }
-  .page-programme .hook { margin-bottom: 1.6mm; }
-  .page-programme .phase { padding: 3.2mm 3.6mm; }
-  .page-programme .phase-name { margin: .8mm 0 1.2mm; }
-
-  .page-programme > section { margin-bottom: 3mm; }
-  .page-programme h2 { margin-bottom: 2mm; padding-bottom: 2.2mm; }
-  .page-programme p { margin-bottom: 2mm; }
-  .page-programme .journey { margin-top: 1mm; }
-  .page-programme .leg-grade { margin-top: 5.5mm; }
+  .page-programme > section { margin-bottom: 2.5mm; }
+  .page-programme h2 { margin-bottom: 1.8mm; padding-bottom: 1.8mm; }
+  .page-programme p { margin-bottom: 1.8mm; }
+  .page-programme .disc { gap: 2.5mm 6mm; }
+  .page-programme .disc b { margin-bottom: .4mm; }
+  .page-programme .hook { margin-bottom: 1.4mm; }
+  .page-programme .phase { padding: 2.6mm 3mm; }
+  .page-programme .phase-name { margin: .6mm 0 1mm; }
+  .page-programme .journey { margin-top: 0.8mm; }
+  .page-programme .leg-grade { margin-top: 4.5mm; }
 
   /* The overview sheet was 2mm past A4 — the last line of the portfolio block.
      One heading's worth of gap covers it. */
@@ -1923,19 +1920,19 @@ ${body}
     a signature box with its rule cut off is a page a school cannot sign. The
     photographs give up 3mm of height for it, which nobody reads as smaller.
   */
-  .page-close > section { margin-bottom: 4.6mm; }
-  .page-close h2 { margin-bottom: 3.4mm; }
-  .page-close .gallery-lg img { height: 41mm; }
-  .page-close .ticks li { margin-bottom: 1.2mm; }
+  .page-close > section { margin-bottom: 3.8mm; }
+  .page-close h2 { margin-bottom: 2.6mm; }
+  .page-close .gallery-lg img { height: 38mm; }
+  .page-close .ticks li { margin-bottom: 0.8mm; }
 
   /* Same again for the sheet that argues against the alternative. */
-  .page-case > section { margin-bottom: 4.4mm; }
-  .page-case h2 { margin-bottom: 2.6mm; }
-  .page-case .comp-table td { padding: 1.5mm 3mm; }
-  .page-case .comp-table th { padding: 2mm 3mm; }
-  .page-case .guarantee-grid { gap: 2.4mm 6mm; margin: 1.5mm 0; }
-  .page-case .faqs { gap: 2.6mm 7mm; }
-  .page-money > .pagehead { flex: none; margin-bottom: 3mm; }
+  .page-case > section { margin-bottom: 3.6mm; }
+  .page-case h2 { margin-bottom: 2.2mm; }
+  .page-case .comp-table td { padding: 1.2mm 2.6mm; }
+  .page-case .comp-table th { padding: 1.6mm 2.6mm; }
+  .page-case .guarantee-grid { gap: 2mm 5mm; margin: 1.2mm 0; }
+  .page-case .faqs { gap: 2.2mm 6mm; }
+  .page-money > .pagehead { flex: none; margin-bottom: 2.5mm; }
   /*
     Room to spread, never squeezed. Shrinking was allowed here, and once the
     table went full-width these compressed below the height of their own text —
@@ -1944,14 +1941,14 @@ ${body}
   .page-money > section {
     flex: 1 0 auto; margin-bottom: 0;
     display: flex; flex-direction: column; justify-content: center;
-    padding: 2mm 0;
+    padding: 1.5mm 0;
   }
   .page-money > section + section { border-top: 1px solid #f1f5f9; }
-  .page-money > section:first-of-type { padding-top: 1.5mm; }
+  .page-money > section:first-of-type { padding-top: 1mm; }
   .page-money > section:last-of-type { padding-bottom: 0; }
-  .page-money h2 { margin-bottom: 2.6mm; }
-  .page-money .split { margin: 3mm 0 2.5mm; }
-  .page-money .split .seg { padding: 3.4mm 4.5mm; font-size: 10.4pt; }
+  .page-money h2 { margin-bottom: 2mm; }
+  .page-money .split { margin: 2.4mm 0 2mm; }
+  .page-money .split .seg { padding: 2.6mm 3.8mm; font-size: 10pt; }
   /*
     The figures take the sheet; the picture sits under them.
 
@@ -1972,14 +1969,14 @@ ${body}
   */
   .page-money .upside-row {
     flex: 1; display: flex; flex-direction: column; align-items: stretch;
-    margin: 2mm 0 0; gap: 3mm;
+    margin: 1.5mm 0 0; gap: 2.2mm;
   }
   .page-money .upside-col { display: flex; flex-direction: column; justify-content: center; }
   .page-money .upside-col .chart { width: 100%; height: auto; }
-  .page-money .upside-col table.compact th { padding: 2.4mm 2.4mm; }
-  .page-money .upside-col table.compact td { padding: 2.6mm 2.4mm; }
+  .page-money .upside-col table.compact th { padding: 2mm 2.2mm; }
+  .page-money .upside-col table.compact td { padding: 2mm 2.2mm; }
   .page-money .value {
-    flex: none; height: 57mm; min-height: 0; grid-template-rows: 1fr;
+    flex: none; height: 42mm; min-height: 0; grid-template-rows: 1fr;
   }
   .page-money .value-photo { height: 100%; min-height: 0; max-height: none; }
   .page-money .value-photo img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
@@ -2386,8 +2383,8 @@ ${sheet(
       to be the opening line of the pitch as well.
     -->
     <p>Nearly every school already teaches computers. Very few teach a child to build anything with one — the lesson is still the parts of a machine and the names of the menus, and a learner leaves able to operate software somebody else made. Closing that gap is the whole of what we do.</p>
-    <p>${esc(brandContact.displayName)} has taught young people to build with technology for over ten years, and we deliver it as a school’s own technology department — our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable. We are a young team teaching a young subject, and we hold the work to one test: a learner should see what is possible, learn the process, and leave with progress they can show anywhere in the world.${input.proof
-        ? ` ${approx(input.proof.partnerSchools)} schools across Edo State run it today, for ${approx(input.proof.students)} students.`
+    <p>${esc(brandContact.displayName)} — ${esc(brandContact.companyClaim)}${input.proof
+        ? ` ${approx(input.proof.partnerSchools)} schools across ${esc(brandContact.operatingRegion)} run it today, for ${approx(input.proof.students)} students.`
         : ''
       }</p>
     <!--

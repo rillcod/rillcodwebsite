@@ -42,7 +42,55 @@ function minimalSnapshot(overrides: Partial<SchoolReportSnapshot> = {}): SchoolR
   } as SchoolReportSnapshot;
 }
 
-describe('buildSchoolReportCompleteness billing exclusion', () => {
+describe('buildSchoolReportCompleteness curriculum priority and billing', () => {
+  it('prioritizes curriculum delivery right after source health as item #2', () => {
+    const report = buildSchoolReportCompleteness(minimalSnapshot());
+    expect(report.items[0].key).toBe('source_health');
+    expect(report.items[1].key).toBe('curriculum');
+    expect(report.items[1].required).toBe(true);
+    expect(report.items[1].ok).toBe(true);
+  });
+
+  it('blocks publication when curriculum has no planned weeks and names unmapped courses', () => {
+    const report = buildSchoolReportCompleteness(
+      minimalSnapshot({
+        curriculum: {
+          plannedWeeks: 0,
+          completedWeeks: 0,
+          inProgressWeeks: 0,
+          skippedWeeks: 0,
+          courses: [
+            {
+              programme: 'Junior Tech',
+              course: 'Robotics 101',
+              planned: 0,
+              completed: 0,
+              inProgress: 0,
+              skipped: 0,
+              coverage: 0,
+            },
+          ],
+        },
+      }),
+    );
+    const curriculumItem = report.items.find((item) => item.key === 'curriculum');
+    expect(curriculumItem?.ok).toBe(false);
+    expect(curriculumItem?.detail).toContain('Robotics 101');
+    expect(report.readyToPublish).toBe(false);
+  });
+
+  it('blocks publication when curriculum delivery declaration is unconfirmed', () => {
+    const report = buildSchoolReportCompleteness(
+      minimalSnapshot({
+        deliveryDeclaration: null as any,
+      }),
+    );
+    const curriculumItem = report.items.find((item) => item.key === 'curriculum');
+    expect(curriculumItem?.ok).toBe(false);
+    expect(curriculumItem?.detail).toContain('confirm the topics delivered');
+    expect(report.readyToPublish).toBe(false);
+  });
+
   it('requires a term invoice by default', () => {
     const report = buildSchoolReportCompleteness(minimalSnapshot());
     const invoice = report.items.find((item) => item.key === 'invoice');

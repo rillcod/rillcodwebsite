@@ -354,12 +354,12 @@ export default function ReportCard({ report, orgSettings }: {
                                 <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
                                     {[
-                                        { label: 'Theory',    pts: weight('theory'), color: '#6366f1' },
+                                        { label: 'Theory', pts: weight('theory'), color: '#6366f1' },
                                         { label: 'Practical', pts: weight('practical'), color: '#06b6d4' },
-                                        { label: 'Assign',    pts: weight('assignments'), color: '#10b981' },
-                                        { label: 'Attend',    pts: weight('attendance'), color: '#8b5cf6' },
-                                        { label: 'Class',     pts: weight('classwork'), color: '#f97316' },
-                                        { label: 'Assess',    pts: weight('assessment'), color: '#f59e0b' },
+                                        { label: 'Assign', pts: weight('assignments'), color: '#10b981' },
+                                        { label: 'Attend', pts: weight('attendance'), color: '#8b5cf6' },
+                                        { label: 'Class', pts: weight('classwork'), color: '#f97316' },
+                                        { label: 'Assess', pts: weight('assessment'), color: '#f59e0b' },
                                     ].map((item, i) => (
                                         <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
                                             {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 8 }}>·</span>}
@@ -458,22 +458,22 @@ export default function ReportCard({ report, orgSettings }: {
                         <div style={{ flexShrink: 0 }}>
                             <p style={{ fontSize: 10, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Signatory Authority</p>
                             <img
-                                src="/images/signature.png"
+                                src={brandContact.signatureImage}
                                 alt="Official Signature"
                                 style={{ height: 56, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
                             />
                             <div style={{ width: 180, height: 1, backgroundColor: '#111827', marginBottom: 2 }} />
-                            <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>Mr Osahon</p>
-                            <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Director, Rillcod Technologies</p>
+                            <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>{brandContact.signatory}</p>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>{brandContact.signatoryRole}</p>
                         </div>
 
                         {/* Centre — payment notice, 3 lines, centred */}
                         {report.show_payment_notice && (
                             <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '10px 14px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 4 }}>
                                 <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦30,000 &nbsp;·&nbsp; RILLCOD LTD</p>
-                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>Providus Bank · <span style={{ color: '#92400e' }}>7901178957</span></p>
-                                <p style={{ fontSize: 9, fontWeight: 700, color: '#b45309' }}>Use student name as reference · Send proof to admin</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦30,000 &nbsp;&middot;&nbsp; {brandContact.bankAccount.accountName.toUpperCase()}</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>{brandContact.bankAccount.bankName} &middot; <span style={{ color: '#92400e' }}>{brandContact.bankAccount.accountNumber}</span></p>
+                                <p style={{ fontSize: 9, fontWeight: 700, color: '#b45309' }}>Use student name as reference &middot; Send proof to admin</p>
                             </div>
                         )}
 

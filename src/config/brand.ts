@@ -85,7 +85,7 @@ export const brandContact = {
   signatory: process.env.MOU_SIGNATORY_NAME?.trim() || 'Mr Osahon',
   signatoryRole:
     process.env.MOU_SIGNATORY_ROLE?.trim() || 'Director, Rillcod Technologies',
-  signatureImage: '/images/signature.png',
+  signatureImage: '/images/signature.png' as string,
   tagline: 'STEM, Coding & AI Education Partner',
   taglineLong: 'Inspiring Young Minds Through Technology',
   email: 'support@rillcod.com',
@@ -105,6 +105,30 @@ export const brandContact = {
   web: 'www.rillcod.com',
   siteUrl: 'https://www.rillcod.com',
   whatsapp: 'https://wa.me/2348116600091',
+  /**
+   * One-sentence authored claim about the company's operational track record,
+   * for use in proposals and letterheads.
+   *
+   * Must be factually defensible from the date of the next proposal issued.
+   * Updated here rather than searched-and-replaced across template files.
+   */
+  companyClaim: 'We deliver it as a school\'s own technology department — our facilitators, our curriculum, our kits and our platform, running on your site and inside your timetable. We hold the work to one test: a learner should see what is possible, learn the process, and leave with progress they can show anywhere in the world.',
+  /**
+   * Geographic reach phrase used in proposals, e.g. "schools across Edo State".
+   * Updated here when expansion moves into new states.
+   */
+  operatingRegion: 'Edo State',
+  /**
+   * Primary bank account for fee collection, shown on invoices, report card
+   * payment notices, and email payment-instruction blocks.
+   *
+   * Change here when the account changes — not in four separate files.
+   */
+  bankAccount: {
+    bankName: 'Providus Bank',
+    accountNumber: '7901178957',
+    accountName: 'Rillcod Ltd',
+  },
 } as const;
 
 /** Only allowed SMTP From / Reply-To address. */

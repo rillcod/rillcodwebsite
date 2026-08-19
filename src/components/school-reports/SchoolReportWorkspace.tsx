@@ -112,7 +112,7 @@ export function SchoolReportWorkspace({
         </div>
       </section>
 
-      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
         <SchoolReportBuilderCanvas
           report={report}
           canManage={canManage}
