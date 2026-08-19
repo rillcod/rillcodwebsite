@@ -45,16 +45,29 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Only teachers and administrators can create study groups' }, { status: 403 });
+  if (!profile || !['student', 'teacher', 'admin', 'school'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Only registered students and staff can create study groups' }, { status: 403 });
   }
 
-  const { name, course_id } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required', field: 'name' }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const courseId = typeof body.course_id === 'string' ? body.course_id : null;
+  const assignedTeacherId = typeof body.assigned_teacher_id === 'string' ? body.assigned_teacher_id : null;
+  const gradeLevel = typeof body.grade_level === 'string' ? body.grade_level : null;
+
+  if (!name) return NextResponse.json({ error: 'Name is required', field: 'name' }, { status: 400 });
 
   const { data, error } = await (supabase as any)
     .from('study_groups')
-    .insert({ name: name.trim(), course_id: course_id || null, created_by: user.id, school_id: profile.school_id, status: 'active' })
+    .insert({
+      name,
+      course_id: courseId,
+      created_by: user.id,
+      school_id: profile.school_id,
+      assigned_teacher_id: assignedTeacherId,
+      grade_level: gradeLevel,
+      status: 'active',
+    })
     .select()
     .single();
 
