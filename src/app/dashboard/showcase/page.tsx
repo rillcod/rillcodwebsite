@@ -44,11 +44,26 @@ function AddItemModal({ onClose, onSave, schoolId }: {
   onSave: (item: Partial<ShowcaseItem>) => void;
   schoolId?: string | null;
 }) {
+  const [students, setStudents] = useState<Array<{ id: string; full_name: string }>>([]);
   const [form, setForm] = useState({
     title: '', description: '', item_type: 'project',
     course_name: '', term_number: '1', teacher_note: '',
     student_id: '', is_published: true,
   });
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const db = createClient();
+    db.from('portal_users')
+      .select('id, full_name')
+      .eq('role', 'student')
+      .eq('school_id', schoolId)
+      .order('full_name', { ascending: true })
+      .limit(100)
+      .then(({ data }) => {
+        if (data && data.length > 0) setStudents(data);
+      });
+  }, [schoolId]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -58,10 +73,23 @@ function AddItemModal({ onClose, onSave, schoolId }: {
         </h2>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Student ID</label>
-            <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
-              value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}
-              placeholder="Paste student portal user ID" />
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Student</label>
+            {students.length > 0 ? (
+              <select
+                className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                value={form.student_id}
+                onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}
+              >
+                <option value="">Select student...</option>
+                {students.map(s => (
+                  <option key={s.id} value={s.id}>{s.full_name}</option>
+                ))}
+              </select>
+            ) : (
+              <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}
+                placeholder="Paste student portal user ID" />
+            )}
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Title</label>
