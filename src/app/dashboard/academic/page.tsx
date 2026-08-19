@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { learnerReportHref } from "@/components/reports/LearnerReportFlowStrip";
+import { buildCurriculumHref, buildCertifyHref } from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard, StageList } from "@/components/academic/StageList";
