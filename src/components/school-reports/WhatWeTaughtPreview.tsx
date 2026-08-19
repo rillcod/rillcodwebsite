@@ -33,6 +33,14 @@ export function WhatWeTaughtPreview({
     })),
   );
 
+  const fallbackCards = enrolledCourses.map((row) => ({
+    programme: formatProgrammeDisplay(row.programme),
+    course: formatCourseDisplay(row.course),
+    topics: [] as string[],
+  }));
+
+  const displayCards = courseCards.length > 0 ? courseCards : fallbackCards;
+
   const enrolledLabels = enrolledCourses
     .filter((row) => (row.enrolledStudents ?? 0) > 0)
     .map((row) => `${formatProgrammeDisplay(row.programme)} · ${formatCourseDisplay(row.course)}`);
@@ -80,16 +88,16 @@ export function WhatWeTaughtPreview({
           {presentation.intro}
         </p>
 
-        {courseCards.length ? (
+        {displayCards.length ? (
           <div
             className={
               courseGridClass ||
-              `grid grid-cols-1 gap-3.5 ${courseCards.length >= 2 ? 'sm:grid-cols-2' : ''} ${
-                courseCards.length >= 3 ? 'lg:grid-cols-3' : ''
+              `grid grid-cols-1 gap-3.5 ${displayCards.length >= 2 ? 'sm:grid-cols-2' : ''} ${
+                displayCards.length >= 3 ? 'lg:grid-cols-3' : ''
               }`
             }
           >
-            {courseCards.map((item) => (
+            {displayCards.map((item) => (
               <article
                 key={`${item.programme}-${item.course}`}
                 className={`min-w-0 rounded-2xl border bg-card/95 p-3.5 transition-all hover:shadow-md ${
@@ -101,7 +109,7 @@ export function WhatWeTaughtPreview({
                     {item.programme}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
-                    {item.topics.length} topic{item.topics.length === 1 ? '' : 's'}
+                    {item.topics.length > 0 ? `${item.topics.length} topic${item.topics.length === 1 ? '' : 's'}` : 'Enrolled'}
                   </span>
                 </div>
                 <h4 className={`mt-2 font-black text-foreground break-words ${embedded ? 'text-sm' : 'text-sm'}`}>
@@ -121,7 +129,11 @@ export function WhatWeTaughtPreview({
                       </li>
                     ))}
                   </ul>
-                ) : null}
+                ) : (
+                  <p className="mt-2.5 text-[11px] text-muted-foreground italic border-t border-border/60 pt-2">
+                    Curriculum active for this term.
+                  </p>
+                )}
               </article>
             ))}
           </div>

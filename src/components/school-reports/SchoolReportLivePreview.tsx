@@ -270,6 +270,9 @@ export function SchoolReportLivePreview({
                 label={pct(snapshot.summary?.attendanceRate)}
               />
               <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Attendance</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {snapshot.summary?.learnersWithAttendance ?? 0} with attendance
+              </p>
             </div>
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-primary/10 via-card to-card p-3.5 text-center shadow-2xs">
               <RadialRing
@@ -280,6 +283,13 @@ export function SchoolReportLivePreview({
                 label={pct(snapshot.summary?.curriculumCoverage)}
               />
               <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Curriculum</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {snapshot.curriculum?.completedWeeks != null && snapshot.curriculum.completedWeeks > 0
+                  ? `${snapshot.curriculum.completedWeeks} of ${snapshot.curriculum.plannedWeeks ?? 0} wks`
+                  : snapshot.schoolProgrammes?.length
+                    ? `${snapshot.schoolProgrammes.length} in scope`
+                    : 'In scope'}
+              </p>
             </div>
           </div>
 
@@ -329,6 +339,15 @@ export function SchoolReportLivePreview({
                   ) : showExpandedNarrative ? (
                     <ExpandedNarrativePreview variant="embedded" className="mt-2" body={leadershipNarrative} />
                   ) : null}
+                </div>
+              ) : !insights?.deliveryLedger ? (
+                <div className="rounded-2xl border border-dashed border-border/80 bg-muted/15 p-4 text-center">
+                  <p className="text-xs font-bold text-foreground">Curriculum Delivery In Progress</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {snapshot.schoolProgrammes?.length
+                      ? `${snapshot.schoolProgrammes.length} course${snapshot.schoolProgrammes.length === 1 ? '' : 's'} enrolled for this school. Confirm weekly delivery in the editor to display specific topics taught.`
+                      : 'Weekly topics will appear here once confirmed in the editor.'}
+                  </p>
                 </div>
               ) : null}
 
