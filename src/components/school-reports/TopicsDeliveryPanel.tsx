@@ -79,7 +79,7 @@ export function TopicsDeliveryPanel({
           <span className="font-black">Manual delivery confirmed</span> — refresh will keep your topic selection.
         </div>
       ) : !deliveryConfirmed ? (
-        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+        <div className="rounded-xl border border-amber-500/50 bg-amber-500/15 px-3.5 py-2.5 text-xs font-semibold text-amber-950 dark:text-amber-100">
           <span className="font-black">Delivery not confirmed yet.</span>{' '}
           Tick the topics actually taught below, apply, then generate or edit the narrative — you can complete this any time while the report stays in draft.
         </div>

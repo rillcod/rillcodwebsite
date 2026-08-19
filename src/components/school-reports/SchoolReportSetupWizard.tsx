@@ -62,7 +62,7 @@ function PreflightPanel({
                   check.status === 'pass'
                     ? 'border-emerald-500/30 bg-emerald-500/5'
                     : check.status === 'warn'
-                      ? 'border-amber-500/30 bg-amber-500/5'
+                      ? 'border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100'
                       : 'border-destructive/30 bg-destructive/5'
                 }`}
               >
@@ -179,17 +179,31 @@ export function SchoolReportSetupWizard({
 
   return (
     <section className="rounded-3xl border border-border bg-card p-4 sm:p-5 md:p-7">
-      <div className="flex items-start gap-3">
-        <span className="shrink-0 rounded-xl bg-primary/10 p-2.5 text-primary sm:p-3">
-          <SparklesIcon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-lg font-black sm:text-xl">New school report book</h2>
-          <p className="text-sm text-muted-foreground">Five guided steps before the shared draft is created.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+        <div className="flex items-start gap-3">
+          <span className="shrink-0 rounded-xl bg-primary/10 p-2.5 text-primary sm:p-3">
+            <SparklesIcon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-black sm:text-xl">Create school report book</h2>
+            <p className="text-sm text-muted-foreground">Start straight through in the report studio, or step through setup.</p>
+          </div>
         </div>
+        {scopeReady ? (
+          <button
+            type="button"
+            disabled={working === 'generate'}
+            onClick={() => void onGenerate()}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-md hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
+            title="Launch straight into the report builder studio without clicking through each step"
+          >
+            <SparklesIcon className={`h-4 w-4 ${working === 'generate' ? 'animate-spin' : ''}`} />
+            {working === 'generate' ? 'Preparing report book…' : '⚡ Start report studio (Straight-Through)'}
+          </button>
+        ) : null}
       </div>
 
-      <div className="relative mt-6 -mx-1">
+      <div className="relative mt-5 -mx-1">
         <ol className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-2 sm:overflow-visible sm:pb-0">
           {SETUP_WORKFLOW_STEPS.map((item) => (
             <li key={item.id} className="min-w-[72%] shrink-0 snap-start sm:min-w-0">
@@ -273,6 +287,25 @@ export function SchoolReportSetupWizard({
               className="w-full rounded-xl border border-border bg-background p-3"
             />
           </label>
+          {scopeReady ? (
+            <div className="md:col-span-2 rounded-2xl border border-primary/30 bg-primary/[0.04] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-foreground">⚡ Straight-Through Mode Ready</p>
+                <p className="text-xs text-muted-foreground">
+                  You can jump directly into the report studio to confirm topics, review attendance evidence, and complete the report in one continuous workflow.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={working === 'generate'}
+                onClick={() => void onGenerate()}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
+              >
+                <SparklesIcon className="h-4 w-4" />
+                {working === 'generate' ? 'Launching…' : 'Start Report Studio'}
+              </button>
+            </div>
+          ) : null}
           <div className="md:col-span-2">
             <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
           </div>
@@ -316,7 +349,7 @@ export function SchoolReportSetupWizard({
                     ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900 dark:text-emerald-200 dark:bg-emerald-500/10'
                     : curriculumRangeHint.status === 'query_failed' || curriculumRangeHint.status === 'migration_missing'
                       ? 'border-destructive/30 bg-destructive/5 text-destructive dark:text-rose-300'
-                      : 'border-amber-500/30 bg-amber-500/5 text-amber-900 dark:text-amber-200 dark:bg-amber-500/10'
+                      : 'border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100 font-semibold'
                 }`}
               >
                 {curriculumRangeHint.hint}
@@ -332,7 +365,7 @@ export function SchoolReportSetupWizard({
                       className={`rounded-lg border px-3 py-2 text-[11px] ${
                         item.inReportRange
                           ? 'border-emerald-500/30 bg-emerald-500/5'
-                          : 'border-amber-500/30 bg-amber-500/5'
+                          : 'border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100'
                       }`}
                     >
                       <p className="font-black">
@@ -510,7 +543,7 @@ export function SchoolReportSetupWizard({
               {preflight.invoiceMatchCount} matching invoice(s) found for this term.
             </p>
           ) : (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
+            <p className="rounded-xl border border-amber-500/50 bg-amber-500/15 p-4 text-sm font-semibold text-amber-950 dark:text-amber-100">
               No matching invoice yet. You can still generate the draft, but publication will require a term invoice.
             </p>
           )}
@@ -590,16 +623,16 @@ export function SchoolReportSetupWizard({
           )}
           {step < 5 ? (
             <>
-              {step === 1 && expressReady ? (
+              {scopeReady ? (
                 <button
                   type="button"
                   disabled={working === 'generate'}
                   onClick={() => void onGenerate()}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
-                  title="Skip wizard steps — uses detected delivery range and creates draft with auto-delivery"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50 sm:w-auto"
+                  title="Launch straight into the report builder studio without stepping through all wizard pages"
                 >
                   <SparklesIcon className="h-4 w-4" />
-                  {working === 'generate' ? 'Creating…' : 'Express setup'}
+                  {working === 'generate' ? 'Launching…' : '⚡ Start studio (Straight-Through)'}
                 </button>
               ) : null}
               <button
@@ -623,7 +656,7 @@ export function SchoolReportSetupWizard({
           )}
         </div>
         {stepHint ? (
-          <p className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200 sm:w-auto">
+          <p className="w-full rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-950 dark:text-amber-100 sm:w-auto">
             {stepHint}
           </p>
         ) : null}

@@ -602,11 +602,11 @@ export function SchoolReportBuilderCanvas({
           />
         ) : null}
         {canManage && !published && missingRequired.length ? (
-          <div className="border-t border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 px-4 py-3 md:px-5">
-            <p className="break-words text-sm font-bold text-amber-800 dark:text-amber-200">
+          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-3 md:px-5">
+            <p className="break-words text-sm font-black text-amber-950 dark:text-amber-100">
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
-            <p className="mt-1 break-words text-xs text-amber-900/80 dark:text-amber-100/90">
+            <p className="mt-1 break-words text-xs font-semibold text-amber-950/90 dark:text-amber-100/90">
               Confirm curriculum delivery and fix required items in the Source data tab, then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>

@@ -55,25 +55,35 @@ export function useSchoolReportSetup() {
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load reports (HTTP ${response.status}).`);
       const loadedTerms: AcademicTerm[] = json.terms || [];
       const defaultTerm = loadedTerms.find((term) => term.is_current) || loadedTerms[0];
-      setSchools(json.schools || []);
+      const loadedSchools: SchoolOption[] = json.schools || [];
+      const defaultSchool = loadedSchools[0];
+      setSchools(loadedSchools);
       setActiveBooks(json.activeBooks || []);
       setTerms(loadedTerms);
       setRole(json.role || '');
-      setForm((current) => ({
-        ...current,
-        schoolId: current.schoolId || json.schools?.[0]?.id || '',
-        academicTermId: current.academicTermId || defaultTerm?.id || '',
-        curriculumStartTerm: current.academicTermId
-          ? current.curriculumStartTerm
-          : defaultTerm?.term_number || 1,
-        curriculumEndTerm: current.academicTermId
-          ? current.curriculumEndTerm
-          : defaultTerm?.term_number || 1,
-        startDate: current.academicTermId
-          ? current.startDate
-          : defaultTerm?.start_date || current.startDate,
-        endDate: current.academicTermId ? current.endDate : defaultTerm?.end_date || current.endDate,
-      }));
+      setForm((current) => {
+        const schoolId = current.schoolId || defaultSchool?.id || '';
+        const termId = current.academicTermId || defaultTerm?.id || '';
+        const s = loadedSchools.find((x) => x.id === schoolId);
+        const t = loadedTerms.find((x) => x.id === termId);
+        const defaultTitle = s && t ? `${s.name} - ${t.term_label} ${t.academic_year} Performance Report` : '';
+        return {
+          ...current,
+          schoolId,
+          academicTermId: termId,
+          title: current.title || defaultTitle,
+          curriculumStartTerm: current.academicTermId
+            ? current.curriculumStartTerm
+            : defaultTerm?.term_number || 1,
+          curriculumEndTerm: current.academicTermId
+            ? current.curriculumEndTerm
+            : defaultTerm?.term_number || 1,
+          startDate: current.academicTermId
+            ? current.startDate
+            : defaultTerm?.start_date || current.startDate,
+          endDate: current.academicTermId ? current.endDate : defaultTerm?.end_date || current.endDate,
+        };
+      });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load setup data.');
     } finally {
@@ -170,18 +180,28 @@ export function useSchoolReportSetup() {
 
   function chooseTerm(id: string) {
     const term = terms.find((item) => item.id === id);
-    setForm((current) => ({
-      ...current,
-      academicTermId: id,
-      ...(term
-        ? {
-            curriculumStartTerm: term.term_number,
-            curriculumEndTerm: term.term_number,
-            startDate: term.start_date || current.startDate,
-            endDate: term.end_date || current.endDate,
-          }
-        : {}),
-    }));
+    const s = schools.find((item) => item.id === form.schoolId);
+    setForm((current) => {
+      const nextTitle =
+        !current.title || current.title.includes('Performance Report')
+          ? s && term
+            ? `${s.name} - ${term.term_label} ${term.academic_year} Performance Report`
+            : current.title
+          : current.title;
+      return {
+        ...current,
+        academicTermId: id,
+        title: nextTitle,
+        ...(term
+          ? {
+              curriculumStartTerm: term.term_number,
+              curriculumEndTerm: term.term_number,
+              startDate: term.start_date || current.startDate,
+              endDate: term.end_date || current.endDate,
+            }
+          : {}),
+      };
+    });
   }
 
   async function generate() {

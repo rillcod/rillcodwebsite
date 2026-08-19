@@ -370,7 +370,49 @@ export async function POST(req: NextRequest) {
         await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
         return reportId;
       },
-    });
+    if (result.action === 'reused' && result.status === 'draft') {
+      try {
+        const policy = await loadSchoolReportPolicy(actor.admin);
+        let freshSnapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
+        if (setupTopicKeys.length) {
+          const setupResult = await applySetupDeliveryDeclaration(actor.admin, schoolId, freshSnapshot, range, {
+            selectedTopicKeys: setupTopicKeys,
+            reportingWeeks: setupReportingWeeks,
+          });
+          if (setupResult) freshSnapshot = setupResult.snapshot;
+        } else {
+          const autoResult = await tryAutoApplyDeliveryDeclaration(actor.admin, {
+            report: {
+              school_id: schoolId,
+              curriculum_start_term: startTerm,
+              curriculum_start_week: startWeek,
+              curriculum_end_term: endTerm,
+              curriculum_end_week: endWeek,
+              academic_year: academicTerm.academic_year,
+              term_label: academicTerm.term_label,
+              academic_term_id: academicTerm.id,
+              snapshot: freshSnapshot,
+            },
+            snapshot: freshSnapshot,
+            policy,
+          });
+          if (autoResult.autoApplied) freshSnapshot = autoResult.snapshot;
+        }
+        freshSnapshot = {
+          ...freshSnapshot,
+          completeness: buildSchoolReportCompleteness(freshSnapshot, initialDesign),
+        };
+        await actor.admin
+          .from('school_performance_reports')
+          .update({
+            snapshot: freshSnapshot,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', result.id);
+      } catch {
+        // Continue with existing snapshot if live refresh encounters an error
+      }
+    }
 
     logAuditEvent(result.action === 'reused' ? 'report.reuse' : 'report.create', {
       reportId: result.id,
