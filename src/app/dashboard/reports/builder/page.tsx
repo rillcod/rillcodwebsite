@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useRef, Suspense, useDeferredValue } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense, useDeferredValue } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -51,7 +51,8 @@ import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { resolveEffectiveScoreWeights, scoreWeightPercent, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
-import { ManualProtectionBanner, ManualEntryDeskBanner } from '@/components/reports/ResultStatusBadges';
+import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
+import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -635,7 +636,9 @@ function ReportBuilderInner() {
     const prefReportId = searchParams.get('report') || searchParams.get('report_id');
     const prefReportTerm = searchParams.get('report_term');
     const prefReportPeriod = searchParams.get('report_period') || searchParams.get('period');
-    const fromResults = searchParams.get('from') === 'results';
+    const fromDesk = searchParams.get('from');
+    const fromResults = fromDesk === 'results';
+    const fromPrepare = fromDesk === 'prepare';
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
@@ -924,6 +927,16 @@ function ReportBuilderInner() {
         // new year never collides with the previous one's same-named term.
         setSessionConfig(s => {
             const live = liveAcademicSession();
+            // Opening a specific prior report must keep that identity. Rolling it to
+            // live was why Edit/Open landed on a blank current-term form.
+            if (prefReportId || prefReportTerm || prefReportPeriod) {
+                return {
+                    ...s,
+                    report_date: s.report_date || new Date().toISOString().split('T')[0],
+                    report_term: prefReportTerm || s.report_term || live.termLabel,
+                    report_period: prefReportPeriod || s.report_period || live.periodLabel,
+                };
+            }
             // Locked period = "follow current". Roll only when saved identity is BEHIND live
             // (Second→Third same year, or prior year). Future / next-year First is untouched.
             const stale = isStaleAcademicSession(s.report_term, s.report_period, live.termLabel, live.periodLabel);
@@ -934,7 +947,7 @@ function ReportBuilderInner() {
                 report_term: stale ? live.termLabel : (s.report_term || live.termLabel),
             };
         });
-    }, [profile?.id, prefStudentId]);
+    }, [profile?.id, prefStudentId, prefReportId, prefReportTerm, prefReportPeriod]);
 
 
 
@@ -1225,27 +1238,65 @@ function ReportBuilderInner() {
                 school_id: s.school_id || profile?.school_id || (schoolsList.length === 1 ? schoolsList[0].id : ''),
             }));
 
-                // URL ?student= takes absolute priority over localStorage navigation state.
-                // When the user clicks Edit on a published report, we must load that
-                // specific student — not whatever was left over from a previous session.
-                if (prefStudentId) {
+                // URL ?student= / ?report= takes absolute priority over localStorage.
+                // Open that exact report — including a prior term, and even when the
+                // learner is no longer on this class roster.
+                if (prefStudentId || prefReportId) {
                     pendingRestoreStudentId.current = null;
-                    const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
+                    let reportRow: { id?: string; student_id?: string | null; report_term?: string | null; report_period?: string | null; class_id?: string | null; course_id?: string | null; course_name?: string | null; section_class?: string | null } | null = null;
+                    if (prefReportId) {
+                        const { data: byId } = await withTimeout(
+                            db.from('student_progress_reports').select('id, student_id, report_term, report_period, class_id, course_id, course_name, section_class').eq('id', prefReportId).maybeSingle(),
+                            { data: null, error: null },
+                            'open report lookup',
+                        );
+                        reportRow = byId;
+                    }
+                    const wantedStudentId = prefStudentId || reportRow?.student_id || null;
+                    let s = processed.find((x: any) => x.id === wantedStudentId || x._original_id === wantedStudentId);
+                    if (!s && wantedStudentId) {
+                        const { data: one } = await withTimeout(
+                            db.from('portal_users')
+                                .select('id, full_name, email, role, school_id, school_name, class_id, section_class, photo_url, grade, gender')
+                                .eq('id', wantedStudentId)
+                                .maybeSingle(),
+                            { data: null, error: null },
+                            'open report student lookup',
+                        );
+                        if (one) {
+                            s = {
+                                ...one,
+                                section_class: one.section_class || '',
+                                class_id: one.class_id || null,
+                                grade_level: one.grade ?? null,
+                                _source: 'portal',
+                            };
+                            setStudents((prev) => prev.some((p) => p.id === s!.id) ? prev : [s as any, ...prev]);
+                        }
+                    }
                     if (s) {
-                        if (prefReportTerm || prefReportPeriod) {
+                        skipAutoPickRef.current = true;
+                        const term = prefReportTerm || reportRow?.report_term;
+                        const period = prefReportPeriod || reportRow?.report_period;
+                        if (term || period || prefReportId) {
                             setPeriodUnlocked(true);
                             setSessionConfig((current) => ({
                                 ...current,
-                                report_term: prefReportTerm || current.report_term,
-                                report_period: prefReportPeriod || current.report_period,
+                                report_term: term || current.report_term,
+                                report_period: period || current.report_period,
+                                ...(reportRow?.class_id ? { class_id: reportRow.class_id } : {}),
+                                ...(reportRow?.course_id ? { course_id: reportRow.course_id, course_name: reportRow.course_name || current.course_name } : {}),
+                                ...(reportRow?.section_class ? { section_class: reportRow.section_class } : {}),
                             }));
                         }
                         setTimeout(() => {
-                            void selectStudent(s as PortalUser, 0, { forceHydrate: true, reportId: prefReportId });
+                            void selectStudent(s as PortalUser, 0, { forceHydrate: true, reportId: prefReportId || reportRow?.id });
                             setStep('edit');
                             setSessionDone(true);
                             setSessionExpanded(false);
                         }, 0);
+                    } else if (prefStudentId || prefReportId) {
+                        setError('That report could not be opened. The learner may have been removed or is outside your access.');
                     }
                     return;
                 }
@@ -1433,6 +1484,12 @@ function ReportBuilderInner() {
     }
     const appliedUrlScope = useRef(false);
     useEffect(() => {
+        // A specific report already carries its class/course/term. Do not replace
+        // that identity with the live class row.
+        if (prefReportId) {
+            appliedUrlScope.current = true;
+            return;
+        }
         if (appliedUrlScope.current || !prefClassId || teacherClasses.length === 0) return;
         const linkedClass = teacherClasses.find((candidate) => candidate.id === prefClassId);
         if (!linkedClass) {
@@ -1590,8 +1647,8 @@ function ReportBuilderInner() {
 
         // The report THIS grading session edits/creates — scoped to term + academic year only.
         // Do NOT filter by course_id: stored course_name/course_id may be stale while section_class is correct.
-        const lookupTerm = (opts?.forceHydrate && prefReportTerm) ? prefReportTerm : sessionConfig.report_term;
-        const lookupPeriod = (opts?.forceHydrate && prefReportPeriod) ? prefReportPeriod : sessionConfig.report_period;
+        const lookupTerm = (opts?.forceHydrate && (prefReportTerm || prefReportId)) ? (prefReportTerm || sessionConfig.report_term) : sessionConfig.report_term;
+        const lookupPeriod = (opts?.forceHydrate && (prefReportPeriod || prefReportId)) ? (prefReportPeriod || sessionConfig.report_period) : sessionConfig.report_period;
         let scoped = baseSelect();
         if (lookupTerm)   scoped = scoped.eq('report_term', lookupTerm) as typeof scoped;
         if (lookupPeriod) scoped = scoped.eq('report_period', lookupPeriod) as typeof scoped;
@@ -1612,10 +1669,14 @@ function ReportBuilderInner() {
             explicitReport = (byId as StudentReport | null) ?? null;
         }
 
-        // Edit link → explicit report id, else term/year match, else latest when editing from Results.
+        // Edit/Open with this report id or an explicit term lands on that report.
+        // student= alone stays on this session (do not pull an older term's latest row).
+        const keepRequestedSession = Boolean(
+            explicitReport || (opts?.forceHydrate && (prefReportId || prefReportTerm || prefReportPeriod)),
+        );
         const report = explicitReport
             ?? scopedReport
-            ?? (opts?.forceHydrate ? latestReport : null);
+            ?? (keepRequestedSession && opts?.forceHydrate ? latestReport : null);
         let hydratedReport = report ?? null;
 
         const sectionClass = String(
@@ -1630,7 +1691,7 @@ function ReportBuilderInner() {
         if (hydratedReport && reconciledCourse) {
             const courseDrift = (reconciledCourse.course_id && hydratedReport.course_id !== reconciledCourse.course_id)
                 || (reconciledCourse.course_name && hydratedReport.course_name !== reconciledCourse.course_name);
-            if (courseDrift && hydratedReport.id && !isPrePortal) {
+            if (courseDrift && hydratedReport.id && !isPrePortal && !keepRequestedSession) {
                 try {
                     const syncRes = await fetch(`/api/progress-reports/${hydratedReport.id}`, {
                         method: 'PATCH',
@@ -1719,11 +1780,12 @@ function ReportBuilderInner() {
                 if (reportCourse?.program_id) setSessionProgramId(reportCourse.program_id);
             }
             const fullSessionHydrate = !sessionDone || opts?.forceHydrate;
+            if (keepRequestedSession) setPeriodUnlocked(true);
             setSessionConfig(prev => {
                 const live = liveAcademicSession();
-                const adoptedTerm = opts?.forceHydrate ? (hydratedReport.report_term ?? prev.report_term) : prev.report_term;
+                const adoptedTerm = (keepRequestedSession || opts?.forceHydrate) ? (hydratedReport.report_term ?? prev.report_term) : prev.report_term;
                 const adoptedPeriod = hydratedReport.report_period ?? prev.report_period;
-                const staleAdopt = isStaleAcademicSession(adoptedTerm, adoptedPeriod, live.termLabel, live.periodLabel);
+                const staleAdopt = !keepRequestedSession && isStaleAcademicSession(adoptedTerm, adoptedPeriod, live.termLabel, live.periodLabel);
                 return {
                     ...prev,
                     ...(fullSessionHydrate ? {
@@ -2430,7 +2492,7 @@ function ReportBuilderInner() {
                     // right up to the day the calendar turns over, then silently refiles
                     // it into the new session — the Third Term reports a school writes in
                     // September would land in First Term of the next year.
-                    allow_backfill: isStaleAcademicSession(payload.report_term, payload.report_period),
+                    allow_backfill: isStaleAcademicSession(payload.report_term, payload.report_period) || Boolean(prefReportId),
                 }),
             });
             const j = await res.json();
@@ -2760,10 +2822,10 @@ function ReportBuilderInner() {
             <h1 className="text-xl font-bold text-foreground mb-2">Access Restricted</h1>
             <p className="text-muted-foreground text-sm text-center max-w-md">
                 You do not have permission to create or edit progress reports.
-                Please visit the <Link href="/dashboard/results" className="text-primary font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
+                Please visit <Link href="/dashboard/results" className="text-primary font-bold hover:underline">Publish</Link> to view and print reports.
             </p>
             <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
-                <EyeIcon className="w-4 h-4" /> Go to Results Centre
+                <EyeIcon className="w-4 h-4" /> Go to Publish
             </Link>
         </div>
     );
@@ -2948,6 +3010,30 @@ function ReportBuilderInner() {
         </div>
     );
 
+    const returnToResultsHref = useMemo(() => {
+        const p = new URLSearchParams();
+        if (selectedStudent?.id) p.set('student', selectedStudent.id);
+        else if (prefStudentId) p.set('student', prefStudentId);
+        if (existingReport?.id) p.set('report', existingReport.id);
+        if (sessionConfig.report_term) p.set('term', sessionConfig.report_term);
+        if (sessionConfig.report_period) p.set('year', sessionConfig.report_period);
+        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
+        if (sessionConfig.school_id) p.set('school_id', sessionConfig.school_id);
+        const qs = p.toString();
+        return qs ? `/dashboard/results?${qs}` : '/dashboard/results';
+    }, [selectedStudent?.id, prefStudentId, existingReport?.id, sessionConfig.report_term, sessionConfig.report_period, sessionConfig.class_id, sessionConfig.school_id]);
+
+    const returnToPrepareHref = useMemo(() => {
+        const p = new URLSearchParams();
+        if (selectedStudent?.id) p.set('student', selectedStudent.id);
+        else if (prefStudentId) p.set('student', prefStudentId);
+        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
+        else if (prefClassId) p.set('class_id', prefClassId);
+        if (sessionConfig.course_id) p.set('course_id', sessionConfig.course_id);
+        const qs = p.toString();
+        return qs ? `/dashboard/academic/results?${qs}` : '/dashboard/academic/results';
+    }, [selectedStudent?.id, prefStudentId, sessionConfig.class_id, prefClassId, sessionConfig.course_id]);
+
     return (
         <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
@@ -2955,36 +3041,39 @@ function ReportBuilderInner() {
                 {/* Mobile hero */}
                 <div className="md:hidden">
                     <MobilePageHero
-                        badge="Academic · Manual entry"
+                        badge="Write"
                         title={
                             sessionDone && selectedStudent
-                                ? 'Manual entry'
+                                ? selectedStudent.full_name || 'Write'
                                 : sessionDone
                                     ? 'Pick a student'
-                                    : 'Report builder'
+                                    : 'Write'
                         }
                         description={
                             !sessionDone
-                                ? 'Choose school and class, then enter scores.'
+                                ? 'Choose school and class.'
                                 : selectedStudent
-                                    ? 'Type scores and narrative for this learner.'
-                                    : 'Tap a student to start grading.'
+                                    ? undefined
+                                    : 'Tap a student to start.'
                         }
                         icon={DocumentTextIcon}
                         actions={
                             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                                <Link
-                                    href="/dashboard/academic/results"
-                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-foreground`}
-                                >
-                                    <DocumentTextIcon className="h-3.5 w-3.5 text-primary" /> Workspace
-                                </Link>
-                                <Link
-                                    href="/dashboard/results"
-                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-foreground`}
-                                >
-                                    <EyeIcon className="h-3.5 w-3.5 text-primary" /> Publish
-                                </Link>
+                                {fromResults ? (
+                                    <Link
+                                        href={returnToResultsHref}
+                                        className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
+                                    >
+                                        <ArrowLeftIcon className="h-3.5 w-3.5" /> Publish
+                                    </Link>
+                                ) : fromPrepare ? (
+                                    <Link
+                                        href={returnToPrepareHref}
+                                        className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
+                                    >
+                                        <ArrowLeftIcon className="h-3.5 w-3.5" /> Auto-fill
+                                    </Link>
+                                ) : null}
                                 <button
                                     type="button"
                                     onClick={() => setShowSettings(true)}
@@ -3000,59 +3089,58 @@ function ReportBuilderInner() {
                 {/* ── Page header (desktop) ── */}
                 <div className="hidden md:flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                        <h1 className="truncate text-base font-extrabold sm:text-lg">
-                            {sessionDone && selectedStudent
-                                ? 'Manual entry'
-                                : sessionDone
-                                    ? 'Pick a student'
-                                    : 'Report Builder'}
-                        </h1>
-                        <p className="mt-0 hidden truncate text-[11px] text-muted-foreground sm:block">
-                            {!sessionDone
-                                ? 'Manual entry desk — choose school & class, then grade'
-                                : selectedStudent
-                                    ? 'Type scores here · Workspace = auto · Publish & Share = release'
-                                    : 'Tap to grade · Publish & Share keeps published & drafts'}
-                        </p>
+                        <div className="flex items-center gap-2">
+                            {fromResults ? (
+                                <Link
+                                    href={returnToResultsHref}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted"
+                                    title="Back to publish"
+                                >
+                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                    <span>Publish</span>
+                                </Link>
+                            ) : fromPrepare ? (
+                                <Link
+                                    href={returnToPrepareHref}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted"
+                                    title="Back to auto-fill"
+                                >
+                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                    <span>Auto-fill</span>
+                                </Link>
+                            ) : null}
+                            <h1 className="truncate text-base font-extrabold sm:text-lg">
+                                {sessionDone && selectedStudent
+                                    ? selectedStudent.full_name || 'Write'
+                                    : sessionDone
+                                        ? 'Pick a student'
+                                        : 'Write'}
+                            </h1>
+                        </div>
                     </div>
-                    <div className="flex flex-shrink-0 items-center gap-1.5">
-                        <Link
-                            href="/dashboard/academic/results"
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
-                            title="Results workspace — prepare and auto-calculate"
-                        >
-                            <DocumentTextIcon className="h-3.5 w-3.5 text-primary" />
-                            <span className="hidden sm:inline">Workspace</span>
-                        </Link>
-                        <Link
-                            href="/dashboard/results"
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
-                            title="Publish & share desk"
-                        >
-                            <EyeIcon className="h-3.5 w-3.5 text-primary" />
-                            <span className="hidden sm:inline">Publish</span>
-                        </Link>
-                        <button type="button" onClick={() => setShowSettings(true)}
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
-                            <Cog6ToothIcon className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Branding</span>
-                        </button>
-                    </div>
+                    <button type="button" onClick={() => setShowSettings(true)}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
+                        <Cog6ToothIcon className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Branding</span>
+                    </button>
                 </div>
 
-                <ManualEntryDeskBanner />
+                <LearnerReportFlowStrip
+                    current="write"
+                    compact={sessionDone}
+                    studentId={selectedStudent?.id || prefStudentId}
+                    classId={sessionConfig.class_id}
+                    courseId={sessionConfig.course_id}
+                    schoolId={sessionConfig.school_id}
+                    term={sessionConfig.report_term}
+                    period={sessionConfig.report_period}
+                    reportId={existingReport?.id}
+                />
                 {existingReport ? <ManualProtectionBanner mode={existingReport.calculation_mode} /> : null}
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
                     <div className="space-y-3 pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-0">
-                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
-                            <p className="text-primary font-bold text-sm">Start with school &amp; class</p>
-                            <p className="text-primary/60 text-xs mt-0.5">
-                                Pick the class section from the dropdown, confirm the course, then start grading. No separate steps.
-                            </p>
-                        </div>
-
                         {/* School & Class — first, largest controls */}
                         <div className="bg-card shadow-sm border-2 border-primary/25 rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-1">
@@ -3412,7 +3500,7 @@ function ReportBuilderInner() {
                                             <>
                                                 <RocketLaunchIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-y-[-2px]" />
                                                 <span className="sm:hidden">Bulk build</span>
-                                                <span className="hidden sm:inline">Magic Bulk Build</span>
+                                                <span className="hidden sm:inline">Fill all drafts</span>
                                             </>
                                         )}
                                     </button>
@@ -3634,7 +3722,7 @@ function ReportBuilderInner() {
                         {duplicateWarning === 'new-term' && (
                             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
                                 <p className="min-w-0 flex-1">
-                                    Starting a fresh {sessionConfig.report_term} report. Previous ({duplicateDetail}) stays in Progress Reports.
+                                    Starting a fresh {sessionConfig.report_term} report. The previous one ({duplicateDetail}) stays in Publish.
                                 </p>
                                 <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
                                     <XMarkIcon className="h-3.5 w-3.5" />
@@ -3857,10 +3945,10 @@ function ReportBuilderInner() {
                             }
                             message={
                                 fetchingStats
-                                    ? 'Loading platform evidence'
+                                    ? 'Loading class work'
                                     : studentStats.totalAssignments === 0 && studentStats.totalSessions === 0
                                         ? 'No assignments or sessions found yet'
-                                        : 'Evidence ready'
+                                        : 'Class work found'
                             }
                             detail={
                                 fetchingStats
@@ -3893,13 +3981,13 @@ function ReportBuilderInner() {
                             <div className="space-y-3">
 
                                 {/* Scores — 6 weighted components */}
-                                <EvidenceEditorPanel title="Performance Scores" description="Grade here first. Assignments ≠ Attendance.">
+                                <EvidenceEditorPanel title="Scores" description="Grade here first. Assignments are not attendance.">
                                     {fetchingStats ? (
                                         <ScorePanelSkeleton />
                                     ) : (
                                     <div className="space-y-2">
                                         <div className="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-[10px] text-muted-foreground">
-                                            Weighting policy: <span className="font-black text-foreground">{effectiveWeighting.scheme?.name || 'Rillcod balanced evidence model'}</span>
+                                            Score weights: <span className="font-black text-foreground">{effectiveWeighting.scheme?.name || 'Standard weights'}</span>
                                         </div>
                                         {/* Quick-apply score profiles */}
                                         <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border">
@@ -4341,12 +4429,14 @@ function ReportBuilderInner() {
                                     if (isDirty) {
                                         const saved = await handleSave(false);
                                         if (!saved) return;
-                                        setSuccessMsg(fromResults ? 'Draft saved — back to Progress Reports' : 'Draft saved — back to roster');
+                                        setSuccessMsg(fromPrepare ? 'Draft saved — back to Auto-fill' : fromResults ? 'Draft saved — back to Publish' : 'Draft saved — back to roster');
+                                    }
+                                    if (fromPrepare) {
+                                        router.push(returnToPrepareHref);
+                                        return;
                                     }
                                     if (fromResults) {
-                                        const sid = selectedStudent?.id || prefStudentId;
-                                        const qs = sid ? `?student=${encodeURIComponent(sid)}` : '';
-                                        router.push(`/dashboard/results${qs}`);
+                                        router.push(returnToResultsHref);
                                         return;
                                     }
                                     skipAutoPickRef.current = true;
@@ -4363,11 +4453,11 @@ function ReportBuilderInner() {
                                     disabled={saving || publishing}
                                     onClick={() => void returnToRoster()}
                                     className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-1.5 text-[11px] font-bold text-foreground disabled:opacity-50"
-                                    title={fromResults ? 'Save draft and return to Progress Reports' : 'Save draft and return to student list'}
+                                    title={fromPrepare ? 'Save draft and return to Auto-fill' : fromResults ? 'Save draft and return to Publish' : 'Save draft and return to student list'}
                                 >
                                     <ArrowLeftIcon className="h-3 w-3" />
-                                    <span className={fromResults ? 'inline' : 'hidden sm:inline'}>
-                                        {fromResults ? 'Progress Reports' : 'Roster'}
+                                    <span className={fromResults || fromPrepare ? 'inline' : 'hidden sm:inline'}>
+                                        {fromPrepare ? 'Auto-fill' : fromResults ? 'Publish' : 'Roster'}
                                     </span>
                                 </button>
                                 <button

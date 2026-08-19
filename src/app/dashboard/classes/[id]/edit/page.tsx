@@ -315,7 +315,7 @@ export default function EditClassPage() {
                                 <option key={c.id} value={c.id}>{c.title}{c.is_active === false ? ' (Inactive)' : ''}</option>
                             ))}
                         </select>
-                        <p className="text-[10px] text-muted-foreground mt-1.5">Report Builder opens with this course selected for the class.</p>
+                        <p className="text-[10px] text-muted-foreground mt-1.5">Write opens with this course selected for the class.</p>
                     </div>
 
                     <div>

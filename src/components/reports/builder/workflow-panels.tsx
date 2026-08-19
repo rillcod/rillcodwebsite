@@ -231,7 +231,7 @@ export function ScorePanelSkeleton() {
 
 export function EvidenceEditorPanel({
   title = 'Performance Scores',
-  description = 'Six weighted components. Labels are what teachers grade — DB field names stay unchanged.',
+  description = 'Six weighted parts. What you type here is the official score.',
   children,
   icon: _icon,
 }: {

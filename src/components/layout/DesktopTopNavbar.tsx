@@ -35,6 +35,9 @@ const PATH_LABELS: Record<string, string> = {
   '/dashboard/path-progress': 'Path Progress',
   '/dashboard/announcements': 'Announcements',
   '/dashboard/office': 'Office Center',
+  '/dashboard/reports/builder': 'Write',
+  '/dashboard/results': 'Publish',
+  '/dashboard/academic/results': 'Auto-fill',
 };
 
 export default function DesktopTopNavbar() {

@@ -62,3 +62,34 @@ export const PROGRESS_REPORT_SCORE_FIELDS = [
 export function touchesProgressReportScores(value: Record<string, unknown>): boolean {
   return PROGRESS_REPORT_SCORE_FIELDS.some((field) => field in value);
 }
+
+export function hasRecordedProgressReportScores(
+  report: ProgressReportScoreSource & { overall_score?: unknown },
+): boolean {
+  const components = progressReportScoreComponents(report);
+  const overall = score(report.overall_score);
+  return [
+    components.theory,
+    components.classwork,
+    components.practical,
+    components.assignments,
+    components.attendance,
+    components.assessment,
+    overall,
+  ].some((value) => value > 0);
+}
+
+/** Published, typed, or legacy Builder rows must not be auto-replaced. */
+export function isLockedLearnerResult(
+  report: ProgressReportScoreSource & {
+    calculation_mode?: unknown;
+    is_published?: unknown;
+    overall_score?: unknown;
+  },
+): boolean {
+  if (report.is_published === true) return true;
+  const mode = String(report.calculation_mode || '').toLowerCase();
+  if (mode === 'manual') return true;
+  if (mode === 'automatic') return false;
+  return hasRecordedProgressReportScores(report);
+}

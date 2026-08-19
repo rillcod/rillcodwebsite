@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { buildCurriculumHref, buildCertifyHref } from "@/lib/curriculum/href";
+import { learnerReportHref } from "@/components/reports/LearnerReportFlowStrip";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard, StageList } from "@/components/academic/StageList";
@@ -36,6 +36,8 @@ type SpineData = {
 
 type ReportRow = {
   id: string;
+  student_id?: string | null;
+  class_id?: string | null;
   student_name: string;
   course_name: string;
   report_term: string;
@@ -595,7 +597,13 @@ export default function AcademicSpinePage() {
                         {checking === report.id ? "Checking…" : "Check again"}
                       </button>
                       <Link
-                        href={`/dashboard/reports/builder?report=${report.id}`}
+                        href={learnerReportHref("write", {
+                          reportId: report.id,
+                          studentId: report.student_id,
+                          classId: report.class_id,
+                          term: report.report_term,
+                          period: report.report_period,
+                        })}
                         className="rounded-xl bg-foreground px-3 py-2 text-sm font-bold text-background"
                       >
                         Open

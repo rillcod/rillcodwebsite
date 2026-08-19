@@ -1,6 +1,6 @@
 'use client';
 
-/** Shared status chips for one progress-report row across Results Workspace / Builder / Records. */
+/** Shared status chips for one progress-report row across Write / Publish / Auto-fill. */
 
 export type ResultStatusFields = {
   calculation_mode?: string | null;
@@ -23,14 +23,14 @@ export function ResultStatusBadges({ report }: { report: ResultStatusFields }) {
   return (
     <span className="inline-flex flex-wrap gap-1.5">
       {mode === 'manual'
-        ? chip('border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', 'Manual protected')
+        ? chip('border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', 'Typed')
         : mode === 'automatic'
-          ? chip('border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300', 'Evidence calculated')
-          : chip('border-border bg-muted text-muted-foreground', mode)}
+          ? chip('border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300', 'Auto-fill')
+          : null}
       {report.is_published
         ? chip('border-primary/30 bg-primary/10 text-primary', 'Published')
         : chip('border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300', 'Draft')}
-      {chip('border-border bg-background text-muted-foreground', qa)}
+      {qa && qa !== 'not checked' ? chip('border-border bg-background text-muted-foreground', qa) : null}
     </span>
   );
 }
@@ -38,27 +38,8 @@ export function ResultStatusBadges({ report }: { report: ResultStatusFields }) {
 export function ManualProtectionBanner({ mode }: { mode?: string | null }) {
   if (String(mode || '').toLowerCase() !== 'manual') return null;
   return (
-    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
-      <p className="font-black">Protected manual marks</p>
-      <p className="mt-0.5 text-xs leading-5 text-emerald-800/80 dark:text-emerald-200/80">
-        Automation will not overwrite these scores. Evidence calculation and batch sync skip this record.
-      </p>
-    </div>
-  );
-}
-
-/** Always-on desk identity for Report Builder. */
-export function ManualEntryDeskBanner() {
-  return (
-    <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-      <p className="font-black text-foreground">Manual entry desk</p>
-      <p className="mt-0.5 text-xs leading-5">
-        Type scores and narrative here. Use{' '}
-        <a href="/dashboard/academic/results" className="font-bold text-primary underline">Results Workspace</a>
-        {' '}to auto-calculate from evidence, and{' '}
-        <a href="/dashboard/results" className="font-bold text-primary underline">Publish &amp; Share</a>
-        {' '}to view, print and release reports.
-      </p>
-    </div>
+    <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800 dark:text-emerald-200">
+      These scores were typed. Auto-fill will not change them.
+    </p>
   );
 }

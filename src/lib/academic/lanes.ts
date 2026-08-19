@@ -172,7 +172,7 @@ export const STAGES: Stage[] = [
     lane: "delivery",
     step: 5,
     label: "Results",
-    purpose: "Workspace prepares (auto or manual shell); Builder enters marks; Publish & Share releases.",
+    purpose: "Write scores, then publish. Auto-fill from class work is optional.",
     href: "/dashboard/academic/results",
     actors: ["admin", "teacher"],
     observers: ["school"],

@@ -133,6 +133,7 @@ export async function PATCH(
   if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
   if (touchesProgressReportScores(body as Record<string, unknown>)) {
+    allowed.calculation_mode = 'manual';
     try {
       const weighting = await loadEffectiveScoreWeights(admin as any, {
         schoolId: (currentReport as any)?.school_id,
@@ -168,7 +169,7 @@ export async function PATCH(
     if (qaError) return NextResponse.json({ error: qaError.message }, { status: 400 });
     if ((qa as any)?.status !== 'ready') {
       return NextResponse.json({
-        error: 'This result is not ready to publish yet. Review the learning evidence shown in Academic Spine.',
+        error: 'This report is not ready to publish yet. Finish the scores in Write first.',
         academic_quality: qa,
       }, { status: 409 });
     }
@@ -276,7 +277,7 @@ export async function DELETE(
       metrics.classwork_score, metrics.assessment_score,
     ].some((value) => value !== null && value !== undefined);
     if (hasRecordedScore) return NextResponse.json({
-      error: 'This report contains protected academic evidence. Unpublish to correct it, or archive the learner; recorded scores cannot be deleted.',
+      error: 'This report has recorded scores. Unpublish to correct it, or archive the learner. Recorded scores cannot be deleted.',
       code: 'PROTECTED_ACADEMIC_EVIDENCE',
     }, { status: 409 });
   }

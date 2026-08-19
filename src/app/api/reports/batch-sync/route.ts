@@ -10,6 +10,7 @@ import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 
 function adminClient() {
   return createClient(
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
         .neq('status', 'archived')
         .maybeSingle();
       if (!teachingPlan?.curriculum_release_id) {
-        throw new Error('This class needs an official teaching plan before a traceable result can be prepared.');
+        throw new Error('This class needs a teaching plan before auto-fill.');
       }
       const relevantAssignments = relevantAssignmentsForReport(allAssignments ?? [], student.class_id, termId)
         .filter((assignment: any) => !assignment.lesson_plan_id || assignment.lesson_plan_id === teachingPlan.id);
@@ -314,17 +315,15 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      // Check for existing report to update
-      const { data: existing } = await admin
-        .from('student_progress_reports')
-        .select('id,calculation_mode')
-        .eq('student_id', student.id)
-        .eq('course_id', course_id)
-        .eq('report_term', resolvedTerm)
-        .eq('report_period', reportPeriod)
-        .maybeSingle();
-      if (existing?.calculation_mode === 'manual') {
-        results.push({ student: student.full_name, status: 'skipped', message: 'Protected manual result was not changed.' });
+      const existing = await findCanonicalProgressReport(admin as any, {
+        studentId: student.id,
+        courseId: course_id,
+        courseName: course_name,
+        reportTerm: resolvedTerm,
+        reportPeriod: reportPeriod,
+      });
+      if (isReusableLockedResult(existing)) {
+        results.push({ student: student.full_name, status: 'skipped', message: 'Published or typed scores were not changed.' });
         continue;
       }
 

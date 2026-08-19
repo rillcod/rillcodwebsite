@@ -38,7 +38,7 @@ const QUICK_ACTIONS = {
   // them as bare tiles added a second, worse copy of both.
   teacher: [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon, desc: 'Write, publish and share report cards' },
+    { name: 'Publish', href: '/dashboard/results', icon: DocumentChartBarIcon, desc: 'Write scores, then publish report cards' },
     { name: 'Classes & Rosters', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your teaching classes' },
   ],
   student: [

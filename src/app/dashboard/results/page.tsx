@@ -12,7 +12,7 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     DocumentTextIcon, PencilSquareIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon, CalendarIcon
+    TrashIcon, XMarkIcon
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -29,7 +29,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
@@ -59,12 +59,21 @@ const REPORT_TERMS = ACADEMIC_TERM_OPTIONS.filter((t) =>
 
 function reportBuilderEditHref(
     studentId: string,
-    report?: { id?: string | null; report_term?: string | null; report_period?: string | null } | null,
+    report?: { id?: string | null; report_term?: string | null; report_period?: string | null; class_id?: string | null; school_id?: string | null } | null,
+    period?: { year: string; term: string } | null,
+    classId?: string | null,
+    schoolId?: string | null,
 ) {
     const params = new URLSearchParams({ student: studentId, from: 'results' });
     if (report?.id) params.set('report', report.id);
     if (report?.report_term) params.set('report_term', report.report_term);
+    else if (period?.term) params.set('report_term', period.term);
     if (report?.report_period) params.set('report_period', report.report_period);
+    else if (period?.year) params.set('report_period', period.year);
+    if (report?.class_id) params.set('class_id', report.class_id);
+    else if (classId) params.set('class_id', classId);
+    if (report?.school_id) params.set('school_id', report.school_id);
+    else if (schoolId) params.set('school_id', schoolId);
     return `/dashboard/reports/builder?${params.toString()}`;
 }
 
@@ -136,6 +145,9 @@ function ResultsPageInner() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const prefStudentId = searchParams.get('student');
+    const prefTerm = searchParams.get('term') || searchParams.get('report_term');
+    const prefYear = searchParams.get('year') || searchParams.get('report_period') || searchParams.get('period');
+    const prefReportId = searchParams.get('report') || searchParams.get('report_id');
     const { profile, loading: authLoading } = useAuth();
     const urlStudentSyncRef = useRef<string | null>(prefStudentId);
 
@@ -178,15 +190,21 @@ function ResultsPageInner() {
     // aren't gated by a confirm screen every visit — they can still change it (unlock) below.
     const [periodDraft, setPeriodDraft] = useState(() => {
         const live = liveAcademicSession();
-        return { year: live.periodLabel, term: live.termLabel };
+        return { year: prefYear || live.periodLabel, term: prefTerm || live.termLabel };
     });
     const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(() => {
         const live = liveAcademicSession();
-        return { year: live.periodLabel, term: live.termLabel };
+        return { year: prefYear || live.periodLabel, term: prefTerm || live.termLabel };
     });
 
     // Keep draft/confirmed aligned with live calendar; never mash sessions together.
+    // A term/year in the URL is an explicit request to open that session.
     useEffect(() => {
+        if (prefTerm && prefYear) {
+            setPeriodDraft({ year: prefYear, term: prefTerm });
+            setConfirmedPeriod({ year: prefYear, term: prefTerm });
+            return;
+        }
         const live = liveAcademicSession();
         const year = live.periodLabel;
         const term = live.termLabel;
@@ -196,7 +214,7 @@ function ResultsPageInner() {
             if (isStaleAcademicSession(c.term, c.year, term, year)) return { year, term };
             return c;
         });
-    }, []);
+    }, [prefTerm, prefYear]);
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -610,7 +628,8 @@ function ResultsPageInner() {
         // consistent for staff and matches what students/parents see.
         const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
         setReportHistory(history);
-        const data0 = history[0] ?? null;
+        const urlReport = prefReportId ? history.find((r) => r.id === prefReportId) ?? null : null;
+        const data0 = urlReport ?? history[0] ?? null;
         setSelectedReport(data0);
         setLoadingReport(false);
         if (data0?.id) {
@@ -1451,21 +1470,21 @@ tbody tr:hover{background:#f3f4f6}
                     : 'pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-6',
             )}>
 
-                <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                    <p className="font-black text-foreground">Publish &amp; share desk</p>
-                    <p className="mt-1 text-xs leading-5">
-                        View, print, email and release the same progress reports.
-                        Prepare / auto-calculate in{' '}
-                        <Link href="/dashboard/academic/results" className="font-bold text-primary underline">
-                          Results Workspace
-                        </Link>
-                        {' '}· type manual marks in{' '}
-                        <Link href="/dashboard/reports/builder" className="font-bold text-primary underline">
-                          Report Builder
-                        </Link>
-                        . Manual marks stay protected.
-                    </p>
-                </div>
+                {isStaff && !mobileReportFocus ? (
+                    <LearnerReportFlowStrip
+                        current="publish"
+                        compact={staffPeriodReady}
+                        studentId={selectedStudent?.id}
+                        classId={selectedReport?.class_id}
+                        schoolId={selectedReport?.school_id}
+                        courseId={selectedReport?.course_id}
+                        reportId={selectedReport?.id}
+                        term={confirmedPeriod?.term}
+                        period={confirmedPeriod?.year}
+                    />
+                ) : !isStaff ? (
+                    <h1 className="text-lg font-extrabold tracking-tight">Student progress reports</h1>
+                ) : null}
 
                 {/* Mobile immersive: compact Progress Reports chrome while viewing a report */}
                 {mobileReportFocus && (
@@ -1477,7 +1496,7 @@ tbody tr:hover{background:#f3f4f6}
                                 className="flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-foreground"
                             >
                                 <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                Progress Reports
+                                All reports
                             </button>
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-extrabold text-foreground">
@@ -1495,44 +1514,21 @@ tbody tr:hover{background:#f3f4f6}
                 )}
 
                 {/* ── Page header (hidden on mobile while a report is open) ── */}
-                <div className={cn(mobileReportFocus && 'hidden lg:block')}>
-                    <div className="md:hidden">
-                        <MobilePageHero
-                            badge={isStaff ? 'Publish & share' : 'My progress report'}
-                            title={isStaff ? 'Publish & share' : 'Student progress reports'}
-                            description="View, print, email and release progress reports to families."
-                            icon={DocumentTextIcon}
-                            stats={
-                                isStaff && staffPeriodReady
-                                    ? [
-                                          { label: 'Students', value: stats.total },
-                                          { label: 'Published', value: stats.published, tone: 'emerald' },
-                                          { label: 'Drafts', value: stats.draft },
-                                      ]
-                                    : undefined
-                            }
-                        />
-                    </div>
-                </div>
                 <div className={cn(
                     'flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between',
                     mobileReportFocus && 'hidden lg:flex',
                 )}>
                     <div className="min-w-0 hidden md:block">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400">
-                            {isStaff ? 'Publish & share' : 'My Progress Report'}
-                        </p>
-                        <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">
-                            {isStaff ? 'Publish & Share' : 'Student Progress Reports'}
-                        </h1>
-                        {isStaff && staffPeriodReady && (
-                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                        {isStaff && staffPeriodReady ? (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
                                 <span className="text-muted-foreground">{stats.total} students</span>
                                 <span className="font-semibold text-emerald-700 dark:text-emerald-400">{stats.published} published</span>
                                 <span className="font-semibold text-amber-800 dark:text-amber-400">{stats.draft} drafts</span>
                                 <span className="text-muted-foreground">{stats.none} new</span>
                             </div>
-                        )}
+                        ) : !isStaff ? (
+                            <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Student Progress Reports</h1>
+                        ) : null}
                     </div>
 
                     {/* Writing reports is the other half of this job, and it lives on
@@ -1545,58 +1541,57 @@ tbody tr:hover{background:#f3f4f6}
                         precondition for opening it. */}
                     {isEditor && (
                         <Link
-                            href="/dashboard/reports/builder"
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground shadow-sm transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            href={
+                              confirmedPeriod?.term && confirmedPeriod?.year
+                                ? `/dashboard/reports/builder?report_term=${encodeURIComponent(confirmedPeriod.term)}&report_period=${encodeURIComponent(confirmedPeriod.year)}&from=results${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school_id=${encodeURIComponent(filterSchool)}` : ''}`
+                                : `/dashboard/reports/builder?from=results`
+                            }
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-black text-foreground hover:bg-muted"
                         >
                             <PencilSquareIcon className="h-4 w-4" />
-                            <span>{stats.draft > 0 ? `Write reports · ${stats.draft} draft${stats.draft === 1 ? '' : 's'}` : 'Write report cards'}</span>
+                            <span>{stats.draft > 0 ? `Edit drafts · ${stats.draft}` : 'Write scores'}</span>
                         </Link>
                     )}
 
                     {isStaff && (
                         <div className="w-full rounded-xl border border-border bg-card p-2.5 sm:w-auto sm:min-w-[280px]">
-                            <div className="mb-1.5 flex items-center gap-1.5">
-                                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Academic period</p>
-                            </div>
-                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
+                            <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-primary">Showing</p>
+                            <div className="grid grid-cols-2 gap-1.5">
                                 <select
                                     value={periodDraft.year}
-                                    onChange={e => setPeriodDraft(p => ({ ...p, year: e.target.value }))}
-                                    className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                                    onChange={e => {
+                                        const year = e.target.value;
+                                        setPeriodDraft(p => {
+                                            const next = { ...p, year };
+                                            if (next.year && next.term) setConfirmedPeriod(next);
+                                            return next;
+                                        });
+                                        setSelectedIds(new Set());
+                                    }}
+                                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                                    aria-label="Academic year"
                                 >
-                                    <option value="">Academic Year</option>
+                                    <option value="">Academic year</option>
                                     {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                                 <select
                                     value={periodDraft.term}
-                                    onChange={e => setPeriodDraft(p => ({ ...p, term: e.target.value }))}
-                                    className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                                >
-                                    <option value="">Select Term</option>
-                                    {REPORT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                                <button
-                                    onClick={() => {
-                                        if (!periodDraft.year || !periodDraft.term) return;
-                                        setConfirmedPeriod({ year: periodDraft.year, term: periodDraft.term });
+                                    onChange={e => {
+                                        const term = e.target.value;
+                                        setPeriodDraft(p => {
+                                            const next = { ...p, term };
+                                            if (next.year && next.term) setConfirmedPeriod(next);
+                                            return next;
+                                        });
                                         setSelectedIds(new Set());
                                     }}
-                                    disabled={!periodDraft.year || !periodDraft.term}
-                                    className="h-8 rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+                                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                                    aria-label="Term"
                                 >
-                                    Confirm
-                                </button>
+                                    <option value="">Term</option>
+                                    {REPORT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
                             </div>
-                            {confirmedPeriod ? (
-                                <p className="mt-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                                    {confirmedPeriod.term} · {confirmedPeriod.year}
-                                </p>
-                            ) : (
-                                <p className="mt-1 text-[11px] font-bold text-amber-800 dark:text-amber-400">
-                                    Confirm period to load reports
-                                </p>
-                            )}
                         </div>
                     )}
 
@@ -1988,7 +1983,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:hidden"
                                                 >
                                                     <ArrowLeftIcon className="h-3 w-3" />
-                                                    Progress Reports
+                                                    All reports
                                                 </button>
                                             )}
                                             <DocumentTextIcon className="hidden h-3.5 w-3.5 flex-shrink-0 text-primary sm:block" />
@@ -2094,7 +2089,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 <div className="-order-1 flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 lg:order-none">
                                                     {selectedStudent && (
                                                         <Link
-                                                            href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
+                                                            href={reportBuilderEditHref(selectedStudent.id, selectedReport, confirmedPeriod, filterClass, filterSchool)}
                                                             className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/10"
                                                         >
                                                             <PencilSquareIcon className="h-3 w-3" /> Edit
@@ -2415,7 +2410,7 @@ tbody tr:hover{background:#f3f4f6}
                                             className="mb-2 flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-foreground lg:hidden"
                                         >
                                             <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                            Progress Reports
+                                            All reports
                                         </button>
                                     )}
                                     <DocumentTextIcon className="w-12 h-12 text-muted-foreground" />
@@ -2427,7 +2422,7 @@ tbody tr:hover{background:#f3f4f6}
                                             href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
                                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                         >
-                                            <PencilSquareIcon className="w-4 h-4" /> Create Report
+                                            <PencilSquareIcon className="w-4 h-4" /> Write scores
                                         </Link>
                                     )}
                                     {!isEditor && (
@@ -2444,10 +2439,14 @@ tbody tr:hover{background:#f3f4f6}
                                 <p className="text-muted-foreground text-xs">Or select multiple students and click Download PDFs</p>
                                 {isEditor && (
                                     <Link
-                                        href="/dashboard/reports/builder"
+                                        href={
+                                          confirmedPeriod?.term && confirmedPeriod?.year
+                                            ? `/dashboard/reports/builder?report_term=${encodeURIComponent(confirmedPeriod.term)}&report_period=${encodeURIComponent(confirmedPeriod.year)}&from=results${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school_id=${encodeURIComponent(filterSchool)}` : ''}`
+                                            : `/dashboard/reports/builder?from=results`
+                                        }
                                         className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                     >
-                                        <PencilSquareIcon className="w-4 h-4" /> Create First Report
+                                        <PencilSquareIcon className="w-4 h-4" /> Write scores
                                     </Link>
                                 )}
                             </div>

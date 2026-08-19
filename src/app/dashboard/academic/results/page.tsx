@@ -3,11 +3,10 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ChartBarIcon } from '@/lib/icons';
 import { ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
+import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { buildClassTeachingHref } from '@/lib/curriculum/href';
-import MobilePageHero from '@/components/mobile/MobilePageHero';
-import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 type Klass = {
   id: string;
@@ -56,12 +55,12 @@ function CentralResultsPageInner() {
   const searchParams = useSearchParams();
   const linkedClassId = searchParams.get('class_id') ?? '';
   const linkedCourseId = searchParams.get('course_id') ?? '';
+  const linkedStudentId = searchParams.get('student') ?? '';
 
   const [data, setData] = useState<Data>({ classes: [], students: [], plans: [], reports: [] });
   const [classId, setClassId] = useState(linkedClassId);
-  const [studentId, setStudentId] = useState('');
+  const [studentId, setStudentId] = useState(linkedStudentId);
   const [courseId, setCourseId] = useState(linkedCourseId);
-  const [mode, setMode] = useState<'automatic' | 'manual'>('automatic');
   const [listFilter, setListFilter] = useState<ListFilter>('all');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -98,6 +97,10 @@ function CentralResultsPageInner() {
   useEffect(() => {
     if (linkedCourseId) setCourseId(linkedCourseId);
   }, [linkedCourseId]);
+
+  useEffect(() => {
+    if (linkedStudentId) setStudentId(linkedStudentId);
+  }, [linkedStudentId]);
 
   const activeClass = data.classes.find((item) => item.id === classId);
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
@@ -183,20 +186,18 @@ function CentralResultsPageInner() {
           student_id: studentId,
           class_id: classId,
           course_id: courseId,
-          calculation_mode: mode,
+          calculation_mode: 'automatic',
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Result could not be prepared.');
+      if (!response.ok) throw new Error(body.error || 'Could not fill from class work.');
       setReportId(body.data.report_id);
       setMessage(
-        mode === 'manual'
-          ? (body.data.message || 'Protected manual result ready — open Report Builder to enter marks.')
-          : 'Automatic draft calculated from evidence. Review if needed, then publish from Publish & Share.',
+        body.data.message || 'Draft filled from class work. Review, then Publish.',
       );
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Result could not be prepared.');
+      setError(cause instanceof Error ? cause.message : 'Could not fill from class work.');
     } finally {
       setSaving(false);
     }
@@ -213,70 +214,32 @@ function CentralResultsPageInner() {
         body: JSON.stringify({ action: 'recalculate', report_id: id }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Could not recalculate from evidence.');
-      setMessage('Automatic result recalculated from the latest evidence.');
+      if (!response.ok) throw new Error(body.error || 'Could not refresh from class work.');
+      setMessage('Scores refreshed from the latest class work.');
       setReportId(id);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not recalculate from evidence.');
+      setError(cause instanceof Error ? cause.message : 'Could not refresh from class work.');
     } finally {
       setRecalcId(null);
     }
   }
 
   return (
-    <div className={`mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
-      <MobilePageHero
-        badge="Academic Office · Results"
-        title="Results workspace"
-        description="Prepare learner results from evidence or open protected manual entry in Report Builder."
-        icon={ChartBarIcon}
-        stats={[
-          { label: 'Classes', value: data.classes.length },
-          {
-            label: 'Prepared results',
-            value: data.reports.length,
-            tone: 'primary',
-          },
-          {
-            label: 'Published',
-            value: data.reports.filter((r) => r.is_published).length,
-            tone: 'emerald',
-          },
-        ]}
-        actions={
-          <>
-            <Link href="/dashboard/academic" className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-foreground`}>
-              Academic Office
-            </Link>
-            {classId ? (
-              <Link
-                href={buildClassTeachingHref({ classId, courseId })}
-                className={`${MOBILE_TOUCH_BTN} border border-border bg-background text-muted-foreground hover:text-foreground`}
-              >
-                Class teaching
-              </Link>
-            ) : null}
-            <Link href="/dashboard/reports/builder" className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground`}>
-              Report Builder
-            </Link>
-          </>
-        }
-      >
-        <ol className="mt-4 grid gap-2 sm:grid-cols-3">
-          {[
-            { step: '1', title: 'Prepare (here)', detail: 'Auto from evidence or manual shell.' },
-            { step: '2', title: 'Report Builder', detail: 'Enter scores and narrative.' },
-            { step: '3', title: 'Publish & share', detail: 'Release to families.' },
-          ].map((item) => (
-            <li key={item.step} className="rounded-xl border border-border/80 bg-background/60 px-3 py-2.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-primary">Step {item.step}</p>
-              <p className="text-xs font-black text-foreground">{item.title}</p>
-              <p className="text-[10px] text-muted-foreground">{item.detail}</p>
-            </li>
-          ))}
-        </ol>
-      </MobilePageHero>
+    <div className={`mx-auto max-w-7xl space-y-4 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
+      <LearnerReportFlowStrip
+        current="prepare"
+        classId={classId}
+        studentId={studentId}
+        courseId={courseId}
+      />
+      {classId ? (
+        <p className="text-xs text-muted-foreground">
+          <Link href={buildClassTeachingHref({ classId, courseId })} className="font-bold text-primary hover:underline">
+            Class teaching
+          </Link>
+        </p>
+      ) : null}
 
       {error ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
@@ -284,26 +247,36 @@ function CentralResultsPageInner() {
       {message ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
           <span>{message}</span>
-              {reportId ? (
-            <Link
-              href={`/dashboard/reports/builder?report=${reportId}`}
-              className="rounded-xl bg-emerald-700 px-4 py-2 text-center font-bold text-white"
-            >
-              {mode === 'manual' ? 'Enter marks in Report Builder' : 'Review in Report Builder'}
-            </Link>
+          {reportId ? (
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={learnerReportHref('write', {
+                  reportId,
+                  studentId,
+                  classId,
+                  courseId,
+                  from: 'prepare',
+                })}
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-center font-bold text-white"
+              >
+                Review scores
+              </Link>
+              <Link
+                href={learnerReportHref('publish', { studentId, classId, courseId })}
+                className="rounded-xl border border-emerald-700/30 px-4 py-2 text-center font-bold"
+              >
+                Publish
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-border bg-card p-6">
-        <h2 className="text-xl font-black">1. Prepare a learner result</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Default path is <strong className="text-foreground">automatic from evidence</strong>.
-          Choose manual only when you will type scores in Report Builder. Manual never overwrites an existing protected manual result.
-        </p>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
+        <h2 className="text-lg font-black">Choose a learner</h2>
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
           <label className="text-sm font-bold">
-            Class or cohort
+            Class
             <select
               value={classId}
               onChange={(event) => {
@@ -313,7 +286,7 @@ function CentralResultsPageInner() {
               }}
               className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-normal"
             >
-              <option value="">Choose class or cohort</option>
+              <option value="">Choose class</option>
               {data.classes.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
@@ -339,98 +312,48 @@ function CentralResultsPageInner() {
               onChange={(event) => setCourseId(event.target.value)}
               className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-normal"
             >
-              <option value="">Choose planned course</option>
+              <option value="">Choose course</option>
               {courseOptions.map((item) => (
                 <option key={item.id} value={item.course_id}>
                   {item.courses?.title || 'Course'}
-                  {item.curriculum_release_id ? '' : ' (direction needed)'}
+                  {item.curriculum_release_id ? '' : ' (needs teaching plan)'}
                 </option>
               ))}
             </select>
           </label>
-          <label className="text-sm font-bold md:col-span-2 xl:col-span-4">
-            Prepare mode
-            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setMode('automatic')}
-                aria-pressed={mode === 'automatic'}
-                className={`rounded-2xl border p-4 text-left transition-colors ${
-                  mode === 'automatic'
-                    ? 'border-sky-500/50 bg-sky-500/10 ring-2 ring-sky-500/30'
-                    : 'border-border bg-background hover:bg-muted/40'
-                }`}
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-sky-700 dark:text-sky-300">Recommended here</p>
-                <p className="mt-1 font-black text-foreground">Automatic from evidence</p>
-                <p className="mt-1 text-xs font-normal text-muted-foreground leading-5">
-                  Workspace builds a draft from assignments, CBT, practicals and attendance.
-                  Needs pathway + teaching plan. Cannot replace a protected manual result.
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('manual')}
-                aria-pressed={mode === 'manual'}
-                className={`rounded-2xl border p-4 text-left transition-colors ${
-                  mode === 'manual'
-                    ? 'border-emerald-500/50 bg-emerald-500/10 ring-2 ring-emerald-500/30'
-                    : 'border-border bg-background hover:bg-muted/40'
-                }`}
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Then open Builder</p>
-                <p className="mt-1 font-black text-foreground">Manual entry (protected)</p>
-                <p className="mt-1 text-xs font-normal text-muted-foreground leading-5">
-                  Creates a protected shell, then you type scores in Report Builder. Automation cannot overwrite them.
-                </p>
-              </button>
-            </div>
-          </label>
         </div>
         {activeClass ? (
-          <div className="mt-4 rounded-2xl bg-muted p-4 text-sm">
-            <span className="font-black">
-              {enrollmentLabel[activeClass.academic_offerings?.enrollment_type || ''] || 'Academic pathway'}
-            </span>
-            <span className="text-muted-foreground">
-              {' '}· {activeClass.academic_offering_periods?.label || 'Learning period'} ·{' '}
-              {mode === 'manual' ? 'entered marks stay protected' : 'weighted evidence will calculate the draft'}
-            </span>
-          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {enrollmentLabel[activeClass.academic_offerings?.enrollment_type || ''] || 'Programme'}
+            {' · '}
+            {activeClass.academic_offering_periods?.label || 'Current period'}
+          </p>
         ) : null}
-        {mode === 'automatic' ? (
-          <div className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-900 dark:text-sky-100">
-            <p className="font-black">Before automatic works</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5">
-              <li>Class has an academic pathway and reporting period set</li>
-              <li>Learner enrollment matches that pathway</li>
-              <li>Course has an official teaching plan / curriculum direction</li>
-              <li>Some evidence exists (assignments, CBT, attendance, etc.)</li>
-              <li>This learner+course+period is not already a protected manual result</li>
-            </ul>
-          </div>
-        ) : null}
+        <details className="mt-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-bold">If this is blocked</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted-foreground">
+            <li>Class needs a programme and reporting period</li>
+            <li>Learner placement must match that class</li>
+            <li>Course needs a teaching plan</li>
+            <li>There should be some class work to score from</li>
+          </ul>
+        </details>
         <button
           type="button"
           onClick={() => void prepare()}
           disabled={saving || !classId || !studentId || !courseId}
-          className="mt-5 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
+          className="mt-5 min-h-11 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
         >
-          {saving
-            ? 'Preparing result…'
-            : mode === 'manual'
-              ? 'Create / open protected manual result'
-              : 'Calculate from evidence'}
+          {saving ? 'Working…' : 'Fill scores'}
         </button>
       </section>
 
       <section className="rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-black">2. Prepared results</h2>
+            <h2 className="text-lg font-black">These reports</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Same progress reports as Report Builder and Publish &amp; Share — not a second gradebook.
-              Use <strong className="text-foreground">Recalculate</strong> only on automatic rows.
+              Refresh only works on unpublished Auto-fill drafts.
             </p>
           </div>
           <input aria-label="Search learners or courses"
@@ -445,8 +368,8 @@ function CentralResultsPageInner() {
           {(
             [
               ['all', `All (${counts.all})`],
-              ['manual', `Manual (${counts.manual})`],
-              ['automatic', `Automatic (${counts.automatic})`],
+              ['manual', `Typed (${counts.manual})`],
+              ['automatic', `Auto-fill (${counts.automatic})`],
               ['draft', `Draft (${counts.draft})`],
               ['published', `Published (${counts.published})`],
             ] as const
@@ -491,26 +414,40 @@ function CentralResultsPageInner() {
                   ) : null}
                 </span>
                 <Link
-                  href={`/dashboard/reports/builder?report=${report.id}`}
+                  href={learnerReportHref('write', {
+                    reportId: report.id,
+                    studentId: report.student_id,
+                    classId: report.class_id || classId,
+                    courseId: report.course_id,
+                    term: report.report_term,
+                    period: report.report_period,
+                    from: 'prepare',
+                  })}
                   className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
                 >
-                  {report.calculation_mode === 'manual' ? 'Enter in Builder' : 'Review in Builder'}
+                  {report.calculation_mode === 'manual' ? 'Edit scores' : 'Review'}
                 </Link>
-                {report.calculation_mode === 'automatic' ? (
+                {report.calculation_mode === 'automatic' && !report.is_published ? (
                   <button
                     type="button"
                     disabled={recalcId === report.id}
                     onClick={() => void recalculate(report.id)}
                     className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-800 dark:text-sky-200 disabled:opacity-50"
                   >
-                    {recalcId === report.id ? 'Recalculating…' : 'Recalculate'}
+                    {recalcId === report.id ? 'Refreshing…' : 'Refresh'}
                   </button>
                 ) : null}
                 <Link
-                  href={`/dashboard/results?student=${encodeURIComponent(report.student_id || '')}`}
+                  href={learnerReportHref('publish', {
+                    studentId: report.student_id,
+                    classId: report.class_id || classId,
+                    courseId: report.course_id,
+                    term: report.report_term,
+                    period: report.report_period,
+                  })}
                   className="rounded-xl border border-border px-4 py-2 text-sm font-bold"
                 >
-                  Publish & share
+                  Publish
                 </Link>
               </div>
             </article>
@@ -531,7 +468,7 @@ function CentralResultsPageInner() {
           )}
           {visibleReports.length === 0 ? (
             <p className="rounded-2xl bg-muted p-5 text-sm text-muted-foreground">
-              No results match this filter yet. Prepare a learner result above, or open Report Builder to enter marks.
+              Nothing matches this filter. Fill from class work above, or type scores in Write.
             </p>
           ) : null}
         </div>

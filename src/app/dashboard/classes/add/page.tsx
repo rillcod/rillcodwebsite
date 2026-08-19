@@ -368,7 +368,7 @@ export default function AddClassPage() {
               onChange={courseId => set('current_course_id', courseId)}
             />
             <p className="mt-1.5 text-[10px] text-muted-foreground">
-              This becomes the default in Report Builder and the source the teaching plan builds from.
+              This is the default course in Write, and the source the teaching plan builds from.
               You can still choose another course from the same programme during result entry.
             </p>
           </div>

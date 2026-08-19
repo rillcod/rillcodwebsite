@@ -17,7 +17,7 @@ import { buildSchoolReportBillingHrefFromPeriod, buildSchoolReportInvoiceEditHre
 import { academicPeriodFromReportFields } from './academic-period';
 import { attendanceInReportTerm, submissionInReportTerm } from './term-evidence';
 import type { SchoolReportRange } from './loaders/types';
-import { extractResultEntryAttendanceScores } from './progress-report';
+import { extractResultEntryAttendanceScores, type StudentProgressReportRow } from './progress-report';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -165,7 +165,7 @@ export async function runReportPreflight(
       attendanceInReportTerm(row, reportRange),
     );
     const resultEntryAttendance = extractResultEntryAttendanceScores(
-      (progressResult.data ?? []) as Array<{ participation_score?: number | null; engagement_metrics?: unknown }>,
+      (progressResult.data ?? []) as StudentProgressReportRow[],
     );
 
     resultsStatus = recordSource('results', {

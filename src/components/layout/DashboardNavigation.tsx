@@ -425,7 +425,7 @@ export default function DashboardNavigation() {
           // The lane's own steps lead, then the tools that support them. Its last two
           // steps live in later sections where they group with related work:
           // Evidence is "Gradebook & Reports" under Assessment, and Results is
-          // "Results Workspace" under Reports & Analytics.
+          // "Write report cards" under Reports & Analytics.
           { divider: true, label: "Delivery" },
           {
             // Lane B steps 1 and 2 — plan the class, then teach it.
@@ -532,18 +532,18 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Reports & Analytics" },
           {
-            name: "Results Workspace",
-            href: "/dashboard/academic/results",
-            icon: DocumentChartBarIcon,
-          },
-          {
-            name: "Report Builder",
+            name: "Write",
             href: "/dashboard/reports/builder",
             icon: DocumentTextIcon,
           },
           {
-            name: "Publish & Share",
+            name: "Publish",
             href: "/dashboard/results",
+            icon: DocumentChartBarIcon,
+          },
+          {
+            name: "Auto-fill",
+            href: "/dashboard/academic/results",
             icon: DocumentChartBarIcon,
           },
           {
@@ -816,18 +816,18 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Reports" },
           {
-            name: "Results Workspace",
-            href: "/dashboard/academic/results",
-            icon: DocumentChartBarIcon,
-          },
-          {
-            name: "Report Builder",
+            name: "Write",
             href: "/dashboard/reports/builder",
             icon: DocumentTextIcon,
           },
           {
-            name: "Publish & Share",
+            name: "Publish",
             href: "/dashboard/results",
+            icon: DocumentChartBarIcon,
+          },
+          {
+            name: "Auto-fill",
+            href: "/dashboard/academic/results",
             icon: DocumentChartBarIcon,
           },
           {
@@ -1266,7 +1266,7 @@ export default function DashboardNavigation() {
   const bottomNavByRole: Record<string, string[]> = {
     student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
     school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
-    admin: ["Dashboard", "Office Center", "Records", "Results Workspace"],
+    admin: ["Dashboard", "Office Center", "Records", "Write"],
     teacher: ["Dashboard", "My Classes", "Grading Queue", "Curriculum"],
     parent: ["Dashboard", "My Children", "Report Cards", "Finance Center"],
   };
@@ -1471,7 +1471,7 @@ export default function DashboardNavigation() {
           const shortName =
             name === "My Classes"
               ? "Classes"
-              : name === "Report Cards" || name === "Results Workspace"
+              : name === "Report Cards" || name === "Write"
                 ? "Reports"
                 : name === "Learning Center"
                   ? "Learn"

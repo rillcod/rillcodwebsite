@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveProgressReportResult,
+  hasRecordedProgressReportScores,
+  isLockedLearnerResult,
   progressReportScoreComponents,
   touchesProgressReportScores,
 } from './score';
@@ -37,5 +39,14 @@ describe('progress report score adapter', () => {
     expect(touchesProgressReportScores({ theory_score: 70 })).toBe(true);
     expect(touchesProgressReportScores({ engagement_metrics: {} })).toBe(true);
     expect(touchesProgressReportScores({ key_strengths: 'Clear reasoning' })).toBe(false);
+  });
+
+  it('treats typed and published rows as locked, but not unpublished automatic drafts', () => {
+    expect(hasRecordedProgressReportScores({ theory_score: 80 })).toBe(true);
+    expect(hasRecordedProgressReportScores({ theory_score: 0, practical_score: 0 })).toBe(false);
+    expect(isLockedLearnerResult({ is_published: true, calculation_mode: 'automatic', theory_score: 80 })).toBe(true);
+    expect(isLockedLearnerResult({ is_published: false, calculation_mode: 'manual', theory_score: 80 })).toBe(true);
+    expect(isLockedLearnerResult({ is_published: false, calculation_mode: 'automatic', theory_score: 80 })).toBe(false);
+    expect(isLockedLearnerResult({ is_published: false, theory_score: 80 })).toBe(true);
   });
 });

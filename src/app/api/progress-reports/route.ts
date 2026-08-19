@@ -13,6 +13,7 @@ import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-cours
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
 import { deriveProgressReportResult, PROGRESS_REPORT_SCORE_FIELDS } from '@/lib/reports/score';
+import { findCanonicalProgressReport } from '@/lib/reports/canonical-report';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 
 
@@ -108,6 +109,10 @@ export async function POST(request: NextRequest) {
   updatePayload.updated_at = new Date().toISOString();
   insertPayload.teacher_id = caller.id;
   insertPayload.updated_at = new Date().toISOString();
+  // This route is Write report cards. Stamp typed so Prepare cannot insert a twin
+  // or overwrite the same row from evidence.
+  updatePayload.calculation_mode = 'manual';
+  insertPayload.calculation_mode = 'manual';
 
   const admin = adminClient();
   const allowedSchoolIds =
@@ -239,13 +244,14 @@ export async function POST(request: NextRequest) {
   // didn't pass an existing_id but a matching report exists, update it instead of
   // inserting a duplicate. The DB unique index uq_spr_student_term_course is the backstop.
   if (!targetId && insertPayload.student_id) {
-    let q = admin.from('student_progress_reports').select('id, teacher_id')
-      .eq('student_id', String(insertPayload.student_id));
-    q = insertPayload.course_name ? q.ilike('course_name', String(insertPayload.course_name)) : q;
-    q = insertPayload.report_term ? q.eq('report_term', String(insertPayload.report_term)) : q.is('report_term', null);
-    q = insertPayload.report_period ? q.eq('report_period', String(insertPayload.report_period)) : q.is('report_period', null);
-    const { data: found } = await q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    if (found) targetId = (found as { id: string }).id;
+    const found = await findCanonicalProgressReport(admin as any, {
+      studentId: String(insertPayload.student_id),
+      courseId: insertPayload.course_id ? String(insertPayload.course_id) : null,
+      courseName: insertPayload.course_name ? String(insertPayload.course_name) : null,
+      reportTerm: insertPayload.report_term ? String(insertPayload.report_term) : null,
+      reportPeriod: insertPayload.report_period ? String(insertPayload.report_period) : null,
+    });
+    if (found) targetId = found.id;
   }
 
   // If existing_id points at a DIFFERENT session identity, never rewrite it in place.

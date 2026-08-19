@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
+import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -101,8 +102,15 @@ export async function POST(req: NextRequest) {
 
   if (body.action === 'recalculate') {
     const reportId = typeof body.report_id === 'string' ? body.report_id : '';
-    const { data: report } = await db.from('student_progress_reports').select('id,class_id').eq('id', reportId).maybeSingle();
+    const { data: report } = await db.from('student_progress_reports')
+      .select('id,class_id,calculation_mode,is_published')
+      .eq('id', reportId).maybeSingle();
     if (!report) return NextResponse.json({ error: 'Result record not found' }, { status: 404 });
+    if (report.is_published || report.calculation_mode === 'manual') {
+      return NextResponse.json({
+        error: 'Published and typed scores stay as they are. Refresh only unpublished Auto-fill drafts.',
+      }, { status: 409 });
+    }
     if (user.role === 'teacher') {
       const { data: klass } = await db.from('classes').select('teacher_id').eq('id', report.class_id).maybeSingle();
       if (klass?.teacher_id !== user.id) return NextResponse.json({ error: 'This result belongs to another class.' }, { status: 403 });
@@ -116,7 +124,7 @@ export async function POST(req: NextRequest) {
       actorId: user.id,
       resourceType: 'student_progress_report',
       resourceId: reportId,
-      newValue: 'Recalculated from current academic evidence and evaluated academic QA',
+      newValue: 'Refreshed scores from current class work',
       newValues: { calculation, academic_quality: quality },
     });
     return NextResponse.json({ data: { report_id: reportId, calculation, academic_quality: quality } });
@@ -134,8 +142,8 @@ export async function POST(req: NextRequest) {
   ]);
   if (!klass || !student || !course) return NextResponse.json({ error: 'The learner, class or course could not be found.' }, { status: 404 });
   if (student.class_id !== klass.id) return NextResponse.json({ error: 'This learner is not in the selected class or cohort.' }, { status: 400 });
-  if (user.role === 'teacher' && klass.teacher_id !== user.id) return NextResponse.json({ error: 'You can only prepare results for your assigned class.' }, { status: 403 });
-  if (!klass.academic_offering_id || !klass.offering_period_id) return NextResponse.json({ error: 'Choose the class academic pathway and reporting period first.' }, { status: 409 });
+  if (user.role === 'teacher' && klass.teacher_id !== user.id) return NextResponse.json({ error: 'You can only auto-fill reports for your assigned class.' }, { status: 403 });
+  if (!klass.academic_offering_id || !klass.offering_period_id) return NextResponse.json({ error: 'Set the class programme and reporting period first.' }, { status: 409 });
   const offering = one<any>(klass.academic_offerings);
   const studentEnrollmentType = student.enrollment_type
     ? normalizeEnrollmentType(student.enrollment_type)
@@ -145,7 +153,7 @@ export async function POST(req: NextRequest) {
     : null;
   if (!studentEnrollmentType || !offeringEnrollmentType || studentEnrollmentType !== offeringEnrollmentType) {
     return NextResponse.json({
-      error: 'The learner enrollment type does not match this class pathway. Correct the enrollment or class placement before preparing a result.',
+      error: 'This learner is not placed on this class programme. Fix placement before auto-fill.',
     }, { status: 409 });
   }
 
@@ -157,7 +165,7 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle();
   if (planError) return NextResponse.json({ error: `The teaching plan could not be checked: ${planError.message}` }, { status: 500 });
-  if (!plan?.curriculum_release_id) return NextResponse.json({ error: 'Assign an official academic direction and teaching plan before preparing this result.' }, { status: 409 });
+  if (!plan?.curriculum_release_id) return NextResponse.json({ error: 'This course needs a teaching plan before auto-fill.' }, { status: 409 });
 
   const period = one<any>(klass.academic_offering_periods);
   const term = one<any>(klass.academic_terms);
@@ -195,15 +203,26 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data: existing } = await db.from('student_progress_reports').select('id,calculation_mode')
-    .eq('student_id', student.id).eq('course_id', course.id)
-    .eq('academic_offering_id', klass.academic_offering_id).eq('offering_period_id', klass.offering_period_id).maybeSingle();
-  if (existing?.calculation_mode === 'manual' && calculationMode !== 'manual') {
-    return NextResponse.json({ error: 'This learner already has a protected manual result for this course and period. It was not changed.' }, { status: 409 });
-  }
-  if (existing?.calculation_mode === 'manual') {
-    return NextResponse.json({ data: { report_id: existing.id, calculation_mode: 'manual',
-      message: 'Protected manual result already exists. No fields were changed.' } });
+  const existing = await findCanonicalProgressReport(db, {
+    studentId: student.id,
+    courseId: course.id,
+    courseName: course.title,
+    reportTerm: payload.report_term,
+    reportPeriod: payload.report_period,
+    academicOfferingId: klass.academic_offering_id,
+    offeringPeriodId: klass.offering_period_id,
+  });
+  if (isReusableLockedResult(existing) && existing) {
+    return NextResponse.json({
+      data: {
+        report_id: existing.id,
+        calculation_mode: existing.calculation_mode,
+        reused: true,
+        message: existing.is_published
+          ? 'This report is already published. Open Publish to view it.'
+          : 'Scores are already typed. Open Write to change them.',
+      },
+    });
   }
 
 
@@ -217,7 +236,7 @@ export async function POST(req: NextRequest) {
       actorId: user.id,
       resourceType: 'student_progress_report',
       resourceId: write.data.id,
-      newValue: `Created protected manual result for ${student.full_name}`,
+      newValue: `Opened typed report for ${student.full_name}`,
       newValues: {
         student_id: student.id,
         class_id: klass.id,
@@ -227,7 +246,7 @@ export async function POST(req: NextRequest) {
         calculation_mode: 'manual',
       },
     });
-    return NextResponse.json({ data: { report_id: write.data.id, calculation_mode: 'manual', message: 'Manual result created. Entered marks will not be overwritten.' } }, { status: existing ? 200 : 201 });
+    return NextResponse.json({ data: { report_id: write.data.id, calculation_mode: 'manual', message: 'Opened in Write. Auto-fill will not change these scores.' } }, { status: existing ? 200 : 201 });
   }
   const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
   if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
